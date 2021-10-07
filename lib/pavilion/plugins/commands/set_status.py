@@ -4,7 +4,6 @@ errors inside its run script."""
 import errno
 
 from pavilion import commands
-from pavilion import cmd_utils
 from pavilion import output
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRunNotFoundError, TestRunError, TestRun
@@ -32,7 +31,7 @@ class SetStatusCommand(commands.Command):
             help='Note to set for the test, tests, or suite of tests.'
         )
         parser.add_argument(
-            'test', action='store', metavar='<test_id>',
+            'test', action='store', type=int, metavar='<test_id>',
             help='The name of the test to set the status of. If no value is '
                  'provided, the most recent suite submitted by this user is '
                  'used.'
@@ -46,17 +45,16 @@ class SetStatusCommand(commands.Command):
         if args.test == 0:
             return 0
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test], self.errfile)
-
-        if not tests:
+        try:
+            test = TestRun.load(pav_cfg, args.test)
+        except (TestRunError, TestRunNotFoundError) as err:
             output.fprint(
-                "Test {} could not be opened.".format(args.test),
+                "Test {} could not be opened.\n{}".format(args.test, err),
                 color=output.RED,
                 file=self.errfile,
             )
             return errno.EINVAL
 
-        test = tests[0]
         test.status.set(args.state, args.note)
 
         return 0

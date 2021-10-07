@@ -1,5 +1,6 @@
 import copy
 import io
+import os
 import pathlib
 import shutil
 import stat
@@ -10,6 +11,7 @@ import unittest
 from pavilion import plugins
 from pavilion import wget
 from pavilion.status_file import STATES
+from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 
 

@@ -32,11 +32,12 @@ class LogCmdTest(PavTestCase):
         state = test.status.current().state
         end = time.time() + 5
 
-        while not test.complete and time.time() < end:
+        while test.check_run_complete() is None and time.time() < end:
             time.sleep(.1)
 
         # test `pav log run test`
-        args = parser.parse_args(['run', test.full_id])
+        args = parser.parse_args(['run', str(test.id)])
+        self.assertEqual(args.id, str(test.id))
 
         out = io.StringIO()
         err = io.StringIO()
@@ -55,7 +56,7 @@ class LogCmdTest(PavTestCase):
         # note: echo-ing hello world should not require anything to be built
         out.truncate(0)
         err.truncate(0)
-        args = parser.parse_args(['build', test.full_id])
+        args = parser.parse_args(['build', str(test.id)])
         log_cmd.run(self.pav_cfg, args)
         out.seek(0)
         err.seek(0)
@@ -65,7 +66,7 @@ class LogCmdTest(PavTestCase):
         # note: in general, kickoff.log should be an empty file
         out.truncate(0)
         err.truncate(0)
-        args = parser.parse_args(['kickoff', test.full_id])
+        args = parser.parse_args(['kickoff', str(test.id)])
         result = log_cmd.run(self.pav_cfg, args)
         out.seek(0)
         err.seek(0)
@@ -115,10 +116,10 @@ class LogCmdTest(PavTestCase):
         raw.schedule_test(self.pav_cfg, test)
 
         end = time.time() + 5
-        while not test.complete and time.time() < end:
+        while test.check_run_complete() is None and time.time() < end:
             time.sleep(.1)
 
-        args = parser.parse_args(['--tail', '2', 'run', test.full_id])
+        args = parser.parse_args(['--tail', '2', 'run', str(test.id)])
         out.truncate(0)
         err.truncate(0)
         result = log_cmd.run(self.pav_cfg, args)

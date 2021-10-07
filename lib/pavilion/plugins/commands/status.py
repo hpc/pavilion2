@@ -2,12 +2,15 @@
 other commands to print statuses."""
 
 import errno
+from datetime import datetime
 
 from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion import status_utils
+from pavilion.test_run import (
+    TestRun, TestRunError, TestRunNotFoundError)
 
 
 class StatusCommand(commands.Command):
@@ -46,30 +49,29 @@ class StatusCommand(commands.Command):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
+        test_ids = status_utils.get_tests(pav_cfg, args.tests, self.errfile)
+        args.tests = list(map(str, test_ids))
+
         try:
-            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
-                                                      verbose=self.errfile)
+            test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
         except ValueError as err:
             output.fprint(err.args[0], color=output.RED, file=self.errfile)
             return errno.EINVAL
 
-        if args.history:
-            tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
-            if len(tests) != 1:
+        statuses = status_utils.get_statuses(pav_cfg, test_ids)
+
+        if args.summary:
+            return self.print_summary(statuses)
+        elif args.history:
+            if len(test_ids) != 1:
                 output.fprint("'--history' flag requires a single test id, "
                               "got: {}"
-                              .format(len(test_paths)),
+                              .format(test_ids),
                               file=self.errfile,
                               color=output.RED)
                 return 1
-            return status_utils.print_status_history(pav_cfg, tests[-1],
+            return status_utils.print_status_history(pav_cfg, test_ids[-1],
                                                      self.outfile, args.json)
-
-        tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
-
-        statuses = status_utils.get_statuses(pav_cfg, tests)
-        if args.summary:
-            return self.print_summary(statuses)
         else:
             return status_utils.print_status(statuses, self.outfile, args.json)
 

@@ -13,6 +13,7 @@ from pavilion import log_setup
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import plugins
+from pavilion import permissions
 
 try:
     import yc_yaml
@@ -46,7 +47,7 @@ def main():
 
     # Get the config, and
     try:
-        pav_cfg = config.find_pavilion_config()
+        pav_cfg = config.find()
     except Exception as err:
         output.fprint(
             "Error getting config, exiting: {}"
@@ -54,6 +55,35 @@ def main():
             file=sys.stderr,
             color=output.RED)
         sys.exit(-1)
+
+    # Create the basic directories in the working directory and the .pavilion
+    # directory.
+    perm_man = permissions.PermissionsManager(None, pav_cfg['shared_group'],
+                                              pav_cfg['umask'])
+    for path in [
+            config.USER_HOME_PAV,
+            config.USER_HOME_PAV/'working_dir',
+            pav_cfg.working_dir,
+            pav_cfg.working_dir/'builds',
+            pav_cfg.working_dir/'series',
+            pav_cfg.working_dir/'test_runs',
+            pav_cfg.working_dir/'users']:
+        try:
+            path = path.expanduser()
+            path.mkdir(exist_ok=True)
+        except OSError as err:
+            output.fprint(
+                "Could not create base directory '{}': {}"
+                .format(path, err),
+                color=output.RED,
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        
+        try:
+            perm_man.set_perms(path)
+        except OSError:
+            pass
 
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
@@ -106,9 +136,7 @@ def main():
         stats.strip_dirs().sort_stats(args.profile_sort)\
              .print_stats(args.profile_count)
 
-
 def run_cmd(pav_cfg, args):
-    """Run the command specified by the user using the remaining arguments."""
 
     try:
         cmd = commands.get_command(args.command_name)

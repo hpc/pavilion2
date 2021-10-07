@@ -160,9 +160,6 @@ class TestCatElem(yc.CategoryElem):
     type = OrderedDict
 
 
-NO_WORKING_DIR = '<no_working_dir>'
-
-
 class TestConfigLoader(yc.YamlConfigLoader):
     """This class describes a test section in a Pavilion config file. It is
 expected to be added to by various plugins.
@@ -173,18 +170,11 @@ expected to be added to by various plugins.
             'name', hidden=True, default='<unnamed>',
             help_text="The base name of the test. Value added automatically."),
         yc.StrElem(
-            'cfg_label', hidden=True, default='_none',
-            help_text="The configuration label for where this test was defined."),
-        yc.StrElem(
             'suite', hidden=True, default='<no_suite>',
             help_text="The name of the suite. Value added automatically."),
         yc.StrElem(
             'suite_path', hidden=True, default='<no_suite>',
             help_text="Path to the suite file. Value added automatically."),
-        yc.StrElem(
-            'working_dir', hidden=True, default=NO_WORKING_DIR,
-            help_text="The working directory where this test will be built and "
-                      "run. Added automatically."),
         yc.StrElem(
             'host', hidden=True, default='<unknown>',
             help_text="Host (typically sys.sys_name) for which this test was "
@@ -206,10 +196,15 @@ expected to be added to by various plugins.
                       "permuted tests."),
         yc.StrElem(
             'group', default=None,
-            help_text="No longer used."),
-        yc.StrElem(
-            'umask', default=None,
-            help_text="No longer used."),
+            help_text="The group under which to build and run tests. "
+                      "Defaults to the group specified in pavilion.yaml."
+        ),
+        yc.RegexElem(
+            'umask', regex=r'[0-7]{3}', default=None,
+            help_text="The octal umask to apply to files created during the "
+                      "build and run processes. Defaults to the umask in "
+                      "pavilion.yaml."
+        ),
         yc.KeyedElem(
             'maintainer',
             help_text="Information about who maintains this test.",

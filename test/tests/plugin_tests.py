@@ -3,7 +3,6 @@ from pavilion import commands
 from pavilion import config
 from pavilion import module_wrapper
 from pavilion import plugins
-from pavilion import output
 from pavilion.result import parsers
 from pavilion import system_variables
 from pavilion import expression_functions
@@ -54,23 +53,22 @@ class PluginTests(PavTestCase):
         """Make sure command plugin loading is sane."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = self.make_test_config(config_dirs=[
-            self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2'])
+        pav_cfg = config.PavilionConfigLoader().load_empty()
+
+        # We're loading multiple directories of plugins - AT THE SAME TIME!
+        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
+                               self.TEST_DATA_ROOT/'pav_config_dir2']
 
         plugins.initialize_plugins(pav_cfg)
 
         commands.get_command('poof').run(pav_cfg, [])
         commands.get_command('blarg').run(pav_cfg, [])
 
+        # Clean up our plugin initializations.
         plugins._reset_plugins()
 
-    def test_plugin_conflicts(self):
-
-        pav_cfg = self.make_test_config(config_dirs=[
-            self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2',
-            self.TEST_DATA_ROOT / 'pav_config_dir_conflicts'])
+        pav_cfg.config_dirs.append(
+            self.TEST_DATA_ROOT/'pav_config_dir_conflicts')
 
         self.assertRaises(plugins.PluginError,
                           lambda: plugins.initialize_plugins(pav_cfg))
@@ -110,11 +108,11 @@ class PluginTests(PavTestCase):
         """Make sure module wrapper loading is sane too."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = self.make_test_config(config_dirs=[
-            self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2'])
+        pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
+        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
+                               self.TEST_DATA_ROOT/'pav_config_dir2']
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -223,6 +221,7 @@ class PluginTests(PavTestCase):
 
         plugins._reset_plugins()
 
+
     def test_bad_plugins(self):
         """Make sure bad plugins don't kill Pavilion and print appropriate
         errors."""
@@ -238,15 +237,13 @@ class PluginTests(PavTestCase):
         hndlr = logging.StreamHandler(stream)
         yapsy_logger.addHandler(hndlr)
 
-        pav_cfg = self.make_test_config(config_dirs=[
-            self.TEST_DATA_ROOT/'bad_plugins',
-        ])
+        pav_cfg = self.pav_cfg.copy()
+        cfg_dirs = list(pav_cfg.config_dirs)
+        cfg_dirs.append(self.TEST_DATA_ROOT/'bad_plugins')
+        pav_cfg.config_dirs = cfg_dirs
 
         # A bunch of plugins should fail to load, but this should be fine
         # anyway.
-        output.fprint("The following error message is expected; We're testing "
-                      "that such errors are caught and printed rather than "
-                      "crashing pavilion.", color=output.BLUE)
         plugins.initialize_plugins(pav_cfg)
 
         yapsy_logger.removeHandler(hndlr)

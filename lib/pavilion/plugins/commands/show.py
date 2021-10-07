@@ -342,6 +342,7 @@ class ShowCommand(commands.Command):
             help='Display any errors encountered.'
         )
 
+
     def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command."""
 
@@ -361,10 +362,12 @@ class ShowCommand(commands.Command):
     def _config_dirs_cmd(self, pav_cfg, _):
         """List the configuration directories."""
 
+        rows = [{'path': path} for path in pav_cfg.config_dirs]
+
         output.draw_table(
             self.outfile,
-            fields=['label', 'path', 'working_dir'],
-            rows=pav_cfg.configs.values(),
+            fields=['path'],
+            rows=rows,
             title="Config directories by priority."
         )
 
@@ -398,7 +401,7 @@ class ShowCommand(commands.Command):
         """Show the variables of a config, each variable is displayed as a
         table."""
 
-        _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
+        file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
         with file.open() as config_file:
             cfg = file_format.TestConfigLoader().load(config_file)
 
@@ -501,7 +504,8 @@ class ShowCommand(commands.Command):
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
         """Show the full config of a given host/mode."""
 
-        _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
+        file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type,
+                                                                cfg_name)
         config_data = None
         if file is not None:
             with file.open() as config_file:

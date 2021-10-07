@@ -9,8 +9,9 @@ from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
 from pavilion.commands import sub_cmd
-from pavilion.series.info import SeriesInfo, series_info_transform
-from pavilion.series import TestSeriesError, list_series_tests
+from pavilion.series import TestSeries
+from pavilion.series_util import SeriesInfo, TestSeriesError, \
+    series_info_transform, list_series_tests
 from pavilion.test_run import TestAttributes, test_run_attr_transform
 
 
@@ -235,7 +236,7 @@ class ListCommand(commands.Command):
             user=args.user,
         )
 
-        order_func, ascending = filters.get_sort_opts(args.sort_by, "TEST")
+        order_func, ascending = filters.get_sort_opts(ßargs.sort_by, "TEST")
 
         if args.series:
             picked_runs = []

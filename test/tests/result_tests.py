@@ -1,5 +1,3 @@
-"""Test Result gathering"""
-
 import copy
 import datetime
 import json
@@ -12,7 +10,6 @@ import pavilion.result.common
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
-from pavilion import config
 from pavilion import plugins
 from pavilion import result
 from pavilion import utils
@@ -33,12 +30,11 @@ class ResultParserTests(PavTestCase):
         self.maxDiff = None
 
     def setUp(self):
-        """This has to run before any command plugins are loaded."""
+        # This has to run before any command plugins are loaded.
         arguments.get_parser()
         plugins.initialize_plugins(self.pav_cfg)
 
     def tearDown(self):
-        """Reset all plugins."""
         plugins._reset_plugins()
 
     def test_parse_results(self):
@@ -544,7 +540,7 @@ class ResultParserTests(PavTestCase):
             with self.assertRaises(pavilion.result.common.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
 
-    def test_result_command(self):
+    def test_result_cmd(self):
         """Make sure the result command works as expected, including the
         re-run option."""
 
@@ -553,19 +549,14 @@ class ResultParserTests(PavTestCase):
         run_cmd = commands.get_command('run')  # type: run.RunCommand
         run_cmd.silence()
 
-        # We need to alter the config path for these, but those paths need
-        # to be processed first.
-        tmp_cfg = config.make_config({
-            'config_dirs': [
-                self.PAV_LIB_DIR,
-                self.PAV_ROOT_DIR/'test/data/configs-rerun',
-            ]})
         rerun_cfg = self.pav_cfg.copy()
-        rerun_cfg['configs'] = tmp_cfg['configs']
-        rerun_cfg['config_dirs'] = tmp_cfg['config_dirs']
+        rerun_cfg['config_dirs'] = [
+            self.PAV_LIB_DIR,
+            self.PAV_ROOT_DIR/'test/data/configs-rerun',
+        ]
 
         arg_parser = arguments.get_parser()
-        run_args = arg_parser.parse_args(['run', '-b', 'result_tests'])
+        run_args = arg_parser.parse_args(['run', 'result_tests'])
         if run_cmd.run(self.pav_cfg, run_args) != 0:
             cmd_out, cmd_err = run_cmd.clear_output()
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
@@ -574,20 +565,21 @@ class ResultParserTests(PavTestCase):
             test.wait(3)
 
         res_args = arg_parser.parse_args(
-            ('result', '--full') + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result', '--full') + tuple(str(t.id) for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
                       .format(cmd_out, cmd_err))
 
         res_args = arg_parser.parse_args(
-            ('result',) + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result',) + tuple(str(t.id) for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
                       .format(cmd_out, cmd_err))
 
         for test in run_cmd.last_tests:
+            test.wait(1)
             # Each of these tests should have a 'FAIL' as the result.
             self.assertEqual(test.results['result'], TestRun.FAIL)
 
@@ -596,32 +588,30 @@ class ResultParserTests(PavTestCase):
         result_cmd.clear_output()
         res_args = arg_parser.parse_args(
             ('result', '--re-run', '--json') +
-            tuple(t.full_id for t in run_cmd.last_tests))
+            tuple(str(t.id) for t in run_cmd.last_tests))
         result_cmd.run(rerun_cfg, res_args)
 
         data, err = result_cmd.clear_output()
         results = json.loads(data)
-        results = {res['name']: res for res in results}
 
         basic = results['result_tests.basic']
         per1 = results['result_tests.permuted.1']
         per2 = results['result_tests.permuted.2']
 
-        self.assertEqual(basic['result'], TestRun.PASS,
-                         msg="Test did not produce the expected result.")
+        self.assertEqual(basic['result'], TestRun.PASS)
         self.assertEqual(per1['result'], TestRun.FAIL)
         self.assertEqual(per2['result'], TestRun.PASS)
 
         # Make sure we didn't save any of the changes.
         orig_test = run_cmd.last_tests[0]
-        reloaded_test = TestRun.load(self.pav_cfg, orig_test.working_dir,
-                                     orig_test.id)
+        reloaded_test = TestRun.load(self.pav_cfg, orig_test.id)
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
 
         # Make sure the log argument doesn't blow up.
         res_args = arg_parser.parse_args(
-            ('result', '--show-log') + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result', '--show-log') +
+            tuple(str(t.id) for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
@@ -743,12 +733,12 @@ class ResultParserTests(PavTestCase):
         """Make sure result flattening works as expected, as well as regular
         result output while we're at it."""
 
-        cfg = self._quick_test_cfg()
+        config = self._quick_test_cfg()
 
-        cfg['run']['cmds'] = [
+        config['run']['cmds'] = [
             'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
         ]
-        cfg['result_parse']['regex'] = {
+        config['result_parse']['regex'] = {
             'hello': {
                 'regex':    r'hello \d+',
                 'files':    '*.out',
@@ -756,7 +746,7 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        test = self._quick_test(cfg, name="flatten_results_test1")
+        test = self._quick_test(config, name="flatten_results_test1")
 
         run_result = test.run()
         results = test.gather_results(run_result)
@@ -764,7 +754,7 @@ class ResultParserTests(PavTestCase):
 
         flattened = {}
 
-        test2 = self._quick_test(cfg, name="flatten_results_test2")
+        test2 = self._quick_test(config, name="flatten_results_test2")
         run_result = test2.run()
         results = test2.gather_results(run_result)
         test2._pav_cfg = test2._pav_cfg.copy()

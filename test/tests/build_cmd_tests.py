@@ -43,13 +43,12 @@ class BuildCmdTests(PavTestCase):
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
         build_names = set([b.name for b in builds])
-        self.assertEqual(len(build_names), 5)
+        self.assertEqual(len(build_names), 4)
 
         for test in build_cmd.last_tests:
-            if not test.skipped:
-                self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
-                                 msg='Test {} status: {}'
-                                     .format(test.id, test.status.current()))
+            self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
+                             msg='Test {} status: {}'
+                                 .format(test.id, test.status.current()))
 
     def test_local_builds_only(self):
         """Make sure we can just build multiple simultanious builds on
@@ -75,14 +74,13 @@ class BuildCmdTests(PavTestCase):
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
         build_names = set([b.name for b in builds])
-        # This should be 2 once we stop creating skipped tests.
-        self.assertEqual(len(build_names), 3)
+        self.assertEqual(len(build_names), 2)
 
         for test in build_cmd.last_tests:
-            if not test.skipped:
-                self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
-                                 msg='Test {} status: {}'
-                                 .format(test.id, test.status.current()))
+
+            self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
+                             msg='Test {} status: {}'
+                             .format(test.id, test.status.current()))
 
     def test_rebuilds(self):
         """Make sure rebuilding works as expected."""

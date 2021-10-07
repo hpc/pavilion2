@@ -1,6 +1,5 @@
 """Provides utility functions for deleting Pavilion working_dir files."""
 import shutil
-from functools import partial
 from pathlib import Path
 from typing import List
 
@@ -8,6 +7,7 @@ from pavilion import dir_db
 from pavilion import lockfile
 from pavilion import test_run
 from pavilion import utils
+from pavilion import output
 from pavilion.builder import TestBuilder
 
 
@@ -21,22 +21,21 @@ def delete_tests(id_dir: Path, filter_func, verbose: bool = False):
                          verbose=verbose)
 
 
-def _delete_series_filter(path: Path) -> bool:
-    """True if the series does not have any valid symlinked tests."""
-
-    for test_path in path.iterdir():
-        if (test_path.is_symlink() and
-                test_path.exists() and
-                utils.resolve_path(test_path).exists()):
-            return False
-
-    return True
-
-
 def delete_series(id_dir: Path, verbose: bool = False) -> int:
     """Delete series if all associated tests have been deleted."""
 
-    return dir_db.delete(id_dir, _delete_series_filter, verbose=verbose)
+    def filter_series(path: Path) -> bool:
+        """True if the series does not have any valid symlinked tests."""
+
+        for test_path in path.iterdir():
+            if (test_path.is_symlink() and
+                    test_path.exists() and
+                    utils.resolve_path(test_path).exists()):
+                return False
+
+        return True
+
+    return dir_db.delete(id_dir, filter_series, verbose=verbose)
 
 
 def delete_builds(builds_dir: Path, tests_dir: Path, verbose: bool = False):
@@ -47,11 +46,6 @@ def delete_builds(builds_dir: Path, tests_dir: Path, verbose: bool = False):
     """
 
     return delete_unused(tests_dir, builds_dir, verbose)
-
-
-def _filter_unused_builds(used_build_paths: List[Path], build_path: Path) -> bool:
-    """Return whether a build is not used."""
-    return build_path.name not in used_build_paths
 
 
 def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) \
@@ -68,7 +62,9 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) \
 
     used_build_paths = _get_used_build_paths(tests_dir)
 
-    filter_builds = partial(_filter_unused_builds, used_build_paths)
+    def filter_builds(build_path: Path) -> bool:
+        """Return whether a build is not used."""
+        return build_path.name not in used_build_paths
 
     count = 0
 

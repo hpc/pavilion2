@@ -3,6 +3,7 @@ the list of all known test runs."""
 
 # pylint: disable=too-many-lines
 
+import grp
 import json
 import logging
 import os
@@ -22,9 +23,10 @@ from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
-from pavilion.test_config.file_format import NO_WORKING_DIR
+from pavilion.test_config.file_format import TestConfigError
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -37,7 +39,7 @@ def get_latest_tests(pav_cfg, limit):
 """
 
     test_dir_list = []
-    runs_dir = pav_cfg.working_dir/TestRun.RUN_DIR
+    runs_dir = pav_cfg.working_dir/'test_runs'
     for test_dir in dir_db.select(runs_dir).paths:
         mtime = test_dir.stat().st_mtime
         try:
@@ -56,7 +58,7 @@ class TestRunError(RuntimeError):
     non-recoverable way."""
 
 
-class TestRunNotFoundError(TestRunError):
+class TestRunNotFoundError(RuntimeError):
     """For when we try to find an existing test, but it doesn't exist."""
 
 
@@ -107,24 +109,20 @@ class TestAttributes:
         'suite_path': lambda p: Path(p) if p is not None else None,
     }
 
-    COMPLETE_FN = 'RUN_COMPLETE'
-
-    def __init__(self, path: Path, load=True):
-        """Initialize attributes.
-        :param path: Path to the test directory.
-        :param load: Whether to autoload the attributes.
+    def __init__(self, path: Path, group: str = None, umask: int = None):
+        """
+        :param path:
         """
 
         self.path = path
+        self.group = group
+        self.umask = umask
 
         self._attrs = {}
-
-        self._complete = False
+        self.load_attributes()
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(path.name))
-        if load:
-            self.load_attributes()
 
     ATTR_FILE_NAME = 'attributes'
 
@@ -148,10 +146,11 @@ class TestAttributes:
                     "'%s': %s",
                     key, val, self.id, err.args[0])
 
-        tmp_path = attr_path.with_suffix('.tmp')
-        with tmp_path.open('w') as attr_file:
-            json.dump(attrs, attr_file)
-        tmp_path.rename(attr_path)
+        with PermissionsManager(attr_path, self.group, self.umask):
+            tmp_path = attr_path.with_suffix('.tmp')
+            with tmp_path.open('w') as attr_file:
+                json.dump(attrs, attr_file)
+            tmp_path.rename(attr_path)
 
     def load_attributes(self):
         """Load the attributes from file."""
@@ -160,6 +159,7 @@ class TestAttributes:
 
         attrs = {}
         if not attr_path.exists():
+
             self._attrs = self.load_legacy_attributes()
             return
 
@@ -184,6 +184,10 @@ class TestAttributes:
                     "run '%s': %s",
                     key, val, self.id, err.args[0])
 
+        # A 2.2 attributes file.
+        if 'result' not in attrs:
+            attrs = self.load_legacy_attributes(attrs)
+
         self._attrs = attrs
 
     def load_legacy_attributes(self, initial_attrs=None):
@@ -195,6 +199,7 @@ class TestAttributes:
         attrs = {
             'build_only': None,
             'build_name': None,
+            'complete':   True, # These are so old, just call them done.
             'created':    self.path.stat().st_mtime,
             'finished':   self.path.stat().st_mtime,
             'id':         int(self.path.name),
@@ -230,23 +235,16 @@ class TestAttributes:
         # Replace with items we got from the real attributes file
         attrs.update(initial_attrs)
 
-        # These are so old always consider them complete
-        self._complete = True
-
         return attrs
 
-    LIST_ATTRS_EXCEPTIONS = ['complete']
-
-    @classmethod
-    def list_attrs(cls):
+    @staticmethod
+    def list_attrs():
         """List the available attributes. This always operates on the
         base RunAttributes class, so it won't contain anything from child
         classes."""
 
         attrs = []
         for key, val in TestAttributes.__dict__.items():
-            if key in cls.LIST_ATTRS_EXCEPTIONS:
-                continue
             if isinstance(val, property):
                 attrs.append(key)
         attrs.sort()
@@ -263,8 +261,6 @@ class TestAttributes:
 
             if val is not None or include_empty:
                 attrs[key] = val
-
-        attrs['complete'] = self.complete
 
         return attrs
 
@@ -299,27 +295,16 @@ class TestAttributes:
 
         return attr_prop.__doc__
 
-    @property
-    def complete(self) -> bool:
-        """Returns whether the test is complete."""
-
-        if not self._complete:
-            run_complete_path = self.path / self.COMPLETE_FN
-            # This will force a meta-data update on the directory.
-            list(self.path.iterdir())
-
-            if run_complete_path.exists():
-                self._complete = True
-                return True
-
-        return self._complete
-
     build_only = basic_attr(
         name='build_only',
         doc="Only build this test, never run it.")
     build_name = basic_attr(
         name='build_name',
         doc="The name of the test run's build.")
+    complete = basic_attr(
+        name='complete',
+        doc='Whether the test run considers itself done (regardless of '
+            'whether it ran).')
     created = basic_attr(
         name='created',
         doc="When the test was created.")
@@ -388,12 +373,7 @@ class TestRun(TestAttributes):
     4. Test is run. -- ``test.run()``
     5. Results are gathered. -- ``test.gather_results()``
 
-    :ivar int ~.id: The test id number.
-    :ivar str ~.full_id: The full test id number, including the config label. This
-        may also be a string path to the test itself.
-    :ivar str cfg_label: The config label for the configuration directory that
-        defined this test. This is ephemeral, and may change between Pavilion
-        invocations based on available configurations.
+    :ivar int ~.id: The test id.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.
     :ivar Path suite_path: The path to the test suite file that this test came
@@ -411,96 +391,100 @@ class TestRun(TestAttributes):
     logger = logging.getLogger('pav.TestRun')
 
     JOB_ID_FN = 'job_id'
+    COMPLETE_FN = 'RUN_COMPLETE'
 
-    RUN_DIR = 'test_runs'
-
-    NO_LABEL = '_none'
-
-    def __init__(self, pav_cfg, config, var_man=None, _id=None, rebuild=False,
-                 build_only=False):
+    def __init__(self, pav_cfg, config,
+                 build_tracker=None, var_man=None, _id=None,
+                 rebuild=False, build_only=False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
     :param pav_cfg: The pavilion configuration.
     :param dict config: The test configuration dictionary.
+    :param pavilion.build_tracker.MultiBuildTracker build_tracker: Tracker for
+        watching and managing the status of multiple builds.
+    :param variables.VariableSetManager var_man: The variable set manager for
+        this test.
     :param bool build_only: Only build this test run, do not run it.
     :param bool rebuild: After determining the build name, deprecate it and
         select a new, non-deprecated build.
     :param int _id: The test id of an existing test. (You should be using
         TestRun.load)."""
 
-        self.saved = False
-
-        new_test = _id is None
-
         # Just about every method needs this
         self._pav_cfg = pav_cfg
         self.scheduler = config['scheduler']
 
-        # Get the working dir specific to where this test came from.
-        if config.get('working_dir', NO_WORKING_DIR) == NO_WORKING_DIR:
-            self.working_dir = Path(self._pav_cfg['working_dir'])
-        else:
-            self.working_dir = Path(config['working_dir'])
-
-        self.cfg_label = config.get('cfg_label', self.NO_LABEL)
-
-        tests_path = self.working_dir/self.RUN_DIR
+        # Create the tests directory if it doesn't already exist.
+        tests_path = pav_cfg.working_dir/'test_runs'
 
         self.config = config
+
+        group, umask = self.get_permissions(pav_cfg, config)
+
         self._validate_config()
 
         # Get an id for the test, if we weren't given one.
-        if new_test:
-            # These will be set by save() or on load.
-            id_tmp, run_path = dir_db.create_id_dir(tests_path)
-            super().__init__(path=run_path, load=False)
-            self._variables_path = self.path / 'variables'
-            self.var_man = None
-            self.status = None
-            self.builder = None
-            self.build_name = None
+        if _id is None:
+            id_tmp, run_path = dir_db.create_id_dir(tests_path, group, umask)
+            super().__init__(
+                path=run_path,
+                group=group, umask=umask)
 
             # Set basic attributes
             self.id = id_tmp  # pylint: disable=invalid-name
             self.build_only = build_only
-            self._complete = False
+            self.complete = False
             self.created = time.time()
             self.name = self.make_name(config)
             self.rebuild = rebuild
             self.suite_path = Path(config.get('suite_path', '.'))
             self.user = utils.get_login()
             self.uuid = str(uuid.uuid4())
-
-            if var_man is None:
-                var_man = variables.VariableSetManager()
-            self.var_man = var_man
         else:
             # Load the test info from the given id path.
-            super().__init__(path=dir_db.make_id_path(tests_path, _id))
-            if not self.path.is_dir():
-                raise TestRunNotFoundError(
-                    "No test with id '{}' could be found.".format(self.id))
-
-            self._variables_path = self.path / 'variables'
-            self.status = StatusFile(self.path / 'status')
-
-            try:
-                self.var_man = variables.VariableSetManager.load(self._variables_path)
-            except RuntimeError as err:
-                raise TestRunError(*err.args)
-
-        # If the cfg label is actually something that exists, use it in the
-        # test full_id. Otherwise give the test path.
-        self.full_id = '{}.{}'.format(self.cfg_label, self.id)
-
-        self.sys_name = self.var_man.get('sys_name', '<unknown>')
+            super().__init__(
+                path=dir_db.make_id_path(tests_path, _id),
+                group=group, umask=umask)
+            self.load_attributes()
 
         self.test_version = config.get('test_version')
+
+        if not self.path.is_dir():
+            raise TestRunNotFoundError(
+                "No test with id '{}' could be found.".format(self.id))
 
         # Mark the run to build locally.
         self.build_local = config.get('build', {}) \
                                  .get('on_nodes', 'false').lower() != 'true'
+
+        self._variables_path = self.path / 'variables'
+
+        if _id is None:
+            with PermissionsManager(self.path, self.group, self.umask):
+                self._save_config()
+                if var_man is None:
+                    var_man = variables.VariableSetManager()
+                self.var_man = var_man
+                self.var_man.save(self._variables_path)
+
+            self.sys_name = self.var_man.get('sys_name', '<unknown>')
+        else:
+            try:
+                self.var_man = variables.VariableSetManager.load(
+                    self._variables_path)
+            except RuntimeError as err:
+                raise TestRunError(*err.args)
+
+        # This will be set by the scheduler
+        self._job_id = None
+
+        with PermissionsManager(self.path/'status', self.group, self.umask):
+            # Setup the initial status file.
+            self.status = StatusFile(self.path/'status')
+            if _id is None:
+                self.status.set(STATES.CREATED,
+                                "Test directory and status file created.")
 
         self.run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
@@ -520,49 +504,21 @@ class TestRun(TestAttributes):
         if run_timeout_file is not None:
             self.timeout_file = self.path/run_timeout_file
 
+        build_config = self.config.get('build', {})
+
         self.permute_vars = self._get_permute_vars()
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
-
-        self.run_tmpl_path = self.path/'run.tmpl'
-        self.run_script_path = self.path/'run.sh'
-
-        if not new_test:
-            self.builder = builder.TestBuilder(self._pav_cfg, self,
-                                               build_name=self.build_name)
-            self.build_name = self.builder.name
-
-        # This will be set by the scheduler
-        self._job_id = None
-
-        self._results = None
-
-        self.skip_reasons = self._evaluate_skip_conditions()
-        self.skipped = len(self.skip_reasons) != 0
-
-    def save(self, build_tracker: builder.MultiBuildTracker = None):
-        """Save the test configuration to file and create the builder. This
-        essentially separates out a filesystem operations from creating a test,
-        with the exception of creating the initial id directory. This
-        should generally only be called once, after we create the test and
-        make sure we actually want it."""
-
-        self._save_config()
-        self.var_man.save(self._variables_path)
-        # Setup the initial status file.
-        self.status = StatusFile(self.path/'status')
-        self.status.set(STATES.CREATED,
-                        "Test directory and status file created.")
-
-        self._write_script(
-            'build',
-            path=self.build_script_path,
-            config=self.config.get('build', {}))
+        if _id is None:
+            self._write_script(
+                'build',
+                path=self.build_script_path,
+                config=build_config)
 
         try:
             self.builder = builder.TestBuilder(
-                pav_cfg=self._pav_cfg,
+                pav_cfg=pav_cfg,
                 test=self,
                 mb_tracker=build_tracker,
                 build_name=self.build_name
@@ -574,18 +530,23 @@ class TestRun(TestAttributes):
                 .format(s=self, err=err)
             )
 
-        self._write_script(
-            'run',
-            path=self.run_tmpl_path,
-            config=self.config.get('run', {}))
+        run_config = self.config.get('run', {})
+        self.run_tmpl_path = self.path/'run.tmpl'
+        self.run_script_path = self.path/'run.sh'
 
-        self.save_attributes()
-        self.status.set(STATES.CREATED, "Test directory setup complete.")
+        if _id is None:
+            self._write_script(
+                'run',
+                path=self.run_tmpl_path,
+                config=run_config)
 
-        self.saved = True
+        if _id is None:
+            self.save_attributes()
+            self.status.set(STATES.CREATED, "Test directory setup complete.")
 
-        if self.skipped:
-            self.set_run_complete()
+        self._results = None
+
+        self.skipped = self._get_skipped()  # eval skip.
 
     def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
@@ -597,57 +558,15 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def parse_raw_id(cls, pav_cfg, raw_test_id: str) -> (str, Path, int):
-        """Parse a raw test run id and return the label, working_dir, and id
-        for that test. The test run need not exist, but the label must."""
-
-        parts = raw_test_id.split('.', 1)
-        if not parts:
-            raise TestRunNotFoundError("Blank test run id given")
-        elif len(parts) == 1:
-            cfg_label = pav_cfg.default_label
-            test_id = parts[0]
-        else:
-            cfg_label, test_id = parts
-
-        try:
-            test_id = int(test_id)
-        except ValueError:
-            raise TestRunNotFoundError("Invalid test id with label '{}': '{}'"
-                                       .format(cfg_label, test_id))
-
-        if cfg_label not in pav_cfg.configs:
-            raise TestRunNotFoundError(
-                "Invalid test label: '{}', label not found. Valid labels are {}"
-                .format(cfg_label, tuple(pav_cfg.configs.keys())))
-
-        working_dir = pav_cfg.configs[cfg_label]['working_dir']
-
-        return cfg_label, working_dir, test_id
-
-    @classmethod
-    def load_from_raw_id(cls, pav_cfg, raw_test_id: str) -> 'TestRun':
-        """Load a test given a raw test id string, in the form
-        [label].test_id. The optional label will allow us to look up the config
-        path for the test."""
-
-        cfg_label, working_dir, test_id = cls.parse_raw_id(pav_cfg, raw_test_id)
-
-        return cls.load(pav_cfg, working_dir, test_id, cfg_label=cfg_label)
-
-    @classmethod
-    def load(cls, pav_cfg, working_dir: Path, test_id: int,
-             cfg_label: str = None) -> 'TestRun':
+    def load(cls, pav_cfg, test_id):
         """Load an old TestRun object given a test id.
 
         :param pav_cfg: The pavilion config
-        :param working_dir: The working directory where this test run lives.
         :param int test_id: The test's id number.
-        :param cfg_label: The configuration label for the test.
         :rtype: TestRun
         """
 
-        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id)
+        path = dir_db.make_id_path(pav_cfg.working_dir / 'test_runs', test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -656,14 +575,7 @@ class TestRun(TestAttributes):
 
         config = cls._load_config(path)
 
-        if cfg_label is not None:
-            config['cfg_label'] = cfg_label
-
-        test_run = TestRun(pav_cfg, config, _id=test_id)
-        test_run.saved = True
-        # Force the completion check to ensure that ._complete is populated.
-
-        return test_run
+        return TestRun(pav_cfg, config, _id=test_id)
 
     def _finalize(self):
         """Resolve any remaining deferred variables, and generate the final
@@ -672,10 +584,6 @@ class TestRun(TestAttributes):
         DO NOT USE THIS DIRECTLY - Use the resolver finalize method, which
             will call this.
         """
-
-        if not self.saved:
-            raise RuntimeError("You must call the 'test.save()' method before "
-                               "you can finalize a test. Test: {}".format(self.full_id))
 
         self._save_config()
         # Save our newly updated variables.
@@ -705,9 +613,14 @@ class TestRun(TestAttributes):
                     file_path.unlink()
 
                 # Write file.
-                with file_path.open('w') as file_:
+                with PermissionsManager(file_path, self.group, self.umask), \
+                        file_path.open('w') as file_:
+
                     for line in contents:
                         file_.write("{}\n".format(line))
+
+        if not self.skipped:
+            self.skipped = self._get_skipped()
 
         self.save_attributes()
 
@@ -718,8 +631,48 @@ class TestRun(TestAttributes):
         )
 
     @staticmethod
+    def get_permissions(pav_cfg, config) -> (str, int):
+        """Get the permissions to use on file creation, either from the
+        pav_cfg or test config it that overrides.
+        :returns: A tuple of the group and umask.
+        """
+
+        # If a test access group was given, make sure it exists and the
+        # current user is a member.
+        group = config.get('group', pav_cfg['shared_group'])
+        if group is not None:
+            try:
+                group_data = grp.getgrnam(group)
+                user = utils.get_login()
+                if group != user and user not in group_data.gr_mem:
+                    raise TestConfigError(
+                        "Test specified group '{}', but the current user '{}' "
+                        "is not a member of that group."
+                        .format(group, user))
+            except KeyError as err:
+                raise TestConfigError(
+                    "Test specified group '{}', but that group does not "
+                    "exist on this system. {}"
+                    .format(group, err))
+
+        umask = config.get('umask')
+        if umask is None:
+            umask = pav_cfg['umask']
+        if umask is not None:
+            try:
+                umask = int(umask, 8)
+            except ValueError:
+                raise RuntimeError(
+                    "Invalid umask. This should have been enforced by the "
+                    "by the config format.")
+        else:
+            umask = 0o077
+
+        return group, umask
+
+    @staticmethod
     def make_name(config):
-        """Create the name for the test run given the configuration values."""
+        """Create the name for the build given the configuration values."""
 
         name_parts = [
             config.get('suite', '<unknown>'),
@@ -738,7 +691,7 @@ class TestRun(TestAttributes):
 
         pav_path = self._pav_cfg.pav_root/'bin'/'pav'
 
-        return '{} run {}'.format(pav_path, self.full_id)
+        return '{} run {}'.format(pav_path, self.id)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
@@ -749,7 +702,8 @@ class TestRun(TestAttributes):
         tmp_path = config_path.with_suffix('.tmp')
 
         try:
-            with tmp_path.open('w') as json_file:
+            with PermissionsManager(config_path, self.group, self.umask), \
+                    tmp_path.open('w') as json_file:
                 output.json_dump(self.config, json_file)
                 try:
                     config_path.unlink()
@@ -805,13 +759,9 @@ class TestRun(TestAttributes):
         :returns: True if build successful
         """
 
-        if not self.saved:
-            raise RuntimeError("The .save() method must be called before you "
-                               "can build test '{}'".format(self.full_id))
-
         if self.build_origin_path.exists():
             raise RuntimeError(
-                "Whatever called build() is calling it for a second time. "
+                "Whatever called build() is calling it for a second time."
                 "This should never happen for a given test run ({s.id})."
                 .format(s=self))
 
@@ -821,22 +771,22 @@ class TestRun(TestAttributes):
         if self.builder.build(cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
-            self.build_origin_path.symlink_to(self.builder.path)
+            with PermissionsManager(self.build_origin_path, self.group,
+                                    self.umask):
+                self.build_origin_path.symlink_to(self.builder.path)
 
-            if not self.builder.copy_build(self.build_path):
-                cancel_event.set()
+            with PermissionsManager(self.build_path, self.group, self.umask):
+                if not self.builder.copy_build(self.build_path):
+                    cancel_event.set()
             build_result = True
         else:
-            self.builder.fail_path.rename(self.build_path)
-            for file in utils.flat_walk(self.build_path):
-                file.chmod(file.stat().st_mode | 0o200)
-            build_result = False
+            with PermissionsManager(self.build_path, self.group, self.umask):
+                self.builder.fail_path.rename(self.build_path)
+                for file in utils.flat_walk(self.build_path):
+                    file.chmod(file.stat().st_mode | 0o200)
+                build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
-
-        if self.build_only:
-            self.set_run_complete()
-
         return build_result
 
     def run(self):
@@ -849,10 +799,6 @@ class TestRun(TestAttributes):
             future.
         """
 
-        if not self.saved:
-            raise RuntimeError("You must call the .save() method before running "
-                               "test {}".format(self.full_id))
-
         if self.build_only:
             self.status.set(
                 STATES.RUN_ERROR,
@@ -862,7 +808,8 @@ class TestRun(TestAttributes):
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
 
-        with self.run_log.open('wb') as run_log:
+        with PermissionsManager(self.path, self.group, self.umask), \
+                self.run_log.open('wb') as run_log:
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
@@ -874,7 +821,7 @@ class TestRun(TestAttributes):
                 run_wd = self.build_path.as_posix()
 
             # Run scripts take the test id as a first argument.
-            cmd = [self.run_script_path.as_posix(), self.full_id]
+            cmd = [self.run_script_path.as_posix(), str(self.id)]
             proc = subprocess.Popen(cmd,
                                     cwd=run_wd,
                                     stdout=run_log,
@@ -919,9 +866,8 @@ class TestRun(TestAttributes):
         self.finished = time.time()
         self.save_attributes()
 
-        if ret == 0:
-            self.status.set(STATES.RUN_DONE,
-                            "Test run has completed.")
+        self.status.set(STATES.RUN_DONE,
+                        "Test run has completed.")
 
         return ret
 
@@ -930,22 +876,41 @@ class TestRun(TestAttributes):
     has completed a run, one way or another. This should only be called
     when we're sure their won't be any more status changes."""
 
-        if not self.saved:
-            raise RuntimeError("You must call the .save() method before run {} "
-                               "can be marked complete.".format(self.full_id))
-
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
         complete_path = self.path/self.COMPLETE_FN
         complete_tmp_path = complete_path.with_suffix('.tmp')
-        with complete_tmp_path.open('w') as run_complete:
+        with PermissionsManager(complete_tmp_path, self.group, self.umask), \
+                complete_tmp_path.open('w') as run_complete:
             json.dump(
                 {'complete': time.time()},
                 run_complete)
         complete_tmp_path.rename(complete_path)
 
-        self._complete = True
+        self.complete = True
+        self.save_attributes()
+
+    def check_run_complete(self):
+        """Return the complete time from the run complete file, or None
+        if the test was never marked as complete."""
+
+        run_complete_path = self.path/self.COMPLETE_FN
+        # This will force a meta-data update on the directory.
+        list(self.path.iterdir())
+
+        if run_complete_path.exists():
+            try:
+                with run_complete_path.open() as complete_file:
+                    data = json.load(complete_file)
+                    return data.get('complete')
+            except (OSError, ValueError, json.JSONDecodeError) as err:
+                self.logger.warning(
+                    "Failed to read run complete file for at %s: %s",
+                    run_complete_path.as_posix(), err)
+                return None
+        else:
+            return None
 
     WAIT_INTERVAL = 0.5
 
@@ -962,14 +927,14 @@ class TestRun(TestAttributes):
             timeout = time.time() + timeout
 
         while 1:
-            if self.complete:
+            if self.check_run_complete() is not None:
                 return
 
             time.sleep(self.WAIT_INTERVAL)
 
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
-                                   "complete".format(self.full_id))
+                                   "complete".format(self.id))
 
     def gather_results(self, run_result, regather=False, log_file=None):
         """Process and log the results of the test, including the default set
@@ -985,7 +950,8 @@ of result keys.
                 "test.gather_results can't be run unless the test was run"
                 "(or an attempt was made to run it. "
                 "This occurred for test {s.name}, #{s.id}"
-                .format(s=self))
+                .format(s=self)
+            )
 
         parser_configs = self.config['result_parse']
 
@@ -1060,12 +1026,9 @@ of result keys.
         :param dict results: The results dictionary.
         """
 
-        if not self.saved:
-            raise RuntimeError("You must call the .save() method before saving "
-                               "results for test {}".format(self.full_id))
-
         results_tmp_path = self.results_path.with_suffix('.tmp')
-        with results_tmp_path.open('w') as results_file:
+        with PermissionsManager(results_tmp_path, self.group, self.umask), \
+                results_tmp_path.open('w') as results_file:
             json.dump(results, results_file)
         try:
             self.results_path.unlink()
@@ -1122,7 +1085,7 @@ of result keys.
                 'name': self.name,
                 'sys_name': self.var_man['sys_name'],
                 'created': self.created,
-                'id': self.full_id,
+                'id': self.id,
                 'result': None,
             }
         else:
@@ -1170,32 +1133,14 @@ be set by the scheduler plugin as soon as it's known."""
         path = self.path/self.JOB_ID_FN
 
         try:
-            with path.open('w') as job_id_file:
+            with PermissionsManager(path, self.group, self.umask), \
+                    path.open('w') as job_id_file:
                 job_id_file.write(job_id)
         except (IOError, OSError) as err:
             self.logger.error("Could not write jobid file '%s': %s",
                               path, err)
 
         self._job_id = job_id
-
-    @property
-    def complete_time(self):
-        """Returns the completion time from the completion file."""
-
-        if not self.complete:
-            return None
-
-        run_complete_path = self.path/self.COMPLETE_FN
-
-        try:
-            with run_complete_path.open() as complete_file:
-                data = json.load(complete_file)
-                return data.get('complete')
-        except (OSError, ValueError, json.JSONDecodeError) as err:
-            self.logger.warning(
-                "Failed to read run complete file for at %s: %s",
-                run_complete_path.as_posix(), err)
-            return None
 
     def _write_script(self, stype, path, config):
         """Write a build or run script or template. The formats for each are
@@ -1296,29 +1241,47 @@ be set by the scheduler plugin as soon as it's known."""
         else:
             script.comment('No commands given for this script.')
 
-        script.write(path)
+        with PermissionsManager(path, self.group, self.umask):
+            script.write(path)
 
     def __repr__(self):
-        return "TestRun({s.name}-{s.full_id})".format(s=self)
+        return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_permute_vars(self):
         """Return the permute var values in a dictionary."""
 
         var_names = self.config.get('permute_on', [])
         if var_names:
-            var_dict = self.var_man.as_dict()
+            vars = self.var_man.as_dict()
             return {
-                key: var_dict.get(key) for key in var_names
+                key: vars.get(key) for key in var_names
             }
         else:
             return {}
 
-    def skip(self, reason: str):
-        """Set the test as skipped with the given reason, and save the test
-        attributes."""
+    def _get_skipped(self):
+        """Kicks off assessing if current test is skipped."""
+
+        if self.skipped:
+            return True
+
+        skip_reason_list = self._evaluate_skip_conditions()
+        matches = " ".join(skip_reason_list)
+
+        if len(skip_reason_list) == 0:
+            return False
+        else:
+            self.set_skipped(matches)
+            return True
+
+    def set_skipped(self, reason: str):
+        """Set the test as skipped (and complete).
+        :param reason: Why the test is being skipped.
+        """
+
+        self.status.set(STATES.SKIPPED, reason)
         self.skipped = True
-        self.skip_reasons.append(reason)
-        self.save_attributes()
+        self.set_run_complete()
 
     def _evaluate_skip_conditions(self):
         """Match grabs conditional keys from the config. It checks for
@@ -1333,11 +1296,13 @@ be set by the scheduler plugin as soon as it's known."""
         for key in not_if:
             # Skip any keys that were deferred.
             if variables.DeferredVariable.was_deferred(key):
-                raise TestRunError(
-                    "Skip conditions cannot contained deferred variables. Error"
-                    "with skip condition that uses variable '{}'".format(key))
+                continue
 
             for val in not_if[key]:
+                # Also skip deferred values.
+                if variables.DeferredVariable.was_deferred(val):
+                    continue
+
                 if not val.endswith('$'):
                     val = val + '$'
                 if bool(re.match(val, key)):
@@ -1349,13 +1314,15 @@ be set by the scheduler plugin as soon as it's known."""
         for key in only_if:
             match = False
 
+            if variables.DeferredVariable.was_deferred(key):
+                continue
+
             for val in only_if[key]:
 
                 # We have to assume a match if one of the values is deferred.
-                if variables.DeferredVariable.was_deferred(key):
-                    raise TestRunError(
-                        "Skip conditions cannot contained deferred variables. Error"
-                        "with skip condition that uses variable '{}'".format(key))
+                if variables.DeferredVariable.was_deferred(val):
+                    match = True
+                    break
 
                 if not val.endswith('$'):
                     val = val + '$'
@@ -1384,4 +1351,5 @@ be set by the scheduler plugin as soon as it's known."""
 
         raise TestRunError(
             "Invalid value for {} timeout. Must be a positive int."
-            .format(section))
+            .format(section)
+        )

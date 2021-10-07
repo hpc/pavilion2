@@ -99,13 +99,7 @@ class LoggingTests(PavTestCase):
 
         handler.ERR_OUT = io.StringIO()
 
-        handler.emit(rec)
-        handler.flush()
-
-        if not logfile_path.exists():
-            handler.ERR_OUT.seek(0)
-            self.fail("Error logging: " + handler.ERR_OUT.read())
-
+        handler.handle(rec)
         # Make sure a single log entry actually gets logged.
         self.assertIn(ident, logfile_path.open().read())
 

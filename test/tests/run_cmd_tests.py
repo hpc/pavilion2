@@ -1,10 +1,13 @@
 from pavilion import plugins
 from pavilion import commands
+from pavilion import cmd_utils
+from pavilion import output
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion.plugins.commands.run import RunCommand
 from pavilion.status_file import STATES
 import io
+import sys
 import logging
 
 
@@ -19,6 +22,51 @@ class RunCmdTests(PavTestCase):
 
     def tearDown(self):
         plugins._reset_plugins()
+
+    def test_get_tests(self):
+        """Make sure we can go through the whole process of getting tests.
+            For the most part we're relying on tests of the various components
+            of test_config.setup and the test_obj tests."""
+
+        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                  host='this', test_files=[],
+                                                  tests=['hello_world'],
+                                                  modes=[],
+                                                  overrides={},
+                                                  outfile=sys.stdout
+                                                  )
+
+        tests = cmd_utils.configs_to_tests(
+            pav_cfg=self.pav_cfg,
+            proto_tests=test_configs,
+        )
+
+        # Make sure all the tests are there, under the right schedulers.
+        for test in tests:
+            if test.scheduler == 'raw':
+                self.assertIn(test.name, ['hello_world.hello', 'hello_world.world'])
+            else:
+                self.assertEqual(test.name, 'hello_world.narf')
+
+        tests_file = self.TEST_DATA_ROOT/'run_test_list'
+
+        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                  host='this',
+                                                  test_files=[tests_file],
+                                                  tests=[], modes=[],
+                                                  overrides={},
+                                                  outfile=sys.stdout)
+
+        tests = cmd_utils.configs_to_tests(
+            pav_cfg=self.pav_cfg,
+            proto_tests=test_configs,
+        )
+
+        for test in tests:
+            if test.name == 'hello_world.world':
+                self.assertEqual(test.scheduler, 'raw')
+            else:
+                self.assertEqual(test.scheduler, 'dummy')
 
     def test_run(self):
 
@@ -58,11 +106,9 @@ class RunCmdTests(PavTestCase):
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]
         build_names = set([b.name for b in builds])
-        self.assertEqual(len(build_names), 5)
+        self.assertEqual(len(build_names), 4)
 
         for test in run_cmd.last_tests:
-            if test.skipped:
-                continue
             self.assertEqual(test.results['result'], 'PASS',
                              msg='Test {} status: {}'
                                  .format(test.id, test.status.current()))
@@ -80,7 +126,7 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command(args.command_name)  # type: RunCommand
 
-        self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 22)
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]
@@ -91,7 +137,7 @@ class RunCmdTests(PavTestCase):
         statuses = set(statuses)
         self.assertEqual(statuses, {STATES.ABORTED, STATES.BUILD_FAILED})
 
-        self.assertTrue(all([test.complete for test in
+        self.assertTrue(all([test.check_run_complete() for test in
                              run_cmd.last_tests]))
 
     def test_build_parallel_lots(self):

@@ -1,11 +1,10 @@
-"""Tests for the wait command"""
-
 import argparse
 import io
 
 from pavilion import commands
 from pavilion import plugins
-from pavilion.series.series import TestSeries
+from pavilion.series import TestSeries
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 
 
@@ -20,29 +19,62 @@ class WaitCmdTests(PavTestCase):
     def test_wait_command(self):
         """Test wait command."""
 
-        sleepy_test = self._quick_test_cfg()
-        sleepy_test['run']['cmds'] = ['sleep 1']
+        config1 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                'cmds': ['echo 0'],
+            },
+        })
 
-        tests = [self._quick_test(name='quick2'), self._quick_test(name='quick1'),
-                 self._quick_test(sleepy_test, name='sleepy')]
+        config1['name'] = 'run_test0'
+
+        config2 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['echo 1'],
+            },
+        })
+
+        config2['name'] = 'run_test1'
+
+        config3 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['sleep 1'],
+            },
+        })
+
+        config3['name'] = 'run_test2'
+
+        configs = [config1, config2, config3]
+
+        tests = [self._quick_test(config)
+                 for config in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 
         # Make sure this doesn't explode
-        series = TestSeries(self.pav_cfg, None)
-        for test in tests:
-            series._add_test(test)
-        test_str = " ".join([test.full_id for test in series.tests.values()])
+        suite = TestSeries(self.pav_cfg, tests)
+        test_str = " ".join([str(test) for test in suite.tests])
 
         wait_cmd = commands.get_command('wait')
         wait_cmd.outfile = io.StringIO()
 
         # Testing for individual tests with json output
-        for test in series.tests.values():
+        for test in suite.tests:
             parser = argparse.ArgumentParser()
             wait_cmd._setup_arguments(parser)
-            arg_list = ['-t', '1', test.full_id]
+            arg_list = ['-t', '1', str(test)]
             args = parser.parse_args(arg_list)
             self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
 
@@ -54,10 +86,10 @@ class WaitCmdTests(PavTestCase):
         self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for individual tests with tabular output
-        for test in series.tests.values():
+        for test in suite.tests:
             parser = argparse.ArgumentParser()
             wait_cmd._setup_arguments(parser)
-            arg_list = ['-t', '1', test.full_id]
+            arg_list = ['-t', '1', str(test)]
             args = parser.parse_args(arg_list)
             self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
 

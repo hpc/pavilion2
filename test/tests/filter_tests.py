@@ -61,39 +61,37 @@ class FiltersTest(PavTestCase):
 
         now = time.time()
 
-        # TODO: Dan's changes that enabled multi-process filtering broke this
-        # TODO: functionality. It will be restored in another ticket.
-        #parser = NoExitParser()
-        #filters.add_test_filter_args(
-        #    parser,
-        #    default_overrides={
-        #        'newer_than': now,
-        #        'name': 'foo.*',
-        #    },
-        #    sort_functions={
-        #        'sort_foo': lambda d: 'foo',
-        #        'sort_bar': lambda d: 'bar',
-        #    }
-        #)
+        parser = NoExitParser()
+        filters.add_test_filter_args(
+            parser,
+            default_overrides={
+                'newer_than': now,
+                'name': 'foo.*',
+            },
+            sort_functions={
+                'sort_foo': lambda d: 'foo',
+                'sort_bar': lambda d: 'bar',
+            }
+        )
 
-        #with self.assertRaises(ExitError):
-        #    parser.parse_args(['--sort-by=name'])
+        with self.assertRaises(ExitError):
+            parser.parse_args(['--sort-by=name'])
 
-        #args = parser.parse_args([
-        #    '--passed',
-        #    '--complete',
-        #    '--newer-than=',  # Clearing a default.
-        #    '--older-than=1 week',
-        #    '--sort-by=-sort_foo',
-        #])
+        args = parser.parse_args([
+            '--passed',
+            '--complete',
+            '--newer-than=',  # Clearing a default.
+            '--older-than=1 week',
+            '--sort-by=-sort_foo',
+        ])
 
-        #self.assertTrue(args.passed)
-        #self.assertTrue(args.complete)
-        #self.assertIsNone(args.newer_than)
+        self.assertTrue(args.passed)
+        self.assertTrue(args.complete)
+        self.assertIsNone(args.newer_than)
         # Really we're just testing for a datetime.
-        # self.assertLess(args.older_than,
-        #               now - timedelta(days=6).total_seconds())
-        # self.assertEqual(args.sort_by, '-sort_foo')
+        self.assertLess(args.older_than,
+                        now - timedelta(days=6).total_seconds())
+        self.assertEqual(args.sort_by, '-sort_foo')
 
         common_parser = NoExitParser()
         series_parser = NoExitParser()

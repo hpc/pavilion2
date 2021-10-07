@@ -33,6 +33,10 @@ c:
 d:
     inherits_from: a
 
+e:
+    inherits_from: a
+
 wrong_year:
     run:
         cmds: 'echo hello'
+

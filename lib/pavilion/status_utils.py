@@ -11,8 +11,9 @@ from functools import partial
 from pavilion import commands
 from pavilion import config
 from pavilion import output
-from pavilion import series
 from pavilion import schedulers
+from pavilion import series
+from pavilion import series_util
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
@@ -75,7 +76,7 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
 
     if not tests:
         # Get the last series ran by this user
-        series_id = series.load_user_series_id(pav_cfg)
+        series_id = series_util.load_user_series_id(pav_cfg)
         if series_id is not None:
             tests.append(series_id)
         else:
@@ -89,11 +90,12 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
         # Series start with 's', like 'snake'.
         if test_id.startswith('s'):
             try:
-                test_list.extend(series.TestSeries.load(pav_cfg, test_id).tests)
-            except series.TestSeriesError as err:
+                test_list.extend(series.TestSeries.from_id(pav_cfg,
+                                                           test_id).tests)
+            except series_util.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
-                        .format(test_id, err),
+                    .format(test_id, err),
                     file=errfile,
                     color=output.RED
                 )
@@ -105,19 +107,21 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
     return list(map(int, test_list))
 
 
-def get_status(test: TestRun, pav_conf):
+def get_status(test_id, pav_conf):
     """Return the status of a single test_id.
     Allows the statuses to be queried in parallel with map.
-    :param test: The test id being queried.
+    :param test_id: The test id being queried.
     :param pav_conf: The Pavilion config.
     """
 
     try:
+        test = TestRun.load(pav_conf, test_id)
         test_status = status_from_test_obj(pav_conf, test)
+
     except (TestRunError, TestRunNotFoundError) as err:
         test_status = {
-            'test_id': test.full_id,
-            'name':    test.name,
+            'test_id': test_id,
+            'name':    "",
             'state':   STATES.UNKNOWN,
             'time':    None,
             'note':    "Test not found: {}".format(err)
@@ -126,22 +130,25 @@ def get_status(test: TestRun, pav_conf):
     return test_status
 
 
-def get_statuses(pav_cfg, tests: List[TestRun]):
+def get_statuses(pav_cfg, test_ids, errfile=None):
     """Return the statuses for all given test id's.
     :param pav_cfg: The Pavilion config.
-    :param tests: A list of test ids to load.
+    :param List[str] test_ids: A list of test ids to load.
+    :param errfile: Where to write standard error to.
     """
+
+    test_ids = get_tests(pav_cfg, test_ids, errfile=errfile)
 
     get_this_status = partial(get_status, pav_conf=pav_cfg)
 
     # The TestRun object cannot be pickled in python < 3.7 because
     # it contains threading which causes parallel execution to fail.
     if sys.version_info.minor > 6:
-        ncpu = min(config.NCPU, len(tests))
-        mp_pool = mp.Pool(processes=ncpu)
-        test_statuses = list(mp_pool.map(get_this_status, tests))
+        ncpu = min(config.NCPU, len(test_ids))
+        with mp.Pool(processes=ncpu) as mp_pool:
+            test_statuses = list(mp_pool.map(get_this_status, test_ids))
     else:
-        test_statuses = list(map(get_this_status, tests))
+        test_statuses = list(map(get_this_status, test_ids))
 
     return test_statuses
 
@@ -219,17 +226,18 @@ def status_history_from_test_obj(test: TestRun) -> List[dict]:
     return status_history
 
 
-def print_status_history(pav_cfg: dict, test: TestRun, outfile: TextIO,
+def print_status_history(pav_cfg: dict, test_id: str, outfile: TextIO,
                          json: bool = False):
     """Print the status history for a given test object.
 
     :param pav_cfg: Base pavilion configuration.
-    :param test: Single test object.
+    :param test_id: Single test ID.
     :param outfile: Stream to which the status history should be printed.
     :param json: Whether the output should be a JSON object or not
     :return: 0 for success.
     """
 
+    test = TestRun.load(pav_cfg, int(test_id))
     status_history = status_history_from_test_obj(test)
 
     ret_val = 1

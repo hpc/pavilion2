@@ -2,7 +2,6 @@ import os
 from typing import List
 
 import yc_yaml
-import yaml_config
 from pavilion.test_config.resolver import TestConfigResolver, TestConfigError
 from .file_format import SeriesConfigLoader
 
@@ -29,8 +28,8 @@ The returned data structure looks like: ::
 
     series = {}
 
-    for config in pav_cfg.configs:
-        path = config['path'] / 'series'
+    for conf_dir in pav_cfg.config_dirs:
+        path = conf_dir / 'series'
 
         if not (path.exists() and path.is_dir()):
             continue
@@ -49,7 +48,7 @@ The returned data structure looks like: ::
                         'supersedes': [],
                     }
                 else:
-                    series[series_name]['supersedes'].append(file)
+                    suites[suite_name]['supersedes'].append(file)
 
                 with file.open('r') as series_file:
                     try:
@@ -69,48 +68,35 @@ The returned data structure looks like: ::
     return series
 
 
-def make_config(raw_config: dict):
-    """Initialize a series config given a raw config dict. This is meant for
-    unit testing."""
-
-    loader = SeriesConfigLoader()
-    config = loader.normalize(raw_config)
-    return loader.validate(config)
-
-
-def load_series_config(pav_cfg, series_name: str) -> dict:
-    """Load the series configuration of the given name."""
+def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
+                        cl_host: str) -> dict:
+    """Loads series config and checks that all tests can be loaded with all
+    modes and host (if any). """
 
     series_config_loader = SeriesConfigLoader()
-    resolver = TestConfigResolver(pav_cfg)
-    _, series_file_path = resolver.find_config('series', series_name)
+    test_config_resolver = TestConfigResolver(pav_cfg)
 
+    series_file_path = test_config_resolver.find_config('series',
+                                                        series_name)
     if not series_file_path:
         raise SeriesConfigError('Cannot find series config: {}'.
                                 format(series_name))
 
-    with series_file_path.open() as series_file:
-        try:
-            return series_config_loader.load(series_file)
-        except (ValueError, KeyError, yc_yaml.YAMLError,
-                yaml_config.RequiredError) as err:
-            raise SeriesConfigError("Error loading series '{}': {}")
-
-
-def verify_configs(pav_cfg, series_name: str, host: str = None,
-                   modes: List[str] = None) -> dict:
-    """Loads series config and checks that all tests can be loaded with all
-    modes and host (if any). """
-
-    modes = modes or []
-
-    series_cfg = load_series_config(pav_cfg, series_name)
-    resolver = TestConfigResolver(pav_cfg)
-
     try:
-        for set_name, set_dict in series_cfg['series'].items():
-            all_modes = series_cfg['modes'] + set_dict['modes'] + modes
-            resolver.load(set_dict['tests'], host, all_modes)
+        with series_file_path.open() as series_file:
+            series_cfg = series_config_loader.load(series_file)
+
+            for set_name, set_dict in series_cfg['series'].items():
+                all_modes = series_cfg['modes'] + set_dict['modes'] + cl_modes
+                test_config_resolver.load(
+                    set_dict['tests'],
+                    cl_host,
+                    all_modes,
+                )
+
+            # add modes and host from command line to config
+            series_cfg['modes'].extend(cl_modes)
+            series_cfg['host'] = cl_host
     except AttributeError as err:
         raise SeriesConfigError("Cannot load series. {}".format(err.args[0]))
     except TestConfigError as err:
@@ -121,27 +107,20 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
 
 
 def generate_series_config(
-        host: str = None,
-        modes: List[str] = None,
-        ordered: bool = None,
-        overrides: List[str] = None,
-        repeat: int = None,
-        simultaneous: int = None,
-    ) -> dict:
-    """Generates series config given global series settings. To add test sets,
-    create a series with this config and use the add_test_set_config() method."""
+        tests: List[str], modes: List[str], host: str) -> dict:
+    """Generates series config from test names, host, & modes. """
 
     series_cfg = SeriesConfigLoader().load_empty()
 
-    series_cfg['modes'] = modes or []
+    series_cfg['modes'] = modes
     series_cfg['host'] = host
-    if ordered is not None:
-        series_cfg['ordered'] = ordered
-    if repeat is not None:
-        series_cfg['repeat'] = repeat
-    if simultaneous is not None:
-        series_cfg['simultaneous'] = simultaneous
-    if overrides is not None:
-        series_cfg['overrides'] = overrides
+
+    series_cfg['series']['only_set'] = {
+        'tests': tests,
+        'modes': [],
+        'depends_on': [],
+        'only_if': {},
+        'not_if': {}
+    }
 
     return series_cfg

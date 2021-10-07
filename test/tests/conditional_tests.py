@@ -2,7 +2,6 @@ from pavilion import plugins
 from pavilion import system_variables
 from pavilion import unittest
 from pavilion.test_config import VariableSetManager, resolver
-from pavilion.test_run import TestRunError
 
 
 class conditionalTest(unittest.PavTestCase):
@@ -129,9 +128,73 @@ class conditionalTest(unittest.PavTestCase):
         test_cfg['only_if'] = {'{{dumb_sys_var}}': ['notstupid']}
         test_list.append(test_cfg)
 
+        # Test 3:
+        # Not_if that fails to skip with deferred only_if that skips.
+        test_cfg = base_cfg.copy()
+        test_cfg['not_if'] = {'{{dumb_user}}': ['nivlac', 'notcalvin'],
+                              '{{dumb_os}}': ['blurg']}
+        test_cfg['only_if'] = {'{{dumb_sys_var}}': ['notstupid']}
+        test_list.append(test_cfg)
+
+        # Test 4:
+        # Only_if that fails to skip with deferred not_if that skips.
+        test_cfg = base_cfg.copy()
+        test_cfg['only_if'] = {'{{dumb_user}}': ['nivlac', 'calvin'],
+                               '{{dumb_os}}': ['bieber']}
+        test_cfg['not_if'] = {'{{dumb_sys_var}}': ['stupid']}
+        test_list.append(test_cfg)
+
         # Run through scenario of deferred(no-skip) into skip.
         for test_cfg in test_list:
-            with self.assertRaises(TestRunError,
-                                   msg="Deferred if conditions should no longer be "
-                                       "allowed"):
-                self._quick_test(cfg=test_cfg, finalize=False, build=False)
+            test = self._quick_test(cfg=test_cfg, finalize=False)
+            self.assertFalse(test.skipped, msg="dumb_sys_var should be deferred"
+                                               " with skip not assigned to"
+                                               " the test")
+
+            fin_sys = system_variables.SysVarDict(defer=False, unique=True)
+            fin_var_man = VariableSetManager()
+            fin_var_man.add_var_set('sys', fin_sys)
+            resolver.TestConfigResolver.finalize(test, fin_var_man)
+            self.assertTrue(test.skipped, msg="Now it should skip")
+
+        test_list = []
+        # Test 5:
+        # Not_if with deferred variable that resolves to  no skip.
+        test_cfg = base_cfg.copy()
+        test_cfg['not_if'] = {'{{dumb_sys_var}}': ['notstupid']}
+        test_list.append(test_cfg)
+
+        # Test 6:
+        # Only_if with deferred variable that resolves to no skip.
+        test_cfg = base_cfg.copy()
+        test_cfg['only_if'] = {'{{dumb_sys_var}}': ['stupid']}
+        test_list.append(test_cfg)
+
+        # Test 7:
+        # Not_if and only_if-deferred that fails to skip.
+        test_cfg = base_cfg.copy()
+        test_cfg['not_if'] = {'{{dumb_user}}': ['nivlac', 'notcalvin'],
+                              '{{dumb_os}}': ['blurg']}
+        test_cfg['only_if'] = {'{{dumb_sys_var}}': ['stupid']}
+        test_list.append(test_cfg)
+
+        # Test 8:
+        # Only_if and not_if-deferred that fails to skip.
+        test_cfg = base_cfg.copy()
+        test_cfg['only_if'] = {'{{dumb_user}}': ['nivlac', 'calvin'],
+                               '{{dumb_os}}': ['bieber']}
+        test_cfg['not_if'] = {'{{dumb_sys_var}}': ['notstupid']}
+        test_list.append(test_cfg)
+
+        # Run through scenario of deferred(no-skip) into no skip.
+        for test_cfg in test_list:
+            test = self._quick_test(cfg=test_cfg, finalize=False)
+            self.assertFalse(test.skipped, msg="dumb_sys_var should be deferred"
+                                               " with skip not assigned to"
+                                               " the test.")
+
+            fin_sys = system_variables.SysVarDict(unique=True)
+            fin_var_man = VariableSetManager()
+            fin_var_man.add_var_set('sys', fin_sys)
+            resolver.TestConfigResolver.finalize(test, fin_var_man)
+            self.assertFalse(test.skipped, msg="Test Should NOT skip.")

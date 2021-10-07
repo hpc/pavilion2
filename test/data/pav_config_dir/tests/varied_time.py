@@ -1,2 +1,0 @@
-varied_time:
-
