@@ -304,12 +304,11 @@ class ListCommand(Command):
             avail_fields=list(series_attrs.keys()),
         )
 
-        series_filter = filters.make_series_filter(
-            complete=args.complete,
-            incomplete=args.incomplete,
-            newer_than=args.newer_than,
-            older_than=args.older_than,
-            sys_name=args.sys_name)
+        series_filter = filters.make_series_filter(complete=args.complete,
+                                                   incomplete=args.incomplete,
+                                                   newer_than=args.newer_than,
+                                                   older_than=args.older_than,
+                                                   sys_name=args.sys_name)
 
         series_order, ascending = filters.get_sort_opts(args.sort_by, "SERIES")
 

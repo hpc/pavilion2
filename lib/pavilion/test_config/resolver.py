@@ -370,7 +370,7 @@ class TestConfigResolver:
             self.apply_overrides(test_cfg, overrides)
         except (KeyError, ValueError) as err:
             msg = 'Error applying overrides to test {} from {}: {}' \
-                .format(test_cfg['name'], test_cfg['suite_path'], err)
+                  .format(test_cfg['name'], test_cfg['suite_path'], err)
             raise TestConfigError(msg)
 
         base_var_man = self.build_variable_manager(test_cfg)
@@ -1006,7 +1006,8 @@ class TestConfigResolver:
         disp_key = '.'.join(key)
 
         if key[0] in self.NOT_OVERRIDABLE:
-            raise KeyError("You can't override the '{}' key in a test config")
+            raise KeyError("You can't override the '{}' key in a test config"
+                           .format(key[0]))
 
         key_copy = list(key)
         last_cfg = None

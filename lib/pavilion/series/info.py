@@ -27,15 +27,19 @@ class SeriesInfo:
     def list_attrs(cls):
         """Return a list of available attributes."""
 
-        return [
+        attrs = [
             key for key, val in cls.__dict__.items()
             if isinstance(val, property)
         ]
 
+        return attrs
+
     def attr_dict(self):
         """Return all values as a dict."""
 
-        return {key: getattr(self, key) for key in self.list_attrs()}
+        attr_dict = {key: getattr(self, key) for key in self.list_attrs()}
+        attr_dict['path'] = self.path.as_posix()
+        return attr_dict
 
     @classmethod
     def attr_doc(cls, attr):
@@ -93,9 +97,6 @@ class SeriesInfo:
             return None
 
         return TestAttributes(self._tests[0]).sys_name
-
-def series_info_transform(path):
-    pass
 
 
 def mk_series_info_transform(pav_cfg):
