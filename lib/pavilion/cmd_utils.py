@@ -60,6 +60,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
         if not args.disable_filter:
             test_paths = dir_db.select_from(
+                pav_cfg,
                 paths=test_paths,
                 transform=test_run_attr_transform,
                 filter_func=filter_func,
@@ -75,6 +76,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
         for working_dir in working_dirs:
             matching_tests = dir_db.select(
+                pav_cfg,
                 id_dir=working_dir / 'test_runs',
                 transform=test_run_attr_transform,
                 filter_func=filter_func,

@@ -81,6 +81,8 @@ class TestRun(TestAttributes):
 
     NO_LABEL = '_none'
 
+    STATUS_FN = 'status'
+
     def __init__(self, pav_cfg, config, var_man=None, _id=None, rebuild=False,
                  build_only=False):
         """Create an new TestRun object. If loading an existing test
@@ -152,7 +154,7 @@ class TestRun(TestAttributes):
                     "No test with id '{}' could be found.".format(self.id))
 
             self._variables_path = self.path / 'variables'
-            self.status = TestStatusFile(self.path / 'status')
+            self.status = TestStatusFile(self.path / self.STATUS_FN)
             self.suite_path = self.suite_path
 
             try:
@@ -229,7 +231,7 @@ class TestRun(TestAttributes):
         self._save_config()
         self.var_man.save(self._variables_path)
         # Setup the initial status file.
-        self.status = TestStatusFile(self.path / 'status')
+        self.status = TestStatusFile(self.path / self.STATUS_FN)
         self.status.set(STATES.CREATED,
                         "Test directory and status file created.")
 

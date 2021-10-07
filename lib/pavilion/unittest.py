@@ -74,7 +74,7 @@ base class.
         """Setup the pav_cfg object, and do other initialization required by
         pavilion."""
 
-        self.pav_cfg = self.make_test_config()
+        self.pav_cfg = self.make_pav_config()
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
@@ -83,7 +83,7 @@ base class.
         _ = arguments.get_parser()
         super().__init__(*args, **kwargs)
 
-    def make_test_config(self, config_dirs: List[Path] = None):
+    def make_pav_config(self, config_dirs: List[Path] = None):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
         as the config directory.
         """
@@ -119,8 +119,7 @@ base class.
             config.PavilionConfigLoader().dump(pav_cfg_file,
                                                raw_pav_cfg)
 
-        pav_cfg = config.find_pavilion_config(cfg_path, warn=False)
-
+        pav_cfg = config.find_pavilion_config(target=cfg_path, warn=False)
         pav_cfg.pav_vars = pavilion_variables.PavVars()
 
         return pav_cfg
@@ -418,7 +417,7 @@ The default config is: ::
         while time.time() < end_time:
 
             completed = [is_complete(test)
-                         for test in dir_db.select(runs_dir).paths]
+                         for test in dir_db.select(self.pav_cfg, runs_dir).paths]
 
             if not completed:
                 self.fail("No tests started.")
@@ -431,7 +430,8 @@ The default config is: ::
         else:
             raise TimeoutError(
                 "Waiting on tests: {}"
-                .format(test.name for test in dir_db.select(runs_dir).paths
+                .format(test.name for test in dir_db.select(self.pav_cfg,
+                                                            runs_dir).paths
                         if is_complete(test)))
 
 

@@ -93,6 +93,19 @@ def dir_contains(file, directory):
     return False
 
 
+def owner(path: Path) -> str:
+    """Safely get the owner of a file, even if that user isn't known."""
+
+    try:
+        return path.owner()
+    except KeyError:
+        try:
+            uid = path.stat().st_uid
+        except OSError:
+            uid = 'no_uid'
+        return "<unknown user '{}'>".format(uid)
+
+
 def make_umask_filtered_copystat(umask: int):
     """Create a 'copystat' function that first applies a umask to any permissions."""
 
