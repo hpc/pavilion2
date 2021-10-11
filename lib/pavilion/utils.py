@@ -496,7 +496,7 @@ class IndentedLog:
             file.write(line)
             file.write('\n')
 
-    def extend(self, log: Union['IndentedLog', List[str], str]):
+    def indent(self, log: Union['IndentedLog', List[str], str]):
         """Extend the log with the given lines, indenting them one level."""
 
         if isinstance(log, IndentedLog):

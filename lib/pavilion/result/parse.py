@@ -96,7 +96,7 @@ configured for that test.
     parser_configs = test.config['result_parse']
 
     log("Got result parser configs:")
-    log.extend(pprint.pformat(parser_configs))
+    log.indent(pprint.pformat(parser_configs))
     log("---------------")
 
     # For each file to parse, the list of keys and parsing configurations
@@ -147,7 +147,7 @@ configured for that test.
                         .format(base_glob, key))
 
     log("Found these files for each key.")
-    log.extend(pprint.pformat(dict(file_order)))
+    log.indent(pprint.pformat(dict(file_order)))
 
     # Setup up the argument tuples for mapping to multiple processes.
     file_tuples = [ProcessFileArgs((file, parse_tuples))
@@ -170,7 +170,7 @@ configured for that test.
     for mresult in mapped_results:
         parsed_results, mlog = mresult
 
-        log.extend(mlog)
+        log.indent(mlog)
 
         # Errors are returned under the RESULT_ERRORS key.
         for p_result in parsed_results:
@@ -216,7 +216,7 @@ configured for that test.
 
     results[RESULT_ERRORS].extend(errors)
 
-    base_log.extend(log)
+    base_log.indent(log)
 
 
 class ProcessedKey:
@@ -256,7 +256,7 @@ def process_file(args: Tuple[Path, List[KeySet]]) -> \
 
             # Get the result for a single key and file.
             result, rlog = parse_result(key_set.key, key_set.config, file, parser)
-            log.extend(rlog)
+            log.indent(rlog)
 
             if isinstance(result, ParseErrorMsg):
                 result.path = path
@@ -313,7 +313,7 @@ def parse_result(key: str, parser_cfg: Dict, file: TextIO, parser: ResultParser)
         )
 
         log("Got result '{}' for key '{}'".format(res, key))
-        log.extend(elog)
+        log.indent(elog)
 
         # Add the key information if there was an error.
         if isinstance(res, ParseErrorMsg):

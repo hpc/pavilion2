@@ -61,7 +61,7 @@ def evaluate_results(results: dict, evaluations: Dict[str, str],
         # There was a reference loop.
         raise ResultError(err.args[0])
     finally:
-        base_log.extend(log)
+        base_log.indent(log)
 
 
 def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,

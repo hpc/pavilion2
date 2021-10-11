@@ -707,7 +707,7 @@ of result keys.
         results['return_value'] = run_result
 
         result_log("Base results:")
-        result_log.extend(pprint.pformat(results).split('\n'))
+        result_log.indent(pprint.pformat(results))
 
         if not regather:
             self.status.set(STATES.RESULTS,
