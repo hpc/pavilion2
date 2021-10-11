@@ -695,7 +695,6 @@ class ResultParserTests(PavTestCase):
         test.run()
         results = test.gather_results(0)
 
-        self.assertNotIn('foo', results)
         self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
             "This parser requires that you not set the 'preceded_by' key, as "
             "the default value is the only valid option."
