@@ -12,7 +12,8 @@ import shutil
 import subprocess
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO, List
+from typing import Iterator, Union, TextIO
+from typing import List
 
 
 def str_bool(val):
