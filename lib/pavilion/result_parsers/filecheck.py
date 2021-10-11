@@ -27,6 +27,7 @@ class Filecheck(base_classes.ResultParser):
 
         return super().check_args(**kwargs)
 
+    # pylint: disable=arguments-differ
     def __call__(self, file, filename=None):
         """Simply return True. The file exists if this is called."""
         return True

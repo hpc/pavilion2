@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import tarfile
 import zipfile
+from typing import Union
 
 
 class FixedZipFile(zipfile.ZipFile):
@@ -133,9 +134,13 @@ def extract_tarball(src: pathlib.Path, dest: pathlib.Path, umask: int):
                 .format(src, dest, err))
 
 
-def decompress_file(src: pathlib.Path, dest: pathlib.Path, subtype: str):
+def decompress_file(src: pathlib.Path, dest: pathlib.Path, subtype: str) \
+        -> Union[None, str]:
     """Decompress the given file according to its MIME subtype (gleaned
-    from file magic)."""
+    from file magic).
+
+    :returns: An error message on failure. None otherwise.
+    """
 
     # If it's a compressed file but isn't a tar, extract the
     # file into the build directory.
@@ -152,8 +157,8 @@ def decompress_file(src: pathlib.Path, dest: pathlib.Path, subtype: str):
         return ("Test src file '{}' is a bad tar file."
                 .format(src))
     else:
-        raise ("Unhandled compression type. '{}' for source location {}."
-               .format(subtype, src))
+        return ("Unhandled compression type. '{}' for source location {}."
+                .format(subtype, src))
 
     decomp_fn = src.with_suffix('').name
     decomp_fn = dest / decomp_fn

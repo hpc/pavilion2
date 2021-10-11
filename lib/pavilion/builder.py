@@ -673,7 +673,9 @@ class TestBuilder:
                             "Extracting {} file {} for build {} into the "
                             "build directory."
                             .format(subtype, src_path, dest)))
-                    extract.decompress_file(src_path, dest, subtype)
+                    extract_error = extract.decompress_file(src_path, dest, subtype)
+                    if extract_error is not None:
+                        tracker.fail(extract_error)
             elif category == 'application' and subtype == 'zip':
                 tracker.update(
                     state=STATES.BUILDING,

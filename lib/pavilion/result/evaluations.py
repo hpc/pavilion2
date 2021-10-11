@@ -35,7 +35,7 @@ def check_evaluations(evaluations: Dict[str, str]):
 
 
 def evaluate_results(results: dict, evaluations: Dict[str, str],
-                     log: utils.IndentedLog = None):
+                     base_log: utils.IndentedLog = None):
     """Perform result evaluations using an expression parser. The variables
     in such expressions are pulled from the results data structure, and the
     results are stored there too.
@@ -45,12 +45,10 @@ def evaluate_results(results: dict, evaluations: Dict[str, str],
     :return:
     """
 
-    if log is None:
-        def log(*_, **__):
-            """Drop any log lines."""
+    base_log = base_log or utils.IndentedLog()
+    base_log("Evaluating result evaluations.")
 
-    log.indent = 0
-    log("Evaluating result evaluations.")
+    log = utils.IndentedLog()
 
     if 'result' not in results and 'result' not in evaluations:
         evaluations['result'] = 'return_value == 0'
@@ -62,10 +60,12 @@ def evaluate_results(results: dict, evaluations: Dict[str, str],
     except ValueError as err:
         # There was a reference loop.
         raise ResultError(err.args[0])
+    finally:
+        base_log.extend(log)
 
 
 def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
-                          log: Callable[..., None]) -> None:
+                          log: utils.IndentedLog) -> None:
     """Parse the dictionary of evaluation expressions, given that some of them
     may contain references to each other. Each evaluated value will be stored
     under its corresponding key in the results dict.
@@ -81,7 +81,6 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
 
     unresolved = {}
 
-    log.indent = 1
     for key, expr in eval_dict.items():
         log("Parsing the evaluate expression '{}'".format(expr))
         try:
@@ -100,9 +99,7 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
 
         unresolved[key] = (tree, var_refs, expr)
 
-    log.indent = 0
     log("Resolving evaluations.")
-    log.indent = 1
 
     while unresolved:
         resolved = []
@@ -121,7 +118,6 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
                     # Any value errors should be converted to this error type.
                     raise StringParserError(err.args[0], err.get_context(expr))
                 resolved.append(key)
-                log.indent = 2
                 log("Value resolved to: '{}'".format(results[key]))
 
         if not resolved:
@@ -132,5 +128,4 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
         for key in resolved:
             del unresolved[key]
 
-    log.indent = 0
     log("Finished resolving expressions")

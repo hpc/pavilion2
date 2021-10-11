@@ -112,6 +112,7 @@ class TestSet:
             pass
 
     # This was written by mistake, but may be useful in the future.
+    # pylint: disable=unused-private-member
     def __ordered_split(self) -> List['TestSet']:
         """Split this TestSet into multiple test sets, such that each set depends on
         the last and the tests run in the order given."""

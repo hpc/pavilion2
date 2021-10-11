@@ -19,6 +19,7 @@ class Split(base_classes.ResultParser):
                               "to split by whitespace.")]
         )
 
+    # pylint: disable=arguments-differ
     def __call__(self, file, sep=None):
         """Simply use the split string method to split"""
 

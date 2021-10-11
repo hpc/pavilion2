@@ -28,5 +28,6 @@ class Constant(ResultParser):
             ]
         )
 
+    # pylint: disable=arguments-differ
     def __call__(self, file, const=None):
         return const

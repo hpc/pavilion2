@@ -71,7 +71,7 @@ class KeySet:
 ProcessFileArgs = NewType('ProcessFileArgs', Tuple[Path, List[KeySet]])
 
 
-def parse_results(pav_cfg, test, results: Dict, log: IndentedLog) -> None:
+def parse_results(pav_cfg, test, results: Dict, base_log: IndentedLog) -> None:
     """Parse the results of the given test using all the result parsers
 configured for that test.
 
@@ -86,15 +86,17 @@ configured for that test.
     results for.
 :param results: The dictionary of default result values. This will be
     updated in place.
-:param log: The logging callable from 'result.get_result_logger'.
+:param base_log: The logging callable from 'result.get_result_logger'.
 """
 
-    log("Starting result parsing.")
+    base_log("Starting result parsing.")
+
+    log = IndentedLog()
 
     parser_configs = test.config['result_parse']
 
     log("Got result parser configs:")
-    log(pprint.pformat(parser_configs))
+    log.extend(pprint.pformat(parser_configs))
     log("---------------")
 
     # For each file to parse, the list of keys and parsing configurations
@@ -106,12 +108,14 @@ configured for that test.
     # Action values by key
     actions = {}
 
+    # A list of encountered error messages.
+    errors = []
+
     for parser_name in parser_configs.keys():
         parser = get_plugin(parser_name)
-        defaults = parser_configs[parser_name].get(DEFAULT_KEY, {})
 
         for key, rconf in parser_configs[parser_name].items():
-
+            defaults = parser_configs[parser_name].get(DEFAULT_KEY, {})
             rconf = parser.set_parser_defaults(rconf, defaults)
 
             per_file[key] = rconf['per_file']
@@ -123,46 +127,57 @@ configured for that test.
                     file_glob = '{}/build/{}'.format(test.path, file_glob)
 
                 paths_found = glob.glob(file_glob)
-                # I don't know why this was reversed.
-                #paths_found.reverse()
+                # Globbing returns the paths in a backwards order
+                paths_found.sort()
                 for path in paths_found:
                     path = Path(path)
                     # Only add each key/path once
                     if path not in file_order[key]:
+                        # Track the order in which files are read for each key
                         file_order[key].append(path)
+                        # Add our argument set for this file, so we can process all
+                        # keys for a given file together.
                         file_key_sets[path].append(KeySet(parser_name, key, rconf))
 
                 if not paths_found:
                     log("Setting a non match result for unmatched glob '{}'"
                         .format(file_glob))
-                    results[RESULT_ERRORS].append(
+                    errors.append(
                         "No files found for file glob '{}' under key '{}'"
                         .format(base_glob, key))
 
+    log("Found these files for each key.")
+    log.extend(pprint.pformat(dict(file_order)))
+
+    # Setup up the argument tuples for mapping to multiple processes.
     file_tuples = [ProcessFileArgs((file, parse_tuples))
                    for file, parse_tuples in file_key_sets.items()]
+
     # Start result parsing from each file in a separate thread.
-    max_cpus = min(len(file_key_sets), pav_cfg['max_cpus'])
+    max_cpus = min(len(file_key_sets), pav_cfg['max_cpu'])
     # Don't fork if there's only one file to muck with.
     if max_cpus > 1:
-        with Pool() as pool:
+        log("Processing results with {} processes.".format(max_cpus))
+        with Pool(max_cpus) as pool:
             mapped_results = pool.map(process_file, file_tuples)
     else:
+        log("Processing results in a single process.")
         mapped_results = map(process_file, file_tuples)
-
-    errors = []
 
     # Organize the results by key and file.
     filed_results = defaultdict(lambda: {})
-    ordered_filed_results = defaultdict(lambda: OrderedDict())
-    for result in mapped_results:
-        parsed_results, log = result
+    ordered_filed_results = defaultdict(OrderedDict)
+    for mresult in mapped_results:
+        parsed_results, mlog = mresult
 
-        for key, path, value in parsed_results:
-            if key == RESULT_ERRORS:
-                errors.append(value)
+        log.extend(mlog)
+
+        # Errors are returned under the RESULT_ERRORS key.
+        for p_result in parsed_results:
+            if p_result.key == RESULT_ERRORS:
+                errors.append(p_result.value)
             else:
-                filed_results[key][path] = value
+                filed_results[p_result.key][p_result.path] = p_result.value
 
     # Generate the dict of filed results, this time in the order the files were given.
     for key in file_order:
@@ -170,88 +185,108 @@ configured for that test.
             if key in filed_results and path in filed_results[key]:
                 ordered_filed_results[key][path] = filed_results[key][path]
 
+    # Transform the results for each key according to the per-file and action
+    # options.
     for key, per_file_name in per_file.items():
         per_file_func = PER_FILES[per_file_name]  # type: per_first
-
+        action_name = actions[key]
         presults = ordered_filed_results[key]
 
         try:
-            errors = per_file_func(
+            log("Applying per-file option '{}' and action '{}' to key '{}'."
+                .format(per_file_name, action_name, key))
+            # Call the per-file function (which will also call the action function)
+            per_file_errors = per_file_func(
                 results=results,
                 key=key,
                 file_vals=presults,
-                action=ACTIONS[actions[key]]
+                action=ACTIONS[action_name]
             )
 
-            for error in errors:
-                results[RESULT_ERRORS].append(error)
+            for error in per_file_errors:
+                errors.append(error)
                 log(error)
 
-            log("Processed results from key {} with per_file setting {} "
-                "and action {}.".format(key, per_file_name, action_name))
-
         except ResultError as err:
-            msg = (
-                "Error handling results with per_file and action options.\n{}"
-                    .format(err.args[0]))
+            msg = ("Error handling results with per_file and action options.\n{}"
+                   .format(err.args[0]))
 
+            errors.append(msg)
             log(msg)
-            return ParseErrorMsg(parser, msg, key, file=globs)
 
-        return None
+    results[RESULT_ERRORS].extend(errors)
 
-
-
+    base_log.extend(log)
 
 
-def process_file(args: Tuple[Path, List[Tuple[str, str, dict]]]) -> \
-        (List[(str, Path, Any)], List[str]):
-    """asdf"""
-    path, parse_tuples = args
+class ProcessedKey:
+    """A processed key result for a given file."""
+    def __init__(self, key: str, path: Path, value: Any):
+        self.key = key
+        self.path = path
+        self.value = value
+
+
+def process_file(args: Tuple[Path, List[KeySet]]) -> \
+        Tuple[List[ProcessedKey], IndentedLog]:
+    """Given a file and list of Key/Parser items, parse the file for each
+    key. Returns the list of results as a (key, file, value) tuple, and the log data."""
+    path, key_sets = args
 
     log = IndentedLog()
 
     file_results = []
 
+    log("Parsing each key for file {}".format(path.as_posix()))
+
     with path.open() as file:
         # If we have to go through the file more than once, just read the whole thing
-        # into memory.
-        if len(parse_tuples) > 1:
+        #  memory.
+        if len(key_sets) > 1:
+            log("Reading entire file for in-memory processing.")
             file = StringIO(file.read())
 
-        for parser_name, key, rconf in parse_tuples:
-            parser = get_plugin(parser_name)
+        for key_set in key_sets:
+            parser = get_plugin(key_set.parser_name)
+
+            log("Parsing results for key '{}'".format(key_set.key))
 
             # Seek to the beginning of the file for each parse action.
             file.seek(0)
 
             # Get the result for a single key and file.
-            result = parse_result(key, rconf, file, parser, log)
+            result, rlog = parse_result(key_set.key, key_set.config, file, parser)
+            log.extend(rlog)
 
             if isinstance(result, ParseErrorMsg):
                 result.path = path
-                file_results.append((RESULT_ERRORS, path, str(result)))
+                file_results.append(ProcessedKey(RESULT_ERRORS, path, str(result)))
+                # Add a None/NULL result for the key on an error.
+                file_results.append(ProcessedKey(key_set.key, path, None))
             else:
-                file_results.append((key, path, result))
+                file_results.append(ProcessedKey(key_set.key, path, result))
 
     return file_results, log
 
 
-def parse_result(key: str, parser_cfg: Dict, file: TextIO,
-                 parser: ResultParser, log: IndentedLog) \
-        -> Union[ParseErrorMsg, str]:
+def parse_result(key: str, parser_cfg: Dict, file: TextIO, parser: ResultParser) \
+        -> Tuple[Union[ParseErrorMsg, str], IndentedLog]:
     """Use a result parser and it's settings to parse a single value from a file.
 
     :param key: The key we're parsing.
     :param parser_cfg: The parser config dict.
     :param file: The file from which to extract the result.
     :param parser: The result parser plugin object.
-    :param log: The result log callback.
     :returns: The parsed value
     """
 
+    log = IndentedLog()
+
     # Grab these for local use.
     action_name = parser_cfg['action']
+    if key == 'result' and action_name not in (ACTION_FALSE, ACTION_TRUE):
+        parser_cfg['action'] = ACTION_TRUE
+        log("Forcing action to '{}' for the 'result' key.")
 
     match_idx = MATCH_CHOICES.get(parser_cfg['match_select'],
                                   parser_cfg['match_select'])
@@ -262,56 +297,53 @@ def parse_result(key: str, parser_cfg: Dict, file: TextIO,
     match_cond_rex = [re.compile(cond) for cond in parser_cfg['preceded_by']]
     match_cond_rex.append(re.compile(parser_cfg['for_lines_matching']))
 
-    # The result key is always true/false. It's ACTION_TRUE by
-    # default.
-    if key == 'result' and action_name not in (ACTION_FALSE, ACTION_TRUE):
-        action_name = ACTION_TRUE
-        log("Forcing action to '{}' for the 'result' key.")
-
+    # Check the arguments and remove any that aren't specific to this result
+    # parser.
     try:
-        parser_args = parser.check_args(**parser_cfg.copy())
+        stripped_cfg = parser.check_args(**parser_cfg.copy())
     except ResultError as err:
-        return ParseErrorMsg(parser, err.args[0], key)
-
-    log("Results will be stored with action '{}'".format(action_name))
-    log.indent = 3
+        return ParseErrorMsg(parser, err.args[0], key), log
 
     try:
-        res = extract_result(
+        res, elog = extract_result(
             file=file,
-            parser=parser, parser_args=parser_args,
+            parser=parser, parser_args=stripped_cfg,
             pos_regexes=match_cond_rex,
             match_idx=match_idx,
-            log=log,
         )
+
+        log("Got result '{}' for key '{}'".format(res, key))
+        log.extend(elog)
 
         # Add the key information if there was an error.
         if isinstance(res, ParseErrorMsg):
             res.key = key
 
-        return res
+        return res, log
     except OSError as err:
         msg = "Error reading file: {}".format(err)
         log(msg)
-        return ParseErrorMsg(parser, msg, key)
+        return ParseErrorMsg(parser, msg, key), log
     except Exception as err:  # pylint: disable=W0703
         msg = "UnexpectedError: {}".format(err)
         log(msg)
-        return ParseErrorMsg(parser, msg, key)
+        return ParseErrorMsg(parser, msg, key), log
 
 
 def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
                    match_idx: Union[int, None],
-                   pos_regexes: List[Pattern],
-                   log: IndentedLog) -> Any:
+                   pos_regexes: List[Pattern]) -> Tuple[Any, IndentedLog]:
     """Parse a result from a result file.
 
     :return: A list of all matching results found. Will be cut short if
         we only need the first result.
     """
 
+    log = IndentedLog()
+
     matches = []
 
+    # Find the next position that matches our position regexes.
     next_pos = advance_file(file, pos_regexes)
 
     while next_pos is not None:
@@ -319,34 +351,36 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
             log("Found potential match at pos {} in file."
                 .format(file.tell()))
         try:
+            # Apply to the parser to that file starting on that line.
             res = parser(file, **parser_args)
-        except Exception as exc:
+        except (ValueError, LookupError, OSError) as exc:
             log("Error calling result parser {}.".format(parser.name))
             log(traceback.format_exc(exc))
             return ParseErrorMsg(parser, "Exception when calling result parser. "
-                                         "See result log for full error.")
+                                         "See result log for full error."), log
 
         file.seek(next_pos)
 
         if res is not None:
-
             matches.append(res)
             log("Parser extracted result '{}'".format(res))
 
+        # Stop extracting when we get to the asked for match index.
         if match_idx is not None and 0 <= match_idx < len(matches):
+            log("Got needed number of results, ending search.")
             break
 
         next_pos = advance_file(file, pos_regexes)
 
     if match_idx is None:
-        return matches
+        return matches, log
     else:
         try:
-            return matches[match_idx]
+            return matches[match_idx], log
         except IndexError:
             log("Match select index '{}' out of range. There were only {} "
                 "matches.".format(match_idx, len(matches)))
-            return None
+            return None, log
 
 
 def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:

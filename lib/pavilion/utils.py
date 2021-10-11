@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, List
+from typing import Iterator, Union, TextIO, List
 
 
 def str_bool(val):
@@ -488,16 +488,26 @@ class IndentedLog:
 
         self.lines.append(msg)
 
-    def save(self, path: Path):
+    def save(self, file: TextIO):
         """Save the log to the given path."""
 
-        with path.open('w') as file:
-            for line in self.lines:
-                file.write(line)
-                file.write('\n')
+        for line in self.lines:
+            file.write(line)
+            file.write('\n')
 
-    def extend(self, lines: List[str]):
+    def extend(self, log: Union['IndentedLog', List[str], str]):
         """Extend the log with the given lines, indenting them one level."""
 
+        if isinstance(log, IndentedLog):
+            lines = log.lines
+        elif isinstance(log, list):
+            lines = log
+        elif isinstance(log, str):
+            lines = log.split('\n')
+        else:
+            raise TypeError("The 'log' argument must be a string, list of strings, or "
+                            "an IndentedLog object.")
+
         for line in lines:
-            self.lines.append(self.INDENT + line)
+            for part in line.split('\n'):
+                self.lines.append(self.INDENT + part)
