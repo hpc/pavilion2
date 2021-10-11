@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import NewType, Tuple
+from typing import NewType, Tuple, TextIO
 
 import pavilion.result.common
 from pavilion import builder
@@ -680,7 +680,8 @@ class TestRun(TestAttributes):
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.full_id))
 
-    def gather_results(self, run_result, regather=False, log_file=None):
+    def gather_results(self, run_result: int, regather: bool = False,
+                       log_file: TextIO = None):
         """Process and log the results of the test, including the default set
 of result keys.
 
@@ -698,7 +699,7 @@ of result keys.
 
         parser_configs = self.config['result_parse']
 
-        result_log = utils.IndentedLog(log_file)
+        result_log = utils.IndentedLog()
 
         result_log("Gathering base results.")
         results = result.base_results(self)
@@ -706,8 +707,7 @@ of result keys.
         results['return_value'] = run_result
 
         result_log("Base results:")
-        result_log.indent = 1
-        result_log(pprint.pformat(results))
+        result_log.indent(pprint.pformat(results))
 
         if not regather:
             self.status.set(STATES.RESULTS,
@@ -715,7 +715,7 @@ of result keys.
                             .format(len(parser_configs)))
 
         try:
-            result.parse_results(self, results, log=result_log)
+            result.parse_results(self._pav_cfg, self, results, base_log=result_log)
         except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
@@ -755,10 +755,12 @@ of result keys.
         result_log("See results.json for the final result json.")
 
         result_log("Removing temporary values.")
-        result_log.indent = 1
         result.remove_temp_results(results, result_log)
 
         self._results = results
+
+        if log_file is not None:
+            result_log.save(log_file)
 
         return results
 

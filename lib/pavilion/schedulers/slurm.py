@@ -806,10 +806,10 @@ class Slurm(SchedulerPlugin):
 
         return ret == 0
 
-    def _schedule(self, test, kickoff_path):
+    def _schedule(self, test_obj, kickoff_path):
         """Submit the kick off script using sbatch.
 
-        :param TestRun test: The TestRun we're kicking off.
+        :param TestRun test_obj: The TestRun we're kicking off.
         :param Path kickoff_path: The kickoff script path.
         """
 
@@ -817,7 +817,7 @@ class Slurm(SchedulerPlugin):
             raise SchedulerPluginError(
                 'Submission script {} not found'.format(kickoff_path))
 
-        slurm_out = test.path/'slurm.log'
+        slurm_out = test_obj.path / 'slurm.log'
 
         proc = subprocess.Popen(['sbatch',
                                  '--output={}'.format(slurm_out),

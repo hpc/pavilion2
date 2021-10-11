@@ -83,6 +83,7 @@ class Table(ResultParser):
 
     NON_WORD_RE = re.compile(r'\W')
 
+    # pylint: disable=arguments-differ
     def __call__(self, file, delimiter_re=None,
                  col_names=None, by_column=True,
                  table_end_re=None, has_row_labels=False,

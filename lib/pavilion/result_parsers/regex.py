@@ -50,6 +50,7 @@ class Regex(ResultParser):
 
         return kwargs
 
+    # pylint: disable=arguments-differ
     def __call__(self, file, regex=None):
 
         cregex = re.compile(regex)

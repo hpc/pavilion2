@@ -42,6 +42,7 @@ class Command(base_classes.ResultParser):
             }
         )
 
+    # pylint: disable=arguments-differ
     def __call__(self, file, command=None, output_type=None,
                  stderr_dest=None):
 

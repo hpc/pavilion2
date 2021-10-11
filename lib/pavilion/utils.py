@@ -8,13 +8,12 @@ import datetime as dt
 import errno
 import os
 import re
+import shutil
 import subprocess
-import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO, Callable
-import shutil
-import stat
+from typing import Iterator, Union, TextIO
+from typing import List
 
 
 def str_bool(val):
@@ -479,25 +478,37 @@ def auto_type_convert(value):
 class IndentedLog:
     """A logging object for writing indented, easy to follow logs."""
 
-    def __init__(self, log_file: Union[TextIO, None] = None):
+    INDENT = '  '
 
-        self._indent = 0
-        self._file = log_file
+    def __init__(self):
 
-    @property
-    def indent(self):
-        """The level of indentation for logged items."""
-        return self._indent
-
-    @indent.setter
-    def indent(self, val):
-        self._indent = val
+        self.lines = []
 
     def __call__(self, msg):
         """Write the message to log with the set indentation level."""
 
-        if self._file is None:
-            return
+        self.lines.append(msg)
 
-        self._file.write(textwrap.indent(msg, "  " * self._indent))
-        self._file.write('\n')
+    def save(self, file: TextIO):
+        """Save the log to the given path."""
+
+        for line in self.lines:
+            file.write(line)
+            file.write('\n')
+
+    def indent(self, log: Union['IndentedLog', List[str], str]):
+        """Extend the log with the given lines, indenting them one level."""
+
+        if isinstance(log, IndentedLog):
+            lines = log.lines
+        elif isinstance(log, list):
+            lines = log
+        elif isinstance(log, str):
+            lines = log.split('\n')
+        else:
+            raise TypeError("The 'log' argument must be a string, list of strings, or "
+                            "an IndentedLog object.")
+
+        for line in lines:
+            for part in line.split('\n'):
+                self.lines.append(self.INDENT + part)
