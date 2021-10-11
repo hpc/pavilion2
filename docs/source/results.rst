@@ -23,7 +23,7 @@ Base Results
 Result Parsers
 --------------
 
-.. automodule:: pavilion.result.parsers
+.. automodule:: pavilion.result_parsers
     :members:
     :undoc-members:
     :show-inheritance:

@@ -31,4 +31,4 @@ def register_core_plugins():
         obj.activate()
 
 
-FunctionPlugin.register_core = register_core_plugins
+FunctionPlugin.register_core_plugins = register_core_plugins

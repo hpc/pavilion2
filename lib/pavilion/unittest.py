@@ -18,7 +18,7 @@ from pavilion import arguments
 from pavilion import config
 from pavilion import dir_db
 from pavilion import pavilion_variables
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 from pavilion.output import dbg_print
 from pavilion.test_config import VariableSetManager
 from pavilion.test_config import resolver
@@ -74,14 +74,30 @@ base class.
         """Setup the pav_cfg object, and do other initialization required by
         pavilion."""
 
+        self.pav_cfg = self.make_pav_config()
+
+        self.tmp_dir = tempfile.TemporaryDirectory()
+
+        # We have to get this to set up the base argument parser before
+        # plugins can add to it.
+        _ = arguments.get_parser()
+        super().__init__(*args, **kwargs)
+
+    def make_pav_config(self, config_dirs: List[Path] = None):
+        """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
+        as the config directory.
+        """
+
+        if config_dirs is None:
+            config_dirs = [self.TEST_DATA_ROOT / 'pav_config_dir']
+
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
         # save the modified file to a temp location and read it instead.
         with self.PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
-                                   self.PAV_LIB_DIR]
+        raw_pav_cfg.config_dirs = config_dirs
 
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
         raw_pav_cfg.user_config = False
@@ -103,38 +119,14 @@ base class.
             config.PavilionConfigLoader().dump(pav_cfg_file,
                                                raw_pav_cfg)
 
-        with cfg_path.open() as cfg_file:
-            self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
+        pav_cfg = config.find_pavilion_config(target=cfg_path, warn=False)
+        pav_cfg.pav_vars = pavilion_variables.PavVars()
 
-        self.pav_cfg.pav_cfg_file = cfg_path
-
-        self.pav_cfg.pav_vars = pavilion_variables.PavVars()
-
-        if not self.pav_cfg.working_dir.exists():
-            self.pav_cfg.working_dir.mkdir(parents=True)
-
-        # Create the basic directories in the working directory
-        for path in self.WORKING_DIRS:
-            path = self.pav_cfg.working_dir/path
-            if not path.exists():
-                path.mkdir()
-
-        self.tmp_dir = tempfile.TemporaryDirectory()
-
-        # We have to get this to set up the base argument parser before
-        # plugins can add to it.
-        _ = arguments.get_parser()
-        super().__init__(*args, **kwargs)
+        return pav_cfg
 
     def __getattribute__(self, item):
-        """When the unittest framework wants a test, check if the test
-is in the SKIP or ONLY lists, and skip it as appropriate. Only
-test methods are effected by this.
-A test is in the SKIP or ONLY list if the filename (minus extension),
-class name, or test name (minus the test_ prefix) match one of the
-SKIP or ONLY globs (provided via ``./runtests`` ``-s`` or ``-o``
-options.
-"""
+        """Override the builtin __getattribute__ so that tests skipped via command line
+        options are properly 'wrapped'."""
         attr = super().__getattribute__(item)
 
         cls = super().__getattribute__('__class__')
@@ -278,6 +270,7 @@ though."""
     dbg_print = staticmethod(dbg_print)
 
     QUICK_TEST_BASE_CFG = {
+        'cfg_label': 'test',
         'scheduler': 'raw',
         'suite': 'unittest',
         'build': {
@@ -335,12 +328,13 @@ The default config is: ::
         tests = []
         for ptest in test_cfgs:
             test = TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man)
+            test.save()
 
             if build:
                 test.build()
 
             if finalize:
-                fin_sys = system_variables.SysVarDict(unique=True)
+                fin_sys = base_classes.SysVarDict(unique=True)
                 fin_var_man = VariableSetManager()
                 fin_var_man.add_var_set('sys', fin_sys)
                 res.finalize(test, fin_var_man)
@@ -381,7 +375,7 @@ The default config is: ::
 
         var_man = VariableSetManager()
         var_man.add_var_set('var', cfg['variables'])
-        var_man.add_var_set('sys', system_variables.get_vars(defer=True))
+        var_man.add_var_set('sys', base_classes.SysVarDict(unique=True, defer=True))
         var_man.add_var_set('pav', self.pav_cfg.pav_vars)
         if sched_vars is not None:
             var_man.add_var_set('sched', sched_vars)
@@ -390,16 +384,17 @@ The default config is: ::
 
         cfg = resolver.TestConfigResolver.resolve_test_vars(cfg, var_man)
 
-        test = TestRun(
-            pav_cfg=self.pav_cfg,
-            config=cfg,
-            var_man=var_man,
-        )
+        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
+        if test.skipped:
+            # You can't proceed further with a skipped test.
+            return test
+
+        test.save()
 
         if build:
             test.build()
         if finalize:
-            fin_sys = system_variables.SysVarDict(unique=True)
+            fin_sys = base_classes.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
             resolver.TestConfigResolver.finalize(test, fin_var_man)
@@ -422,7 +417,7 @@ The default config is: ::
         while time.time() < end_time:
 
             completed = [is_complete(test)
-                         for test in dir_db.select(runs_dir).paths]
+                         for test in dir_db.select(self.pav_cfg, runs_dir).paths]
 
             if not completed:
                 self.fail("No tests started.")
@@ -435,7 +430,8 @@ The default config is: ::
         else:
             raise TimeoutError(
                 "Waiting on tests: {}"
-                .format(test.name for test in dir_db.select(runs_dir).paths
+                .format(test.name for test in dir_db.select(self.pav_cfg,
+                                                            runs_dir).paths
                         if is_complete(test)))
 
 

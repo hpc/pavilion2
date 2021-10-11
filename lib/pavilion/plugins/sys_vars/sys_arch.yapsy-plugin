@@ -1,9 +1,0 @@
-[Core]
-Name = System Architecture
-Module = sys_arch
-
-[Documentation]
-Description = Uses 'uname -i' to determine the architecture of the node running the test in a deferred manner.
-Author = Nicholas Sly
-Version = 1.0
-Website =

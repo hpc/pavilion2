@@ -1,9 +1,9 @@
 """Tracks builds across multiple threads, including their output."""
 
 import datetime
-import logging
 import threading
 from collections import defaultdict
+from typing import List
 
 from pavilion.status_file import STATES
 
@@ -13,47 +13,40 @@ class MultiBuildTracker:
 
     :ivar {StatusFile} status_files: The dictionary of status files by build."""
 
-    def __init__(self, log=True):
-        """Setup the build tracker.
-       :param bool log: Whether to also log messages in some instances.
-        """
+    def __init__(self):
+        """Setup the build tracker."""
 
         # A map of build tokens to build names
         self.messages = {}
         self.status = {}
         self.status_files = {}
+        self.trackers = {}
         self.lock = threading.Lock()
 
-        self.logger = None
-        if log:
-            self.logger = logging.getLogger(__name__)
-
-    def register(self, builder, test_status_file):
+    def register(self, builder, test_status_file) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
 
     :param TestBuilder builder: The builder object to track.
     :param status_file.StatusFile test_status_file: The status file object
         for the corresponding test.
-    :return: A build tracker instance that can be used by builds directly.
-    :rtype: BuildTracker"""
+    :return: A build tracker instance that can be used by builds directly."""
 
+        tracker = BuildTracker(builder, self)
         with self.lock:
             self.status_files[builder] = test_status_file
             self.status[builder] = None
             self.messages[builder] = []
+            self.trackers[builder] = tracker
 
-        tracker = BuildTracker(builder, self)
         return tracker
 
-    def update(self, builder, note, state=None, log=None):
+    def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.
 
         :param TestBuilder builder: The builder object to set the message.
         :param note: The message to set.
         :param str state: A status_file state to set on this builder's status
             file.
-        :param int log: A log level for the python logger. If set, also
-            log the message to the Pavilion log.
         """
 
         if state is not None:
@@ -65,9 +58,6 @@ class MultiBuildTracker:
             self.messages[builder].append((now, state, note))
             if state is not None:
                 self.status[builder] = state
-
-        if log is not None and self.logger:
-            self.logger.log(level=log, msg=note)
 
     def get_notes(self, builder):
         """Return all notes for the given builder.
@@ -88,10 +78,10 @@ class MultiBuildTracker:
 
         return counts
 
-    def failures(self):
+    def failures(self) -> List['BuildTracker']:
         """Returns a list of builders that have failed."""
-        return [builder for builder in self.status.keys()
-                if builder.tracker.failed]
+        return [self.trackers[builder] for builder in self.trackers
+                if self.trackers[builder].failed]
 
 
 class BuildTracker:
@@ -102,19 +92,18 @@ class BuildTracker:
         self.tracker = tracker
         self.failed = False
 
-    def update(self, note, state=None, log=None):
+    def update(self, note, state=None):
         """Update the tracker for this build with the given note."""
 
-        self.tracker.update(self.builder, note, log=log, state=state)
+        self.tracker.update(self.builder, note, state=state)
 
     def warn(self, note, state=None):
         """Add a note and warn via the logger."""
-        self.tracker.update(self.builder, note, log=logging.WARNING,
-                            state=state)
+        self.update(note, state=state)
 
     def error(self, note, state=STATES.BUILD_ERROR):
         """Add a note and error via the logger denote as a failure."""
-        self.tracker.update(self.builder, note, log=logging.ERROR, state=state)
+        self.update(note, state=state)
 
         self.failed = True
 
@@ -125,3 +114,15 @@ class BuildTracker:
     def notes(self):
         """Return the notes for this tracker."""
         return self.tracker.get_notes(self.builder)
+
+
+class DummyTracker(BuildTracker):
+    """A tracker that does nothing."""
+
+    def __init__(self):
+        """Initalize the parent with dummy info."""
+
+        super().__init__(None, None)
+
+    def update(self, note, state=None):
+        """Do nothing."""

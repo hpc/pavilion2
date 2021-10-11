@@ -50,7 +50,7 @@ while not path.exists():
     continue
 
 time_limit = time.time() + TIME_LIMIT
-status = status_file.StatusFile(path)
+status = status_file.TestStatusFile(path)
 
 while time.time() < time_limit:
     for i in range(100):

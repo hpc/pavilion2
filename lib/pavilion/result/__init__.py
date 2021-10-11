@@ -11,12 +11,11 @@ from typing import List
 from pavilion import lockfile as _lockfile
 from pavilion import utils
 from pavilion.test_config import variables
-from . import parsers
+from ..result_parsers import base_classes
 from .base import base_results, BASE_RESULTS, RESULT_ERRORS
 from .common import ResultError
 from .evaluations import check_expression, evaluate_results, StringParserError
 from .parse import parse_results, DEFAULT_KEY
-from .parsers import ResultParser
 
 
 def check_config(parser_conf, evaluate_conf):
@@ -76,7 +75,7 @@ For evaluations we check for:
 
                 key_names.add(key)
 
-            parser = parsers.get_plugin(rtype)
+            parser = base_classes.get_plugin(rtype)
 
             rconf = parser.set_parser_defaults(rconf, defaults)
             parser.check_config(rconf, keys)

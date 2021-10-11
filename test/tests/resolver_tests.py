@@ -2,13 +2,12 @@
 
 import copy
 import io
-import json
 import random
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import TestConfigError, resolver
 from pavilion.test_config import variables
@@ -392,7 +391,7 @@ class ResolverTests(PavTestCase):
 
         test.build()
 
-        undefered_sys_vars = system_variables.SysVarDict(
+        undefered_sys_vars = base_classes.SysVarDict(
             unique=True,
         )
 
@@ -648,8 +647,6 @@ class ResolverTests(PavTestCase):
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'run',
-            '-w',
-            '5',
             'version_compatible'
         ])
 
@@ -668,14 +665,14 @@ class ResolverTests(PavTestCase):
             }
         }
 
-        # Ensures Version information gets populated correclty even with empty
+        # Ensures Version information gets populated correctly even with empty
         # version section in test config
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=1)
+            test.wait(timeout=5)
             results = test.load_results()
             name = results['name']
             for key in expected_results[name].keys():
@@ -695,4 +692,4 @@ class ResolverTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 22)
+        self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)

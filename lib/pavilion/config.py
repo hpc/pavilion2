@@ -1,20 +1,26 @@
-"""This module defines the base configuration for Pavilion itself."""
+"""This module defines the base configuration for Pavilion itself.
 
-import grp
+Pavilion can have multiple configuration directories. However, many options apply
+only to the 'base' configuration. Additional directories can be specified in that base
+config or through other options."""
+
 import logging
 import os
-import socket
 import sys
+from collections import OrderedDict
 from pathlib import Path
+from typing import List, Union
 
 import pavilion.output
 import yaml_config as yc
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
 
-
-# Figure out what directories we'll search for configuration files.
+# Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
+
+PAV_CONFIG_NAME = 'pavilion.yaml'
+CONFIG_NAME = 'config.yaml'
 
 try:
     USER_HOME_PAV = (Path('~')/'.pavilion').expanduser()
@@ -46,10 +52,13 @@ PAV_ROOT = Path(__file__).resolve().parents[2]
 # Use this config file, if it exists.
 PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
-NCPU = os.cpu_count()
-if NCPU > 40:
-    NCPU = NCPU//2
-NCPU = NCPU//2
+DEFAULT_CONFIG_LABEL = 'main'
+
+# For multi-processing, use between 2 and 10 cpu's by default, prefering the
+# actual number of system CPU's if it's in that range.
+NCPU = min(10, os.cpu_count())
+NCPU = max(NCPU, 2)
+
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""
@@ -83,40 +92,58 @@ def config_dirs_validator(config, values):
 
     for value in values:
         path = Path(value)
-        if not path.exists():
+        try:
+            if not path.exists():
+                pavilion.output.fprint(
+                    "Config directory {} does not exist. Ignoring."
+                    .format(value),
+                    file=sys.stderr,
+                    color=pavilion.output.YELLOW
+                )
+
+                # Attempt to force a permissions error if we can't read this directory.
+                list(path.iterdir())
+
+        except PermissionError:
             pavilion.output.fprint(
-                "Config directory {} does not exist. Ignoring."
-                .format(value),
-                file=sys.stderr,
-                color=pavilion.output.YELLOW
-            )
-        elif path not in config_dirs:
+                "Cannot access config directory {}. Ignoring.",
+                file=sys.stderr, color=pavilion.output.YELLOW)
+            continue
+
+        if path not in config_dirs:
             path = path.resolve()
             config_dirs.append(path)
 
     return config_dirs
 
 
-def _group_validate(_, group):
-    """Make sure the group specified in the config exists and the user is
-    in it."""
+def _setup_working_dir(working_dir: Path) -> None:
+    """Create all the expected subdirectories for a working_dir."""
 
-    if group is None:
-        return
+    for path in [
+            working_dir,
+            working_dir / 'builds',
+            working_dir / 'series',
+            working_dir / 'test_runs',
+            working_dir / 'users']:
 
-    try:
-        group_info = grp.getgrnam(group)
-    except KeyError:
-        raise ValueError("Group {} is not known on host {}."
-                         .format(group, socket.gethostname()))
+        try:
+            path.mkdir(exist_ok=True)
+        except OSError as err:
+            raise RuntimeError("Could not create directory '{}': {}".format(path, err))
 
-    user = os.environ['USER']
 
-    if user not in group_info.gr_mem:
-        raise ValueError("User '{}' is not in the group '{}'"
-                         .format(user, group_info.gr_mem))
+def make_invalidator(msg):
+    """Returns a function that provides an 'invalid option' validator. This will
+    always give an error if the option isn't null."""
 
-    return group
+    def invalidator(_, value):
+        """Raise a ValueError with the given message."""
+
+        if value:
+            raise ValueError("Invalid Option: {}".format(msg))
+
+    return invalidator
 
 
 class PavilionConfigLoader(yc.YamlConfigLoader):
@@ -145,8 +172,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "in this directory always take precedence."
         ),
         ExPathElem(
-            'working_dir', default=USER_HOME_PAV/'working_dir', required=True,
-            help_text="Where pavilion puts it's run files, downloads, etc."),
+            "working_dir",
+            default='working_dir',
+            help_text="Set the default working directory. Each config dir can set its"
+                      "own working_dir."),
         ExPathElem(
             'spack_path', default=None, required=False,
             help_text="Where pavilion looks for a spack install."),
@@ -156,10 +185,13 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "example, 'module.gcc' would disable the gcc module "
                       "wrapper."),
         yc.StrElem(
-            "shared_group", post_validator=_group_validate,
-            help_text="Pavilion can automatically set group permissions on all "
-                      "created files, so that users can share relevant "
-                      "results, etc."),
+            "shared_group",
+            help_text="Pavilion runs under a `newgrp` shell with this group, ensuring "
+                      "all created files are owned by this group by default. If you "
+                      "have tests that must run under a different group, separate "
+                      "them into their own config directory with it's own "
+                      "working_dir setting. Then set the group and group sticky bit "
+                      "for those directories."),
         yc.StrElem(
             "umask", default="2",
             help_text="The umask to apply to all files created by pavilion. "
@@ -170,6 +202,15 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Maximum simultaneous builds. Note that each build may "
                       "itself spawn off threads/processes, so it's probably "
                       "reasonable to keep this at just a few."),
+        yc.IntRangeElem(
+            "max_threads", default=8, vmin=1,
+            help_text="Maximum threads for general multi-threading usage."
+        ),
+        yc.IntRangeElem(
+            "max_cpu", default=NCPU, vmin=1,
+            help_text="Maximum number of cpus to use when spawning multiple processes."
+                      "The number used may be less depending on the task."
+        ),
         yc.StrElem(
             "log_format",
             default="{asctime}, {levelname}, {hostname}, {name}: {message}",
@@ -186,10 +227,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             "result_log",
             # Derive the default from the working directory, if a value isn't
             # given.
-            post_validator=(lambda d, v: v if v is not None else
-                            d['working_dir']/'results.log'),
+            post_validator=(lambda d, v: v if v is not None
+                            else d['working_dir']/'results.log'),
             help_text="Results are put in both the general log and a specific "
-                      "results log. This defaults to 'results.log' in the "
+                      "results log. This defaults to 'results.log' in the default "
                       "working directory."),
         yc.BoolElem(
             "flatten_results", default=True,
@@ -200,8 +241,6 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "to the base results mapping."),
         ExPathElem(
             'exception_log',
-            # Derive the default from the working directory, if a value isn't
-            # given.
             post_validator=(lambda d, v: v if v is not None else
                             d['working_dir']/'exceptions.log'),
             help_text="Full exception tracebacks and related debugging "
@@ -248,10 +287,127 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.KeyedElem(
             'pav_vars', elements=[], hidden=True, default={},
             help_text="This will contain the pavilion variable dictionary."),
+        yc.KeyedElem(
+            'configs', elements=[], hidden=True, default={},
+            help_text="The configuration dictionaries for each config dir."),
+        yc.StrElem(
+            'default_label', hidden=True, default=DEFAULT_CONFIG_LABEL,
+            help_text="The default config area label."
+        )
     ]
 
 
-def find(target=None, warn=True):
+class ConfigLoader(yc.YamlConfigLoader):
+    """Loads the configuration for an individual Pavilion config directory."""
+
+    ELEMENTS = [
+        yc.RegexElem(
+            'label', regex=r'[a-z]+', required=False,
+            help_text="The label to apply to tests run from this configuration "
+                      "directory. This should be specified for each config directory. "
+                      "A label will be generated if absent."),
+        ExPathElem(
+            'working_dir', required=False,
+            help_text="Where pavilion puts it's run files, downloads, etc. This "
+                      "defaults to '<config_dir>/working_dir'."),
+    ]
+
+
+def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
+    """Setup the config dictionaries for each configuration directory. This will involve
+    loading each directories pavilion.yaml, and saving the results in this dict.
+    These will be in an ordered dictionary by label.
+
+    :param pav_cfg: The pavilion config.
+    :param setup_working_dirs: Whether to create the working directory structure.
+        Allows us to bypass in cases where we would set incorrect permissions.
+    """
+
+    configs = OrderedDict()
+    config_dirs = list(pav_cfg['config_dirs'])  # type: List[Path]
+    loader = ConfigLoader()
+
+    label_i = 1
+
+    # Move PAV_CONFIG_DIR to last, so that it only gets labeled as 'main' if
+    # something else didn't already take it.
+    if PAV_CONFIG_DIR in config_dirs:
+        config_dirs.remove(PAV_CONFIG_DIR)
+        config_dirs.append(PAV_CONFIG_DIR)
+
+    for config_dir in config_dirs:
+        config_path = config_dir/CONFIG_NAME
+        try:
+            if not (config_path.exists() and config_path.is_file()):
+                config = loader.load_empty()
+            else:
+                with config_path.open() as config_file:
+                    config = loader.load(config_file)
+
+        except PermissionError as err:
+            pavilion.output.fprint(
+                "Could not load pavilion config at '{}'. Skipping...: {}"
+                    .format(config_path.as_posix(), err.args[0])
+            )
+
+            continue
+
+        except Exception as err:
+            raise RuntimeError("Pavilion.yaml for config path '{}' has error: {}"
+                               .format(config_dir.as_posix(), err.args[0]))
+
+        label = config.get('label')
+        # Set the user's home pavilion directory label to 'user'.
+        if not label:
+            if config_dir == USER_HOME_PAV:
+                label = 'user'
+            # Set the label to 'main' if the config_dir is the one set by
+            # PAV_CONFIG_DIR. Other config directories can snatch this up first though.
+            elif config_dir == PAV_CONFIG_DIR:
+                if DEFAULT_CONFIG_LABEL not in configs:
+                    label = DEFAULT_CONFIG_LABEL
+                else:
+                    label = '_' + DEFAULT_CONFIG_LABEL
+            elif config_dir == Path(__file__).parent:
+                label = '_lib'
+
+        if label in configs or not label:
+            label = '<not_defined>' if label is None else label
+            new_label = 'lbl{}'.format(label_i)
+            label_i += 1
+            pavilion.output.fprint(
+                "Missing or duplicate label '{}' for config path '{}'. "
+                "Using label '{}'".format(label, config_path.as_posix(), new_label),
+                file=sys.stderr, color=pavilion.output.YELLOW)
+            config['label'] = new_label
+
+        working_dir = config.get('working_dir')  # type: Path
+        if working_dir is None:
+            working_dir = pav_cfg['working_dir']
+        working_dir = working_dir.expanduser()
+        if not working_dir.is_absolute():
+            working_dir = config_dir/working_dir
+
+        if label != '_lib':
+            try:
+                if setup_working_dirs:
+                    _setup_working_dir(working_dir)
+            except RuntimeError as err:
+                pavilion.output.fprint(
+                    "Could not configure working directory for config path '{}'. "
+                    "Skipping.\n{}".format(config_path.as_posix(), err.args[0]),
+                    file=sys.stderr, color=pavilion.output.YELLOW)
+                continue
+
+        config['working_dir'] = working_dir
+        config['path'] = config_dir
+        configs[label] = config
+
+    return configs
+
+
+def find_pavilion_config(target: Path = None, warn: bool = True,
+                         setup_working_dirs=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
 to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
 found in these directories the default config search paths:
@@ -259,7 +415,15 @@ found in these directories the default config search paths:
 - The given 'target' file (used only for testing).
 - The ~/.pavilion directory
 - The Pavilion source directory (don't put your config here).
+
+    :param target: A known path to a Pavilion config.
+    :param warn: Issue printed warnings.
+    :param setup_working_dirs: Set to False when used outside of the `bin/pav` provided
+         newgrp/umask environment. Test code generally doesn't care, unless you're
+         testing the permissions themselves.
 """
+
+    pav_cfg = None
 
     for path in target, PAV_CONFIG_FILE:
         if path is not None:
@@ -267,31 +431,49 @@ found in these directories the default config search paths:
             # pylint has a bug that pops up occasionally with pathlib.
             if pav_cfg_file.is_file():  # pylint: disable=no-member
                 try:
-                    cfg = PavilionConfigLoader().load(
+                    pav_cfg = PavilionConfigLoader().load(
                         pav_cfg_file.open())  # pylint: disable=no-member
-                    cfg.pav_cfg_file = pav_cfg_file
-                    return cfg
+                    pav_cfg.pav_cfg_file = pav_cfg_file
                 except Exception as err:
                     raise RuntimeError("Error in Pavilion config at {}: {}"
                                        .format(pav_cfg_file, err))
 
-    for config_dir in PAV_CONFIG_SEARCH_DIRS:
-        path = config_dir/'pavilion.yaml'
-        if path.is_file():  # pylint: disable=no-member
-            try:
-                # Parse and load the configuration.
-                cfg = PavilionConfigLoader().load(
-                    path.open())  # pylint: disable=no-member
-                cfg.pav_cfg_file = path
-                return cfg
-            except Exception as err:
-                raise RuntimeError("Error in Pavilion config at {}: {}"
-                                   .format(path, err))
+    if pav_cfg is None:
+        for config_dir in PAV_CONFIG_SEARCH_DIRS:
+            path = config_dir/PAV_CONFIG_NAME
+            if path.is_file():  # pylint: disable=no-member
+                try:
+                    # Parse and load the configuration.
+                    pav_cfg = PavilionConfigLoader().load(
+                        path.open())  # pylint: disable=no-member
+                    pav_cfg.pav_cfg_file = path
+                    break
+                except Exception as err:
+                    raise RuntimeError("Error in Pavilion config at {}: {}"
+                                       .format(path, err))
 
-    if warn:
-        LOGGER.warning("Could not find a pavilion config file. Using an "
-                       "empty/default config.")
-    return PavilionConfigLoader().load_empty()
+    if pav_cfg is None:
+        if warn:
+            LOGGER.warning("Could not find a pavilion config file. Using an "
+                           "empty/default config.")
+        pav_cfg = PavilionConfigLoader().load_empty()
+
+    pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
+
+    return pav_cfg
+
+
+def make_config(options: dict, setup_working_dirs: bool = True):
+    """Create a pavilion config given the raw config options."""
+
+    loader = PavilionConfigLoader()
+
+    values = loader.normalize(options)
+    pav_cfg = loader.validate(values)
+
+    pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
+
+    return pav_cfg
 
 
 def get_version():

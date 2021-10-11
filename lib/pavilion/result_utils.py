@@ -1,14 +1,11 @@
 """A collection of utilities for getting the results of current and past
 test runs and series."""
 
+from concurrent.futures import ThreadPoolExecutor
+from typing import List
 
-import sys
-import multiprocessing as mp
-from functools import partial
-
-from pavilion import config
-from pavilion import status_utils
-from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
+from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.test_run import (TestRun)
 
 # I suppose these are all the keys of the TestRun.results dict and the essential ones.
 # I'm not sure which to use here or something else, discuss with reviewer.
@@ -23,45 +20,32 @@ BASE_FIELDS = [
 ]
 
 
-def get_result(test_id, pav_conf):
+def get_result(test: TestRun):
     """Return the result for a single test_id.
     Add result_log (path) to results dictionary.
-    :param pav_conf: The Pavilion config.
-    :param test_id: The test id being queried.
+    :param test: The test to get results for
     """
 
     try:
-        test_full = TestRun.load(pav_conf, test_id)
-        test = test_full.results
-        test['results_log'] = test_full.results_log
+        results = test.results
+        results['results_log'] = test.results_log
 
     except (TestRunError, TestRunNotFoundError) as err:
-        test = {'id': test_id}
+        results = {'id': test.full_id}
         for field in BASE_FIELDS[1:]:
-            test[field] = None
+            results[field] = None
 
-        test['result'] = "Test not found: {}".format(err)
+        results['result'] = "Test not found: {}".format(err)
 
-    return test
+    return results
 
 
-
-def get_results(pav_cfg, test_ids, errfile=None):
+def get_results(pav_cfg, tests: List[TestRun]) -> List[dict]:
     """Return the results for all given test id's.
-    :param pav_cfg: The Pavilion config.
-    :param List[str] test_ids: A list of test ids to load.
-    :param errfile: Where to write standard error to.
+
+    :param pav_cfg: The Pavilion configuration.
+    :param tests: Tests to get result for.
     """
 
-    test_ids = status_utils.get_tests(pav_cfg, test_ids, errfile=errfile)
-
-    get_this_result = partial(get_result, pav_conf=pav_cfg)
-
-    if sys.version_info.minor > 6:
-        ncpu = min(config.NCPU, len(test_ids))
-        mp_pool = mp.Pool(processes=ncpu)
-        tests = mp_pool.map(get_this_result, test_ids)
-    else:
-        tests = map(get_this_result, test_ids)
-
-    return tests
+    with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
+        return list(pool.map(get_result, tests))

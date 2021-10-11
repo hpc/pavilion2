@@ -5,9 +5,9 @@ import time
 from pavilion import commands
 from pavilion import plugins
 from pavilion import schedulers
-from pavilion import status_file, status_utils
-from pavilion.series import TestSeries
-from pavilion.test_config import file_format, VariableSetManager
+from pavilion import status_file
+from pavilion.series.series import TestSeries
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 
 
@@ -43,6 +43,7 @@ class StatusCmdTests(PavTestCase):
 
         config1 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'run': {
                 'env': {
                     'foo': 'bar',
@@ -55,6 +56,7 @@ class StatusCmdTests(PavTestCase):
 
         config2 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'run': {
                 'env': {
                     'too': 'tar',
@@ -67,6 +69,7 @@ class StatusCmdTests(PavTestCase):
 
         config3 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'run': {
                 'env': {
                     'too': 'tar',
@@ -79,25 +82,25 @@ class StatusCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        var_man = VariableSetManager()
-
         tests = [self._quick_test(cfg) for cfg in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 
         # Make sure this doesn't explode
-        suite = TestSeries(self.pav_cfg, tests)
-        test_str = " ".join([str(test) for test in suite.tests])
+        series = TestSeries(self.pav_cfg, None)
+        for test in tests:
+            series._add_test(test)
+        test_str = " ".join([test.full_id for test in series.tests.values()])
 
         status_cmd = commands.get_command('status')
         status_cmd.outfile = io.StringIO()
 
         # Testing for individual tests with json output
-        for test in suite.tests:
+        for test in series.tests.values():
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
-            arg_list = ['-j', str(test)]
+            arg_list = ['-j', test.full_id]
             args = parser.parse_args(arg_list)
             self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
@@ -109,10 +112,10 @@ class StatusCmdTests(PavTestCase):
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for individual tests with tabular output
-        for test in suite.tests:
+        for test in series.tests.values():
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
-            args = parser.parse_args([str(test)])
+            args = parser.parse_args([test.full_id])
             self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for multiple tests with tabular output
@@ -127,6 +130,7 @@ class StatusCmdTests(PavTestCase):
 
         config1 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'run': {
                 'env': {
                     'foo': 'bar',
@@ -139,6 +143,7 @@ class StatusCmdTests(PavTestCase):
 
         config2 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'run': {
                 'env': {
                     'too': 'tar',
@@ -151,6 +156,7 @@ class StatusCmdTests(PavTestCase):
 
         config3 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'run': {
                 'env': {
                     'too': 'tar',
@@ -176,10 +182,10 @@ class StatusCmdTests(PavTestCase):
             start_status = test.status.current()
             parser = argparse.ArgumentParser()
             set_status_cmd._setup_arguments(parser)
-            arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious',
-                        str(test.id)]
+            arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious', test.full_id]
             args = parser.parse_args(arg_list)
-            self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0)
+            self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0,
+                             "Invalid run return for test {}".format(test.full_id))
             end_status = test.status.current()
 
             self.assertNotEqual(end_status.state, start_status.state)
@@ -213,14 +219,14 @@ class StatusCmdTests(PavTestCase):
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args([str(test.id)])
+        args = parser.parse_args(['test.' + str(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0,
                          msg=status_cmd.clear_output())
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['-j', str(test.id)])
+        args = parser.parse_args(['-j', 'test.{}'.format(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
@@ -273,7 +279,7 @@ class StatusCmdTests(PavTestCase):
     def test_status_summary(self):
         # Testing that status works with summary flag
         status_cmd = commands.get_command('status')
-        status_cmd.outfile = io.StringIO()
+        status_cmd.silence()
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
         arg_list = ['-s']
@@ -311,10 +317,10 @@ class StatusCmdTests(PavTestCase):
         raw = schedulers.get_plugin('raw')
         raw.schedule_test(self.pav_cfg, test)
         end = time.time() + 5
-        while test.check_run_complete() is None and time.time() < end:
+        while not test.complete and time.time() < end:
             time.sleep(.1)
 
-        args = parser.parse_args(['--history', str(test.id)])
+        args = parser.parse_args(['--history', 'test.{}'.format(test.id)])
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         out.seek(0)

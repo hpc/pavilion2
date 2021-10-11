@@ -1,9 +1,0 @@
-[Core]
-Name = Regex Result Parser
-Module = regex
-
-[Documentation]
-Description = Parses strings from a file using Regex
-Author = Paul Ferrell
-Version = 1.0
-Website =

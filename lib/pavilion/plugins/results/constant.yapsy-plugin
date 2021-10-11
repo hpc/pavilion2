@@ -1,9 +1,0 @@
-[Core]
-Name = Constant Result Parser
-Module = constant
-
-[Documentation]
-Description = Inserts a test config-given constant into result
-Author = Francine Lapid
-Version = 1.0
-Website =

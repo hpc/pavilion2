@@ -29,17 +29,15 @@ class ExprFuncTests(PavTestCase):
                     (([1, 2, 3, 4],), 10)],
             'avg': [(([1, 2, 3, 4.5],), 2.625),
                     (([1, 2, 3, 4, 5],), 3.0)],
-            'max': [(((1,),), 1),
-                    ((1, 2), 2),
-                    ((1, -2), 1),
-                    (({'a': 2, 'b': 1},), 'b'),
+            'max': [(([1, ],), 1),
+                    (([1, 2],), 2),
+                    (([1, -2], ), 1),
                     (([5, 5.5],), 5.5),
                     (([1, 2, 3, 4, 5],), 5)],
-            'min': [(((1,),), 1),
-                    ((1, 2), 1),
-                    ((1, -2), -2),
-                    (({'a': 2, 'b': 1},), 'a'),
-                    (([5, 5.5],), '5'),
+            'min': [(([1, ],), 1),
+                    (([1, 2],), 1),
+                    (([1, -2], ), -2),
+                    (([5, 5.5],), 5),
                     (([1, 2, 3, 4, 5],), 1)],
             'len': [(([1, 2, "foo"],), 3)],
             'random': [(tuple(), None)],
@@ -76,7 +74,11 @@ class ExprFuncTests(PavTestCase):
                               .format(func_name))
 
             for args, answer in tests[func_name]:
-                result = func(*args)
+                try:
+                    result = func(*args)
+                except Exception as err:
+                    self.fail("Error evaluating function '{}' with args '{}': {}"
+                              .format(func_name, args, err.args[0]))
                 if answer is None:
                     continue
 

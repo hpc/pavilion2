@@ -15,14 +15,13 @@ for Pavilion to recognize them.
 import inspect
 import logging
 import traceback
-from pathlib import Path
 
 from pavilion.commands import Command
 from pavilion.expression_functions import FunctionPlugin
 from pavilion.module_wrapper import ModuleWrapper
-from pavilion.result.parsers import ResultParser
+from pavilion.result_parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
-from pavilion.system_variables import SystemPlugin as System
+from pavilion.sys_vars import SystemPlugin
 from yapsy import PluginManager
 
 LOGGER = logging.getLogger('plugins')
@@ -35,7 +34,7 @@ PLUGIN_CATEGORIES = {
     'module': ModuleWrapper,
     'result': ResultParser,
     'sched': SchedulerPlugin,
-    'sys': System,
+    'sys': SystemPlugin,
 }
 
 __all__ = [
@@ -46,7 +45,7 @@ __all__ = [
 
 
 class PluginError(RuntimeError):
-    pass
+    """General Plugin Error"""
 
 
 def initialize_plugins(pav_cfg):
@@ -66,11 +65,11 @@ def initialize_plugins(pav_cfg):
         LOGGER.warning("Tried to initialize plugins multiple times.")
         return
 
-    # Always look here for plugins
-    plugin_dirs = [Path(__file__).parent.as_posix()]
-    # And in all the user provided plugin directories.
-    for cfg_dir in pav_cfg.config_dirs:
-        plugin_dirs.append((cfg_dir/'plugins').as_posix())
+    plugin_dirs = []
+    # Look in all the user provided plugin directories.
+    for config in pav_cfg.configs.values():
+        if (config['path']/'plugins').exists():
+            plugin_dirs.append((config['path']/'plugins').as_posix())
 
     try:
         pman = PluginManager.PluginManager(directories_list=plugin_dirs,
@@ -97,8 +96,8 @@ def initialize_plugins(pav_cfg):
 
     # Some plugin types have core plugins that are built-in.
     for _, cat_obj in PLUGIN_CATEGORIES.items():
-        if hasattr(cat_obj, 'register_core'):
-            cat_obj.register_core()
+        if hasattr(cat_obj, 'register_core_plugins'):
+            cat_obj.register_core_plugins()
 
     _PLUGIN_MANAGER = pman
 

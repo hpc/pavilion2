@@ -2,7 +2,7 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
-from pavilion.plugins.commands.run import RunCommand
+from pavilion.commands.run import RunCommand
 from pavilion.status_file import STATES
 import io
 
@@ -20,8 +20,8 @@ class BuildCmdTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
-    def test_multi_build_only(self):
-        """Make sure we can just build multiple simultanious builds on
+    def test_multi_build(self):
+        """Make sure we can just build multiple simultaneous builds on
         both the front-end and the nodes."""
 
         arg_parser = arguments.get_parser()
@@ -46,9 +46,10 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(len(build_names), 4)
 
         for test in build_cmd.last_tests:
-            self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
-                             msg='Test {} status: {}'
-                                 .format(test.id, test.status.current()))
+            if not test.skipped:
+                self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
+                                 msg='Test {} status: {}'
+                                     .format(test.id, test.status.current()))
 
     def test_local_builds_only(self):
         """Make sure we can just build multiple simultanious builds on
@@ -77,10 +78,10 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(len(build_names), 2)
 
         for test in build_cmd.last_tests:
-
-            self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
-                             msg='Test {} status: {}'
-                             .format(test.id, test.status.current()))
+            if not test.skipped:
+                self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
+                                 msg='Test {} status: {}'
+                                 .format(test.id, test.status.current()))
 
     def test_rebuilds(self):
         """Make sure rebuilding works as expected."""
@@ -132,7 +133,7 @@ class BuildCmdTests(PavTestCase):
 
         for test in build_cmd.last_tests:
             test.load_attributes()
-            expected_name = orig_names[test.name] + '-2'
+            expected_name = test.builder.rehash_name(orig_names[test.name])
             self.assertEqual(test.build_name, expected_name,
                              msg=test.name)
 
