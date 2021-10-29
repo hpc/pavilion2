@@ -1,6 +1,6 @@
 import yaml_config as yc
 from .slurm import Slurm, SlurmVars
-from .base_classes import SchedulerPlugin, dfr_var_method
+from .base_scheduler import SchedulerPlugin, dfr_var_method
 
 
 class SlurmMPIVars(SlurmVars):

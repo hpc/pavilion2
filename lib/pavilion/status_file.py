@@ -122,6 +122,8 @@ class TestStatesStruct(StatesStruct):
     CREATION_ERROR = "The test object/directory could not be created."
     SCHEDULED = "The test has been scheduled with a scheduler."
     SCHED_ERROR = "There was a scheduler related error."
+    SCHED_WINDUP = "The scheduler is prepping to run, but has not yet started the" \
+                   "actual test."
     SCHED_CANCELLED = "The job was cancelled."
     BUILDING = "The test is currently being built."
     BUILD_CREATED = "The builder for this build was created."
@@ -404,18 +406,23 @@ could be wrong with the file format."""
 
         stinfo = self.info_class(state, note, when=time.time())
 
+        return self.add_status(stinfo)
+
+    def add_status(self, status: TestStatusInfo) -> TestStatusInfo:
+        """Add the status object as a status for the test."""
+
         if self.path is not None:
             try:
                 with self.path.open('ab') as status_file:
-                    return self._set(status_file, stinfo)
+                    return self._set(status_file, status)
             except OSError as err:
                 return self.info_class(self.states.STATUS_ERROR,
                                        "Could open status file at '{}': {}"
                                        .format(self.path, err.args[0]))
         else:
-            return self._set(self._dummy, stinfo)
+            return self._set(self._dummy, status)
 
-    def _set(self, status_file, stinfo):
+    def _set(self, status_file, stinfo) -> TestStatusInfo:
         """Do the actual status setting step, given a file and the status object."""
 
         status_line = stinfo.status_line()

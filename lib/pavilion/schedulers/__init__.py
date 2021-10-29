@@ -1,7 +1,8 @@
 """This module organizes the builtin scheduler plugins."""
 
-from .base_classes import (SchedulerPlugin, SchedulerVariables, SchedulerPluginError,
-                           var_method, dfr_var_method, get_plugin, list_plugins)
+from .base_scheduler import (SchedulerPlugin, SchedulerPluginError,
+                             var_method, dfr_var_method, get_plugin, list_plugins)
+from .base_vars import SchedulerVariables
 
 from .raw import Raw
 from .slurm import Slurm

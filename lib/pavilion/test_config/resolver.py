@@ -13,6 +13,7 @@ import logging
 import multiprocessing as mp
 import os
 import re
+import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import List, IO, Union
@@ -108,7 +109,12 @@ class TestConfigResolver:
             )
 
         try:
-            sched_vars = sched.get_vars(raw_test_cfg.get(scheduler, {}))
+            schedule_cfg = raw_test_cfg.get('schedule', {})
+            sched_vars, node_list_id = sched.get_initial_vars(schedule_cfg)
+            # Save the node list id. The test will need it to quickly figure out
+            # which nodes to run on later.
+            raw_test_cfg['node_list_id'] = node_list_id
+
             var_man.add_var_set('sched', sched_vars)
         except schedulers.SchedulerPluginError as err:
             raise TestConfigError(
@@ -915,6 +921,7 @@ class TestConfigResolver:
         _ = self
 
         permute_on = test_cfg['permute_on']
+        test_cfg['permute_base'] = uuid.uuid4()
 
         used_per_vars = set()
         for per_var in permute_on:

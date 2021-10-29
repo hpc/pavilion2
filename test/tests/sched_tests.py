@@ -1,6 +1,7 @@
 import inspect
 import re
 
+import pavilion.schedulers.base_vars
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.test_config import variables
@@ -39,7 +40,7 @@ class SchedTests(PavTestCase):
     def test_sched_vars(self):
         """Make sure the scheduler variable class works as expected."""
 
-        class TestVars(schedulers.SchedulerVariables):
+        class TestVars(pavilion.schedulers.base_vars.SchedulerVariables):
 
             @schedulers.var_method
             def hello(self):

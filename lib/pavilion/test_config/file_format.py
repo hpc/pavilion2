@@ -7,6 +7,7 @@ handles that are documented below.
 from collections import OrderedDict
 import re
 import yaml_config as yc
+from pavilion.schedulers import config as sched_config
 
 
 class TestConfigError(ValueError):
@@ -243,6 +244,17 @@ expected to be added to by various plugins.
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
+        yc.StrElem(
+            'sched_data_id', hidden=True,
+            help_text="Used to track the scheduler data gathered for a particular "
+                      "group of tests. Not to be set by the user."),
+        yc.StrElem(
+            'chunk', default='any',
+            help_text="The scheduler chunk to run on. Will run on 'any' chunk "
+                      "by default, but the chunk may be specified by number. The "
+                      "available chunk ids are in the sched.chunks variable, and"
+                      "can be permuted on."
+        ),
         CondCategoryElem(
             'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
             key_case=EnvCatElem.KC_MIXED,
@@ -495,6 +507,8 @@ expected to be added to by various plugins.
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
                       "test."),
+        # All the scheduler config options.
+        sched_config.SCHEDULE_CONFIG,
         EvalCategoryElem(
             'result_evaluate',
             sub_elem=yc.StrElem(),

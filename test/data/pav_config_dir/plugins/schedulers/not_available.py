@@ -1,10 +1,11 @@
+import pavilion.schedulers.base_vars
 import yaml_config as yc
 from pavilion import schedulers
 
 
 class NotAvailable(schedulers.SchedulerPlugin):
 
-    VAR_CLASS = schedulers.SchedulerVariables
+    VAR_CLASS = pavilion.schedulers.base_vars.SchedulerVariables
 
     def __init__(self):
         super().__init__('not_available', description="Not Available")
