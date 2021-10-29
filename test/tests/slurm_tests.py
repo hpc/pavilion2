@@ -6,7 +6,7 @@ import logging
 from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
-from pavilion.schedulers.slurm import Slurm
+from pavilion.schedulers.plugins.slurm import Slurm
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
 

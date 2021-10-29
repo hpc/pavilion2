@@ -1,11 +1,11 @@
-import pavilion.schedulers.base_vars
+import pavilion.schedulers.vars
 import yaml_config as yc
 from collections import defaultdict
 from pavilion import schedulers
 from pavilion.status_file import STATES
 
 
-class DummyVars(pavilion.schedulers.base_vars.SchedulerVariables):
+class DummyVars(pavilion.schedulers.vars.SchedulerVariables):
 
     EXAMPLE = defaultdict(lambda: '')
 

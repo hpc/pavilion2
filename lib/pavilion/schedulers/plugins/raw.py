@@ -10,8 +10,8 @@ from pathlib import Path
 import yaml_config as yc
 from pavilion.pavilion_variables import var_method
 from pavilion.status_file import STATES, TestStatusInfo
-from .base_scheduler import SchedulerPlugin
-from . import SchedulerVariables
+from pavilion.schedulers.scheduler import SchedulerPlugin
+from pavilion.schedulers import SchedulerVariables
 
 
 class RawVars(SchedulerVariables):

@@ -1,7 +1,7 @@
 """Scheduler variable base class."""
 from typing import List
 
-from pavilion.schedulers.base_scheduler import Nodes, NodeList, NodeInfo
+from . types import Nodes, NodeInfo, NodeSet, NodeList
 from pavilion.test_config import DeferredVariable
 from pavilion.var_dict import VarDict, var_method, dfr_var_method
 
@@ -35,7 +35,10 @@ Naming Conventions:
     These are easily obtained by running a test under the scheduler, and
     then harvesting the results of the test run."""
 
-    def __init__(self, nodes: Nodes, sched_config: dict, chunks: List[NodeList] = None,
+    def __init__(self, sched_config: dict,
+                 nodes: Nodes = None,
+                 chunks: List[NodeSet] = None,
+                 node_list_id: int = None,
                  deferred=True):
         """Initialize the scheduler var dictionary. This will be initialized
         when preliminary variables are gathered vs when it is no longer deferred.
@@ -49,6 +52,9 @@ Naming Conventions:
         :param sched_config: The scheduler configuration for the corresponding test.
         :param chunks: The list of chunks, each of which is a list of node names. If
             None, will default to an empty list.
+        :param node_list_id: Should always be included when chunks is included.
+            Provides the scheduler with a way to recover the original node list that
+            was chunked without having to store it.
         :param deferred: Whether the variables are deferred.
         """
 
@@ -57,6 +63,7 @@ Naming Conventions:
         self._sched_config = sched_config
         self._nodes = nodes if nodes else {}
         self._chunks = chunks if chunks else []
+        self._node_list_id = node_list_id
 
         self._keys = self._find_vars()
 
@@ -145,6 +152,12 @@ Naming Conventions:
     def chunk_ids(self):
         """A list of indices of the available chunks."""
         return list(range(len(self._chunks)))
+
+    @var_method
+    def node_list_id(self):
+        """Return the node list id, if available."""
+
+        return self.node_list_id
 
     @var_method
     def min_cpus(self):

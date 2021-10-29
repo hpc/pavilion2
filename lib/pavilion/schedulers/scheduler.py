@@ -11,6 +11,7 @@ import os
 import pickle
 import pprint
 import time
+from abc import ABC
 from pathlib import Path
 from typing import List, Union, Dict, Any, NewType, Tuple, FrozenSet
 
@@ -20,7 +21,8 @@ from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.test_config import file_format
 from pavilion.test_run import TestRun
 from yapsy import IPlugin
-from . import base_vars
+from .types import NodeInfo, Nodes, NodeList, NodeSet
+from .vars import SchedulerVariables
 from . import config
 from . import node_selection
 
@@ -29,24 +31,37 @@ class SchedulerPluginError(RuntimeError):
     """Raised when scheduler plugins encounter an error."""
 
 
-NodeInfo = NewType('NodeInfo', Dict[str, Any])
-Nodes = NewType('Nodes', Dict[str, NodeInfo])
-NodeList = NewType('NodeList', List[str])
-NodeSet = NewType('NodeSet', FrozenSet[str])
-
-
 _SCHEDULER_PLUGINS = {}
 
 
 class KickoffScriptHeader(ScriptHeader):
-    """Base Class for kickoff script headers. Provides a common set of arguments."""
+    """Base Class for kickoff script headers. Provides a common set of arguments.
+
+    Most scheduler plugins should inherit from this, overriding the 'get_lines'
+    method to add custom header lines to the kickoff script.
+    """
 
     def __init__(self, job_name: str, sched_config: dict, nodes: NodeList):
+        """Initialize the script header.
+
+        :param job_name: The job should be named this under the scheduler, if possible.
+        :param sched_config: The (validated) scheduler config.
+        :param nodes: A list of specific nodes to kickoff the test under. Advanced
+            schedulers should expect this, while basic scheduler classes should ignore
+            it, but will have to implement 'include_nodes' and 'exclude_nodes' manually.
+        """
+
         super().__init__()
 
         self._job_name = job_name
         self._config = sched_config
         self._nodes = nodes
+
+    def get_lines(self):
+        """Override and use included information to write a kickoff script header
+        for this kickoff script."""
+
+        raise NotImplementedError
 
 
 def __reset():
@@ -118,7 +133,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     """This file holds scheduler data for a test, so that it doesn't have to be
     regenerated."""
 
-    VAR_CLASS = base_vars.SchedulerVariables
+    VAR_CLASS = SchedulerVariables
     """The scheduler's variable class."""
 
     KICKOFF_SCRIPT_HEADER_CLASS = KickoffScriptHeader
@@ -155,18 +170,17 @@ class SchedulerPlugin(IPlugin.IPlugin):
             raise SchedulerPluginError("You must set the Var class for"
                                        "each plugin type.")
 
-    def get_initial_vars(self, sched_config: dict) \
-            -> Tuple[base_vars.SchedulerVariables, Union[int, None]]:
+    def get_initial_vars(self, raw_sched_config: dict) -> SchedulerVariables:
         """Queries the scheduler to auto-detect its current state, and returns the
         dictionary of scheduler variables for that test given its config.
 
-        :param sched_config: The scheduler config for a given test.
+        :param raw_sched_config: The raw scheduler config for a given test.
         :returns: A tuple of the scheduler variables object and the node_list_id,
             which should be saved as part of the test config.
         """
 
         try:
-            sched_config = config.validate_config(sched_config)
+            sched_config = config.validate_config(raw_sched_config)
         except config.SchedConfigError as err:
             raise SchedulerPluginError(
                 "Error validating 'schedule' config section:\n{}".format(err.args[0]))
@@ -175,56 +189,24 @@ class SchedulerPlugin(IPlugin.IPlugin):
             raise SchedulerPluginError(
                 "You must specify a value for schedule.num_nodes")
 
-        self._nodes = self._get_system_inventory(sched_config)
-        if self._nodes is None:
-            chunks = list(NodeList([]))
-            node_list_id = None
-        else:
-            filtered_nodes, filter_reasons = self._filter_nodes(sched_config)
-            filtered_nodes.sort()
+        return self._get_initial_vars(sched_config)
 
-            if not filtered_nodes:
-                reasons = "\n".join("{}: {}".format(k, v)
-                                    for k, v in filter_reasons.items())
-                raise SchedulerPluginError(
-                    "All nodes were filtered out during the node filtering step. "
-                    "Nodes were filtered for the following reasons:\n{}\n"
-                    "Scheduler config:\n{}\n"
-                    .format(reasons,
-                            pprint.pformat(sched_config)))
+    def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
+        """Return the deferred scheduler variable object for the given scheduler
+        config."""
 
-            try:
-                node_list_id = self._node_lists.index(filtered_nodes)
-            except ValueError:
-                node_list_id = len(self._node_lists)
-                self._node_lists.append(filtered_nodes)
+        raise NotImplementedError("Overridden by the Basic/Advanced child classes.")
 
-            chunks = self._get_chunks(node_list_id, sched_config)
-            node_list_id = None
-
-        return self.VAR_CLASS(self._nodes, sched_config, chunks), node_list_id
-
-    def get_final_vars(self, test: TestRun):
+    def get_final_vars(self, test: TestRun) -> SchedulerVariables:
         """Get the final, non-deferred scheduler variables for a test. This should
         only be called within an allocation."""
 
-        nodes = self._load_sched_data(test)
-        sched_config = config.validate_config(test.config['schedule'])
+        raise NotImplementedError("Overridden by the Basic/Advanced child classes.")
 
-        if nodes is None:
-            # We couldn't get chunk information before, so just base it on
-            # the available information once we're in the allocation.
-            # All of this is done during chunk selection normally.
-            alloc_nodes = self._get_alloc_nodes()
+    def schedule_tests(self, pav_cfg, tests: List[TestRun]):
+        """Schedule each test using this scheduler."""
 
-            num_nodes = sched_config['num_nodes']
-            alloc_nodes = alloc_nodes[:num_nodes]
-
-            nodes = Nodes({})
-            for node in alloc_nodes:
-                nodes[node] = self._get_alloc_node_info(node)
-
-        return self.VAR_CLASS(nodes, sched_config, deferred=False)
+        raise NotImplementedError("Implemented in Basic/Advanced child classes.")
 
     def available(self) -> bool:
         """Returns true if this scheduler is available on this host."""
@@ -304,6 +286,263 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise NotImplementedError
 
+    def get_conf(self) -> Union[yc.KeyedElem, None]:
+        """Return the configuration object suitable for adding scheduler specific
+        keys under 'scheduler.<scheduler_name> in the test configuration."""
+
+        config_elements = self._get_config_elems()
+        if not config_elements:
+            return None
+
+        return yc.KeyedElem(
+            self.name,
+            help_text="Configuration for the {} scheduler.".format(self.name),
+            elements=config_elements,
+        )
+
+    def _get_config_elems(self) -> List[yc.ConfigElement]:
+        """Return the configuration elements specific to this scheduler."""
+
+        return []
+
+    def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
+                                    sched_config: dict, chunk: NodeSet = None) \
+            -> ScriptComposer:
+        """Generate the kickoff script essentials preamble common to all scheduled
+        tests.
+        """
+
+        chunk = chunk or []
+
+        header = self._get_kickoff_script_header(job_name, sched_config, chunk)
+
+        script = ScriptComposer(header=header)
+        script.comment("Redirect all output to the kickoff log.")
+        script.command("exec >{} 2>&1".format(log_path.as_posix()))
+
+        # Make sure the pavilion spawned
+        env_changes = {
+            'PATH': '{}:${{PATH}}'.format(pav_cfg.pav_root/'bin'),
+            'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
+        }
+        if 'PAV_CONFIG_DIR' in os.environ:
+            env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
+
+        script.env_change(env_changes)
+
+        # Run Kickoff Env setup commands
+        for command in pav_cfg.env_setup:
+            script.command(command)
+
+        return script
+
+    def _get_kickoff_script_header(self, job_name: str, sched_config: dict,
+                                   nodes) -> KickoffScriptHeader:
+        """Get a script header object for the kickoff script."""
+
+        return self.KICKOFF_SCRIPT_HEADER_CLASS(
+            job_name=job_name,
+            sched_config=sched_config,
+            nodes=nodes)
+
+    def _kickoff_script_path(self, test: TestRun) -> Path:
+        path = (test.path/'kickoff')
+        return path.with_suffix(self.KICKOFF_SCRIPT_EXT)
+
+    @staticmethod
+    def _add_schedule_script_body(script, test):
+        """Add the script body to the given script object. This default
+        simply adds a comment and the test run command."""
+
+        script.comment("Within the allocation, run the command.")
+        script.command(test.run_cmd())
+
+    def cancel_job(self, test) -> TestStatusInfo:
+        """Tell the scheduler to cancel the given test, if it can. This should
+        simply try it's best for the test given, and note in the test status
+        (with a SCHED_ERROR) if there were problems. Update the test status to
+        SCHED_CANCELLED if it succeeds.
+
+        :param pavilion.test_run.TestRun test: The test to cancel.
+        :returns: A status info object describing the state. If we actually
+            cancel the job the test status will be set to SCHED_CANCELLED.
+            This should return SCHED_ERROR when something goes wrong.
+        :rtype: TestStatusInfo
+        """
+
+        job_id = test.job_id
+        if job_id is None:
+            test.set_run_complete()
+            return test.status.set(STATES.SCHED_CANCELLED,
+                                   "Job was never started.")
+
+        cancel_result = self._cancel_job(test)
+        test.set_run_complete()
+        return cancel_result
+
+    def _cancel_job(self, test):
+        """Override in scheduler plugins to handle cancelling a job.
+
+        :param pavilion.test_run.TestRun test: The test to cancel.
+        :returns: Whether we're confident the job was canceled, and an
+            explanation.
+        :rtype: TestStatusInfo
+        """
+        raise NotImplementedError
+
+    def activate(self):
+        """Add this plugin to the scheduler plugin list."""
+
+        name = self.name
+
+        if name not in _SCHEDULER_PLUGINS:
+            _SCHEDULER_PLUGINS[name] = self
+            file_format.TestConfigLoader.add_subsection(self.get_conf())
+        else:
+            ex_plugin = _SCHEDULER_PLUGINS[name]
+            if ex_plugin.priority > self.priority:
+                pass
+            elif ex_plugin.priority == self.priority:
+                raise SchedulerPluginError(
+                    "Two plugins for the same system plugin have the same "
+                    "priority {}, {}.".format(self, _SCHEDULER_PLUGINS[name]))
+            else:
+                _SCHEDULER_PLUGINS[name] = self
+
+    def deactivate(self):
+        """Remove this plugin from the scheduler plugin list."""
+        name = self.name
+
+        if name in _SCHEDULER_PLUGINS:
+            file_format.TestConfigLoader.remove_subsection(name)
+            del _SCHEDULER_PLUGINS[name]
+
+
+class SchedulerPluginBasic(SchedulerPlugin, ABC):
+    """A Scheduler plugin that does not support automatic node inventories. It relies
+    on manually set parameters in 'schedule.cluster_info'."""
+
+    def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
+        """Get the initial variables for the basic scheduler."""
+
+        return self.VAR_CLASS(sched_config)
+
+    def get_final_vars(self, test: TestRun) -> SchedulerVariables:
+        """Gather node information from within the allocation."""
+
+        sched_config = config.validate_config(test.config['schedule'])
+        alloc_nodes = self._get_alloc_nodes()
+
+        num_nodes = sched_config['num_nodes']
+        alloc_nodes = alloc_nodes[:num_nodes]
+
+        nodes = Nodes({})
+        for node in alloc_nodes:
+            nodes[node] = self._get_alloc_node_info(node)
+
+        return self.VAR_CLASS(sched_config, nodes=nodes, deferred=False)
+
+    def _get_alloc_nodes(self) -> NodeList:
+        """Given that this is running on an allocation, return the allocation's
+        node list."""
+
+        raise NotImplementedError("This must be implemented, even in basic schedulers.")
+
+    def _get_alloc_node_info(self, node_name) -> NodeInfo:
+        """Given that this is running on an allocation, get information about
+        the given node. While this is completely optional, it can help pavilion
+        better populate variables like 'test_min_cpus' and 'test_min_mem'."""
+
+        _ = node_name
+
+        return NodeInfo({})
+
+    def schedule_tests(self, pav_cfg, tests: List[TestRun]):
+        """Schedule each test independently."""
+
+        for test in tests:
+            sched_config = config.validate_config(test.config['schedule'])
+            sched_log_path = test.path / self.SCHED_LOG_FN
+
+            script = self._create_kickoff_script_stub(
+                pav_cfg=pav_cfg,
+                job_name='pav test {} ({})'.format(test.full_id, test.name),
+                log_path=test.path/self.KICKOFF_LOG_FN,
+                sched_config=sched_config)
+
+            script_path = self._kickoff_script_path(test)
+            script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
+            script.write(script_path)
+
+            self._kickoff(pav_cfg, script_path, sched_config, sched_log_path)
+            test.status.set(STATES.SCHEDULED,
+                            "Test kicked off with the {} scheduler".format(self.name))
+
+    def _kickoff(self, pav_cfg, script_path: Path, sched_config: dict,
+                 sched_log_path: Path):
+        """Schedule the test under this scheduler.
+
+        :param pav_cfg: The pavilion config.
+        :param script_path: The path to the kickoff script, if applicable.
+        :param sched_config: The scheduler configuration for this test or group of
+            tests.
+        :param sched_log_path: If the scheduler writes its own log file, it should
+            be directed here if possible.
+        """
+
+        raise NotImplementedError("How to perform test kickoff is left for the "
+                                  "specific scheduler to specify.")
+
+
+class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
+    """A scheduler plugin that supports automatic node inventories, and as a
+    consequence chunking and other advanced features."""
+
+    def __init__(self, name, description, priority=SchedulerPluginBasic.PRIO_COMMON):
+        """Initialize tracking of node info and chunks, in addition to the basics."""
+
+        super().__init__(name, description, priority=priority)
+
+        self._nodes = None  # type: Union[Nodes, None]
+        self._node_lists = []  # type: List[NodeList]
+        self._chunks = ChunksByNodeListId({})  # type: ChunksByNodeListId
+
+    def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
+        """Get initial variables (and chunks) for this scheduler."""
+
+        self._nodes = self._get_system_inventory(sched_config)
+        filtered_nodes, filter_reasons = self._filter_nodes(sched_config)
+        filtered_nodes.sort()
+
+        if not filtered_nodes:
+            reasons = "\n".join("{}: {}".format(k, v)
+                                for k, v in filter_reasons.items())
+            raise SchedulerPluginError(
+                "All nodes were filtered out during the node filtering step. "
+                "Nodes were filtered for the following reasons:\n{}\n"
+                "Scheduler config:\n{}\n"
+                .format(reasons, pprint.pformat(sched_config)))
+
+        try:
+            node_list_id = self._node_lists.index(filtered_nodes)
+        except ValueError:
+            node_list_id = len(self._node_lists)
+            self._node_lists.append(filtered_nodes)
+
+        chunks = self._get_chunks(node_list_id, sched_config)
+
+        return self.VAR_CLASS(sched_config, nodes=self._nodes, chunks=chunks,
+                              node_list_id=node_list_id)
+
+    def get_final_vars(self, test: TestRun) -> SchedulerVariables:
+        """Load our saved node data from kickoff time, and compute the final
+        scheduler variables from that."""
+
+        nodes = self._load_sched_data(test)
+        sched_config = config.validate_config(test.config['schedule'])
+
+        return self.VAR_CLASS(sched_config, nodes=nodes, deferred=False)
+
     def _save_sched_data(self, test: TestRun, nodes: NodeSet):
         """Save node information (from kickoff time) for the given test. The saved
         node info is limited to only those nodes on which the test should run, which
@@ -345,69 +584,42 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return nodes
 
-    def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
+    def _get_raw_node_data(self, sched_config) -> Tuple[List[Any], Any]:
         """Get the raw data for the nodes on the current cluster/host.
 
-        :returns: Returns a list of data (NodeInfo dicts )for each node in whatever
-            format _transform_raw_node_data takes for this scheduler type, and any
-            extra data supported for that function as well. Returns None if
-            node data gathering isn't supported."""
+        :returns: A list of raw data for each node (to be processed by
+            _transform_raw_node_data, and an object (of any type) of data that applies
+            to every node."""
 
-        return None, None
-
-    def _get_alloc_nodes(self) -> NodeList:
-        """Given that this is running on an allocation, return the allocation's
-        node list. This is optional if the scheduler fully supports chunking, as
-        it will never be called."""
-
-        raise RuntimeError("This should only be called if a scheduler does not "
-                           "support automatic cluster info. If a scheduler does not,"
-                           "then it should be defined by the scheduler plugin.")
-
-    def _get_alloc_node_info(self, node_name) -> NodeInfo:
-        """Given that this is running on an allocation, get information about
-        the given node. This is completely optional."""
-
-        _ = node_name
-
-        return NodeInfo({})
+        raise NotImplementedError("This must be implemented by the scheduler plugin.")
 
     def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
-        """Transform the raw node data into a node info dictionary. No keys are
+        """Transform the raw node data into a node info dictionary. Not all keys are
         required, but you must provide enough information to filter out nodes that
-        can't be used or to differentiate nodes that can't be used together.
+        can't be used or to differentiate nodes that can't be used together. You may
+        return additional keys, typically to use with scheduler specific filter
+        parameters.
+
+        Base supported keys:
+
+        # Node Status - (required)
+        - up (bool) - Whether the node is up (allocatable).
+        - available (bool) - Whether the node is allocatable and unallocated.
 
         # Informational
         - cpus - The number of CPUs on the node.
         - mem - The node memory in GB
 
-        # Partitions
-        - up (bool) - Whether the node is up (allocatable).
-        - available (bool) - Whether the node is allocatable and unallocated.
+        # Partitions - this information is used to separate nodes into groups that
+        #   can be allocated together. If this information is lacking, Pavilion will
+        #   attempt to create allocations that aren't possible on a system, such as
+        #   across partitions.
         - partitions (List) - The cluster partitions on which the node resides.
         - reservations (List) - List of reservations to which the node belongs.
         - features (List[str]) - A list of feature tags that differentiate nodes,
-                typically on heterogeneous systems.
-
-        """
+                typically on heterogeneous systems."""
 
         raise NotImplementedError("This must be implemented by the scheduler plugin.")
-
-    def _node_is_up(self, sched_config, node_name, node) -> Union[bool, None]:
-        """Determine whether the given node is 'up', ie allocatable. Return None
-        if the scheduler plugin does not support determining if a node is up."""
-
-        _ = sched_config, node_name, node
-
-        return None
-
-    def _node_is_available(self, sched_config, node_name, node) -> Union[bool, None]:
-        """Determine if the given node is 'available', ie allocatable and not
-        currently allocated."""
-
-        _ = sched_config, node_name, node
-
-        return None
 
     def _filter_nodes(self, sched_config: Dict[str, Any]) \
             -> Tuple[NodeList, Dict[str, int]]:
@@ -465,25 +677,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         _ = sched_config, node_name, node
 
         return True
-
-    def get_conf(self):
-        """Return the configuration object suitable for adding to the test
-        configuration."""
-
-        config_elements = self._get_config_elems()
-        if not config_elements:
-            return None
-
-        return yc.KeyedElem(
-            self.name,
-            help_text="Configuration for the {} scheduler.".format(self.name),
-            elements=config_elements,
-        )
-
-    def _get_config_elems(self) -> List[yc.ConfigElement]:
-        """Return the configuration elements specific to this scheduler."""
-
-        return []
 
     def _get_chunks(self, node_list_id, sched_config) -> List[NodeSet]:
         """Chunking is specific to the node list, chunk size, and node selection
@@ -550,9 +743,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         sched_configs = {}  # type: Dict[str, dict]
 
         for test in tests:
+            node_list_id = test.var_man.get('sched.node_list_id')
+
             sched_config = config.validate_config(test.config['schedule'])
             sched_configs[test.full_id] = sched_config
-            node_list_id = test.config.get('node_list_id', None)
             chunk_id = test.config.get('chunk')
             if chunk_id == 'any':
                 # This is validated in test object creation.
@@ -561,14 +755,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
             chunk_size = sched_config['chunk_size']
             node_select = sched_config['chunk_node_selection']
 
-            if node_list_id is not None:
-                chunks = self._chunks[node_list_id][chunk_size][node_select]
-            else:
-                chunks = None
+            chunks = self._chunks[node_list_id][chunk_size][node_select]
 
-            if chunks is None:
-                by_chunk[None].append(test)
-            elif chunk_id == 'any':
+            if chunk_id == 'any':
                 least_used = None
                 least_used_chunk = None
                 for chunk in chunks:
@@ -694,10 +883,15 @@ class SchedulerPlugin(IPlugin.IPlugin):
                 symlink_sched_log_path.symlink_to(sched_log_path)
 
         self._kickoff(pav_cfg, script_path, sched_config, chunk, sched_log_path)
+        for test in tests:
+            test.status.set(
+                STATES.SCHEDULED,
+                "Test kicked off by {} scheduler in a shared allocation with {} other "
+                "tests and {} nodes.".format(self.name, len(tests), len(chunk)))
 
     def _schedule_indi_chunk(self, pav_cfg, tests: List[TestRun],
                              sched_configs: Dict[str, dict], chunk: NodeSet):
-        """"""
+        """Schedule tests individually under the given chunk."""
 
         # Track which nodes are available for individual runs. We'll consume nodes
         # from this list as they're handed out to tests, and reset it when
@@ -742,150 +936,27 @@ class SchedulerPlugin(IPlugin.IPlugin):
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(script_path)
 
-            self._kickoff(pav_cfg, script_path, sched_config, test_chunk)
+            sched_log_path = test.path / self.SCHED_LOG_FN
 
-    def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
-                                    sched_config: dict,
-                                    chunk: NodeSet) -> ScriptComposer:
-        """Generate the kickoff script essentials preamble common to all scheduled
-        tests.
-        """
-
-        header = self._get_kickoff_script_header(job_name, sched_config, chunk)
-
-        script = ScriptComposer(header=header)
-        script.comment("Redirect all output to the kickoff log.")
-        script.command("exec >{} 2>&1".format(log_path.as_posix()))
-
-        # Make sure the pavilion spawned
-        env_changes = {
-            'PATH': '{}:${{PATH}}'.format(pav_cfg.pav_root/'bin'),
-            'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
-        }
-        if 'PAV_CONFIG_DIR' in os.environ:
-            env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
-
-        script.env_change(env_changes)
-
-        # Run Kickoff Env setup commands
-        for command in pav_cfg.env_setup:
-            script.command(command)
-
-        return script
-
-    def _get_kickoff_script_header(self, job_name: str, sched_config: dict,
-                                   nodes) -> KickoffScriptHeader:
-        """Get a script header object for the kickoff script."""
-
-        return self.KICKOFF_SCRIPT_HEADER_CLASS(
-            job_name=job_name,
-            sched_config=sched_config,
-            nodes=nodes)
+            self._kickoff(pav_cfg, script_path, sched_config, test_chunk,
+                          sched_log_path)
+            test.status.set(
+                STATES.SCHEDULED,
+                "Test kicked off (individually) under {} scheduler with {} nodes."
+                .format(self.name, len(test_chunk)))
 
     def _kickoff(self, pav_cfg, script_path: Path, sched_config: dict,
-                 test_chunk: NodeList, sched_log_path: Path):
+                 chunk: NodeList, sched_log_path: Path):
         """Schedule the test under this scheduler.
 
         :param pav_cfg: The pavilion config.
         :param script_path: The path to the kickoff script, if applicable.
         :param sched_config: The scheduler configuration for this test or group of
             tests.
-        :param test_chunk: The list of nodes on which to run. May be None to denote
-
-        :param sched_log_path:
-        :return:
+        :param chunk: List of nodes on which to start this test.
+        :param sched_log_path: If the scheduler writes its own log file, it should
+            be directed here if possible.
         """
 
         raise NotImplementedError("How to perform test kickoff is left for the "
                                   "specific scheduler to specify.")
-
-    def _kickoff_script_path(self, test: TestRun) -> Path:
-        path = (test.path/'kickoff')
-        return path.with_suffix(self.KICKOFF_SCRIPT_EXT)
-
-    @staticmethod
-    def _add_schedule_script_body(script, test):
-        """Add the script body to the given script object. This default
-        simply adds a comment and the test run command."""
-
-        script.comment("Within the allocation, run the command.")
-        script.command(test.run_cmd())
-
-    def cancel_job(self, test) -> TestStatusInfo:
-        """Tell the scheduler to cancel the given test, if it can. This should
-        simply try it's best for the test given, and note in the test status
-        (with a SCHED_ERROR) if there were problems. Update the test status to
-        SCHED_CANCELLED if it succeeds.
-
-        :param pavilion.test_run.TestRun test: The test to cancel.
-        :returns: A status info object describing the state. If we actually
-            cancel the job the test status will be set to SCHED_CANCELLED.
-            This should return SCHED_ERROR when something goes wrong.
-        :rtype: TestStatusInfo
-        """
-
-        job_id = test.job_id
-        if job_id is None:
-            test.set_run_complete()
-            return test.status.set(STATES.SCHED_CANCELLED,
-                                   "Job was never started.")
-
-        cancel_result = self._cancel_job(test)
-        test.set_run_complete()
-        return cancel_result
-
-    def _cancel_job(self, test):
-        """Override in scheduler plugins to handle cancelling a job.
-
-        :param pavilion.test_run.TestRun test: The test to cancel.
-        :returns: Whether we're confident the job was canceled, and an
-            explanation.
-        :rtype: TestStatusInfo
-        """
-        raise NotImplementedError
-
-    def activate(self):
-        """Add this plugin to the scheduler plugin list."""
-
-        name = self.name
-
-        if name not in _SCHEDULER_PLUGINS:
-            _SCHEDULER_PLUGINS[name] = self
-            file_format.TestConfigLoader.add_subsection(self.get_conf())
-        else:
-            ex_plugin = _SCHEDULER_PLUGINS[name]
-            if ex_plugin.priority > self.priority:
-                LOGGER.warning(
-                    "Scheduler plugin %s ignored due to priority", name)
-            elif ex_plugin.priority == self.priority:
-                raise SchedulerPluginError(
-                    "Two plugins for the same system plugin have the same "
-                    "priority {}, {}.".format(self, _SCHEDULER_PLUGINS[name]))
-            else:
-                _SCHEDULER_PLUGINS[name] = self
-
-    def deactivate(self):
-        """Remove this plugin from the scheduler plugin list."""
-        name = self.name
-
-        if name in _SCHEDULER_PLUGINS:
-            file_format.TestConfigLoader.remove_subsection(name)
-            del _SCHEDULER_PLUGINS[name]
-
-
-class SchedulerPlugin
-
-
-class SchedulerPluginAdvanced(SchedulerPluginBasic):
-    """A scheduler plugin that supports automatic node inventories, and as a
-    consequence chunking and other advanced features."""
-
-    def __init__(self, name, description, priority=SchedulerPluginBasic.PRIO_COMMON):
-        """Initialize tracking of node info and chunks, in addition to the basics."""
-
-        super().__init__(name, description, priority=priority)
-
-        self._nodes = None  # type: Union[Nodes, None]
-        self._node_lists = []  # type: List[NodeList]
-        self._chunks = ChunksByNodeListId({})  # type: ChunksByNodeListId
-

@@ -3,7 +3,6 @@
 
 import distutils.spawn
 import math
-import os
 import re
 import subprocess
 import time
@@ -11,11 +10,13 @@ from pathlib import Path
 from typing import List, Union, Any, Tuple
 
 import yaml_config as yc
+from pavilion.schedulers import vars
+from pavilion.schedulers.scheduler import (SchedulerPluginError,
+                                           SchedulerPluginAdvanced,
+                                           KickoffScriptHeader)
+from pavilion.schedulers.types import NodeInfo, NodeList
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.var_dict import dfr_var_method
-from . import base_vars
-from .base_scheduler import (SchedulerPluginError, NodeList,
-                             SchedulerPlugin, KickoffScriptHeader, NodeInfo)
 
 
 class SbatchHeader(KickoffScriptHeader):
@@ -116,7 +117,7 @@ def compress_node_list(nodes: List[str]):
     return ','.join(node_seqs)
 
 
-class SlurmVars(base_vars.SchedulerVariables):
+class SlurmVars(vars.SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
     # pylint: disable=no-self-use
 
@@ -190,7 +191,7 @@ def slurm_states(state):
     return states
 
 
-class Slurm(SchedulerPlugin):
+class Slurm(SchedulerPluginAdvanced):
     """Schedule tests with Slurm!"""
 
     KICKOFF_SCRIPT_EXT = '.sbatch'
@@ -395,17 +396,15 @@ class Slurm(SchedulerPlugin):
         return ret == 0
 
     def _kickoff(self, pav_cfg, script_path: Path, sched_config: dict,
-                 test_chunk: NodeList):
+                 chunk: NodeList, sched_log_path: Path):
         """Submit the kick off script using sbatch."""
 
         if not script_path.is_file():
             raise SchedulerPluginError(
-                'Submission script {} not found'.format(kickoff_path))
-
-        slurm_out = test.path / 'slurm.log'
+                'Submission script {} not found'.format(script_path))
 
         proc = subprocess.Popen(['sbatch',
-                                 '--output={}'.format(slurm_out),
+                                 '--output={}'.format(sched_log_path.as_posix()),
                                  script_path.as_posix()],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
@@ -414,7 +413,7 @@ class Slurm(SchedulerPlugin):
         if proc.poll() != 0:
             raise SchedulerPluginError(
                 "Sbatch failed for kickoff script '{}': {}"
-                .format(kickoff_path, stderr.decode('utf8'))
+                .format(script_path, stderr.decode('utf8'))
             )
 
         return stdout.decode('UTF-8').strip().split()[-1]
@@ -485,8 +484,6 @@ class Slurm(SchedulerPlugin):
         try:
             stdout, stderr = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
-            self.logger.warning("Error getting scontrol output with cmd "
-                                "'%s'. Process timed out.", cmd)
             return []
 
         stdout = stdout.decode('utf8')
@@ -499,9 +496,8 @@ class Slurm(SchedulerPlugin):
         for section in stdout.split('\n\n'):
             try:
                 results.append(self._scontrol_parse(section))
-            except (KeyError, ValueError) as err:
-                self.logger.warning("Error parsing scontrol output with cmd"
-                                    "'%s': %s", cmd, err)
+            except (KeyError, ValueError):
+                pass
 
         return results
 
