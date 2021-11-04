@@ -12,7 +12,6 @@ from pavilion import lockfile as _lockfile
 from pavilion import utils
 from pavilion.test_config import variables
 from ..result_parsers import base_classes
-from ..result_parsers.base_classes import ResultParser
 from .base import base_results, BASE_RESULTS, RESULT_ERRORS
 from .common import ResultError
 from .evaluations import check_expression, evaluate_results, StringParserError
