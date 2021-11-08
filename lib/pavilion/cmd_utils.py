@@ -189,10 +189,10 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
     :param exclude_ids: A list of test raw id's to filter out.
     """
 
+    test_wd = None
     test_pairs = []  # type: List[ID_Pair]
 
     for test_path in test_paths:
-        test_wd = test_path.parents[1]
         try:
             test_id = int(test_path.name)
         except ValueError:
@@ -201,7 +201,17 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
                           color=output.YELLOW, file=errfile)
             continue
 
+        for test_parent in test_path.parents:
+            if (test_parent/TestRun.RUN_DIR/test_path.name).exists():
+                test_wd = test_parent
+                break
+            
+        if test_wd is None:
+            raise ValueError("No parent of test_path '{}' contains test {}."
+                             .format(test_path, test_path.name))
+
         test_pairs.append(ID_Pair((test_wd, test_id)))
+        test_wd = None
 
     if exclude_ids:
         test_pairs = _filter_tests_by_raw_id(pav_cfg, test_pairs, exclude_ids)
