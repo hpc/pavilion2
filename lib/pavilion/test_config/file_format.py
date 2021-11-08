@@ -7,7 +7,7 @@ handles that are documented below.
 from collections import OrderedDict
 import re
 import yaml_config as yc
-from pavilion.schedulers import config as sched_config
+from typing import Type
 
 
 class TestConfigError(ValueError):
@@ -42,7 +42,6 @@ class VariableElem(yc.CategoryElem):
         and it can't have defaults."""
         super(VariableElem, self).__init__(name=name,
                                            sub_elem=yc.StrElem(),
-                                           defaults=None,
                                            **kwargs)
 
     def normalize(self, value):
@@ -77,11 +76,12 @@ class VarKeyCategoryElem(yc.CategoryElem):
 
     # Allow names that have multiple, dot separated components, potentially
     # including a '*'.
-    _NAME_RE = re.compile(r'^(?:[a-zA-Z][a-zA-Z0-9_-]*)'
+    _NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*'
                           r'(?:\.|[a-zA-Z][a-zA-Z0-9_-]*)*')
 
 
 class ResultParserCatElem(yc.CategoryElem):
+    """Result parser category element."""
     _NAME_RE = re.compile(
         r'^[a-zA-Z_]\w*(\s*,\s*[a-zA-Z_]\w*)*$'
     )
@@ -235,6 +235,10 @@ expected to be added to by various plugins.
                       "the values of these variables, a new virtual test will "
                       "be generated."
         ),
+        yc.StrElem(
+            'permute_base', hidden=True,
+            help_text="Set by pavilion. An id to identify the base config shared by " 
+                      "a set of permutations."),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
             help_text="Variables for this test section. These can be "
@@ -507,8 +511,6 @@ expected to be added to by various plugins.
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
                       "test."),
-        # All the scheduler config options.
-        sched_config.SCHEDULE_CONFIG,
         EvalCategoryElem(
             'result_evaluate',
             sub_elem=yc.StrElem(),
@@ -546,48 +548,6 @@ expected to be added to by various plugins.
                   "output of these parsers will be added to the final "
                   "result json data.")
     ELEMENTS.append(_RESULT_PARSERS)
-
-    @classmethod
-    def add_subsection(cls, subsection):
-        """Use this method to add additional sub-sections to the config.
-
-        :param yc.ConfigElem subsection: A yaml config element to add. Keyed
-            elements are expected, though any ConfigElem based instance
-            (whose leave elements are StrElems) should work.
-        """
-
-        if not isinstance(subsection, yc.ConfigElement):
-            raise ValueError("Tried to add a subsection to the config, but it "
-                             "wasn't a yaml_config ConfigElement instance (or "
-                             "an instance of a ConfigElement child "
-                             "class).")
-
-        name = subsection.name
-
-        names = [el.name for el in cls.ELEMENTS]
-
-        if name in names:
-            raise ValueError("Tried to add a subsection to the config called "
-                             "{0}, but one already exists.".format(name))
-
-        try:
-            cls.check_leaves(subsection)
-        except ValueError as err:
-            raise ValueError("Tried to add result parser named '{}', but "
-                             "leaf element '{}' was not string based."
-                             .format(name, err.args[0]))
-
-        cls.ELEMENTS.append(subsection)
-
-    @classmethod
-    def remove_subsection(cls, subsection_name):
-        """Remove a subsection from the config. This is really only for use
-        in plugin deactivate methods."""
-
-        for section in list(cls.ELEMENTS):
-            if subsection_name == section.name:
-                cls.ELEMENTS.remove(section)
-                return
 
     @classmethod
     def add_result_parser_config(cls, name, config_items):
@@ -665,6 +625,18 @@ expected to be added to by various plugins.
             return
         else:
             raise ValueError(elem)
+
+    has_added_schedule_section = False
+
+    @classmethod
+    def set_sched_config(cls, sched_config_class: Type[yc.KeyedElem]):
+        """Add the scheduler config class to the main test config."""
+
+        if cls.has_added_schedule_section:
+            return
+        cls.has_added_schedule_section = True
+
+        cls.ELEMENTS.append(sched_config_class())
 
 
 def TestSuiteLoader():  # pylint: disable=invalid-name

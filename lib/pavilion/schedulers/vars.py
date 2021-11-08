@@ -25,9 +25,14 @@ Naming Conventions:
   is specific to a test. These also tend to be deferred.
 """
 
+    # Only deferred vars need examples.
     EXAMPLE = {
-        'min_cpus': "3",
-        'min_mem': "123412",
+        'tasks_per_node': "5",
+        'test_nodes':     '45',
+        'test_node_list': ['node02', 'node04'],
+        'test_min_cpus': '4',
+        'test_min_mem': '32',
+        'tasks_total': '180',
     }
 
     """Each scheduler variable class should provide an example set of
@@ -105,8 +110,7 @@ Naming Conventions:
 
     def _get_min(self, nodes: List[NodeInfo], attr: str, default: int):
         """Get the minimum of the given attribute across the list of nodes,
-        settling for the default if no node had useful info and there's
-        no value in the scheduler configs cluster info."""
+        settling for the cluster_info value, and then the default."""
 
         min_val = None
         for node in nodes:
@@ -117,7 +121,10 @@ Naming Conventions:
 
         if min_val is None:
             cluster_info = self._sched_config.get('cluster_info', {})
-            min_val = cluster_info.get(attr, default)
+            if cluster_info.get(attr) is None:
+                min_val = default
+            else:
+                min_val = cluster_info[attr]
 
         return min_val
 
@@ -144,7 +151,8 @@ Naming Conventions:
                 return tasks_per_node
         else:  # Should be a float
             if self._nodes:
-                return min(int(tasks_per_node * self.min_cpus()), 1)
+                print(tasks_per_node, self.min_cpus())
+                return min(int(tasks_per_node) * self.min_cpus(), 1)
             else:
                 return 1
 
@@ -155,9 +163,13 @@ Naming Conventions:
 
     @var_method
     def node_list_id(self):
-        """Return the node list id, if available."""
+        """Return the node list id, if available. This is meaningless to test
+        configs, but is used internally by Pavilion."""
 
-        return self.node_list_id
+        if self._node_list_id is None:
+            return ''
+        else:
+            return self._node_list_id
 
     @var_method
     def min_cpus(self):
@@ -182,7 +194,10 @@ Naming Conventions:
         if self._nodes:
             return len(self._nodes)
 
-        return self._sched_config.get('cluster_info', {}).get('node_count', 1)
+        if self._sched_config['cluster_info'].get('node_count') is None:
+            return 1
+        else:
+            return self._sched_config['cluster_info']['node_count']
 
     @var_method
     def node_list(self) -> NodeList:

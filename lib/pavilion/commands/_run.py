@@ -78,7 +78,7 @@ class _RunCommand(Command):
                 raise
 
             if not test.build_only:
-                return self._run(pav_cfg, test, sched)
+                return self._run(test)
         finally:
             test.set_run_complete()
 
@@ -108,8 +108,8 @@ class _RunCommand(Command):
         try:
             var_man = VariableSetManager()
             var_man.add_var_set('sys', base_classes.get_vars(defer=False))
-            sched_config = test.config[test.scheduler]
-            var_man.add_var_set('sched', sched.get_vars(sched_config))
+            sched_config = test.config['schedule']
+            var_man.add_var_set('sched', sched.get_final_vars(sched_config))
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "
@@ -119,17 +119,10 @@ class _RunCommand(Command):
 
         return var_man
 
-    def _run(self, pav_cfg, test, sched):
+    def _run(self, test: TestRun):
         """Run an already prepped test in the current environment.
-        :param pav_cfg: The pavilion configuration object.
-        :param TestRun test: The test to run
-        :param sched: The scheduler we're running under.
         :return:
         """
-
-        # Optionally wait on other tests running under the same scheduler.
-        # This depends on the scheduler and the test configuration.
-        lock = sched.lock_concurrency(pav_cfg, test)
 
         try:
             run_result = test.run()
@@ -143,8 +136,10 @@ class _RunCommand(Command):
                 STATES.RUN_ERROR,
                 "Unknown error while running test. Refer to the kickoff log.")
             raise
-        finally:
-            sched.unlock_concurrency(lock)
+
+        if test.cancelled:
+            # Skip the result parsing step if the test was cancelled.
+            return
 
         try:
             # Make sure the result parsers have reasonable arguments.

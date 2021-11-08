@@ -110,11 +110,7 @@ class TestConfigResolver:
 
         try:
             schedule_cfg = raw_test_cfg.get('schedule', {})
-            sched_vars, node_list_id = sched.get_initial_vars(schedule_cfg)
-            # Save the node list id. The test will need it to quickly figure out
-            # which nodes to run on later.
-            raw_test_cfg['node_list_id'] = node_list_id
-
+            sched_vars = sched.get_initial_vars(schedule_cfg)
             var_man.add_var_set('sched', sched_vars)
         except schedulers.SchedulerPluginError as err:
             raise TestConfigError(
@@ -325,19 +321,30 @@ class TestConfigResolver:
 
         resolved_tests = []
 
+        for raw_test in raw_tests:
+            # Apply the overrides to each of the config values.
+            try:
+                self.apply_overrides(raw_test, overrides)
+            except (KeyError, ValueError) as err:
+                msg = 'Error applying overrides to test {} from {}: {}' \
+                    .format(raw_test['name'], raw_test['suite_path'], err)
+                raise TestConfigError(msg)
+
         complete = 0
 
         if len(raw_tests) == 0:
             return []
         elif len(raw_tests) == 1:
-            return self.resolve(raw_tests[0], overrides)
+            base_var_man = self.build_variable_manager(raw_tests[0])
+            return self.resolve(raw_tests[0], base_var_man)
         else:
             async_results = []
             proc_count = min(self.pav_cfg['max_cpu'], len(raw_tests))
             with mp.Pool(processes=proc_count) as pool:
                 for raw_test in raw_tests:
+                    base_var_man = self.build_variable_manager(raw_test)
                     async_results.append(
-                        pool.apply_async(self.resolve, (raw_test, overrides))
+                        pool.apply_async(self.resolve, (raw_test, base_var_man))
                     )
 
                 while async_results:
@@ -364,22 +371,10 @@ class TestConfigResolver:
 
         return resolved_tests
 
-    def resolve(self, test_cfg: dict, overrides: List[str] = None):
+    def resolve(self, test_cfg: dict, base_var_man: variables.VariableSetManager):
         """Resolve one test config, and apply the given overrides."""
 
-        overrides = overrides or []
-
         resolved_tests = []
-
-        # Apply the overrides to each of the config values.
-        try:
-            self.apply_overrides(test_cfg, overrides)
-        except (KeyError, ValueError) as err:
-            msg = 'Error applying overrides to test {} from {}: {}' \
-                  .format(test_cfg['name'], test_cfg['suite_path'], err)
-            raise TestConfigError(msg)
-
-        base_var_man = self.build_variable_manager(test_cfg)
 
         # A list of tuples of test configs and their permuted var_man
         permuted_tests = []  # type: (dict, variables.VariableSetManager)
@@ -921,7 +916,7 @@ class TestConfigResolver:
         _ = self
 
         permute_on = test_cfg['permute_on']
-        test_cfg['permute_base'] = uuid.uuid4()
+        test_cfg['permute_base'] = uuid.uuid4().hex
 
         used_per_vars = set()
         for per_var in permute_on:
@@ -1322,8 +1317,8 @@ class TestConfigResolver:
             return None
         else:
             raise TestConfigError("Invalid value type '{}' for '{}' when "
-                                  "resolving strings."
-                                  .format(type(component), component))
+                                  "resolving strings. Key parts: {}"
+                                  .format(type(component), component, key_parts))
 
     def resolve_cmd_inheritance(self, test_cfg):
         """Extend the command list by adding any prepend or append commands,
@@ -1349,7 +1344,7 @@ class TestConfigResolver:
         return test_cfg
 
     @classmethod
-    def finalize(cls, test_run, new_vars):
+    def finalize(cls, test_run, new_vars: variables.VariableSetManager):
         """Finalize the given test run object with the given new variables."""
 
         test_run.var_man.undefer(new_vars=new_vars)

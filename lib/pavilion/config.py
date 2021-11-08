@@ -122,6 +122,7 @@ def _setup_working_dir(working_dir: Path) -> None:
 
     for path in [
             working_dir,
+            working_dir / 'jobs',
             working_dir / 'builds',
             working_dir / 'series',
             working_dir / 'test_runs',

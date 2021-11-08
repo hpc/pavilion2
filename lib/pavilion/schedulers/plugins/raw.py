@@ -5,79 +5,34 @@ import signal
 import socket
 import subprocess
 import time
+import uuid
 from pathlib import Path
+from typing import Union, List
 
-import yaml_config as yc
-from pavilion.pavilion_variables import var_method
 from pavilion.status_file import STATES, TestStatusInfo
-from pavilion.schedulers.scheduler import SchedulerPlugin
-from pavilion.schedulers import SchedulerVariables
+from pavilion.jobs import JobInfo, Job
+from ..scheduler import SchedulerPluginBasic, KickoffScriptHeader
+from ..types import NodeList, NodeInfo
+from ..vars import SchedulerVariables
 
 
-class RawVars(SchedulerVariables):
-    """Variables for running tests locally on a system."""
+class RawKickoffHeader(KickoffScriptHeader):
+    """The header for raw kickoff scripts has no special additions."""
 
-    EXAMPLE = {
-        "avail_mem": "54171",
-        "cpus": "8",
-        "free_mem": "49365",
-        "total_mem": "62522",
-    }
+    def _kickoff_lines(self) -> List[str]:
+        """Return nothing."""
 
-    @var_method
-    def cpus(self):
-        """Total CPUs (includes hyperthreading cpus)."""
-        return self.sched_data['cpus']
-
-    @var_method
-    def total_mem(self):
-        """Total memory in MiB to the nearest MiB."""
-
-        return self.mem_to_mib('memtotal')
-
-    @var_method
-    def avail_mem(self):
-        """Available memory in MiB to the nearest MiB."""
-
-        return self.mem_to_mib('memavailable')
-
-    @var_method
-    def free_mem(self):
-        """Free memory in MiB to the nearest MiB."""
-
-        return self.mem_to_mib('memfree')
-
-    MEM_UNITS = {
-        None: 1000**0,
-        'b':  1000**0,
-        'kb': 1000**1,
-        'mb': 1000**2
-    }
-
-    def mem_to_mib(self, key):
-        """Get a meminfo value from the meminfo dict, and convert it to
-        a standard unit (MiB)."""
-        meminfo = self.sched_data['meminfo']
-        if key in meminfo:
-            value, unit = meminfo[key]
-        else:
-            self.logger.warning("Unknown meminfo key '%s'", key)
-            return 0
-
-        unit = unit.lower()
-
-        if unit in self.MEM_UNITS:
-            return self.MEM_UNITS[unit] * value // 1024**2
-        else:
-            self.logger.warning("Unkown meminfo unit '%s' in key '%s'",
-                                unit, key)
-            return 0
+        return []
 
 
-class Raw(SchedulerPlugin):
+class Raw(SchedulerPluginBasic):
     """The Raw (local system) scheduler."""
 
-    VAR_CLASS = RawVars
+    VAR_CLASS = SchedulerVariables
+
+    KICKOFF_SCRIPT_HEADER_CLASS = RawKickoffHeader
+
+    UNIQ_ID_LEN = 10
 
     def __init__(self):
         super().__init__(
@@ -85,157 +40,98 @@ class Raw(SchedulerPlugin):
             "Schedules tests as local processes."
         )
 
-    def get_conf(self):
-        """Define the configuration attributes."""
+    def _get_alloc_nodes(self) -> NodeList:
+        """Return just the hostname of this host."""
 
-        return yc.KeyedElem('raw', elements=[
-            yc.StrElem(
-                'concurrent',
-                choices=['true', 'false', 'True', 'False'],
-                default='False',
-                help_text="Allow this test to run concurrently with other"
-                          "concurrent tests under the 'raw' scheduler."
-            )
-        ])
+        return NodeList([socket.gethostname()])
 
-    # pylint: disable=arguments-differ
-    def _filter_nodes(self):
-        """Do nothing, and like it."""
-        return []
-
-    def _in_alloc(self):
-        """In raw mode, we're always in an allocation."""
+    def _available(self) -> bool:
+        """The raw scheduler is always available."""
         return True
 
-    def _get_data(self):
-        """Mostly we need the number of cpus and memory informaton."""
+    def _get_alloc_node_info(self, node_name) -> NodeInfo:
+        """Return mem and cpu info for this host."""
+
+        info = NodeInfo({})
 
         cpus = subprocess.check_output(['nproc']).strip().decode('utf8')
+        try:
+            info['cpus'] = int(cpus)
+        except ValueError:
+            pass
 
         with Path('/proc/meminfo').open() as meminfo_file:
-            meminfo = {}
             for line in meminfo_file.readlines():
-                parts = line.split(':')
-                if len(parts) == 2:
-                    key = parts[0].lower().strip()
-                    vparts = parts[1].strip().split()
-                    if len(vparts) > 1:
-                        value, unit = vparts[:2]
-                    else:
-                        value, unit = vparts[0], None
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        self.logger.warning(
-                            "Could not parse /var/meminfo value: %s", line)
-                        value = 0
-                    meminfo[key] = value, unit
+                if line.startswith('MemTotal:'):
+                    parts = line.split()
+                    if len(parts) > 2:
+                        try:
+                            info['mem'] = int(parts[1])//1024**2
+                        except ValueError:
+                            pass
 
-        return {
-            'cpus': cpus,
-            'meminfo': meminfo
-        }
+                    break
 
-    def job_status(self, pav_cfg, test):
+        return info
+
+    def _job_status(self, pav_cfg, job_info: JobInfo) -> Union[TestStatusInfo, None]:
         """Raw jobs will either be scheduled (waiting on a concurrency
-        lock), or in an unknown state (as there aren't records of dead jobs).
-
-        :rtype: TestStatusInfo
-        """
-
-        host, pid = test.job_id.rsplit('_', 1)
+        lock), or in an unknown state (as there aren't records of dead jobs)."""
 
         now = time.time()
 
         local_host = socket.gethostname()
-        if host != local_host:
+        if job_info['host'] != local_host:
             return TestStatusInfo(
                 when=time.time(),
                 state=STATES.SCHEDULED,
-                note=(
-                    "Can't determine the scheduler status of a 'raw' "
-                    "test started on a different host ({} vs {})."
-                    .format(host, local_host))
+                note=("Can't determine the scheduler status of a 'raw' "
+                      "test started on a different host ({} vs {})."
+                      .format(job_info['host'], local_host))
             )
 
-        cmd_fn = Path('/proc')/pid/'cmdline'
-        cmdline = None
-
-        if cmd_fn.exists():
-            try:
-                with cmd_fn.open('rb') as cmd_file:
-                    cmdline = cmd_file.read()
-            except (IOError, OSError):
-                pass
-
-        if cmdline is not None:
-            cmdline = cmdline.replace(b'\x00', b' ').decode('utf8')
-
-            # Make sure we're looking at the same job.
-            if ('kickoff.sh' in cmdline and
-                    '-{}-'.format(test.id) in cmdline):
-                return TestStatusInfo(
-                    when=now,
-                    state=STATES.SCHEDULED,
-                    note="Process is running, and probably waiting on a "
-                         "concurrency lock.")
-
-        # The command isn't running because it completed, died, or was killed.
-        # Recheck the status file for changes, otherwise call it an error.
-        status = test.status.current()
-        if status.state != STATES.SCHEDULED:
-            return status
-        else:
-            msg = ("Job died or was killed. Check '{}' for more info."
-                   .format(test.path/'kickoff.out'))
-            test.status.set(STATES.SCHED_ERROR, msg)
+        if self._pid_running(job_info):
             return TestStatusInfo(
                 when=now,
-                state=STATES.SCHED_ERROR,
-                note=msg)
+                state=STATES.SCHED_WINDUP,
+                note="Process is running, but the test hasn't started yet.")
+        else:
+            return None
 
     def available(self):
         """The raw scheduler is always available."""
 
         return True
 
-    def _schedule(self, test_obj, kickoff_path):
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
         """Run the kickoff script in a separate process. The job id a
         combination of the hostname and pid.
-
-        :param pavilion.test_config.TestRun test_obj: The test to schedule.
-        :param Path kickoff_path: - Path to the submission script.
-        :return: '<host>_<pid>'
         """
 
-        raw_log = (kickoff_path.parent/'raw_kickoff.log').open('wb')
+        raw_log = job.sched_log.open('wb')
+
+        uniq_id = uuid.uuid4().hex[:self.UNIQ_ID_LEN]
 
         # Run the submit job script. We don't want to wait for it to finish,
         # just redirect the output to a reasonable place.
-        proc = subprocess.Popen([str(kickoff_path),
-                                 # We include the test id as an argument,
-                                 # so we can identify this invocation later
-                                 # via /proc/<jobid>/cmdline.
-                                 '-{}-'.format(test_obj.id)],
+        proc = subprocess.Popen([job.kickoff_path.as_posix(), uniq_id],
                                 stdout=raw_log, stderr=subprocess.STDOUT)
 
-        return '{}_{}'.format(socket.gethostname(), proc.pid)
+        return JobInfo({
+            'pid': proc.pid,
+            'uniq_id': uniq_id,
+            'host': socket.gethostname(),
+        })
 
-    # Use the version of lock_concurrency that actually does something.
-    lock_concurrency = SchedulerPlugin._do_lock_concurrency
-
-    @staticmethod
-    def _verify_pid(pid, test_id):
+    def _pid_running(self, job_info: JobInfo) -> bool:
         """Verify that the test is running under the given pid. Note that this
         may change before, after, or during this call.
 
-        :param str pid: The pid to search for.
-        :param int test_id: The id of the test started under that pid.
         :return: True - If the given pid is for the given test_id
             (False otherwise)
         """
 
-        cmd_fn = Path('/proc')/pid/'cmdline'
+        cmd_fn = Path('/proc')/str(job_info['pid'])/'cmdline'
 
         if not cmd_fn.exists():
             # It's definitely not running if the cmdline file doesn't exit.
@@ -252,60 +148,41 @@ class Raw(SchedulerPlugin):
         cmdline = cmdline.replace(b'\x00', b' ').decode('utf8')
 
         # Make sure we're looking at the same job.
-        if ('kickoff.sh' in cmdline and
-                '-{}-'.format(test_id) in cmdline):
+        if 'kickoff.sh' in cmdline and job_info['uniq_id'] in cmdline:
             return True
 
         return False
 
     CANCEL_TIMEOUT = 1
 
-    def _cancel_job(self, test):
-        """Try to kill the given test's pid (if it is the right pid).
+    def cancel(self, job_info: JobInfo) -> Union[None, str]:
+        """Try to kill the given job_id (if it is the right pid)."""
 
-        :param pavilion.test_run.TestRun test: The test to cancel.
-        """
-
-        host, pid = test.job_id.rsplit('_', 1)
+        try:
+            pid = int(job_info['pid'])
+        except ValueError:
+            return "Invalid PID: {}".format(job_info['pid'])
 
         hostname = socket.gethostname()
-        if host != hostname:
-            return TestStatusInfo(STATES.SCHED_ERROR,
-                              "Job started on different host ({})."
-                                  .format(hostname))
+        if job_info['host'] != hostname:
+            return "Job started on different host ({}).".format(hostname)
 
-        if not self._verify_pid(pid, test.id):
+        if not self._pid_running(job_info):
             # Test was no longer running, just return it's current state.
-            return test.status.current()
+            return "PID {} no longer running.".format(job_info['pid'])
 
         try:
             os.kill(int(pid), signal.SIGTERM)
         except PermissionError:
-            return TestStatusInfo(
-                STATES.SCHED_ERROR,
-                "You don't have permission to kill PID {}".format(pid)
-            )
+            return "You don't have permission to kill PID {}".format(pid)
         except OSError as err:
-            return TestStatusInfo(
-                STATES.SCHED_ERROR,
-                "Unexpected error cancelling job {}: {}"
-                .format(pid, str(err))
-            )
+            return "Unexpected error cancelling job {}: {}".format(pid, str(err))
 
         timeout = time.time() + self.CANCEL_TIMEOUT
-        while self._verify_pid(pid, test.id) and time.time() < timeout:
+        while self._pid_running(job_info) and time.time() < timeout:
             time.sleep(.1)
 
-        if not self._verify_pid(pid, test.id):
-            test.status.set(STATES.SCHED_CANCELLED,
-                            "Canceled via pavilion.")
-            test.set_run_complete()
-            return TestStatusInfo(
-                STATES.SCHED_CANCELLED,
-                "PID {} was terminated.".format(pid)
-            )
+        if not self._pid_running(job_info):
+            return None
         else:
-            return TestStatusInfo(
-                STATES.SCHED_ERROR,
-                "PID {} refused to die.".format(pid)
-            )
+            return "PID {} refused to die.".format(pid)

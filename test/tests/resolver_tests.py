@@ -139,7 +139,7 @@ class ResolverTests(PavTestCase):
 
         overrides = [
             # A basic value.
-            'slurm.num_nodes=3',
+            'schedule.nodes=3',
             # A specific list item.
             'run.cmds.0="echo nope"',
             # An item that doesn't exist (and must be normalized by yaml_config)
@@ -170,7 +170,7 @@ class ResolverTests(PavTestCase):
             alt_cfg = copy.deepcopy(ptest.config)
 
             # Make sure the overrides were applied
-            self.assertEqual(alt_cfg['slurm']['num_nodes'], "3")
+            self.assertEqual(alt_cfg['schedule']['nodes'], "3")
             self.assertEqual(alt_cfg['run']['cmds'], ['echo nope'])
             # Make sure other stuff wasn't changed.
             self.assertEqual(ptest.config['build'], alt_cfg['build'])

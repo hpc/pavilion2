@@ -21,6 +21,7 @@ from pavilion import pavilion_variables
 from pavilion.sys_vars import base_classes
 from pavilion.output import dbg_print
 from pavilion.test_config import VariableSetManager
+from pavilion import schedulers
 from pavilion.test_config import resolver
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
@@ -75,8 +76,6 @@ base class.
         pavilion."""
 
         self.pav_cfg = self.make_pav_config()
-
-        self.tmp_dir = tempfile.TemporaryDirectory()
 
         # We have to get this to set up the base argument parser before
         # plugins can add to it.
@@ -284,9 +283,9 @@ though."""
             'verbose': 'false',
             'timeout': '300',
         },
-        'slurm': {},
         'result_parse': {},
         'result_evaluate': {},
+        'schedule': {},
     }
 
     def _quick_test_cfg(self):
@@ -301,15 +300,15 @@ The default config is: ::
 
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
-        loc_slurm = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
-                     'local_slurm.yaml')
+        loc_sched = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
+                     'local_sched.yaml')
 
-        if loc_slurm.exists():
-            with loc_slurm.open() as loc_slurm_file:
-                slurm_cfg = TestConfigLoader().load(loc_slurm_file,
+        if loc_sched.exists():
+            with loc_sched.open() as loc_slurm_file:
+                sched_cfg = TestConfigLoader().load(loc_slurm_file,
                                                     partial=True)
 
-            cfg['slurm'] = slurm_cfg['slurm']
+            cfg['schedule'].update(sched_cfg['schedule'])
 
         return cfg
 
@@ -337,6 +336,9 @@ The default config is: ::
                 fin_sys = base_classes.SysVarDict(unique=True)
                 fin_var_man = VariableSetManager()
                 fin_var_man.add_var_set('sys', fin_sys)
+                scheduler = schedulers.get_plugin(test.scheduler)
+                fin_sched_vars = scheduler.get_final_vars(test.config['schedule'])
+                fin_var_man.add_var_set('sched', fin_sched_vars)
                 res.finalize(test, fin_var_man)
 
             tests.append(test)

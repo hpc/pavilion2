@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import NewType, Tuple, TextIO
+from typing import TextIO
 
 import pavilion.result.common
 from pavilion import builder
@@ -22,6 +22,7 @@ from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion.jobs import Job
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.exceptions import TestRunError, TestRunNotFoundError
 from pavilion.status_file import TestStatusFile, STATES
@@ -31,7 +32,7 @@ from pavilion.test_config.file_format import NO_WORKING_DIR
 from .test_attrs import TestAttributes
 
 # pylint: disable=invalid-name
-ID_Pair = NewType('ID_Pair', Tuple[Path, int])
+from pavilion.types import ID_Pair
 
 
 class TestRun(TestAttributes):
@@ -75,13 +76,18 @@ class TestRun(TestAttributes):
     :ivar TestRunOptions opt: Test run options defined by OPTIONS_DEFAULTS
     """
 
-    JOB_ID_FN = 'job_id'
-
     RUN_DIR = 'test_runs'
 
     NO_LABEL = '_none'
 
     STATUS_FN = 'status'
+    """File that tracks the tests's status."""
+
+    CANCEL_FN = 'cancel'
+    """File that indicates that the test was cancelled."""
+
+    JOB_FN = 'job'
+    """Link to the test's scheduler job."""
 
     def __init__(self, pav_cfg, config, var_man=None, _id=None, rebuild=False,
                  build_only=False):
@@ -206,7 +212,7 @@ class TestRun(TestAttributes):
             self.build_name = self.builder.name
 
         # This will be set by the scheduler
-        self._job_id = None
+        self._job = None
 
         self._results = None
 
@@ -548,6 +554,9 @@ class TestRun(TestAttributes):
 
         return build_result
 
+    RUN_WAIT_MAX = 1
+    # The maximum wait time before checking things like test cancellation
+
     def run(self):
         """Run the test.
 
@@ -557,6 +566,10 @@ class TestRun(TestAttributes):
         :raises TestRunError: We don't actually raise this, but might in the
             future.
         """
+
+        # Don't even try to run a cancelled test.
+        if self.cancelled:
+            return
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before running "
@@ -594,7 +607,7 @@ class TestRun(TestAttributes):
 
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds
-            timeout = self.run_timeout
+            timeout = max(self.run_timeout, self.RUN_WAIT_MAX)
             ret = None
             while ret is None:
                 try:
@@ -621,9 +634,18 @@ class TestRun(TestAttributes):
                         self.finished = time.time()
                         self.save_attributes()
                         raise TimeoutError(msg)
+                    elif self.complete:
+                        # The test was set as complete early, typically due to
+                        # cancellation.
+                        proc.kill()
+                        self.status.set(
+                            STATES.STATES.SCHED_CANCELLED,
+                            "Test cancelled mid-run.")
+                        self.finished = time.time()
+                        self.save_attributes()
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
-                        timeout = timeout - quiet_time
+                        timeout = max(self.run_timeout - quiet_time, self.RUN_WAIT_MAX)
 
         self.finished = time.time()
         self.save_attributes()
@@ -638,6 +660,9 @@ class TestRun(TestAttributes):
         """Write a file in the test directory that indicates that the test
     has completed a run, one way or another. This should only be called
     when we're sure their won't be any more status changes."""
+
+        if self.complete:
+            return
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before run {} "
@@ -655,6 +680,27 @@ class TestRun(TestAttributes):
         complete_tmp_path.rename(complete_path)
 
         self._complete = True
+
+    def cancel(self, reason: str):
+        """Set the cancel file for this test, and denote in its status that it was
+        cancelled."""
+
+        if self.cancelled:
+            # Already cancelled.
+            return
+
+        # There is a race condition here that at worst results in multiple status
+        # entries.
+        self.status.set(STATES.CANCELLED, reason)
+
+        cancel_file = self.path/self.CANCEL_FN
+        cancel_file.touch()
+
+    @property
+    def cancelled(self):
+        """Return true if the test is cancelled, false otherwise."""
+
+        return (self.path/self.CANCEL_FN).exists()
 
     WAIT_INTERVAL = 0.5
 
@@ -854,40 +900,34 @@ of result keys.
             return False
 
     @property
-    def job_id(self):
+    def job(self):
         """The job id of this test (saved to a ``jobid`` file). This should
 be set by the scheduler plugin as soon as it's known."""
 
-        path = self.path/self.JOB_ID_FN
+        if self._job is None:
+            job_path = self.path/self.JOB_FN
+            if job_path.exists():
+                self._job = Job(job_path)
+            else:
+                return None
 
-        if self._job_id is not None:
-            return self._job_id
+        return self._job
 
-        try:
-            with path.open() as job_id_file:
-                self._job_id = job_id_file.read()
-        except FileNotFoundError:
-            return None
-        except (OSError, IOError) as err:
-            self._add_warning(
-                "Could not read jobid file '{}': {}".format(path.as_posix(), err))
-            return None
+    @job.setter
+    def job(self, job: Job):
 
-        return self._job_id
+        job_path = self.path/self.JOB_FN
 
-    @job_id.setter
-    def job_id(self, job_id):
-
-        path = self.path/self.JOB_ID_FN
+        if job_path.exists():
+            raise RuntimeError("Jobs should only ever be set once per test run, when "
+                               "that test is scheduled.")
 
         try:
-            with path.open('w') as job_id_file:
-                job_id_file.write(job_id)
-        except (IOError, OSError) as err:
-            self._add_warning("Could not write jobid file '{}': {}"
-                              .format(path.as_posix(), err))
+            job_path.symlink_to(job.path)
+        except OSError as err:
+            self._add_warning("Could not create job link: {}".format(err))
 
-        self._job_id = job_id
+        self._job = job
 
     @property
     def complete_time(self):

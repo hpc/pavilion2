@@ -27,9 +27,8 @@ class LogCmdTest(PavTestCase):
         test = self._quick_test(finalize=False)
         raw = schedulers.get_plugin('raw')
 
-        raw.schedule_test(self.pav_cfg, test)
+        raw.schedule_tests(self.pav_cfg, [test])
 
-        state = test.status.current().state
         end = time.time() + 5
 
         while not test.complete and time.time() < end:
@@ -112,7 +111,7 @@ class LogCmdTest(PavTestCase):
         test = self._quick_test(cfg=test_cfg)
 
         raw = schedulers.get_plugin('raw')
-        raw.schedule_test(self.pav_cfg, test)
+        raw.schedule_tests(self.pav_cfg, [test])
 
         end = time.time() + 5
         while not test.complete and time.time() < end:

@@ -1,20 +1,17 @@
 """Functions and definitions relating to scheduler configuration in tests."""
 
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, List
 from pavilion import utils
 
 import yaml_config as yc
 
-SCHEDULE_CONFIG = yc.KeyedElem(
-    'schedule',
-    help_text="This section describes how to schedule a test. Note that some "
-              "options won't be available for all schedulers, in which case "
-              "they will be ignored. Scheduler specific sub-sections, such as "
-              "'slurm', include additional options specific to that scheduler.",
-    elements=[
+
+class ScheduleConfig(yc.KeyedElem):
+    """Scheduling configuration."""
+
+    ELEMENTS = [
         yc.StrElem(
-            'num_nodes',
-            default='1',
+            'nodes',
             help_text="The number of nodes to acquire to scheduler the job as "
                       "whole. This may be a number, a percentage, "
                       "or the keyword 'all'. In all cases, this limit is applied "
@@ -23,12 +20,9 @@ SCHEDULE_CONFIG = yc.KeyedElem(
                       "minimum selection."),
         yc.StrElem(
             'min_nodes',
-            help_text="The minimum number of nodes to allocate. When chunking is "
-                      "used, this does nothing as we always schedule the max "
-                      "nodes if we can. For schedulers that can't use chunking, "
-                      "this will be used (on schedulers that support it) to give "
-                      "the scheduler a reasonable minimum. Uses the same format "
-                      "as num_nodes."),
+            help_text="The minimum number of nodes to allocate. This is only supported "
+                      "in basic schedulers as a way to schedule a node range when "
+                      "the total number of nodes isn't reliably known."),
         yc.StrElem(
             'node_state',
             help_text="Filter nodes based on their current state. Options are "
@@ -37,38 +31,7 @@ SCHEDULE_CONFIG = yc.KeyedElem(
                       "status. Available nodes are up, and also not currently "
                       "allocated."),
         yc.StrElem(
-            'chunk_node_selection',
-            default='contiguous',
-            help_text="Determines how Pavilion chooses nodes. Selections of a "
-                      "given type attempt to create independent allocations "
-                      "so jobs may run simultaneously.\n"
-                      " 'contiguous' - Try to use adjacent nodes. \n"
-                      " 'random' - Randomly select nodes. \n"
-                      " 'distributed' - Choose approximately every nth node.\n"
-                      " 'rand_dist' - Randomly select from nth group of "
-                      "nodes.\n"),
-        yc.StrElem(
-            'chunk_size',
-            help_text="Divide the allocation into chunks of at most this "
-                      "size. A variable 'sched.chunks' will hold a list of "
-                      "these chunks that can be permuted over in the test "
-                      "config. No values or 0 sets the chunk size to include "
-                      "all nodes."),
-        yc.StrElem(
-            'chunk_extra',
-            help_text="What to do with extra nodes that don't fit in a chunk.\n"
-                      "Options are:\n"
-                      " 'keep' - Just put the extras in a chunk of their own, "
-                      "regardless of how many there are.\n"
-                      " 'discard' - Don't use the extras.\n"
-                      " 'distribute' - Distribute the extras amongst other "
-                      "chunks, effectively increasing the chunk size.\n"
-                      " 'auto (default) - If distributing won't increase chunk "
-                      "size by more than 10%, then do that. Otherwise, "
-                      "'keep' them."),
-        yc.StrElem(
             'share_allocation',
-            default='True',
             help_text="If true, share the allocation with other tests in the same "
                       "chunk. The allocation will have a number of nodes equal to "
                       "the test that needs the most. Tests started with "
@@ -78,7 +41,6 @@ SCHEDULE_CONFIG = yc.KeyedElem(
                       "large systems where node setup/cleanup takes a while."),
         yc.StrElem(
             'tasks_per_node',
-            default='1',
             help_text="The number of tasks to start per node. This can be"
                       "an integer, the keyword 'all' or 'min', or a percentage."
                       "The 'all' keyword will create a "
@@ -107,20 +69,54 @@ SCHEDULE_CONFIG = yc.KeyedElem(
                       "increase time the time limit beyond the cluster default. "
                       "Tests that share an allocation share the largest given time "
                       "limit."),
-        yc.StrElem(
+        yc.ListElem(
             'include_nodes',
+            sub_elem=yc.StrElem(),
             help_text="Nodes to always include in every allocation on which this test "
-                      "runs. This nodes will be added to each chunk, which means none "
-                      "of the chunks may run simultaneously. The format is a comma"
-                      "separated list of nodes, with ranges specified in brackets. IE"
-                      "node00[5-9] denotes node005, node006, up to node009. When "
-                      "chunking isn't available, the nodes will simply be included "
-                      "via the scheduler."),
-        yc.StrElem(
+                      "runs. Each listed node may be a node range, as per "
+                      "'exclude_nodes'. "
+                      "In advanced schedulers, these nodes are added to every "
+                      "chunk."),
+        yc.ListElem(
             'exclude_nodes',
-            help_text="Nodes to exclude. These nodes won't be available for node "
-                      "selection when chunking, and will be excluded via the "
-                      "scheduler if chunking is unavailable."),
+            sub_elem=yc.StrElem(),
+            help_text="Nodes to exclude. Each given node can contain a range in "
+                      "square brackets, in which case all nodes in that range "
+                      "will be excluded. Numbers in expanded ranges are zero "
+                      "padded to the length of the longest number, so "
+                      "'node[9-11]' -> node09, node10, node11."),
+        yc.KeyedElem(
+            'chunking',
+            help_text="Options in this section control how the machine is divided into "
+                      "'chunks' of nodes.",
+            elements=[
+                yc.StrElem(
+                    'size',
+                    help_text="Divide the allocation into chunks of this many nodes."
+                              "A variable 'sched.chunks' will hold a list of "
+                              "these chunks that can be permuted over in the test "
+                              "config. No values or 0 sets the chunk size to include "
+                              "all nodes."),
+                yc.StrElem(
+                    'node_selection',
+                    default='contiguous',
+                    help_text="Determines how Pavilion chooses nodes for each chunk. "
+                              "Chunks generally won't overlap, and can run "
+                              "simultaneously."
+                              " 'contiguous' - Try to use adjacent nodes. \n"
+                              " 'random' - Randomly select nodes. \n"
+                              " 'distributed' - Choose approximately every nth node.\n"
+                              " 'rand_dist' - Randomly select from nth group of "
+                              "nodes.\n"),
+                yc.StrElem(
+                    'extra',
+                    help_text="What to do with extra nodes that don't fit in a chunk.\n"
+                              "Options are:\n"
+                              " 'backfill (default) - The extra nodes will be padded "
+                              " out with nodes from the last chunk.\n"
+                              " 'discard' - Don't use the extra nodes.\n"),
+            ]
+        ),
         yc.KeyedElem(
             'cluster_info',
             help_text="Defaults and node information for clusters that have "
@@ -139,8 +135,77 @@ SCHEDULE_CONFIG = yc.KeyedElem(
                     help_text="CPUS per node."),
             ]
         )
-    ],
-)
+    ]
+
+    def __init__(self):
+        super().__init__(
+            'schedule', elements=self.ELEMENTS,
+            help_text="This section describes how to schedule a test. Schedulers are "
+                      "divided into 'basic' and 'advanced' types, and not all "
+                      "options apply to both. Additionally, individual schedulers "
+                      "may not support some options regardless of type. In general, "
+                      "an option isn't supported, it is ignored.")
+
+    @classmethod
+    def add_subsection(cls, sched_section):
+        """Use this method to add scheduler specific subsections to the config.
+
+        :param yc.ConfigElem sched_section: A yaml config element to add. Keyed
+            elements are expected, though any ConfigElem based instance
+            (whose leave elements are StrElems) should work.
+        """
+
+        if not isinstance(sched_section, yc.ConfigElement):
+            raise RuntimeError("Tried to add a subsection to the config, but it "
+                               "wasn't a yaml_config ConfigElement instance (or "
+                               "an instance of a ConfigElement child class).")
+
+        name = sched_section.name
+
+        names = [el.name for el in cls.ELEMENTS]
+
+        if name in names:
+            raise RuntimeError("Tried to add a subsection to the config called "
+                               "{0}, but one already exists.".format(name))
+
+        try:
+            cls.check_leaves(sched_section)
+        except ValueError as err:
+            raise ValueError("Tried to add result parser named '{}', but "
+                             "leaf element '{}' was not string based."
+                             .format(name, err.args[0]))
+
+        cls.ELEMENTS.append(sched_section)
+
+    @classmethod
+    def remove_subsection(cls, subsection_name):
+        """Remove a subsection from the config. This is really only for use
+        in plugin deactivate methods."""
+
+        for section in list(cls.ELEMENTS):
+            if subsection_name == section.name:
+                cls.ELEMENTS.remove(section)
+                return
+
+    @classmethod
+    def check_leaves(cls, elem):
+        """Make sure all of the config elements have a string element or
+        equivalent as the final node.
+
+        :param yc.ConfigElement elem:
+        """
+
+        # pylint: disable=protected-access
+
+        if hasattr(elem, 'config_elems'):
+            for sub_elem in elem.config_elems.values():
+                cls.check_leaves(sub_elem)
+        elif hasattr(elem, '_sub_elem') and elem._sub_elem is not None:
+            cls.check_leaves(elem._sub_elem)
+        elif issubclass(elem.type, str):
+            return
+        else:
+            raise ValueError(elem)
 
 
 class SchedConfigError(ValueError):
@@ -171,11 +236,13 @@ def int_greater_than(name, min_val, required=True):
                 "Invalid value for '{}'. Got '{}'. Must be greater than or "
                 "equal to {}.".format(name, val, min_val))
 
+        return val
+
     return validator
 
 
-def validate_num_nodes(val) -> Union[float, int]:
-    """Parse and check the num_nodes (or min_nodes) value. A float value
+def _validate_nodes(val) -> Union[float, int]:
+    """Parse and check the nodes (or min_nodes) value. A float value
     represents a percentage of nodes, ints are an exact node count. None denotes
     that no value was given."""
 
@@ -188,19 +255,19 @@ def validate_num_nodes(val) -> Union[float, int]:
             val = float(val[:-1])/100.0
         except ValueError:
             raise SchedConfigError(
-                "Invalid percent value in num_nodes. Got '{}'."
+                "Invalid percent value. Got '{}'."
                 .format(val))
     else:
         try:
             val = int(val)
         except ValueError:
             raise SchedConfigError(
-                "Invalid value in num_nodes. Got '{}'.".format(val))
+                "Invalid node count value. Got '{}'.".format(val))
 
     return val
 
 
-def validate_tasks_per_node(val) -> Union[int, float]:
+def _validate_tasks_per_node(val) -> Union[int, float]:
     """This accepts a positive integer, a percentage, or the keywords 'all' and
     'min'. All translates to 100%, and min to an integer 0."""
 
@@ -226,6 +293,94 @@ def validate_tasks_per_node(val) -> Union[int, float]:
         raise SchedConfigError("tasks_per_node must be more than 0, got '{}'"
                                .format(val))
 
+    return val
+
+
+def parse_node_range(node: str) -> List[str]:
+    """Parse a node range and return the list of nodes that it represents.
+
+    Node ranges are text with a single numeric range in brackets. Text before
+    the brackets are prepended as a suffix, and text after the brackets are
+    appended as a suffix. All numbers in the range are padded out with zeros
+    to the longer of the numbers.
+
+    Examples:
+    - 'node[5-200]b' -> ['node005b', 'node006b', ...]
+    - 'node0[5-9]' -> ['node05', 'node06', ...]
+    - 'node123' -> ['node123']
+
+    :param node: The node range to parse.
+    :return:
+    """
+
+    range_start = range_end = None
+    if '[' in node:
+        range_start = node.index('[')
+    if ']' in node:
+        range_end = node.index(']')
+
+    if range_start is None and range_end is None:
+        # No range in node text
+        return [node]
+    elif range_start is None:
+        raise ValueError("Missing closing bracket on node range.")
+    elif range_end is None:
+        raise ValueError("Missing open bracket on node range.")
+
+    if node.count('[') > 1:
+        raise ValueError("Node names can only contain a single open bracket '[': "
+                         "'{}'".format(node))
+    if node.count(']') > 1:
+        raise ValueError("Node names can only contain a single closing "
+                         "bracket '[': '{}'".format(node))
+
+    prefix = node[:range_start]
+    suffix = node[range_end + 1:]
+
+    range_txt = node[range_start + 1:range_end]
+    if '-' not in range_txt:
+        raise ValueError("Range in node range missing '-': {}".format(node))
+    start, end = range_txt.split('-', 1)
+    digits = max(len(start), len(end))
+    try:
+        start = int(start)
+    except ValueError:
+        raise ValueError("Invalid start value for node range '{}': {}"
+                         .format(node, start))
+    try:
+        end = int(end)
+    except ValueError:
+        raise ValueError("Invalid end value for node range '{}': {}"
+                         .format(node, end))
+
+    if end <= start:
+        raise ValueError("Invalid node range '{}'. Range start must be less than "
+                         "its end. Got {} - {}.".format(node, start, end))
+
+    if end < 0:
+        raise ValueError("Negative end value (probably an extra '-' in node range "
+                         "'{}'.".format(node))
+
+    nodes = []
+    for i in range(start, end+1):
+        nodes.append(''.join([
+            prefix,
+            '{:0{digits}d}'.format(i, digits=digits),
+            suffix]))
+
+    return nodes
+
+
+def _validate_node_list(items) -> List[str]:
+    """Validate a list of node ranges, returning the combined list of nodes."""
+
+    nodes = []
+
+    for item in items:
+        nodes.extend(parse_node_range(item))
+
+    return nodes
+
 
 CONTIGUOUS = 'contiguous'
 RANDOM = 'random'
@@ -237,25 +392,34 @@ DISCARD = 'discard'
 BACKFILL = 'backfill'
 NODE_EXTRA_OPTIONS = (DISCARD, BACKFILL)
 
+UP = 'up'
+AVAILABLE = 'available'
+NODE_STATE_OPTIONS = [UP, AVAILABLE]
+
 # This is a dictionary of key -> callback/val_list/dict/None pairs. A callback will be
 # called to perform a type conversion on each entry, and to validate those values.
 # A tuple will trigger a check to ensure the value is one of the items.
 # None - no normalization will occur - the value will be a string or None.
 # A dict will cause the items within to be validated in the same way.
 CONFIG_NORMALIZE = {
-    'num_nodes': validate_num_nodes,
-    'min_nodes': validate_num_nodes,
-    'chunk_node_selection': NODE_SELECT_OPTIONS,
-    'chunk_size': int_greater_than('chunk_size', min_val=0),
-    'chunk_extra': NODE_EXTRA_OPTIONS,
-    'tasks_per_node': validate_tasks_per_node,
-    'partition': None,
-    'qos': None,
-    'account': None,
-    'reservation': None,
+    'nodes':            _validate_nodes,
+    'min_nodes':        _validate_nodes,
+    'chunking':         {
+        'size':           int_greater_than('chunk_size', min_val=0),
+        'node_selection': NODE_SELECT_OPTIONS,
+        'extra':          NODE_EXTRA_OPTIONS,
+    },
+    'tasks_per_node':   _validate_tasks_per_node,
+    'node_state':       NODE_STATE_OPTIONS,
+    'partition':        None,
+    'qos':              None,
+    'account':          None,
+    'reservation':      None,
+    'include_nodes':    _validate_node_list,
+    'exclude_nodes':    _validate_node_list,
     'share_allocation': utils.str_bool,
-    'time_limit': int_greater_than('time_limit', min_val=1),
-    'cluster_info': {
+    'time_limit':       int_greater_than('time_limit', min_val=1),
+    'cluster_info':     {
         'node_count': int_greater_than('cluster_info.node_count',
                                        min_val=1, required=False),
         'mem': int_greater_than('cluster_info.mem', min_val=1, required=False),
@@ -263,32 +427,72 @@ CONFIG_NORMALIZE = {
     }
 }
 
+CONFIG_DEFAULTS = {
+    'nodes':            '1',
+    'min_nodes':        '0',
+    'chunking':         {
+        'size':           '0',
+        'node_selection': CONTIGUOUS,
+        'extra':          BACKFILL,
+    },
+    'tasks_per_node':   '1',
+    'node_state':       UP,
+    'partition':        None,
+    'qos':              None,
+    'account':          None,
+    'reservation':      None,
+    'share_allocation': True,
+    'include_nodes':    [],
+    'exclude_nodes':    [],
+    'time_limit':       None,
+    'cluster_info':     {
+        'node_count': None,
+        'mem':        None,
+        'cpus':       None,
+    }
+
+}
+
 
 def validate_config(config: Dict[str, str],
-                    validators: Dict[str, Any] = None) -> Dict[str, Any]:
+                    validators: Dict[str, Any] = None,
+                    defaults: Dict[str, Any] = None) -> Dict[str, Any]:
     """Validate the scheduler config using the validator dict.
 
     :param config: The configuration dict to validate. Expected to be the result
         of parsing with the above yaml_config parser.
     :param validators: The validator dictionary, as defined above.
+    :param defaults: A dict of defaults for the config keys.
     :raises SchedConfigError: On any errors.
     """
 
     if validators is None:
         validators = CONFIG_NORMALIZE
 
+    if defaults is None:
+        defaults = CONFIG_DEFAULTS
+
     config = config.copy()
     normalized_config = {}
 
-    for key, validator in validators:
+    for key, validator in validators.items():
+        value = None
         if key in config:
             value = config.get(key)
             del config[key]
-        else:
-            value = None
 
-        if callable(validator):
-            normalized_config[key] = validator(value)
+        if value is None:
+            value = defaults.get(key, None)
+
+        if value is None:
+            normalized_config[key] = None
+
+        elif callable(validator):
+            try:
+                normalized_config[key] = validator(value)
+            except ValueError as err:
+                raise SchedConfigError("Config value for key '{}' had a validation "
+                                       "error: {}".format(key, err))
 
         elif isinstance(validator, (tuple, list)):
             if value not in validator:
@@ -296,7 +500,13 @@ def validate_config(config: Dict[str, str],
                     "Config value for key '{}' was expected to be one of '{}'. "
                     "Got '{}'.".format(key, validator, value))
             normalized_config[key] = value
-
+        elif isinstance(validator, dict):
+            if value is None:
+                value = {}
+            normalized_config[key] = validate_config(
+                config=value,
+                validators=validator,
+                defaults=defaults[key])
         elif validator is None:
             normalized_config[key] = value
 

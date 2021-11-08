@@ -121,10 +121,10 @@ class TestStatesStruct(StatesStruct):
     ABORTED = "Aborted, through no fault of it's own."
     CREATION_ERROR = "The test object/directory could not be created."
     SCHEDULED = "The test has been scheduled with a scheduler."
+    SCHED_CANCELLED = "Cancelled by the scheduler or external to Pavilion."
     SCHED_ERROR = "There was a scheduler related error."
     SCHED_WINDUP = "The scheduler is prepping to run, but has not yet started the" \
                    "actual test."
-    SCHED_CANCELLED = "The job was cancelled."
     BUILDING = "The test is currently being built."
     BUILD_CREATED = "The builder for this build was created."
     BUILD_DEFERRED = "The build will occur on nodes."
@@ -134,6 +134,7 @@ class TestStatesStruct(StatesStruct):
     BUILD_DONE = "The build step has completed."
     BUILD_WAIT = "Waiting for the build lock."
     BUILD_REUSED = "The build was reused from a prior step."
+    CANCELLED = "The test was cancelled."
     INFO = "This is for logging information about a test, and can occur" \
            "within any state."
     ENV_FAILED = "Unable to load the environment requested by the test."

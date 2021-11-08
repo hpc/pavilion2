@@ -515,9 +515,18 @@ class TestSet:
         """Cancel all the tests in the test set."""
 
         for test in self.tests:
-            scheduler = schedulers.get_plugin(test.scheduler)
-            scheduler.cancel_job(test)
             test.status.set(test.status.states.ABORTED, reason)
+            test.cancel("Test Set cancelled.")
+
+        # Unlike with the cancel command, we know that all jobs have all tests
+        # cancelled. So it's safe to just outright cancel each job.
+        cancelled_jobs = []
+        for test in self.tests:
+            if test.job is not None and test.job not in cancelled_jobs:
+                scheduler = schedulers.get_plugin(test.scheduler)
+                scheduler.cancel(test.job.info)
+                cancelled_jobs.append(test.job)
+                test.status.set(test.status.states.ABORTED, "Job cancelled.")
 
     @staticmethod
     def check_result_format(tests: List[TestRun]):

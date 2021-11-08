@@ -92,7 +92,7 @@ class LogCommand(Command):
 
     LOG_PATHS = {
         'build': 'build.log',
-        'kickoff': 'kickoff.log',
+        'kickoff': 'job/kickoff.log',
         'results': 'results.log',
         'run': 'run.log',
         'series': 'series.out'

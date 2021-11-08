@@ -6,10 +6,11 @@ import math
 import re
 import subprocess
 import time
-from pathlib import Path
 from typing import List, Union, Any, Tuple
 
 import yaml_config as yc
+from pavilion import sys_vars
+from pavilion.jobs import Job, JobInfo
 from pavilion.schedulers import vars
 from pavilion.schedulers.scheduler import (SchedulerPluginError,
                                            SchedulerPluginAdvanced,
@@ -24,10 +25,10 @@ class SbatchHeader(KickoffScriptHeader):
 slurm kickoff script.
 """
 
-    def get_lines(self):
+    def _kickoff_lines(self) -> List[str]:
         """Get the sbatch header lines."""
 
-        lines = super().get_lines()
+        lines = list()
 
         lines.append(
             '#SBATCH --job-name {}'.format(self._job_name))
@@ -121,31 +122,10 @@ class SlurmVars(vars.SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
     # pylint: disable=no-self-use
 
-    EXAMPLE = {
-        "alloc_cpu_total": "36",
-        "alloc_max_mem": "128842",
-        "alloc_max_ppn": "36",
-        "alloc_min_mem": "128842",
-        "alloc_min_ppn": "36",
-        "alloc_node_list": "node004 node005",
-        "alloc_nodes": "2",
-        "max_mem": "128842",
-        "max_ppn": "36",
-        "min_mem": "128842",
-        "min_ppn": "36",
-        "node_avail_list": ["node003", "node004", "node005"],
-        "node_list": ["node001", "node002", "node003", "node004", "node005"],
-        "node_up_list": ["node002", "node003", "node004", "node005"],
-        "nodes": "371",
-        "nodes_avail": "3",
-        "nodes_up": "350",
-        "test_cmd": "srun -N 2 -n 2",
-        "test_node_list": "node004 node005",
-        "test_node_list_short": "node00[4-5]",
-        "test_nodes": "2",
-        "test_procs": "2",
-        "job_name": "pav",
-    }
+    EXAMPLE = vars.SchedulerVariables.EXAMPLE.copy()
+    EXAMPLE.update({
+        'test_cmd': 'srun -N 5 -w node[05-10],node23 -n 20',
+    })
 
     @dfr_var_method
     def test_cmd(self):
@@ -395,17 +375,16 @@ class Slurm(SchedulerPluginAdvanced):
 
         return ret == 0
 
-    def _kickoff(self, pav_cfg, script_path: Path, sched_config: dict,
-                 chunk: NodeList, sched_log_path: Path):
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict,
+                 chunk: NodeList) -> JobInfo:
         """Submit the kick off script using sbatch."""
 
-        if not script_path.is_file():
-            raise SchedulerPluginError(
-                'Submission script {} not found'.format(script_path))
+        nodes = compress_node_list(chunk)
 
         proc = subprocess.Popen(['sbatch',
-                                 '--output={}'.format(sched_log_path.as_posix()),
-                                 script_path.as_posix()],
+                                 '-w', nodes,
+                                 '--output={}'.format(job.sched_log.as_posix()),
+                                 job.kickoff_path.as_posix()],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
@@ -413,10 +392,15 @@ class Slurm(SchedulerPluginAdvanced):
         if proc.poll() != 0:
             raise SchedulerPluginError(
                 "Sbatch failed for kickoff script '{}': {}"
-                .format(script_path, stderr.decode('utf8'))
+                .format(job.kickoff_path, stderr.decode('utf8'))
             )
 
-        return stdout.decode('UTF-8').strip().split()[-1]
+        sys_name = sys_vars.get_vars(True)['sys_name']
+
+        return JobInfo({
+            'id': stdout.decode('UTF-8').strip().split()[-1],
+            'sys_name': sys_name,
+        })
 
     SCONTROL_KEY_RE = re.compile(r'(?:^|\s+)([A-Z][a-zA-Z0-9:/]*)=')
     SCONTROL_WS_RE = re.compile(r'\s+')
@@ -547,11 +531,17 @@ class Slurm(SchedulerPluginAdvanced):
         'SUSPENDED',
     ]
 
-    def _job_status(self, pav_cfg, job_id: str):
+    def _job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
         """Get the current status of the slurm job for the given test."""
 
+        sys_name = sys_vars.get_vars(True)['sys_name']
+        if job_info['sys_name'] != sys_name:
+            return TestStatusInfo(
+                STATES.SCHEDULED,
+                "Job started on a different cluster ({}).".format(sys_name))
+
         try:
-            job_info = self._scontrol_show('job', job_id)
+            job_data = self._scontrol_show('job', job_info['id'])
         except ValueError as err:
             return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
@@ -559,10 +549,10 @@ class Slurm(SchedulerPluginAdvanced):
                 when=time.time()
             )
 
-        if not job_info:
+        if not job_data:
             return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
-                note="Could not find job {}".format(job_id),
+                note="Could not find job {}".format(job_info['id']),
                 when=time.time()
             )
 
@@ -575,7 +565,7 @@ class Slurm(SchedulerPluginAdvanced):
             return TestStatusInfo(
                 state=STATES.SCHEDULED,
                 note=("Job {} has state '{}', reason '{}'"
-                      .format(job_id, job_state, job_info.get('Reason'))),
+                      .format(job_info['id'], job_state, job_info.get('Reason'))),
                 when=time.time()
             )
         elif job_state in self.SCHED_RUN:
@@ -602,19 +592,18 @@ class Slurm(SchedulerPluginAdvanced):
         return TestStatusInfo(
             state=STATES.SCHEDULED,
             note="Job '{}' has unknown/unhandled job state '{}'. We have no"
-                 "idea what is going on.".format(job_id, job_state),
+                 "idea what is going on.".format(job_info['id'], job_state),
             when=time.time()
         )
 
-    def _cancel_job(self, test):
-        """Scancel the job attached to the given test.
+    def cancel(self, job_info: JobInfo) -> Union[str, None]:
+        """Scancel the job attached to the given test."""
 
-        :param pavilion.test_run.TestRun test: The test to cancel.
-        :returns: A statusInfo object with the latest scheduler state.
-        :rtype: TestStatusInfo
-        """
+        if job_info['sys_name'] != sys_vars.get_vars(True)['sys_name']:
+            return "Could not cancel - job started on a different cluster ({})."\
+                .format(job_info['sys_name'])
 
-        cmd = ['scancel', test.job_id]
+        cmd = ['scancel', job_info['id']]
 
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE,
@@ -622,14 +611,7 @@ class Slurm(SchedulerPluginAdvanced):
         stdout, stderr = proc.communicate()
 
         if proc.poll() == 0:
-            # SCancel successful, pass the stdout message
-            test.set_run_complete()
-            return test.status.set(
-                STATES.SCHED_CANCELLED,
-                "Slurm jobid {} canceled via slurm.".format(test.job_id),
-            )
+            return None
         else:
-            # SCancel failed, pass the stderr message
-            return test.status.set(
-                STATES.SCHED_CANCELLED,
-                "Tried (but failed) to cancel job: {}".format(stderr))
+            return "Tried (but failed) to cancel job {}: {}".format(job_info['id'],
+                                                                    stderr)

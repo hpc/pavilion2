@@ -18,11 +18,12 @@ from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import STATES, SeriesStatusFile, SERIES_STATES
-from pavilion.test_run import TestRun, ID_Pair
+from pavilion.test_run import TestRun
+from pavilion.types import ID_Pair
 from yaml_config import YAMLError, RequiredError
 from .errors import TestSeriesError, TestSeriesWarning
-from .test_set import TestSet, TestSetError
 from .info import SeriesInfo
+from .test_set import TestSet, TestSetError
 
 
 class LazyTestRunDict(UserDict):
