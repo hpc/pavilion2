@@ -333,7 +333,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         config_dirs.remove(PAV_CONFIG_DIR)
         config_dirs.append(PAV_CONFIG_DIR)
 
-    config_dirs = [d.resolve() for d in config_dirs]
+    # All config_dirs are existing, fully resolved, PosixPath objects.
+    config_dirs = [d.resolve() for d in config_dirs if d.exists()]
 
     for config_dir in config_dirs:
         config_path = config_dir/CONFIG_NAME
@@ -359,11 +360,11 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         label = config.get('label')
         # Set the user's home pavilion directory label to 'user'.
         if not label:
-            if config_dir.samefile(USER_HOME_PAV):
+            if USER_HOME_PAV.exists() and config_dir.samefile(USER_HOME_PAV):
                 label = 'user'
             # Set the label to 'main' if the config_dir is the one set by
             # PAV_CONFIG_DIR. Other config directories can snatch this up first though.
-            elif config_dir.samefile(PAV_CONFIG_DIR):
+            elif PAV_CONFIG_DIR.exists() and config_dir.samefile(PAV_CONFIG_DIR):
                 if DEFAULT_CONFIG_LABEL not in configs:
                     label = DEFAULT_CONFIG_LABEL
                 else:
