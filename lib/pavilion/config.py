@@ -33,12 +33,10 @@ PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', None)
 
 if PAV_CONFIG_DIR is not None:
-    PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR)
+    PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR).resolve()
 
     if PAV_CONFIG_DIR.exists():
-        PAV_CONFIG_SEARCH_DIRS.append(
-            Path(PAV_CONFIG_DIR)
-        )
+        PAV_CONFIG_SEARCH_DIRS.append(PAV_CONFIG_DIR)
     else:
         pavilion.output.fprint(
             "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
@@ -335,6 +333,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         config_dirs.remove(PAV_CONFIG_DIR)
         config_dirs.append(PAV_CONFIG_DIR)
 
+    config_dirs = [d.resolve() for d in config_dirs]
+
     for config_dir in config_dirs:
         config_path = config_dir/CONFIG_NAME
         try:
@@ -359,16 +359,16 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         label = config.get('label')
         # Set the user's home pavilion directory label to 'user'.
         if not label:
-            if config_dir == USER_HOME_PAV:
+            if config_dir.samefile(USER_HOME_PAV):
                 label = 'user'
             # Set the label to 'main' if the config_dir is the one set by
             # PAV_CONFIG_DIR. Other config directories can snatch this up first though.
-            elif config_dir == PAV_CONFIG_DIR:
+            elif config_dir.samefile(PAV_CONFIG_DIR):
                 if DEFAULT_CONFIG_LABEL not in configs:
                     label = DEFAULT_CONFIG_LABEL
                 else:
                     label = '_' + DEFAULT_CONFIG_LABEL
-            elif config_dir == Path(__file__).parent:
+            elif config_dir.samefile(Path(__file__).parent):
                 label = '_lib'
 
         if label in configs or not label:
