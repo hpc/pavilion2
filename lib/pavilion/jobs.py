@@ -128,10 +128,10 @@ class Job:
             (test_link_dir/test.full_id).symlink_to(test.path)
 
         job = cls(job_path)
-        job._set_kickoff(kickoff_fn)
+        job.set_kickoff(kickoff_fn)
         return job
 
-    def _set_kickoff(self, kickoff_name: str = None):
+    def set_kickoff(self, kickoff_name: str = None):
         """Set the name for the kickoff script to the one given,
         This will also create a symlink to this file via the default kickoff name.
 

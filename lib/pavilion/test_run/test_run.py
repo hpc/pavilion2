@@ -179,7 +179,7 @@ class TestRun(TestAttributes):
         self.build_local = config.get('build', {}) \
                                  .get('on_nodes', 'false').lower() != 'true'
 
-        run_timeout = config.get('run', {}).get('timeout')
+        run_timeout = config.get('run', {}).get('timeout', '300')
         try:
             self.run_timeout = parse_timeout(run_timeout)
         except ValueError:
