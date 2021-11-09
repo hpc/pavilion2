@@ -205,7 +205,7 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
             if (test_parent/TestRun.RUN_DIR/test_path.name).exists():
                 test_wd = test_parent
                 break
-            
+
         if test_wd is None:
             raise ValueError("No parent of test_path '{}' contains test {}."
                              .format(test_path, test_path.name))
