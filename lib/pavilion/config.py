@@ -360,7 +360,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         label = config.get('label')
         # Set the user's home pavilion directory label to 'user'.
         if not label:
-            if (USER_HOME_PAV is not None and USER_HOME_PAV.exists() and 
+            if (USER_HOME_PAV is not None and USER_HOME_PAV.exists() and
                 config_dir.samefile(USER_HOME_PAV)):
                 label = 'user'
             # Set the label to 'main' if the config_dir is the one set by
