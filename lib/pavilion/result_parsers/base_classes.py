@@ -11,7 +11,7 @@ import pavilion.deferred
 import yaml_config as yc
 from pavilion.result.common import ResultError
 from pavilion.result.options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
-                                     PER_NAME_LIST, PER_ALL, PER_ANY, PER_FILES,
+                                     PER_NAME_LIST, PER_ALL, PER_ANY, PER_FILES, MATCH_UNIQ,
                                      MATCH_FIRST, MATCH_LAST, MATCH_ALL, MATCH_CHOICES,
                                      ACTION_STORE, ACTION_STORE_STR, ACTION_TRUE,
                                      ACTION_FALSE, ACTION_COUNT, ACTIONS)
@@ -54,7 +54,7 @@ def __reset():
 def match_select_validator(match_select):
     """Make sure this is predefined string or integer."""
 
-    if match_select in ('first', 'last', 'all'):
+    if match_select in list(MATCH_CHOICES.keys()):
         return
 
     try:
@@ -350,17 +350,20 @@ deferred args. On error, should raise a ResultParserError.
         yc.StrElem(
             "match_select",
             help_text=(
-                "In cases where multiple matches are possible, how to"
+                "In cases where multiple matches are possible, how to "
                 "handle them. By default, find the first '{FIRST}' "
-                "match and use it. '{LAST}' returns  the final match, and "
-                "'{ALL}' will return a list of all matches. You may also "
+                "match and use it. '{LAST}' returns  the final match, "
+                "'{ALL}' will return a list of all matches, and '{UNIQ}' "
+                "will return the list of uniq matches. You may also "
                 "give an integer to get the Nth match (starting at 0). "
-                "Negative integers (starting at -1)count in reverse."
+                "Negative integers (starting at -1) count in reverse."
 
                 .format(
                     FIRST=MATCH_FIRST,
                     LAST=MATCH_LAST,
-                    ALL=MATCH_ALL))
+                    ALL=MATCH_ALL,
+                    UNIQ=MATCH_UNIQ,
+                    ))
         ),
     ]
 
