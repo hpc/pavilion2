@@ -1,12 +1,12 @@
-from pavilion import commands
-from pavilion import plugins
-from pavilion.unittest import PavTestCase
-from pavilion import schedulers
-from pavilion.status_file import STATES
 import argparse
 import io
 import sys
 import time
+
+import pavilion.schedulers
+from pavilion import commands
+from pavilion import plugins
+from pavilion.unittest import PavTestCase
 
 
 class LogCmdTest(PavTestCase):
@@ -25,7 +25,7 @@ class LogCmdTest(PavTestCase):
 
         # run a simple test
         test = self._quick_test(finalize=False)
-        raw = schedulers.get_plugin('raw')
+        raw = pavilion.schedulers.get_plugin('raw')
 
         raw.schedule_tests(self.pav_cfg, [test])
 
@@ -110,7 +110,7 @@ class LogCmdTest(PavTestCase):
                                    'echo "crazy"', 'echo "long"', 'echo "output"']
         test = self._quick_test(cfg=test_cfg)
 
-        raw = schedulers.get_plugin('raw')
+        raw = pavilion.schedulers.get_plugin('raw')
         raw.schedule_tests(self.pav_cfg, [test])
 
         end = time.time() + 5

@@ -1,14 +1,13 @@
 """Cancels tests as prescribed by the user."""
-import collections
 import errno
 import os
 import signal
 import time
 
+from pavilion import cancel
 from pavilion import output
-from pavilion import schedulers
 from pavilion import series
-from pavilion.test_run import TestRun, load_tests
+from pavilion.test_run import TestRun
 from .base_classes import Command
 from ..exceptions import TestRunError
 
@@ -94,22 +93,20 @@ class CancelCommand(Command):
         output.fprint("Found {} tests to try to cancel.".format(len(tests)),
                       file=self.outfile)
 
-        tests_by_sched = collections.defaultdict(list)
         # Cancel each test. Note that this does not cancel test jobs or builds.
-        cancelled_tests = []
+        cancelled_test_info = []
         for test in tests:
             # Don't try to cancel complete tests
             if not test.complete:
                 test.cancel("Cancelled via cmdline.")
-                cancelled_tests.append(test)
-                tests_by_sched[test.scheduler].append(test)
+                cancelled_test_info.append(test)
 
-        if cancelled_tests:
+        if cancelled_test_info:
             output.draw_table(
                 outfile=self.outfile,
                 fields=['name', 'id'],
                 rows=[{'name': test.name, 'id': test.full_id}
-                      for test in cancelled_tests])
+                      for test in cancelled_test_info])
         else:
             output.fprint("No tests needed to be cancelled.",
                           file=self.outfile)
@@ -119,51 +116,14 @@ class CancelCommand(Command):
                       file=self.outfile)
         time.sleep(TestRun.RUN_WAIT_MAX)
 
-        # Figure out which jobs to cancel, and cancel them.
-        jobs_cancelled = []
-        for sched_name, sched_tests in tests_by_sched.items():
-            jobs = []
-            try:
-                scheduler = schedulers.get_plugin(sched_name)
-            except schedulers.SchedulerPluginError:
-                output.fprint("Skipping job cancellation for unknown scheduler '{}'"
-                              .format(sched_name), file=self.outfile)
-                continue
+        job_cancel_info = cancel.cancel_jobs(pav_cfg, tests, self.errfile)
 
-            # Gather the unique jobs
-            for test in sched_tests:
-                if test.job not in jobs and test.job is not None:
-                    jobs.append(test.job)
-
-            # Find the tests for each unique job, and make sure they're all cancelled.
-            for job in jobs:
-                job_tests = load_tests(pav_cfg, job.get_test_id_pairs(),
-                                       self.errfile)
-
-                if all([test.cancelled or test.complete for test in job_tests]):
-                    msg = scheduler.cancel(job.info)
-                    success = True if msg is None else False
-                    if msg is None:
-                        msg = 'Cancel Succeeded'
-                    jobs_cancelled.append({
-                        'scheduler': sched_name,
-                        'job': str(job),
-                        'success': str(success),
-                        'msg': msg,
-                    })
-                else:
-                    jobs_cancelled.append({
-                        'scheduler': sched_name,
-                        'job': str(job),
-                        'success': False,
-                        'msg': "Uncancelled tests still running."})
-
-        if jobs_cancelled:
+        if job_cancel_info:
             output.draw_table(
                 outfile=self.outfile,
                 fields=['scheduler', 'job', 'success', 'msg'],
-                rows=jobs_cancelled,
-                title="Cancelled {} jobs.".format(len(jobs_cancelled)),
+                rows=job_cancel_info,
+                title="Cancelled {} jobs.".format(len(job_cancel_info)),
             )
         else:
             output.fprint("No jobs needed to be cancelled.", file=self.outfile)

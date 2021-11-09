@@ -7,10 +7,13 @@ import random
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion.sys_vars import base_classes
+from pavilion import resolver
+from pavilion import schedulers
+from pavilion.deferred import DeferredVariable
+from pavilion.exceptions import TestConfigError, VariableError
 from pavilion.pavilion_variables import PavVars
-from pavilion.test_config import TestConfigError, resolver
-from pavilion.test_config import variables
+from pavilion.resolver import variables
+from pavilion.sys_vars import base_classes
 from pavilion.unittest import PavTestCase
 
 
@@ -248,7 +251,7 @@ class ResolverTests(PavTestCase):
         }
 
         var_man = variables.VariableSetManager()
-        var_man.add_var_set('sys', {'def': variables.DeferredVariable()})
+        var_man.add_var_set('sys', {'def': DeferredVariable()})
 
         with self.assertRaises(TestConfigError):
             self.resolver.resolve_permutations(
@@ -369,7 +372,7 @@ class ResolverTests(PavTestCase):
         var_man = copy.deepcopy(self.resolver.base_var_man)
         var_man.add_var_set('var', test['variables'])
 
-        with self.assertRaises(variables.VariableError):
+        with self.assertRaises(VariableError):
             self.resolver.resolve_permutations(test, var_man)
 
     def test_finalize(self):
@@ -397,6 +400,8 @@ class ResolverTests(PavTestCase):
 
         fin_var_man = variables.VariableSetManager()
         fin_var_man.add_var_set('sys', undefered_sys_vars)
+        sched = schedulers.get_plugin('raw')
+        fin_var_man.add_var_set('sched', sched.get_final_vars(test))
 
         resolver.TestConfigResolver.finalize(test, fin_var_man)
 
@@ -465,6 +470,8 @@ class ResolverTests(PavTestCase):
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
             out_test = self.resolver.resolve_test_vars(test, var_man)
+            # This is a random number that gets added. It can't be predicted.
+            del out_test['permute_base']
             self.assertIn(out_test, answers)
 
         # Make sure we can successfully disallow deferred variables in a
@@ -478,12 +485,12 @@ class ResolverTests(PavTestCase):
         }
 
         var_man = variables.VariableSetManager()
-        var_man.add_var_set('sys', {'foo': variables.DeferredVariable()})
+        var_man.add_var_set('sys', {'foo': DeferredVariable()})
         var_man.add_var_set('var', {})
 
         test, permuted = self.resolver.resolve_permutations(test, var_man)
 
-        with self.assertRaises(resolver.TestConfigError):
+        with self.assertRaises(TestConfigError):
             # No deferred variables in the build section.
             self.resolver.resolve_test_vars(test, permuted[0])
 

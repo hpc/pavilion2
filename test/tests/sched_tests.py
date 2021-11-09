@@ -1,15 +1,14 @@
-import inspect
-import re
 import copy
+import inspect
 
+import pavilion.schedulers
+from pavilion import output
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.schedulers import SchedulerPluginAdvanced
 from pavilion.schedulers import config as sconfig
 from pavilion.schedulers.types import NodeSet, Nodes, NodeInfo
-from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
-from pavilion.var_dict import var_method, dfr_var_method
 
 
 class SchedTests(PavTestCase):
@@ -43,9 +42,9 @@ class SchedTests(PavTestCase):
     def _check_examples(self, config, nodes, chunks):
         """Check examples with the given parameters."""
 
-        scheds = schedulers.list_plugins()
+        scheds = pavilion.schedulers.list_plugins()
         for sched_name in scheds:
-            sched = schedulers.get_plugin(sched_name)
+            sched = pavilion.schedulers.get_plugin(sched_name)
             sched_vars = sched.VAR_CLASS(
                 config,
                 nodes=nodes,
@@ -61,66 +60,6 @@ class SchedTests(PavTestCase):
                     msg="The sched variable examples for scheduler {} at "
                         "({}) are missing key {}."
                         .format(sched_name, module_path, key))
-
-    def test_sched_vars(self):
-        """Make sure the scheduler variable class works as expected."""
-
-        class TestVars(schedulers.SchedulerVariables):
-
-            @var_method
-            def hello(self):
-                return 'hello'
-
-            @var_method
-            def foo(self):
-                return self.bar
-
-            @dfr_var_method()
-            def bar(self):
-                return 'bar'
-
-            def not_a_key(self):
-                pass
-
-        class DummySched(schedulers.SchedulerPlugin):
-            VAR_CLASS = TestVars
-
-            def __init__(self):
-                super().__init__('dummy', 'more dumb')
-
-                self.in_alloc_var = False
-
-            def _get_data(self):
-                return {
-                    'foo': 'baz'
-                }
-
-            def available(self):
-                return True
-
-            def _in_alloc(self):
-                return self.in_alloc_var
-
-        config = {
-                     'name':      'sched-vars',
-                     'scheduler': 'dummy'
-                 }
-
-        test = self._quick_test(config)
-
-        dummy_sched = DummySched()
-
-        svars = dummy_sched.get_vars(test)
-
-        # There should only be three keys.
-        self.assertEqual(svars['hello'], 'hello')
-        self.assertEqual(svars['foo'], 'baz')
-        # Make sure we get a deferred variable when outside of an allocation
-        self.assert_(isinstance(svars['bar'], variables.DeferredVariable))
-        # And the real thing inside
-        dummy_sched.in_alloc_var = True
-        del svars['bar']
-        self.assertEqual(svars['bar'], 'bar')
 
     def test_sched_var_values(self):
         test = self._quick_test()
@@ -249,7 +188,7 @@ class SchedTests(PavTestCase):
         """Test filtering via the dummy scheduler."""
 
         # The dummy scheduler returns info on 100 nodes.
-        dummy = schedulers.get_plugin('dummy')  # type: SchedulerPluginAdvanced
+        dummy = pavilion.schedulers.get_plugin('dummy')  # type: SchedulerPluginAdvanced
 
         # Check with defaults. Every 10th node is marked as not 'up', so this should
         # give 90 nodes.
@@ -291,7 +230,7 @@ class SchedTests(PavTestCase):
             }
         }
 
-        dummy = schedulers.get_plugin('dummy')  # type: SchedulerPluginAdvanced
+        dummy = pavilion.schedulers.get_plugin('dummy')  # type: SchedulerPluginAdvanced
 
         for size in None, 0, 15, 13, 1000:
             for extra in sconfig.NODE_EXTRA_OPTIONS:
@@ -330,7 +269,10 @@ class SchedTests(PavTestCase):
             }
         }
 
-        dummy = schedulers.get_plugin('dummy')  # type: SchedulerPluginAdvanced
+        # Make true to examine the node selection algorithm results.
+        enable_view = False
+
+        dummy = pavilion.schedulers.get_plugin('dummy')  # type: SchedulerPluginAdvanced
 
         for select in sconfig.NODE_SELECT_OPTIONS:
             sched_config = copy.deepcopy(cfg)
@@ -341,25 +283,67 @@ class SchedTests(PavTestCase):
             node_list_id = int(sched_vars['node_list_id'])
             chunks = dummy._chunks[(node_list_id, chunk_size,
                                     select, sconfig.BACKFILL)]
-            # print(select, sorted(list(chunks[0])))
 
-    def test_kickoff_env(self):
+            # This is here to debug node selection and visually examine the node
+            # selection algorithm results, as they are mostly random.
+            if enable_view:
+                output.fprint(select, sorted(list(chunks[0])))
 
-        pav_cfg = self.pav_cfg
-        pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
+    def test_shared_kickoff(self):
+        """Check that shared kickoffs work as expected."""
 
-        config = {
-                     'name':      'sched-vars',
-                     'scheduler': 'dummy'
-                 }
-        test = self._quick_test(config)
+        base_test_cfg = self._quick_test_cfg()
+        base_test_cfg['scheduler'] = 'dummy'
 
-        dummy_sched = schedulers.get_plugin('dummy')
-        path = dummy_sched._create_kickoff_script(pav_cfg, test)
-        with path.open() as file:
-            lines = file.readlines()
-        for i in range(0,len(lines)):
-            lines[i] = lines[i].strip()
-        testlist = pav_cfg['env_setup']
-        self.assertTrue(set(testlist).issubset(lines))
-        self.assertTrue(re.match(r'pav _run.*', lines[-1]))
+        tests = []
+        for nodes in 1, 5, 20, 'all':
+            test_cfg = copy.deepcopy(base_test_cfg)
+            test_cfg['schedule'] = {
+                'nodes': str(nodes),
+                'share_allocation': 'True',
+            }
+            test = self._quick_test(test_cfg, finalize=False)
+            tests.append(test)
+
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, tests)
+
+        # Make sure all the tests share a job.
+        job1 = tests[0].job
+        self.assertTrue(all([test.job == job1 for test in tests]))
+
+        for test in tests:
+            test.wait(10)
+
+        for test in tests:
+            self.assertEqual(test.results['result'], 'PASS')
+
+    def test_kickoff_independent(self):
+        """Check independent kickoff"""
+
+        base_test_cfg = self._quick_test_cfg()
+        base_test_cfg['scheduler'] = 'dummy'
+
+        tests = []
+        for nodes in 1, 5, 20, 'all':
+            test_cfg = copy.deepcopy(base_test_cfg)
+            test_cfg['schedule'] = {
+                'nodes': str(nodes),
+                'share_allocation': 'False',
+            }
+            test = self._quick_test(test_cfg, finalize=False)
+            tests.append(test)
+
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, tests)
+
+        # Make sure each test has its own job.
+        job1 = tests[0].job
+        for test in tests[1:]:
+            self.assertNotEqual(test.job, job1)
+
+        for test in tests:
+            test.wait(10)
+
+        for test in tests:
+            self.assertEqual(test.results['result'], 'PASS')

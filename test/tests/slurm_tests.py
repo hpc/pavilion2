@@ -3,10 +3,12 @@ import time
 import unittest
 import logging
 
+import pavilion.schedulers
 from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.schedulers.plugins.slurm import Slurm
+from pavilion.schedulers import SchedulerPluginAdvanced
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
 
@@ -80,7 +82,7 @@ class SlurmTests(PavTestCase):
     def test_node_list_parsing(self):
         """Make sure the node list regex matches what it's supposed to."""
 
-        slurm = schedulers.get_plugin('slurm')  # type: Slurm
+        slurm = pavilion.schedulers.get_plugin('slurm')  # type: SchedulerPluginAdvanced
 
         examples = (
             (None, []),
@@ -126,7 +128,7 @@ class SlurmTests(PavTestCase):
             ['baaaad'] +
             ['another000003'])
 
-        snodes = Slurm.short_node_list(nodes, logging.getLogger("discard"))
+        snodes = Slurm.compress_node_list(nodes)
 
         self.assertEqual(
             snodes,
@@ -141,7 +143,7 @@ class SlurmTests(PavTestCase):
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg, name='slurm_job_status', finalize=False)
 
-        slurm = schedulers.get_plugin('slurm')
+        slurm = pavilion.schedulers.get_plugin('slurm')
 
         # Steal a running job's ID, and then check our status.
         test.status.set(STATES.SCHEDULED, "not really though.")
@@ -170,7 +172,7 @@ class SlurmTests(PavTestCase):
     def test_sched_vars(self):
         """Make sure the scheduler vars are reasonable when not on a node."""
 
-        slurm = schedulers.get_plugin('slurm')
+        slurm = pavilion.schedulers.get_plugin('slurm')
 
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'
@@ -213,7 +215,7 @@ class SlurmTests(PavTestCase):
     def test_schedule(self):
         """Try to schedule a test. We don't actually need to get nodes."""
 
-        slurm = schedulers.get_plugin('slurm')
+        slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg=cfg, name='slurm_test')
@@ -232,7 +234,7 @@ class SlurmTests(PavTestCase):
     def test_node_range(self):
         """Make sure node ranges work properly."""
 
-        slurm = schedulers.get_plugin('slurm')
+        slurm = pavilion.schedulers.get_plugin('slurm')
 
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'
@@ -268,7 +270,7 @@ class SlurmTests(PavTestCase):
     def test_include_exclude(self):
         """Test that we can schedule tests that require or exclude nodes."""
 
-        slurm = schedulers.get_plugin('slurm')
+        slurm = pavilion.schedulers.get_plugin('slurm')
 
         dummy_test = self._quick_test(build=False, finalize=False)
         svars = slurm.get_vars(dummy_test.config['slurm'])

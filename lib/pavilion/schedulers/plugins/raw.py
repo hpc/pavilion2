@@ -9,9 +9,10 @@ import uuid
 from pathlib import Path
 from typing import Union, List
 
-from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.jobs import JobInfo, Job
-from ..scheduler import SchedulerPluginBasic, KickoffScriptHeader
+from pavilion.status_file import STATES, TestStatusInfo
+from ..basic import SchedulerPluginBasic
+from ..scheduler import KickoffScriptHeader
 from ..types import NodeList, NodeInfo
 from ..vars import SchedulerVariables
 
@@ -123,7 +124,8 @@ class Raw(SchedulerPluginBasic):
             'host': socket.gethostname(),
         })
 
-    def _pid_running(self, job_info: JobInfo) -> bool:
+    @staticmethod
+    def _pid_running(job_info: JobInfo) -> bool:
         """Verify that the test is running under the given pid. Note that this
         may change before, after, or during this call.
 

@@ -4,15 +4,12 @@ dynamic nature of test configs, there are a few extra complications this module
 handles that are documented below.
 """
 
-from collections import OrderedDict
 import re
-import yaml_config as yc
+from collections import OrderedDict
 from typing import Type
 
-
-class TestConfigError(ValueError):
-    """An exception specific to errors in configuration."""
-
+import yaml_config as yc
+from pavilion.exceptions import TestConfigError
 
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
@@ -237,7 +234,7 @@ expected to be added to by various plugins.
         ),
         yc.StrElem(
             'permute_base', hidden=True,
-            help_text="Set by pavilion. An id to identify the base config shared by " 
+            help_text="Set by pavilion. An id to identify the base config shared by "
                       "a set of permutations."),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),

@@ -51,7 +51,6 @@ class ScheduleConfig(yc.KeyedElem):
                       "for that percentage of the 'min', rounded down."),
         yc.StrElem(
             'partition',
-            default='standard',
             help_text="The partition to run the test on."),
         yc.StrElem(
             'qos',

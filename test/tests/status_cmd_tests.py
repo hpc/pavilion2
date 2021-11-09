@@ -2,6 +2,7 @@ import argparse
 import io
 import time
 
+import pavilion.schedulers
 from pavilion import commands
 from pavilion import plugins
 from pavilion import schedulers
@@ -211,8 +212,8 @@ class StatusCmdTests(PavTestCase):
         test = self._quick_test(cfg, build=False, finalize=False)
 
         test.build()
-        schedulers.get_plugin(test.scheduler) \
-            .schedule_test(self.pav_cfg, test)
+        sched = pavilion.schedulers.get_plugin(test.scheduler)
+        sched.schedule_tests(self.pav_cfg, [test])
 
         status_cmd = commands.get_command('status')
         status_cmd.silence()
@@ -314,8 +315,8 @@ class StatusCmdTests(PavTestCase):
         status_cmd._setup_arguments(parser)
 
         test = self._quick_test()
-        raw = schedulers.get_plugin('raw')
-        raw.schedule_test(self.pav_cfg, test)
+        raw = pavilion.schedulers.get_plugin('raw')
+        raw.schedule_tests(self.pav_cfg, [test])
         end = time.time() + 5
         while not test.complete and time.time() < end:
             time.sleep(.1)

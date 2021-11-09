@@ -19,19 +19,18 @@ from pathlib import Path
 from typing import List, IO, Union
 
 import yc_yaml
-from pavilion import output
+from pavilion import output, parsers, variables
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import sys_vars
+from pavilion.exceptions import VariableError, DeferredError, TestConfigError
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import file_format
-from pavilion.test_config import parsers
-from pavilion.test_config import variables
-from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
+from pavilion.test_config.file_format import (TEST_NAME_RE,
                                               KEY_NAME_RE)
+from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
 from yaml_config import RequiredError
-from .file_format import TestConfigLoader, TestSuiteLoader
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -91,7 +90,7 @@ class TestConfigResolver:
         # a bit faster by adding these after we find the used per vars.
         try:
             var_man.add_var_set('var', user_vars)
-        except variables.VariableError as err:
+        except VariableError as err:
             raise TestConfigError("Error in variables section: {}".format(err))
 
         scheduler = raw_test_cfg.get('scheduler', '<undefined>')
@@ -117,7 +116,7 @@ class TestConfigResolver:
                 "Could not get variables for scheduler {}: {}"
                 .format(scheduler, err)
             )
-        except variables.VariableError as err:
+        except VariableError as err:
             raise TestConfigError("Error in scheduler variables: {}"
                                   .format(err))
 
@@ -297,6 +296,9 @@ class TestConfigResolver:
         :param conditions: A dict containing the only_if and not_if conditions.
         :param outfile: Where to write status output.
         """
+
+        if outfile is None:
+            outfile = io.StringIO()
 
         if modes is None:
             modes = []
@@ -1265,7 +1267,7 @@ class TestConfigResolver:
 
                     try:
                         resolved = parsers.parse_text(component, var_man)
-                    except variables.DeferredError:
+                    except DeferredError:
                         raise RuntimeError(
                             "Tried to resolve a deferred config component, "
                             "but it was still deferred: {}"
@@ -1296,7 +1298,7 @@ class TestConfigResolver:
 
                 try:
                     resolved = parsers.parse_text(component, var_man)
-                except variables.DeferredError:
+                except DeferredError:
                     if allow_deferred:
                         return cls.DEFERRED_PREFIX + component
                     else:

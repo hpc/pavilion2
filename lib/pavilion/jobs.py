@@ -17,7 +17,7 @@ class JobError(RuntimeError):
 
 
 JobInfo = NewType('JobInfo', Dict['str', str])
-"""Scheduler defined job info dict. Keys are dependent on the specific 
+"""Scheduler defined job info dict. Keys are dependent on the specific
 scheduler plugin. All data added should be json serializable."""
 
 

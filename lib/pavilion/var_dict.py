@@ -7,7 +7,7 @@ lazily executed, and the results are cached.
 import inspect
 from collections import UserDict
 from functools import wraps
-from pavilion.test_config.variables import DeferredVariable
+from pavilion.deferred import DeferredVariable
 
 
 def var_method(func):

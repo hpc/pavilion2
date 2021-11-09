@@ -14,15 +14,15 @@ from hashlib import sha1
 from pathlib import Path
 from typing import List
 
+import pavilion.schedulers
 from pavilion import arguments
 from pavilion import config
 from pavilion import dir_db
 from pavilion import pavilion_variables
 from pavilion.sys_vars import base_classes
 from pavilion.output import dbg_print
-from pavilion.test_config import VariableSetManager
-from pavilion import schedulers
-from pavilion.test_config import resolver
+from pavilion.variables import VariableSetManager
+from pavilion.resolver import TestConfigResolver
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 
@@ -321,7 +321,7 @@ The default config is: ::
         if modes is None:
             modes = []
 
-        res = resolver.TestConfigResolver(self.pav_cfg)
+        res = TestConfigResolver(self.pav_cfg)
         test_cfgs = res.load([name], host, modes)
 
         tests = []
@@ -336,8 +336,8 @@ The default config is: ::
                 fin_sys = base_classes.SysVarDict(unique=True)
                 fin_var_man = VariableSetManager()
                 fin_var_man.add_var_set('sys', fin_sys)
-                scheduler = schedulers.get_plugin(test.scheduler)
-                fin_sched_vars = scheduler.get_final_vars(test.config['schedule'])
+                scheduler = pavilion.schedulers.get_plugin(test.scheduler)
+                fin_sched_vars = scheduler.get_final_vars(test)
                 fin_var_man.add_var_set('sched', fin_sched_vars)
                 res.finalize(test, fin_var_man)
 
@@ -352,8 +352,7 @@ The default config is: ::
     del __config_lines
 
     def _quick_test(self, cfg=None, name="quick_test",
-                    build=True, finalize=True,
-                    sched_vars=None):
+                    build=True, finalize=True):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
@@ -361,7 +360,6 @@ The default config is: ::
         :param str name: The name of the test.
         :param bool build: Build this test, while we're at it.
         :param bool finalize: Finalize this test.
-        :param dict sched_vars: Add these scheduler variables to our var set.
         :rtype: TestRun
         """
 
@@ -379,12 +377,14 @@ The default config is: ::
         var_man.add_var_set('var', cfg['variables'])
         var_man.add_var_set('sys', base_classes.SysVarDict(unique=True, defer=True))
         var_man.add_var_set('pav', self.pav_cfg.pav_vars)
-        if sched_vars is not None:
-            var_man.add_var_set('sched', sched_vars)
+
+        sched = pavilion.schedulers.get_plugin(cfg.get('scheduler', 'raw'))
+        sched_vars = sched.get_initial_vars(cfg.get('schedule', {}))
+        var_man.add_var_set('sched', sched_vars)
 
         var_man.resolve_references()
 
-        cfg = resolver.TestConfigResolver.resolve_test_vars(cfg, var_man)
+        cfg = TestConfigResolver.resolve_test_vars(cfg, var_man)
 
         test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
         if test.skipped:
@@ -399,7 +399,9 @@ The default config is: ::
             fin_sys = base_classes.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
-            resolver.TestConfigResolver.finalize(test, fin_var_man)
+            fin_sched_vars = sched.get_final_vars(test)
+            fin_var_man.add_var_set('sched', fin_sched_vars)
+            TestConfigResolver.finalize(test, fin_var_man)
         return test
 
     def wait_tests(self, working_dir: Path, timeout=5):

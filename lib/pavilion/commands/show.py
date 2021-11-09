@@ -5,8 +5,6 @@ import errno
 import pprint
 from typing import Union
 
-import pavilion.result.base
-import pavilion.result.common
 import yaml_config
 from pavilion import config
 from pavilion import expression_functions
@@ -18,9 +16,9 @@ from pavilion import schedulers
 from pavilion import series_config
 from pavilion import status_file
 from pavilion import sys_vars
-from pavilion.test_config import DeferredVariable
+from pavilion.deferred import DeferredVariable
 from pavilion.test_config import file_format
-from pavilion.test_config import resolver
+from pavilion import resolver
 from .base_classes import Command, sub_cmd
 
 
@@ -608,7 +606,7 @@ class ShowCommand(Command):
         if args.doc:
             try:
                 res_plugin = result_parsers.get_plugin(args.doc)
-            except pavilion.result.common.ResultError:
+            except result.common.ResultError:
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.doc),
                     color=output.RED
@@ -648,7 +646,6 @@ class ShowCommand(Command):
         """
 
         sched = None  # type : schedulers.SchedulerPlugin
-        sched_name = None
         if args.vars is not None or args.config is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
@@ -664,9 +661,9 @@ class ShowCommand(Command):
         if args.vars is not None:
             sched_vars = []
 
-            empty_config = file_format.TestConfigLoader().load_empty()
+            sched_config = schedulers.validate_config({})
 
-            svars = sched.get_vars(empty_config[sched_name])
+            svars = sched.VAR_CLASS(sched_config, schedulers.Nodes({}))
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))

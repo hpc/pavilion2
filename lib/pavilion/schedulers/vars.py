@@ -1,9 +1,9 @@
 """Scheduler variable base class."""
 from typing import List
 
-from . types import Nodes, NodeInfo, NodeSet, NodeList
-from pavilion.test_config import DeferredVariable
+from pavilion.deferred import DeferredVariable
 from pavilion.var_dict import VarDict, var_method, dfr_var_method
+from .types import Nodes, NodeInfo, NodeSet, NodeList
 
 
 class SchedulerVariables(VarDict):
@@ -135,6 +135,8 @@ Naming Conventions:
         want to define something that utilizes relevant scheduler
         parameters."""
 
+        _ = self
+
         return ''
 
     @dfr_var_method
@@ -151,7 +153,6 @@ Naming Conventions:
                 return tasks_per_node
         else:  # Should be a float
             if self._nodes:
-                print(tasks_per_node, self.min_cpus())
                 return min(int(tasks_per_node) * self.min_cpus(), 1)
             else:
                 return 1

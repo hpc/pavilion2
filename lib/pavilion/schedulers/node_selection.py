@@ -34,4 +34,3 @@ def distributed(node_list: List[str], chunk_size: int) -> List[str]:
     step = len(node_list)//chunk_size
 
     return [node_list[i*step] for i in range(chunk_size)]
-

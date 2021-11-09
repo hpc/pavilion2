@@ -51,7 +51,7 @@ BASE_RESULTS = {
                  "Duration of the test run (finished - started) in seconds."),
     'user': (lambda test: test.var_man['pav.user'],
              "The user that started the test."),
-    'job_info': (lambda test: test.job.info if test.job is not None else None,
+    'job_info': (lambda test: test.job.info if test.job is not None else {},
                  "The scheduler plugin's job info for the test."),
     'permute_on': (lambda test: test.permute_vars,
                    "The permutation variables and values."),

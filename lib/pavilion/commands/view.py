@@ -7,7 +7,7 @@ from pavilion import output
 from pavilion import cmd_utils
 from pavilion.commands import run
 from pavilion.output import fprint
-from pavilion.test_config import resolver
+from pavilion import resolver
 from .base_classes import Command
 from ..exceptions import CommandError
 

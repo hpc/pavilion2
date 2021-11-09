@@ -2,14 +2,15 @@
 
 from typing import Union, List, Any, Tuple
 
+import pavilion.schedulers.advanced
 import yaml_config as yc
 from pavilion import schedulers
 from pavilion.jobs import Job, JobInfo
 from pavilion.schedulers import NodeInfo
 from pavilion.status_file import TestStatusInfo, STATES
+import subprocess
 
-
-class Dummy(schedulers.SchedulerPluginAdvanced):
+class Dummy(pavilion.schedulers.advanced.SchedulerPluginAdvanced):
     """Returns fake info about a fake machine, and creates fake jobs."""
 
     def __init__(self):
@@ -79,5 +80,8 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
 
     def _kickoff(self, pav_cfg, job: Job, sched_config: dict,
                  chunk: schedulers.NodeList) -> JobInfo:
+
+        subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
 
         return JobInfo({'id': '1'})

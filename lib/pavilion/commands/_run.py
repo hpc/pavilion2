@@ -8,9 +8,10 @@ from pavilion import result
 from pavilion import schedulers
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
-from pavilion.test_config import VariableSetManager, TestConfigResolver
+from pavilion.variables import VariableSetManager
+from pavilion.resolver import TestConfigResolver
 from pavilion.test_run import TestRun
-from ..exceptions import TestRunError
+from pavilion.exceptions import TestRunError
 from .base_classes import Command
 
 
@@ -108,8 +109,7 @@ class _RunCommand(Command):
         try:
             var_man = VariableSetManager()
             var_man.add_var_set('sys', base_classes.get_vars(defer=False))
-            sched_config = test.config['schedule']
-            var_man.add_var_set('sched', sched.get_final_vars(sched_config))
+            var_man.add_var_set('sched', sched.get_final_vars(test))
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "

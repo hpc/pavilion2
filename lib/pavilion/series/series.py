@@ -9,15 +9,15 @@ from collections import defaultdict, UserDict
 from pathlib import Path
 from typing import List, Dict, Set, Union, TextIO
 
+from pavilion import cancel
 from pavilion import dir_db
 from pavilion import output
-from pavilion import schedulers
 from pavilion import sys_vars
 from pavilion import utils
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
-from pavilion.status_file import STATES, SeriesStatusFile, SERIES_STATES
+from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
 from yaml_config import YAMLError, RequiredError
@@ -345,12 +345,10 @@ differentiate it from test ids."""
 
         self.status.set(SERIES_STATES.ABORTED, "Series cancelled: {}".format(message))
 
-        for test_obj in self.tests.values():
-            if test_obj.complete:
-                sched = schedulers.get_plugin(test_obj.scheduler)
-                sched.cancel_job(test_obj)
-                test_obj.status.set(STATES.COMPLETE, message)
-                test_obj.set_run_complete()
+        for test in self.tests.values():
+            test.cancel(message or "Cancelled via series. Reason not given.")
+
+        cancel.cancel_jobs(self.pav_cfg, List[self.tests.values()])
 
     def run(self, build_only: bool = False, rebuild: bool = False,
             local_builds_only: bool = False, verbosity: int = 0,

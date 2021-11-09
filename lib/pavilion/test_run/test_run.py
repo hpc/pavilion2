@@ -15,24 +15,23 @@ import uuid
 from pathlib import Path
 from typing import TextIO
 
-import pavilion.result.common
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
-from pavilion.jobs import Job
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
+from pavilion.deferred import DeferredVariable
 from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.jobs import Job
+from pavilion.variables import VariableSetManager
+from pavilion.result.common import ResultError
 from pavilion.status_file import TestStatusFile, STATES
-from pavilion.test_config import variables
-from pavilion.test_config.utils import parse_timeout
 from pavilion.test_config.file_format import NO_WORKING_DIR
-from .test_attrs import TestAttributes
-
-# pylint: disable=invalid-name
+from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
+from .test_attrs import TestAttributes
 
 
 class TestRun(TestAttributes):
@@ -150,7 +149,7 @@ class TestRun(TestAttributes):
             self.uuid = str(uuid.uuid4())
 
             if var_man is None:
-                var_man = variables.VariableSetManager()
+                var_man = VariableSetManager()
             self.var_man = var_man
         else:
             # Load the test info from the given id path.
@@ -164,7 +163,7 @@ class TestRun(TestAttributes):
             self.suite_path = self.suite_path
 
             try:
-                self.var_man = variables.VariableSetManager.load(self._variables_path)
+                self.var_man = VariableSetManager.load(self._variables_path)
             except RuntimeError as err:
                 raise TestRunError(*err.args)
 
@@ -607,7 +606,10 @@ class TestRun(TestAttributes):
 
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds
-            timeout = max(self.run_timeout, self.RUN_WAIT_MAX)
+            if self.run_timeout is None or self.run_timeout > self.RUN_WAIT_MAX:
+                timeout = self.RUN_WAIT_MAX
+            else:
+                timeout = self.run_timeout
             ret = None
             while ret is None:
                 try:
@@ -634,15 +636,14 @@ class TestRun(TestAttributes):
                         self.finished = time.time()
                         self.save_attributes()
                         raise TimeoutError(msg)
-                    elif self.complete:
-                        # The test was set as complete early, typically due to
-                        # cancellation.
+                    elif self.cancelled:
                         proc.kill()
                         self.status.set(
                             STATES.STATES.SCHED_CANCELLED,
                             "Test cancelled mid-run.")
                         self.finished = time.time()
                         self.save_attributes()
+                        self.set_run_complete()
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = max(self.run_timeout - quiet_time, self.RUN_WAIT_MAX)
@@ -685,7 +686,7 @@ class TestRun(TestAttributes):
         """Set the cancel file for this test, and denote in its status that it was
         cancelled."""
 
-        if self.cancelled:
+        if self.cancelled or self.complete:
             # Already cancelled.
             return
 
@@ -762,7 +763,7 @@ of result keys.
 
         try:
             result.parse_results(self._pav_cfg, self, results, base_log=result_log)
-        except pavilion.result.common.ResultError as err:
+        except ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
                 "Error parsing results: {}".format(err.args[0]))
@@ -780,7 +781,7 @@ of result keys.
                 self.config['result_evaluate'],
                 result_log
             )
-        except pavilion.result.common.ResultError as err:
+        except ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
             if not regather:
@@ -1083,7 +1084,7 @@ be set by the scheduler plugin as soon as it's known."""
 
         for key in not_if:
             # Skip any keys that were deferred.
-            if variables.DeferredVariable.was_deferred(key):
+            if DeferredVariable.was_deferred(key):
                 raise TestRunError(
                     "Skip conditions cannot contained deferred variables. Error"
                     "with skip condition that uses variable '{}'".format(key))
@@ -1103,7 +1104,7 @@ be set by the scheduler plugin as soon as it's known."""
             for val in only_if[key]:
 
                 # We have to assume a match if one of the values is deferred.
-                if variables.DeferredVariable.was_deferred(key):
+                if DeferredVariable.was_deferred(key):
                     raise TestRunError(
                         "Skip conditions cannot contained deferred variables. Error"
                         "with skip condition that uses variable '{}'".format(key))

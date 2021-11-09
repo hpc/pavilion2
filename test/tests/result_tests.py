@@ -318,6 +318,7 @@ class ResultParserTests(PavTestCase):
 
         for key in base.BASE_RESULTS.keys():
             self.assertIn(key, base_results)
+
             # Base result keys should have a non-None value, even from an
             # empty config file.
             self.assertIsNotNone(
