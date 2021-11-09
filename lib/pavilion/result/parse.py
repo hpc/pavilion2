@@ -15,7 +15,7 @@ from pavilion.utils import IndentedLog
 from .base import RESULT_ERRORS
 from .common import ResultError
 from .options import (PER_FILES, ACTIONS, MATCH_CHOICES, per_first,
-                      ACTION_TRUE, ACTION_FALSE)
+                      ACTION_TRUE, ACTION_FALSE, MATCH_ALL, MATCH_UNIQ)
 
 
 class ParseErrorMsg:
@@ -288,9 +288,14 @@ def parse_result(key: str, parser_cfg: Dict, file: TextIO, parser: ResultParser)
         parser_cfg['action'] = ACTION_TRUE
         log("Forcing action to '{}' for the 'result' key.")
 
-    match_idx = MATCH_CHOICES.get(parser_cfg['match_select'],
-                                  parser_cfg['match_select'])
-    match_idx = int(match_idx) if match_idx is not None else None
+    # Get the idx value from the match_select option if it's a keyword, otherwise just
+    # use the value directly.
+    match_select = parser_cfg['match_select']
+    match_idx = MATCH_CHOICES.get(match_select, match_select)
+    if match_idx is None:
+        match_idx = match_select
+    else:
+        match_idx = int(match_idx)
 
     # Compile the regexes for finding the appropriate lines on which to
     # call the result parser.
@@ -331,7 +336,7 @@ def parse_result(key: str, parser_cfg: Dict, file: TextIO, parser: ResultParser)
 
 
 def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
-                   match_idx: Union[int, None],
+                   match_idx: Union[int, str],
                    pos_regexes: List[Pattern]) -> Tuple[Any, IndentedLog]:
     """Parse a result from a result file.
 
@@ -361,18 +366,18 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
 
         file.seek(next_pos)
 
-        if res is not None:
+        if res is not None and not (match_idx == MATCH_UNIQ and res in matches):
             matches.append(res)
             log("Parser extracted result '{}'".format(res))
 
         # Stop extracting when we get to the asked for match index.
-        if match_idx is not None and 0 <= match_idx < len(matches):
+        if isinstance(match_idx, int) and 0 <= match_idx < len(matches):
             log("Got needed number of results, ending search.")
             break
 
         next_pos = advance_file(file, pos_regexes)
 
-    if match_idx is None:
+    if match_idx in (MATCH_ALL, MATCH_UNIQ):
         return matches, log
     else:
         try:
