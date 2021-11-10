@@ -358,6 +358,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     # Scheduling options in this list are denoted as those that change the nature
     # of the allocation being acquired. Tests with different values for these
     # should thus run under different allocations.
+    # This can be modified by subclasses. Separate multipart keys with a '.'.
     ALLOC_ACQUIRE_OPTIONS = ['partition', 'reservation', 'account', 'qos']
 
     def _schedule_chunk(self, pav_cfg, chunk: NodeSet, tests: List[TestRun],
@@ -375,8 +376,18 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 # This test will be allocated separately.
                 acq_opts = None
             else:
-                acq_opts = tuple(sched_config.get(key)
-                                 for key in self.ALLOC_ACQUIRE_OPTIONS)
+                acq_opts = []
+                for opt_name in self.ALLOC_ACQUIRE_OPTIONS:
+                    opt = sched_config
+                    for part in opt_name.split('.'):
+                        if opt is not None and isinstance(opt, dict):
+                            opt = opt.get(part)
+                    # Make the option hashable if its a list.
+                    if isinstance(opt, list):
+                        opt = tuple(opt)
+                    acq_opts.append(opt)
+
+                acq_opts = tuple(acq_opts)
 
             share_groups[acq_opts].append(test)
 

@@ -241,6 +241,18 @@ def int_greater_than(name, min_val, required=True):
     return validator
 
 
+def validate_list(val) -> List[str]:
+    """Ensure that a list is a list."""
+
+    if val is None:
+        return []
+
+    if isinstance(val, list):
+        return val
+
+    raise ValueError("Expected list, got {}".format(val))
+
+
 def _validate_nodes(val) -> Union[float, int]:
     """Parse and check the nodes (or min_nodes) value. A float value
     represents a percentage of nodes, ints are an exact node count. None denotes

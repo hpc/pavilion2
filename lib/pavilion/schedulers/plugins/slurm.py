@@ -17,6 +17,7 @@ from ..advanced import SchedulerPluginAdvanced
 from ..scheduler import SchedulerPluginError, KickoffScriptHeader
 from ..types import NodeInfo, NodeList
 from ..vars import SchedulerVariables
+from ..config import validate_list
 
 
 class SbatchHeader(KickoffScriptHeader):
@@ -53,6 +54,9 @@ slurm kickoff script.
         lines.append('#SBATCH -w {}'.format(nodes))
         lines.append('#SBATCH -N {}'.format(len(self._nodes)))
 
+        for line in self._config['slurm']['sbatch_extra']:
+            lines.append('#SBATCH {}'.format(line))
+
         return lines
 
 
@@ -71,17 +75,37 @@ class SlurmVars(SchedulerVariables):
         criteria specified by this test.
         """
 
-        # TODO - Add MPIRUN support.
+        slurm_conf = self._sched_config['slurm']
 
         nodes = len(self._nodes)
         tasks = self.tasks_per_node() * nodes
 
-        cmd = ['srun',
-               '-N', str(nodes),
-               '-w', Slurm.compress_node_list(self._nodes.keys()),
-               '-n', str(tasks)]
+        if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
 
-        cmd.extend(self._sched_config['slurm']['slurm_extra'])
+            cmd = ['srun',
+                   '-N', str(nodes),
+                   '-w', Slurm.compress_node_list(self._nodes.keys()),
+                   '-n', str(tasks)]
+
+            cmd.extend(slurm_conf['srun_extra'])
+        else:
+            cmd = ['mpirun', '--map-by=ppr:{}:node'.format(tasks)]
+
+            rank_by = slurm_conf['mpirun_rank_by']
+            bind_to = slurm_conf['mpirun_bind_to']
+            mca = slurm_conf['mpirun_mca']
+            if rank_by:
+                cmd.extend(['--rank-by', rank_by])
+            if bind_to:
+                cmd.extend(['--bind-to', bind_to])
+            if mca:
+                for mca_opt in mca:
+                    cmd.extend(['--mca', mca_opt])
+
+            hostlist = ','.join(self._nodes.keys())
+            cmd.extend(['--host', hostlist])
+
+            cmd.extend(self._sched_config['slurm']['mpirun_extra'])
 
         return ' '.join(cmd)
 
@@ -137,6 +161,18 @@ class Slurm(SchedulerPluginAdvanced):
             'slurm',
             "Schedules tests via the Slurm scheduler.")
 
+    # Add sbatch extra to the values to consider when deciding what tests can be
+    # allocated together.
+    ALLOC_ACQUIRE_OPTIONS = list(SchedulerPluginAdvanced.ALLOC_ACQUIRE_OPTIONS)
+    ALLOC_ACQUIRE_OPTIONS.append('slurm.sbatch_extra')
+
+    MPI_CMD_SRUN = 'srun'
+    MPI_CMD_MPIRUN = 'mpirun'
+    MPI_CMD_OPTIONS = (MPI_CMD_SRUN, MPI_CMD_MPIRUN)
+
+    MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
+        'socket', 'numa', 'board', 'node')
+
     def _get_config_elems(self):
 
         elems = [
@@ -150,6 +186,23 @@ class Slurm(SchedulerPluginAdvanced):
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
+            yc.ListElem(name='srun_extra',
+                        sub_elem=yc.StrElem(),
+                        help_text="Extra arguments to pass to srun as part of the "
+                                  "'sched.test_cmd' variable."),
+            yc.ListElem(name='sbatch_extra',
+                        sub_elem=yc.StrElem(),
+                        help_text="Extra arguments to add as sbatch header lines."
+                                  "Example: ['--deadline now+20hours']"),
+            yc.StrElem(name='mpi_cmd',
+                       help_text="What command to use to start mpi jobs. Options"
+                                 "are {}.".format(self.MPI_CMD_OPTIONS)),
+            yc.StrElem(name='mpirun_bind_to',
+                       help_text="MPIrun --bind-to option. See `man mpirun`"),
+            yc.StrElem(name='mpirun_rank_by',
+                       help_text="MPIrun --rank-by option. See `man mpirun`"),
+            yc.StrElem(name='mpirun_mca',
+                       help_text="MPIrun mca module options (--mca). See `man mpirun`"),
         ]
 
         defaults = {
@@ -158,6 +211,7 @@ class Slurm(SchedulerPluginAdvanced):
                           'IDLE',
                           'MAINT'],
             'avail_states': ['IDLE', 'MAINT'],
+            'mpi_cmd': self.MPI_CMD_SRUN,
         }
 
         def validate_states(states):
@@ -179,6 +233,13 @@ class Slurm(SchedulerPluginAdvanced):
         validators = {
             'up_states': validate_states,
             'avail_states': validate_states,
+            'srun_extra': validate_list,
+            'sbatch_extra': validate_list,
+            'mpi_cmd': self.MPI_CMD_OPTIONS,
+            'mpirun_bind_to': self.MPIRUN_BIND_OPTS,
+            'mpirun_rank_by': self.MPIRUN_BIND_OPTS,
+            'mpirun_mca': validate_list,
+            'mpirun_extra': validate_list,
         }
 
         return elems, validators, defaults
