@@ -157,7 +157,8 @@ class ScheduleConfig(yc.KeyedElem):
         if not isinstance(sched_section, yc.ConfigElement):
             raise RuntimeError("Tried to add a subsection to the config, but it "
                                "wasn't a yaml_config ConfigElement instance (or "
-                               "an instance of a ConfigElement child class).")
+                               "an instance of a ConfigElement child class).\n"
+                               "Got: {}".format(sched_section))
 
         name = sched_section.name
 
@@ -400,7 +401,7 @@ NODE_STATE_OPTIONS = [UP, AVAILABLE]
 # A tuple will trigger a check to ensure the value is one of the items.
 # None - no normalization will occur - the value will be a string or None.
 # A dict will cause the items within to be validated in the same way.
-CONFIG_NORMALIZE = {
+CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
@@ -449,7 +450,6 @@ CONFIG_DEFAULTS = {
         'mem':        None,
         'cpus':       None,
     }
-
 }
 
 
@@ -466,7 +466,7 @@ def validate_config(config: Dict[str, str],
     """
 
     if validators is None:
-        validators = CONFIG_NORMALIZE
+        validators = CONFIG_VALIDATORS
 
     if defaults is None:
         defaults = CONFIG_DEFAULTS

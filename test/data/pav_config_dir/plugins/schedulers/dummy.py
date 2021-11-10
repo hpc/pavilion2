@@ -10,18 +10,16 @@ from pavilion.schedulers import NodeInfo
 from pavilion.status_file import TestStatusInfo, STATES
 import subprocess
 
+
 class Dummy(pavilion.schedulers.advanced.SchedulerPluginAdvanced):
     """Returns fake info about a fake machine, and creates fake jobs."""
 
     def __init__(self):
         super().__init__('dummy', 'I am dumb')
 
-    def get_conf(self):
-        """Return a basic dumb config."""
+    def _get_config_elems(self) -> Tuple[List[yc.ConfigElement], dict, dict]:
 
-        return yc.KeyedElem('dummy', elements=[
-            yc.StrElem('foo')
-        ])
+        return [yc.StrElem('foo'),], {'foo': int}, {'foo': 5}
 
     def _job_status(self, pav_cfg, job_info: JobInfo) -> Union[TestStatusInfo, None]:
 
@@ -69,6 +67,7 @@ class Dummy(pavilion.schedulers.advanced.SchedulerPluginAdvanced):
                 'partitions': partitions,
                 'reservations': reservations,
                 'features': features,
+                'foo': sched_config['dummy']['foo'],
             })
 
         extra = None

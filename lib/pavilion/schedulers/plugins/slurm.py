@@ -134,23 +134,50 @@ class Slurm(SchedulerPluginAdvanced):
             "Schedules tests via the Slurm scheduler.")
 
     def _get_config_elems(self):
-        return [
+
+        elems = [
             yc.ListElem(name='avail_states',
                         sub_elem=yc.StrElem(),
-                        defaults=['IDLE', 'MAINT'],
                         help_text="When looking for immediately available "
                                   "nodes, they must be in one of these "
                                   "states."),
             yc.ListElem(name='up_states',
                         sub_elem=yc.StrElem(),
-                        defaults=['ALLOCATED',
-                                  'COMPLETING',
-                                  'IDLE',
-                                  'MAINT'],
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
         ]
+
+        defaults = {
+            'up_states': ['ALLOCATED',
+                          'COMPLETING',
+                          'IDLE',
+                          'MAINT'],
+            'avail_states': ['IDLE', 'MAINT'],
+        }
+
+        def validate_states(states):
+            """Should be a list of strings (with no punctuation) or None."""
+
+            if states is None:
+                return None
+
+            # We can assume that if this isn't None it's a list.
+            for state in states:
+                if not state.isalnum():
+                    raise ValueError(
+                        "Invalid slurm state '{}'. Slurm states should be alpha "
+                        "numeric (typically in all caps). Symbols are stripped "
+                        "from the states as listed by slurm, to simplify state "
+                        "comparisons.")
+            return states
+
+        validators = {
+            'up_states': validate_states,
+            'avail_states': validate_states,
+        }
+
+        return elems, validators, defaults
 
     @classmethod
     def parse_node_list(cls, node_list):

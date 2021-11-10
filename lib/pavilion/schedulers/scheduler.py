@@ -16,6 +16,7 @@ from pavilion.test_run import TestRun
 from yapsy import IPlugin
 from . import node_selection
 from .config import validate_config, SchedConfigError, ScheduleConfig
+from . import config
 from .types import NodeList, NodeSet
 from .vars import SchedulerVariables
 
@@ -280,26 +281,72 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return status
 
-    def get_conf(self) -> Union[yc.KeyedElem, None]:
+    def get_conf(self) -> Tuple[Union[yc.KeyedElem, None], dict, dict]:
         """Return the configuration object suitable for adding scheduler specific
         keys under 'scheduler.<scheduler_name> in the test configuration."""
 
-        config_elements = self._get_config_elems()
+        try:
+            config_elements, validators, defaults = self._get_config_elems()
+        except (ValueError, TypeError):
+            raise SchedulerPluginError(
+                "Invalid config elements for scheduler plugin '{}'.\n"
+                "Got: {}\n"
+                "See the documentation for _get_config_elements for more info on "
+                "what it should return.".format(self.name, self._get_config_elems()))
+
+        for elem in config_elements:
+            if elem.name not in validators:
+                raise SchedulerPluginError(
+                    "Scheduler plugin gave config element '{}', but did not provide"
+                    "a validator for that key.".format(elem.name)
+                )
+
         if not config_elements:
-            return None
+            return None, {}, {}
 
-        return yc.KeyedElem(
-            self.name,
-            help_text="Configuration for the {} scheduler.".format(self.name),
-            elements=config_elements,
-        )
+        return (
+            yc.KeyedElem(
+                self.name,
+                help_text="Configuration for the {} scheduler.".format(self.name),
+                elements=config_elements),
+            validators,
+            defaults)
 
-    def _get_config_elems(self) -> List[yc.ConfigElement]:
-        """Return the configuration elements specific to this scheduler."""
+    def _get_config_elems(self) -> Tuple[List[yc.ConfigElement], dict, dict]:
+        """Return the configuration elements specific to this scheduler, along with
+        a dictionary of validation functions and defaults.
+
+        The configuration elements will configurable under `schedule.<plugin_name>`
+        in test configs, where `<plugin_name>` is the name argument passed to the
+        plugin's __init__ method. This should be a list of yaml_config ConfigElement
+        instances. This additional configuration can have any structure you like, but
+        should not repeat general schedule options.
+
+        The second return should be a dict of validators for those elements, the keys
+        being the config element's name. If a validator is not present, the value
+        will not be added to the dict of validated config values for the scheduler to
+        use. The values should be one of the following:
+
+            - A tuple of all accepted values. Values not in this tuple are an error.
+            - A function that takes the raw value (including None), and returns
+              a validated/transformed result. Should raise ValueError for invalid input,
+              and return None if no value was given.
+            - A dictionary of additional validators to recursively evaluate. This
+              is used when value is itself a dictionary.
+
+        The third returned value should be a dictionary of defaults for each key. Like
+        with the validators, a dictionary can be used to store another level of
+        defaults for when the config key represents a dictionary. Defaults are
+        optional, but keys without a default will have a None value.
+
+        These will all be dynamically added and removed from the configuration setup in
+        schedulers.config as plugins are added/removed. For examples, see the slurm
+        plugin or the schedulers.config module itself.
+        """
 
         _ = self
 
-        return []
+        return [], {}, {}
 
     def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
                                     sched_config: dict, chunk: NodeSet = None) \
@@ -352,25 +399,29 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def activate(self):
         """Add this plugin to the scheduler plugin list."""
 
-        name = self.name
+        conf, validators, defaults = self.get_conf()
 
-        if name not in _SCHEDULER_PLUGINS:
-            _SCHEDULER_PLUGINS[name] = self
-            conf = self.get_conf()
-            if conf is not None:
-                ScheduleConfig.add_subsection(self.get_conf())
-        else:
-            ex_plugin = _SCHEDULER_PLUGINS[name]
+        if self.name in _SCHEDULER_PLUGINS:
+            ex_plugin = _SCHEDULER_PLUGINS[self.name]
             if ex_plugin.priority > self.priority:
-                pass
+                return
             elif ex_plugin.priority == self.priority:
                 raise SchedulerPluginError(
                     "Two plugins for the same system plugin have the same "
-                    "priority {}, {}.".format(self, _SCHEDULER_PLUGINS[name]))
+                    "priority {}, {}.".format(self, _SCHEDULER_PLUGINS[self.name]))
             else:
+                # This plugin's priority is higher. Remove the other plugin.
                 ScheduleConfig.remove_subsection(self.name)
-                _SCHEDULER_PLUGINS[name] = self
-                ScheduleConfig.add_subsection(self.get_conf())
+                if self.name in config.CONFIG_VALIDATORS:
+                    del config.CONFIG_VALIDATORS[self.name]
+                if self.name in config.CONFIG_DEFAULTS:
+                    del config.CONFIG_DEFAULTS[self.name]
+
+        _SCHEDULER_PLUGINS[self.name] = self
+        if conf is not None:
+            ScheduleConfig.add_subsection(conf)
+            config.CONFIG_VALIDATORS[self.name] = validators
+            config.CONFIG_DEFAULTS[self.name] = defaults
 
     def deactivate(self):
         """Remove this plugin from the scheduler plugin list."""
@@ -379,6 +430,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         if name in _SCHEDULER_PLUGINS:
             ScheduleConfig.remove_subsection(self.name)
             del _SCHEDULER_PLUGINS[name]
+            if name in config.CONFIG_VALIDATORS:
+                del config.CONFIG_VALIDATORS[name]
+            if name in config.CONFIG_DEFAULTS:
+                del config.CONFIG_DEFAULTS[name]
 
 
 def __reset():
