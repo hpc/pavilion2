@@ -55,7 +55,11 @@ class KickoffScriptHeader(ScriptHeader):
 
         lines = super().get_lines()
 
+        print('got parent lines', lines)
+
         lines.extend(self._kickoff_lines())
+
+        print('got kickoff lines', lines)
 
         return lines
 
@@ -230,14 +234,17 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :return: A StatusInfo object representing the status.
         """
 
+        print('wtf')
+
+        if test.job is None:
+            return TestStatusInfo(
+                STATES.SCHED_ERROR, "Test does not have an associated job.")
+
         try:
             job_info = test.job.info
         except JobError:
-            job_info = None
-
-        if job_info is None:
             return TestStatusInfo(
-                STATES.SCHED_ERROR, "Could job's scheduler info.")
+                STATES.SCHED_ERROR, "Could not retreive job's scheduler info.")
 
         if test.job.name in self._job_statuses:
             timestamp, status = self._job_statuses[test.job.name]
@@ -245,6 +252,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
                 return status
 
         status = self._job_status(pav_cfg, job_info)
+        print('job status', status)
 
         if status is not None:
             self._job_statuses[test.job.name] = time.time(), status
