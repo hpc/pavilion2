@@ -30,8 +30,38 @@ class Job:
     SCHED_LOG_FN = 'sched.log'
     KICKOFF_LOG_FN = 'kickoff.log'
 
+    @classmethod
+    def new(cls, pav_cfg, tests: list, kickoff_fn: str = None):
+        """Create a new job directory, and return the Job instance."""
+
+        working_dir = pav_cfg['working_dir']  # type: Path
+
+        # Create a random job id
+        name = uuid.uuid4().hex
+        job_path = working_dir / 'jobs' / name
+        try:
+            job_path.mkdir()
+        except OSError as err:
+            raise JobError("Could not create job dir at '{}': {}"
+                           .format(job_path, err))
+
+        # Create a symlink to each test that's part of this job
+        test_link_dir = job_path / cls.TESTS_DIR
+        try:
+            test_link_dir.mkdir()
+        except OSError as err:
+            raise JobError("Could not create job tests dir at '{}': {}"
+                           .format(test_link_dir, err))
+
+        for test in tests:
+            (test_link_dir/test.full_id).symlink_to(test.path)
+
+        job = cls(job_path)
+        job.set_kickoff(kickoff_fn)
+        return job
+
     def __init__(self, path: Path):
-        """"""
+        """Initial a job object based on an existing job directory."""
 
         self.name = path.name
         self.path = path
@@ -100,36 +130,6 @@ class Job:
                 pairs.append(ID_Pair((working_dir, test_id)))
 
         return pairs
-
-    @classmethod
-    def new(cls, pav_cfg, tests: list, kickoff_fn: str = None):
-        """Create a new job directory, and return the Job instance."""
-
-        working_dir = pav_cfg['working_dir']  # type: Path
-
-        # Create a random job id
-        name = uuid.uuid4().hex
-        job_path = working_dir / 'jobs' / name
-        try:
-            job_path.mkdir()
-        except OSError as err:
-            raise JobError("Could not create job dir at '{}': {}"
-                           .format(job_path, err))
-
-        # Create a symlink to each test that's part of this job
-        test_link_dir = job_path / cls.TESTS_DIR
-        try:
-            test_link_dir.mkdir()
-        except OSError as err:
-            raise JobError("Could not create job tests dir at '{}': {}"
-                           .format(test_link_dir, err))
-
-        for test in tests:
-            (test_link_dir/test.full_id).symlink_to(test.path)
-
-        job = cls(job_path)
-        job.set_kickoff(kickoff_fn)
-        return job
 
     def set_kickoff(self, kickoff_name: str = None):
         """Set the name for the kickoff script to the one given,

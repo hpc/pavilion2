@@ -143,9 +143,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         - SCHEDULED - The job is still waiting for an allocation.
         - SCHED_ERROR - The job is dead because of some error.
         - SCHED_CANCELLED - The job was cancelled.
-        - SCHED_WINDUP - Returned if the scheduler says the job is running or
-            prepping to run. It's ok to return this if the test is actually running,
-            it will be replaced with any newer state from the test status file.
+        - SCHED_JOB_RUNNING - The job is running (but not usually the test yet).
 
         Lastly, this may return None when we can't determine the test state at all.
         This typically happens when job id's don't stick around after a test
@@ -220,12 +218,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def job_status(self, pav_cfg, test) -> TestStatusInfo:
         """Get the job state from the scheduler, and map it to one of the
         of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED,
-        SCHED_WINDUP. This should only be called if the current recorded test state is
-        'SCHEDULED'.
+        SCHED_JOB_RUNNING. This should only be called if the current recorded test
+        state is 'SCHEDULED'.
 
         The first SCHED_ERROR and SCHED_CANCELLED statuses encountered will be saved
         to the test status file, Other statuses are never saved. The test will also
-        be set as complete.
+        be set as complete in this case.
 
         :param pav_cfg: The pavilion configuration.
         :param pavilion.test_run.TestRun test: The test we're checking on.
@@ -264,14 +262,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
                     "effectively disappeared).".format(job_info))
             else:
                 return last_status
-
-        # Replace the windup state with the actual test state if it's already started.
-        if status.state == STATES.SCHED_WINDUP:
-            last_status = test.status.current()
-            if last_status != STATES.SCHEDULED:
-                return last_status
-            else:
-                return status
 
         # Record error and cancelled states if they haven't been seen before.
         if status.state in (STATES.SCHED_CANCELLED, STATES.SCHED_ERROR):
