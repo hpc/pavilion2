@@ -29,13 +29,18 @@ slurm kickoff script.
 
         lines = list()
 
-        lines.append(
-            '#SBATCH --job-name {}'.format(self._job_name))
+        # White space is discouraged in job names. 
+        job_name = '__'.join(self._job_name.split())
 
-        lines.append('#SBATCH -p {s._conf[partition]}'.format(s=self))
-        if self._config.get('reservation') is not None:
-            lines.append('#SBATCH --reservation {s._conf[reservation]}'
-                         .format(s=self))
+        lines.append(
+            '#SBATCH --job-name "{}"'.format(job_name))
+        
+        partition = self._config['partition']
+        if partition:
+            lines.append('#SBATCH -p {}'.format(partition))
+        reservation = self._config['reservation']
+        if reservation:
+            lines.append('#SBATCH --reservation {}'.format(reservation))
         if self._config.get('qos') is not None:
             lines.append('#SBATCH --qos {s._conf[qos]}'.format(s=self))
         if self._config.get('account') is not None:
@@ -47,6 +52,8 @@ slurm kickoff script.
 
         lines.append('#SBATCH -w {}'.format(nodes))
         lines.append('#SBATCH -N {}'.format(len(self._nodes)))
+
+        print('got slurm header lines', lines)
 
         return lines
 
@@ -107,9 +114,8 @@ def slurm_states(state):
 class Slurm(SchedulerPluginAdvanced):
     """Schedule tests with Slurm!"""
 
-    KICKOFF_SCRIPT_EXT = '.sbatch'
-
     VAR_CLASS = SlurmVars
+    KICKOFF_SCRIPT_HEADER_CLASS = SbatchHeader
 
     NODE_SEQ_REGEX_STR = (
         # The characters in a valid hostname.
@@ -322,7 +328,7 @@ class Slurm(SchedulerPluginAdvanced):
         sinfo = subprocess.check_output(cmd)
         sinfo = sinfo.decode('UTF-8')
 
-        raw_node_data = sinfo.split('\n\n')
+        raw_node_data = [node_data for node_data in sinfo.split('\n\n') if node_data.strip()]
 
         extra = {'reservations': {}}
         # We also need to gather reservation information.
@@ -332,6 +338,8 @@ class Slurm(SchedulerPluginAdvanced):
         rinfo = rinfo.decode('UTF-8')
 
         for raw_res in rinfo.split('\n\n'):
+            if not raw_res.strip():
+                continue
             res_info = self._scontrol_parse(raw_res)
             name = res_info.get('ReservationName')
             nodes = res_info.get('Nodes')
@@ -357,10 +365,11 @@ class Slurm(SchedulerPluginAdvanced):
             node_info[dest_key] = parsed_data.get(orig_key)
 
         # Split and clean up the states
-        node_info['states'] = [state.strip().rstrip('*')
-                               for state in node_info['states'].split('+')]
-
-        print(node_info)
+        if node_info['states'] is not None:
+            node_info['states'] = [state.strip().rstrip('*')
+                                   for state in node_info['states'].split('+')]
+        else:
+            node_info['states'] = None
 
         # Split and strip multi-valued items.
         for key in 'partitions', 'features':
@@ -590,9 +599,16 @@ class Slurm(SchedulerPluginAdvanced):
 
         # scontrol show returns a list. There should only be one item in that
         # list though.
-        job_info = job_info.pop(0)
+        if job_data:
+            job_data = job_data.pop(0)
+        else:
+            return TestStatusInfo(
+                state=STATES.SCHEDULED,
+                note=("Could not find info on slurm job '{}' in slurm."
+                      .format(job_info['id'])),
+                when=time.time())
 
-        job_state = job_info.get('JobState', 'UNKNOWN')
+        job_state = job_data.get('JobState', 'UNKNOWN')
         if job_state in self.SCHED_WAITING:
             return TestStatusInfo(
                 state=STATES.SCHEDULED,

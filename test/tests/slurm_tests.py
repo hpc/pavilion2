@@ -7,6 +7,8 @@ import pavilion.schedulers
 from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
+from pavilion import jobs
+from pavilion import sys_vars
 from pavilion.schedulers.plugins.slurm import Slurm
 from pavilion.schedulers import SchedulerPluginAdvanced
 from pavilion.status_file import STATES
@@ -49,30 +51,38 @@ class SlurmTests(PavTestCase):
 
         plugins._reset_plugins()
 
-    def _get_job(self, match):
+    def _get_job(self, match, test):
         """Get a job id that from a job that contains match.
         :param str match: The string to look for in the job id.
         :return: A job id.
         """
 
-        jobs = subprocess.check_output(['scontrol', 'show', 'jobs', '-o'])
-        jobs = jobs.decode('utf-8').split('\n')
+        job_data = subprocess.check_output(['scontrol', 'show', 'jobs', '-o'])
+        job_data = job_data.decode('utf-8').split('\n')
 
         id_field = 'JobId='
 
-        for job in jobs:
-            if match in job:
-                id_pos = job.find(id_field)
+        for job_line in job_data:
+            if match in job_line:
+                print(match, job_line)
+                id_pos = job_line.find(id_field)
                 if id_pos >= 0:
                     id_pos += len(id_field)
                 else:
                     self.fail(
                         "Could not find job id in matched job: {}"
-                        .format(job)
+                        .format(job_line)
                     )
 
-                end_pos = job.find(' ', id_pos)
-                return job[id_pos:end_pos]
+                end_pos = job_line.find(' ', id_pos)
+
+                job_id = job_line[id_pos:end_pos]
+                job = jobs.Job.new(self.pav_cfg, [test])
+                job.info = {
+                    'id': job_id,
+                    'sys_name': sys_vars.get_vars(True)['sys_name']
+                }
+                return job
 
         else:
             self.fail(
@@ -147,14 +157,16 @@ class SlurmTests(PavTestCase):
 
         # Steal a running job's ID, and then check our status.
         test.status.set(STATES.SCHEDULED, "not really though.")
-        test.job_id = self._get_job('JobState=RUNNING')
+        test.job = self._get_job('JobState=RUNNING', test)
         status = slurm.job_status(self.pav_cfg, test)
         self.assertEqual(status.state, STATES.SCHEDULED)
-        self.assertIn('RUNNING', status.note)
+        self.assertIn('RUNNING', status.note, 
+            msg="Expected test to be running, got status message "
+                "'{}' instead.".format(status.note))
 
         # Steal a canceled jobs id
         test.status.set(STATES.SCHEDULED, "not really though.")
-        test.job_id = self._get_job('JobState=CANCELLED')
+        test.job = self._get_job('JobState=CANCELLED', test)
         sched_status = slurm.job_status(self.pav_cfg, test)
         self.assertEqual(sched_status.state, STATES.SCHED_CANCELLED)
         status = test.status.current()
@@ -163,7 +175,7 @@ class SlurmTests(PavTestCase):
         # Check another random state. In this case, all pavilion will
         # just consider the test still scheduled.
         test.status.set(STATES.SCHEDULED, "not really though.")
-        test.job_id = self._get_job('JobState=COMPLETED')
+        test.job = self._get_job('JobState=COMPLETED', test)
         sched_status = slurm.job_status(self.pav_cfg, test)
         self.assertEqual(sched_status.state, STATES.SCHEDULED)
         self.assertIn('COMPLETED', sched_status.note)
@@ -218,17 +230,15 @@ class SlurmTests(PavTestCase):
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'
-        test = self._quick_test(cfg=cfg, name='slurm_test')
+        test = self._quick_test(cfg=cfg, name='slurm_test', finalize=False)
 
-        slurm.schedule_test(self.pav_cfg, test)
+        slurm.schedule_tests(self.pav_cfg, [test])
 
         status = slurm.job_status(self.pav_cfg, test)
 
         self.assertEqual(status.state, STATES.SCHEDULED)
 
-        status = slurm.cancel_job(test)
-
-        self.assertEqual(status.state, STATES.SCHED_CANCELLED)
+        self.assertIsNone(slurm.cancel(test.job.info))
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_node_range(self):

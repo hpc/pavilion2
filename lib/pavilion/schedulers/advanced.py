@@ -433,7 +433,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         if chunk:
             chunk = NodeList(list(chunk)[:shared_nodes])
 
-        job_name = 'pav tests {}'.format(','.join(test.full_id for test in tests))
+        job_name = 'pav {}'.format(','.join(test.name for test in tests[:4]))
+        if len(tests) > 4:
+            job_name.append(' ...')
         script = self._create_kickoff_script_stub(pav_cfg, job_name, job.kickoff_log,
                                                   base_sched_config, chunk)
 
@@ -508,7 +510,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
-                job_name='pav test {} ({})'.format(test.full_id, test.name),
+                job_name='pav {}'.format(test.name),
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
                 chunk=test_chunk)
