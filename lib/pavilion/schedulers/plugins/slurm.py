@@ -333,9 +333,15 @@ class Slurm(SchedulerPluginAdvanced):
         node_info['states'] = [state.strip().rstrip('*')
                                for state in node_info['states'].split('+')]
 
+        print(node_info)
+
         # Split and strip multi-valued items.
         for key in 'partitions', 'features':
-            node_info[key] = [data.strip() for data in node_info[key].split(',')]
+            partitions = node_info.get(key)
+            if partitions is None:
+                node_info[key] = []
+            else:
+                node_info[key] = [data.strip() for data in node_info[key].split(',')]
 
         # Add reservations
         node_info['reservations'] = []
@@ -347,7 +353,7 @@ class Slurm(SchedulerPluginAdvanced):
         node_info['mem'] = int(node_info['mem'])/1024**2
 
         # Convert to an integer
-        node_info['cpus'] = int('cpus')
+        node_info['cpus'] = int(node_info['cpus'])
 
         up_states = sched_config['slurm']['up_states']
         avail_states = sched_config['slurm']['avail_states']
