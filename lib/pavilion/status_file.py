@@ -123,8 +123,8 @@ class TestStatesStruct(StatesStruct):
     SCHEDULED = "The test has been scheduled with a scheduler."
     SCHED_CANCELLED = "Cancelled by the scheduler or external to Pavilion."
     SCHED_ERROR = "There was a scheduler related error."
-    SCHED_JOB_RUNNING = "The scheduler job is running, but this particular " \
-                        "test has not started yet."
+    SCHED_RUNNING = "The scheduler job is running, but this particular " \
+                    "test has not started yet."
     BUILDING = "The test is currently being built."
     BUILD_CREATED = "The builder for this build was created."
     BUILD_DEFERRED = "The build will occur on nodes."

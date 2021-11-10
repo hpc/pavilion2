@@ -29,12 +29,12 @@ slurm kickoff script.
 
         lines = list()
 
-        # White space is discouraged in job names. 
+        # White space is discouraged in job names.
         job_name = '__'.join(self._job_name.split())
 
         lines.append(
             '#SBATCH --job-name "{}"'.format(job_name))
-        
+
         partition = self._config['partition']
         if partition:
             lines.append('#SBATCH -p {}'.format(partition))
@@ -618,7 +618,7 @@ class Slurm(SchedulerPluginAdvanced):
             )
         elif job_state in self.SCHED_RUN:
             return TestStatusInfo(
-                state=STATES.SCHED_JOB_RUNNING,
+                state=STATES.SCHED_RUNNING,
                 note=("Job is running or about to run. Has job state {}"
                       .format(job_state)),
                 when=time.time()

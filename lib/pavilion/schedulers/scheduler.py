@@ -147,7 +147,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         - SCHEDULED - The job is still waiting for an allocation.
         - SCHED_ERROR - The job is dead because of some error.
         - SCHED_CANCELLED - The job was cancelled.
-        - SCHED_JOB_RUNNING - The job is running (but not usually the test yet).
+        - SCHED_RUNNING - The job is running (but not usually the test yet).
 
         Lastly, this may return None when we can't determine the test state at all.
         This typically happens when job id's don't stick around after a test
@@ -222,7 +222,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def job_status(self, pav_cfg, test) -> TestStatusInfo:
         """Get the job state from the scheduler, and map it to one of the
         of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED,
-        SCHED_JOB_RUNNING. This should only be called if the current recorded test
+        SCHED_RUNNING. This should only be called if the current recorded test
         state is 'SCHEDULED'.
 
         The first SCHED_ERROR and SCHED_CANCELLED statuses encountered will be saved
@@ -244,7 +244,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
             job_info = test.job.info
         except JobError:
             return TestStatusInfo(
-                STATES.SCHED_ERROR, "Could not retreive job's scheduler info.")
+                STATES.SCHED_ERROR, "Could not retrieve job's scheduler info.")
 
         if test.job.name in self._job_statuses:
             timestamp, status = self._job_statuses[test.job.name]
