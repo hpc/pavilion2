@@ -53,8 +53,6 @@ slurm kickoff script.
         lines.append('#SBATCH -w {}'.format(nodes))
         lines.append('#SBATCH -N {}'.format(len(self._nodes)))
 
-        print('got slurm header lines', lines)
-
         return lines
 
 
