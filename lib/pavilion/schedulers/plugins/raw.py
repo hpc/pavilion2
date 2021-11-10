@@ -94,7 +94,7 @@ class Raw(SchedulerPluginBasic):
         if self._pid_running(job_info):
             return TestStatusInfo(
                 when=now,
-                state=STATES.SCHED_WINDUP,
+                state=STATES.SCHED_JOB_RUNNING,
                 note="Process is running, but the test hasn't started yet.")
         else:
             return None

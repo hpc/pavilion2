@@ -602,7 +602,7 @@ class Slurm(SchedulerPluginAdvanced):
             )
         elif job_state in self.SCHED_RUN:
             return TestStatusInfo(
-                state=STATES.SCHED_WINDUP,
+                state=STATES.SCHED_JOB_RUNNING,
                 note=("Job is running or about to run. Has job state {}"
                       .format(job_state)),
                 when=time.time()
