@@ -358,6 +358,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                                .format(config_dir.as_posix(), err.args[0]))
 
         label = config.get('label')
+        config_dir = config_dir.resolve()
+
         # Set the user's home pavilion directory label to 'user'.
         if not label:
             if (USER_HOME_PAV is not None and USER_HOME_PAV.exists() and
