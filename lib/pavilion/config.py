@@ -36,6 +36,7 @@ if PAV_CONFIG_DIR is not None:
     PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR)
 
     if PAV_CONFIG_DIR.exists():
+        PAV_CONFIG_DIR = PAV_CONFIG_DIR.resolve()
         PAV_CONFIG_SEARCH_DIRS.append(
             Path(PAV_CONFIG_DIR)
         )
@@ -357,6 +358,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                                .format(config_dir.as_posix(), err.args[0]))
 
         label = config.get('label')
+        config_dir = config_dir.resolve()
+
         # Set the user's home pavilion directory label to 'user'.
         if not label:
             if config_dir == USER_HOME_PAV:
