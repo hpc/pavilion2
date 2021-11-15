@@ -95,10 +95,12 @@ ACTIONS = {
 MATCH_FIRST = 'first'
 MATCH_LAST = 'last'
 MATCH_ALL = 'all'
+MATCH_UNIQ = 'uniq'
 MATCH_CHOICES = {
     MATCH_FIRST: 0,
     MATCH_LAST: -1,
     MATCH_ALL: None,
+    MATCH_UNIQ: None,
 }
 
 
