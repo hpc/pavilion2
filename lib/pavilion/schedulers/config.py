@@ -492,7 +492,7 @@ def validate_config(config: Dict[str, str],
             value = config.get(key)
             del config[key]
 
-        if value is None:
+        if value is None or value == []:
             value = defaults.get(key, None)
 
         if value is None:
@@ -501,6 +501,7 @@ def validate_config(config: Dict[str, str],
         elif callable(validator):
             try:
                 normalized_config[key] = validator(value)
+
             except ValueError as err:
                 raise SchedConfigError("Config value for key '{}' had a validation "
                                        "error: {}".format(key, err))
