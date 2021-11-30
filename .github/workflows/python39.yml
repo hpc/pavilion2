@@ -1,4 +1,4 @@
-name: Unittests under 3.9
+name: 3.9-unittests
 
 on:
   push:
@@ -25,8 +25,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install coverage
         pip install -r requirements.txt
-
-        
+    
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml

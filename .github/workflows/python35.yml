@@ -28,10 +28,14 @@ jobs:
         sphinx-build --version
         pylint --version
 
+    - name: setup
+      run: |
+        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
+        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
+        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
          
     - name: run_tests
       run: | 
-        groups
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -o 'doc*' -o style -q"
 
   unittest:
@@ -65,8 +69,8 @@ jobs:
         
     - name: run_tests
       run: | 
-        groups
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+        coverage run ./test/run_tests
+        coverage xml
 
     - name: codecov-upload
       uses: codecov/codecov-action@v2
