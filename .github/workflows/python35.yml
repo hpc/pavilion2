@@ -1,7 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
-name: Python application
+name: 3.5-unitests
 
 on:
   push:
@@ -37,7 +34,7 @@ jobs:
         groups
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -o 'doc*' -o style -q"
 
-  build-3.5:
+  unittest:
     runs-on: ubuntu-latest
 
     steps:
