@@ -1,5 +1,5 @@
 import subprocess
-import yaml
+import yc_yaml as yaml
 import time
 import unittest
 import logging
