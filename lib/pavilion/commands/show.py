@@ -13,6 +13,7 @@ from pavilion import output
 from pavilion import result
 from pavilion import result_parsers
 from pavilion import schedulers
+from pavilion.schedulers import config as sched_config
 from pavilion import series_config
 from pavilion import status_file
 from pavilion import sys_vars
@@ -222,7 +223,7 @@ class ShowCommand(Command):
             help="Give an overview of the available schedulers. (default)"
         )
         sched_group.add_argument(
-            '--config', action='store', type=str, metavar='<scheduler>',
+            '--config', action='store_true',
             help="Print the default config section for the scheduler."
         )
         sched_group.add_argument(
@@ -646,7 +647,7 @@ class ShowCommand(Command):
         """
 
         sched = None  # type : schedulers.SchedulerPlugin
-        if args.vars is not None or args.config is not None:
+        if args.vars is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
             try:
@@ -661,9 +662,9 @@ class ShowCommand(Command):
         if args.vars is not None:
             sched_vars = []
 
-            sched_config = schedulers.validate_config({})
+            config = schedulers.validate_config({})
 
-            svars = sched.VAR_CLASS(sched_config, schedulers.Nodes({}))
+            svars = sched.VAR_CLASS(config, schedulers.Nodes({}))
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
@@ -677,13 +678,10 @@ class ShowCommand(Command):
 
         elif args.config is not None:
 
-            sched_config = sched.get_conf()
-
+            defaults = sched_config.CONFIG_DEFAULTS
             class Loader(yaml_config.YamlConfigLoader):
                 """Loader for just a scheduler's config."""
-                ELEMENTS = [sched_config]
-
-            defaults = Loader().load_empty()
+                ELEMENTS = sched_config.ScheduleConfig.ELEMENTS
 
             Loader().dump(self.outfile, values=defaults)
 

@@ -50,8 +50,11 @@ class SlurmTests(PavTestCase):
         plugins.initialize_plugins(self.pav_config)
 
         path = Path(__file__).parents[1]/'data'/'pav_config_dir'/'modes'/'local_slurm.yaml'
-        with path.open() as slurm_mode:
-            self.slurm_mode = yaml.load(path.open())
+        if path.exists():
+            with path.open() as slurm_mode:
+                self.slurm_mode = yaml.load(path.open())
+        else:
+            self.slurm_mode = {}
 
     def tearDown(self):
 

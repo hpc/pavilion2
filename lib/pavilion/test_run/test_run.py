@@ -1132,7 +1132,7 @@ be set by the scheduler plugin as soon as it's known."""
                 "You should only abort tests that were skipped.")
 
         try:
-            shutil.rmtree(self.path)
+            shutil.rmtree(self.path.as_posix())
         except OSError:
             return False
 
