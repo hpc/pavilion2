@@ -44,7 +44,8 @@ class FixedZipFile(zipfile.ZipFile):
         if upperdirs and not os.path.exists(upperdirs):
             os.makedirs(upperdirs)
 
-        if member.is_dir():
+        # .is_dir isn't supported in python3.5. Switch to that when we transition to 3.6
+        if member.filename.endswith('/'):
             if not os.path.isdir(targetpath):
                 os.mkdir(targetpath)
             return targetpath
