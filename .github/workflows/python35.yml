@@ -70,9 +70,9 @@ jobs:
 
   unittests-3_5:
     runs-on: ubuntu-latest
-    needs: 
-        - style
-        - docs
+    #needs: 
+    #    - style
+    #    - docs
 
     steps:
     - uses: actions/checkout@v2
