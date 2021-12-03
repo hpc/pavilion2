@@ -103,7 +103,7 @@ jobs:
         
     - name: run_tests
       run: | 
-        coverage run ./test/run_tests
+        coverage run ./test/run_tests -q -o set_ordering
         coverage xml
 
     - name: codecov-upload
