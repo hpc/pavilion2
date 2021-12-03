@@ -37,8 +37,6 @@ class SeriesTests(PavTestCase):
         """Verify that the order of entries in series files is kept intact on load."""
 
         cfg = series_config.load_series_config(self.pav_cfg, 'order')
-        import pprint
-        pprint.pprint(cfg)
 
         series1 = series.TestSeries(self.pav_cfg, cfg)
         series1.add_test_set_config('test3', ['bar'])

@@ -49,7 +49,7 @@ def list_tests(suite):
 
 
 def main():
-    from pavilion.unittest import PavTestCase, ColorResult
+    from pavilion.unittest import PavTestCase, ColorResult, BetterRunner
     from pavilion import log_setup
 
     config = PavTestCase.TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
@@ -104,9 +104,7 @@ def main():
         list_tests(suite)
         return 0
     else:
-        runner = unittest.TextTestRunner(
-            resultclass=ColorResult,
-            verbosity=verbosity)
+        runner = BetterRunner(resultclass=ColorResult, verbosity=verbosity)
         result = runner.run(suite)
         return len(result.errors) + len(result.failures)
 
