@@ -70,9 +70,9 @@ jobs:
 
   unittests-3_5:
     runs-on: ubuntu-latest
-    #needs: 
-    #    - style
-    #    - docs
+    needs: 
+        - style
+        - docs
 
     steps:
     - uses: actions/checkout@v2
@@ -103,7 +103,7 @@ jobs:
         
     - name: run_tests
       run: | 
-        coverage run ./test/run_tests -q -o set_ordering
+        coverage run ./test/run_tests 
         coverage xml
 
     - name: codecov-upload
