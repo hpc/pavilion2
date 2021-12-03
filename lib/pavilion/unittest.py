@@ -493,9 +493,10 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
-       
 
-class BetterRunner(unittest.TextTestRunner): 
+
+class BetterRunner(unittest.TextTestRunner):
+    # pylint: disable=invalid-name
     def run(self, test):
         "Run the given test case or test suite."
         result = self._makeResult()
@@ -569,5 +570,3 @@ class BetterRunner(unittest.TextTestRunner):
             self.stream.writeln("OK")
 
         return result
-
-
