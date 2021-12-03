@@ -465,6 +465,8 @@ class Slurm(SchedulerPluginAdvanced):
         """Looks for several slurm commands, and tests slurm can talk to the
         slurm db."""
 
+        _ = self
+
         for command in 'scontrol', 'sbatch', 'sinfo':
             if distutils.spawn.find_executable(command) is None:
                 return False
@@ -709,6 +711,8 @@ class Slurm(SchedulerPluginAdvanced):
 
     def cancel(self, job_info: JobInfo) -> Union[str, None]:
         """Scancel the job attached to the given test."""
+
+        _ = self
 
         if job_info['sys_name'] != sys_vars.get_vars(True)['sys_name']:
             return "Could not cancel - job started on a different cluster ({})."\
