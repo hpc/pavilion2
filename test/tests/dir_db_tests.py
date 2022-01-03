@@ -89,7 +89,7 @@ class DirDBTests(unittest.PavTestCase):
         key = str(id_)
         path = index_path / key
         path.mkdir(exist_ok=True)
-        with open(path / 'data', 'w') as data_file:
+        with (path / 'data').open('w') as data_file:
             json.dump(value, data_file)
 
         return value

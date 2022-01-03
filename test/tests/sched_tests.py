@@ -343,7 +343,11 @@ class SchedTests(PavTestCase):
             self.assertNotEqual(test.job, job1)
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(10)
+            except TimeoutError:
+                with open(test.path/'run.log') as run_log:
+                    self.fail(msg=run_log.read()) 
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')

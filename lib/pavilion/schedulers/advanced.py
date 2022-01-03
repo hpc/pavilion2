@@ -443,7 +443,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         # Reduce the effective chunk size to the most needed for any specific test.
         if chunk:
-            chunk = NodeList(list(chunk)[:shared_nodes])
+            chunk = node_list[:shared_nodes]
 
         job_name = 'pav {}'.format(','.join(test.name for test in tests[:4]))
         if len(tests) > 4:

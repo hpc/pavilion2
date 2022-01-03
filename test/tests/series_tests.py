@@ -39,7 +39,7 @@ class SeriesTests(PavTestCase):
         cfg = series_config.load_series_config(self.pav_cfg, 'order')
 
         series1 = series.TestSeries(self.pav_cfg, cfg)
-        series1.add_test_set_config('test3', ['foo'])
+        series1.add_test_set_config('test3', ['bar'])
         series1._create_test_sets()
 
         expected_order = ['zazzle', 'blargl', 'foo', 'snit', 'r2d2', 'test3']

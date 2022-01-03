@@ -8,8 +8,8 @@ String LALR Grammar
     {}
 """
 
-import lark
 from typing import List
+import lark
 from .common import ParserValueError, PavTransformer
 from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
 

@@ -5,6 +5,7 @@ only to the 'base' configuration. Additional directories can be specified in tha
 config or through other options."""
 
 import logging
+import getpass
 import os
 import sys
 from collections import OrderedDict
@@ -26,7 +27,7 @@ try:
     USER_HOME_PAV = (Path('~')/'.pavilion').expanduser()
 except OSError:
     # I'm not entirely sure this is the right error to catch.
-    USER_HOME_PAV = Path('/tmp')/os.getlogin()/'.pavilion'
+    USER_HOME_PAV = Path('/tmp')/getpass.getuser()/'.pavilion'
 
 PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 

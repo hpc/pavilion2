@@ -10,6 +10,7 @@ import tempfile
 import time
 import types
 import unittest
+import warnings
 from hashlib import sha1
 from pathlib import Path
 from typing import List
@@ -492,3 +493,80 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
+
+
+class BetterRunner(unittest.TextTestRunner):
+    # pylint: disable=invalid-name
+    def run(self, test):
+        "Run the given test case or test suite."
+        result = self._makeResult()
+        unittest.registerResult(result)
+        result.failfast = self.failfast
+        result.buffer = self.buffer
+        result.tb_locals = self.tb_locals
+        with warnings.catch_warnings():
+            if self.warnings:
+                # if self.warnings is set, use it to filter all the warnings
+                warnings.simplefilter(self.warnings)
+                # if the filter is 'default' or 'always', special-case the
+                # warnings from the deprecated unittest methods to show them
+                # no more than once per module, because they can be fairly
+                # noisy.  The -Wd and -Wa flags can be used to bypass this
+                # only when self.warnings is None.
+                if self.warnings in ['default', 'always']:
+                    warnings.filterwarnings('module',
+                            category=DeprecationWarning,
+                            message=r'Please use assert\w+ instead.')
+            startTime = time.time()
+            startTestRun = getattr(result, 'startTestRun', None)
+            if startTestRun is not None:
+                startTestRun()
+            try:
+                test(result)
+            finally:
+                stopTestRun = getattr(result, 'stopTestRun', None)
+                if stopTestRun is not None:
+                    stopTestRun()
+            stopTime = time.time()
+        timeTaken = stopTime - startTime
+        result.printErrors()
+        if hasattr(result, 'separator2'):
+            self.stream.writeln(result.separator2)
+        expectedFails = unexpectedSuccesses = skipped = 0
+        try:
+            results = map(len, (result.expectedFailures,
+                                result.unexpectedSuccesses,
+                                result.skipped))
+        except AttributeError:
+            pass
+        else:
+            expectedFails, unexpectedSuccesses, skipped = results
+
+        run = result.testsRun - skipped
+
+        self.stream.writeln("Ran %d test%s in %.3fs" %
+                            (run, run != 1 and "s" or "", timeTaken))
+        self.stream.writeln()
+        failed, errored = len(result.failures), len(result.errors)
+        passed = run - failed - errored
+        self.stream.writeln(
+            'Passed:  {:5d} -- {}%'
+            .format(passed, round(float(passed)/run * 100)))
+        self.stream.writeln(
+            'Failed:  {:5d} -- {}%'
+            .format(failed, round(float(failed)/run * 100)))
+        self.stream.writeln(
+            'Errors:  {:5d} -- {}%'
+            .format(errored, round(float(errored)/run * 100)))
+        self.stream.writeln(
+            'Skipped: {:5d} -- {}%'
+            .format(skipped, round(float(skipped)/(run+skipped) * 100)))
+
+        self.stream.write('\n')
+        infos = []
+        if not result.wasSuccessful():
+            self.stream.writeln("FAILED")
+        else:
+            self.stream.writeln("OK")
+
+        return result

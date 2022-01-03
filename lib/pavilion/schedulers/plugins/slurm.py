@@ -60,6 +60,20 @@ slurm kickoff script.
         return lines
 
 
+def validate_slurm_states(states):
+    """Should be a list of strings (with no punctuation) or None."""
+
+    # We can assume that if this isn't None it's a list.
+    for state in states:
+        if not state.isalnum():
+            raise ValueError(
+                "Invalid slurm state '{}'. Slurm states should be alpha "
+                "numeric (typically in all caps). Symbols are stripped "
+                "from the states as listed by slurm, so if the node states "
+                "like 'UP*' are equivalent to 'UP'.")
+    return states
+
+
 class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
     # pylint: disable=no-self-use
@@ -78,7 +92,7 @@ class SlurmVars(SchedulerVariables):
         slurm_conf = self._sched_config['slurm']
 
         nodes = len(self._nodes)
-        tasks = self.tasks_per_node() * nodes
+        tasks = int(self.tasks_per_node()) * nodes
 
         if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
 
@@ -89,7 +103,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(slurm_conf['srun_extra'])
         else:
-            cmd = ['mpirun', '--map-by=ppr:{}:node'.format(tasks)]
+            cmd = ['mpirun', '--map-by ppr:{}:node'.format(tasks)]
 
             rank_by = slurm_conf['mpirun_rank_by']
             bind_to = slurm_conf['mpirun_bind_to']
@@ -201,8 +215,10 @@ class Slurm(SchedulerPluginAdvanced):
                        help_text="MPIrun --bind-to option. See `man mpirun`"),
             yc.StrElem(name='mpirun_rank_by',
                        help_text="MPIrun --rank-by option. See `man mpirun`"),
-            yc.StrElem(name='mpirun_mca',
+            yc.ListElem(name='mpirun_mca', sub_elem=yc.StrElem(),
                        help_text="MPIrun mca module options (--mca). See `man mpirun`"),
+            yc.ListElem(name='mpirun_extra', sub_elem=yc.StrElem(),
+                        help_text="Extra arguments to add to mpirun commands."),
         ]
 
         defaults = {
@@ -211,28 +227,16 @@ class Slurm(SchedulerPluginAdvanced):
                           'IDLE',
                           'MAINT'],
             'avail_states': ['IDLE', 'MAINT'],
+            'sbatch_extra': [],
+            'srun_extra': [],
             'mpi_cmd': self.MPI_CMD_SRUN,
+            'mpirun_extra': [],
+            'mpirun_mca': [],
         }
 
-        def validate_states(states):
-            """Should be a list of strings (with no punctuation) or None."""
-
-            if states is None:
-                return None
-
-            # We can assume that if this isn't None it's a list.
-            for state in states:
-                if not state.isalnum():
-                    raise ValueError(
-                        "Invalid slurm state '{}'. Slurm states should be alpha "
-                        "numeric (typically in all caps). Symbols are stripped "
-                        "from the states as listed by slurm, to simplify state "
-                        "comparisons.")
-            return states
-
         validators = {
-            'up_states': validate_states,
-            'avail_states': validate_states,
+            'up_states': validate_slurm_states,
+            'avail_states': validate_slurm_states,
             'srun_extra': validate_list,
             'sbatch_extra': validate_list,
             'mpi_cmd': self.MPI_CMD_OPTIONS,
@@ -460,6 +464,8 @@ class Slurm(SchedulerPluginAdvanced):
     def _available(self) -> bool:
         """Looks for several slurm commands, and tests slurm can talk to the
         slurm db."""
+
+        _ = self
 
         for command in 'scontrol', 'sbatch', 'sinfo':
             if distutils.spawn.find_executable(command) is None:
@@ -705,6 +711,8 @@ class Slurm(SchedulerPluginAdvanced):
 
     def cancel(self, job_info: JobInfo) -> Union[str, None]:
         """Scancel the job attached to the given test."""
+
+        _ = self
 
         if job_info['sys_name'] != sys_vars.get_vars(True)['sys_name']:
             return "Could not cancel - job started on a different cluster ({})."\

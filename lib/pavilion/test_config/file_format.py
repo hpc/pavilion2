@@ -17,7 +17,6 @@ KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
 
-
 class PathCategoryElem(yc.CategoryElem):
     """This is for category elements that need a valid unix path regex."""
     _NAME_RE = re.compile(r".+$")
@@ -165,6 +164,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
     """This class describes a test section in a Pavilion config file. It is
 expected to be added to by various plugins.
 """
+    SCHEDULE_CLASS = None
 
     ELEMENTS = [
         yc.StrElem(
@@ -546,6 +546,21 @@ expected to be added to by various plugins.
                   "result json data.")
     ELEMENTS.append(_RESULT_PARSERS)
 
+    def __init__(self):
+        """Add the schedule config class and then init as normal."""
+
+        if self.SCHEDULE_CLASS is None:
+            raise RuntimeError("The config's scheduler config class should have beeen set by "
+                               "Pavilion's __init__.py file.")
+
+        for element in self.ELEMENTS:
+            if element.name == 'schedule':
+                break
+        else:
+            self.ELEMENTS.append(self.SCHEDULE_CLASS())
+
+        super().__init__()
+
     @classmethod
     def add_result_parser_config(cls, name, config_items):
         """Add the given list of config items as a result parser
@@ -622,18 +637,6 @@ expected to be added to by various plugins.
             return
         else:
             raise ValueError(elem)
-
-    has_added_schedule_section = False
-
-    @classmethod
-    def set_sched_config(cls, sched_config_class: Type[yc.KeyedElem]):
-        """Add the scheduler config class to the main test config."""
-
-        if cls.has_added_schedule_section:
-            return
-        cls.has_added_schedule_section = True
-
-        cls.ELEMENTS.append(sched_config_class())
 
 
 def TestSuiteLoader():  # pylint: disable=invalid-name

@@ -53,7 +53,7 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_ret, 0, msg=run_cmd.outfile.read())
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=4)
+            test.wait(timeout=10)
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]
@@ -111,7 +111,7 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_ret, 0, msg=run_cmd.outfile.read())
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=5)
+            test.wait(timeout=10)
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]

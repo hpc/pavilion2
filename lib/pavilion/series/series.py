@@ -5,7 +5,7 @@ import json
 import os
 import subprocess
 import time
-from collections import defaultdict, UserDict
+from collections import defaultdict, UserDict, OrderedDict
 from pathlib import Path
 from typing import List, Dict, Set, Union, TextIO
 
@@ -108,7 +108,7 @@ class TestSeries:
 
         self._pgid = None
 
-        self.test_sets = {}
+        self.test_sets = OrderedDict()
 
         # We're creating this series from scratch.
         if _id is None:
