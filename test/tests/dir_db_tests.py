@@ -42,7 +42,8 @@ class DirDBTests(unittest.PavTestCase):
             transform=entry_transform,
             verbose=output)
 
-        self.assertEqual(set(idx.keys()), set(entries.keys()))
+        self.assertEqual(set(idx.keys()), set(entries.keys()),
+                         msg="Errors: \n{}".format(output.getvalue()))
         for key in idx:
             self.assertEqual(idx[key], entries[key],
                              msg="Errors: \n{}".format(output.getvalue()))
@@ -59,7 +60,8 @@ class DirDBTests(unittest.PavTestCase):
             refresh_period=0,
             transform=entry_transform)
 
-        self.assertEqual(set(idx.keys()), set(entries.keys()))
+        self.assertEqual(set(idx.keys()), set(entries.keys()),
+                         msg="Errors: \n{}".format(output.getvalue()))
         for key in idx:
             self.assertEqual(idx[key], entries[key])
 
