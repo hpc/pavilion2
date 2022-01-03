@@ -29,6 +29,9 @@ class DirDBTests(unittest.PavTestCase):
                                           # be incomplete
                                           complete=bool(i % 5))
 
+        import pprint
+        pprint.pprint(list(index_path.iterdir()))
+
         idx = dir_db.index(
             self.pav_cfg,
             id_dir=index_path,
