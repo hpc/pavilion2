@@ -344,10 +344,14 @@ class SchedTests(PavTestCase):
 
         for test in tests:
             try:
-                test.wait(10)
+                test.wait(timeout=10)
             except TimeoutError:
-                with open(test.path/'run.log') as run_log:
-                    self.fail(msg=run_log.read()) 
+                run_log_path = test.path/'run.log'
+                if run_log_path.exists():
+                    with open(test.path/'run.log') as run_log:
+                        self.fail(msg="Test timed out: \n{}".format(run_log.read()))
+                else:
+                    self.fail(msg="Test timed out (no run log).")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')

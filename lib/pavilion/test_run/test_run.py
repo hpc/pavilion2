@@ -627,26 +627,28 @@ class TestRun(TestAttributes):
                         pass
 
                     # Has the output file changed recently?
-                    if self.run_timeout is not None and self.run_timeout < quiet_time:
-                        # Give up on the build, and call it a failure.
-                        proc.kill()
-                        msg = ("Run timed out after {} seconds"
-                               .format(self.run_timeout))
-                        self.status.set(STATES.RUN_TIMEOUT, msg)
-                        self.finished = time.time()
-                        self.save_attributes()
-                        raise TimeoutError(msg)
-                    elif self.cancelled:
-                        proc.kill()
-                        self.status.set(
-                            STATES.STATES.SCHED_CANCELLED,
-                            "Test cancelled mid-run.")
-                        self.finished = time.time()
-                        self.save_attributes()
-                        self.set_run_complete()
-                    else:
-                        # Only wait a max of run_silent_timeout next 'wait'
-                        timeout = max(self.run_timeout - quiet_time, self.RUN_WAIT_MAX)
+                    if self.run_timeout is not None:
+                        if self.run_timeout < quiet_time:
+                            # Give up on the build, and call it a failure.
+                            proc.kill()
+                            msg = ("Run timed out after {} seconds"
+                                   .format(self.run_timeout))
+                            self.status.set(STATES.RUN_TIMEOUT, msg)
+                            self.finished = time.time()
+                            self.save_attributes()
+                            raise TimeoutError(msg)
+                        elif self.cancelled:
+                            proc.kill()
+                            self.status.set(
+                                STATES.STATES.SCHED_CANCELLED,
+                                "Test cancelled mid-run.")
+                            self.finished = time.time()
+                            self.save_attributes()
+                            self.set_run_complete()
+                        else:
+                            # Only wait a max of run_silent_timeout next 'wait'
+                            timeout = max(self.run_timeout - quiet_time,
+                                          self.RUN_WAIT_MAX)
 
         self.finished = time.time()
         self.save_attributes()
