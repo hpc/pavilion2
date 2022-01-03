@@ -9,9 +9,9 @@ from pavilion import dir_db
 from pavilion import unittest
 
 
-def entry_transform(path):
+def entry_transform(path: Path):
     """Our entires are some json written to the data file. Just load it."""
-    with open(path/'data') as file:
+    with open((path/'data').as_posix()) as file:
         return json.load(file)
 
 
