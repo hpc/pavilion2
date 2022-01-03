@@ -559,7 +559,7 @@ class BetterRunner(unittest.TextTestRunner):
             'Errors:  {:5d} -- {}%'
             .format(errored, round(float(errored)/run * 100)))
         self.stream.writeln(
-            'Skipped: {:5d} -- {}%'
+            '\x1b[36mSkipped: {:5d} -- {}% (of run + skipped)\x1b[0m'
             .format(skipped, round(float(skipped)/(run+skipped) * 100)))
 
         self.stream.write('\n')

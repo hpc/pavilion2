@@ -83,7 +83,7 @@ class DirDBTests(unittest.PavTestCase):
         for key in idx:
             self.assertEqual(idx[key], entries[key])
 
-        shutil.rmtree(index_path)
+        shutil.rmtree(index_path.as_posix())
 
     def _make_entry(self, index_path, id_, complete=True, d=0):
         value = {'a': id_ * 2,

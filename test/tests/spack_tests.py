@@ -47,8 +47,6 @@ class SpackTests(PavTestCase):
         test = self._quick_test(cfg, 'spack_build')
         test.run()
         spack_build_env = test.path/'build'/'spack.yaml'
-        print('build contents', list((test.path/'build').iterdir()))
-        print('run dir', list(test.path.iterdir()))
 
         # We should have created a spack.yaml (spack build env) file.
         self.assertTrue(spack_build_env.exists())
@@ -59,7 +57,8 @@ class SpackTests(PavTestCase):
 
         # Ensure spack package is installed. The plus lets us know the package
         # was successfully added as a spec to the env.
-        self.assertTrue("[+]" in build_log_str)
+        self.assertTrue("[+]" in build_log_str,
+                        msg="Spack package not installed. \n{}".format(build_log_str))
 
         # Ensure spack package is installed in the correct location. If it
         # installed correctly, this directory should not be empty.

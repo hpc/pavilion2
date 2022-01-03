@@ -260,8 +260,9 @@ class TestRun(TestAttributes):
 
     def _make_builder(self):
 
-        spack_config = (self.config.get('spack_config') if self.spack_enabled()
+        spack_config = (self.config.get('spack_config', {}) if self.spack_enabled()
                         else None)
+        print('spack_config', spack_config, self.spack_enabled())
         if self.suite_path != Path('..') and self.suite_path is not None:
             download_dest = self.suite_path.parents[1] / 'test_src'
         else:
@@ -484,9 +485,9 @@ class TestRun(TestAttributes):
 
         spack_build = self.config.get('build', {}).get('spack', {})
         spack_run = self.config.get('run', {}).get('spack', {})
-        return (spack_build.get('install', [])
-                or spack_build.get('load', [])
-                or spack_run.get('load', []))
+        return bool(spack_build.get('install', [])
+                    or spack_build.get('load', [])
+                    or spack_run.get('load', []))
 
     def build(self, cancel_event=None, tracker: BuildTracker = None):
         """Build the test using its builder object and symlink copy it to
@@ -1023,6 +1024,9 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Activate spack environment.')
             script.command('spack env activate -d .')
             script.command('if [ -z $SPACK_ENV ]; then exit 1; fi')
+
+            script.comment("Initialize spack db.")
+            script.command("spack find")
 
             if install_packages:
                 script.newline()
