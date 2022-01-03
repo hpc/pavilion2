@@ -47,6 +47,8 @@ class SpackTests(PavTestCase):
         test = self._quick_test(cfg, 'spack_build')
         test.run()
         spack_build_env = test.path/'build'/'spack.yaml'
+        print('build contents', list((test.path/'build').iterdir()))
+        print('run dir', list(test.path.iterdir()))
 
         # We should have created a spack.yaml (spack build env) file.
         self.assertTrue(spack_build_env.exists())

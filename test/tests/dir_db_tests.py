@@ -30,9 +30,6 @@ class DirDBTests(unittest.PavTestCase):
                                           # be incomplete
                                           complete=bool(i % 5))
 
-        import pprint
-        pprint.pprint(list(index_path.iterdir()))
-
         output = io.StringIO()
 
         idx = dir_db.index(

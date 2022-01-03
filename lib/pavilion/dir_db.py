@@ -200,7 +200,6 @@ def index(pav_cfg,
             return tid, None
 
     thread_max = pav_cfg.get('max_threads')
-    print('tm', 'files', thread_max, files)
     with ThreadPoolExecutor(max_workers=thread_max) as pool:
         # This sequence leaves us with a list of id, path pairs that need an index
         # update.
@@ -223,13 +222,10 @@ def index(pav_cfg,
                 update_id_pairs.append((id_, path))
 
         missing = set(idx.keys()) - all_seen_ids
-        print('all_seen_ids, missing', all_seen_ids, missing)
 
         transformed_data = pool.map(do_transform, update_id_pairs)
 
-    print('id, data')
     for id_, data in transformed_data:
-        print(id_, data)
         if data is None:
             continue
 
