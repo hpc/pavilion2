@@ -627,7 +627,7 @@ class TestRun(TestAttributes):
                         pass
 
                     # Has the output file changed recently?
-                    if self.run_timeout < quiet_time:
+                    if self.run_timeout is not None and self.run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         msg = ("Run timed out after {} seconds"
