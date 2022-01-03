@@ -1,5 +1,6 @@
 """Test directory database operations."""
 
+import io
 import json
 import shutil
 from pathlib import Path
@@ -32,15 +33,19 @@ class DirDBTests(unittest.PavTestCase):
         import pprint
         pprint.pprint(list(index_path.iterdir()))
 
+        output = io.StringIO()
+
         idx = dir_db.index(
             self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
-            transform=entry_transform)
+            transform=entry_transform,
+            verbose=output)
 
         self.assertEqual(set(idx.keys()), set(entries.keys()))
         for key in idx:
-            self.assertEqual(idx[key], entries[key])
+            self.assertEqual(idx[key], entries[key],
+                             msg="Errors: \n{}".format(output.getvalue()))
 
         for i in 3, 6, 9:
             path = index_path/str(i)
