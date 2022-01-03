@@ -1,16 +1,14 @@
 import subprocess
 import time
 import unittest
-import logging
 
 import pavilion.schedulers
 from pavilion import config
-from pavilion import plugins
-from pavilion import schedulers
 from pavilion import jobs
+from pavilion import plugins
 from pavilion import sys_vars
-from pavilion.schedulers.plugins.slurm import Slurm
 from pavilion.schedulers import SchedulerPluginAdvanced
+from pavilion.schedulers.plugins.slurm import Slurm
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
 
@@ -82,7 +80,6 @@ class SlurmTests(PavTestCase):
                     'sys_name': sys_vars.get_vars(True)['sys_name']
                 }
                 return job
-
 
     def test_node_list_parsing(self):
         """Make sure the node list regex matches what it's supposed to."""
@@ -156,7 +153,7 @@ class SlurmTests(PavTestCase):
         if job is not None:
             test.job = job
             status = slurm.job_status(self.pav_cfg, test)
-            self.assertEqual(status.state, STATES.SCHED_RUNNING, 
+            self.assertEqual(status.state, STATES.SCHED_RUNNING,
                              msg="Got status {} instead".format(status))
 
         # Steal a canceled jobs id

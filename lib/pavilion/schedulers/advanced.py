@@ -20,6 +20,7 @@ ChunksBySelect = NewType('ChunksBySelect', Dict[str, List[NodeList]])
 ChunksByChunkSize = NewType('ChunksByChunkSize', Dict[int, ChunksBySelect])
 ChunksByNodeListId = NewType('ChunksByNodeListId', Dict[int, ChunksByChunkSize])
 
+
 class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     """A scheduler plugin that supports automatic node inventories, and as a
     consequence chunking and other advanced features."""
@@ -446,7 +447,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         job_name = 'pav {}'.format(','.join(test.name for test in tests[:4]))
         if len(tests) > 4:
-            job_name.append(' ...')
+            job_name += ' ...'
         script = self._create_kickoff_script_stub(pav_cfg, job_name, job.kickoff_log,
                                                   base_sched_config, chunk)
 
