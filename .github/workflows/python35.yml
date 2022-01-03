@@ -7,10 +7,11 @@ on:
     branches: [ master ]
 
 jobs:
-  # If you're debugging CI specific issues, remove the the leading underscore. 
-  # Then set the run_tests step to only run the specific tests that are giving you
-  # problems. 
-  _debug:
+  # The debug job is meant for debugging CI related issues.
+  debug:
+    # Comment out the following line to enable.
+    if: ${{ false }}
+
     runs-on: ubuntu-latest
 
     steps:
@@ -39,17 +40,12 @@ jobs:
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
-        
+    
+    # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
       run: | 
         coverage run ./test/run_tests -q -o index -o series_simultanious -o spack_build
         coverage xml
-
-    - name: codecov-upload
-      uses: codecov/codecov-action@v2
-      with:
-        fail_ci_if_error: true
-        token: c1100f28-f36f-4b92-8ba5-ec907a1bfea6
 
   style:
     runs-on: ubuntu-latest
