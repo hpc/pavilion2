@@ -1,4 +1,4 @@
-name: 3.5-unitests
+name: unitests
 
 on:
   push:
@@ -7,7 +7,10 @@ on:
     branches: [ master ]
 
 jobs:
-  debug:
+  # If you're debugging CI specific issues, remove the the leading underscore. 
+  # Then set the run_tests step to only run the specific tests that are giving you
+  # problems. 
+  _debug:
     runs-on: ubuntu-latest
 
     steps:
