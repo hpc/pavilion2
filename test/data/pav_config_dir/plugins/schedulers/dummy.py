@@ -80,7 +80,11 @@ class Dummy(pavilion.schedulers.advanced.SchedulerPluginAdvanced):
     def _kickoff(self, pav_cfg, job: Job, sched_config: dict,
                  chunk: schedulers.NodeList) -> JobInfo:
 
-        subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+        import time
+        start = time.time()
+        proc = subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+
+        print('Took {}s to start'.format(time.time() - start))
 
         return JobInfo({'id': '1'})
