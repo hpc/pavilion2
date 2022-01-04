@@ -343,15 +343,9 @@ class SchedTests(PavTestCase):
         for test in tests[1:]:
             self.assertNotEqual(test.job, job1)
 
-        for i in range(10):
-            for test in tests:
-                print(test, test.status.current())
-            print('-------------------')
-            time.sleep(1)
-
         for test in tests:
             try:
-                test.wait(timeout=10)
+                test.wait(timeout=20)
             except TimeoutError:
                 run_log_path = test.path/'run.log'
                 if run_log_path.exists():
