@@ -315,6 +315,7 @@ differentiate it from test ids."""
         non_circular = []
         found_root = True
         test_sets = list(self.test_sets.values())
+
         while found_root and test_sets:
             found_root = False
             for test_set in list(test_sets):
