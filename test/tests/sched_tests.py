@@ -1,5 +1,6 @@
 import copy
 import inspect
+import time
 
 import pavilion.schedulers
 from pavilion import output
@@ -341,6 +342,12 @@ class SchedTests(PavTestCase):
         job1 = tests[0].job
         for test in tests[1:]:
             self.assertNotEqual(test.job, job1)
+
+        for i in range(10):
+            for test in tests:
+                print(test, test.status.current())
+            print('-------------------')
+            time.sleep(1)
 
         for test in tests:
             try:
