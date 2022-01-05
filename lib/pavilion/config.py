@@ -34,9 +34,10 @@ PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', None)
 
 if PAV_CONFIG_DIR is not None:
-    PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR).resolve()
+    PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR)
 
     if PAV_CONFIG_DIR.exists():
+        PAV_CONFIG_DIR = PAV_CONFIG_DIR.resolve()
         PAV_CONFIG_SEARCH_DIRS.append(PAV_CONFIG_DIR)
     else:
         pavilion.output.fprint(
