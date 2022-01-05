@@ -7,6 +7,7 @@ import re
 import textwrap
 from typing import List
 
+import pavilion.deferred
 import yaml_config as yc
 from pavilion.result.common import ResultError
 from pavilion.result.options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
@@ -15,7 +16,6 @@ from pavilion.result.options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
                                      ACTION_STORE, ACTION_STORE_STR, ACTION_TRUE,
                                      ACTION_FALSE, ACTION_COUNT, ACTIONS)
 from pavilion.test_config import file_format
-from pavilion.test_config import variables
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger(__file__)
@@ -507,7 +507,7 @@ Example: ::
                 values = [values]
 
             for value in values:
-                if variables.DeferredVariable.was_deferred(value):
+                if pavilion.deferred.DeferredVariable.was_deferred(value):
                     found_deferred = True
 
         if found_deferred:

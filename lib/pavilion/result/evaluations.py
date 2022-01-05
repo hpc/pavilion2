@@ -1,16 +1,16 @@
 """Handles performing evaluations on results."""
 
-from typing import Dict, Callable
+from typing import Dict
 
 import lark as _lark
 from pavilion import utils
-from pavilion.test_config.parsers import (check_expression, StringParserError,
-                                          get_expr_parser,
-                                          EvaluationExprTransformer,
-                                          VarRefVisitor, match_examples,
-                                          BAD_EXAMPLES, ParserValueError)
-from .common import ResultError
+from pavilion.parsers import (check_expression, StringParserError,
+                              get_expr_parser,
+                              EvaluationExprTransformer,
+                              VarRefVisitor, match_examples,
+                              BAD_EXAMPLES, ParserValueError)
 from .base import BASE_RESULTS
+from .common import ResultError
 
 
 def check_evaluations(evaluations: Dict[str, str]):
@@ -41,7 +41,7 @@ def evaluate_results(results: dict, evaluations: Dict[str, str],
     results are stored there too.
     :param results: The result dict. Will be modified in place.
     :param evaluations: A dictionary of evals to perform.
-    :param log: The optional logger function from (result.get_result_logger)
+    :param base_log: The optional logger function from (result.get_result_logger)
     :return:
     """
 

@@ -30,7 +30,7 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'result_parsers', '--doc=regex'),
             ('show', 'result_parsers', '--verbose'),
             ('show', 'sched'),
-            ('show', 'sched', '--config=slurm'),
+            ('show', 'sched', '--config'),
             ('show', 'sched', '--vars=slurm'),
             ('show', 'states'),
             ('show', 'suites'),

@@ -8,7 +8,7 @@ Parser Components
 Pavilion Parsing (test_config.parsers)
 --------------------------------------
 
-.. automodule:: pavilion.test_config.parsers
+.. automodule:: pavilion.parsers
     :members:
     :undoc-members:
     :show-inheritance:
@@ -18,7 +18,7 @@ Pavilion Parsing (test_config.parsers)
 Shared Parser Components
 ------------------------
 
-.. automodule:: pavilion.test_config.parsers.common
+.. automodule:: pavilion.parsers.common
     :members:
     :undoc-members:
     :show-inheritance:
@@ -28,7 +28,7 @@ Shared Parser Components
 The String Parser
 -----------------
 
-.. automodule:: pavilion.test_config.parsers.strings
+.. automodule:: pavilion.parsers.strings
     :members:
     :undoc-members:
     :show-inheritance:
@@ -38,7 +38,7 @@ The String Parser
 The Expression Parser
 -------------------------------------
 
-.. automodule:: pavilion.test_config.parsers.expressions
+.. automodule:: pavilion.parsers.expressions
     :members:
     :undoc-members:
     :show-inheritance:

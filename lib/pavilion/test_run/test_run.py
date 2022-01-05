@@ -13,9 +13,8 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import NewType, Tuple, TextIO
+from typing import TextIO
 
-import pavilion.result.common
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
@@ -23,15 +22,16 @@ from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
+from pavilion.deferred import DeferredVariable
 from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.jobs import Job
+from pavilion.variables import VariableSetManager
+from pavilion.result.common import ResultError
 from pavilion.status_file import TestStatusFile, STATES
-from pavilion.test_config import variables
-from pavilion.test_config.utils import parse_timeout
 from pavilion.test_config.file_format import NO_WORKING_DIR
+from pavilion.test_config.utils import parse_timeout
+from pavilion.types import ID_Pair
 from .test_attrs import TestAttributes
-
-# pylint: disable=invalid-name
-ID_Pair = NewType('ID_Pair', Tuple[Path, int])
 
 
 class TestRun(TestAttributes):
@@ -75,13 +75,18 @@ class TestRun(TestAttributes):
     :ivar TestRunOptions opt: Test run options defined by OPTIONS_DEFAULTS
     """
 
-    JOB_ID_FN = 'job_id'
-
     RUN_DIR = 'test_runs'
 
     NO_LABEL = '_none'
 
     STATUS_FN = 'status'
+    """File that tracks the tests's status."""
+
+    CANCEL_FN = 'cancel'
+    """File that indicates that the test was cancelled."""
+
+    JOB_FN = 'job'
+    """Link to the test's scheduler job."""
 
     def __init__(self, pav_cfg, config, var_man=None, _id=None, rebuild=False,
                  build_only=False):
@@ -144,7 +149,7 @@ class TestRun(TestAttributes):
             self.uuid = str(uuid.uuid4())
 
             if var_man is None:
-                var_man = variables.VariableSetManager()
+                var_man = VariableSetManager()
             self.var_man = var_man
         else:
             # Load the test info from the given id path.
@@ -158,7 +163,7 @@ class TestRun(TestAttributes):
             self.suite_path = self.suite_path
 
             try:
-                self.var_man = variables.VariableSetManager.load(self._variables_path)
+                self.var_man = VariableSetManager.load(self._variables_path)
             except RuntimeError as err:
                 raise TestRunError(*err.args)
 
@@ -174,7 +179,7 @@ class TestRun(TestAttributes):
         self.build_local = config.get('build', {}) \
                                  .get('on_nodes', 'false').lower() != 'true'
 
-        run_timeout = config.get('run', {}).get('timeout')
+        run_timeout = config.get('run', {}).get('timeout', '300')
         try:
             self.run_timeout = parse_timeout(run_timeout)
         except ValueError:
@@ -206,7 +211,7 @@ class TestRun(TestAttributes):
             self.build_name = self.builder.name
 
         # This will be set by the scheduler
-        self._job_id = None
+        self._job = None
 
         self._results = None
 
@@ -255,7 +260,7 @@ class TestRun(TestAttributes):
 
     def _make_builder(self):
 
-        spack_config = (self.config.get('spack_config') if self.spack_enabled()
+        spack_config = (self.config.get('spack_config', {}) if self.spack_enabled()
                         else None)
         if self.suite_path != Path('..') and self.suite_path is not None:
             download_dest = self.suite_path.parents[1] / 'test_src'
@@ -479,9 +484,9 @@ class TestRun(TestAttributes):
 
         spack_build = self.config.get('build', {}).get('spack', {})
         spack_run = self.config.get('run', {}).get('spack', {})
-        return (spack_build.get('install', [])
-                or spack_build.get('load', [])
-                or spack_run.get('load', []))
+        return bool(spack_build.get('install', [])
+                    or spack_build.get('load', [])
+                    or spack_run.get('load', []))
 
     def build(self, cancel_event=None, tracker: BuildTracker = None):
         """Build the test using its builder object and symlink copy it to
@@ -548,6 +553,9 @@ class TestRun(TestAttributes):
 
         return build_result
 
+    RUN_WAIT_MAX = 1
+    # The maximum wait time before checking things like test cancellation
+
     def run(self):
         """Run the test.
 
@@ -557,6 +565,10 @@ class TestRun(TestAttributes):
         :raises TestRunError: We don't actually raise this, but might in the
             future.
         """
+
+        # Don't even try to run a cancelled test.
+        if self.cancelled:
+            return
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before running "
@@ -594,7 +606,10 @@ class TestRun(TestAttributes):
 
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds
-            timeout = self.run_timeout
+            if self.run_timeout is None or self.run_timeout > self.RUN_WAIT_MAX:
+                timeout = self.RUN_WAIT_MAX
+            else:
+                timeout = self.run_timeout
             ret = None
             while ret is None:
                 try:
@@ -612,18 +627,28 @@ class TestRun(TestAttributes):
                         pass
 
                     # Has the output file changed recently?
-                    if self.run_timeout < quiet_time:
-                        # Give up on the build, and call it a failure.
-                        proc.kill()
-                        msg = ("Run timed out after {} seconds"
-                               .format(self.run_timeout))
-                        self.status.set(STATES.RUN_TIMEOUT, msg)
-                        self.finished = time.time()
-                        self.save_attributes()
-                        raise TimeoutError(msg)
-                    else:
-                        # Only wait a max of run_silent_timeout next 'wait'
-                        timeout = timeout - quiet_time
+                    if self.run_timeout is not None:
+                        if self.run_timeout < quiet_time:
+                            # Give up on the build, and call it a failure.
+                            proc.kill()
+                            msg = ("Run timed out after {} seconds"
+                                   .format(self.run_timeout))
+                            self.status.set(STATES.RUN_TIMEOUT, msg)
+                            self.finished = time.time()
+                            self.save_attributes()
+                            raise TimeoutError(msg)
+                        elif self.cancelled:
+                            proc.kill()
+                            self.status.set(
+                                STATES.STATES.SCHED_CANCELLED,
+                                "Test cancelled mid-run.")
+                            self.finished = time.time()
+                            self.save_attributes()
+                            self.set_run_complete()
+                        else:
+                            # Only wait a max of run_silent_timeout next 'wait'
+                            timeout = max(self.run_timeout - quiet_time,
+                                          self.RUN_WAIT_MAX)
 
         self.finished = time.time()
         self.save_attributes()
@@ -638,6 +663,9 @@ class TestRun(TestAttributes):
         """Write a file in the test directory that indicates that the test
     has completed a run, one way or another. This should only be called
     when we're sure their won't be any more status changes."""
+
+        if self.complete:
+            return
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before run {} "
@@ -655,6 +683,27 @@ class TestRun(TestAttributes):
         complete_tmp_path.rename(complete_path)
 
         self._complete = True
+
+    def cancel(self, reason: str):
+        """Set the cancel file for this test, and denote in its status that it was
+        cancelled."""
+
+        if self.cancelled or self.complete:
+            # Already cancelled.
+            return
+
+        # There is a race condition here that at worst results in multiple status
+        # entries.
+        self.status.set(STATES.CANCELLED, reason)
+
+        cancel_file = self.path/self.CANCEL_FN
+        cancel_file.touch()
+
+    @property
+    def cancelled(self):
+        """Return true if the test is cancelled, false otherwise."""
+
+        return (self.path/self.CANCEL_FN).exists()
 
     WAIT_INTERVAL = 0.5
 
@@ -716,7 +765,7 @@ of result keys.
 
         try:
             result.parse_results(self._pav_cfg, self, results, base_log=result_log)
-        except pavilion.result.common.ResultError as err:
+        except ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
                 "Error parsing results: {}".format(err.args[0]))
@@ -734,7 +783,7 @@ of result keys.
                 self.config['result_evaluate'],
                 result_log
             )
-        except pavilion.result.common.ResultError as err:
+        except ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
             if not regather:
@@ -854,40 +903,34 @@ of result keys.
             return False
 
     @property
-    def job_id(self):
+    def job(self):
         """The job id of this test (saved to a ``jobid`` file). This should
 be set by the scheduler plugin as soon as it's known."""
 
-        path = self.path/self.JOB_ID_FN
+        if self._job is None:
+            job_path = self.path/self.JOB_FN
+            if job_path.exists():
+                self._job = Job(job_path)
+            else:
+                return None
 
-        if self._job_id is not None:
-            return self._job_id
+        return self._job
 
-        try:
-            with path.open() as job_id_file:
-                self._job_id = job_id_file.read()
-        except FileNotFoundError:
-            return None
-        except (OSError, IOError) as err:
-            self._add_warning(
-                "Could not read jobid file '{}': {}".format(path.as_posix(), err))
-            return None
+    @job.setter
+    def job(self, job: Job):
 
-        return self._job_id
+        job_path = self.path/self.JOB_FN
 
-    @job_id.setter
-    def job_id(self, job_id):
-
-        path = self.path/self.JOB_ID_FN
+        if job_path.exists():
+            raise RuntimeError("Jobs should only ever be set once per test run, when "
+                               "that test is scheduled.")
 
         try:
-            with path.open('w') as job_id_file:
-                job_id_file.write(job_id)
-        except (IOError, OSError) as err:
-            self._add_warning("Could not write jobid file '{}': {}"
-                              .format(path.as_posix(), err))
+            job_path.symlink_to(job.path)
+        except OSError as err:
+            self._add_warning("Could not create job link: {}".format(err))
 
-        self._job_id = job_id
+        self._job = job
 
     @property
     def complete_time(self):
@@ -983,6 +1026,9 @@ be set by the scheduler plugin as soon as it's known."""
             script.command('spack env activate -d .')
             script.command('if [ -z $SPACK_ENV ]; then exit 1; fi')
 
+            script.comment("Initialize spack db.")
+            script.command("spack find")
+
             if install_packages:
                 script.newline()
                 script.comment('Install spack packages.')
@@ -1043,7 +1089,7 @@ be set by the scheduler plugin as soon as it's known."""
 
         for key in not_if:
             # Skip any keys that were deferred.
-            if variables.DeferredVariable.was_deferred(key):
+            if DeferredVariable.was_deferred(key):
                 raise TestRunError(
                     "Skip conditions cannot contained deferred variables. Error"
                     "with skip condition that uses variable '{}'".format(key))
@@ -1063,7 +1109,7 @@ be set by the scheduler plugin as soon as it's known."""
             for val in only_if[key]:
 
                 # We have to assume a match if one of the values is deferred.
-                if variables.DeferredVariable.was_deferred(key):
+                if DeferredVariable.was_deferred(key):
                     raise TestRunError(
                         "Skip conditions cannot contained deferred variables. Error"
                         "with skip condition that uses variable '{}'".format(key))
@@ -1091,7 +1137,7 @@ be set by the scheduler plugin as soon as it's known."""
                 "You should only abort tests that were skipped.")
 
         try:
-            shutil.rmtree(self.path)
+            shutil.rmtree(self.path.as_posix())
         except OSError:
             return False
 

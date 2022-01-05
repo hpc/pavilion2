@@ -5,7 +5,8 @@ from typing import List, TextIO
 
 from pavilion import dir_db, output
 from pavilion.exceptions import TestRunError
-from .test_run import TestRun, ID_Pair
+from pavilion.types import ID_Pair
+from .test_run import TestRun
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -40,6 +41,9 @@ def _load_test(pav_cfg, id_pair: ID_Pair):
     return TestRun.load(pav_cfg, test_wd, test_id)
 
 
+LOADED_TESTS = {}
+
+
 def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestRun']:
     """Load a set of tests in parallel.
 
@@ -49,6 +53,15 @@ def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestR
     id_pairs = set(id_pairs)
 
     tests = []
+
+    # Only load tests that haven't already been loaded.
+    not_loaded = []
+    for pair in id_pairs:
+        if pair in LOADED_TESTS:
+            tests.append(LOADED_TESTS[pair])
+        else:
+            not_loaded.append(pair)
+    id_pairs = not_loaded
 
     with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
         results = []

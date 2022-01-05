@@ -7,13 +7,14 @@ import pprint
 import shutil
 from typing import List, IO
 
+import pavilion.exceptions
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
+from pavilion import resolver
 from pavilion import result
 from pavilion import result_utils
 from pavilion.status_file import STATES
-from pavilion.test_config import resolver
 from pavilion.test_run import (TestRun)
 from .base_classes import Command
 
@@ -174,7 +175,7 @@ class ResultsCommand(Command):
                     host=test.config['host'],
                     modes=test.config['modes'],
                 )
-            except resolver.TestConfigError as err:
+            except pavilion.exceptions.TestConfigError as err:
                 output.fprint(
                     "Test '{}' could not be found: {}"
                     .format(test.name, err.args[0]),
@@ -206,7 +207,7 @@ class ResultsCommand(Command):
                         component=cfg[section],
                         var_man=test.var_man,
                     )
-                except resolver.TestConfigError as err:
+                except pavilion.exceptions.TestConfigError as err:
                     output.fprint(
                         "Test '{}' had a {} section that could not be "
                         "resolved with it's original variables: {}"

@@ -7,7 +7,7 @@ from typing import List, Union
 
 from pavilion.module_actions import (
     ModuleLoad, ModuleSwap, ModuleUnload, ModuleAction)
-from pavilion.test_config.variables import VariableSetManager
+from pavilion.variables import VariableSetManager
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
