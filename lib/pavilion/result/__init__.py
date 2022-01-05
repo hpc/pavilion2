@@ -8,9 +8,9 @@ import json
 from pathlib import Path
 from typing import List
 
+import pavilion.deferred
 from pavilion import lockfile as _lockfile
 from pavilion import utils
-from pavilion.test_config import variables
 from ..result_parsers import base_classes
 from .base import base_results, BASE_RESULTS, RESULT_ERRORS
 from .common import ResultError
@@ -88,7 +88,7 @@ For evaluations we check for:
             )
 
         # Don't check the expression if it is deferred.
-        if variables.DeferredVariable.was_deferred(expr):
+        if pavilion.deferred.DeferredVariable.was_deferred(expr):
             continue
 
         try:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from collections import defaultdict
 import shutil
 import sys
 import unittest
@@ -14,8 +15,41 @@ tests_dir = this_file.parent/'tests'
 sys.path.insert(0, str(lib_dir))
 
 
+def _list_tests(suite):
+    """Return a list of tuples of (suite_name, test_name)"""
+
+    tests = []
+
+    if isinstance(suite, unittest.TestSuite):
+        for subsuite in suite:
+            tests.extend(_list_tests(subsuite))
+
+        return tests
+
+    by_suite = {}
+
+    suite_name = suite.__class__.__name__
+    return [(suite_name, suite._testMethodName)]
+
+def list_tests(suite):
+    
+    tests = _list_tests(suite)
+
+    by_suite = defaultdict(list)
+
+    for suite_name, test_name in tests:
+        if test_name.startswith('test_'):
+            test_name = test_name[len('test_'):]
+        by_suite[suite_name].append(test_name)
+
+    for suite_name in sorted(by_suite.keys()):
+        print('{}:'.format(suite_name))
+        for test_name in sorted(by_suite[suite_name]):
+            print('  {}'.format(test_name))
+
+
 def main():
-    from pavilion.unittest import PavTestCase, ColorResult
+    from pavilion.unittest import PavTestCase, ColorResult, BetterRunner
     from pavilion import log_setup
 
     config = PavTestCase.TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
@@ -30,7 +64,8 @@ def main():
         usage="This runs all the tests in the tests/ directory. For a python " 
               "file to be recognized as a test suite, it must end in "
               "'_tests.py'. All other files are ignored")
-
+    parser.add_argument('-l', '--list', action='store_true', 
+                        help="List the tests, but don't run them.")
     parser.add_argument('-s', '--skip', action='append', default=[],
                         help="Skip tests matching the given glob pattern. The "
                              "'test_' prefix is removed from the name for this "
@@ -54,21 +89,24 @@ def main():
         PavTestCase.set_only(args.only)
 
     working_dir = this_file.parent/'working_dir'
-    if not args.no_clear and working_dir.exists():
+    if not args.list and not args.no_clear and working_dir.exists():
         print("Clearing out the working directory from prior unit test runs.")
         shutil.rmtree(working_dir.as_posix(), ignore_errors=False)
 
-    log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
+        log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
 
     verbosity = 0 if args.quiet else 2
 
     loader = unittest.TestLoader()
     suite = loader.discover(tests_dir.as_posix(), pattern='*_tests.py')
-    runner = unittest.TextTestRunner(
-        resultclass=ColorResult,
-        verbosity=verbosity)
-    result = runner.run(suite)
-    return len(result.errors) + len(result.failures)
+
+    if args.list:
+        list_tests(suite)
+        return 0
+    else:
+        runner = BetterRunner(resultclass=ColorResult, verbosity=verbosity)
+        result = runner.run(suite)
+        return len(result.errors) + len(result.failures)
 
 
 PROFILE = False

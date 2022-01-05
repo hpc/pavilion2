@@ -5,8 +5,6 @@ import errno
 import pprint
 from typing import Union
 
-import pavilion.result.base
-import pavilion.result.common
 import yaml_config
 from pavilion import config
 from pavilion import expression_functions
@@ -15,12 +13,13 @@ from pavilion import output
 from pavilion import result
 from pavilion import result_parsers
 from pavilion import schedulers
+from pavilion.schedulers import config as sched_config
 from pavilion import series_config
 from pavilion import status_file
 from pavilion import sys_vars
-from pavilion.test_config import DeferredVariable
+from pavilion.deferred import DeferredVariable
 from pavilion.test_config import file_format
-from pavilion.test_config import resolver
+from pavilion import resolver
 from .base_classes import Command, sub_cmd
 
 
@@ -224,7 +223,7 @@ class ShowCommand(Command):
             help="Give an overview of the available schedulers. (default)"
         )
         sched_group.add_argument(
-            '--config', action='store', type=str, metavar='<scheduler>',
+            '--config', action='store_true',
             help="Print the default config section for the scheduler."
         )
         sched_group.add_argument(
@@ -608,7 +607,7 @@ class ShowCommand(Command):
         if args.doc:
             try:
                 res_plugin = result_parsers.get_plugin(args.doc)
-            except pavilion.result.common.ResultError:
+            except result.common.ResultError:
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.doc),
                     color=output.RED
@@ -648,8 +647,7 @@ class ShowCommand(Command):
         """
 
         sched = None  # type : schedulers.SchedulerPlugin
-        sched_name = None
-        if args.vars is not None or args.config is not None:
+        if args.vars is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
             try:
@@ -664,9 +662,9 @@ class ShowCommand(Command):
         if args.vars is not None:
             sched_vars = []
 
-            empty_config = file_format.TestConfigLoader().load_empty()
+            config = schedulers.validate_config({})
 
-            svars = sched.get_vars(empty_config[sched_name])
+            svars = sched.VAR_CLASS(config, schedulers.Nodes({}))
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
@@ -680,13 +678,10 @@ class ShowCommand(Command):
 
         elif args.config is not None:
 
-            sched_config = sched.get_conf()
-
+            defaults = sched_config.CONFIG_DEFAULTS
             class Loader(yaml_config.YamlConfigLoader):
                 """Loader for just a scheduler's config."""
-                ELEMENTS = [sched_config]
-
-            defaults = Loader().load_empty()
+                ELEMENTS = sched_config.ScheduleConfig.ELEMENTS
 
             Loader().dump(self.outfile, values=defaults)
 

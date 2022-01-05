@@ -121,8 +121,10 @@ class TestStatesStruct(StatesStruct):
     ABORTED = "Aborted, through no fault of it's own."
     CREATION_ERROR = "The test object/directory could not be created."
     SCHEDULED = "The test has been scheduled with a scheduler."
+    SCHED_CANCELLED = "Cancelled by the scheduler or external to Pavilion."
     SCHED_ERROR = "There was a scheduler related error."
-    SCHED_CANCELLED = "The job was cancelled."
+    SCHED_RUNNING = "The scheduler job is running, but this particular " \
+                    "test has not started yet."
     BUILDING = "The test is currently being built."
     BUILD_CREATED = "The builder for this build was created."
     BUILD_DEFERRED = "The build will occur on nodes."
@@ -132,6 +134,7 @@ class TestStatesStruct(StatesStruct):
     BUILD_DONE = "The build step has completed."
     BUILD_WAIT = "Waiting for the build lock."
     BUILD_REUSED = "The build was reused from a prior step."
+    CANCELLED = "The test was cancelled."
     INFO = "This is for logging information about a test, and can occur" \
            "within any state."
     ENV_FAILED = "Unable to load the environment requested by the test."
@@ -404,18 +407,23 @@ could be wrong with the file format."""
 
         stinfo = self.info_class(state, note, when=time.time())
 
+        return self.add_status(stinfo)
+
+    def add_status(self, status: TestStatusInfo) -> TestStatusInfo:
+        """Add the status object as a status for the test."""
+
         if self.path is not None:
             try:
                 with self.path.open('ab') as status_file:
-                    return self._set(status_file, stinfo)
+                    return self._set(status_file, status)
             except OSError as err:
                 return self.info_class(self.states.STATUS_ERROR,
                                        "Could open status file at '{}': {}"
                                        .format(self.path, err.args[0]))
         else:
-            return self._set(self._dummy, stinfo)
+            return self._set(self._dummy, status)
 
-    def _set(self, status_file, stinfo):
+    def _set(self, status_file, stinfo) -> TestStatusInfo:
         """Do the actual status setting step, given a file and the status object."""
 
         status_line = stinfo.status_line()

@@ -1,10 +1,11 @@
 import io
 
 from pavilion import plugins
-from pavilion.test_config import VariableSetManager, TestConfigResolver
-from pavilion.test_run import TestRun
 from pavilion.exceptions import TestRunError
+from pavilion.resolver import TestConfigResolver
+from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion.variables import VariableSetManager
 
 
 class TestRunTests(PavTestCase):

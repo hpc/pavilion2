@@ -10,8 +10,10 @@ echo $DEST
 
 git clone "https://github.com/spack/spack.git" "$DEST"
 cd $DEST || exit
-git checkout tags/v0.15.4
+#git checkout tags/v0.15.4
 
-# This will initialize the spack database
+# We have to install something to initialize the db. Patchelf is small
+# and often needed anyway.
 . share/spack/setup-env.sh
-spack find
+spack compiler find
+spack install patchelf

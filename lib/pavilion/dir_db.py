@@ -195,7 +195,7 @@ def index(pav_cfg,
 
         try:
             return tid, transform(file)
-        except (ValueError, KeyError, TypeError, OSError):
+        except (ValueError, KeyError, TypeError, OSError) as err:
             return tid, None
 
     thread_max = pav_cfg.get('max_threads')

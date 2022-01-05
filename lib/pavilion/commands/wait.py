@@ -38,18 +38,6 @@ class WaitCommand(Command):
                          'complete or fail and return the status.',
                          short_help="Wait for statuses of tests.")
 
-        self.comp_list = [STATES.CREATION_ERROR,
-                          STATES.SCHED_ERROR,
-                          STATES.SCHED_CANCELLED,
-                          STATES.BUILD_FAILED,
-                          STATES.BUILD_TIMEOUT,
-                          STATES.BUILD_ERROR,
-                          STATES.ENV_FAILED,
-                          STATES.RUN_TIMEOUT,
-                          STATES.RUN_ERROR,
-                          STATES.RESULTS_ERROR,
-                          STATES.COMPLETE]
-
     OUT_SILENT = 'silent'
     OUT_SUMMARY = 'summary'
 

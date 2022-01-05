@@ -1,5 +1,6 @@
 """Test directory database operations."""
 
+import io
 import json
 import shutil
 from pathlib import Path
@@ -8,9 +9,9 @@ from pavilion import dir_db
 from pavilion import unittest
 
 
-def entry_transform(path):
+def entry_transform(path: Path):
     """Our entires are some json written to the data file. Just load it."""
-    with open(path/'data') as file:
+    with open((path/'data').as_posix()) as file:
         return json.load(file)
 
 
@@ -29,15 +30,20 @@ class DirDBTests(unittest.PavTestCase):
                                           # be incomplete
                                           complete=bool(i % 5))
 
+        output = io.StringIO()
+
         idx = dir_db.index(
             self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
-            transform=entry_transform)
+            transform=entry_transform,
+            verbose=output)
 
-        self.assertEqual(set(idx.keys()), set(entries.keys()))
+        self.assertEqual(set(idx.keys()), set(entries.keys()),
+                         msg="Errors: \n{}".format(output.getvalue()))
         for key in idx:
-            self.assertEqual(idx[key], entries[key])
+            self.assertEqual(idx[key], entries[key],
+                             msg="Errors: \n{}".format(output.getvalue()))
 
         for i in 3, 6, 9:
             path = index_path/str(i)
@@ -51,7 +57,8 @@ class DirDBTests(unittest.PavTestCase):
             refresh_period=0,
             transform=entry_transform)
 
-        self.assertEqual(set(idx.keys()), set(entries.keys()))
+        self.assertEqual(set(idx.keys()), set(entries.keys()),
+                         msg="Errors: \n{}".format(output.getvalue()))
         for key in idx:
             self.assertEqual(idx[key], entries[key])
 
@@ -76,7 +83,7 @@ class DirDBTests(unittest.PavTestCase):
         for key in idx:
             self.assertEqual(idx[key], entries[key])
 
-        shutil.rmtree(index_path)
+        shutil.rmtree(index_path.as_posix())
 
     def _make_entry(self, index_path, id_, complete=True, d=0):
         value = {'a': id_ * 2,
@@ -89,7 +96,7 @@ class DirDBTests(unittest.PavTestCase):
         key = str(id_)
         path = index_path / key
         path.mkdir(exist_ok=True)
-        with open(path / 'data', 'w') as data_file:
+        with (path / 'data').open('w') as data_file:
             json.dump(value, data_file)
 
         return value
