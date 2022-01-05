@@ -142,11 +142,11 @@ jobs:
         coverage run ./test/run_tests 
         coverage xml
 
-    - name: codecov-upload
-      uses: codecov/codecov-action@v2
-      with:
-        fail_ci_if_error: true
-        token: c1100f28-f36f-4b92-8ba5-ec907a1bfea6
+#    - name: codecov-upload
+#      uses: codecov/codecov-action@v2
+#      with:
+#        fail_ci_if_error: true
+#        token: c1100f28-f36f-4b92-8ba5-ec907a1bfea6
  
   unittests-3_9:
     runs-on: ubuntu-latest
