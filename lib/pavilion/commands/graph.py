@@ -1,6 +1,7 @@
 """Graph pavilion results data."""
 
 import collections
+import pathlib
 import errno
 import re
 import statistics
@@ -146,11 +147,13 @@ class GraphCommand(Command):
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
         # Add any additional tests provided via the command line.
         if args.tests:
-            test_paths.append(args.tests)
+            cmdline_tests = cmd_utils.get_tests_by_id(pav_cfg, args.tests, self.errfile)
 
         # Load TestRun for all tests, skip those that are to be excluded.
         tests = cmd_utils.get_tests_by_paths(
             pav_cfg, test_paths, self.errfile, exclude_ids=args.exclude)
+
+        tests.extend(cmdline_tests)
 
         if not tests:
             output.fprint("Test filtering resulted in an empty list.",
@@ -405,8 +408,10 @@ class GraphCommand(Command):
             width, height = dimensions.split('x')
             fig.set_size_inches(float(width), float(height))
 
-        fig.savefig(outfile)
-        output.fprint("Completed. Graph saved as '{}.png'."
+        if not pathlib.Path(outfile).suffix:
+            outfile = outfile + '.png'
+
+        output.fprint("Completed. Graph saved as '{}'."
                       .format(outfile), color=output.GREEN, file=self.outfile)
 
 

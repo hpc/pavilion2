@@ -9,7 +9,7 @@ import inspect
 import logging
 import re
 
-from pavilion.test_config import variables
+import pavilion.deferred
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
@@ -181,7 +181,7 @@ class SystemPlugin(IPlugin.IPlugin):
             DeferredVariable object instead.
         """
         if defer and self.is_deferable:
-            return variables.DeferredVariable()
+            return pavilion.deferred.DeferredVariable()
 
         try:
             values = self._get()

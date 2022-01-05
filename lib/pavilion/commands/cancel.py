@@ -1,17 +1,15 @@
 """Cancels tests as prescribed by the user."""
-
 import errno
 import os
 import signal
+import time
 
+from pavilion import cancel
 from pavilion import output
-from pavilion import schedulers
 from pavilion import series
-from pavilion.status_file import STATES
-from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun
-from ..exceptions import TestRunError
 from .base_classes import Command
+from ..exceptions import TestRunError
 
 
 class CancelCommand(Command):
@@ -35,11 +33,6 @@ class CancelCommand(Command):
             help='Prints status of cancelled jobs in json format.'
         )
         parser.add_argument(
-            '-a', '--all', action='store_true', default=False,
-            help='Cancels all jobs currently queued that are owned by the '
-                 'current user'
-        )
-        parser.add_argument(
             'tests', nargs='*', action='store',
             help='The name(s) of the tests to cancel. These may be any mix of '
                  'test IDs and series IDs. If no value is provided, the most '
@@ -49,32 +42,19 @@ class CancelCommand(Command):
     def run(self, pav_cfg, args):
         """Cancel the given tests."""
 
-        user_id = os.geteuid()  # gets unique user id
-
         if not args.tests:
-            # user wants to cancel all current tests
-            if args.all:
-                tests_dir = pav_cfg.working_dir/'test_runs'
-                # iterate through all the tests in the tests directory
-                for test in tests_dir.iterdir():
-                    test_owner_id = test.stat().st_uid
-                    if test_owner_id == user_id:
-                        if not (test/'RUN_COMPLETE').exists():
-                            test_id = test.name
-                            args.tests.append(test_id)
-            else:
-                # Get the last series ran by this user.
-                series_id = series.load_user_series_id(pav_cfg)
-                if series_id is not None:
-                    args.tests.append(series_id)
+            # Get the last series ran by this user.
+            series_id = series.load_user_series_id(pav_cfg)
+            if series_id is not None:
+                args.tests.append(series_id)
 
-        test_list = []
+        tests = []
         for test_id in args.tests:
             if test_id.startswith('s'):
                 try:
                     test_series = series.TestSeries.load(pav_cfg, test_id)
                     series_pgid = test_series.pgid
-                    test_list.extend(test_series.tests.values())
+                    tests.extend(test_series.tests.values())
                 except series.errors.TestSeriesError as err:
                     output.fprint(
                         "Series {} could not be found.\n{}"
@@ -102,7 +82,7 @@ class CancelCommand(Command):
                                   color=output.RED, file=self.errfile)
             else:
                 try:
-                    test_list.append(TestRun.load_from_raw_id(pav_cfg, test_id))
+                    tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))
                 except TestRunError as err:
                     output.fprint(
                         "Test {} is not a valid test.\n{}".format(test_id, err),
@@ -110,49 +90,42 @@ class CancelCommand(Command):
                     )
                     return errno.EINVAL
 
-        cancel_failed = False
-        test_object_list = []
-        for test in test_list:
-            try:
-                sched = schedulers.get_plugin(test.scheduler)
-                test_object_list.append(test)
+        output.fprint("Found {} tests to try to cancel.".format(len(tests)),
+                      file=self.outfile)
 
-                status = test.status.current()
-                # Won't try to cancel a completed job or a job that was
-                # previously cancelled.
-                if status.state not in (STATES.COMPLETE,
-                                        STATES.SCHED_CANCELLED):
-                    # Sets status based on the result of sched.cancel_job.
-                    # Ran into trouble when 'cancelling' jobs that never
-                    # actually started, ie. build errors/created job states.
-                    cancel_status = sched.cancel_job(test)
-                    test.status.set(cancel_status.state, cancel_status.note)
-                    test.set_run_complete()
-                    output.fprint(
-                        "Test {} cancelled."
-                        .format(test.id), file=self.outfile,
-                        color=output.GREEN)
+        # Cancel each test. Note that this does not cancel test jobs or builds.
+        cancelled_test_info = []
+        for test in tests:
+            # Don't try to cancel complete tests
+            if not test.complete:
+                test.cancel("Cancelled via cmdline.")
+                cancelled_test_info.append(test)
 
-                else:
-                    output.fprint(
-                        "Test {} could not be cancelled has state: {}."
-                        .format(test_id, status.state),
-                        file=self.outfile,
-                        color=output.RED)
+        if cancelled_test_info:
+            output.draw_table(
+                outfile=self.outfile,
+                fields=['name', 'id'],
+                rows=[{'name': test.name, 'id': test.full_id}
+                      for test in cancelled_test_info])
+        else:
+            output.fprint("No tests needed to be cancelled.",
+                          file=self.outfile)
+            return 0
 
-            except TestRunError as err:
-                output.fprint(
-                    "Test {} could not be cancelled, cannot be found. \n{}"
-                    .format(test_id, err),
-                    file=self.errfile,
-                    color=output.RED)
-                return errno.EINVAL
+        output.fprint("Giving tests a moment to quit.",
+                      file=self.outfile)
+        time.sleep(TestRun.RUN_WAIT_MAX)
 
-        # Only prints statuses of tests if option is selected
-        # and test_list is not empty
-        if args.status and test_object_list:
-            print_from_tests(pav_cfg, test_object_list, self.outfile,
-                             args.json)
-            return cancel_failed
+        job_cancel_info = cancel.cancel_jobs(pav_cfg, tests, self.errfile)
 
-        return cancel_failed
+        if job_cancel_info:
+            output.draw_table(
+                outfile=self.outfile,
+                fields=['scheduler', 'job', 'success', 'msg'],
+                rows=job_cancel_info,
+                title="Cancelled {} jobs.".format(len(job_cancel_info)),
+            )
+        else:
+            output.fprint("No jobs needed to be cancelled.", file=self.outfile)
+
+        return 0

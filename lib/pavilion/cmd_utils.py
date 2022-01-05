@@ -11,7 +11,8 @@ from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
 from pavilion import series
-from pavilion.test_run import TestRun, ID_Pair, test_run_attr_transform, load_tests
+from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
+from pavilion.types import ID_Pair
 from pavilion.exceptions import TestRunError
 
 LOGGER = logging.getLogger(__name__)

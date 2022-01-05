@@ -33,18 +33,12 @@ class TestScriptWriter(PavTestCase):
 
         header = scriptcomposer.ScriptHeader(
             shebang="#!/bin/sh",
-            scheduler_headers=[
-                '# FOO',
-                '# BAR',
-            ]
         )
 
         self.assertEqual(header.get_lines(),
-                         ['#!/bin/sh',
-                          '# FOO',
-                          '# BAR'])
+                         ['#!/bin/sh'])
 
-    def test_scriptComposer(self):
+    def test_script_composer(self):
         """Testing ScriptComposer class variable setting."""
 
         # Testing valid uses.
@@ -53,82 +47,64 @@ class TestScriptWriter(PavTestCase):
         composer = scriptcomposer.ScriptComposer()
 
         self.assertEqual(composer.header.shebang, '#!/bin/bash')
-        self.assertEqual(composer.header.scheduler_headers, [])
 
         # Testing individual assignment
         test_header_shell = "/usr/env/python"
-        test_header_scheduler = OrderedDict()
-        test_header_scheduler['-G'] = 'pam'
-        test_header_scheduler['-N'] = 'fam'
 
         composer.newline()
 
-        composer.command(['taco', 'burrito', 'nachos'])
-
-        test_details_path = 'testPath'
-        test_details_group = 'groupies'
-        test_details_perms = 0o543
+        composer.command('taco')
+        composer.command('burrito')
+        composer.command('nachos')
 
         composer.header.shebang = test_header_shell
-        composer.header.scheduler_headers = test_header_scheduler
 
         self.assertEqual(composer.header.shebang, test_header_shell)
-        self.assertEqual(composer.header.scheduler_headers,
-                                                          test_header_scheduler)
 
         composer = scriptcomposer.ScriptComposer()
 
         self.assertEqual(composer.header.shebang, '#!/bin/bash')
-        self.assertEqual(composer.header.scheduler_headers, [])
 
         # Testing object assignment.
         header = scriptcomposer.ScriptHeader(
-            shebang=test_header_shell,
-            scheduler_headers=test_header_scheduler)
+            shebang=test_header_shell)
 
         composer.header = header
 
         self.assertEqual(composer.header.shebang, test_header_shell)
-        self.assertEqual(composer.header.scheduler_headers,
-                                                          test_header_scheduler)
 
-    def test_writeScript(self):
+    def test_write_script(self):
         """Testing the writeScript function of the ScriptComposer class."""
-        testHeaderShell = "/usr/env/python"
-        testHeaderScheduler = ['-G pam', '-N fam']
+
+        test_header_shell = "/usr/env/python"
 
         path = self.pav_cfg.working_dir/'testPath'
 
         testComposer = scriptcomposer.ScriptComposer()
 
-        testComposer.header.shebang = testHeaderShell
-        testComposer.header.scheduler_headers = testHeaderScheduler
+        testComposer.header.shebang = test_header_shell
 
         testComposer.write(path)
 
         self.assertTrue(path.exists())
 
-        with path.open() as testFile:
-            testLines = testFile.readlines()
+        with path.open() as test_file:
+            test_lines = test_file.readlines()
 
-        for i in range(0, len(testLines)):
-            testLines[i] = testLines[i].strip()
+        for i in range(0, len(test_lines)):
+            test_lines[i] = test_lines[i].strip()
 
-        self.assertEqual(testLines[0], "#!/usr/env/python")
-        self.assertEqual(testLines[1], "# -G pam")
-        self.assertEqual(testLines[2], "# -N fam")
-        self.assertEqual(testLines[3], "")
-        self.assertEqual(testLines[4], "")
+        self.assertEqual(test_lines[0], "#!/usr/env/python")
+        self.assertEqual(test_lines[1], "")
+        self.assertEqual(test_lines[2], "")
 
-        self.assertEqual(len(testLines), 5)
-
-        testStat = path.stat()
+        test_stat = path.stat()
 
         umask = os.umask(0)
         os.umask(umask)
         # Default file permissions.
-        expectedStat = (0o100666 & ~umask) | stat.S_IXGRP | stat.S_IXUSR
+        expected_stat = (0o100666 & ~umask) | stat.S_IXGRP | stat.S_IXUSR
 
-        self.assertEqual(oct(testStat.st_mode), oct(expectedStat))
+        self.assertEqual(oct(test_stat.st_mode), oct(expected_stat))
 
         path.unlink()

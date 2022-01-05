@@ -6,7 +6,7 @@
 """
 
 import ast
-from typing import Dict, Callable, Any
+from typing import Dict, Callable, Any, List
 
 import lark
 import pavilion.expression_functions.common
@@ -659,7 +659,7 @@ class VarRefVisitor(lark.Visitor):
     visit_topdown = None
 
     @staticmethod
-    def var_ref(tree: lark.Tree) -> [str]:
+    def var_ref(tree: lark.Tree) -> List[str]:
         """Assemble and return the given variable reference."""
 
         var_parts = []

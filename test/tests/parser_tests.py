@@ -1,11 +1,12 @@
 """Tests for the various Pavilion parsers."""
 
 import lark
-import pavilion.test_config.parsers.expressions
+
 from pavilion import plugins
 from pavilion import unittest
-from pavilion.test_config import parsers
-from pavilion.test_config import variables
+from pavilion import parsers
+from pavilion.exceptions import DeferredError
+from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 
 
@@ -48,7 +49,7 @@ class ParserTests(unittest.PavTestCase):
         # variables as a list (with unique items).
         expr = 'int1.3.foo + var.int2.*.bleh * 11 * - sum([int1, int1])'
         tree = expr_parser.parse(expr)
-        visitor = pavilion.test_config.parsers.expressions.VarRefVisitor()
+        visitor = parsers.expressions.VarRefVisitor()
         used_vars = visitor.visit(tree)
 
         self.assertEqual(sorted(used_vars),
@@ -227,7 +228,7 @@ class ParserTests(unittest.PavTestCase):
                 self.fail("Failed to fail on {} (got {}):\n{}"
                           .format(expr, result, tree.pretty()))
 
-        with self.assertRaises(variables.DeferredError):
+        with self.assertRaises(DeferredError):
             tree = expr_parser.parse("sys.host_name")
             trans.transform(tree)
 

@@ -10,18 +10,20 @@ import tempfile
 import time
 import types
 import unittest
+import warnings
 from hashlib import sha1
 from pathlib import Path
 from typing import List
 
+import pavilion.schedulers
 from pavilion import arguments
 from pavilion import config
 from pavilion import dir_db
 from pavilion import pavilion_variables
 from pavilion.sys_vars import base_classes
 from pavilion.output import dbg_print
-from pavilion.test_config import VariableSetManager
-from pavilion.test_config import resolver
+from pavilion.variables import VariableSetManager
+from pavilion.resolver import TestConfigResolver
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 
@@ -75,8 +77,6 @@ base class.
         pavilion."""
 
         self.pav_cfg = self.make_pav_config()
-
-        self.tmp_dir = tempfile.TemporaryDirectory()
 
         # We have to get this to set up the base argument parser before
         # plugins can add to it.
@@ -284,9 +284,9 @@ though."""
             'verbose': 'false',
             'timeout': '300',
         },
-        'slurm': {},
         'result_parse': {},
         'result_evaluate': {},
+        'schedule': {},
     }
 
     def _quick_test_cfg(self):
@@ -301,15 +301,15 @@ The default config is: ::
 
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
-        loc_slurm = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
-                     'local_slurm.yaml')
+        loc_sched = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
+                     'local_sched.yaml')
 
-        if loc_slurm.exists():
-            with loc_slurm.open() as loc_slurm_file:
-                slurm_cfg = TestConfigLoader().load(loc_slurm_file,
+        if loc_sched.exists():
+            with loc_sched.open() as loc_slurm_file:
+                sched_cfg = TestConfigLoader().load(loc_slurm_file,
                                                     partial=True)
 
-            cfg['slurm'] = slurm_cfg['slurm']
+            cfg['schedule'].update(sched_cfg['schedule'])
 
         return cfg
 
@@ -322,7 +322,7 @@ The default config is: ::
         if modes is None:
             modes = []
 
-        res = resolver.TestConfigResolver(self.pav_cfg)
+        res = TestConfigResolver(self.pav_cfg)
         test_cfgs = res.load([name], host, modes)
 
         tests = []
@@ -337,6 +337,9 @@ The default config is: ::
                 fin_sys = base_classes.SysVarDict(unique=True)
                 fin_var_man = VariableSetManager()
                 fin_var_man.add_var_set('sys', fin_sys)
+                scheduler = pavilion.schedulers.get_plugin(test.scheduler)
+                fin_sched_vars = scheduler.get_final_vars(test)
+                fin_var_man.add_var_set('sched', fin_sched_vars)
                 res.finalize(test, fin_var_man)
 
             tests.append(test)
@@ -350,8 +353,7 @@ The default config is: ::
     del __config_lines
 
     def _quick_test(self, cfg=None, name="quick_test",
-                    build=True, finalize=True,
-                    sched_vars=None):
+                    build=True, finalize=True):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
@@ -359,7 +361,6 @@ The default config is: ::
         :param str name: The name of the test.
         :param bool build: Build this test, while we're at it.
         :param bool finalize: Finalize this test.
-        :param dict sched_vars: Add these scheduler variables to our var set.
         :rtype: TestRun
         """
 
@@ -377,12 +378,14 @@ The default config is: ::
         var_man.add_var_set('var', cfg['variables'])
         var_man.add_var_set('sys', base_classes.SysVarDict(unique=True, defer=True))
         var_man.add_var_set('pav', self.pav_cfg.pav_vars)
-        if sched_vars is not None:
-            var_man.add_var_set('sched', sched_vars)
+
+        sched = pavilion.schedulers.get_plugin(cfg.get('scheduler', 'raw'))
+        sched_vars = sched.get_initial_vars(cfg.get('schedule', {}))
+        var_man.add_var_set('sched', sched_vars)
 
         var_man.resolve_references()
 
-        cfg = resolver.TestConfigResolver.resolve_test_vars(cfg, var_man)
+        cfg = TestConfigResolver.resolve_test_vars(cfg, var_man)
 
         test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
         if test.skipped:
@@ -397,7 +400,9 @@ The default config is: ::
             fin_sys = base_classes.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
-            resolver.TestConfigResolver.finalize(test, fin_var_man)
+            fin_sched_vars = sched.get_final_vars(test)
+            fin_var_man.add_var_set('sched', fin_sched_vars)
+            TestConfigResolver.finalize(test, fin_var_man)
         return test
 
     def wait_tests(self, working_dir: Path, timeout=5):
@@ -488,3 +493,80 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
+
+
+class BetterRunner(unittest.TextTestRunner):
+    # pylint: disable=invalid-name
+    def run(self, test):
+        "Run the given test case or test suite."
+        result = self._makeResult()
+        unittest.registerResult(result)
+        result.failfast = self.failfast
+        result.buffer = self.buffer
+        result.tb_locals = self.tb_locals
+        with warnings.catch_warnings():
+            if self.warnings:
+                # if self.warnings is set, use it to filter all the warnings
+                warnings.simplefilter(self.warnings)
+                # if the filter is 'default' or 'always', special-case the
+                # warnings from the deprecated unittest methods to show them
+                # no more than once per module, because they can be fairly
+                # noisy.  The -Wd and -Wa flags can be used to bypass this
+                # only when self.warnings is None.
+                if self.warnings in ['default', 'always']:
+                    warnings.filterwarnings('module',
+                            category=DeprecationWarning,
+                            message=r'Please use assert\w+ instead.')
+            startTime = time.time()
+            startTestRun = getattr(result, 'startTestRun', None)
+            if startTestRun is not None:
+                startTestRun()
+            try:
+                test(result)
+            finally:
+                stopTestRun = getattr(result, 'stopTestRun', None)
+                if stopTestRun is not None:
+                    stopTestRun()
+            stopTime = time.time()
+        timeTaken = stopTime - startTime
+        result.printErrors()
+        if hasattr(result, 'separator2'):
+            self.stream.writeln(result.separator2)
+        expectedFails = unexpectedSuccesses = skipped = 0
+        try:
+            results = map(len, (result.expectedFailures,
+                                result.unexpectedSuccesses,
+                                result.skipped))
+        except AttributeError:
+            pass
+        else:
+            expectedFails, unexpectedSuccesses, skipped = results
+
+        run = result.testsRun - skipped
+
+        self.stream.writeln("Ran %d test%s in %.3fs" %
+                            (run, run != 1 and "s" or "", timeTaken))
+        self.stream.writeln()
+        failed, errored = len(result.failures), len(result.errors)
+        passed = run - failed - errored
+        self.stream.writeln(
+            'Passed:  {:5d} -- {}%'
+            .format(passed, round(float(passed)/run * 100)))
+        self.stream.writeln(
+            'Failed:  {:5d} -- {}%'
+            .format(failed, round(float(failed)/run * 100)))
+        self.stream.writeln(
+            'Errors:  {:5d} -- {}%'
+            .format(errored, round(float(errored)/run * 100)))
+        self.stream.writeln(
+            '\x1b[36mSkipped: {:5d} -- {}% (of run + skipped)\x1b[0m'
+            .format(skipped, round(float(skipped)/(run+skipped) * 100)))
+
+        self.stream.write('\n')
+        infos = []
+        if not result.wasSuccessful():
+            self.stream.writeln("FAILED")
+        else:
+            self.stream.writeln("OK")
+
+        return result

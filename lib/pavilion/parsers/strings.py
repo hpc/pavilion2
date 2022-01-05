@@ -8,6 +8,7 @@ String LALR Grammar
     {}
 """
 
+from typing import List
 import lark
 from .common import ParserValueError, PavTransformer
 from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
@@ -164,15 +165,14 @@ class StringTransformer(PavTransformer):
         return self._merge_tokens(items, token_list)
 
     @classmethod
-    def expr(cls, items) -> lark.Token:
+    def expr(cls, items: List[lark.Token]) -> lark.Token:
         """Grab the expression and format spec and combine them into a single
         token. We can't resolve them until we get to an iteration or the
         start. The merged expression tokens are set to the
         ``self.EXPRESSION`` type later identification, and have a dict
         of {'format_spec': <spec>, 'expr': <expression_string>} for a value.
 
-        :param list[lark.Token] items: The expr components and possibly a
-            format_spec.
+        :param items: The expr components and possibly a format_spec.
         """
 
         # Return an empty, regular token
@@ -194,7 +194,7 @@ class StringTransformer(PavTransformer):
 
         return cls._merge_tokens(items, value, type_=cls.EXPRESSION)
 
-    def iter(self, items: [lark.Token]) -> lark.Token:
+    def iter(self, items: List[lark.Token]) -> lark.Token:
         """Handle an iteration section. These can contain anything except
         nested iteration sections. This part of the string will be repeated for
         every combination of used multi-valued variables (that don't specify
@@ -401,7 +401,7 @@ class StringVarRefVisitor(VarRefVisitor):
     """Parse expressions and get all used variables. """
 
     @staticmethod
-    def expr(tree: lark.Tree) -> [str]:
+    def expr(tree: lark.Tree) -> List[str]:
         """Parse the expression, and return any used variables."""
 
         expr = StringTransformer.expr(tree.children)

@@ -24,7 +24,7 @@ Test File Format
 Test Setup
 ----------
 
-.. automodule:: pavilion.test_config.resolver
+.. automodule:: pavilion.resolver
     :members:
     :private-members:
     :undoc-members:
