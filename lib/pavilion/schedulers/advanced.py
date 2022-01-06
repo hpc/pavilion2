@@ -219,13 +219,15 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             if (partition is not None
                     and 'partitions' in node
                     and partition not in node['partitions']):
-                filter_reasons['partition'].append(node_name)
+                reason_key = "partition '{}' not in {}".format(partition, node['partitions'])
+                filter_reasons[reason_key].append(node_name)
                 continue
 
             if (reservation is not None
                     and 'reservations' in node
                     and reservation not in node['reservations']):
-                filter_reasons['reservation'].append(node)
+                reason_key = "reservation '{}' not in {}".format(reservation, node['reservations'])
+                filter_reasons[reason_key].append(node)
                 continue
 
             if node_name in exclude_nodes:

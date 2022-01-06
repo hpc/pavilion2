@@ -224,9 +224,11 @@ class Slurm(SchedulerPluginAdvanced):
         defaults = {
             'up_states': ['ALLOCATED',
                           'COMPLETING',
+                          'MAINTENANCE',
                           'IDLE',
+                          'RESERVED',
                           'MAINT'],
-            'avail_states': ['IDLE', 'MAINT'],
+            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE', 'RESERVED'],
             'sbatch_extra': [],
             'srun_extra': [],
             'mpi_cmd': self.MPI_CMD_SRUN,
