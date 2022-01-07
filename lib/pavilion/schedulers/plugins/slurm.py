@@ -200,6 +200,10 @@ class Slurm(SchedulerPluginAdvanced):
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
+            yc.ListElem(name='reserved_states',
+                        sub_elem=yc.StrElem(),
+                        help_text="Ignore nodes in these states, unless a reservation "
+                                  "was specified."),
             yc.ListElem(name='srun_extra',
                         sub_elem=yc.StrElem(),
                         help_text="Extra arguments to pass to srun as part of the "
@@ -226,9 +230,9 @@ class Slurm(SchedulerPluginAdvanced):
                           'COMPLETING',
                           'MAINTENANCE',
                           'IDLE',
-                          'RESERVED',
                           'MAINT'],
-            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE', 'RESERVED'],
+            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE'],
+            'reserved_states': ['RESERVED'],
             'sbatch_extra': [],
             'srun_extra': [],
             'mpi_cmd': self.MPI_CMD_SRUN,
@@ -239,6 +243,7 @@ class Slurm(SchedulerPluginAdvanced):
         validators = {
             'up_states': validate_slurm_states,
             'avail_states': validate_slurm_states,
+            'reserved_states': validate_slurm_states,
             'srun_extra': validate_list,
             'sbatch_extra': validate_list,
             'mpi_cmd': self.MPI_CMD_OPTIONS,
@@ -458,6 +463,11 @@ class Slurm(SchedulerPluginAdvanced):
 
         up_states = sched_config['slurm']['up_states']
         avail_states = sched_config['slurm']['avail_states']
+        reserved_states = sched_config['slurm']['reserved_states']
+        if sched_config['reservation']:
+            up_states.extend(reserved_states)
+            avail_states.extend(reserved_states)
+
         node_info['up'] = all(state in up_states for state in node_info['states'])
         node_info['avail'] = all(state in avail_states for state in node_info['states'])
 
