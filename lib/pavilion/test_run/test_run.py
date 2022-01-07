@@ -233,6 +233,11 @@ class TestRun(TestAttributes):
         if self.skipped:
             raise RuntimeError("Skipped tests should never be saved.")
 
+        deferred_errors = self.var_man.get('_errors')
+        if deferred_errors is not None:
+            raise TestRunError("Errors were found when creating test {}.\n{}"
+                               .format(self.name, deferred_errors))
+
         self._save_config()
         self.var_man.save(self._variables_path)
         # Setup the initial status file.

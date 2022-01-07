@@ -413,7 +413,7 @@ differentiate it from test ids."""
                 except TestSetError as err:
                     self.set_complete()
                     raise TestSeriesError(
-                        "Error making tests for series '{}': {}"
+                        "Error making tests for series '{}':\n {}"
                         .format(self.sid, err.args[0]))
 
                 # Add all the tests we created to this test set.

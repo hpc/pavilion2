@@ -9,8 +9,9 @@ from pavilion import commands
 from pavilion import plugins
 from pavilion import resolver
 from pavilion import schedulers
+from pavilion import test_run
 from pavilion.deferred import DeferredVariable
-from pavilion.exceptions import TestConfigError, VariableError
+from pavilion.exceptions import TestConfigError, VariableError, TestRunError
 from pavilion.pavilion_variables import PavVars
 from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
@@ -700,3 +701,24 @@ class ResolverTests(PavTestCase):
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
         self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_sched_errors(self):
+        """Scheduler config errors are deferred until tests are saved, if possible."""
+
+        # This test has an from when it tried to get scheduler vars. It should be
+        # thrown when we try to save the test.
+        tests = self.resolver.load(['sched_errors.a_error'])
+        test = test_run.TestRun(self.pav_cfg, tests[0].config, tests[0].var_man)
+        with self.assertRaises(TestRunError):
+            test.save()
+
+        # This test has the same error, but is skipped. It should throw an error
+        # from trying to save a skipped test.
+        tests = self.resolver.load(['sched_errors.b_skipped'])
+        test = test_run.TestRun(self.pav_cfg, tests[0].config, tests[0].var_man)
+        with self.assertRaises(RuntimeError):
+            test.save()
+
+        # This test
+        with self.assertRaises(TestConfigError):
+            self.resolver.load(['sched_errors.c_other_error'])

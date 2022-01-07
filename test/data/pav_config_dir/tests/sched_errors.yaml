@@ -1,0 +1,18 @@
+a_error:
+    schedule:
+        nodes: 42
+    scheduler: dummy
+
+b_skipped:
+    inherits_from: a_error
+
+    # Always skip
+    only_if:
+        "nope": "nyarp"
+
+c_other_error:
+    inherits_from: a_error
+
+    run:
+        cmds:
+            - "This variable does not exist: {{no_exist}}"
