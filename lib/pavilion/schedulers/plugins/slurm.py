@@ -43,9 +43,9 @@ slurm kickoff script.
         if reservation:
             lines.append('#SBATCH --reservation {}'.format(reservation))
         if self._config.get('qos') is not None:
-            lines.append('#SBATCH --qos {s._conf[qos]}'.format(s=self))
+            lines.append('#SBATCH --qos {}'.format(self._config['qos']))
         if self._config.get('account') is not None:
-            lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
+            lines.append('#SBATCH --account {}'.format(self._config['account']))
 
         time_limit = '{}:0:0'.format(self._config['time_limit'])
         lines.append('#SBATCH -t {}'.format(time_limit))
