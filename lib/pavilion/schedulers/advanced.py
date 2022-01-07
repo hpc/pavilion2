@@ -226,12 +226,20 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 filter_reasons[reason_key].append(node_name)
                 continue
 
-            if (reservation is not None
-                    and 'reservations' in node
-                    and reservation not in node['reservations']):
-                reason_key = "reservation '{}' not in {}".format(reservation, node['reservations'])
-                filter_reasons[reason_key].append(node)
-                continue
+            if 'reservations' in node:
+                if reservation == 'any':
+                    pass
+                elif (reservation is not None
+                        and reservation not in node['reservations']):
+                    reason_key = "reservation '{}' not in {}"\
+                                 .format(reservation, node['reservations'])
+                    filter_reasons[reason_key].append(node)
+                    continue
+                elif reservation is None and node['reservations']:
+                    reason_key = "node in unselected reservation '{}'" \
+                        .format(reservation, node['reservations'])
+                    filter_reasons[reason_key].append(node)
+                    continue
 
             if node_name in exclude_nodes:
                 filter_reasons['excluded'].append(node)
