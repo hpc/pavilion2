@@ -171,7 +171,7 @@ class SeriesTests(PavTestCase):
         self.assertEqual(e.parent_sets, set())
         self.assertEqual(e.child_sets, set())
 
-    def test_sched_error(self):
+    def test_sched_errors(self):
         """Errors getting scheduler variables are deferred. Make sure we catch them
         appropriately."""
 

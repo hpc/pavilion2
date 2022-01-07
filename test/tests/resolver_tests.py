@@ -719,6 +719,10 @@ class ResolverTests(PavTestCase):
         with self.assertRaises(RuntimeError):
             test.save()
 
-        # This test
+        # This test should have an error but denote that other sched var errors might
+        # be the problem.
         with self.assertRaises(TestConfigError):
             self.resolver.load(['sched_errors.c_other_error'])
+
+        # This test should be fine.
+        self.resolver.load(['sched_errors.d_normal'])

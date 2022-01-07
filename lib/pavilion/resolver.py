@@ -12,6 +12,7 @@ import io
 import logging
 import multiprocessing as mp
 import os
+import pprint
 import re
 import uuid
 from collections import defaultdict
@@ -79,7 +80,7 @@ class TestConfigResolver:
         variable set manager for this test.
 
         NOTE: Errors generated when getting scheduler variables will be placed
-            in the 'sched._errors' variable in the variable manager. This can happen
+            in the 'sched.errors' variable in the variable manager. This can happen
             primarily because we're doing this before we filter tests for conditions
             like the type of system the test is running on. If the test is skipped,
             then it's a not problem, but in all other cases we should inform the user.
@@ -113,18 +114,14 @@ class TestConfigResolver:
                 .format(sched.name)
             )
 
+        schedule_cfg = raw_test_cfg.get('schedule', {})
         try:
-            schedule_cfg = raw_test_cfg.get('schedule', {})
             sched_vars = sched.get_initial_vars(schedule_cfg)
         except schedulers.SchedulerPluginError as err:
-            sched_vars = {
-                '_errors': ["Could not get variables for scheduler {}: {}"
-                            .format(scheduler, err)]
-            }
-        except VariableError as err:
-            sched_vars = {
-                '_errors': ["Error in scheduler variables: {}".format(err)]
-            }
+            # Errors should generally be deferred here, but just in case.
+            raise TestConfigError(
+                "Error getting initial variables from scheduler {} with "
+                "config: {}".format(scheduler, pprint.pformat(schedule_cfg)))
 
         var_man.add_var_set('sched', sched_vars)
 
@@ -392,7 +389,7 @@ class TestConfigResolver:
         # A list of tuples of test configs and their permuted var_man
         permuted_tests = []  # type: (dict, variables.VariableSetManager)
 
-        sched_errors = base_var_man.get('sched._errors')
+        sched_errors = base_var_man.get('sched.errors')
 
         # Resolve all configuration permutations.
         try:

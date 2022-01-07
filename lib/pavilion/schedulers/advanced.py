@@ -101,18 +101,19 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         filtered_nodes, filter_reasons = self._filter_nodes(sched_config)
         filtered_nodes.sort()
 
+        errors = []
+
         if sched_config['include_nodes']:
             for node in sched_config['include_nodes']:
                 if node not in filtered_nodes:
-                    raise SchedulerPluginError(
+                    errors.append(
                         "Requested node (via 'schedule.include_nodes') was filtered "
-                        "due to other filtering "
-                    )
+                        "due to other filtering ")
 
         if not filtered_nodes:
             reasons = "\n".join("{}: {}".format(k, v)
                                 for k, v in filter_reasons.items())
-            raise SchedulerPluginError(
+            errors.append(
                 "All nodes were filtered out during the node filtering step. "
                 "Nodes were filtered for the following reasons:\n{}\n"
                 "Scheduler config:\n{}\n"
@@ -126,8 +127,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         chunks = self._get_chunks(node_list_id, sched_config)
 
-        return self.VAR_CLASS(sched_config, nodes=self._nodes, chunks=chunks,
-                              node_list_id=node_list_id)
+        sched_vars = self.VAR_CLASS(sched_config, nodes=self._nodes, chunks=chunks,
+                                    node_list_id=node_list_id)
+        sched_vars.add_errors(errors)
+        return sched_vars
 
     def get_final_vars(self, test: TestRun) -> SchedulerVariables:
         """Load our saved node data from kickoff time, and compute the final

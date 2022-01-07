@@ -35,6 +35,10 @@ Naming Conventions:
         'tasks_total': '180',
     }
 
+    # Scheduler variable errors are deferred. We'll handle them later we we create
+    # the test object.
+    DEFER_ERRORS = True
+
     """Each scheduler variable class should provide an example set of
     values for itself to display when using 'pav show' to list the variables.
     These are easily obtained by running a test under the scheduler, and

@@ -18,11 +18,15 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
 
     def get_initial_vars(self, raw_sched_config: dict):
         config = schedulers.validate_config(raw_sched_config)
-        if config['nodes'] == 42:
-            raise schedulers.SchedulerPluginError("You can't ask for 42 nodes in "
-                                                  "dummy scheduler.")
 
-        return super().get_initial_vars(raw_sched_config)
+        sched_vars = super().get_initial_vars(raw_sched_config)
+
+        if config['nodes'] == 42:
+            sched_vars.add_errors([
+                "You can't ask for 42 nodes in dummy scheduler."
+            ])
+
+        return sched_vars
 
     def _get_config_elems(self) -> Tuple[List[yc.ConfigElement], dict, dict]:
 
