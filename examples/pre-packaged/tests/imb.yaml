@@ -20,11 +20,11 @@ base:
         num_nodes: 4
 
     variables:
-      # The question mark at the end of the variable names denote that 
+      # The question mark at the end of the variable names denote that
       # these are expected to be set in the hosts file. See hosts/__example_host_file.yaml
       mpi_cc?: mpicc
       compilers?: []
-      mpis?: []    
+      mpis?: []
 
     build:
         source_url: https://github.com/intel/mpi-benchmarks/archive/refs/heads/master.zip
