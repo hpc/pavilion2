@@ -27,8 +27,8 @@ class StatusCommand(Command):
         parser.add_argument(
             'tests', nargs='*', action='store',
             help="The name(s) of the tests to check.  These may be any mix of "
-                 "test IDs and series IDs. Use 'last' to get just the last "
-                 "series you ran."
+                 "test IDs and series IDs. Lists tests in the last series you "
+                 "ran by default. Use 'all' to show all tests."
         )
         output_mode = parser.add_mutually_exclusive_group()
         output_mode.add_argument(

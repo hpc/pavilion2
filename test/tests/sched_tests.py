@@ -81,6 +81,7 @@ class SchedTests(PavTestCase):
             'test_cmd': '',
             'tasks_per_node': '1',
             'chunk_ids': ['0', '1'],
+            'errors': [],
             'node_list_id': '5',
             'min_cpus': '5',
             'min_mem': '10',
@@ -129,6 +130,7 @@ class SchedTests(PavTestCase):
             'test_cmd': '',
             'tasks_per_node': '1',
             'chunk_ids': [],
+            'errors': [],
             'node_list_id': '5',
             'min_cpus': '4',
             'min_mem': str(8*1024**3),
@@ -219,8 +221,8 @@ class SchedTests(PavTestCase):
         node_list = dummy._node_lists[int(sched_vars.node_list_id())]
         self.assertEqual(len(node_list), 79)
 
-        with self.assertRaises(schedulers.SchedulerPluginError):
-            dummy.get_initial_vars({'include_nodes': ['node00']})
+        svars = dummy.get_initial_vars({'include_nodes': ['node00']})
+        self.assertEqual(len(svars['errors']), 1, msg="There should be an error here.")
 
     def test_chunking_size(self):
         """"""
