@@ -725,4 +725,4 @@ class ResolverTests(PavTestCase):
             self.resolver.load(['sched_errors.c_other_error'])
 
         # This test should be fine.
-        self.resolver.load(['sched_errors.d_normal'])
+        self.resolver.load(['sched_errors.d_no_nodes'])

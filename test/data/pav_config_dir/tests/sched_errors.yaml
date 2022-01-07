@@ -20,9 +20,9 @@ c_other_error:
         cmds:
             - "This variable does not exist: {{no_exist}}"
 
-d_normal:
+d_no_nodes:
     inherits_from: a_error
 
-    run:
-        cmds:
-            # Should not cause an error.
+    schedule:
+        nodes: 5
+        reservation: 'no_exist'

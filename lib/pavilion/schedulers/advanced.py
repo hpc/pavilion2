@@ -279,6 +279,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         if chunk_id in self._chunks:
             return self._chunks[chunk_id]
 
+        # We can potentially have no nodes, in which case return an empty chunk.
+        if chunk_size == 0:
+            self._chunks[chunk_id] = [NodeSet(frozenset([]))]
+            return self._chunks[chunk_id]
+
         chunks = []
         for i in range(len(nodes)//chunk_size):
             # Apply the selection function and get our chunk nodes.
