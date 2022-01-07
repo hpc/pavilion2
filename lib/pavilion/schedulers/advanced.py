@@ -237,7 +237,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     continue
                 elif reservation is None and node['reservations']:
                     reason_key = "node in unselected reservation '{}'" \
-                        .format(reservation, node['reservations'])
+                        .format(node['reservations'])
                     filter_reasons[reason_key].append(node)
                     continue
 
