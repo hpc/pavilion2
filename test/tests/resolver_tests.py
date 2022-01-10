@@ -435,6 +435,9 @@ class ResolverTests(PavTestCase):
             },
             'permute_on': ['foo', 'bar'],
             'subtitle': None,
+            'schedule': {
+                'nodes': '{{bar.0.p}}'
+            },
         }
 
         answer1 = {
@@ -448,7 +451,10 @@ class ResolverTests(PavTestCase):
                            {'oof': '7-8'},
                            {'pav': '9'},
                            {'sys': '10'}]
-                   }
+                   },
+                'schedule': {
+                    'nodes': '4'
+                }
         }
 
         # This is all that changes between the two.

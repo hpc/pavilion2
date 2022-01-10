@@ -132,6 +132,7 @@ class TestStatesStruct(StatesStruct):
     BUILD_TIMEOUT = "The build has timed out."
     BUILD_ERROR = "An unexpected error occurred while setting up the build."
     BUILD_DONE = "The build step has completed."
+    BUILD_COPIED = "The build has completed the copy step."
     BUILD_WAIT = "Waiting for the build lock."
     BUILD_REUSED = "The build was reused from a prior step."
     CANCELLED = "The test was cancelled."

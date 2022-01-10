@@ -115,6 +115,8 @@ class TestConfigResolver:
             )
 
         schedule_cfg = raw_test_cfg.get('schedule', {})
+        schedule_cfg = self.resolve_test_vars(schedule_cfg, var_man)
+
         try:
             sched_vars = sched.get_initial_vars(schedule_cfg)
         except schedulers.SchedulerPluginError as err:
