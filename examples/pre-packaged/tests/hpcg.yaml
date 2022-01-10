@@ -1,53 +1,37 @@
 base:
     summary: Runs High Performance Conjugate Gradient (HPCG) benchmark.
     maintainer:
-      name: Nick Sly
-      email: sly@lanl.gov
-
-    doc: |
-
-      This tests the computational capability of all nodes. Failures can be caused
-      by:
-      Build Failures:
-        - Only builds with a single compiler/MPI combination, so it narrows down
-          the products that could be causing the error.
-      Run Failures:
-        - MPI errors could be an issue with the product installation.  Consult the
-          product manager.
-        - MPI errors could be an HSN fabric issue.
-        - Errors could indicate a single bad node.
-      If other failures are encountered, be sure to take notes of the form of the
-      failure and the fix to be merged into this file.
+      name: Some Guy
+      email: someemail@lanl.gov
 
     variables:
-      # The question mark at the end of the variable names denote that 
-      # these are expected to be set in the hosts file. See hosts/__example_host_file.yaml
+      # These should be set by the host configuration.
       mpi_cxx?: mpicxx
-      compilers?: []
-      mpis?: []    
+      compilers?: []   # Available compiler modules 
+      mpis?: []        # Available mpi modules
 
     scheduler: slurm
-    slurm:
-        tasks_per_node: 2
-        num_nodes: 4
+    schedule:
+      nodes: 4
+      tasks_per_node: 2
 
     build:
-        source_url: 'https://github.com/hpcg-benchmark/hpcg/archive/master.zip'
-        source_path: 'hpcg.zip'
-        modules: ["{{compilers}}", "{{mpis}}"]
-        cmds:
-            - 'sed -e "s@\\(CXX *= \\).*@\\1{{mpi_cxx}}@g" setup/Make.Linux_MPI > setup/Make.Linux_$(basename {{mpi_cxx}})'
-            - "make arch=Linux_$(basename {{mpi_cxx}}) || exit 1"
-            - "cp bin/hpcg.dat ."
+      source_url: 'https://github.com/hpcg-benchmark/hpcg/archive/master.zip'
+      source_path: 'hpcg.zip'
+      modules: ["{{compilers}}", "{{mpis}}"]
+      cmds:
+        - "make arch=Linux_$(basename {{mpi_cxx}}) || exit 1"
+        - "cp bin/hpcg.dat ."
 
     run:
-        timeout: 1200
-        modules: ["{{compilers}}", "{{mpis}}"]
-        cmds:
-            - "{{sched.test_cmd}} ./bin/xhpcg"
+      modules: ["{{compilers}}", "{{mpis}}"]
+      cmds: "{{sched.test_cmd}} ./bin/xhpcg"
 
     result_parse:
       regex:
-        Summary_GFLOPS:
+        gflops:
           files: 'HPCG-Benchmark_*.txt'
           regex: '.*GFLOP/s rating of=(.*)$'
+
+    result_evaluate:
+      gflops_per_node: 'gflops/test_nodes'

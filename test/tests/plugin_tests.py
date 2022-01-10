@@ -2,6 +2,7 @@
 
 import argparse
 
+import pavilion.deferred
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
@@ -11,7 +12,7 @@ from pavilion import output
 from pavilion import result_parsers
 from pavilion import sys_vars
 from pavilion import expression_functions
-from pavilion.test_config import variables
+from pavilion.resolver import variables
 from pavilion.unittest import PavTestCase
 import io
 import logging
@@ -210,13 +211,13 @@ class PluginTests(PavTestCase):
         # Check that the deferred values are actually deferred.
         self.assertFalse('host_arch' in svars)
         self.assertTrue(isinstance(svars['host_arch'],
-                                   variables.DeferredVariable))
+                                   pavilion.deferred.DeferredVariable))
         self.assertFalse('host_name' in svars)
         self.assertTrue(isinstance(svars['host_name'],
-                                   variables.DeferredVariable))
+                                   pavilion.deferred.DeferredVariable))
         self.assertFalse('host_os' in svars)
         self.assertTrue(isinstance(svars['host_os'],
-                                   variables.DeferredVariable))
+                                   pavilion.deferred.DeferredVariable))
 
         plugins._reset_plugins()
 

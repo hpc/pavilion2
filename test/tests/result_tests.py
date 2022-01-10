@@ -318,6 +318,7 @@ class ResultParserTests(PavTestCase):
 
         for key in base.BASE_RESULTS.keys():
             self.assertIn(key, base_results)
+
             # Base result keys should have a non-None value, even from an
             # empty config file.
             self.assertIsNotNone(
@@ -572,7 +573,7 @@ class ResultParserTests(PavTestCase):
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
 
         for test in run_cmd.last_tests:
-            test.wait(3)
+            test.wait(10)
 
         res_args = arg_parser.parse_args(
             ('result', '--full') + tuple(t.full_id for t in run_cmd.last_tests))

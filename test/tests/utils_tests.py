@@ -2,6 +2,7 @@
 
 import datetime as dt
 import subprocess as sp
+import getpass
 import os
 import tempfile
 from pathlib import Path
@@ -60,7 +61,7 @@ class UtilsTests(unittest.PavTestCase):
         with path.open('w') as file:
             file.write('hi there')
 
-        self.assertEqual(utils.owner(path), os.getlogin())
+        self.assertEqual(utils.owner(path), getpass.getuser())
 
         # Try to set the permissions of the file to an unknown user.
         proc = sp.Popen(['sudo', '-n', 'chown', '12341', path.as_posix()],

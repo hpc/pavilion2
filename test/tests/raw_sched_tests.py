@@ -1,3 +1,4 @@
+import pavilion.schedulers
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.unittest import PavTestCase
@@ -22,9 +23,9 @@ class RawSchedTests(PavTestCase):
 
         test = self._quick_test()
 
-        raw_sched = schedulers.get_plugin('raw')
+        raw_sched = pavilion.schedulers.get_plugin('raw')
 
-        vars = raw_sched.get_vars(test.config['raw'])
+        vars = raw_sched.get_initial_vars(test.config['schedule'])
 
         for key in vars.keys():
             _ = vars[key]

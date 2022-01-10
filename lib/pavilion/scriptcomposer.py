@@ -17,15 +17,11 @@ class ScriptComposerError(RuntimeError):
 class ScriptHeader:
     """Class to serve as a struct for the script header."""
 
-    def __init__(self, shebang='#!/bin/bash', scheduler_headers=None):
+    def __init__(self, shebang='#!/bin/bash'):
         """The header values for a script.
         :param string shebang: Shell path specification.  Typically
                                   '/bin/bash'.  default = None.
-        :param list scheduler_headers: List of lines for scheduler resource
-                                       specifications.
         """
-        self._scheduler_headers = None
-        self.scheduler_headers = scheduler_headers
 
         # Set _shebang so that style_check doesn't complain at the setter block.
         self._shebang = None
@@ -41,31 +37,12 @@ class ScriptHeader:
         """Function to set the value of the internal shell path variable."""
         self._shebang = value
 
-    @property
-    def scheduler_headers(self):
-        """Function to return the list of scheduler header lines."""
-        return self._scheduler_headers
-
-    @scheduler_headers.setter
-    def scheduler_headers(self, value):
-        """Function to set the list of scheduler header lines."""
-        if value is None:
-            value = []
-
-        self._scheduler_headers = value
-
     def get_lines(self):
         """Function to retrieve a list of lines for the script header."""
         if self.shebang[:2] != '#!':
             ret_list = ['#!{}'.format(self.shebang)]
         else:
             ret_list = [self.shebang]
-
-        for i in range(0, len(self.scheduler_headers)):
-            if self.scheduler_headers[i][0] != '#':
-                ret_list.append('# {}'.format(self.scheduler_headers[i]))
-            else:
-                ret_list.append(self.scheduler_headers[i])
 
         return ret_list
 
@@ -74,22 +51,6 @@ class ScriptHeader:
         None.
         """
         self.__init__()
-
-
-class NoHeader(ScriptHeader):
-    """Class for no file header.
-    None.
-    """
-    @property
-    def shebang(self):
-        pass
-
-    @shebang.setter
-    def shebang(self, comment):
-        pass
-
-    def get_lines(self):
-        pass
 
 
 class ScriptComposer:
@@ -101,7 +62,6 @@ class ScriptComposer:
 
         :param ScriptHeader header: The header class to use. Defaults to one
             that simply adds ``#!/bin/bash`` as the file header.
-        :param ScriptDetails details: The metadata class to use.
         """
 
         if header is None:
@@ -177,7 +137,7 @@ in one of three formats:
 
         :param str module: Name of a module or a list thereof in the format
             used in the user config.
-        :param dict sys_vars: The pavilion system variable dictionary.
+        :param sys_vars: The pavilion system variable dictionary.
         """
 
         action, (name, version), (oldname, oldver) = self.parse_module(module)

@@ -1,50 +1,86 @@
+"""An advanced dummy plugin."""
+
+from typing import Union, List, Any, Tuple
+
+import pavilion.schedulers.advanced
 import yaml_config as yc
-from collections import defaultdict
 from pavilion import schedulers
-from pavilion.status_file import STATES
+from pavilion.jobs import Job, JobInfo
+from pavilion.schedulers import NodeInfo
+from pavilion.status_file import TestStatusInfo, STATES
+import subprocess
 
 
-class DummyVars(schedulers.SchedulerVariables):
-
-    EXAMPLE = defaultdict(lambda: '')
-
-    @schedulers.var_method
-    def am_i_dumb(self):
-        "Derr..."
-        return True
-
-
-class Dummy(schedulers.SchedulerPlugin):
-
-    VAR_CLASS = DummyVars
+class Dummy(pavilion.schedulers.advanced.SchedulerPluginAdvanced):
+    """Returns fake info about a fake machine, and creates fake jobs."""
 
     def __init__(self):
         super().__init__('dummy', 'I am dumb')
 
-    def get_conf(self):
-        return yc.KeyedElem('dummy', elements=[])
+    def _get_config_elems(self) -> Tuple[List[yc.ConfigElement], dict, dict]:
 
-    def _schedule(self, test_obj, kickoff_path):
-        """The dummy scheduler does nothing, because it's dumb."""
+        return [yc.StrElem('foo'),], {'foo': int}, {'foo': 5}
 
-        return ""
+    def _job_status(self, pav_cfg, job_info: JobInfo) -> Union[TestStatusInfo, None]:
 
-    def available(self):
+        if job_info['id'] == '1':
+            return TestStatusInfo(
+                STATES.SCHEDULED,
+                "Nothing is wrong."
+            )
+        else:
+            return TestStatusInfo(
+                STATES.SCHED_ERROR,
+                "Everything is wrong"
+            )
+
+    def cancel(self, job_info: JobInfo) -> Union[str, None]:
+        """Cancel only job 1"""
+
+        if job_info['id'] == '1':
+            return None
+        else:
+            return "I have failed."
+
+    def _available(self):
+        """Always available."""
         return True
 
-    def job_status(self, pav_cfg, test):
-        """Dummy jobs are always ok, because they're dumb."""
-        if test.status.current().state == STATES.SCHEDULED:
-            test.status.set(STATES.COMPLETE, "I'm done, dummy.")
+    def _get_raw_node_data(self, sched_config) -> Tuple[List[Any], Any]:
 
-        return test.status.current()
+        nodes = []
+        for node_id in range(100):
+            partitions = ['foo']
+            if node_id % 2:
+                partitions.append('baz')
+            reservations = []
+            if node_id < 20:
+                reservations.append('rez1')
+            features = ['normal']
+            if node_id % 3:
+                features.append('evil')
 
-    def cancel_job(self, test):
-        """Do nothing, like a lazy jerk Class."""
+            nodes.append({
+                'name': 'node{:02d}'.format(node_id),
+                'up': (node_id % 10) != 0,
+                'available': (node_id % 10) not in (0, 1),
+                'partitions': partitions,
+                'reservations': reservations,
+                'features': features,
+                'foo': sched_config['dummy']['foo'],
+            })
 
-        return True, "There was nothing to cancel, dummy."
+        extra = None
 
-    def _get_data(self):
-        """No data to return."""
+        return nodes, extra
 
-        return {}
+    def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
+        return NodeInfo(node_data)
+
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict,
+                 chunk: schedulers.NodeList) -> JobInfo:
+
+        subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+
+        return JobInfo({'id': '1'})

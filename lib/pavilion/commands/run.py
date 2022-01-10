@@ -173,13 +173,3 @@ class RunCommand(Command):
             )
 
         return 0
-
-    @staticmethod
-    def _cancel_all(tests_by_sched):
-        """Cancel each of the given tests using the appropriate scheduler."""
-        for sched_name, tests in tests_by_sched.items():
-
-            sched = schedulers.get_plugin(sched_name)
-
-            for test in tests:
-                sched.cancel_job(test)
