@@ -157,7 +157,7 @@ Naming Conventions:
                 return tasks_per_node
         else:  # Should be a float
             if self._nodes:
-                return min(int(tasks_per_node) * self.min_cpus(), 1)
+                return min(int(tasks_per_node) * int(self.min_cpus()), 1)
             else:
                 return 1
 

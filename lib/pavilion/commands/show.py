@@ -830,11 +830,11 @@ class ShowCommand(Command):
             suite = suites[suite_name]
 
             if suite['err']:
-                suite_name = output.ANSIString(suite_name,
+                suite_name = output.ANSIString(suite_name + '.*',
                                                output.RED)
 
                 rows.append({
-                    'name':    '{}.*'.format(suite_name),
+                    'name':    suite_name,
                     'summary': 'Loading the suite failed.  '
                                'For more info, run `pav show tests --err`.',
                     'path':    suite['path'],

@@ -51,7 +51,10 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
         alloc_nodes = self._get_alloc_nodes()
 
         num_nodes = sched_config['nodes']
-        alloc_nodes = alloc_nodes[:num_nodes]
+        if isinstance(num_nodes, float):
+            num_nodes = alloc_nodes[:int(len(alloc_nodes)*num_nodes)]
+        else:
+            alloc_nodes = alloc_nodes[:num_nodes]
 
         nodes = Nodes({})
         for node in alloc_nodes:

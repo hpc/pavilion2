@@ -8,8 +8,8 @@ import inspect
 from collections import UserDict
 from functools import wraps
 from pavilion.deferred import DeferredVariable
+import traceback
 from typing import List
-
 
 def var_method(func):
     """This decorator marks the given function as a scheduler variable. The
@@ -157,9 +157,11 @@ class VarDict(UserDict):
                 # If we're deferring errors, save the given error and
                 # set the value to an error message.
                 if self.DEFER_ERRORS:
-                    msg = "Error getting key '{}': {}".format(key, err)
+                    formatted_err = traceback.format_exc()
+                    msg = "Error getting key '{}' (See logs for full traceback): {}"\
+                            .format(key, err)
                     self.data[key] = "<{}>".format(msg)
-                    self._errors.append(msg)
+                    self._errors.append(msg + '\n' + formatted_err)
                 else:
                     # If we're not deferring errors, just re-raise it.
                     raise
