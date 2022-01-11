@@ -553,6 +553,9 @@ class TestRun(TestAttributes):
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
 
+        if build_result:
+            self.status.set(STATES.BUILD_DONE, "Build is complete.")
+
         if self.build_only:
             self.set_run_complete()
 

@@ -432,11 +432,15 @@ class ResolverTests(PavTestCase):
                 'bar': [
                     {'p': '4', 'q': '4a'},
                 ],
+                'bloop': '{{baz}}'
             },
             'permute_on': ['foo', 'bar'],
             'subtitle': None,
             'schedule': {
-                'nodes': '{{bar.0.p}}'
+                'nodes': '{{bar.0.p}}',
+                # Make sure recursive vars work too.
+                'reservation': '{{bloop}}',
+
             },
         }
 
@@ -453,7 +457,8 @@ class ResolverTests(PavTestCase):
                            {'sys': '10'}]
                    },
                 'schedule': {
-                    'nodes': '4'
+                    'nodes': '4',
+                    'reservation': '6',
                 }
         }
 

@@ -153,6 +153,7 @@ class VarDict(UserDict):
         if key not in self.data:
             try:
                 self.data[key] = getattr(self, key)()
+            # pylint: disable=broad-except
             except Exception as err:
                 # If we're deferring errors, save the given error and
                 # set the value to an error message.

@@ -596,7 +596,7 @@ class TestBuilder:
         else:
 
             tracker.update(
-                state=STATES.BUILD_DONE,
+                state=STATES.BUILD_SUCCESS,
                 note="Build completed successfully.")
             return True
 
