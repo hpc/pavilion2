@@ -258,8 +258,7 @@ index, sub_var) tuple.
         """Resolve all variable references that are within variable values
         defined in the 'variables' section of the test config.
 
-        :raises TestConfigError: When reference loops are found.
-        :raises KeyError: When an unknown variable is referenced.
+        :raises VariableError: When reference loops are found.
         """
 
         # We only want to resolve variable references in the variable section
@@ -316,7 +315,10 @@ index, sub_var) tuple.
                         res_val = transformer.transform(tree)
                     except DeferredError:
                         res_val = None
-
+                    except (parsers.StringParserError, parsers.ParserValueError) as err:
+                        raise VariableError(err, var_set=var_set, var=var_name, index=index,
+                                            sub_var=sub_var)
+                                            
                     if res_val is None:
                         # One or more of the variables is deferred, so we can't
                         # resolve this now. Mark it as deferred.

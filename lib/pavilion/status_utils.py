@@ -1,7 +1,6 @@
 """A collection of utilities for getting the current status of test runs
 and series."""
 
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -16,12 +15,14 @@ from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
 
 
-def get_last_ctime(path):
+def format_mtime(mtime):
     """Gets the time path was modified."""
-    mtime = os.path.getmtime(str(path))
     ctime = str(time.ctime(mtime))
     ctime = ctime[11:19]
     return ctime
+
+
+RUNNING_UPDATE_TIMEOUT = 5
 
 
 def status_from_test_obj(pav_cfg: dict, test: TestRun):
@@ -38,7 +39,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
 
     status_f = test.status.current()
 
-    if status_f.state == STATES.SCHEDULED:
+    if status_f.state in STATES.RUNNING:
         sched = schedulers.get_plugin(test.scheduler)
         status_f = sched.job_status(pav_cfg, test)
     elif status_f.state == STATES.BUILDING:
@@ -47,13 +48,23 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
             status_f.note, '\nLast updated: ',
             str(last_update) if last_update is not None else '<unknown>'])
     elif status_f.state == STATES.RUNNING:
-        last_update = get_last_ctime(test.path/'run.log')
-        status_f.note = ' '.join([
-            status_f.note, '\nLast updated:',
-            str(last_update) if last_update is not None else '<unknown>'])
+        log_path = test.path/'run.log'
+        if log_path.exists():
+            mtime = log_path.stat().st_mtime
+        else:
+            mtime = None
+
+        if mtime is None or time.time() - mtime > RUNNING_UPDATE_TIMEOUT:
+            sched = schedulers.get_plugin(test.scheduler)
+            status_f = sched.job_status(pav_cfg, test)
+        else:
+            last_update = format_mtime(mtime)
+            status_f.note = ' '.join([
+                status_f.note, '\nLast updated:', last_update])
 
     return {
         'test_id': test.id,
+        'job_id':  str(test.job),
         'name':    test.name,
         'state':   status_f.state,
         'time':    status_f.when,
@@ -116,6 +127,7 @@ def get_status(test: TestRun, pav_conf):
     except (TestRunError, TestRunNotFoundError) as err:
         test_status = {
             'test_id': test.full_id,
+            'job_id':  str(test.job),
             'name':    test.name,
             'state':   STATES.UNKNOWN,
             'time':    None,
@@ -140,8 +152,8 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
-:param list statuses: list of dictionary objects containing the test
-                      ID, name, state, time of state update, and note
+:param list statuses: list of dictionary objects containing the test_id, 
+                      job_id, name, state, time of state update, and note
                       associated with that state.
 :param bool json: Whether state should be printed as a JSON object or
                   not.
@@ -149,6 +161,8 @@ def print_status(statuses, outfile, json=False):
 :return: success or failure.
 :rtype: int
 """
+
+    statuses.sort(key=lambda v: v.get('test_id'))
 
     ret_val = 1
     for stat in statuses:
@@ -158,7 +172,7 @@ def print_status(statuses, outfile, json=False):
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
     else:
-        fields = ['test_id', 'name', 'state', 'time', 'note']
+        fields = ['test_id', 'job_id', 'name', 'state', 'time', 'note']
         output.draw_table(
             outfile=outfile,
             field_info={

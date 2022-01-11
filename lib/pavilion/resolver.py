@@ -12,6 +12,7 @@ import io
 import logging
 import multiprocessing as mp
 import os
+import pprint
 import re
 import uuid
 from collections import defaultdict
@@ -47,8 +48,8 @@ class ProtoTest:
     manager."""
 
     def __init__(self, config, var_man):
-        self.config = config
-        self.var_man = var_man
+        self.config = config  # type: dict
+        self.var_man = var_man  # type: variables.VariableSetManager
 
 
 class TestConfigResolver:
@@ -77,6 +78,12 @@ class TestConfigResolver:
     def build_variable_manager(self, raw_test_cfg):
         """Get all of the different kinds of Pavilion variables into a single
         variable set manager for this test.
+
+        NOTE: Errors generated when getting scheduler variables will be placed
+            in the 'sched.errors' variable in the variable manager. This can happen
+            primarily because we're doing this before we filter tests for conditions
+            like the type of system the test is running on. If the test is skipped,
+            then it's a not problem, but in all other cases we should inform the user.
 
         :param raw_test_cfg: A raw test configuration. It should be from before
             any variables are resolved.
@@ -107,18 +114,18 @@ class TestConfigResolver:
                 .format(sched.name)
             )
 
+        schedule_cfg = raw_test_cfg.get('schedule', {})
+        schedule_cfg = self.resolve_test_vars(schedule_cfg, var_man)
+
         try:
-            schedule_cfg = raw_test_cfg.get('schedule', {})
             sched_vars = sched.get_initial_vars(schedule_cfg)
-            var_man.add_var_set('sched', sched_vars)
         except schedulers.SchedulerPluginError as err:
+            # Errors should generally be deferred here, but just in case.
             raise TestConfigError(
-                "Could not get variables for scheduler {}: {}"
-                .format(scheduler, err)
-            )
-        except VariableError as err:
-            raise TestConfigError("Error in scheduler variables: {}"
-                                  .format(err))
+                "Error getting initial variables from scheduler {} with "
+                "config: {}".format(scheduler, pprint.pformat(schedule_cfg)))
+
+        var_man.add_var_set('sched', sched_vars)
 
         return var_man
 
@@ -371,6 +378,9 @@ class TestConfigResolver:
         if outfile:
             output.fprint('', file=outfile)
 
+        # NOTE: The deferred scheduler errors will be handled when we try to save
+        #       the test object. (See build_variable_manager() above)
+
         return resolved_tests
 
     def resolve(self, test_cfg: dict, base_var_man: variables.VariableSetManager):
@@ -380,6 +390,8 @@ class TestConfigResolver:
 
         # A list of tuples of test configs and their permuted var_man
         permuted_tests = []  # type: (dict, variables.VariableSetManager)
+
+        sched_errors = base_var_man.get('sched.errors')
 
         # Resolve all configuration permutations.
         try:
@@ -394,6 +406,11 @@ class TestConfigResolver:
         except TestConfigError as err:
             msg = 'Error resolving permutations for test {} from {}: {}' \
                 .format(test_cfg['name'], test_cfg['suite_path'], err)
+
+            if sched_errors is not None:
+                msg += "\nScheduler errors also happened, which may be the root " \
+                       "cause:\n{}".format(sched_errors)
+
             raise TestConfigError(msg)
 
         # Set the scheduler variables for each test.
@@ -406,6 +423,11 @@ class TestConfigResolver:
                 msg = ('In test {} from {}:\n{}'
                        .format(test_cfg['name'], test_cfg['suite_path'],
                                err.args[0]))
+
+                if sched_errors is not None:
+                    msg += "\nScheduler errors also happened, which may be the root " \
+                           "cause:\n{}".format(sched_errors)
+
                 raise TestConfigError(msg)
 
             resolved_tests.append(ProtoTest(resolved_config, pvar_man))
@@ -960,7 +982,12 @@ class TestConfigResolver:
         # var_men is a list of variable managers, one for each permutation
         var_men = base_var_man.get_permutations(list(used_per_vars))
         for var_man in var_men:
-            var_man.resolve_references()
+            try:
+                var_man.resolve_references()
+            except (KeyError, ValueError) as err:
+                raise TestConfigError(
+                    "Error resolving vars in permuted test '{}':\n{}"
+                    .format(test_cfg['name'], err))
         return test_cfg, var_men
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',

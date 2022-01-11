@@ -240,8 +240,10 @@ class TestSet:
                             "Cleanup of skipped test {} was unsuccessful.")
 
             except (TestRunError, TestConfigError) as err:
-                msg = ("Error creating tests in test set '{}': {}"
-                       .format(self.name, err.args[0]))
+                tcfg = ptest.config
+                test_name = "{}.{}".format(tcfg.get('suite'), tcfg.get('name'))
+                msg = ("Error creating test '{}' in test set '{}': {}"
+                       .format(test_name, self.name, err.args[0]))
                 self.status.set(S_STATES.ERROR, msg)
                 self.cancel("Error creating other tests in test set '{}'"
                             .format(self.name))

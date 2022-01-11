@@ -233,6 +233,11 @@ class TestRun(TestAttributes):
         if self.skipped:
             raise RuntimeError("Skipped tests should never be saved.")
 
+        deferred_errors = self.var_man.get('sched.errors')
+        if deferred_errors is not None:
+            raise TestRunError("Errors were found when creating test {}.\n{}"
+                               .format(self.name, deferred_errors))
+
         self._save_config()
         self.var_man.save(self._variables_path)
         # Setup the initial status file.
@@ -547,6 +552,9 @@ class TestRun(TestAttributes):
             build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
+
+        if build_result:
+            self.status.set(STATES.BUILD_DONE, "Build is complete.")
 
         if self.build_only:
             self.set_run_complete()
@@ -1091,7 +1099,7 @@ be set by the scheduler plugin as soon as it's known."""
             # Skip any keys that were deferred.
             if DeferredVariable.was_deferred(key):
                 raise TestRunError(
-                    "Skip conditions cannot contained deferred variables. Error"
+                    "Skip conditions cannot contain deferred variables. Error "
                     "with skip condition that uses variable '{}'".format(key))
 
             for val in not_if[key]:
@@ -1111,7 +1119,7 @@ be set by the scheduler plugin as soon as it's known."""
                 # We have to assume a match if one of the values is deferred.
                 if DeferredVariable.was_deferred(key):
                     raise TestRunError(
-                        "Skip conditions cannot contained deferred variables. Error"
+                        "Skip conditions cannot contain deferred variables. Error "
                         "with skip condition that uses variable '{}'".format(key))
 
                 if not val.endswith('$'):

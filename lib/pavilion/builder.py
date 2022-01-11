@@ -596,7 +596,7 @@ class TestBuilder:
         else:
 
             tracker.update(
-                state=STATES.BUILD_DONE,
+                state=STATES.BUILD_SUCCESS,
                 note="Build completed successfully.")
             return True
 
@@ -751,6 +751,8 @@ class TestBuilder:
         :returns: True on success, False on failure
         """
 
+        start = time.time()
+
         do_copy = set()
         copy_globs = self._config.get('copy_files', [])
         for copy_glob in copy_globs:
@@ -804,6 +806,10 @@ class TestBuilder:
                 STATES.WARNING,
                 "Could not update timestamp on build directory '%s': %s"
                 .format(self.path, err))
+
+        self.status.set(STATES.BUILD_COPIED,
+                        "Performed the symlink copy in {} seconds."
+                        .format(time.time() - start))
 
         return True
 

@@ -101,18 +101,19 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         filtered_nodes, filter_reasons = self._filter_nodes(sched_config)
         filtered_nodes.sort()
 
+        errors = []
+
         if sched_config['include_nodes']:
             for node in sched_config['include_nodes']:
                 if node not in filtered_nodes:
-                    raise SchedulerPluginError(
+                    errors.append(
                         "Requested node (via 'schedule.include_nodes') was filtered "
-                        "due to other filtering "
-                    )
+                        "due to other filtering ")
 
         if not filtered_nodes:
             reasons = "\n".join("{}: {}".format(k, v)
                                 for k, v in filter_reasons.items())
-            raise SchedulerPluginError(
+            errors.append(
                 "All nodes were filtered out during the node filtering step. "
                 "Nodes were filtered for the following reasons:\n{}\n"
                 "Scheduler config:\n{}\n"
@@ -126,8 +127,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         chunks = self._get_chunks(node_list_id, sched_config)
 
-        return self.VAR_CLASS(sched_config, nodes=self._nodes, chunks=chunks,
-                              node_list_id=node_list_id)
+        sched_vars = self.VAR_CLASS(sched_config, nodes=self._nodes, chunks=chunks,
+                                    node_list_id=node_list_id)
+        sched_vars.add_errors(errors)
+        return sched_vars
 
     def get_final_vars(self, test: TestRun) -> SchedulerVariables:
         """Load our saved node data from kickoff time, and compute the final
@@ -219,14 +222,17 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             if (partition is not None
                     and 'partitions' in node
                     and partition not in node['partitions']):
-                filter_reasons['partition'].append(node_name)
+                reason_key = "partition '{}' not in {}".format(partition, node['partitions'])
+                filter_reasons[reason_key].append(node_name)
                 continue
 
-            if (reservation is not None
-                    and 'reservations' in node
-                    and reservation not in node['reservations']):
-                filter_reasons['reservation'].append(node)
-                continue
+            if 'reservations' in node:
+                if (reservation is not None
+                        and reservation not in node['reservations']):
+                    reason_key = "reservation '{}' not in {}"\
+                                 .format(reservation, node['reservations'])
+                    filter_reasons[reason_key].append(node)
+                    continue
 
             if node_name in exclude_nodes:
                 filter_reasons['excluded'].append(node)
@@ -272,6 +278,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         # If we already have chunks for our node list and settings, just return what
         # we've got.
         if chunk_id in self._chunks:
+            return self._chunks[chunk_id]
+
+        # We can potentially have no nodes, in which case return an empty chunk.
+        if chunk_size == 0:
+            self._chunks[chunk_id] = [NodeSet(frozenset([]))]
             return self._chunks[chunk_id]
 
         chunks = []

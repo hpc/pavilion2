@@ -43,9 +43,9 @@ slurm kickoff script.
         if reservation:
             lines.append('#SBATCH --reservation {}'.format(reservation))
         if self._config.get('qos') is not None:
-            lines.append('#SBATCH --qos {s._conf[qos]}'.format(s=self))
+            lines.append('#SBATCH --qos {}'.format(self._config['qos']))
         if self._config.get('account') is not None:
-            lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
+            lines.append('#SBATCH --account {}'.format(self._config['account']))
 
         time_limit = '{}:0:0'.format(self._config['time_limit'])
         lines.append('#SBATCH -t {}'.format(time_limit))
@@ -200,6 +200,10 @@ class Slurm(SchedulerPluginAdvanced):
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
+            yc.ListElem(name='reserved_states',
+                        sub_elem=yc.StrElem(),
+                        help_text="Ignore nodes in these states, unless a reservation "
+                                  "was specified."),
             yc.ListElem(name='srun_extra',
                         sub_elem=yc.StrElem(),
                         help_text="Extra arguments to pass to srun as part of the "
@@ -224,9 +228,11 @@ class Slurm(SchedulerPluginAdvanced):
         defaults = {
             'up_states': ['ALLOCATED',
                           'COMPLETING',
+                          'MAINTENANCE',
                           'IDLE',
                           'MAINT'],
-            'avail_states': ['IDLE', 'MAINT'],
+            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE'],
+            'reserved_states': ['RESERVED'],
             'sbatch_extra': [],
             'srun_extra': [],
             'mpi_cmd': self.MPI_CMD_SRUN,
@@ -237,6 +243,7 @@ class Slurm(SchedulerPluginAdvanced):
         validators = {
             'up_states': validate_slurm_states,
             'avail_states': validate_slurm_states,
+            'reserved_states': validate_slurm_states,
             'srun_extra': validate_list,
             'sbatch_extra': validate_list,
             'mpi_cmd': self.MPI_CMD_OPTIONS,
@@ -456,6 +463,11 @@ class Slurm(SchedulerPluginAdvanced):
 
         up_states = sched_config['slurm']['up_states']
         avail_states = sched_config['slurm']['avail_states']
+        reserved_states = sched_config['slurm']['reserved_states']
+        if sched_config['reservation']:
+            up_states.extend(reserved_states)
+            avail_states.extend(reserved_states)
+
         node_info['up'] = all(state in up_states for state in node_info['states'])
         node_info['avail'] = all(state in avail_states for state in node_info['states'])
 

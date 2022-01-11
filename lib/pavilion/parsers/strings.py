@@ -312,11 +312,11 @@ class StringTransformer(PavTransformer):
         try:
             return get_expr_parser().parse(expr.value['expr'])
         except ParserValueError as err:
-            err.pos_in_stream += expr.pos_in_stream
+            err.pos_in_stream += expr.start_pos
             # Re-raise the corrected error
             raise
         except lark.UnexpectedInput as err:
-            err.pos_in_stream += expr.pos_in_stream
+            err.pos_in_stream += expr.start_pos
             # Alter the error state to make sure it can be differentiated
             # from string_parser states.
             err.state = 'expr-{}'.format(err.state)
@@ -342,7 +342,7 @@ class StringTransformer(PavTransformer):
         try:
             value = transformer.transform(tree)
         except ParserValueError as err:
-            err.pos_in_stream += expr.pos_in_stream
+            err.pos_in_stream += expr.start_pos
             raise
 
         if not isinstance(value, (int, float, bool, str)):
@@ -376,8 +376,8 @@ class StringTransformer(PavTransformer):
         Displace the position information in 'inner' so that the positions
         point to the same location in base."""
 
-        inner.pos_in_stream = base.pos_in_stream + inner.pos_in_stream
-        inner.end_pos = base.pos_in_stream + inner.end_pos
+        inner.start_pos = base.start_pos + inner.start_pos
+        inner.end_pos = base.start_pos + inner.end_pos
         inner.line = base.line + inner.line
         inner.column = base.column + inner.column
         inner.end_line = base.line + inner.end_line

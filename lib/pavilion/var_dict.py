@@ -8,7 +8,8 @@ import inspect
 from collections import UserDict
 from functools import wraps
 from pavilion.deferred import DeferredVariable
-
+import traceback
+from typing import List
 
 def var_method(func):
     """This decorator marks the given function as a scheduler variable. The
@@ -114,6 +115,8 @@ class VarDict(UserDict):
     value. Methods that start with '_' are ignored.
     """
 
+    DEFER_ERRORS = False
+
     def __init__(self, name, deferred=True):
         """Initialize the scheduler var dictionary.
         :param str name: The name of this var dict.
@@ -125,6 +128,7 @@ class VarDict(UserDict):
         self._deferred = deferred
 
         self._keys = self._find_vars()
+        self._errors = []
 
     def _find_vars(self):
         """Find all the scheduler variables and add them as variables."""
@@ -147,9 +151,34 @@ class VarDict(UserDict):
                            .format(self._name, key))
 
         if key not in self.data:
-            self.data[key] = getattr(self, key)()
+            try:
+                self.data[key] = getattr(self, key)()
+            # pylint: disable=broad-except
+            except Exception as err:
+                # If we're deferring errors, save the given error and
+                # set the value to an error message.
+                if self.DEFER_ERRORS:
+                    formatted_err = traceback.format_exc()
+                    msg = "Error getting key '{}' (See logs for full traceback): {}"\
+                            .format(key, err)
+                    self.data[key] = "<{}>".format(msg)
+                    self._errors.append(msg + '\n' + formatted_err)
+                else:
+                    # If we're not deferring errors, just re-raise it.
+                    raise
 
         return self.data[key]
+
+    @var_method
+    def errors(self):
+        """Return the list of retrieval errors encountered when using this var_dict.
+        Key errors are not included."""
+        return self._errors
+
+    def add_errors(self, errors: List[str]):
+        """Add the given errors to the error list."""
+
+        self._errors.extend(errors)
 
     def keys(self):
         """As per the dict class."""

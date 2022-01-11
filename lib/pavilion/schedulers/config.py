@@ -60,7 +60,9 @@ class ScheduleConfig(yc.KeyedElem):
             help_text="The account to use when creating an allocation."),
         yc.StrElem(
             'reservation',
-            help_text="The reservation to use when creating an allocation."),
+            help_text="The reservation to use when creating an allocation. When blank "
+                      "nodes in reservations are filtered. Use the keyword 'any' to "
+                      "select nodes regardless of reservation."),
         yc.StrElem(
             'time_limit',
             default='1',

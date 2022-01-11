@@ -1,21 +1,32 @@
 """An advanced dummy plugin."""
 
+import subprocess
 from typing import Union, List, Any, Tuple
 
-import pavilion.schedulers.advanced
 import yaml_config as yc
 from pavilion import schedulers
 from pavilion.jobs import Job, JobInfo
 from pavilion.schedulers import NodeInfo
 from pavilion.status_file import TestStatusInfo, STATES
-import subprocess
 
 
-class Dummy(pavilion.schedulers.advanced.SchedulerPluginAdvanced):
+class Dummy(schedulers.SchedulerPluginAdvanced):
     """Returns fake info about a fake machine, and creates fake jobs."""
 
     def __init__(self):
         super().__init__('dummy', 'I am dumb')
+
+    def get_initial_vars(self, raw_sched_config: dict):
+        config = schedulers.validate_config(raw_sched_config)
+
+        sched_vars = super().get_initial_vars(raw_sched_config)
+
+        if config['nodes'] == 42:
+            sched_vars.add_errors([
+                "You can't ask for 42 nodes in dummy scheduler."
+            ])
+
+        return sched_vars
 
     def _get_config_elems(self) -> Tuple[List[yc.ConfigElement], dict, dict]:
 

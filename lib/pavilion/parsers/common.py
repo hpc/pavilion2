@@ -11,7 +11,7 @@ class ParserValueError(lark.LarkError):
         super().__init__(message)
 
         self.token = token
-        self.pos_in_stream = token.pos_in_stream
+        self.pos_in_stream = token.start_pos
 
     # Steal the get_context method
     get_context = lark.UnexpectedInput.get_context
@@ -81,7 +81,7 @@ class PavTransformer(lark.Transformer):
         tokens.reverse()
 
         tok = tokens.pop()
-        pos_in_stream = tok.pos_in_stream
+        tok_pos = tok.start_pos
         line = tok.line
         column = tok.column
         end_line = tok.end_line
@@ -91,15 +91,15 @@ class PavTransformer(lark.Transformer):
         while tokens:
             tok = tokens.pop()
 
-            if (pos_in_stream is None or
-                    tok.pos_in_stream is not None and
-                    pos_in_stream > tok.pos_in_stream):
-                pos_in_stream = tok.pos_in_stream
+            if (tok_pos is None or
+                    tok.start_pos is not None and
+                    tok_pos > tok.start_pos):
+                tok_pos = tok.start_pos
 
             if (end_pos is None or
                     tok.end_pos is not None and
-                    end_pos > tok.pos_in_stream):
-                end_pos = tok.pos_in_stream
+                    end_pos > tok.start_pos):
+                end_pos = tok.start_pos
 
             if line is None:
                 line = tok.line
@@ -130,6 +130,6 @@ class PavTransformer(lark.Transformer):
             column=column,
             end_line=end_line,
             end_column=end_column,
-            pos_in_stream=pos_in_stream,
+            start_pos=tok_pos,
             end_pos=end_pos
         )

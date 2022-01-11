@@ -171,6 +171,34 @@ class SeriesTests(PavTestCase):
         self.assertEqual(e.parent_sets, set())
         self.assertEqual(e.child_sets, set())
 
+    def test_sched_errors(self):
+        """Errors getting scheduler variables are deferred. Make sure we catch them
+        appropriately."""
+
+        cfg = series_config.make_config({
+            'series': {
+                'a': {
+                    'tests': ['sched_errors.a_error', 'sched_errors.b_skipped']
+                }
+            }
+        })
+
+        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        with self.assertRaises(series.TestSeriesError):
+            series1.run()
+
+        cfg = series_config.make_config({
+            'series': {
+                'a': {
+                    'tests': ['sched_errors.c_other_error', 'sched_errors.b_skipped']
+                }
+            }
+        })
+
+        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        with self.assertRaises(series.TestSeriesError):
+            series1.run()
+
     def test_series_conditionals_only_if_ok(self):
         """Test that adding a conditional that always matches produces tests that
         run when expected."""
