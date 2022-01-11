@@ -64,7 +64,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
 
     return {
         'test_id': test.id,
-        'job_id':  test.job.name,
+        'job_id':  str(test.job),
         'name':    test.name,
         'state':   status_f.state,
         'time':    status_f.when,
@@ -127,7 +127,7 @@ def get_status(test: TestRun, pav_conf):
     except (TestRunError, TestRunNotFoundError) as err:
         test_status = {
             'test_id': test.full_id,
-            'job_id':  test.job.name,
+            'job_id':  str(test.job),
             'name':    test.name,
             'state':   STATES.UNKNOWN,
             'time':    None,
@@ -152,8 +152,8 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
-:param list statuses: list of dictionary objects containing the test
-                      ID, name, state, time of state update, and note
+:param list statuses: list of dictionary objects containing the test_id, 
+                      job_id, name, state, time of state update, and note
                       associated with that state.
 :param bool json: Whether state should be printed as a JSON object or
                   not.
@@ -162,7 +162,7 @@ def print_status(statuses, outfile, json=False):
 :rtype: int
 """
 
-    statuses.sort(key=lambda v: v['id'])
+    statuses.sort(key=lambda v: v.get('test_id'))
 
     ret_val = 1
     for stat in statuses:

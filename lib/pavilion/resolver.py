@@ -982,7 +982,12 @@ class TestConfigResolver:
         # var_men is a list of variable managers, one for each permutation
         var_men = base_var_man.get_permutations(list(used_per_vars))
         for var_man in var_men:
-            var_man.resolve_references()
+            try:
+                var_man.resolve_references()
+            except (KeyError, ValueError) as err:
+                raise TestConfigError(
+                    "Error resolving vars in permuted test '{}':\n{}"
+                    .format(test_cfg['name'], err))
         return test_cfg, var_men
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
