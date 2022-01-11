@@ -722,7 +722,22 @@ class TestBuilder:
             path = self._find_file(extra, 'test_src')
             final_dest = dest / path.name
             try:
-                shutil.copyfile(path.as_posix(), final_dest.as_posix())
+                if path.is_dir():
+                    # IF extra_file in extra_files is directory
+                    tracker.update(
+                        state=STATES.CREATED,
+                        note=("Copying EXTRA_FILES directory {} to {} "
+                            "as the build directory."
+                            .format(path, final_dest)))
+
+                    utils.copytree(
+                        path.as_posix(),
+                        final_dest.as_posix(),
+                        copy_function=shutil.copyfile,
+                        copystat=utils.make_umask_filtered_copystat(umask),
+                        symlinks=True)
+                else:
+                    shutil.copyfile(path.as_posix(), final_dest.as_posix())
             except OSError as err:
                 raise TestBuilderError(
                     "Could not copy extra file '{}' to dest '{}': {}"
