@@ -4,6 +4,7 @@ environment."""
 import traceback
 from pathlib import Path
 
+from pavilion.output import fprint
 from pavilion import result
 from pavilion import schedulers
 from pavilion.status_file import STATES
@@ -42,14 +43,22 @@ class _RunCommand(Command):
             test = TestRun.load(pav_cfg, working_dir=args.working_dir,
                                 test_id=args.test_id)
         except TestRunError as err:
-            self.logger.error("Error loading test '%s': %s",
+            fprint.error("Error loading test '%s': %s",
                               args.test_id, err)
             raise
+
 
         try:
             sched = self._get_sched(test)
 
             var_man = self._get_var_man(test, sched)
+            if var_man.get('sched.errors'):
+                test.status.set(STATES.RUN_ERROR,
+                                "Error resolving scheduler variables at run time. "
+                                "See'pav log kickoff {}' for the full error.".format(test.id))
+                fprint("Error resolving scheduler variables at run time. Got the following:")
+                for error in var_man.get('sched.errors.*'):
+                    fprint(error)  
 
             try:
                 TestConfigResolver.finalize(test, var_man)
@@ -68,7 +77,7 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     if not test.build():
-                        self.logger.warning(
+                        fprint.warning(
                             "Test {t.id} failed to build:"
                         )
 
@@ -160,7 +169,7 @@ class _RunCommand(Command):
                 results = test.gather_results(run_result, log_file=log_file)
 
         except Exception as err:
-            self.logger.error("Unexpected error gathering results: \n%s",
+            fprint.error("Unexpected error gathering results: \n%s",
                               traceback.format_exc())
             test.status.set(STATES.RESULTS_ERROR,
                             "Unexpected error parsing results: {}. (This is a "
