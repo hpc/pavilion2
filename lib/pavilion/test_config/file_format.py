@@ -6,7 +6,6 @@ handles that are documented below.
 
 import re
 from collections import OrderedDict
-from typing import Type
 
 import yaml_config as yc
 from pavilion.exceptions import TestConfigError
@@ -16,6 +15,7 @@ TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
+
 
 class PathCategoryElem(yc.CategoryElem):
     """This is for category elements that need a valid unix path regex."""
@@ -550,8 +550,8 @@ expected to be added to by various plugins.
         """Add the schedule config class and then init as normal."""
 
         if self.SCHEDULE_CLASS is None:
-            raise RuntimeError("The config's scheduler config class should have beeen set by "
-                               "Pavilion's __init__.py file.")
+            raise RuntimeError("The config's scheduler config class should have been "
+                               "set by Pavilion's __init__.py file.")
 
         for element in self.ELEMENTS:
             if element.name == 'schedule':
@@ -559,7 +559,7 @@ expected to be added to by various plugins.
         else:
             self.ELEMENTS.append(self.SCHEDULE_CLASS())
 
-        super().__init__()
+        super().__init__(name='<test_config>')
 
     @classmethod
     def add_result_parser_config(cls, name, config_items):
@@ -653,6 +653,6 @@ def TestSuiteLoader():  # pylint: disable=invalid-name
         # We use the list of ELEMENTS from TestConfigLoader. since this is the
         # same object, subsections added to TestConfigLoader will get picked up
         # here too.
-        BASE = yc.KeyedElem(elements=TestConfigLoader.ELEMENTS)
+        BASE = TestConfigLoader()
 
     return _TestSuiteLoader()
