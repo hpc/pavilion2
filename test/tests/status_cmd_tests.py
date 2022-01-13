@@ -5,7 +5,6 @@ import time
 import pavilion.schedulers
 from pavilion import commands
 from pavilion import plugins
-from pavilion import schedulers
 from pavilion import status_file
 from pavilion.series.series import TestSeries
 from pavilion.test_config import file_format
@@ -327,6 +326,7 @@ class StatusCmdTests(PavTestCase):
         out.seek(0)
         output = out.readlines()[4:]
         statuses = test.status.history()
-        self.assertEqual(len(output), len(statuses))
+        self.assertEqual(len(output), len(statuses), msg='output: {}, statuses: {}'
+                         .format(output, statuses))
         for i in range(len(output)):
             self.assertTrue(statuses[i].state in output[i])
