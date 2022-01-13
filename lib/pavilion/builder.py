@@ -801,7 +801,7 @@ class TestBuilder:
                 .format(self.path, err))
 
         self.status.set(STATES.BUILD_COPIED,
-                        "Performed the symlink copy in {} seconds."
+                        "Performed symlink copy in {:0.2f}s."
                         .format(time.time() - start))
 
         return True
