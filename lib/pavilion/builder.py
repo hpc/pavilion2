@@ -15,18 +15,12 @@ import urllib.parse
 from pathlib import Path
 from typing import Union
 
-import pavilion.test_config.utils
-from pavilion import extract
-from pavilion import lockfile
-from pavilion import utils
-from pavilion import wget
+from pavilion import extract, lockfile, utils, wget
 from pavilion.build_tracker import BuildTracker
+from pavilion.exceptions import TestBuilderError
 from pavilion.status_file import TestStatusFile, STATES
+from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
-
-
-class TestBuilderError(RuntimeError):
-    """Exception raised when builds encounter an error."""
 
 
 class TestBuilder:
@@ -76,8 +70,7 @@ class TestBuilder:
         self._download_dest = download_dest
 
         try:
-            self._timeout = pavilion.test_config.utils.parse_timeout(
-                config.get('timeout'))
+            self._timeout = parse_timeout(config.get('timeout'))
         except ValueError:
             raise TestBuilderError("Build timeout must be a positive integer or null, "
                                    "got '{}'".format(config.get('timeout')))
@@ -727,8 +720,8 @@ class TestBuilder:
                     tracker.update(
                         state=STATES.CREATED,
                         note=("Copying EXTRA_FILES directory {} to {} "
-                            "as the build directory."
-                            .format(path, final_dest)))
+                              "as the build directory."
+                              .format(path, final_dest)))
 
                     utils.copytree(
                         path.as_posix(),
@@ -808,7 +801,7 @@ class TestBuilder:
                 .format(self.path, err))
 
         self.status.set(STATES.BUILD_COPIED,
-                        "Performed the symlink copy in {} seconds."
+                        "Performed symlink copy in {:0.2f}s."
                         .format(time.time() - start))
 
         return True

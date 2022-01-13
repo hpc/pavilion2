@@ -53,3 +53,7 @@ class DeferredError(VariableError):
 
 class TestConfigError(ValueError):
     """An exception specific to errors in configuration."""
+
+
+class TestBuilderError(RuntimeError):
+    """Exception raised when builds encounter an error."""

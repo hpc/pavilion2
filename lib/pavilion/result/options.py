@@ -122,7 +122,6 @@ def per_first(results: dict, key: str, file_vals: Dict[Path, Any],
     if not first:
         first = vals[:1]
 
-    print(key, first)
     if not first:
         errors.append(
             "No matches for key '{}' for any of these found files: {}."

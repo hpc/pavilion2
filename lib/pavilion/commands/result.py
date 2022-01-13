@@ -238,8 +238,7 @@ class ResultsCommand(Command):
                 return False
 
             if save:
-                test.builder.tracker.update(state=STATES.RESULTS,
-                                            note="Re-running results.")
+                test.status.set(STATES.RESULTS, note="Re-running results.")
 
             # The new results will be attached to the test (but not saved).
             results = test.gather_results(test.results.get('return_value', 1),
@@ -254,8 +253,8 @@ class ResultsCommand(Command):
                         .format(datetime.datetime.today()
                                 .strftime('%m-%d-%Y')))
                     log_file.write("See results.json for updated results.\n")
-                test.builder.tracker.update(state=STATES.COMPLETE,
-                                            note="The test completed with result: {}"
-                                            .format(results["result"]))
+                test.status.set(state=STATES.COMPLETE,
+                                note="The test completed with result: {}"
+                                     .format(results["result"]))
 
         return True

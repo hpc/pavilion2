@@ -496,6 +496,8 @@ class ColorResult(unittest.TextTestResult):
 
 
 class BetterRunner(unittest.TextTestRunner):
+    """A slightly better 'TextTestRunner' with nicer output."""
+
     # pylint: disable=invalid-name
     def run(self, test):
         "Run the given test case or test suite."
@@ -532,7 +534,7 @@ class BetterRunner(unittest.TextTestRunner):
         result.printErrors()
         if hasattr(result, 'separator2'):
             self.stream.writeln(result.separator2)
-        expectedFails = unexpectedSuccesses = skipped = 0
+        skipped = 0
         try:
             results = map(len, (result.expectedFailures,
                                 result.unexpectedSuccesses,
@@ -540,7 +542,7 @@ class BetterRunner(unittest.TextTestRunner):
         except AttributeError:
             pass
         else:
-            expectedFails, unexpectedSuccesses, skipped = results
+            _, _, skipped = results
 
         run = result.testsRun - skipped
 
@@ -549,6 +551,7 @@ class BetterRunner(unittest.TextTestRunner):
         self.stream.writeln()
         failed, errored = len(result.failures), len(result.errors)
         passed = run - failed - errored
+        run = 0.01 if run == 0 else run  # Deal with potential divide_by_zero errors
         self.stream.writeln(
             'Passed:  {:5d} -- {}%'
             .format(passed, round(float(passed)/run * 100)))

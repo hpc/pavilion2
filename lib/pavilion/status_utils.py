@@ -152,7 +152,7 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
-:param list statuses: list of dictionary objects containing the test_id, 
+:param list statuses: list of dictionary objects containing the test_id,
                       job_id, name, state, time of state update, and note
                       associated with that state.
 :param bool json: Whether state should be printed as a JSON object or
