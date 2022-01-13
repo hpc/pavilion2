@@ -5,11 +5,13 @@ lazily executed, and the results are cached.
 """
 
 import inspect
+import traceback
 from collections import UserDict
 from functools import wraps
-from pavilion.deferred import DeferredVariable
-import traceback
 from typing import List
+
+from pavilion.deferred import DeferredVariable
+
 
 def var_method(func):
     """This decorator marks the given function as a scheduler variable. The

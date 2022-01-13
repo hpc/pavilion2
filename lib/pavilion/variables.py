@@ -318,7 +318,7 @@ index, sub_var) tuple.
                     except (parsers.StringParserError, parsers.ParserValueError) as err:
                         raise VariableError(err, var_set=var_set, var=var_name, index=index,
                                             sub_var=sub_var)
-                                            
+
                     if res_val is None:
                         # One or more of the variables is deferred, so we can't
                         # resolve this now. Mark it as deferred.

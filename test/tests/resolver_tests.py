@@ -358,7 +358,7 @@ class ResolverTests(PavTestCase):
         stuff.sort()
         self.assertEqual(possible_stuff, stuff)
 
-    def test_for_circular_variable_references(self):
+    def test_circular_variable_references(self):
         test = {
             'variables': {
                 'a': '--{{d}}-{{b}}-',
@@ -373,7 +373,7 @@ class ResolverTests(PavTestCase):
         var_man = copy.deepcopy(self.resolver.base_var_man)
         var_man.add_var_set('var', test['variables'])
 
-        with self.assertRaises(VariableError):
+        with self.assertRaises(TestConfigError):
             self.resolver.resolve_permutations(test, var_man)
 
     def test_finalize(self):

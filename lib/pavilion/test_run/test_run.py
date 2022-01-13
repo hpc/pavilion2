@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from typing import TextIO
 
+import pavilion.exceptions
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
@@ -282,7 +283,7 @@ class TestRun(TestAttributes):
                 download_dest=download_dest,
                 working_dir=self.working_dir,
             )
-        except builder.TestBuilderError as err:
+        except pavilion.exceptions.TestBuilderError as err:
             raise TestRunError(
                 "Could not create builder for test {s.name} (run {s.id}): {err}"
                 .format(s=self, err=err)
@@ -540,7 +541,7 @@ class TestRun(TestAttributes):
 
             try:
                 self.builder.copy_build(self.build_path)
-            except builder.TestBuilderError as err:
+            except pavilion.exceptions.TestBuilderError as err:
                 tracker.fail("Error copying build: {}".format(err.args[0]))
                 cancel_event.set()
             build_result = True

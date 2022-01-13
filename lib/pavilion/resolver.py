@@ -204,7 +204,6 @@ class TestConfigResolver:
                             ValueError,
                             yc_yaml.YAMLError,
                     ) as err:
-                        print('err', err)
                         suites[suite_name]['err'] = err
                         continue
 
@@ -990,7 +989,7 @@ class TestConfigResolver:
             except (KeyError, ValueError) as err:
                 raise TestConfigError(
                     "Error resolving vars in permuted test '{}':\n{}"
-                    .format(test_cfg['name'], err))
+                    .format(test_cfg.get('name', '<no name>'), err))
         return test_cfg, var_men
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
