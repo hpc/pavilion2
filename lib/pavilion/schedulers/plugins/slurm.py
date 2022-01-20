@@ -105,7 +105,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(slurm_conf['srun_extra'])
         else:
-            cmd = ['mpirun', 
+            cmd = ['mpirun',
                    '-np {}'.format(tasks),
                    '--map-by ppr:{}:node'.format(tpn)]
 
