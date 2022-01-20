@@ -52,7 +52,7 @@ slurm kickoff script.
         lines.append('#SBATCH -t {}'.format(time_limit))
         nodes = Slurm.compress_node_list(self._nodes)
 
-        lines.append('#SBATCH -w {}'.format(nodes))
+        # lines.append('#SBATCH -w {}'.format(nodes))
         lines.append('#SBATCH -N {}'.format(len(self._nodes)))
 
         for line in self._config['slurm']['sbatch_extra']:
@@ -93,18 +93,21 @@ class SlurmVars(SchedulerVariables):
         slurm_conf = self._sched_config['slurm']
 
         nodes = len(self._nodes)
-        tasks = int(self.tasks_per_node()) * nodes
+        tpn   = int(self.tasks_per_node())
+        tasks = tpn * nodes
 
         if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
 
             cmd = ['srun',
                    '-N', str(nodes),
-                   '-w', Slurm.compress_node_list(self._nodes.keys()),
                    '-n', str(tasks)]
+                #    '-w', Slurm.compress_node_list(self._nodes.keys()),
 
             cmd.extend(slurm_conf['srun_extra'])
         else:
-            cmd = ['mpirun', '--map-by ppr:{}:node'.format(tasks)]
+            cmd = ['mpirun', 
+                   '-np {}'.format(tasks),
+                   '--map-by ppr:{}:node'.format(tpn)]
 
             rank_by = slurm_conf['mpirun_rank_by']
             bind_to = slurm_conf['mpirun_bind_to']
@@ -117,8 +120,8 @@ class SlurmVars(SchedulerVariables):
                 for mca_opt in mca:
                     cmd.extend(['--mca', mca_opt])
 
-            hostlist = ','.join(self._nodes.keys())
-            cmd.extend(['--host', hostlist])
+            # hostlist = ','.join(self._nodes.keys())
+            # cmd.extend(['--host', hostlist])
 
             cmd.extend(self._sched_config['slurm']['mpirun_extra'])
 
@@ -501,7 +504,6 @@ class Slurm(SchedulerPluginAdvanced):
         nodes = self.compress_node_list(chunk)
 
         proc = subprocess.Popen(['sbatch',
-                                 '-w', nodes,
                                  '--output={}'.format(job.sched_log.as_posix()),
                                  job.kickoff_path.as_posix()],
                                 stdout=subprocess.PIPE,
