@@ -1,7 +1,7 @@
 Pavilion2
 =========
 
-Pavilion is a Python 3 (3.5+) based framework for running and analyzing
+Pavilion is a Python 3 (3.6+) based framework for running and analyzing
 tests targeting HPC systems. It provides a rich YAML-based configuration
 system for wrapping test codes and running them against various systems.
 The vast majority of the system is defined via plugins, giving users

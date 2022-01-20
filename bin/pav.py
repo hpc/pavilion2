@@ -55,9 +55,15 @@ def main():
             color=output.RED)
         sys.exit(-1)
 
+    print('pav_cfg.working_dir', pav_cfg.working_dir)
+
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
-        sys.exit(1)
+        output.fprint(
+            "Could not set up loggers. This is usually because of a badly defined "
+            "working_dir in pavilion.yaml.",
+            file=sys.stderr, color=output.RED)
+        sys.exit(-1)
 
     # Initialize all the plugins
     try:
