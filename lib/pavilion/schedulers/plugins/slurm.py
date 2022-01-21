@@ -493,7 +493,7 @@ class Slurm(SchedulerPluginAdvanced):
             avail_states = avail_states + reserved_states
 
         node_info['up'] = all(state in up_states for state in node_info['states'])
-        node_info['avail'] = all(state in avail_states for state in node_info['states'])
+        node_info['available'] = all(state in avail_states for state in node_info['states'])
 
         return node_info
 
