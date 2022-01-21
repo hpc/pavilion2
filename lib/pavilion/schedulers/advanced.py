@@ -111,8 +111,16 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                         "due to other filtering ")
 
         if not filtered_nodes:
-            reasons = "\n".join("{}: {}".format(k, v)
-                                for k, v in filter_reasons.items())
+            reasons = []
+            for reason, reas_nodes in filter_reasons.items():
+                if len(reas_nodes) > 10:
+                    reas_node_list = ','.join(reas_nodes[:10]) + ', ...'
+                else:
+                    reas_node_list = ','.join(reas_nodes)
+                reasons.append("({}) {:30s} {}"
+                               .format(len(reas_nodes), reason, reas_node_list))
+
+            reasons = "\n".join(reasons)
             errors.append(
                 "All nodes were filtered out during the node filtering step. "
                 "Nodes were filtered for the following reasons:\n{}\n"
@@ -231,16 +239,17 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                         and reservation not in node['reservations']):
                     reason_key = "reservation '{}' not in {}"\
                                  .format(reservation, node['reservations'])
-                    filter_reasons[reason_key].append(node)
+                    filter_reasons[reason_key].append(node_name)
                     continue
 
             if node_name in exclude_nodes:
-                filter_reasons['excluded'].append(node)
+                filter_reasons['excluded'].append(node_name)
                 continue
 
             # Filter according to scheduler plugin specific options.
-            if not self._filter_custom(sched_config, node_name, node):
-                filter_reasons[self.name].append(node)
+            custom_result = self._filter_custom(sched_config, node_name, node)
+            if custom_result is not None:
+                filter_reasons[custom_result].append(node_name)
                 continue
 
             out_nodes.append(node_name)
@@ -248,13 +257,13 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         return out_nodes, filter_reasons
 
     def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
-            -> bool:
-        """Apply scheduler specific filters to the node list. Returns True
-        if the node should be included."""
+            -> Union[None, str]:
+        """Apply scheduler specific filters to the node list. Returns a reason why the node
+        should be filtered out, or None if it shouldn't be."""
 
         _ = self, sched_config, node_name, node
 
-        return True
+        return None
 
     def _get_chunks(self, node_list_id, sched_config) -> List[NodeSet]:
         """Chunking is specific to the node list, chunk size, and node selection

@@ -74,6 +74,21 @@ def validate_slurm_states(states):
                 "like 'UP*' are equivalent to 'UP'.")
     return states
 
+def validate_features(features):
+    """Convert each feature into a list of possible features (they should be pipe separated)."""
+    fixed_features = []
+
+    for feature in features:
+        # Remove whitespace and items that are completely whitespace.
+        feature = [feat.strip() for feat in feature.split('|') if feat]
+
+        if not feature:
+            continue
+
+        fixed_features.append(feature)
+
+    return fixed_features
+
 
 class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
@@ -201,6 +216,12 @@ class Slurm(SchedulerPluginAdvanced):
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
+            yc.ListElem(
+                'features', sub_elem=yc.StrElem(),
+                help_text="A list of features each node included in the allocation "
+                          "should have. A node must match each of the features in the list. "
+                          "Features can be pipe separated to denote multiple options, one "
+                          "of which must match. Ex. 'med|high' would match 'med' or 'high'."),
             yc.ListElem(name='reserved_states',
                         sub_elem=yc.StrElem(),
                         help_text="Ignore nodes in these states, unless a reservation "
@@ -233,6 +254,7 @@ class Slurm(SchedulerPluginAdvanced):
                           'IDLE',
                           'MAINT'],
             'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE'],
+            'features': [],
             'reserved_states': ['RESERVED'],
             'sbatch_extra': [],
             'srun_extra': [],
@@ -244,6 +266,7 @@ class Slurm(SchedulerPluginAdvanced):
         validators = {
             'up_states': validate_slurm_states,
             'avail_states': validate_slurm_states,
+            'features': validate_features,
             'reserved_states': validate_slurm_states,
             'srun_extra': validate_list,
             'sbatch_extra': validate_list,
@@ -466,13 +489,40 @@ class Slurm(SchedulerPluginAdvanced):
         avail_states = sched_config['slurm']['avail_states']
         reserved_states = sched_config['slurm']['reserved_states']
         if sched_config['reservation']:
-            up_states.extend(reserved_states)
-            avail_states.extend(reserved_states)
+            up_states = up_states + reserved_states
+            avail_states = avail_states + reserved_states
 
         node_info['up'] = all(state in up_states for state in node_info['states'])
         node_info['avail'] = all(state in avail_states for state in node_info['states'])
 
         return node_info
+
+    def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
+            -> Union[str, None]:
+        """Filter nodes by features. (Returns why a nodes should be filtered out, or None if it
+        shoulded be."""
+
+        _ = self
+
+        slurm_config = sched_config['slurm']
+        features = slurm_config['features']
+
+        node_features = node['features']
+
+        for feature in features:
+            for feat_option in feature:
+                if feat_option in node_features:
+                    # If any one of these is in the node's feature list, it's a match
+                    # for that list of feature options
+                    break
+            else:
+                # Otherwise, none are there.
+                return "Missing required feature '{}'".format(feature)
+
+        return None
+
+
+
 
     def _available(self) -> bool:
         """Looks for several slurm commands, and tests slurm can talk to the
