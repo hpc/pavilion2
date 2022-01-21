@@ -73,6 +73,21 @@ def validate_slurm_states(states):
                 "like 'UP*' are equivalent to 'UP'.")
     return states
 
+def validate_features(features):
+    """Convert each feature into a list of possible features (they should be pipe separated)."""
+    fixed_features = []
+
+    for feature in features:
+        # Remove whitespace and items that are completely whitespace.
+        feature = [feat.strip() for feat in feature.split('|') if feat]
+
+        if not feature:
+            continue
+
+        fixed_features.append(feature)
+
+    return fixed_features
+        
 
 class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
@@ -238,6 +253,7 @@ class Slurm(SchedulerPluginAdvanced):
                           'IDLE',
                           'MAINT'],
             'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE'],
+            'features': [],
             'reserved_states': ['RESERVED'],
             'sbatch_extra': [],
             'srun_extra': [],
@@ -249,6 +265,7 @@ class Slurm(SchedulerPluginAdvanced):
         validators = {
             'up_states': validate_slurm_states,
             'avail_states': validate_slurm_states,
+            'features': validate_features,
             'reserved_states': validate_slurm_states,
             'srun_extra': validate_list,
             'sbatch_extra': validate_list,
@@ -484,13 +501,16 @@ class Slurm(SchedulerPluginAdvanced):
         """Filter nodes by features. (Returns why a nodes should be filtered out, or None if it
         shoulded be."""
 
-        features = sched_config['features']
+        slurm_config = sched_config['slurm']
+        features = slurm_config['features']
+
+        node_features = node['features']
 
         for feature in features:
-            split_feature = list(map(str.strip, feature.split('|')))
-            for sub_feature in split_feature:
-                if sub_feature in features:
-                    # If any one of these is in the node's feature list, it's a match.
+            for feat_option in feature:
+                if feat_option in node_features:
+                    # If any one of these is in the node's feature list, it's a match
+                    # for that list of feature options
                     break
             else:
                 # Otherwise, none are there.

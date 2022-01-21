@@ -111,8 +111,16 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                         "due to other filtering ")
 
         if not filtered_nodes:
-            reasons = "\n".join("{}: {}".format(k, v)
-                                for k, v in filter_reasons.items())
+            reasons = []
+            for reason, reas_nodes in filter_reasons.items():
+                if len(reas_nodes) > 10:
+                    reas_node_list = ','.join(reas_nodes[:10]) + ', ...'
+                else:
+                    reas_node_list = ','.join(reas_nodes)
+                reasons.append("({}) {:30s} {}"
+                               .format(len(reas_nodes), reason, reas_node_list))
+
+            reasons = "\n".join(reasons)
             errors.append(
                 "All nodes were filtered out during the node filtering step. "
                 "Nodes were filtered for the following reasons:\n{}\n"
@@ -241,7 +249,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # Filter according to scheduler plugin specific options.
             custom_result = self._filter_custom(sched_config, node_name, node)
             if custom_result is not None:
-                filter_reasons[custom_result].append(node)
+                filter_reasons[custom_result].append(node_name)
+                continue
 
             out_nodes.append(node_name)
 
