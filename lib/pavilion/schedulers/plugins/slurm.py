@@ -488,8 +488,8 @@ class Slurm(SchedulerPluginAdvanced):
         avail_states = sched_config['slurm']['avail_states']
         reserved_states = sched_config['slurm']['reserved_states']
         if sched_config['reservation']:
-            up_states.extend(reserved_states)
-            avail_states.extend(reserved_states)
+            up_states = up_states + reserved_states
+            avail_states = avail_states + reserved_states
 
         node_info['up'] = all(state in up_states for state in node_info['states'])
         node_info['avail'] = all(state in avail_states for state in node_info['states'])

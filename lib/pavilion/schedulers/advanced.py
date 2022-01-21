@@ -239,11 +239,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                         and reservation not in node['reservations']):
                     reason_key = "reservation '{}' not in {}"\
                                  .format(reservation, node['reservations'])
-                    filter_reasons[reason_key].append(node)
+                    filter_reasons[reason_key].append(node_name)
                     continue
 
             if node_name in exclude_nodes:
-                filter_reasons['excluded'].append(node)
+                filter_reasons['excluded'].append(node_name)
                 continue
 
             # Filter according to scheduler plugin specific options.

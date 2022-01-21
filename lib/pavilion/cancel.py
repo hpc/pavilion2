@@ -36,7 +36,10 @@ def cancel_jobs(pav_cfg, tests: List[TestRun], errfile: TextIO = None) -> List[d
             job_tests = load_tests(pav_cfg, job.get_test_id_pairs(), errfile)
 
             if all([test.cancelled or test.complete for test in job_tests]):
-                msg = sched.cancel(job.info)
+                if job.info is None:
+                    msg = "Cancel Failed - No such job"
+                else:
+                    msg = sched.cancel(job.info)
                 success = True if msg is None else False
                 if msg is None:
                     msg = 'Cancel Succeeded'
