@@ -1,7 +1,8 @@
 # pylint: disable=too-many-lines
 """The Slurm Scheduler Plugin."""
 
-import distutils.spawn
+# This pylint exception is a pylint bug
+import distutils.spawn  # pylint: disable=import-error
 import math
 import re
 import subprocess
@@ -14,10 +15,10 @@ from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.var_dict import dfr_var_method
 from ..advanced import SchedulerPluginAdvanced
+from ..config import validate_list
 from ..scheduler import SchedulerPluginError, KickoffScriptHeader
 from ..types import NodeInfo, NodeList
 from ..vars import SchedulerVariables
-from ..config import validate_list
 
 
 class SbatchHeader(KickoffScriptHeader):

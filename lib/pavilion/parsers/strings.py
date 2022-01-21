@@ -319,7 +319,7 @@ class StringTransformer(PavTransformer):
             err.pos_in_stream += expr.start_pos
             # Alter the error state to make sure it can be differentiated
             # from string_parser states.
-            err.state = 'expr-{}'.format(err.state)
+            #err.state = ''.format(err.state)
             raise
 
     def _resolve_expr(self,
