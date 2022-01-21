@@ -200,6 +200,12 @@ class Slurm(SchedulerPluginAdvanced):
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
+            yc.ListElem(
+                'features', sub_elem=yc.StrElem(),
+                help_text="A list of features each node included in the allocation "
+                          "should have. A node must match each of the features in the list. "
+                          "Features can be pipe separated to denote multiple options, one "
+                          "of which must match. Ex. 'med|high' would match 'med' or 'high'."),
             yc.ListElem(name='reserved_states',
                         sub_elem=yc.StrElem(),
                         help_text="Ignore nodes in these states, unless a reservation "
@@ -472,6 +478,28 @@ class Slurm(SchedulerPluginAdvanced):
         node_info['avail'] = all(state in avail_states for state in node_info['states'])
 
         return node_info
+
+    def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
+            -> Union[str, None]:
+        """Filter nodes by features. (Returns why a nodes should be filtered out, or None if it
+        shoulded be."""
+
+        features = sched_config['features']
+
+        for feature in features:
+            split_feature = list(map(str.strip, feature.split('|')))
+            for sub_feature in split_feature:
+                if sub_feature in features:
+                    # If any one of these is in the node's feature list, it's a match.
+                    break
+            else:
+                # Otherwise, none are there.
+                return "Missing required feature '{}'".format(feature)
+
+        return None
+
+
+
 
     def _available(self) -> bool:
         """Looks for several slurm commands, and tests slurm can talk to the

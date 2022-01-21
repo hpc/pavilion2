@@ -239,22 +239,22 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 continue
 
             # Filter according to scheduler plugin specific options.
-            if not self._filter_custom(sched_config, node_name, node):
-                filter_reasons[self.name].append(node)
-                continue
+            custom_result = self._filter_custom(sched_config, node_name, node)
+            if custom_result is not None:
+                filter_reasons[custom_result].append(node)
 
             out_nodes.append(node_name)
 
         return out_nodes, filter_reasons
 
     def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
-            -> bool:
-        """Apply scheduler specific filters to the node list. Returns True
-        if the node should be included."""
+            -> Union[None, str]:
+        """Apply scheduler specific filters to the node list. Returns a reason why the node
+        should be filtered out, or None if it shouldn't be."""
 
         _ = self, sched_config, node_name, node
 
-        return True
+        return None
 
     def _get_chunks(self, node_list_id, sched_config) -> List[NodeSet]:
         """Chunking is specific to the node list, chunk size, and node selection
