@@ -87,7 +87,7 @@ def validate_features(features):
         fixed_features.append(feature)
 
     return fixed_features
-        
+
 
 class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
@@ -500,6 +500,8 @@ class Slurm(SchedulerPluginAdvanced):
             -> Union[str, None]:
         """Filter nodes by features. (Returns why a nodes should be filtered out, or None if it
         shoulded be."""
+
+        _ = self
 
         slurm_config = sched_config['slurm']
         features = slurm_config['features']
