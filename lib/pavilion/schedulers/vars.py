@@ -3,7 +3,7 @@ from typing import List
 
 from pavilion.deferred import DeferredVariable
 from pavilion.var_dict import VarDict, var_method, dfr_var_method
-from .types import Nodes, NodeInfo, NodeSet, NodeList
+from ..types import NodeInfo, Nodes, NodeList, NodeSet
 
 
 class SchedulerVariables(VarDict):

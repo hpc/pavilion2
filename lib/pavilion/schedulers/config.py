@@ -214,7 +214,7 @@ class SchedConfigError(ValueError):
     """Raised when there's a problem with the scheduler configuration."""
 
 
-def int_greater_than(name, min_val, required=True):
+def min_int(name, min_val, required=True):
     """Return a callback that ensures the argument >= min_val. If not required,
     an empty value will return None."""
 
@@ -255,13 +255,13 @@ def validate_list(val) -> List[str]:
     raise ValueError("Expected list, got {}".format(val))
 
 
-def _validate_nodes(val) -> Union[float, int]:
+def _validate_nodes(val) -> Union[float, int, None]:
     """Parse and check the nodes (or min_nodes) value. A float value
     represents a percentage of nodes, ints are an exact node count. None denotes
     that no value was given."""
 
     if val is None:
-        pass
+        return None
     elif val == 'all':
         val = 1.0
     elif val.endswith('%'):
@@ -419,7 +419,7 @@ CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
-        'size':           int_greater_than('chunk_size', min_val=0),
+        'size':           min_int('chunk_size', min_val=0),
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
     },
@@ -432,12 +432,12 @@ CONFIG_VALIDATORS = {
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
     'share_allocation': utils.str_bool,
-    'time_limit':       int_greater_than('time_limit', min_val=1),
+    'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
-        'node_count': int_greater_than('cluster_info.node_count',
-                                       min_val=1, required=False),
-        'mem': int_greater_than('cluster_info.mem', min_val=1, required=False),
-        'cpus': int_greater_than('cluster_info.cpus', min_val=1, required=False)
+        'node_count': min_int('cluster_info.node_count',
+                              min_val=1, required=False),
+        'mem':        min_int('cluster_info.mem', min_val=1, required=False),
+        'cpus':       min_int('cluster_info.cpus', min_val=1, required=False)
     }
 }
 

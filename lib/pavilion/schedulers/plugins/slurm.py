@@ -4,6 +4,7 @@
 # This pylint exception is a pylint bug
 import distutils.spawn  # pylint: disable=import-error
 import math
+import os
 import re
 import subprocess
 import time
@@ -13,11 +14,11 @@ import yaml_config as yc
 from pavilion import sys_vars
 from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import STATES, TestStatusInfo
+from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import dfr_var_method
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
 from ..scheduler import SchedulerPluginError, KickoffScriptHeader
-from ..types import NodeInfo, NodeList
 from ..vars import SchedulerVariables
 
 
@@ -47,13 +48,26 @@ slurm kickoff script.
             lines.append('#SBATCH --qos {}'.format(self._config['qos']))
         if self._config.get('account') is not None:
             lines.append('#SBATCH --account {}'.format(self._config['account']))
+        features = self._config['slurm']['features']
+        if features:
+            constraint = '&'.join(features)
+            lines.append('#SBATCH --constraint {}'.format(constraint))
 
         time_limit = '{}:0:0'.format(self._config['time_limit'])
         lines.append('#SBATCH -t {}'.format(time_limit))
-        nodes = Slurm.compress_node_list(self._nodes)
 
-        lines.append('#SBATCH -w {}'.format(nodes))
-        lines.append('#SBATCH -N {}'.format(len(self._nodes)))
+        if self._include_nodes:
+            lines.append('#SBATCH -w {}'
+                         .format(Slurm.compress_node_list(self._include_nodes)))
+        if self._exclude_nodes:
+            lines.append('#SBATCH -x {}'
+                         .format(Slurm.compress_node_list(self._exclude_nodes)))
+
+        if self._node_min == self._node_max:
+            nodes = self._node_max
+        else:
+            nodes = '{}-{}'.format(self._node_min, self._node_max)
+        lines.append('#SBATCH -N {}'.format(nodes))
 
         for line in self._config['slurm']['sbatch_extra']:
             lines.append('#SBATCH {}'.format(line))
@@ -74,6 +88,10 @@ def validate_slurm_states(states):
                 "like 'UP*' are equivalent to 'UP'.")
     return states
 
+
+FEATURE_RE = re.compile(r'^[a-zA-Z0-9=.-_]+$')
+
+
 def validate_features(features):
     """Convert each feature into a list of possible features (they should be pipe separated)."""
     fixed_features = []
@@ -81,6 +99,10 @@ def validate_features(features):
     for feature in features:
         # Remove whitespace and items that are completely whitespace.
         feature = [feat.strip() for feat in feature.split('|') if feat]
+
+        for feat in feature:
+            if FEATURE_RE.match(feat) is None:
+                raise ValueError("Invalid node feature: {}".format(feat))
 
         if not feature:
             continue
@@ -193,15 +215,15 @@ class Slurm(SchedulerPluginAdvanced):
 
     # Add sbatch extra to the values to consider when deciding what tests can be
     # allocated together.
-    ALLOC_ACQUIRE_OPTIONS = list(SchedulerPluginAdvanced.ALLOC_ACQUIRE_OPTIONS)
-    ALLOC_ACQUIRE_OPTIONS.append('slurm.sbatch_extra')
+    ALLOC_ACQUIRE_OPTIONS = SchedulerPluginAdvanced.ALLOC_ACQUIRE_OPTIONS + \
+        ['slurm.sbatch_extra', 'slurm.features']
 
     MPI_CMD_SRUN = 'srun'
     MPI_CMD_MPIRUN = 'mpirun'
     MPI_CMD_OPTIONS = (MPI_CMD_SRUN, MPI_CMD_MPIRUN)
 
     MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
-        'socket', 'numa', 'board', 'node')
+                        'socket', 'numa', 'board', 'node')
 
     def _get_config_elems(self):
 
@@ -242,7 +264,7 @@ class Slurm(SchedulerPluginAdvanced):
             yc.StrElem(name='mpirun_rank_by',
                        help_text="MPIrun --rank-by option. See `man mpirun`"),
             yc.ListElem(name='mpirun_mca', sub_elem=yc.StrElem(),
-                       help_text="MPIrun mca module options (--mca). See `man mpirun`"),
+                        help_text="MPIrun mca module options (--mca). See `man mpirun`"),
             yc.ListElem(name='mpirun_extra', sub_elem=yc.StrElem(),
                         help_text="Extra arguments to add to mpirun commands."),
         ]
@@ -280,11 +302,11 @@ class Slurm(SchedulerPluginAdvanced):
         return elems, validators, defaults
 
     @classmethod
-    def parse_node_list(cls, node_list):
+    def parse_node_list(cls, node_list) -> NodeList:
         """Convert a slurm format node list into a list of nodes, and throw
         errors that help the user identify their exact mistake."""
         if node_list is None or node_list == '':
-            return []
+            return NodeList([])
 
         match = cls.NODE_LIST_RE.match(node_list)
         if match is None:
@@ -346,7 +368,7 @@ class Slurm(SchedulerPluginAdvanced):
             else:
                 nodes.append(part)
 
-        return nodes
+        return NodeList(nodes)
 
     @staticmethod
     def compress_node_list(nodes: List[str]):
@@ -413,6 +435,13 @@ class Slurm(SchedulerPluginAdvanced):
                 .format(base=base, z='0' * pre_digits, num_list=num_list))
 
         return ','.join(node_seqs)
+
+    def _get_alloc_nodes(self, job) -> NodeList:
+        """Get the list of allocated nodes."""
+
+        _ = job
+
+        return self.parse_node_list(os.environ['SLURM_JOB_NODELIST'])
 
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
         """Use the `scontrol show node` command to collect data on nodes.
@@ -521,9 +550,6 @@ class Slurm(SchedulerPluginAdvanced):
 
         return None
 
-
-
-
     def _available(self) -> bool:
         """Looks for several slurm commands, and tests slurm can talk to the
         slurm db."""
@@ -544,14 +570,10 @@ class Slurm(SchedulerPluginAdvanced):
 
         return ret == 0
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict,
-                 chunk: NodeList) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
         """Submit the kick off script using sbatch."""
 
-        nodes = self.compress_node_list(chunk)
-
         proc = subprocess.Popen(['sbatch',
-                                 '-w', nodes,
                                  '--output={}'.format(job.sched_log.as_posix()),
                                  job.kickoff_path.as_posix()],
                                 stdout=subprocess.PIPE,

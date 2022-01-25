@@ -8,7 +8,7 @@ from pavilion import plugins
 from pavilion import schedulers
 from pavilion.schedulers import SchedulerPluginAdvanced
 from pavilion.schedulers import config as sconfig
-from pavilion.schedulers.types import NodeSet, Nodes, NodeInfo
+from pavilion.types import NodeInfo, Nodes, NodeSet
 from pavilion.unittest import PavTestCase
 
 
@@ -299,11 +299,51 @@ class SchedTests(PavTestCase):
         base_test_cfg['scheduler'] = 'dummy'
 
         tests = []
+        shared_groups = [[], [], []]
+        for i in range(10):
+            test_cfg = copy.deepcopy(base_test_cfg)
+            test_cfg['schedule'] = {
+                'nodes': 'all',
+                'share_allocation': 'True',
+                'chunking': {'size': '45' if i % 2 else '0',
+                             'extra': 'discard'}
+            }
+            test = self._quick_test(test_cfg, finalize=False)
+            tests.append(test)
+            if i in (0, 2, 4, 6, 8):
+                shared_groups[0].append(test)
+            elif i in (1, 5, 9):
+                shared_groups[1].append(test)
+            else:
+                shared_groups[2].append(test)
+
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, tests)
+
+        # Make sure all the tests share a job.
+        for share_group in shared_groups:
+            job1 = share_group[0].job
+            self.assertTrue(all([test.job == job1 for test in share_group]))
+
+        for test in tests:
+            test.wait(10)
+
+        for test in tests:
+            self.assertEqual(test.results['result'], 'PASS')
+
+    def test_kickoff_flex(self):
+        """Check flexible kickoff."""
+
+        base_test_cfg = self._quick_test_cfg()
+        base_test_cfg['scheduler'] = 'dummy'
+
+        tests = []
         for nodes in 1, 5, 20, 'all':
             test_cfg = copy.deepcopy(base_test_cfg)
             test_cfg['schedule'] = {
-                'nodes': str(nodes),
-                'share_allocation': 'True',
+                'nodes':            str(nodes),
+                'share_allocation': 'False',
+                'chunking': {'size': '0'}
             }
             test = self._quick_test(test_cfg, finalize=False)
             tests.append(test)
@@ -311,12 +351,21 @@ class SchedTests(PavTestCase):
         dummy = pavilion.schedulers.get_plugin('dummy')
         dummy.schedule_tests(self.pav_cfg, tests)
 
-        # Make sure all the tests share a job.
+        # Make sure each test has its own job.
         job1 = tests[0].job
-        self.assertTrue(all([test.job == job1 for test in tests]))
+        for test in tests[1:]:
+            self.assertNotEqual(test.job, job1)
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(timeout=20)
+            except TimeoutError:
+                run_log_path = test.path / 'run.log'
+                if run_log_path.exists():
+                    with open(test.path / 'run.log') as run_log:
+                        self.fail(msg="Test timed out: \n{}".format(run_log.read()))
+                else:
+                    self.fail(msg="Test timed out (no run log).")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -333,6 +382,7 @@ class SchedTests(PavTestCase):
             test_cfg['schedule'] = {
                 'nodes': str(nodes),
                 'share_allocation': 'False',
+                'chunking': {'size': '20'}
             }
             test = self._quick_test(test_cfg, finalize=False)
             tests.append(test)
