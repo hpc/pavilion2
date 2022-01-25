@@ -322,9 +322,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             if chunk_size in (None, 0):
                 chunk_size = len(node_list)
 
-            chunk_id = (node_list_id, chunk_size, node_select, chunk_extra)
+            chunks_id = (node_list_id, chunk_size, node_select, chunk_extra)
 
-            chunks = self._chunks[chunk_id]
+            chunks = self._chunks[chunks_id]
 
             if chunk_spec == 'any':
                 least_used = None
@@ -345,8 +345,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     raise SchedulerPluginError(
                         "Test selected chunk '{}', but there are only {} chunks "
                         "available.".format(chunk_id, len(chunks)))
-                chunk = chunks[chunk_id]
-                usage[chunk] += 1
+                chunk = chunks[chunk_spec]
                 by_chunk[chunk].append(test)
 
         for chunk, tests in by_chunk.items():
@@ -476,7 +475,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             node_info = {node: self._nodes[node] for node in chunk}
 
             try:
-                job = Job.new(pav_cfg, tests, self.KICKOFF_FN)
+                job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
                 job.save_node_data(node_info)
             except JobError as err:
                 raise SchedulerPluginError("Error creating job: \n{}".format(err))
@@ -524,11 +523,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             needed_nodes = min(max_nodes, chunk_size)
 
             by_need.append((needed_nodes, test))
-        by_need.sort()
+        by_need.sort(key=lambda tup: tup[0])
 
         for needed_nodes, test in by_need:
             try:
-                job = Job.new(pav_cfg, tests, self.KICKOFF_FN)
+                job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
                 raise SchedulerPluginError("Error creating job: \n{}".format(err))
 
