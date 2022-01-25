@@ -390,6 +390,9 @@ def _validate_node_list(items) -> List[str]:
 
     nodes = []
 
+    if isinstance(items, str):
+        items = [items]
+
     for item in items:
         nodes.extend(parse_node_range(item))
 
