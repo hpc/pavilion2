@@ -93,9 +93,15 @@ class ConfigCmdTests(unittest.PavTestCase):
 
         # Re-add the removed 'foo' config dir
         pav_cfg = config.find_pavilion_config(target=test_config_root/'pavilion.yaml')
-        args = arg_parser.parse_args(['config', 'remove', 'foo'])
+        args = arg_parser.parse_args(['config', 'add', foo_config_dir.as_posix()])
         self.assertEqual(config_cmd.run(pav_cfg, args), 0)
 
         pav_cfg = config.find_pavilion_config(target=test_config_root/'pavilion.yaml')
         self.assertIn('foo', pav_cfg.configs)
         self.assertIn(foo_config_dir, pav_cfg.config_dirs)
+
+        config_cmd.clear_output()
+        args = arg_parser.parse_args(['config', 'list'])
+        self.assertEqual(config_cmd.run(pav_cfg, args), 0)
+        print(*config_cmd.clear_output())
+
