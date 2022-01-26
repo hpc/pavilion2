@@ -62,13 +62,18 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
             status_f.note = ' '.join([
                 status_f.note, '\nLast updated:', last_update])
 
+    try:
+        nodes = test.var_man.get('sched.test_nodes', ''),
+    except DeferredError:
+        nodes = ''
+
     return {
         'test_id': test.id,
         'job_id':  str(test.job),
         'name':    test.name,
         'state':   status_f.state,
-        'result':  test.result,
-        'nodes':   test.var_man.get('sched.test_nodes', ''),
+        'result':  test.results.get('result', ''),
+        'nodes':   nodes,
         'time':    status_f.when,
         'note':    status_f.note,
     }
