@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TextIO
 
 import pavilion.exceptions
+from pavilion.config import PavConfig
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
@@ -89,8 +90,8 @@ class TestRun(TestAttributes):
     JOB_FN = 'job'
     """Link to the test's scheduler job."""
 
-    def __init__(self, pav_cfg, config, var_man=None, _id=None, rebuild=False,
-                 build_only=False):
+    def __init__(self, pav_cfg: PavConfig, config, var_man=None,
+                 _id=None, rebuild=False, build_only=False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -294,7 +295,7 @@ class TestRun(TestAttributes):
     def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
 
-        spack_path = self._pav_cfg.get('spack_path', None)
+        spack_path = self._pav_cfg.get('spack_path')
         spack_enable = self.spack_enabled()
         if spack_enable and spack_path is None:
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
@@ -309,7 +310,7 @@ class TestRun(TestAttributes):
         if not parts:
             raise TestRunNotFoundError("Blank test run id given")
         elif len(parts) == 1:
-            cfg_label = pav_cfg.default_label
+            cfg_label = 'main'
             test_id = parts[0]
         else:
             cfg_label, test_id = parts

@@ -46,7 +46,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     """
 
     limit = args.limit
-    verbose = verbose or io.StringIO() 
+    verbose = verbose or io.StringIO()
 
     if 'all' in args.tests:
         output.fprint("Using default search filters: The current system, user, and "

@@ -103,5 +103,3 @@ class ConfigCmdTests(unittest.PavTestCase):
         config_cmd.clear_output()
         args = arg_parser.parse_args(['config', 'list'])
         self.assertEqual(config_cmd.run(pav_cfg, args), 0)
-        print(*config_cmd.clear_output())
-

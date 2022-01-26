@@ -64,7 +64,7 @@ class ConfigCommand(Command):
         setup_p = subparsers.add_parser(
             'setup',
             help="Setup a root pavilion config directory, including a new pavilion.yaml file.",
-            description="As per 'create', except ignore any normally found pavilion.yaml and " 
+            description="As per 'create', except ignore any normally found pavilion.yaml and "
                         "create a new one in the the given location alongside the other created "
                         "files. Does not create a 'config.y"
         )
@@ -165,7 +165,8 @@ class ConfigCommand(Command):
 
         return self.write_pav_cfg(pav_cfg)
 
-    def get_group(self, group_name) -> Union[grp.struct_group, None]:
+    @staticmethod
+    def get_group(group_name) -> Union[grp.struct_group, None]:
         """Check the supplied group and return a group struct object.
 
         :raises ValueError: On invalid groups names.
@@ -274,7 +275,6 @@ class ConfigCommand(Command):
         loader = config.PavilionConfigLoader()
         pav_cfg_file = pav_cfg.pav_cfg_file
         tmp_suffix = uuid.uuid4().hex[:10]
-        print('saving config to',  pav_cfg_file)
         pav_cfg_file_tmp = pav_cfg_file.with_suffix(pav_cfg_file.suffix + '.' + tmp_suffix)
         try:
             with pav_cfg_file_tmp.open('w') as tmp_file:

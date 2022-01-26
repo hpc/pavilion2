@@ -34,6 +34,6 @@ class StatusTests(PavTestCase):
             cat_cmd.run(self.pav_cfg, args)
 
             with open(str(test.path/arg_set[-1]), 'r') as out_file:
-                true_out = out_file.read()
+                true_out = out_file.read() + '\n'
                 cat_out = cat_cmd.outfile.getvalue()
                 self.assertEqual(cat_out, true_out)

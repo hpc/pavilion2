@@ -159,6 +159,17 @@ class PavConfigDict:
         """Create a copy of this PavConfigDict"""
         return self.__class__(self)
 
+    def __eq__(self, other):
+        """Compare two config dicts."""
+
+        if not isinstance(other, PavConfigDict):
+            raise ValueError("You can't compare a {} with a {}."
+                             .format(type(self), type(other)))
+
+        this_dict = {k: v for k, v in self.items()}
+        other_dict = {k: v for k, v in other.items()}
+        return this_dict == other_dict
+
 
 class PavConfig(PavConfigDict):
     """Define types and attributes for Pavilion config options."""
