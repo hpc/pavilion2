@@ -55,8 +55,6 @@ def main():
             color=output.RED)
         sys.exit(-1)
 
-    print('pav_cfg.working_dir', pav_cfg.working_dir)
-
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
         output.fprint(
@@ -87,15 +85,6 @@ def main():
         sys.exit(0)
 
     pav_cfg.pav_vars = pavilion_variables.PavVars()
-
-    try:
-        if args.tests:
-            if args.sys_name is not None: args.sys_name = ''
-            if args.user is not None: args.user = ''
-            if args.newer_than is not None: args.newer_than = None
-    except AttributeError:
-        pass
-
     run_cmd(pav_cfg, args)
 
 
