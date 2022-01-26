@@ -74,49 +74,6 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
     }
 
 
-def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
-    """Convert a list of test id's and series id's into a list of test id's.
-
-    :param pav_cfg: The pavilion config
-    :param tests: A list of tests or test series names.
-    :param errfile: stream to output errors as needed
-    :return: List of test objects
-    """
-
-    tests = [str(test) for test in tests.copy()]
-
-    if not tests:
-        # Get the last series ran by this user
-        series_id = series.load_user_series_id(pav_cfg)
-        if series_id is not None:
-            tests.append(series_id)
-        else:
-            raise exceptions.CommandError(
-                "No tests specified and no last series was found."
-            )
-
-    test_list = []
-
-    for test_id in tests:
-        # Series start with 's', like 'snake'.
-        if test_id.startswith('s'):
-            try:
-                test_list.extend(series.TestSeries.load(pav_cfg, test_id).tests)
-            except series.TestSeriesError as err:
-                output.fprint(
-                    "Suite {} could not be found.\n{}"
-                    .format(test_id, err),
-                    file=errfile,
-                    color=output.RED
-                )
-                continue
-        # Test
-        else:
-            test_list.append(test_id)
-
-    return list(map(int, test_list))
-
-
 def get_status(test: TestRun, pav_conf):
     """Return the status of a single test_id.
     Allows the statuses to be queried in parallel with map.
