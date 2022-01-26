@@ -2,14 +2,15 @@
 job, the job id, and the tests being run in that job."""
 
 
-import shutil
-import uuid
-import tempfile
 import json
+import pickle
+import shutil
+import tempfile
+import uuid
 from pathlib import Path
-from typing import List, Union, NewType, Dict, TYPE_CHECKING
+from typing import List, Union, NewType, Dict
 
-from pavilion.types import ID_Pair
+from pavilion.types import ID_Pair, Nodes
 
 
 class JobError(RuntimeError):
@@ -29,6 +30,7 @@ class Job:
     KICKOFF_FN = 'kickoff'
     SCHED_LOG_FN = 'sched.log'
     KICKOFF_LOG_FN = 'kickoff.log'
+    NODE_INFO_FN = 'node_info.pkl'
 
     @classmethod
     def new(cls, pav_cfg, tests: list, kickoff_fn: str = None):
@@ -103,6 +105,26 @@ class Job:
         if self.info is not None:
             parts.extend(str(val) for val in self.info.values())
         return "_".join(parts)
+
+    def save_node_data(self, nodes: Nodes):
+        """Save node information (from kickoff time) for the given test."""
+
+        try:
+            with (self.path/self.NODE_INFO_FN).open('wb') as data_file:
+                pickle.dump(nodes, data_file)
+        except OSError as err:
+            raise JobError(
+                "Could not save node data: {}".format(err))
+
+    def load_sched_data(self) -> Nodes:
+        """Load the scheduler data that was saved from the kickoff time."""
+
+        try:
+            with (self.path/self.NODE_INFO_FN).open('rb') as data_file:
+                return pickle.load(data_file)
+        except OSError as err:
+            raise JobError(
+                "Could not load node data: {}".format(err))
 
     def get_test_id_pairs(self) -> List[ID_Pair]:
         """Return the test objects for each test that's part of this job. Only tests

@@ -3,21 +3,22 @@ mechanisms to Pavilion.
 """
 
 import inspect
+import math
 import os
 import time
 from pathlib import Path
 from typing import List, Union, Dict, NewType, Tuple, Type
 
 import yaml_config as yc
-from pavilion.jobs import JobError, JobInfo
+from pavilion.jobs import JobError, JobInfo, Job
 from pavilion.scriptcomposer import ScriptHeader, ScriptComposer
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.test_run import TestRun
+from pavilion.types import NodeList, PickedNodes
 from yapsy import IPlugin
+from . import config
 from . import node_selection
 from .config import validate_config, SchedConfigError, ScheduleConfig
-from . import config
-from .types import NodeList, NodeSet
 from .vars import SchedulerVariables
 
 _SCHEDULER_PLUGINS = {}
@@ -34,21 +35,33 @@ class KickoffScriptHeader(ScriptHeader):
     method to add custom header lines to the kickoff script.
     """
 
-    def __init__(self, job_name: str, sched_config: dict, nodes: NodeList):
+    def __init__(self, job_name: str, sched_config: dict,
+                 nodes: Union[NodeList, Tuple[int, int]]):
         """Initialize the script header.
 
         :param job_name: The job should be named this under the scheduler, if possible.
         :param sched_config: The (validated) scheduler config.
-        :param nodes: A list of specific nodes to kickoff the test under. Advanced
-            schedulers should expect this, while basic scheduler classes should ignore
-            it, but will have to implement 'include_nodes' and 'exclude_nodes' manually.
+        :param nodes: A list of specific nodes to kickoff the test under. This can be
+            a tuple, denoting the minimum and maximum nodes to request and leaving the
+            specific node count and selection (given all filtering parameters) to
+            the scheduler. In this case, 'include_nodes' and 'exclude_nodes' will also
+            need to be handled through scheduler parameters.
         """
 
         super().__init__()
 
         self._job_name = job_name
         self._config = sched_config
-        self._nodes = nodes
+        if isinstance(nodes, tuple):
+            self._include_nodes = self._config['include_nodes']
+            self._exclude_nodes = self._config['exclude_nodes']
+            self._node_min = nodes[0]
+            self._node_max = nodes[1]
+        else:
+            self._include_nodes = nodes
+            # Any nodes in the exclude list will have already been filtered out.
+            self._exclude_nodes = []
+            self._node_min = self._node_max = len(nodes)
 
     def get_lines(self) -> List[str]:
         """Returns all the header lines needed for the kickoff script."""
@@ -94,9 +107,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
     """The class to use when generating headers for kickoff scripts."""
 
     NODE_SELECTION = {
-        'contiguous': node_selection.contiguous,
-        'random': node_selection.random,
-        'rand_dist': node_selection.rand_dist,
+        'contiguous':  node_selection.contiguous,
+        'random':      node_selection.random,
+        'rand_dist':   node_selection.rand_dist,
         'distributed': node_selection.distributed,
     }
 
@@ -339,15 +352,13 @@ class SchedulerPlugin(IPlugin.IPlugin):
         return [], {}, {}
 
     def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
-                                    sched_config: dict, chunk: NodeSet = None) \
+                                    sched_config: dict, picked_nodes: PickedNodes) \
             -> ScriptComposer:
         """Generate the kickoff script essentials preamble common to all scheduled
         tests.
         """
 
-        chunk = chunk or []
-
-        header = self._get_kickoff_script_header(job_name, sched_config, chunk)
+        header = self._get_kickoff_script_header(job_name, sched_config, picked_nodes)
 
         script = ScriptComposer(header=header)
         script.comment("Redirect all output to the kickoff log.")
@@ -355,7 +366,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         # Make sure the pavilion spawned
         env_changes = {
-            'PATH': '{}:${{PATH}}'.format(pav_cfg.pav_root/'bin'),
+            'PATH':            '{}:${{PATH}}'.format(pav_cfg.pav_root / 'bin'),
             'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
         }
         if 'PAV_CONFIG_DIR' in os.environ:
@@ -370,13 +381,14 @@ class SchedulerPlugin(IPlugin.IPlugin):
         return script
 
     def _get_kickoff_script_header(self, job_name: str, sched_config: dict,
-                                   nodes) -> KickoffScriptHeader:
+                                   nodes: PickedNodes) -> KickoffScriptHeader:
         """Get a script header object for the kickoff script."""
 
         return self.KICKOFF_SCRIPT_HEADER_CLASS(
             job_name=job_name,
             sched_config=sched_config,
-            nodes=nodes)
+            nodes=nodes,
+        )
 
     @staticmethod
     def _add_schedule_script_body(script, test):
@@ -424,6 +436,49 @@ class SchedulerPlugin(IPlugin.IPlugin):
                 del config.CONFIG_VALIDATORS[name]
             if name in config.CONFIG_DEFAULTS:
                 del config.CONFIG_DEFAULTS[name]
+
+    def _get_alloc_nodes(self, job: Job) -> NodeList:
+        """Given that this is running on an allocation, return the allocation's
+        node list.
+
+        :param job: The Job is passed in case a scheduler saved node information with
+            the job. Usually not needed.
+        """
+
+        raise NotImplementedError("This must be implemented, even in basic schedulers.")
+
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+        """Schedule the test under this scheduler.
+
+        :param pav_cfg: The pavilion config.
+        :param job: The job to kick off.
+        :param sched_config: The scheduler configuration for this test or group of
+            tests.
+        :returns: The job info of the kicked off job.
+        """
+
+        raise NotImplementedError("How to perform test kickoff is left for the "
+                                  "specific scheduler to specify.")
+
+    @staticmethod
+    def _calc_node_range(sched_config, node_count) -> Tuple[int, int]:
+        """Calculate a node range for the job given the min_nodes and nodes, and
+        the number of nodes available (for percentages. Returns the calculated min and max.
+        """
+
+        nodes = sched_config['nodes']
+        if isinstance(nodes, float):
+            nodes = math.ceil(nodes * node_count)
+        nodes = max(nodes, 1)
+
+        min_nodes = sched_config['min_nodes']
+        if min_nodes in (None, 0):
+            min_nodes = nodes
+        elif isinstance(min_nodes, float):
+            min_nodes = math.ceil(min_nodes * node_count)
+            min_nodes = max(min_nodes, 1)
+
+        return min_nodes, nodes
 
 
 def __reset():

@@ -1,4 +1,5 @@
 import subprocess
+import copy
 import yc_yaml as yaml
 import time
 import unittest
@@ -198,12 +199,20 @@ class SlurmTests(PavTestCase):
 
         sched_conf = test.config['schedule']
 
+        skip_keys = [
+            'errors'
+            ]
+
         # Check all the variables to make sure they work outside an allocation,
         # or at least return a DeferredVariable
         var_list = list()
         for k, v in slurm.get_initial_vars(sched_conf).items():
+            if k in skip_keys: 
+                continue
+
             # Make sure everything has a value of some sort.
-            self.assertNotIn(v, ['None', '', []])
+            self.assertNotIn(v, ['None', '', []], 
+                msg="Key {} matched a null or empty value: {}".format(k,v))
             var_list.append(k)
 
         # Now check all the vars for real, when a test is running.
@@ -291,6 +300,105 @@ class SlurmTests(PavTestCase):
         test.wait(10)
 
         self.assertEqual(test.results['result'], 'PASS')
+
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_slurm_kickoff_shared(self):
+        """Launch a slurm job in shared mode, with both strict and flexible (non-chunking)
+        scheduling."""
+
+        slurm = pavilion.schedulers.get_plugin('slurm')
+        cfg = self._quick_test_cfg()
+        cfg.update(self.slurm_mode)
+        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['schedule']['nodes'] = '3'
+        cfg['schedule']['node_state'] = 'available'
+        cfg['schedule']['slurm'] = {
+            'sbatch_extra': ['--comment "Hiya!"'],
+            'srun_extra': ['--comment "Howdy!"'],
+        }
+        cfg['scheduler'] = 'slurm'
+        test1 = self._quick_test(cfg=copy.deepcopy(cfg), name='slurm_kickoff_shared1', finalize=False)
+        test2 = self._quick_test(cfg=copy.deepcopy(cfg), name='slurm_kickoff_shared2', finalize=False)
+        cfg['schedule']['chunking'] = {'size': '3'}
+        cfg['chunk'] = '0'
+        test3 = self._quick_test(cfg=copy.deepcopy(cfg), name='slurm_kickoff_shared3', finalize=False)
+        test4 = self._quick_test(cfg=copy.deepcopy(cfg), name='slurm_kickoff_shared4', finalize=False)
+        tests = [test1, test2, test3, test4]
+
+        slurm.schedule_tests(self.pav_cfg, tests)
+
+        status = slurm.job_status(self.pav_cfg, tests[0])
+        for test in tests:
+            test.wait(10)
+            self.assertEqual(test.results['result'], 'PASS')
+
+        self.assertEqual(test1.job.path, test2.job.path)
+        self.assertEqual(test3.job.path, test4.job.path)
+        self.assertNotEqual(test1.job.path, test3.job.path)
+
+
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_slurm_kickoff_indi(self):
+        """Launch a slurm job under the indi (independent) mode."""
+
+        slurm = pavilion.schedulers.get_plugin('slurm')
+        cfg = self._quick_test_cfg()
+        cfg.update(self.slurm_mode)
+        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['schedule']['nodes'] = 'all'
+        cfg['schedule']['chunking'] = {'size': '3'}
+        cfg['schedule']['share_allocation'] = 'False'
+        cfg['chunk'] = '0'
+        cfg['schedule']['slurm'] = {
+            'sbatch_extra': ['--comment "Hiya!"'],
+            'srun_extra': ['--comment "Howdy!"'],
+        }
+        cfg['scheduler'] = 'slurm'
+        test1 = self._quick_test(cfg=cfg, name='slurm_kickoff_indi1', finalize=False)
+        test2 = self._quick_test(cfg=cfg, name='slurm_kickoff_indi2', finalize=False)
+        tests = [test1, test2]
+
+        slurm.schedule_tests(self.pav_cfg, tests)
+
+        status = slurm.job_status(self.pav_cfg, tests[0])
+        for test in tests:
+            test.wait(10)
+            self.assertEqual(test.results['result'], 'PASS')
+
+        self.assertNotEqual(test1.job.path.resolve(), test2.job.path.resolve())
+        for test in tests:
+            self.assertEqual(len(list((test.job.path/'tests').iterdir())), 1)
+
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_slurm_kickoff_flex(self):
+        """Launch a slurm job under the flex mode.."""
+
+        slurm = pavilion.schedulers.get_plugin('slurm')
+        cfg = self._quick_test_cfg()
+        cfg.update(self.slurm_mode)
+        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['schedule']['nodes'] = '3'
+        cfg['schedule']['share_allocation'] = 'False'
+        cfg['chunk'] = '0'
+        cfg['schedule']['slurm'] = {
+            'sbatch_extra': ['--comment "Hiya!"'],
+            'srun_extra': ['--comment "Howdy!"'],
+        }
+        cfg['scheduler'] = 'slurm'
+        test1 = self._quick_test(cfg=cfg, name='slurm_kickoff_flex1', finalize=False)
+        test2 = self._quick_test(cfg=cfg, name='slurm_kickoff_flex2', finalize=False)
+        tests = [test1, test2]
+
+        slurm.schedule_tests(self.pav_cfg, tests)
+
+        status = slurm.job_status(self.pav_cfg, tests[0])
+        for test in tests:
+            test.wait(10)
+            self.assertEqual(test.results['result'], 'PASS')
+
+        self.assertNotEqual(test1.job.path.resolve(), test2.job.path.resolve())
+        for test in tests:
+            self.assertEqual(len(list((test.job.path/'tests').iterdir())), 1)
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_mpirun(self):

@@ -1,12 +1,13 @@
 """An advanced dummy plugin."""
 
+import pickle
 import subprocess
 from typing import Union, List, Any, Tuple
 
 import yaml_config as yc
 from pavilion import schedulers
 from pavilion.jobs import Job, JobInfo
-from pavilion.schedulers import NodeInfo
+from pavilion.types import NodeInfo, NodeList
 from pavilion.status_file import TestStatusInfo, STATES
 
 
@@ -27,6 +28,10 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
             ])
 
         return sched_vars
+
+    def _get_alloc_nodes(self, job: Job) -> NodeList:
+        nodes = job.load_sched_data()
+        return NodeList(list(nodes.keys()))
 
     def _get_config_elems(self) -> Tuple[List[yc.ConfigElement], dict, dict]:
 
@@ -88,8 +93,7 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
     def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
         return NodeInfo(node_data)
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict,
-                 chunk: schedulers.NodeList) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
 
         subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)

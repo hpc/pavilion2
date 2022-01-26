@@ -11,9 +11,9 @@ from typing import Union, List
 
 from pavilion.jobs import JobInfo, Job
 from pavilion.status_file import STATES, TestStatusInfo
+from pavilion.types import NodeInfo, NodeList
 from ..basic import SchedulerPluginBasic
 from ..scheduler import KickoffScriptHeader
-from ..types import NodeList, NodeInfo
 from ..vars import SchedulerVariables
 
 
@@ -41,8 +41,10 @@ class Raw(SchedulerPluginBasic):
             "Schedules tests as local processes."
         )
 
-    def _get_alloc_nodes(self) -> NodeList:
+    def _get_alloc_nodes(self, job) -> NodeList:
         """Return just the hostname of this host."""
+
+        _ = job
 
         return NodeList([socket.gethostname()])
 
