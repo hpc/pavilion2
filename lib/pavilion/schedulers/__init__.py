@@ -8,7 +8,7 @@ from .basic import SchedulerPluginBasic
 from .config import validate_config
 from .scheduler import (SchedulerPluginError, SchedulerPlugin, KickoffScriptHeader,
                         _SCHEDULER_PLUGINS)
-from .types import NodeList, NodeSet, Nodes, NodeInfo
+from ..types import NodeInfo, Nodes, NodeList, NodeSet
 from .vars import SchedulerVariables
 
 _builtin_scheduler_plugins = [

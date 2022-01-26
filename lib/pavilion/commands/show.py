@@ -5,6 +5,7 @@ import errno
 import pprint
 from typing import Union
 
+import pavilion.types
 import yaml_config
 from pavilion import config
 from pavilion import expression_functions
@@ -664,7 +665,7 @@ class ShowCommand(Command):
 
             config = schedulers.validate_config({})
 
-            svars = sched.VAR_CLASS(config, schedulers.Nodes({}))
+            svars = sched.VAR_CLASS(config, pavilion.types.Nodes({}))
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))

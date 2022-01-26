@@ -4,39 +4,18 @@ node inventory, so Pavilion has to guess (or be told) about node info."""
 from abc import ABC
 from typing import List
 
-from pavilion.jobs import Job, JobInfo, JobError
+from pavilion.jobs import Job, JobError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
+from pavilion.types import NodeInfo, Nodes
 from .config import validate_config
 from .scheduler import SchedulerPlugin, SchedulerPluginError
-from .types import NodeList, Nodes, NodeInfo
 from .vars import SchedulerVariables
 
 
 class SchedulerPluginBasic(SchedulerPlugin, ABC):
     """A Scheduler plugin that does not support automatic node inventories. It relies
     on manually set parameters in 'schedule.cluster_info'."""
-
-    # Only these two additional methods need to be defined for basic scheduler plugins.
-
-    def _get_alloc_nodes(self) -> NodeList:
-        """Given that this is running on an allocation, return the allocation's
-        node list."""
-
-        raise NotImplementedError("This must be implemented, even in basic schedulers.")
-
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
-        """Schedule the test under this scheduler.
-
-        :param pav_cfg: The pavilion config.
-        :param job: The job to kickoff.
-        :param sched_config: The scheduler configuration for this test or group of
-            tests.
-        :returns: The job info of the kicked off job.
-        """
-
-        raise NotImplementedError("How to perform test kickoff is left for the "
-                                  "specific scheduler to specify.")
 
     def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
         """Get the initial variables for the basic scheduler."""
@@ -48,13 +27,11 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
 
         raw_sched_config = test.config['schedule']
         sched_config = validate_config(raw_sched_config)
-        alloc_nodes = self._get_alloc_nodes()
+        alloc_nodes = self._get_alloc_nodes(test.job)
 
         num_nodes = sched_config['nodes']
         if isinstance(num_nodes, float):
-            num_nodes = alloc_nodes[:int(len(alloc_nodes)*num_nodes)]
-        else:
-            alloc_nodes = alloc_nodes[:num_nodes]
+            alloc_nodes = alloc_nodes[:int(len(alloc_nodes)*num_nodes)]
 
         nodes = Nodes({})
         for node in alloc_nodes:
@@ -82,11 +59,16 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
 
             sched_config = validate_config(test.config['schedule'])
 
+            node_range = self._calc_node_range(sched_config,
+                                               sched_config['cluster_info']['node_count'])
+
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
                 job_name='pav test {} ({})'.format(test.full_id, test.name),
                 log_path=job.kickoff_log,
-                sched_config=sched_config)
+                sched_config=sched_config,
+                picked_nodes=node_range,
+            )
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
