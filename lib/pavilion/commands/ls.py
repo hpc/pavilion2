@@ -31,11 +31,10 @@ class LSCommand(Command):
             help='print test absolute path',
         )
         parser.add_argument(
-            '-s', '--subdir',
-            help="print subdirectory DIR.",
-            type=str,
+            'subdir',
             metavar='DIR',
-            nargs=1
+            nargs='?',
+            help="print subdirectory DIR.",
         )
 
         parser.add_argument(
@@ -49,6 +48,8 @@ class LSCommand(Command):
 
         test_run_dir = pav_cfg.working_dir / 'test_runs'
         test_dir = dir_db.make_id_path(test_run_dir, args.test_id)
+        if args.subdir:
+            test_dir = test_dir/args.subdir
 
         if os.path.isdir(test_dir.as_posix()) is False:
             output.fprint("directory '{}' does not exist.".format(test_dir),
@@ -66,10 +67,7 @@ class LSCommand(Command):
             self.tree_(level, test_dir)
             return 0
 
-        if args.subdir:
-            return self.ls_(test_dir / args.subdir[0])
-        else:
-            return self.ls_(test_dir)
+        return self.ls_(test_dir)
 
     def ls_(self, dir_):
         """Print a directory listing for the given run directory."""

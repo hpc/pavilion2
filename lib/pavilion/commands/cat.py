@@ -58,6 +58,7 @@ class CatCommand(Command):
                     if not block:
                         break
                     output.fprint(block, width=None, file=self.outfile, end="")
+                output.fprint('', file=self.outfile)
 
         except FileNotFoundError:
             output.fprint("file '{}' does not exist.".format(file),

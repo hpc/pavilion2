@@ -10,7 +10,7 @@ from pavilion import exceptions
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
 
@@ -63,7 +63,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
                 status_f.note, '\nLast updated:', last_update])
 
     try:
-        nodes = test.var_man.get('sched.test_nodes', ''),
+        nodes = test.var_man.get('sched.test_nodes', '')
     except DeferredError:
         nodes = ''
 
