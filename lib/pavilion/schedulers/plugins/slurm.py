@@ -573,6 +573,8 @@ class Slurm(SchedulerPluginAdvanced):
     def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
         """Submit the kick off script using sbatch."""
 
+        _ = self
+
         proc = subprocess.Popen(['sbatch',
                                  '--output={}'.format(job.sched_log.as_posix()),
                                  job.kickoff_path.as_posix()],

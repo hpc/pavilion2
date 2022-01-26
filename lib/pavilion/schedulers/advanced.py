@@ -344,7 +344,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 if chunk_spec > len(chunks):
                     raise SchedulerPluginError(
                         "Test selected chunk '{}', but there are only {} chunks "
-                        "available.".format(chunk_id, len(chunks)))
+                        "available.".format(chunk_spec, len(chunks)))
                 chunk = chunks[chunk_spec]
                 by_chunk[chunk].append(test)
 
