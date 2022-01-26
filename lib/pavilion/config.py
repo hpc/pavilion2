@@ -72,7 +72,7 @@ class PavConfigDict:
     """The default config dict class is meant for flexibility. We want something that can
     also handle type checking."""
 
-    def __init__(self, set_keys: dict = None):
+    def __init__(self, set_keys: Union[dict, "PavConfigDict"] = None):
         """Initialize with the given kwargs."""
 
         if set_keys is not None:
@@ -480,7 +480,7 @@ class LocalConfigLoader(yc.YamlConfigLoader):
             help_text="Group that the config directory and working directory should be "
                       "set to. This is used to set group and group sticky bits on "
                       "directory creation, and to check the working_dir group when running."
-        )
+        ),
         ExPathElem(
             'path', hidden=True,
             help_text="Path to this config file.")

@@ -67,6 +67,8 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         'job_id':  str(test.job),
         'name':    test.name,
         'state':   status_f.state,
+        'result':  test.result,
+        'nodes':   test.var_man.get('sched.test_nodes', ''),
         'time':    status_f.when,
         'note':    status_f.note,
     }
@@ -172,7 +174,7 @@ def print_status(statuses, outfile, json=False):
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
     else:
-        fields = ['test_id', 'job_id', 'name', 'state', 'time', 'note']
+        fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time', 'note']
         output.draw_table(
             outfile=outfile,
             field_info={
