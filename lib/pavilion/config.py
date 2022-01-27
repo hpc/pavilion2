@@ -137,6 +137,11 @@ class PavConfigDict:
     def __iter__(self):
         return self.keys()
 
+    def as_dict(self):
+        """Convert into a dictionary."""
+
+        return dict(self)
+
     def values(self):
         """Produce an iterable of the values."""
 
@@ -463,7 +468,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 class LocalConfig(PavConfigDict):
     """This provides type checkers something to working with. See PavConfig above."""
     def __init__(self, set_attrs: dict = None):
-        self.label: str = 'dummy'
+        self.label: str = None
         self.working_dir: Union[None, Path] = None
         self.path: OptPath = None
         self.group: Union[str, None] = None
@@ -594,6 +599,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
 
         config['working_dir'] = working_dir
         config['path'] = config_dir
+        config['label'] = label
         configs[label] = config
 
     return configs

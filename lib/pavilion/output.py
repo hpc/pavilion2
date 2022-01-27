@@ -896,5 +896,7 @@ class PavEncoder(json.JSONEncoder):
         # Just auto-convert anything that looks like a dict.
         elif isinstance(o, (dict, UserDict)):
             return dict(o)
+        elif hasattr(o, 'as_dict'):
+            return o.as_dict()
 
         return super().default(o)

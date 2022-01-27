@@ -67,15 +67,19 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
     except DeferredError:
         nodes = ''
 
+    result = test.results.get('result', '') or ''
+    series = test.series or ''
+
     return {
-        'test_id': test.id,
         'job_id':  str(test.job),
         'name':    test.name,
-        'state':   status_f.state,
-        'result':  test.results.get('result', ''),
         'nodes':   nodes,
-        'time':    status_f.when,
         'note':    status_f.note,
+        'result':  result,
+        'series':  series,
+        'state':   status_f.state,
+        'test_id': test.id,
+        'time':    status_f.when,
     }
 
 
@@ -90,12 +94,15 @@ def get_status(test: TestRun, pav_conf):
         test_status = status_from_test_obj(pav_conf, test)
     except (TestRunError, TestRunNotFoundError) as err:
         test_status = {
-            'test_id': test.full_id,
             'job_id':  str(test.job),
             'name':    test.name,
+            'nodes':   '',
+            'note':    "Error getting test status: {}".format(err),
+            'result':  '',
+            'series':  '',
             'state':   STATES.UNKNOWN,
-            'time':    None,
-            'note':    "Test not found: {}".format(err)
+            'test_id': test.full_id,
+            'time':    '',
         }
 
     return test_status
@@ -113,7 +120,7 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
         return list(pool.map(get_this_status, tests))
 
 
-def print_status(statuses, outfile, json=False):
+def print_status(statuses, outfile, note=False, series=False, json=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param list statuses: list of dictionary objects containing the test_id,
@@ -128,25 +135,24 @@ def print_status(statuses, outfile, json=False):
 
     statuses.sort(key=lambda v: v.get('test_id'))
 
-    ret_val = 1
-    for stat in statuses:
-        if stat['note'] != "Test not found.":
-            ret_val = 0
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
     else:
-        fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time', 'note']
+        fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
+        if series:
+            fields.insert(0, 'series')
+        if note:
+            fields.append('note')
         output.draw_table(
             outfile=outfile,
             field_info={
-                'time': {'transform': output.get_relative_timestamp}
+                'time': {'transform': output.get_relative_timestamp},
+                'test_id': {'title': 'Test'},
             },
             fields=fields,
             rows=statuses,
             title='Test statuses')
-
-    return ret_val
 
 
 def print_from_tests(pav_cfg, tests, outfile, json=False):

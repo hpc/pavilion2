@@ -282,7 +282,7 @@ def filter_test_run(
 
     if sys_name and test_attrs.get('sys_name') != sys_name:
         return False
-
+    
     if passed and test_attrs.get('result') != TestRun.PASS:
         return False
 
