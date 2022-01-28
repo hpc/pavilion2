@@ -76,7 +76,7 @@ base class.
         """Setup the pav_cfg object, and do other initialization required by
         pavilion."""
 
-        self.pav_cfg = self.make_pav_config()
+        self.pav_cfg: pavilion.PavConfig = self.make_pav_config()
 
         # We have to get this to set up the base argument parser before
         # plugins can add to it.

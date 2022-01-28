@@ -5,15 +5,19 @@ import argparse
 import logging
 from pathlib import Path
 from typing import List, TextIO
+import time
+import datetime as dt
 
 from pavilion import dir_db
 from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
 from pavilion import series
+from pavilion import utils
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
-from pavilion.exceptions import TestRunError
+from pavilion.exceptions import TestRunError, DeferredError
+from pavilion import sys_vars
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +46,15 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     """
 
     limit = args.limit
+    verbose = verbose or io.StringIO()
+
+    if 'all' in args.tests:
+        output.fprint("Using default search filters: The current system, user, and "
+                      "newer_than 1 day ago.", file=verbose, color=output.CYAN)
+        if args.user is None and args.newer_than is None and args.sys_name is None:
+            args.user = utils.get_login()
+            args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
+            args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     filter_func = filters.make_test_run_filter(
         complete=args.complete,

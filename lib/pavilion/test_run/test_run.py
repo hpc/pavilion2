@@ -13,9 +13,10 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, Union
 
 import pavilion.exceptions
+from pavilion.config import PavConfig
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
@@ -89,8 +90,8 @@ class TestRun(TestAttributes):
     JOB_FN = 'job'
     """Link to the test's scheduler job."""
 
-    def __init__(self, pav_cfg, config, var_man=None, _id=None, rebuild=False,
-                 build_only=False):
+    def __init__(self, pav_cfg: PavConfig, config, var_man=None,
+                 _id=None, rebuild=False, build_only=False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -224,6 +225,22 @@ class TestRun(TestAttributes):
         """Returns an ID_pair (a tuple of the working dir and test id)."""
         return ID_Pair((self.working_dir, self.id))
 
+    @property
+    def series(self) -> Union[str, None]:
+        """Return the series id that this test belongs to. Returns None if it doesn't
+        belong to any series."""
+
+        series_path = self.path/'series'
+        if series_path.exists():
+            series = series_path.resolve().name
+            try:
+                series = int(series)
+            except ValueError:
+                return None
+            return 's{}'.format(series)
+        else:
+            return None
+
     def save(self):
         """Save the test configuration to file and create the builder. This
         essentially separates out a filesystem operations from creating a test,
@@ -294,7 +311,7 @@ class TestRun(TestAttributes):
     def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
 
-        spack_path = self._pav_cfg.get('spack_path', None)
+        spack_path = self._pav_cfg.get('spack_path')
         spack_enable = self.spack_enabled()
         if spack_enable and spack_path is None:
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
@@ -309,7 +326,7 @@ class TestRun(TestAttributes):
         if not parts:
             raise TestRunNotFoundError("Blank test run id given")
         elif len(parts) == 1:
-            cfg_label = pav_cfg.default_label
+            cfg_label = 'main'
             test_id = parts[0]
         else:
             cfg_label, test_id = parts
@@ -842,7 +859,7 @@ of result keys.
             pass
         results_tmp_path.rename(self.results_path)
 
-        self.result = results.get('../result')
+        self.result = results.get('result')
         self.save_attributes()
 
         result_logger = logging.getLogger('common_results')

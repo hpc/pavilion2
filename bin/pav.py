@@ -57,7 +57,11 @@ def main():
 
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
-        sys.exit(1)
+        output.fprint(
+            "Could not set up loggers. This is usually because of a badly defined "
+            "working_dir in pavilion.yaml.",
+            file=sys.stderr, color=output.RED)
+        sys.exit(-1)
 
     # Initialize all the plugins
     try:
@@ -81,15 +85,6 @@ def main():
         sys.exit(0)
 
     pav_cfg.pav_vars = pavilion_variables.PavVars()
-
-    try:
-        if args.tests:
-            if args.sys_name is not None: args.sys_name = ''
-            if args.user is not None: args.user = ''
-            if args.newer_than is not None: args.newer_than = None
-    except AttributeError:
-        pass
-
     run_cmd(pav_cfg, args)
 
 

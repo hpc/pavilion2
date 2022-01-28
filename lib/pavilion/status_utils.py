@@ -10,7 +10,7 @@ from pavilion import exceptions
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
 
@@ -62,57 +62,25 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
             status_f.note = ' '.join([
                 status_f.note, '\nLast updated:', last_update])
 
+    try:
+        nodes = test.var_man.get('sched.test_nodes', '')
+    except DeferredError:
+        nodes = ''
+
+    result = test.results.get('result', '') or ''
+    series = test.series or ''
+
     return {
-        'test_id': test.id,
         'job_id':  str(test.job),
         'name':    test.name,
-        'state':   status_f.state,
-        'time':    status_f.when,
+        'nodes':   nodes,
         'note':    status_f.note,
+        'result':  result,
+        'series':  series,
+        'state':   status_f.state,
+        'test_id': test.id,
+        'time':    status_f.when,
     }
-
-
-def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
-    """Convert a list of test id's and series id's into a list of test id's.
-
-    :param pav_cfg: The pavilion config
-    :param tests: A list of tests or test series names.
-    :param errfile: stream to output errors as needed
-    :return: List of test objects
-    """
-
-    tests = [str(test) for test in tests.copy()]
-
-    if not tests:
-        # Get the last series ran by this user
-        series_id = series.load_user_series_id(pav_cfg)
-        if series_id is not None:
-            tests.append(series_id)
-        else:
-            raise exceptions.CommandError(
-                "No tests specified and no last series was found."
-            )
-
-    test_list = []
-
-    for test_id in tests:
-        # Series start with 's', like 'snake'.
-        if test_id.startswith('s'):
-            try:
-                test_list.extend(series.TestSeries.load(pav_cfg, test_id).tests)
-            except series.TestSeriesError as err:
-                output.fprint(
-                    "Suite {} could not be found.\n{}"
-                    .format(test_id, err),
-                    file=errfile,
-                    color=output.RED
-                )
-                continue
-        # Test
-        else:
-            test_list.append(test_id)
-
-    return list(map(int, test_list))
 
 
 def get_status(test: TestRun, pav_conf):
@@ -126,12 +94,15 @@ def get_status(test: TestRun, pav_conf):
         test_status = status_from_test_obj(pav_conf, test)
     except (TestRunError, TestRunNotFoundError) as err:
         test_status = {
-            'test_id': test.full_id,
             'job_id':  str(test.job),
             'name':    test.name,
+            'nodes':   '',
+            'note':    "Error getting test status: {}".format(err),
+            'result':  '',
+            'series':  '',
             'state':   STATES.UNKNOWN,
-            'time':    None,
-            'note':    "Test not found: {}".format(err)
+            'test_id': test.full_id,
+            'time':    '',
         }
 
     return test_status
@@ -149,7 +120,7 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
         return list(pool.map(get_this_status, tests))
 
 
-def print_status(statuses, outfile, json=False):
+def print_status(statuses, outfile, note=False, series=False, json=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param list statuses: list of dictionary objects containing the test_id,
@@ -164,25 +135,26 @@ def print_status(statuses, outfile, json=False):
 
     statuses.sort(key=lambda v: v.get('test_id'))
 
-    ret_val = 1
-    for stat in statuses:
-        if stat['note'] != "Test not found.":
-            ret_val = 0
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
     else:
-        fields = ['test_id', 'job_id', 'name', 'state', 'time', 'note']
+        fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
+        if series:
+            fields.insert(0, 'series')
+        if note:
+            fields.append('note')
         output.draw_table(
             outfile=outfile,
             field_info={
-                'time': {'transform': output.get_relative_timestamp}
+                'time': {'transform': output.get_relative_timestamp},
+                'test_id': {'title': 'Test'},
             },
             fields=fields,
             rows=statuses,
             title='Test statuses')
 
-    return ret_val
+    return 0
 
 
 def print_from_tests(pav_cfg, tests, outfile, json=False):

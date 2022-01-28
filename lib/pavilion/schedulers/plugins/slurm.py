@@ -272,10 +272,11 @@ class Slurm(SchedulerPluginAdvanced):
         defaults = {
             'up_states': ['ALLOCATED',
                           'COMPLETING',
+                          'PLANNING',
                           'MAINTENANCE',
                           'IDLE',
                           'MAINT'],
-            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE'],
+            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE', 'PLANNING'],
             'features': [],
             'reserved_states': ['RESERVED'],
             'sbatch_extra': [],

@@ -23,14 +23,14 @@ TEST_FILTER_DEFAULTS = {
     'has_state': None,
     'incomplete': False,
     'name': None,
-    'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
+    'newer_than': None,
     'older_than': None,
     'passed': False,
     'result_error': False,
     'sort_by': '-created',
     'state': None,
-    'sys_name': LOCAL_SYS_NAME,
-    'user': utils.get_login(),
+    'sys_name': None,
+    'user': None,
     'limit': None,
     'disable_filter': False,
 }
@@ -298,7 +298,8 @@ def filter_test_run(
     if newer_than is not None and test_attrs.get('created') < newer_than:
         return False
 
-    if name and not fnmatch.fnmatch(test_attrs.get('name'), name):
+    test_name = test_attrs.get('name') or ''
+    if name and not fnmatch.fnmatch(test_name, name):
         return False
 
     if state is not None or has_state is not None:
@@ -380,12 +381,12 @@ SERIES_FILTER_DEFAULTS = {
     'has_state': None,
     'incomplete': False,
     'limit': None,
-    'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
+    'newer_than': None,
     'older_than': None,
     'sort_by': '-created',
     'state': None,
-    'sys_name': LOCAL_SYS_NAME,
-    'user': utils.get_login(),
+    'sys_name': None,
+    'user': None,
 }
 
 
@@ -437,7 +438,7 @@ def make_series_filter(complete: bool = False, has_state: str = None,
             series_status_path = Path(series['path'])/TestSeries.STATUS_FN
             try:
                 series_status = SeriesStatusFile(series_status_path)
-            except StatusError as err:
+            except StatusError:
                 # Couldn't get a status to check.
                 return False
 

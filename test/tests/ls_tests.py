@@ -1,13 +1,10 @@
-import errno
-import os
 import io
-import sys
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import output
 from pavilion.unittest import PavTestCase
+
 
 class StatusTests(PavTestCase):
 
@@ -29,7 +26,7 @@ class StatusTests(PavTestCase):
         arg_sets = (
             ['ls', str(test.id)],
             ['ls', str(test.id), '--tree'],
-            ['ls', str(test.id), '--subdir', 'build' ],
+            ['ls', str(test.id), 'build'],
         )
 
         for arg_set in arg_sets:
