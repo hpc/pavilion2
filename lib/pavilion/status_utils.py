@@ -154,6 +154,8 @@ def print_status(statuses, outfile, note=False, series=False, json=False):
             rows=statuses,
             title='Test statuses')
 
+    return 0
+
 
 def print_from_tests(pav_cfg, tests, outfile, json=False):
     """Print the statuses given a list of test objects or a single test object.
