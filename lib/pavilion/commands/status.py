@@ -76,7 +76,7 @@ class StatusCommand(Command):
         if args.summary:
             return self.print_summary(statuses)
         else:
-            return status_utils.print_status(statuses, self.outfile, json=args.json, 
+            return status_utils.print_status(statuses, self.outfile, json=args.json,
                                              series=args.series, note=args.note)
 
     def print_summary(self, statuses):
