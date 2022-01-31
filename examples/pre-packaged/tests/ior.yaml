@@ -214,21 +214,6 @@ xroads_load1:
         regex: 'blocksize += (.*)'
 
 
-xroads_load2:
-  inherits_from: xroads_load1
-
-  permute_on:
-  - scratch
-  - a_flag
-  - filecount
-  - randomize
-
-    # random not available with collective MPIIO
-  variables:
-    filecount: [ 0, 1 ]
-    randomize: [ 0, 1 ]
-    outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{randomize}}.dat'
-
 xroads_load1_scaling:
   inherits_from: xroads_load1
 
@@ -268,3 +253,37 @@ xroads_load1_scaling:
     - percent: '95%'
       amount: '{{ floor( sched.alloc_max_mem * 0.95 ) }}'
     outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{node_count}}-{{numtasks}}-{{mempernode.percent}}.dat'
+
+xroads_load2:
+  inherits_from: xroads_load1
+
+  permute_on:
+  - scratch
+  - a_flag
+  - filecount
+  - randomize
+
+    # random not available with collective MPIIO
+  variables:
+    filecount: [ 0, 1 ]
+    randomize: [ 0, 1 ]
+    outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{randomize}}.dat'
+
+xroads_load2_scaling:
+  inherits_from: xroads_load1_scaling
+
+  permute_on:
+  - scratch
+  - node_count
+  - numtasks
+  - transsize
+  - mempernode
+  - a_flag
+  - filecount
+  - randomize
+
+    # random not available with collective MPIIO
+  variables:
+    filecount: [ 0, 1 ]
+    randomize: [ 0, 1 ]
+    outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{node_count}}-{{numtasks}}-{{mempernode.percent}}-{{randomize}}.dat'
