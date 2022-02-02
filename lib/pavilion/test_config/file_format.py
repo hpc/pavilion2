@@ -454,12 +454,10 @@ expected to be added to by various plugins.
                                       'the test.'),
                 yc.ListElem(
                     'prepend_cmds', sub_elem=yc.StrElem(),
-                    help_text='Commands to run before inherited build '
-                              'commands.'),
+                    help_text='Commands to run before inherited run commands.'),
                 yc.ListElem(
                     'append_cmds', sub_elem=yc.StrElem(),
-                    help_text='Commands to run after inherited build '
-                              'commands.'),
+                    help_text='Commands to run after inherited run commands.'),
                 PathCategoryElem(
                     'create_files',
                     key_case=PathCategoryElem.KC_MIXED,

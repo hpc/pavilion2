@@ -71,12 +71,10 @@ COLORS = {
 }
 
 
-def get_relative_timestamp(base_time):
+def get_relative_timestamp(base_time: float) -> str:
     """Print formatted time string based on the delta of time objects.
-    :param float base_time: The datetime object to compare and format
-    from.
+    :param base_time: The unix timestamp
     :returns: A formatted time string.
-    :rtype str:
     """
 
     if not isinstance(base_time, float):

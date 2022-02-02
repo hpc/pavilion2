@@ -1,0 +1,29 @@
+basic:
+    build:
+        source_path: hello_world.c
+
+        # We're about to use gcc to compile the test. If you need to
+        # load a module to get gcc, add that module to this list.
+        modules: []
+
+        cmds:
+            - gcc -o hello hello_world.c
+
+    run:
+        cmds:
+            - './hello {{user}}'
+
+    result_parse:
+      regex:
+        result:
+          regex: '^Hello .*!$'
+          action: store_true
+
+      split: 
+        "_, lucky": 
+          sep: ':'
+          for_lines_matching: '^Today'
+          match_select: first
+
+    result_evaluate:
+      normalized_luck: 'round(lucky * 1000)'

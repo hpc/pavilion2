@@ -1,38 +1,143 @@
-Writing Your First Test
-=======================
+.. _tutorial.advanced:
 
-This is a step-by-step tutorial on how to write your first test in Pavilion.
+Tutorial: Advanced Pavilion
+========================
+
+This tutorial assumes you already understand the basics of using Pavilion, and have it set up
+for the tutorials. That's already covered here: :ref:`tutorial.basic`.
+
+This tutorial will teach you:
+
+- How to make your tests generic, and able to run on most machines.
+- How to run under a real scheduler.
+- How to make tests only run in certain situations.
+- How to make tests self-multiply.
+- And more!  Probably.
+
+Unlike the basic tutorial, some parts of this tutorial require an actual cluster. We've
+tried to keep those parts to a minimum.
 
 .. contents:: Table of Contents
 
+Starting Point
+--------------
 
-Preliminary Steps
------------------
+This tutorial starts where the last left off, with a test configuration
+in ``examples/tutorials/tests/tutorial1.yaml`` that looked something like this:
 
-1.  `Install Pavilion on a Cluster <../install.html>`__
-2.  Setup your environment for Pavilion.
+.. code-block:: yaml
+    basic:
+        build:
+            source_path: hello_world.c
 
-    - We usually do this with a module file (lmod or env modules).
+            # We're about to use gcc to compile the test. If you need to
+            # load a module to get gcc, add that module to this list.
+            modules: []
 
-      - Set PAV_CONFIG_DIR to your Pavilion config directory.
-      - Add the pavilion ``bin/`` directory to your path.
-3.  Run ``pav show config`` to verify that pavilion is basically working.
-4.  `Configure Pavilion <../config.html>`__
-5.  Create your ``~/.pavilion`` directory.
+            cmds:
+                - gcc -o hello hello_world.c
 
-Where to Write Your Tests
+        run:
+            cmds:
+                - './hello Paul'
+
+        result_parse:
+          regex:
+            result:
+              regex: '^Hello .*!$'
+              action: store_true
+
+          split:
+            "_, lucky":
+              sep: ':'
+              for_lines_matching: '^Today'
+              match_select: first
+
+        result_evaluate:
+          normalized_luck: 'round(lucky * 1000)'
+
+Feel free to cut and paste this, but it's recommended to manually type in
+everything else we tell you to do in this tutorial.
+
+
+Variables and Expressions
 -------------------------
 
-When writing a test, you should generally work out of your ``~/.pavilion/tests``
-and ``~/.pavilion/test_src`` directories. When your test is ready, then move it
-to the general Pavilion config directories. This generally helps keep your
-production Pavilion config directories clean of half finished and broken tests.
+Our hello world test config works, but it's pretty specific. It says hello to you, but
+it would be really nice if it said hello to whoever ran it.
 
-Any tests found in your ``~/.pavilion`` directory will take precedence over
-those found in the general Pavilion config directory.
+Pavilion comes with a wide variety of variables you can use to make your tests more generic, and
+you can also provide your own via the test config and through plugins. Variables can be inserted
+into just about any string value in a Pavilion test config using double curly braces:
+``'{{variable name}}'``.
 
-Writing a Test
---------------
+The first type of these variables are 'pav' variables - these are simple built-in bits of info
+you can use in any test. To see a list of them, use ``pav show pav_vars``. One you'll see in that
+list is the current user. Let's use it to customize our test a little bit.
+
+Change the test config to look like this:
+
+.. code-block:: yaml
+
+    basic:
+
+    # ...
+
+    run:
+        cmds:
+            # We insert the user into our test.
+            - './hello {{user}}'
+
+    # ...
+
+*These are very different from environment variables.* They are resolved and their values are
+written out as part of the script. Let's run our test again (``pav run tutorial1``) and then look
+at the generated run script (``pav cat <test_id> run.sh``, get the 'test_id' from ``pav status``).
+
+.. code-block::
+
+    $ pav cat 18 run.sh
+
+    #!/bin/bash
+
+    # The first (and only) argument of the build script is the test id.
+    export TEST_ID=${1:-0}
+    export PAV_CONFIG_FILE=/home/pflarr/repos/pavilion/examples/tutorials/pavilion.yaml
+    source /home/pflarr/repos/pavilion/bin/pav-lib.bash
+
+    # Perform the sequence of test commands.
+    ./hello pflarr
+
+Our variable got resolved and inserted into our test command directly. Nice!
+
+Other Pav
+~~~~~~~~~~~~~~~~
+
+System variables are so named because they're often dependent on the configuration of the
+system they're running on. Pavilion provides a lot of these as built-ins using as full proof
+of a method as possible to get the data, often with fairly useless results. These
+variables are actually plugins - they can be overridden by user-provided plugins that better
+suite the environment that they expect to run Pavilion in.  Documentation on writing these is here:
+:ref:`plugins.sys_vars`.
+
+To see see a list of these, run ``pav show sys_vars``. Some values are '<deferred>' we'll talk
+about that in a bit.
+
+The most important of these is ``sys_name`` - it's meant to tell you the name of the cluster
+you are running tests on. It's used internally by Pavilion to differentiate between clusters,
+and is saved in the results of every test. The built-in method gives frontend the hostname minus
+trailing numbers,  but it's really nice to write a plugin to get the more colloquial name for
+your systems.
+
+You can, if you like, play with these by inserting them into your test, but we're going to move on.
+
+Scheduler Variables
+~~~~~~~~~~~~~~~~~~~
+
+These variables are specific to the scheduler you chose. You can view the list of available
+scheduler plugins with ``pav show sched``, and the list of scheduler variables with
+``pav show sched --vars <scheduler_name>``. All schedulers provide a base set of common
+variables,
 
 .. _supermagic: https://github.com/hpc/supermagic
 
