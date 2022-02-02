@@ -8,7 +8,7 @@ Variable Components
 Variable Inner Workings (test_config.variables)
 -----------------------------------------------
 
-.. automodule:: pavilion.test_config.variables
+.. automodule:: pavilion.variables
     :members: VariableSetManager, VariableSet, VariableList, SubVariable,
               VariableError
     :undoc-members:

@@ -15,18 +15,12 @@ import urllib.parse
 from pathlib import Path
 from typing import Union
 
-import pavilion.test_config.utils
-from pavilion import extract
-from pavilion import lockfile
-from pavilion import utils
-from pavilion import wget
+from pavilion import extract, lockfile, utils, wget
 from pavilion.build_tracker import BuildTracker
+from pavilion.exceptions import TestBuilderError
 from pavilion.status_file import TestStatusFile, STATES
+from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
-
-
-class TestBuilderError(RuntimeError):
-    """Exception raised when builds encounter an error."""
 
 
 class TestBuilder:
@@ -76,8 +70,7 @@ class TestBuilder:
         self._download_dest = download_dest
 
         try:
-            self._timeout = pavilion.test_config.utils.parse_timeout(
-                config.get('timeout'))
+            self._timeout = parse_timeout(config.get('timeout'))
         except ValueError:
             raise TestBuilderError("Build timeout must be a positive integer or null, "
                                    "got '{}'".format(config.get('timeout')))
@@ -596,7 +589,7 @@ class TestBuilder:
         else:
 
             tracker.update(
-                state=STATES.BUILD_DONE,
+                state=STATES.BUILD_SUCCESS,
                 note="Build completed successfully.")
             return True
 
@@ -722,7 +715,22 @@ class TestBuilder:
             path = self._find_file(extra, 'test_src')
             final_dest = dest / path.name
             try:
-                shutil.copyfile(path.as_posix(), final_dest.as_posix())
+                if path.is_dir():
+                    # IF extra_file in extra_files is directory
+                    tracker.update(
+                        state=STATES.CREATED,
+                        note=("Copying EXTRA_FILES directory {} to {} "
+                              "as the build directory."
+                              .format(path, final_dest)))
+
+                    utils.copytree(
+                        path.as_posix(),
+                        final_dest.as_posix(),
+                        copy_function=shutil.copyfile,
+                        copystat=utils.make_umask_filtered_copystat(umask),
+                        symlinks=True)
+                else:
+                    shutil.copyfile(path.as_posix(), final_dest.as_posix())
             except OSError as err:
                 raise TestBuilderError(
                     "Could not copy extra file '{}' to dest '{}': {}"
@@ -735,6 +743,8 @@ class TestBuilder:
         :raises TestBuilderError: When copy errors happen
         :returns: True on success, False on failure
         """
+
+        start = time.time()
 
         do_copy = set()
         copy_globs = self._config.get('copy_files', [])
@@ -789,6 +799,10 @@ class TestBuilder:
                 STATES.WARNING,
                 "Could not update timestamp on build directory '%s': %s"
                 .format(self.path, err))
+
+        self.status.set(STATES.BUILD_COPIED,
+                        "Performed symlink copy in {:0.2f}s."
+                        .format(time.time() - start))
 
         return True
 

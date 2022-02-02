@@ -18,6 +18,26 @@ Scheduler Plugin Class
     :special-members:
     :private-members:
 
+Scheduler Plugin Basic Class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: pavilion.schedulers.SchedulerPluginBasic
+    :members:
+    :show-inheritance:
+    :undoc-members:
+    :special-members:
+    :private-members:
+
+Scheduler Plugin Advanced Class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: pavilion.schedulers.SchedulerPluginAdvanced
+    :members:
+    :show-inheritance:
+    :undoc-members:
+    :special-members:
+    :private-members:
+
 Scheduler Variables
 ~~~~~~~~~~~~~~~~~~~
 
@@ -37,7 +57,7 @@ Slurm
 Slurm Variables
 ^^^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.schedulers.slurm.SlurmVars
+.. autoclass:: pavilion.schedulers.plugins.slurm.SlurmVars
     :members:
     :show-inheritance:
     :undoc-members:
@@ -45,14 +65,14 @@ Slurm Variables
 Slurm Scheduler Plugin
 ^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.schedulers.slurm.SbatchHeader
+.. autoclass:: pavilion.schedulers.plugins.slurm.SbatchHeader
     :members:
     :show-inheritance:
     :undoc-members:
     :special-members:
     :private-members:
 
-.. autoclass:: pavilion.schedulers.slurm.Slurm
+.. autoclass:: pavilion.schedulers.plugins.slurm.Slurm
     :members:
     :show-inheritance:
     :undoc-members:
@@ -65,15 +85,12 @@ Raw
 Raw Variables
 ^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.schedulers.raw.RawVars
-    :members:
-    :show-inheritance:
-    :undoc-members:
+The raw scheduler uses the base SchedulerVariables class.
 
 Raw Scheduler
 ^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.schedulers.raw.Raw
+.. autoclass:: pavilion.schedulers.plugins.raw.Raw
     :members:
     :show-inheritance:
     :undoc-members:

@@ -7,12 +7,12 @@ from collections import defaultdict
 from io import StringIO
 from typing import List, Dict, TextIO, Union, Set
 
-from pavilion import test_config, output, result, schedulers
+from pavilion import output, result, schedulers, cancel
 from pavilion.build_tracker import MultiBuildTracker
+from pavilion.exceptions import TestRunError, TestConfigError
+from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
-from pavilion.test_config import TestConfigError
 from pavilion.test_run import TestRun
-from pavilion.exceptions import TestRunError
 from pavilion.utils import str_bool
 
 S_STATES = SERIES_STATES
@@ -181,7 +181,7 @@ class TestSet:
             'not_if': self.not_if
         }
 
-        cfg_resolver = test_config.TestConfigResolver(self.pav_cfg)
+        cfg_resolver = TestConfigResolver(self.pav_cfg)
 
         try:
             test_configs = cfg_resolver.load(
@@ -240,8 +240,10 @@ class TestSet:
                             "Cleanup of skipped test {} was unsuccessful.")
 
             except (TestRunError, TestConfigError) as err:
-                msg = ("Error creating tests in test set '{}': {}"
-                       .format(self.name, err.args[0]))
+                tcfg = ptest.config
+                test_name = "{}.{}".format(tcfg.get('suite'), tcfg.get('name'))
+                msg = ("Error creating test '{}' in test set '{}': {}"
+                       .format(test_name, self.name, err.args[0]))
                 self.status.set(S_STATES.ERROR, msg)
                 self.cancel("Error creating other tests in test set '{}'"
                             .format(self.name))
@@ -515,9 +517,9 @@ class TestSet:
         """Cancel all the tests in the test set."""
 
         for test in self.tests:
-            scheduler = schedulers.get_plugin(test.scheduler)
-            scheduler.cancel_job(test)
-            test.status.set(test.status.states.ABORTED, reason)
+            test.cancel(reason)
+
+        cancel.cancel_jobs(self.pav_cfg, self.tests)
 
     @staticmethod
     def check_result_format(tests: List[TestRun]):

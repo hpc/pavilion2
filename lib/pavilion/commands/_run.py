@@ -4,13 +4,15 @@ environment."""
 import traceback
 from pathlib import Path
 
+from pavilion.output import fprint
 from pavilion import result
 from pavilion import schedulers
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
-from pavilion.test_config import VariableSetManager, TestConfigResolver
+from pavilion.variables import VariableSetManager
+from pavilion.resolver import TestConfigResolver
 from pavilion.test_run import TestRun
-from ..exceptions import TestRunError
+from pavilion.exceptions import TestRunError
 from .base_classes import Command
 
 
@@ -41,14 +43,22 @@ class _RunCommand(Command):
             test = TestRun.load(pav_cfg, working_dir=args.working_dir,
                                 test_id=args.test_id)
         except TestRunError as err:
-            self.logger.error("Error loading test '%s': %s",
-                              args.test_id, err)
+            fprint("Error loading test '{}': {}".format(args.test_id, err))
             raise
 
         try:
             sched = self._get_sched(test)
 
             var_man = self._get_var_man(test, sched)
+            if var_man.get('sched.errors'):
+                test.status.set(
+                    STATES.RUN_ERROR,
+                    "Error resolving scheduler variables at run time. "
+                    "See'pav log kickoff {}' for the full error.".format(test.id))
+                fprint("Error resolving scheduler variables at run time. Got "
+                       "the following:")
+                for error in var_man.get('sched.errors.*'):
+                    fprint(error)
 
             try:
                 TestConfigResolver.finalize(test, var_man)
@@ -67,9 +77,7 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     if not test.build():
-                        self.logger.warning(
-                            "Test {t.id} failed to build:"
-                        )
+                        fprint("Test {} failed to build.".format(test.full_id))
 
             except Exception:
                 test.status.set(
@@ -78,7 +86,7 @@ class _RunCommand(Command):
                 raise
 
             if not test.build_only:
-                return self._run(pav_cfg, test, sched)
+                return self._run(test)
         finally:
             test.set_run_complete()
 
@@ -108,8 +116,7 @@ class _RunCommand(Command):
         try:
             var_man = VariableSetManager()
             var_man.add_var_set('sys', base_classes.get_vars(defer=False))
-            sched_config = test.config[test.scheduler]
-            var_man.add_var_set('sched', sched.get_vars(sched_config))
+            var_man.add_var_set('sched', sched.get_final_vars(test))
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "
@@ -119,17 +126,12 @@ class _RunCommand(Command):
 
         return var_man
 
-    def _run(self, pav_cfg, test, sched):
+    def _run(self, test: TestRun):
         """Run an already prepped test in the current environment.
-        :param pav_cfg: The pavilion configuration object.
-        :param TestRun test: The test to run
-        :param sched: The scheduler we're running under.
         :return:
         """
 
-        # Optionally wait on other tests running under the same scheduler.
-        # This depends on the scheduler and the test configuration.
-        lock = sched.lock_concurrency(pav_cfg, test)
+        _ = self
 
         try:
             run_result = test.run()
@@ -143,8 +145,10 @@ class _RunCommand(Command):
                 STATES.RUN_ERROR,
                 "Unknown error while running test. Refer to the kickoff log.")
             raise
-        finally:
-            sched.unlock_concurrency(lock)
+
+        if test.cancelled:
+            # Skip the result parsing step if the test was cancelled.
+            return
 
         try:
             # Make sure the result parsers have reasonable arguments.
@@ -165,8 +169,8 @@ class _RunCommand(Command):
                 results = test.gather_results(run_result, log_file=log_file)
 
         except Exception as err:
-            self.logger.error("Unexpected error gathering results: \n%s",
-                              traceback.format_exc())
+            fprint("Unexpected error gathering results: \n{}",
+                   traceback.format_exc())
             test.status.set(STATES.RESULTS_ERROR,
                             "Unexpected error parsing results: {}. (This is a "
                             "bug, you should report it.)"

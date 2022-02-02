@@ -5,6 +5,8 @@ from pavilion import series
 from pavilion import series_config
 from pavilion.unittest import PavTestCase
 
+from collections import OrderedDict
+
 
 class SeriesTests(PavTestCase):
 
@@ -39,7 +41,7 @@ class SeriesTests(PavTestCase):
         cfg = series_config.load_series_config(self.pav_cfg, 'order')
 
         series1 = series.TestSeries(self.pav_cfg, cfg)
-        series1.add_test_set_config('test3', ['foo'])
+        series1.add_test_set_config('test3', ['bar'])
         series1._create_test_sets()
 
         expected_order = ['zazzle', 'blargl', 'foo', 'snit', 'r2d2', 'test3']
@@ -70,27 +72,28 @@ class SeriesTests(PavTestCase):
         with self.assertRaises(pavilion.series.errors.TestSeriesError):
             series1._create_test_sets()
 
+        series_sec_cfg = OrderedDict()
+        series_sec_cfg['set1'] = {}
+        series_sec_cfg['set2'] = {'depends_on': 'set4'}
+        series_sec_cfg['set3'] = {}
+        series_sec_cfg['set4'] = {}
+
         config = series_config.make_config({
             'ordered': True,
-            'series': {
-                'set1': {},
-                'set2': {'depends_on': 'set4'},
-                'set3': {},
-                'set4': {},
-                }
-            })
+            'series': series_sec_cfg,
+        })
         series2 = series.TestSeries(self.pav_cfg, config)
         with self.assertRaises(pavilion.series.errors.TestSeriesError):
             series2._create_test_sets()
 
     def test_series_simultaneous(self):
         """Tests to see if simultaneous: <num> works as intended. """
+        series_sec_cfg = OrderedDict()
+        series_sec_cfg['set1'] = {'tests': ['echo_test.b']}
+        series_sec_cfg['set2'] = {'tests': ['echo_test.b']}
 
         series_cfg = series_config.make_config({
-                'series': {
-                    'set1': {'tests':      ['echo_test.b']},
-                    'set2': {'tests':      ['echo_test.b']},
-                },
+                'series': series_sec_cfg,
                 'modes':        ['smode2'],
                 'simultaneous': '1',
             })
@@ -100,7 +103,8 @@ class SeriesTests(PavTestCase):
         test_series_obj.wait(timeout=3)
 
         last_ended = None
-        for test_id, test_obj in test_series_obj.tests.items():
+        for test_id in sorted(test_series_obj.tests):
+            test_obj = test_series_obj.tests[test_id]
             started = test_obj.results['started']
             ended = test_obj.results['finished']
             if last_ended is not None:
@@ -166,6 +170,34 @@ class SeriesTests(PavTestCase):
         self.assertEqual(d.child_sets, set())
         self.assertEqual(e.parent_sets, set())
         self.assertEqual(e.child_sets, set())
+
+    def test_sched_errors(self):
+        """Errors getting scheduler variables are deferred. Make sure we catch them
+        appropriately."""
+
+        cfg = series_config.make_config({
+            'series': {
+                'a': {
+                    'tests': ['sched_errors.a_error', 'sched_errors.b_skipped']
+                }
+            }
+        })
+
+        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        with self.assertRaises(series.TestSeriesError):
+            series1.run()
+
+        cfg = series_config.make_config({
+            'series': {
+                'a': {
+                    'tests': ['sched_errors.c_other_error', 'sched_errors.b_skipped']
+                }
+            }
+        })
+
+        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        with self.assertRaises(series.TestSeriesError):
+            series1.run()
 
     def test_series_conditionals_only_if_ok(self):
         """Test that adding a conditional that always matches produces tests that

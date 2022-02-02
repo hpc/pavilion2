@@ -10,6 +10,7 @@ from .build import BuildCommand
 from .cancel import CancelCommand
 from .cat import CatCommand
 from .clean import CleanCommand
+from .config import ConfigCommand
 from .graph import GraphCommand
 from .list_cmd import ListCommand
 from .log import LogCommand
@@ -32,6 +33,7 @@ _builtin_commands = [
     CancelCommand,
     CatCommand,
     CleanCommand,
+    ConfigCommand,
     GraphCommand,
     ListCommand,
     LogCommand,

@@ -39,11 +39,14 @@ class LoggingTests(PavTestCase):
         yapsy_logger.error("Testing logging through yapsy. %s", yapsy_msg)
         self.assertIn(yapsy_msg, err_out.getvalue())
 
+        exc_log_path = self.pav_cfg.exception_log
+        if exc_log_path is None:
+            exc_log_path = self.pav_cfg.working_dir/'exceptions.log'
         # Check that exceptions get logged too.
         exc_logger = logging.getLogger('exceptions')
         exc_msg = str(uuid.uuid4())
         exc_logger.error(exc_msg)
-        exc_log_data = self.pav_cfg.exception_log.open().read()
+        exc_log_data = exc_log_path.open().read()
         self.assertIn(exc_msg, exc_log_data)
 
         # This should log through the 'root' logger.

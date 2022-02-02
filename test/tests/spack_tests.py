@@ -57,7 +57,8 @@ class SpackTests(PavTestCase):
 
         # Ensure spack package is installed. The plus lets us know the package
         # was successfully added as a spec to the env.
-        self.assertTrue("[+]" in build_log_str)
+        self.assertTrue("[+]" in build_log_str,
+                        msg="Spack package not installed. \n{}".format(build_log_str))
 
         # Ensure spack package is installed in the correct location. If it
         # installed correctly, this directory should not be empty.

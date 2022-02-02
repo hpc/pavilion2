@@ -5,30 +5,102 @@ RELEASE=2.3
 # Release History
 
 ## 2.4 Pre-release Notes
- - Tests now have id's of the form '<label>.<id>'. The default label is 'main', 
-   so tests your 'main' (PAV_CONFIG_DIR defined) pavilion config directory
+ - Minimum supported python version is now 3.6
+ - All IO or Processor intensive parts of Pavilion have been made multi-threaded or multi-process,
+   vastly speeding up many Pavilion operations.
+ - Tests now have id's of the form '<label>.<id>'. The default label is 'main',
+   so tests from your 'main' (PAV_CONFIG_DIR defined) pavilion config directory
    can leave off the label. Labels aren't saved, but determined when configs
    are loaded.
- - Every config directory can now have a 'config.yaml' that sets the label for tests
-   built from that config directory, as well as the working_directory for tests created 
-   from those configs. If this does not exist, a default label is applied to the tests, 
+ - Every config directory can (and should) now have a 'config.yaml' that sets the label for tests
+   built from that config directory, as well as the working_directory for tests created
+   from those configs. If this does not exist, a default label is applied to the tests,
    and the general pavilion.yaml defined working directory is used.
  - Pavilion has removed all permissions management, except to operate with 'shared_group' as
    the default group. Given multiple working directories, it is now up to the user
    to set sticky bits on those directories if specific permissions are desired for those tests.
  - Test series files now have a 'repeat' config item, to specify the number of times the tests
    in the series should be repeated.
+ - The code for test Series has been refactored and greatly cleaned up.
+ - Scheduler plugins have been completely revamped (see below).
+   - Machines can be 'chunked', and those chunks can be permuted over for smaller run sizes that
+     still cover the entire system.
+   - Chunk node distributions can be contiguous, random, distributed, and more.
+   - You can specify a percentage of the system for chunk size or node count.
+ - All builtin plugins are now directly integrated into the Pavilion code, to speed plugin search
+   time.
+ - Test nodes are (generally) chosen before a test is created, so you can permute over
+   `sched.test_node_list` and similar.
 
  - Backwards compatibility breaks
+   - Scheduler configuration has been unified under the 'schedule' key in test configs (see below).
+   - Imports for the base plugin libraries have changed (but those libraries have not).
    - Tests can no longer have skip conditions that are deferred.
    - The '--wait' argument of the run command has been removed.
    - Tests can no longer set test specific group and permissions
    - The 'restart' test series config item is no longer supported.
+   - Many 'sched' variables in Pavilion test configs have changed names. See
+     `pav show sched --vars slurm` (or 'raw').
+   - The Slurm MPI scheduler plugin has been merged with Slurm. Use the slurm specific 'mpi_cmd'
+     parameter to use `mpirun` instead of `srun`. Additional `mpirun` options are also available.
+
+### Upgrade guide
+
+#### Scheduler config
+
+This update will unfortunately break most tests and plugins, but the fixes are simple.
+
+ - The individual scheduler config sections are now just 'schedule'.
+   - Most schedule parameters are universal, and most kept their names from when they
+     were under the `slurm` section.
+   - The big exception is `num_nodes` is now just 'nodes'.
+     - It no longer supports node ranges (Use 'min_nodes')
+   - Non-universal arguments are still in scheduler specific sections, but under `schedule`.
+     See `pav show sched --config` for the full format.
+
+In general, this means you should rename all 'slurm' sections in test/host/mode configs to
+'schedule', and all 'num_nodes' to just 'nodes'. Some config values (like 'up_states') will need
+to be moved as well.
+
+For example, given the following:
+
+```
+mytest:
+  run:
+    cmds: "echo 'I am an example!'"
+
+  slurm:
+    num_nodes: 50
+    partition: foo
+    up_states: ['IDLE', 'NOT_ON_FIRE']
+```
+
+would become:
+
+```
+mytest:
+  run:
+    cmds: "echo 'I am an example!'"
+
+  schedule:
+    nodes: 50
+    partition: foo
+    slurm:
+        up_states: ['IDLE', 'NOT_ON_FIRE']
+```
+
+#### Scheduler Variables
+
+Scheduler variables have also changed considerable.
+
+  - Almost all are universal.
+  - All slurm `alloc_*` variables are now `test_*`.
+  - Most can be converted directly.
 
 ## 2.3 Release Notes
  - Added 'flatten_results' option to the base Pavilion config. Allows for
    producing a separate result log line for each 'per_file' result, making
-   charting in Splunk significantly easier. The results can be significantly 
+   charting in Splunk significantly easier. The results can be significantly
    larger, however, expecially on large machines.
  - Added unified test run filtering in 'status' and 'result'.
  - Added the 'list' command for searching test runs and series
@@ -42,21 +114,21 @@ RELEASE=2.3
  - Added test series files for organizing multiple test runs.
  - Added 'pav graph' command.
  - Added 'pav show hosts' and 'pav show modes' commands.
- - Switched to using epoch time for all timestamps. 
+ - Switched to using epoch time for all timestamps.
  - Test run attributes are now indexed for faster 'pav status' and 'pav result'
    searches.
  - Backwards compatibility breaks
    - 'fn' and 'n' result fields have been merged into 'per_file'.
    - The 'status', and 'result' commands now search all available test runs
-     and select recent (1 day) tests by the current user on the current 
-     machine. For the old behavior, use ``pav status last``, etc. 
-   - Old tests will lack some expected properties for searching, 
+     and select recent (1 day) tests by the current user on the current
+     machine. For the old behavior, use ``pav status last``, etc.
+   - Old tests will lack some expected properties for searching,
      as that information has been consolidated into the 'attributes' file
      which they won't have.
    - 'test_node_list' in the results has been replaced with the much shorter
      'test_node_list_short' key.
    - The results command '-l' (--show-logs) option is now '-L'.
-   - The results command '--json' argument and '--oneline' argments were removed. 
+   - The results command '--json' argument and '--oneline' argments were removed.
      Use --summary instead.
 
 ## 2.2 Release notes

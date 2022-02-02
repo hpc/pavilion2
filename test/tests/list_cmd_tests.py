@@ -62,8 +62,7 @@ class ListCmdTest(PavTestCase):
         out, err = cmd.clear_output()
         # 26-30 are filtered due to the default newer-than time.
         self.assertEqual([int(t) for t in out.strip().splitlines()],
-                         [t.id for t in list(reversed(tests))
-                          if t.uuid < 25][:15])
+                         [t.id for t in list(reversed(tests))][:15])
 
         all_out_fields = ','.join(TestAttributes.list_attrs())
         args = parser.parse_args(
@@ -80,7 +79,7 @@ class ListCmdTest(PavTestCase):
 
         # 26-30 are filtered due to the default newer-than time.
         self.assertEqual(ids,
-                         [t.id for t in tests if t.complete and t.uuid < 25])
+                         [t.id for t in tests if t.complete])
 
         args = parser.parse_args(
             ['list', '--csv', '--out-fields={}'.format(all_out_fields),
@@ -90,8 +89,7 @@ class ListCmdTest(PavTestCase):
         rows = [line.split(",") for line in out.strip().splitlines()]
         ids = [int(row[id_idx]) for row in rows]
         self.assertEqual(ids,
-                         [t.id for t in tests if (t.uuid < 25 and
-                                                  t.result == t.PASS)])
+                         [t.id for t in tests if (t.result == t.PASS)])
 
         for arglist in [
                 ['list', '--long', '--header', '--vsep=$', 'runs'],

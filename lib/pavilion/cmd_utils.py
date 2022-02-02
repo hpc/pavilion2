@@ -5,14 +5,19 @@ import argparse
 import logging
 from pathlib import Path
 from typing import List, TextIO
+import time
+import datetime as dt
 
 from pavilion import dir_db
 from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
 from pavilion import series
-from pavilion.test_run import TestRun, ID_Pair, test_run_attr_transform, load_tests
-from pavilion.exceptions import TestRunError
+from pavilion import utils
+from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
+from pavilion.types import ID_Pair
+from pavilion.exceptions import TestRunError, DeferredError
+from pavilion import sys_vars
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,12 +39,22 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     :param args: An argument namespace with args defined by
         `filters.add_test_filter_args`, plus one additional `tests` argument
         that should contain a list of test id's, series id's, or the 'last'
-        keyword.
+        or 'all' keyword. Last implies the last test series run by the current user
+        on this system (and is the default if no tests are given. 'all' means all tests.
     :param verbose: A file like object to report test search status.
     :return: A list of test paths.
     """
 
     limit = args.limit
+    verbose = verbose or io.StringIO()
+
+    if 'all' in args.tests:
+        output.fprint("Using default search filters: The current system, user, and "
+                      "newer_than 1 day ago.", file=verbose, color=output.CYAN)
+        if args.user is None and args.newer_than is None and args.sys_name is None:
+            args.user = utils.get_login()
+            args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
+            args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     filter_func = filters.make_test_run_filter(
         complete=args.complete,
@@ -55,21 +70,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
     order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
 
-    if args.tests:
-        test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
-
-        if not args.disable_filter:
-            test_paths = dir_db.select_from(
-                pav_cfg,
-                paths=test_paths,
-                transform=test_run_attr_transform,
-                filter_func=filter_func,
-                order_func=order_func,
-                order_asc=order_asc,
-                limit=limit
-            ).paths
-
-    else:
+    if 'all' in args.tests:
         test_paths = []
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
@@ -86,6 +87,23 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                 limit=limit).paths
 
             test_paths.extend(matching_tests)
+        return test_paths
+
+    if not args.tests:
+        args.tests.append('last')
+
+    test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
+
+    if not args.disable_filter:
+        test_paths = dir_db.select_from(
+            pav_cfg,
+            paths=test_paths,
+            transform=test_run_attr_transform,
+            filter_func=filter_func,
+            order_func=order_func,
+            order_asc=order_asc,
+            limit=limit
+        ).paths
 
     return test_paths
 
@@ -192,6 +210,11 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
     test_pairs = []  # type: List[ID_Pair]
 
     for test_path in test_paths:
+        if not test_path.exists():
+            output.fprint("No test at path: {}".format(test_path))
+
+        test_path = test_path.resolve()
+
         test_wd = test_path.parents[1]
         try:
             test_id = int(test_path.name)

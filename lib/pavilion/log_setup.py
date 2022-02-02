@@ -160,7 +160,12 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
 
     # Put the log file in the lowest common pav config directory we can write
     # to.
-    log_fn = pav_cfg.working_dir/'pav.log'
+    if 'main' in pav_cfg.configs:
+        working_dir = pav_cfg.configs['main'].working_dir
+    else:
+        working_dir = pav_cfg['working_dir']
+
+    log_fn = working_dir/'pav.log'
     # Set up a rotating logfile than rotates when it gets larger
     # than 1 MB.
     try:
@@ -184,8 +189,13 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
 
     # Setup the result logger.
     # Results will be logged to both the main log and the result log.
+    if pav_cfg.result_log is None:
+        result_log = working_dir/'results.log'
+    else:
+        result_log = pav_cfg.result_log
+
     try:
-        pav_cfg.result_log.touch()
+        result_log.touch()
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
             "Could not write to result log at '{}': {}"
@@ -195,7 +205,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
 
     result_logger = logging.getLogger('common_results')
     result_handler = LockFileRotatingFileHandler(
-        file_name=str(pav_cfg.result_log),
+        file_name=str(result_log),
         # 20 MB
         max_bytes=20 * 1024 ** 2,
         backup_count=3)
@@ -205,9 +215,15 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
 
     # Setup the exception logger.
     # Exceptions will be logged to this directory, along with other useful info.
+
+    if pav_cfg.exception_log is None:
+        exception_log = working_dir/'exceptions.log'
+    else:
+        exception_log = pav_cfg.exception_log
+
     exc_logger = logging.getLogger('exceptions')
     try:
-        pav_cfg.exception_log.touch()
+        exception_log.touch()
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
             "Could not write to exception log at '{}': {}"
@@ -217,7 +233,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         )
     else:
         exc_handler = LockFileRotatingFileHandler(
-            file_name=pav_cfg.exception_log.as_posix(),
+            file_name=exception_log.as_posix(),
             max_bytes=20 * 1024 ** 2,
             backup_count=3)
         exc_handler.setFormatter(logging.Formatter(
@@ -227,7 +243,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         exc_logger.setLevel(logging.ERROR)
         exc_logger.addHandler(exc_handler)
 
-    # Setup the yapsy logger to log to terminal. We need to know immediatly
+    # Setup the yapsy logger to log to terminal. We need to know immediately
     # when yapsy encounters errors.
     yapsy_logger = logging.getLogger('yapsy')
     yapsy_handler = logging.StreamHandler(stream=err_out)

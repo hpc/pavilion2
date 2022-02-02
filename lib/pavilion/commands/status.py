@@ -25,10 +25,16 @@ class StatusCommand(Command):
             help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
+            '--series', action='store_true', default=False,
+            help='Show the series the test belongs to.')
+        parser.add_argument(
+            '--note', action='store_true', default=False,
+            help='Show the status note.')
+        parser.add_argument(
             'tests', nargs='*', action='store',
             help="The name(s) of the tests to check.  These may be any mix of "
-                 "test IDs and series IDs. Use 'last' to get just the last "
-                 "series you ran."
+                 "test IDs and series IDs. Lists tests in the last series you "
+                 "ran by default. Use 'all' to show all tests."
         )
         output_mode = parser.add_mutually_exclusive_group()
         output_mode.add_argument(
@@ -70,7 +76,8 @@ class StatusCommand(Command):
         if args.summary:
             return self.print_summary(statuses)
         else:
-            return status_utils.print_status(statuses, self.outfile, args.json)
+            return status_utils.print_status(statuses, self.outfile, json=args.json,
+                                             series=args.series, note=args.note)
 
     def print_summary(self, statuses):
         """Print_summary takes in a list of test statuses.

@@ -21,55 +21,53 @@ class LSCommand(Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'job_id', type=int,
-            help="Job id number.",
-            metavar='JOB_ID',
+            'test_id', type=int,
+            help="Test id number.",
+            metavar='TEST_ID',
         )
         parser.add_argument(
             '--path',
             action='store_true',
-            help='print job_id absolute path',
+            help='print test absolute path',
         )
         parser.add_argument(
-            '--subdir',
-            help="print subdirectory DIR.",
-            type=str,
+            'subdir',
             metavar='DIR',
-            nargs=1
+            nargs='?',
+            help="print subdirectory DIR.",
         )
 
         parser.add_argument(
             '--tree',
             action='store_true',
-            help="List JOB_ID file tree",
+            help="List file tree for the given test run.",
         )
 
     def run(self, pav_cfg, args):
         """List the run directory for the given run."""
 
-        test_dir = pav_cfg.working_dir / 'test_runs'
-        job_dir = dir_db.make_id_path(test_dir, args.job_id)
+        test_run_dir = pav_cfg.working_dir / 'test_runs'
+        test_dir = dir_db.make_id_path(test_run_dir, args.test_id)
+        if args.subdir:
+            test_dir = test_dir/args.subdir
 
-        if os.path.isdir(job_dir.as_posix()) is False:
-            output.fprint("directory '{}' does not exist.".format(job_dir),
+        if os.path.isdir(test_dir.as_posix()) is False:
+            output.fprint("directory '{}' does not exist.".format(test_dir),
                           file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
         if args.path is True:
-            output.fprint(job_dir)
+            output.fprint(test_dir)
             return 0
 
-        output.fprint(str(job_dir) + ':', file=self.outfile)
+        output.fprint(str(test_dir) + ':', file=self.outfile)
 
         if args.tree is True:
             level = 0
-            self.tree_(level, job_dir)
+            self.tree_(level, test_dir)
             return 0
 
-        if args.subdir:
-            return self.ls_(job_dir / args.subdir[0])
-        else:
-            return self.ls_(job_dir)
+        return self.ls_(test_dir)
 
     def ls_(self, dir_):
         """Print a directory listing for the given run directory."""

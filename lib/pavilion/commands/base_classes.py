@@ -110,7 +110,16 @@ class Command(IPlugin.IPlugin):
         # Walk the class dictionary and add any functions with aliases
         # to our dict of commands under each listed alias.
         for func in self.__class__.__dict__.values():
+
+            # Add alias names
             if callable(func) and hasattr(func, 'aliases'):
+                # Add the name from the function.
+                name = func.__name__
+                if name.endswith('_cmd'):
+                    name = name[:-4]
+                name = name.lstrip('_')
+                self.sub_cmds[name] = func
+
                 for alias in func.aliases:
                     self.sub_cmds[alias] = func
 

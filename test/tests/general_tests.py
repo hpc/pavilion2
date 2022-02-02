@@ -169,7 +169,7 @@ class GeneralTests(PavTestCase):
                         "got {}".format(file, stat.filemode(0o120777),
                                         stat.filemode(mode)))
             elif (file.name.startswith('binfile') or
-                  file.name in ('kickoff.sh', 'build.sh', 'run.sh',
+                  file.name in ('kickoff', 'build.sh', 'run.sh',
                                 'run.tmpl')):
                 expected = (~umask) & 0o100775
                 # Binfiles should have owner/group execute.

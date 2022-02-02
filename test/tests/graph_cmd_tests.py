@@ -45,6 +45,7 @@ class ResolverTests(PavTestCase):
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'graph',
+            '-o', '/tmp/foo.png',
             '--x', 'id',
             '--y', 'Info.Read'
         ])
@@ -65,6 +66,7 @@ class ResolverTests(PavTestCase):
         # Get multiple values out of results.
         args = arg_parser.parse_args([
             'graph',
+            '-o', '/tmp/foo2.png',
             '--x', 'id',
             '--y', 'Info.*'
         ])
@@ -102,6 +104,7 @@ class ResolverTests(PavTestCase):
         # Get a single value out of multiple keys in results.
         args = arg_parser.parse_args([
             'graph',
+            '-o', '/tmp/foo3.png',
             '--x', 'keys(Info)',
             '--y', 'Info.*.Read'
         ])
@@ -121,6 +124,7 @@ class ResolverTests(PavTestCase):
         # Get multiple values out of multiple keys in results.
         args = arg_parser.parse_args([
             'graph',
+            '-o', '/tmp/foo4.png',
             '--x', 'keys(Info)',
             '--y', 'Info.*.Read',
             '--y', 'Info.*.Write'
@@ -137,3 +141,25 @@ class ResolverTests(PavTestCase):
         }
 
         self.assertEqual(eval_res, eval_expected)
+
+    def test_graph_cmd(self):
+        """Test the full graph command."""
+
+        cmd = commands.get_command('graph')
+        cmd.silence()
+        parser = arguments.get_parser()
+
+        tests = [self._quick_test() for i in range(10)]
+        for test in tests:
+            test.run()
+            test.gather_results(0)
+            test.set_run_complete()
+
+        args = parser.parse_args([
+            'graph',
+            '-o', '/tmp/foo.png',
+            '--x', 'id',
+            '--y', 'id',
+        ] + [test.full_id for test in tests])
+
+        cmd.run(self.pav_cfg, args)

@@ -8,6 +8,7 @@ API Documentation
     commands.rst
     dir_db.rst
     expression_functions.rst
+    jobs.rst
     log_setup.rst
     misc.rst
     modules.rst

@@ -24,82 +24,9 @@ import copy
 import json
 from typing import Union
 
-from . import parsers
-
-
-class VariableError(ValueError):
-    """This error should be thrown when processing variable data,
-and something goes wrong."""
-
-    def __init__(self, message, var_set=None, var=None, index=None,
-                 sub_var=None):
-
-        super().__init__(message)
-
-        self.var_set = var_set
-        self.var = var
-        self.index = index
-        self.sub_var = sub_var
-
-        self.base_message = message
-
-    def __str__(self):
-
-        key = [str(self.var)]
-        if self.var_set is not None:
-            key.insert(0, self.var_set)
-        if self.index is not None and self.index != 0:
-            key.append(self.index)
-        if self.sub_var is not None:
-            key.append(self.sub_var)
-
-        key = '.'.join(key)
-
-        return "Error processing variable key '{}': {}" \
-            .format(key, self.base_message)
-
-
-class DeferredError(VariableError):
-    """Raised when we encounter a deferred variable we can't resolve."""
-
-
-class DeferredVariable:
-    """The value for some variables may not be available until a test is
-actually running. Deferred variables act as a placeholder in such
-circumstances, and output an escape sequence when converted to a str.
-"""
-
-    # NOTE: Other than __init__, this should always have the same interface
-    # as VariableList.
-
-    def get(self, index, sub_var):      # pylint: disable=no-self-use
-        """Deferred variables should never have their value retrieved."""
-
-        # This should always be caught before this point.
-        raise RuntimeError(
-            "Attempted to get the value of a deferred variable."
-        )
-
-    def __len__(self):
-        """Deferred variables always have a single value."""
-
-        # This should always be caught before this point.
-        raise RuntimeError(
-            "Attempted to get the length of a deferred variable."
-        )
-
-    DEFERRED_PREFIX = '!deferred!'
-
-    @classmethod
-    def was_deferred(cls, val):
-        """Return true if config item val was deferred when we tried to resolve
-        the config.
-
-        :param str val: The config value to check.
-        :rtype: bool
-        """
-
-        return val.startswith(cls.DEFERRED_PREFIX)
+from pavilion import parsers
+from pavilion.deferred import DeferredVariable
+from pavilion.exceptions import DeferredError, VariableError
 
 
 class VariableSetManager:
@@ -331,8 +258,7 @@ index, sub_var) tuple.
         """Resolve all variable references that are within variable values
         defined in the 'variables' section of the test config.
 
-        :raises TestConfigError: When reference loops are found.
-        :raises KeyError: When an unknown variable is referenced.
+        :raises VariableError: When reference loops are found.
         """
 
         # We only want to resolve variable references in the variable section
@@ -389,6 +315,9 @@ index, sub_var) tuple.
                         res_val = transformer.transform(tree)
                     except DeferredError:
                         res_val = None
+                    except (parsers.StringParserError, parsers.ParserValueError) as err:
+                        raise VariableError(err, var_set=var_set, var=var_name, index=index,
+                                            sub_var=sub_var)
 
                     if res_val is None:
                         # One or more of the variables is deferred, so we can't

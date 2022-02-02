@@ -20,6 +20,7 @@ import re
 from typing import List
 
 import lark as _lark
+from lark.parsers.lalr_parser import ParserState
 from .common import ParserValueError
 from .expressions import (get_expr_parser, EvaluationExprTransformer,
                           VarRefVisitor)
@@ -45,7 +46,7 @@ class ErrorCat:
 
 
 BAD_EXAMPLES = [
-    ErrorCat('Unmatched "{{"', ['{{ 9', '{{', '[~ {{ ~]', 'a {{b }']),
+    ErrorCat('Unmatched "{{"', ['{{ 9', '{{', 'text {{', '[~ {{ ~]', 'a {{b }']),
     ErrorCat('Unmatched "[~"', ['[~ hello', '[~']),
     ErrorCat('Nested Expression', ['{{ foo {{ bar }} }}']),
     ErrorCat('Unmatched "}}"', ['baz }}', '}}', '[~ hello }} ~]']),
@@ -71,6 +72,10 @@ BAD_EXAMPLES = [
               'hello(1, 12',
               'hello(1, 12.3']),
 ]
+
+NO_MATCH_EXAMPLE = ErrorCat(
+    'Unknown syntax error. Please report at https://github.com/hpc/pavilion2/issues',
+    [])
 
 
 class StringParserError(ValueError):
@@ -159,9 +164,9 @@ def match_examples(exc, parse_fn, examples, text):
         example that bests matches the current error.
 
     :param Union[_lark.UnexpectedCharacters,_lark.UnexpectedToken] exc:
-    :param parse_fn:
+    :param parse_fn: A lark parser function.
     :param list[ErrorCat] examples:
-    :param text:
+    :param text: The text that triggered the error.
     :return:
     """
 
@@ -181,13 +186,13 @@ def match_examples(exc, parse_fn, examples, text):
         except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
             if err.state == exc.state:
                 err_string = text[exc.pos_in_stream:err_pos]
-                break
         err_pos += 1
 
+    closest_dist = 2.0
+    closest_example = NO_MATCH_EXAMPLE
+
     # Find an example error that fails at the same parser state.
-    candidate = None
     for example in examples:
-        partial_match = False
         for ex_text in example.examples:
             try:
                 parse_fn(ex_text)
@@ -214,11 +219,20 @@ def match_examples(exc, parse_fn, examples, text):
                 # For token errors, check that the state and next token match
                 # If just the state matches, we'll call it a partial match
                 # and look for something better.
-                if err.state == exc.state:
-                    partial_match = True
-                    if err.token == exc.token:
-                        # Try exact match first
-                        return example.message
+
+                if err.state == exc.state and err.token == exc.token:
+                    # Try exact match first
+                    return example.message
+                else:
+                    stack1 = list(err.state.state_stack)
+                    stack2 = list(exc.state.state_stack)
+                    dist = state_stack_dist(stack1, stack2) + 1
+                    if exc.token.type == err.token.type:
+                        dist -= 1
+                    if dist <= closest_dist:
+                        closest_dist = dist
+                        closest_example = example
+
             except ParserValueError:
                 # Examples should only raise Token or UnexpectedChar errors.
                 # ParserValue errors already come with a useful message.
@@ -226,20 +240,53 @@ def match_examples(exc, parse_fn, examples, text):
                     "Invalid failure example in string_parsers: '{}'"
                     .format(ex_text))
 
-        if partial_match:
-            if not candidate:
-                candidate = example.message
+    return closest_example.message
 
-            # Check the disambiguator regex.
-            if (example.disambiguator is not None and
-                    example.disambiguator.search(err_string)):
-                return example.message
 
-    if candidate is None:
-        candidate = 'Unknown syntax error. Please report at ' \
-                    'https://github.com/hpc/pavilion2/issues'
+def state_stack_dist(stack1: List, stack2: List) -> float:
+    """Compare to stacks of states. States are lists of state id's. The
+    returned number is the sum of mismatches in each direction, divided by
+    the total possible mismatches. So 0.0 is perfection matched, and 1.0 is
+    completely different."""
 
-    return candidate
+    dist1 = _state_stack_dist(stack1, stack2)
+    dist2 = _state_stack_dist(stack2, stack1)
+    total_stack_len = len(stack1) + len(stack2)
+    if total_stack_len == 0:
+        return 0
+
+    return (dist1 + dist2)/total_stack_len
+
+
+def _state_stack_dist(stack1: List, stack2: List) -> int:
+    """Compare to stacks in one direction. Check that each item in stack1 exists in
+    stack2 in the context of all previous matches:
+
+    stack1      stack2    result    reason
+    -----------------------------------------------------
+    fuzzy       navel     5         none of the 5 chars in 'fuzzy' are in 'navel'
+    abcd        acd       1         'b' is missing
+    abcd        dcba      3         'bcd' are expected to appear after 'a', which is last.
+
+    This algorithm has interesting corner cases, but is generally good enough for our purposes.
+    The 'perfect' algorithm for this sort of matching is NP-complete.
+    """
+
+    dist = 0
+    ptr2 = 0
+
+    for ptr1 in range(len(stack1)):
+        tmp_ptr = ptr2
+        while tmp_ptr < len(stack2):
+            if stack1[ptr1] == stack2[tmp_ptr]:
+                ptr2 = tmp_ptr + 1
+                break
+            else:
+                tmp_ptr += 1
+        else:
+            dist += 1
+
+    return dist
 
 
 def re_compare(str1: str, str2: str, regex) -> bool:

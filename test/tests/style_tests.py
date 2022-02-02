@@ -164,3 +164,4 @@ class StyleTests(PavTestCase):
                                                            line.strip()))
 
         return matches
+

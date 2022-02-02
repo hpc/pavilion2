@@ -2,9 +2,9 @@ import argparse
 import io
 import time
 
+import pavilion.schedulers
 from pavilion import commands
 from pavilion import plugins
-from pavilion import schedulers
 from pavilion import status_file
 from pavilion.series.series import TestSeries
 from pavilion.test_config import file_format
@@ -211,8 +211,8 @@ class StatusCmdTests(PavTestCase):
         test = self._quick_test(cfg, build=False, finalize=False)
 
         test.build()
-        schedulers.get_plugin(test.scheduler) \
-            .schedule_test(self.pav_cfg, test)
+        sched = pavilion.schedulers.get_plugin(test.scheduler)
+        sched.schedule_tests(self.pav_cfg, [test])
 
         status_cmd = commands.get_command('status')
         status_cmd.silence()
@@ -314,8 +314,8 @@ class StatusCmdTests(PavTestCase):
         status_cmd._setup_arguments(parser)
 
         test = self._quick_test()
-        raw = schedulers.get_plugin('raw')
-        raw.schedule_test(self.pav_cfg, test)
+        raw = pavilion.schedulers.get_plugin('raw')
+        raw.schedule_tests(self.pav_cfg, [test])
         end = time.time() + 5
         while not test.complete and time.time() < end:
             time.sleep(.1)
@@ -326,6 +326,7 @@ class StatusCmdTests(PavTestCase):
         out.seek(0)
         output = out.readlines()[4:]
         statuses = test.status.history()
-        self.assertEqual(len(output), len(statuses))
+        self.assertEqual(len(output), len(statuses), msg='output: {}, statuses: {}'
+                         .format(output, statuses))
         for i in range(len(output)):
             self.assertTrue(statuses[i].state in output[i])

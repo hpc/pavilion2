@@ -6,7 +6,7 @@
 """
 
 import ast
-from typing import Dict, Callable, Any
+from typing import Dict, Callable, Any, List
 
 import lark
 import pavilion.expression_functions.common
@@ -30,7 +30,7 @@ expr: or_expr
 // See https://en.wikipedia.org/wiki/Operator-precedence_parser
 or_expr: and_expr ( "or" and_expr )*        
 and_expr: not_expr ( "and" not_expr )*
-not_expr: NOT? compare_expr
+not_expr: NOT? compare_expr 
 compare_expr: add_expr ((EQ | NOT_EQ | LT | GT | LT_EQ | GT_EQ ) add_expr)*
 add_expr: mult_expr ((PLUS | MINUS) mult_expr)*
 mult_expr: pow_expr ((TIMES | DIVIDE | INT_DIV | MODULUS) pow_expr)*
@@ -77,7 +77,7 @@ TIMES: "*"
 DIVIDE: "/"
 INT_DIV: "//"
 MODULUS: "%"
-NOT: "not"
+NOT.2: "not"
 EQ: "=="
 NOT_EQ: "!="
 LT: "<"
@@ -659,7 +659,7 @@ class VarRefVisitor(lark.Visitor):
     visit_topdown = None
 
     @staticmethod
-    def var_ref(tree: lark.Tree) -> [str]:
+    def var_ref(tree: lark.Tree) -> List[str]:
         """Assemble and return the given variable reference."""
 
         var_parts = []

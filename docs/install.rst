@@ -16,8 +16,8 @@ Requirements
 
 Pavilion has very few dependencies and requirements:
 
-- Python 3.5 or newer
-- A writeable space on a filesystem shared across all (tested) hosts in
+- Python 3.6 or newer
+- A writeable space on a filesystem shared across all hosts (to be tested) in
   each cluster. (Assuming you're scheduling jobs across a cluster).
 
   - The path to this directory must be consistent across all cluster hosts.

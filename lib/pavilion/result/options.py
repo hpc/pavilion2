@@ -118,14 +118,16 @@ def per_first(results: dict, key: str, file_vals: Dict[Path, Any],
 
     vals = [action(val) for val in file_vals.values()]
     first = [val for val in vals if val not in EMPTY_VALUES][:1]
+    # Grab the first value, even if it is empty.
     if not first:
         first = vals[:1]
-    if first is None:
+
+    if not first:
         errors.append(
             "No matches for key '{}' for any of these found files: {}."
             .format(key, ','.join(f.name for f in file_vals.keys())))
-
-    errors.extend(store_values(results, key, first[0]))
+    else:
+        errors.extend(store_values(results, key, first[0]))
     return errors
 
 
@@ -144,7 +146,7 @@ def per_last(results: dict, key: str, file_vals: Dict[Path, Any],
             "No matches for key '{}' for any of these found files: {}."
             .format(key, ','.join(f.name for f in file_vals.keys())))
 
-    errors.extend(store_values(results, key, last[0]))
+    errors.extend(store_values(results, key, last))
     return errors
 
 

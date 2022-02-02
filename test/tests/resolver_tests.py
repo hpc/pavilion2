@@ -7,10 +7,14 @@ import random
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion.sys_vars import base_classes
+from pavilion import resolver
+from pavilion import schedulers
+from pavilion import test_run
+from pavilion.deferred import DeferredVariable
+from pavilion.exceptions import TestConfigError, VariableError, TestRunError
 from pavilion.pavilion_variables import PavVars
-from pavilion.test_config import TestConfigError, resolver
-from pavilion.test_config import variables
+from pavilion.resolver import variables
+from pavilion.sys_vars import base_classes
 from pavilion.unittest import PavTestCase
 
 
@@ -139,7 +143,7 @@ class ResolverTests(PavTestCase):
 
         overrides = [
             # A basic value.
-            'slurm.num_nodes=3',
+            'schedule.nodes=3',
             # A specific list item.
             'run.cmds.0="echo nope"',
             # An item that doesn't exist (and must be normalized by yaml_config)
@@ -170,7 +174,7 @@ class ResolverTests(PavTestCase):
             alt_cfg = copy.deepcopy(ptest.config)
 
             # Make sure the overrides were applied
-            self.assertEqual(alt_cfg['slurm']['num_nodes'], "3")
+            self.assertEqual(alt_cfg['schedule']['nodes'], "3")
             self.assertEqual(alt_cfg['run']['cmds'], ['echo nope'])
             # Make sure other stuff wasn't changed.
             self.assertEqual(ptest.config['build'], alt_cfg['build'])
@@ -248,7 +252,7 @@ class ResolverTests(PavTestCase):
         }
 
         var_man = variables.VariableSetManager()
-        var_man.add_var_set('sys', {'def': variables.DeferredVariable()})
+        var_man.add_var_set('sys', {'def': DeferredVariable()})
 
         with self.assertRaises(TestConfigError):
             self.resolver.resolve_permutations(
@@ -354,7 +358,7 @@ class ResolverTests(PavTestCase):
         stuff.sort()
         self.assertEqual(possible_stuff, stuff)
 
-    def test_for_circular_variable_references(self):
+    def test_circular_variable_references(self):
         test = {
             'variables': {
                 'a': '--{{d}}-{{b}}-',
@@ -369,7 +373,7 @@ class ResolverTests(PavTestCase):
         var_man = copy.deepcopy(self.resolver.base_var_man)
         var_man.add_var_set('var', test['variables'])
 
-        with self.assertRaises(variables.VariableError):
+        with self.assertRaises(TestConfigError):
             self.resolver.resolve_permutations(test, var_man)
 
     def test_finalize(self):
@@ -397,6 +401,8 @@ class ResolverTests(PavTestCase):
 
         fin_var_man = variables.VariableSetManager()
         fin_var_man.add_var_set('sys', undefered_sys_vars)
+        sched = schedulers.get_plugin('raw')
+        fin_var_man.add_var_set('sched', sched.get_final_vars(test))
 
         resolver.TestConfigResolver.finalize(test, fin_var_man)
 
@@ -426,9 +432,16 @@ class ResolverTests(PavTestCase):
                 'bar': [
                     {'p': '4', 'q': '4a'},
                 ],
+                'bloop': '{{baz}}'
             },
             'permute_on': ['foo', 'bar'],
             'subtitle': None,
+            'schedule': {
+                'nodes': '{{bar.0.p}}',
+                # Make sure recursive vars work too.
+                'reservation': '{{bloop}}',
+
+            },
         }
 
         answer1 = {
@@ -442,7 +455,11 @@ class ResolverTests(PavTestCase):
                            {'oof': '7-8'},
                            {'pav': '9'},
                            {'sys': '10'}]
-                   }
+                   },
+                'schedule': {
+                    'nodes': '4',
+                    'reservation': '6',
+                }
         }
 
         # This is all that changes between the two.
@@ -465,6 +482,8 @@ class ResolverTests(PavTestCase):
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
             out_test = self.resolver.resolve_test_vars(test, var_man)
+            # This is a random number that gets added. It can't be predicted.
+            del out_test['permute_base']
             self.assertIn(out_test, answers)
 
         # Make sure we can successfully disallow deferred variables in a
@@ -478,12 +497,12 @@ class ResolverTests(PavTestCase):
         }
 
         var_man = variables.VariableSetManager()
-        var_man.add_var_set('sys', {'foo': variables.DeferredVariable()})
+        var_man.add_var_set('sys', {'foo': DeferredVariable()})
         var_man.add_var_set('var', {})
 
         test, permuted = self.resolver.resolve_permutations(test, var_man)
 
-        with self.assertRaises(resolver.TestConfigError):
+        with self.assertRaises(TestConfigError):
             # No deferred variables in the build section.
             self.resolver.resolve_test_vars(test, permuted[0])
 
@@ -693,3 +712,28 @@ class ResolverTests(PavTestCase):
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
         self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_sched_errors(self):
+        """Scheduler config errors are deferred until tests are saved, if possible."""
+
+        # This test has an from when it tried to get scheduler vars. It should be
+        # thrown when we try to save the test.
+        tests = self.resolver.load(['sched_errors.a_error'])
+        test = test_run.TestRun(self.pav_cfg, tests[0].config, tests[0].var_man)
+        with self.assertRaises(TestRunError):
+            test.save()
+
+        # This test has the same error, but is skipped. It should throw an error
+        # from trying to save a skipped test.
+        tests = self.resolver.load(['sched_errors.b_skipped'])
+        test = test_run.TestRun(self.pav_cfg, tests[0].config, tests[0].var_man)
+        with self.assertRaises(RuntimeError):
+            test.save()
+
+        # This test should have an error but denote that other sched var errors might
+        # be the problem.
+        with self.assertRaises(TestConfigError):
+            self.resolver.load(['sched_errors.c_other_error'])
+
+        # This test should be fine.
+        self.resolver.load(['sched_errors.d_no_nodes'])
