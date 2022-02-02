@@ -16,10 +16,20 @@ base:
     If other failures are encountered, be sure to take notes of the form of the
     failure and the fix to be merged into this file.
 
+    This test requires that you have defined here or in a host file a 'scratch'
+    variable that has sub-variables of the "name" and "path" where the scratch
+    space is mounted and files should be placed for running this test, meaning
+    your user will need read/write permissions on the path you provide.
+
   permute_on: [a_flag, block_size, scratch]
   variables:
     a_flag: ['MPIIO','POSIX']
     block_size: [100m]
+    # It is expected that this will be overridden by your configurations in the
+    # host definition file.
+    scratch?:
+    - name: replace-me
+      path: /dont/use/this
     #block_size: [10m, 100m, 1g]
 
   build:
