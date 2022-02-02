@@ -227,14 +227,17 @@ xroads_load1_scaling:
   variables:
     node_count:
     - 1
-    - '{{ sched.nodes_avail * 0.1 }}'
-    - '{{ sched.nodes_avail * 0.5 }}'
-    - '{{ sched.nodes_avail }}'
+    - 2
+    - 3
+    - 4
+      #    - '{{ sched.nodes_avail * 0.1 }}'
+      #    - '{{ sched.nodes_avail * 0.5 }}'
+      #    - '{{ sched.nodes_avail }}'
     numtasks:
     - "{{ node_count }}"
     - '{{ node_count * 2 }}'
     - '{{ node_count * 4 }}'
-    filesize: '{{ sched.alloc_max_mem * sched.alloc_nodes * 1.5 }}'
+    filesize: '{{ sched.alloc_max_mem * sched.alloc_nodes * 1.5 * 1000000 }}'
     transsize:
     - size: "1000000"
       spec: "1M"
@@ -253,6 +256,9 @@ xroads_load1_scaling:
     - percent: '95%'
       amount: '{{ floor( sched.alloc_max_mem * 0.95 ) }}'
     outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{node_count}}-{{numtasks}}-{{mempernode.percent}}.dat'
+
+  slurm:
+    num_nodes: '{{node_count}}'
 
 xroads_load2:
   inherits_from: xroads_load1
