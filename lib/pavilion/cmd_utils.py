@@ -2,22 +2,24 @@
 multiple commands."""
 
 import argparse
+import datetime as dt
+import io
 import logging
+import time
 from pathlib import Path
 from typing import List, TextIO
-import time
-import datetime as dt
 
+import pavilion
 from pavilion import dir_db
 from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
 from pavilion import series
+from pavilion import sys_vars
 from pavilion import utils
+from pavilion.exceptions import TestRunError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
-from pavilion.exceptions import TestRunError, DeferredError
-from pavilion import sys_vars
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +108,62 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         ).paths
 
     return test_paths
+
+
+def arg_filtered_series(pav_cfg: pavilion.PavConfig, args: argparse.Namespace,
+                        verbose: TextIO = None) -> List[series.SeriesInfo]:
+    """Return a list of series objects, filtered by """
+
+    limit = args.limit
+    verbose = verbose or io.StringIO()
+
+    if 'all' in args.series:
+        args.series.remove('all')
+        output.fprint("To search 'all' series, simply don't provide any in the arguments.",
+                      color=output.CYAN, file=verbose)
+
+    if args.user is None and args.newer_than is None and args.sys_name is None:
+        output.fprint("Using default search filters: The current system, user, and "
+                      "newer_than 1 day ago.", file=verbose, color=output.CYAN)
+        args.user = utils.get_login()
+        args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
+        args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+
+    if args.series:
+        matching_series = []
+        for sid in args.series:
+            if sid == 'last':
+                sid = series.load_user_series_id(pav_cfg)
+
+            matching_series.append(series.SeriesInfo.load(pav_cfg, sid))
+
+    else:
+        order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
+
+        filter_func = filters.make_series_filter(
+            complete=args.complete,
+            has_state=args.has_state,
+            incomplete=args.incomplete,
+            # complete=args.complete,
+            newer_than=args.newer_than,
+            older_than=args.older_than,
+            state=args.state,
+            sys_name=args.sys_name,
+            user=args.user,
+        )
+        matching_series = dir_db.select(
+            pav_cfg=pav_cfg,
+            id_dir=pav_cfg.working_dir/'series',
+            filter_func=filter_func,
+            transform=series.mk_series_info_transform(pav_cfg),
+            order_func=order_func,
+            order_asc=order_asc,
+            use_index=False,
+            verbose=verbose,
+            limit=limit,
+        )
+
+    return matching_series
 
 
 def read_test_files(files: List[str]) -> List[str]:

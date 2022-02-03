@@ -217,13 +217,16 @@ differentiate it from test ids."""
                 "Invalid SID '{}'. Must end in an integer.".format(sid))
 
     @classmethod
-    def load(cls, pav_cfg, sid: str):
+    def load(cls, pav_cfg, sid: Union[str, int]):
         """Load a series object from the given id, along with all of its
     associated tests.
 
     :raises TestSeriesError: From invalid series id or path."""
 
-        series_id = cls.sid_to_id(sid)
+        if isinstance(sid, str):
+            series_id = cls.sid_to_id(sid)
+        else:
+            series_id = sid
 
         series_path = pav_cfg.working_dir/'series'
         series_path = dir_db.make_id_path(series_path, series_id)

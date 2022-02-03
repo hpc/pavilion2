@@ -1,7 +1,9 @@
 """Object for summarizing series quickly."""
 import logging
 from pathlib import Path
+from typing import Union
 
+import pavilion
 from pavilion import dir_db
 from pavilion import utils
 from pavilion.test_run import TestRun, TestAttributes
@@ -22,6 +24,8 @@ class SeriesInfo:
 
         self._complete = None
         self._tests = [tpath for tpath in dir_db.select(pav_cfg, self.path).paths]
+        # Test info objects for
+        self._test_info = {}
 
     @classmethod
     def list_attrs(cls):
@@ -89,6 +93,8 @@ class SeriesInfo:
         """The number of tests belonging to this series."""
         return len(self._tests)
 
+    def
+
     @property
     def sys_name(self):
         """The sys_name the series ran on."""
@@ -97,6 +103,35 @@ class SeriesInfo:
             return None
 
         return TestAttributes(self._tests[0]).sys_name
+
+    def __getitem__(self, item):
+        """Provides dictionary like access."""
+
+        if not hasattr(self, item):
+            raise KeyError("Unknown key '{}' in SeriesInfo object.".format(item))
+
+        attr = getattr(self, item)
+        if callable(attr):
+            raise KeyError("Unknown key '{}' in SeriesInfo object (func)."
+                           .format(item))
+
+        return attr
+
+    @classmethod
+    def load(cls, pav_cfg: pavilion.PavConfig, sid: str):
+        """Find and load a series info object from a series id."""
+
+        try:
+            id_ = int(sid[1:])
+        except ValueError:
+            raise TestSeriesError(
+                "Invalid series id '{}'. Series id should "
+                "look like 's1234'.".format(sid))
+
+        series_path = pav_cfg.working_dir/'series'/str(id_)
+        if not series_path.exists():
+            raise TestSeriesError("Could not find series '{}'".format(sid))
+        return cls(pav_cfg, series_path)
 
 
 def mk_series_info_transform(pav_cfg):
