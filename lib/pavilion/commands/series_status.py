@@ -30,7 +30,6 @@ class SeriesStatus(Command):
 
         filters.add_series_filter_args(list_p)
 
-
     @sub_cmd('ls')
     def _list_cmd(self, pav_cfg, args):
         """List series."""
@@ -40,6 +39,13 @@ class SeriesStatus(Command):
 
         output.draw_table(
             outfile=self.outfile,
-            fields=['sid', 'num_tests', 'user', 'sys_name', 'complete']
+            fields=['sid', 'num_tests', 'user', 'sys_name', 'complete', 'passed', 'failed',
+                    'errors'],
+            rows=found_series,
+            field_info={
+                'num_tests': {'title': 'Tests'}
+            }
         )
+
+        return 0
 

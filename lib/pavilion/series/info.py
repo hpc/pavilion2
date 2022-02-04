@@ -8,6 +8,7 @@ from pavilion import dir_db
 from pavilion import utils
 from pavilion.test_run import TestRun, TestAttributes
 from .errors import TestSeriesError
+from pavilion.exceptions import TestRunError
 
 logger = logging.getLogger()
 
@@ -25,6 +26,7 @@ class SeriesInfo:
         self._complete = None
         self._tests = [tpath for tpath in dir_db.select(pav_cfg, self.path).paths]
         # Test info objects for
+
         self._test_info = {}
 
     @classmethod
@@ -89,20 +91,69 @@ class SeriesInfo:
         return self.path.stat().st_mtime
 
     @property
-    def num_tests(self):
+    def num_tests(self) -> int:
         """The number of tests belonging to this series."""
         return len(self._tests)
 
-    def
+    @property
+    def passed(self) -> int:
+        """Number of tests that have passed."""
+
+        passed = 0
+        for test_path in self._tests:
+            test_info = self.test_info(test_path)
+            if test_info is None:
+                continue
+
+            if test_info.result == TestRun.PASS:
+                passed += 1
+
+        return passed
 
     @property
-    def sys_name(self):
+    def failed(self) -> int:
+        """Number of tests that have failed."""
+
+        failed = 0
+        for test_path in self._tests:
+            test_info = self.test_info(test_path)
+            if test_info is None:
+                continue
+
+            if test_info.result == TestRun.FAIL:
+                failed += 1
+
+        return failed
+
+    @property
+    def errors(self) -> int:
+        """Number of tests that are complete but with no result, or
+        with an ERROR result."""
+
+        errors = 0
+        for test_path in self._tests:
+            test_info = self.test_info(test_path)
+            if test_info is None:
+                continue
+
+            if (test_info.complete and
+                    test_info.result not in TestRun.PASS, TestRun.FAIL):
+                errors += 1
+
+        return errors
+
+    @property
+    def sys_name(self) -> Union[str, None]:
         """The sys_name the series ran on."""
 
         if not self._tests:
             return None
 
-        return TestAttributes(self._tests[0]).sys_name
+        test_info = self.test_info(self._tests[0])
+        if test_info is None:
+            return None
+
+        return test_info.sys_name
 
     def __getitem__(self, item):
         """Provides dictionary like access."""
@@ -116,6 +167,21 @@ class SeriesInfo:
                            .format(item))
 
         return attr
+
+    def test_info(self, test_path) -> Union[TestAttributes, None]:
+        """Return the test info object for the given test path.
+        If the test doesn't exist, return None."""
+
+        if test_path in self._test_info:
+            return self._test_info[test_path]
+
+        try:
+            test_info = TestAttributes(test_path)
+        except TestRunError:
+            test_info = None
+
+        self._test_info[test_path] = test_info
+        return test_info
 
     @classmethod
     def load(cls, pav_cfg: pavilion.PavConfig, sid: str):
