@@ -463,9 +463,9 @@ CONFIG_DEFAULTS = {
     'exclude_nodes':    [],
     'time_limit':       None,
     'cluster_info':     {
-        'node_count': None,
-        'mem':        None,
-        'cpus':       None,
+        'node_count': '1',
+        'mem':        '1000',
+        'cpus':       '4',
     }
 }
 

@@ -141,7 +141,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(slurm_conf['srun_extra'])
         else:
-            cmd = ['mpirun', '--map-by ppr:{}:node'.format(tasks)]
+            cmd = ['mpirun']
 
             rank_by = slurm_conf['mpirun_rank_by']
             bind_to = slurm_conf['mpirun_bind_to']

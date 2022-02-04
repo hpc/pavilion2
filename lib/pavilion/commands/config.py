@@ -112,7 +112,7 @@ class ConfigCommand(Command):
         return self._run_sub_command(pav_cfg, args)
 
     @sub_cmd()
-    def _create_cmd(self, pav_cfg: pavilion.PavConfig, args):
+    def _create_cmd(self, pav_cfg: config.PavConfig, args):
 
         label = args.label
         path: Path = args.path
@@ -136,7 +136,7 @@ class ConfigCommand(Command):
         return 0
 
     @sub_cmd()
-    def _setup_cmd(self, pav_cfg: pavilion.PavConfig, args):
+    def _setup_cmd(self, pav_cfg: config.PavConfig, args):
         """Similar to the 'config create' command, but with the expectation that this will
          be the primary pavilion config location."""
 
@@ -154,7 +154,7 @@ class ConfigCommand(Command):
         else:
             group = None
 
-        pav_cfg: pavilion.PavConfig = config.PavilionConfigLoader().load_empty()
+        pav_cfg: config.PavConfig = config.PavilionConfigLoader().load_empty()
         pav_cfg.working_dir = args.working_dir
         pav_cfg.pav_cfg_file = path/'pavilion.yaml'
 
@@ -185,7 +185,7 @@ class ConfigCommand(Command):
 
         return group
 
-    def create_config_dir(self, pav_cfg: pavilion.PavConfig, path: Path,
+    def create_config_dir(self, pav_cfg: config.PavConfig, path: Path,
                           label: str, group: Union[None, grp.struct_group],
                           working_dir: Path = None):
         """Create a standard Pavilion configuration directory at 'path',
@@ -293,7 +293,7 @@ class ConfigCommand(Command):
         return 0
 
     @sub_cmd('rm')
-    def _remove_cmd(self, pav_cfg: pavilion.PavConfig, args):
+    def _remove_cmd(self, pav_cfg: config.PavConfig, args):
         """Remove the given config path from the pavilion config."""
 
         if args.config in pav_cfg.configs:
@@ -319,7 +319,7 @@ class ConfigCommand(Command):
         self.write_pav_cfg(pav_cfg)
 
     @sub_cmd('ls')
-    def _list_cmd(self, pav_cfg: pavilion.PavConfig, args):
+    def _list_cmd(self, pav_cfg: config.PavConfig, args):
         _ = args
 
         rows = []
