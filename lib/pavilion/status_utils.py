@@ -71,7 +71,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
     series = test.series or ''
 
     return {
-        'job_id':  str(test.job),
+        'job_id':  str(test.job) if test.job is not None else '',
         'name':    test.name,
         'nodes':   nodes,
         'note':    status_f.note,
@@ -94,7 +94,7 @@ def get_status(test: TestRun, pav_conf):
         test_status = status_from_test_obj(pav_conf, test)
     except (TestRunError, TestRunNotFoundError) as err:
         test_status = {
-            'job_id':  str(test.job),
+            'job_id':  str(test.job) if test.job is not None else '',
             'name':    test.name,
             'nodes':   '',
             'note':    "Error getting test status: {}".format(err),

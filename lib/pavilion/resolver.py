@@ -474,7 +474,7 @@ class TestConfigResolver:
 
             name_parts = test_name.split('.')
             if len(name_parts) == 0 or name_parts[0] == '':
-                raise TestConfigError("Empty test name given.")
+                continue
             elif len(name_parts) > 2:
                 raise TestConfigError(
                     "Test names can be a general test suite, or a test suite "

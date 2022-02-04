@@ -500,6 +500,9 @@ class TestSet:
                 start_count += len(tests)
 
                 try:
+                    self.status.set(S_STATES.SET_KICKOFF,
+                                    "Kicking off {} tests under scheduler {}"
+                                    .format(len(tests), sched_name))
                     scheduler.schedule_tests(self.pav_cfg, tests)
                 except schedulers.SchedulerPluginError as err:
                     self.cancel(
