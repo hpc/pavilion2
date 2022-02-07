@@ -85,6 +85,9 @@ class TestSet:
         self.started_tests = None  # type: Union[List[TestRun], None]
         self.completed_tests = None  # type: Union[List[TestRun], None]
 
+        # A dictionary of test set info, written to the set info file.
+        self._info = {}
+
         self._should_run = None
         self._test_names = test_names
         self.mb_tracker = MultiBuildTracker()

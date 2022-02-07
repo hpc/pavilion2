@@ -28,7 +28,7 @@ class SeriesInfo:
         # Test info objects for
 
         self._test_info = {}
-        self._status: Union[None, status_file.SeriesStatusInfo] = None 
+        self._status: Union[None, status_file.SeriesStatusInfo] = None
 
     @classmethod
     def list_attrs(cls):
@@ -73,13 +73,13 @@ class SeriesInfo:
     def complete(self):
         """True if all tests are complete."""
 
-        
+
 
         if self._complete is None:
             self._complete = all([(test_path / TestRun.COMPLETE_FN).exists()
                                   for test_path in self._tests])
 
-            
+
 
         return self._complete
     def _get_complete(self) -> Tuple[bool, Union[None, dt.datetime]]:
@@ -87,15 +87,15 @@ class SeriesInfo:
 
         if self._complete is not None:
             return self._complete
-    
+
         complete_fn = self.path/common.COMPLETE_FN
         if not complete_fn.exists():
             if all([(test_path / TestRun.COMPLETE_FN).exists()
                     for test_path in self._tests]):
                 when = max([(test_path / TestRun.COMPLETE_FN).stat().st_mtime
-                            for test_path in self._tests]
+                            for test_path in self._tests])
                 when = dt.datetime.fromtimestamp(when)
-                            
+
                 common.set_complete(self.path, when)
 
         if complete_fn.exists():
@@ -125,9 +125,9 @@ class SeriesInfo:
         complete_fn = self.path/common.COMPLETE_FN
         if complete_fn.exists():
             return complete_fn.stat().st_mtime
-        else: 
+        else:
             return None
-    
+
     @property
     def num_tests(self) -> int:
         """The number of tests belonging to this series."""
@@ -197,7 +197,7 @@ class SeriesInfo:
             status_fn = self.path/common.STATUS_FN
             if status_fn.exists():
                 series_status = status_file.SeriesStatusFile(status_fn)
-                sstatus = series_status.current() 
+                sstatus = series_status.current()
                 self._status = sstatus
 
         return self._status

@@ -433,7 +433,6 @@ differentiate it from test ids."""
                 test_start_count = simultaneous
                 while not test_set.done:
                     try:
-                        # TODO: Log when and how many tests kicked off.
                         kicked_off = test_set.kickoff(test_start_count)
                         fprint("Kicked off '{}' tests of test set '{}' in series '{}'."
                                .format(kicked_off, test_set.name, self.sid),
