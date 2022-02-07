@@ -1,0 +1,305 @@
+base:
+  summary: MPI Coordinated Test of Parallel I/O.
+
+  maintainer:
+    name: Francine Lapid
+    email: lapid@lanl.gov
+
+  subtitle: '{{scratch.name}}-{{a_flag}}-{{block_size}}'
+
+  doc: |
+
+    This test exercises the parallel read-write capabilities from all of the
+    nodes to and from scratch spaces using both the MPIIO and POSIX formats.
+    Failures can indicate issues with the HSN fabric or with the scratch
+    filesystems.
+    If other failures are encountered, be sure to take notes of the form of the
+    failure and the fix to be merged into this file.
+
+    This test requires that you have defined here or in a host file a 'scratch'
+    variable that has sub-variables of the "name" and "path" where the scratch
+    space is mounted and files should be placed for running this test, meaning
+    your user will need read/write permissions on the path you provide.
+
+  permute_on: [a_flag, block_size, scratch]
+  variables:
+    a_flag: ['MPIIO','POSIX']
+    block_size: [100m]
+    # It is expected that this will be overridden by your configurations in the
+    # host definition file.
+    scratch?:
+    - name: replace-me
+      path: /dont/use/this
+    #block_size: [10m, 100m, 1g]
+
+  build:
+    source_url: https://www.lanl.gov/projects/crossroads/_assets/docs/micro/ior-3.0.1-xroads_v1.0.0.tgz
+    source_path: ior.tgz
+    modules:
+    - "{{var.compilers}}"
+    - "{{var.mpis}}"
+
+    env:
+      CC: "$PAV_MPI_CC"
+
+    cmds:
+    - "./bootstrap"
+    - "./configure"
+    - "make"
+
+
+  scheduler: slurm
+
+  slurm:
+    tasks_per_node: 2
+    num_nodes: 4
+
+  run:
+    modules:
+    - "{{var.compilers}}"
+    - "{{var.mpis}}"
+
+    env:
+      bloc: "$PWD"
+
+    cmds:
+    - "if ! [[ -d {{scratch.path}} ]]"
+    - "then"
+    - "  echo {{scratch.path}} does not exist. Exiting."
+    - "  exit 1"
+    - "elif ! [[ -x $bloc/src/ior ]]"
+    - "then"
+    - "  echo $bloc/src/ior is not executable. Exiting."
+    - "  exit 1"
+    - "else"
+    - "  cd {{scratch.path}}"
+    - "  rm -rf ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
+    - "  mkdir ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
+    - "  cd ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
+    - "  {{sched.test_cmd}} {{srun_opts}} $bloc/src/ior -a {{a_flag}} -b {{block_size}} -c -e -F -i 2"
+    - "  cd .."
+    - "  rm -rf {{scratch.path}}/ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
+    - "fi"
+
+  result_parse:
+    regex:
+      result:
+        regex: Finished
+        action: store_true
+
+
+xroads_load1:
+  inherits_from: base
+
+  subtitle: '{{outname}}'
+
+  variables:
+    taskspernode: 2
+    numtasks: '{{ sched.alloc_nodes * taskspernode }}'
+    mempernode:
+    - percent: '80%'
+      amount: '{{ floor( sched.alloc_max_mem * 0.8 ) }}'
+    transsize:
+    - size: "1000000"
+      spec: "1M"
+    collect: 1
+    keep: 0
+    a_flag: [ "MPIIO", "POSIX" ]
+    filecount: [ 0, 1 ]
+    randomize: 0
+    write: 1
+    read: 1
+    filesize: '{{ sched.alloc_max_mem * sched.alloc_nodes * 1.5 * 1000000 }}'
+    segcount: '{{ ceil(filesize / ( transsize.size * numtasks )) }}'
+    outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}.dat'
+
+  permute_on:
+  - scratch
+  - a_flag
+  - filecount
+
+  slurm:
+    tasks_per_node: '{{ taskspernode }}'
+    num_nodes: 'all'
+
+  run:
+    timeout: 1800
+
+    modules:
+    - "{{var.compilers}}"
+    - "{{var.mpis}}"
+
+    env:
+      bloc: "$PWD"
+
+    create_files:
+      inp:
+      - 'IOR START'
+      - '### Must change these values'
+      - '    numTasks={{numtasks}}'
+      - '    segmentCount={{segcount}}'
+      - '    memoryPerNode={{mempernode.percent}}'
+      - ''
+      - '### May change these values'
+      - '    transferSize={{transsize.spec}}'
+      - '    blockSize={{transsize.spec}}'
+      - '    testFile={{outname}}'
+      - '    collective={{collect}}'
+      - '    keepFile={{keep}}'
+      - ''
+      - '### DO NOT change these values'
+      - '    reorderTasksConstant=1'
+      - '    intraTestBarriers=1'
+      - '    repetitions=1'
+      - '    verbose=2'
+      - '    fsync=1'
+      - ''
+      - '### The follwing values define the nature of the benchmark test'
+      - '    api={{a_flag}}'
+      - '    filePerProc={{filecount}}'
+      - '    randomOffset={{randomize}}'
+      - '    writeFile={{write}}'
+      - '    readFile={{read}}'
+      - ''
+      - 'RUN'
+      - ''
+      - 'IOR STOP'
+
+    cmds:
+    - "echo scratch path is {{scratch.path}}"
+    - "if ! [[ -d {{scratch.path}} ]]"
+    - "then"
+    - "  echo {{scratch.path}} does not exist. Exiting."
+    - "  exit 1"
+    - "elif ! [[ -x $bloc/src/ior ]]"
+    - "then"
+    - "  echo $bloc/src/ior is not executable. Exiting."
+    - "  exit 1"
+    - "fi"
+    - "cd {{scratch.path}}"
+    - "rm -rf ior-test-{{outname}}"
+    - "mkdir ior-test-{{outname}}"
+    - "cd ior-test-{{outname}}"
+    - "{{sched.test_cmd}} {{srun_opts}} $bloc/src/ior -f $bloc/inp"
+    - "cd .."
+    - "rm -rf {{scratch.path}}/ior-test-{{outname}}"
+
+  result_parse:
+    regex:
+      max_read:
+        regex: 'Max Read: +(.*)'
+      max_write:
+        regex: 'Max Write: +(.*)'
+      fs_size:
+        regex: 'FS: (.*) +Used FS.*'
+      fs_used:
+        regex: 'Used FS: (.*)  Inodes.*'
+      inodes:
+        regex: 'Inodes: (.*) +Used Inodes.*'
+      inodes_used:
+        regex: 'Used Inodes: (.*)'
+      mem_per_node:
+        regex: 'memoryPerNode += (.*)'
+      aggregate_filesize:
+        regex: 'aggregate filesize = (.*)'
+      clients:
+        regex: 'clients += (.*)'
+      api:
+        regex: 'api += (.*)'
+      num_files:
+        regex: 'access += (.*)'
+      test_file:
+        regex: 'test filename += (.*)'
+      pattern:
+        regex: 'pattern += (.*)'
+      in_file_order:
+        regex: 'ordering in a file += (.*)'
+      inter_file_order:
+        regex: 'ordering inter file= (.*)'
+      repetitions:
+        regex: 'repetitions += (.*)'
+      transfer_size:
+        regex: 'xfersize += (.*)'
+      block_size:
+        regex: 'blocksize += (.*)'
+
+
+xroads_load1_scaling:
+  inherits_from: xroads_load1
+
+  permute_on:
+  - scratch
+  - node_count
+  - numtasks
+  - transsize
+  - mempernode
+
+  variables:
+    node_count:
+    - 1
+    - 2
+    - 3
+    - 4
+      #    - '{{ sched.nodes_avail * 0.1 }}'
+      #    - '{{ sched.nodes_avail * 0.5 }}'
+      #    - '{{ sched.nodes_avail }}'
+    numtasks:
+    - "{{ node_count }}"
+    - '{{ node_count * 2 }}'
+    - '{{ node_count * 4 }}'
+    filesize: '{{ sched.alloc_max_mem * sched.alloc_nodes * 1.5 * 1000000 }}'
+    transsize:
+    - size: "1000000"
+      spec: "1M"
+    - size: "2000000"
+      spec: "2M"
+    - size: "4000000"
+      spec: "4M"
+    - size: "8000000"
+      spec: "8M"
+    segcount: '{{ floor( filesize / ( transsize.size * numtasks ) ) }}'
+    mempernode:
+    - percent: '80%'
+      amount: '{{ floor( sched.alloc_max_mem * 0.8 ) }}'
+    - percent: '90%'
+      amount: '{{ floor( sched.alloc_max_mem * 0.9 ) }}'
+    - percent: '95%'
+      amount: '{{ floor( sched.alloc_max_mem * 0.95 ) }}'
+    outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{node_count}}-{{numtasks}}-{{mempernode.percent}}.dat'
+
+  slurm:
+    num_nodes: '{{node_count}}'
+
+xroads_load2:
+  inherits_from: xroads_load1
+
+  permute_on:
+  - scratch
+  - a_flag
+  - filecount
+  - randomize
+
+    # random not available with collective MPIIO
+  variables:
+    filecount: [ 0, 1 ]
+    randomize: [ 0, 1 ]
+    outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{randomize}}.dat'
+
+xroads_load2_scaling:
+  inherits_from: xroads_load1_scaling
+
+  permute_on:
+  - scratch
+  - node_count
+  - numtasks
+  - transsize
+  - mempernode
+  - a_flag
+  - filecount
+  - randomize
+
+    # random not available with collective MPIIO
+  variables:
+    filecount: [ 0, 1 ]
+    randomize: [ 0, 1 ]
+    outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{node_count}}-{{numtasks}}-{{mempernode.percent}}-{{randomize}}.dat'
