@@ -157,6 +157,8 @@ class StatusCommand(Command):
                 'transform': lambda t: output.ANSIString(t, output.RED),
             }}
 
+        rows.sort(key = lambda status: status['State'])
+
         output.draw_table(outfile=self.outfile,
                           field_info=field_info,
                           fields=fields,
