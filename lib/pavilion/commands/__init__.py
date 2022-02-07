@@ -19,6 +19,7 @@ from .maint import MaintCommand
 from .result import ResultsCommand
 from .run import RunCommand
 from .series import RunSeries
+from .series_status import SeriesStatus
 from .set_status import SetStatusCommand
 from .show import ShowCommand
 from .status import StatusCommand
@@ -42,6 +43,7 @@ _builtin_commands = [
     ResultsCommand,
     RunCommand,
     RunSeries,
+    SeriesStatus,
     SetStatusCommand,
     ShowCommand,
     StatusCommand,

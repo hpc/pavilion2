@@ -24,6 +24,7 @@ from yaml_config import YAMLError, RequiredError
 from .errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo
 from .test_set import TestSet, TestSetError
+from . import common
 
 
 class LazyTestRunDict(UserDict):
@@ -79,13 +80,11 @@ class TestSeries:
     the series as specified by its config, or when an error occurs. Series are
     identified by a 'sid', which takes the form 's<id_num>'."""
 
-    COMPLETE_FN = 'SERIES_COMPLETE'
     CONFIG_FN = 'config'
     DEPENDENCY_FN = 'dependency'
     LOGGER_FMT = 'series({})'
     OUT_FN = 'series.out'
     PGID_FN = 'series.pgid'
-    STATUS_FN = 'status'
 
     def __init__(self, pav_cfg, config, _id=None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
@@ -125,7 +124,7 @@ class TestSeries:
 
             # Update user.json to record last series run per sys_name
             self._save_series_id()
-            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
+            self.status = SeriesStatusFile(self.path/common.STATUS_FN)
             self.status.set(SERIES_STATES.CREATED, "Created series.")
 
         # We're not creating this from scratch (an object was made ahead of
@@ -133,7 +132,7 @@ class TestSeries:
         else:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)
-            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
+            self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
@@ -483,9 +482,7 @@ differentiate it from test ids."""
         """Check if every test in the series has completed. A series is incomplete if
         no tests have been created."""
 
-        self.status.set(SERIES_STATES.COMPLETE, "Series has completed.")
-
-        if (self.path/self.COMPLETE_FN).exists():
+        if (self.path/common.COMPLETE_FN).exists():
             return True
         else:
             if not self.tests:
@@ -495,18 +492,14 @@ differentiate it from test ids."""
                 if not test.complete:
                     return False
 
+            self.set_complete()
             return True
 
     def set_complete(self):
         """Write a file in the series directory that indicates that the series
         has finished."""
 
-        series_complete_path = self.path/self.COMPLETE_FN
-        series_complete_path_tmp = series_complete_path.with_suffix('.tmp')
-        with series_complete_path_tmp.open('w') as series_complete:
-            json.dump({'complete': time.time()}, series_complete)
-
-        series_complete_path_tmp.rename(series_complete_path)
+        common.set_complete(self.path)
 
     def info(self) -> SeriesInfo:
         """Return the series info object for this test. Note that this is super

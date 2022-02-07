@@ -1,16 +1,16 @@
 """Object for summarizing series quickly."""
-import logging
+import datetime as dt
 from pathlib import Path
 from typing import Union
 
-import pavilion
+from pavilion import config
 from pavilion import dir_db
 from pavilion import utils
+from pavilion import status_file
 from pavilion.test_run import TestRun, TestAttributes
 from .errors import TestSeriesError
+from . import common
 from pavilion.exceptions import TestRunError
-
-logger = logging.getLogger()
 
 
 class SeriesInfo:
@@ -28,6 +28,7 @@ class SeriesInfo:
         # Test info objects for
 
         self._test_info = {}
+        self._status: Union[None, status_file.SeriesStatusInfo] = None 
 
     @classmethod
     def list_attrs(cls):
@@ -71,10 +72,37 @@ class SeriesInfo:
     @property
     def complete(self):
         """True if all tests are complete."""
+
+        
+
         if self._complete is None:
             self._complete = all([(test_path / TestRun.COMPLETE_FN).exists()
                                   for test_path in self._tests])
+
+            
+
         return self._complete
+    def _get_complete(self) -> Tuple[bool, Union[None, dt.datetime]]:
+        """Save info on series completion. This has the side effect of setting the"""
+
+        if self._complete is not None:
+            return self._complete
+    
+        complete_fn = self.path/common.COMPLETE_FN
+        if not complete_fn.exists():
+            if all([(test_path / TestRun.COMPLETE_FN).exists()
+                    for test_path in self._tests]):
+                when = max([(test_path / TestRun.COMPLETE_FN).stat().st_mtime
+                            for test_path in self._tests]
+                when = dt.datetime.fromtimestamp(when)
+                            
+                common.set_complete(self.path, when)
+
+        if complete_fn.exists():
+            self._complete = True, dt.datetime.fromtimestamp(complete_fn.stat().st_mtime)
+            return self._complete
+        else:
+            return False, None
 
     @property
     def user(self):
@@ -90,6 +118,16 @@ class SeriesInfo:
 
         return self.path.stat().st_mtime
 
+    @property
+    def finished(self) -> Union[float]:
+        """When the series completion file was created."""
+
+        complete_fn = self.path/common.COMPLETE_FN
+        if complete_fn.exists():
+            return complete_fn.stat().st_mtime
+        else: 
+            return None
+    
     @property
     def num_tests(self) -> int:
         """The number of tests belonging to this series."""
@@ -126,6 +164,45 @@ class SeriesInfo:
         return failed
 
     @property
+    def status(self) -> Union[str, None]:
+        """The last status message from the series status file."""
+
+        status = self._get_status()
+        if status is None:
+            return None
+        return self._status.state
+
+
+    def status_note(self) -> Union[str, None]:
+        """Return the series status note."""
+
+        status = self._get_status()
+        if status is None:
+            return None
+        return self._status.note
+
+    def status_when(self) -> Union[dt.datetime, None]:
+        """Return the most recent status update time."""
+
+        status = self._get_status()
+        if status is None:
+            return None
+        return self._status.when
+
+
+    def _get_status(self) -> status_file.SeriesStatusInfo:
+        """Get the latest status and note from the series status file."""
+
+        if self._status is None:
+            status_fn = self.path/common.STATUS_FN
+            if status_fn.exists():
+                series_status = status_file.SeriesStatusFile(status_fn)
+                sstatus = series_status.current() 
+                self._status = sstatus
+
+        return self._status
+
+    @property
     def errors(self) -> int:
         """Number of tests that are complete but with no result, or
         with an ERROR result."""
@@ -137,7 +214,7 @@ class SeriesInfo:
                 continue
 
             if (test_info.complete and
-                    test_info.result not in TestRun.PASS, TestRun.FAIL):
+                    test_info.result not in (TestRun.PASS, TestRun.FAIL)):
                 errors += 1
 
         return errors
@@ -155,18 +232,6 @@ class SeriesInfo:
 
         return test_info.sys_name
 
-    def __getitem__(self, item):
-        """Provides dictionary like access."""
-
-        if not hasattr(self, item):
-            raise KeyError("Unknown key '{}' in SeriesInfo object.".format(item))
-
-        attr = getattr(self, item)
-        if callable(attr):
-            raise KeyError("Unknown key '{}' in SeriesInfo object (func)."
-                           .format(item))
-
-        return attr
 
     def test_info(self, test_path) -> Union[TestAttributes, None]:
         """Return the test info object for the given test path.
@@ -184,7 +249,7 @@ class SeriesInfo:
         return test_info
 
     @classmethod
-    def load(cls, pav_cfg: pavilion.PavConfig, sid: str):
+    def load(cls, pav_cfg: config.PavConfig, sid: str):
         """Find and load a series info object from a series id."""
 
         try:
