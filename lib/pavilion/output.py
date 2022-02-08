@@ -71,27 +71,33 @@ COLORS = {
 }
 
 
-def get_relative_timestamp(base_time):
+def get_relative_timestamp(base_time, fullstamp=False):
     """Print formatted time string based on the delta of time objects.
     :param float base_time: The datetime object to compare and format
     from.
+    :param bool fullstamp: Whether to return the whole formatted
+    timestamp.
     :returns: A formatted time string.
     :rtype str:
     """
 
     if not isinstance(base_time, float):
-        return ''
+        return base_time
+
+    #Duration
+    if base_time < 1e5:
+        return str(datetime.timedelta(seconds=round(base_time)))
 
     now = datetime.datetime.now()
-    format_ = ['%Y', '%b', '%a', '%H:%M:%S']  # year, month, day, time
-
+    format_ = ['%Y', '%b %-d', '%H:%M:%S']  # year, month, day, time
     base_time = datetime.datetime.fromtimestamp(base_time)
 
-    for i in range(0, len(format_)):
-        if now.strftime(format_[i]) != base_time.strftime(format_[i]):
-            return base_time.strftime(" ".join(format_[i:]))
+    if not fullstamp:
+        final_form = [f for f in format_ if now.strftime(f) != base_time.strftime(f)]
+    else:
+        final_form = format_
 
-    return base_time.strftime(str(format_[3]))
+    return base_time.strftime(" ".join(final_form))
 
 
 def dbg_print(*args, color=YELLOW, file=sys.stderr, end="",

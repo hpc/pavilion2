@@ -3,6 +3,7 @@
 import datetime
 import errno
 import io
+from multiprocessing.sharedctypes import Value
 import pprint
 import shutil
 from typing import List, IO
@@ -42,6 +43,7 @@ class ResultsCommand(Command):
         group.add_argument(
             "-k", "--key", type=str, default='',
             help="Comma separated list of additional result keys to display."
+                 "Use ~ (tilda) in front of default key to remove from default list."
         )
         group.add_argument(
             "-f", "--full", action="store_true", default=False,
@@ -113,7 +115,19 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            fields = result_utils.BASE_FIELDS + args.key.replace(',', ' ').split()
+            argkeys = args.key.replace(',', ' ').split()
+            fields = result_utils.BASE_FIELDS.copy()
+
+            for k in argkeys:
+                if k.starswith('~'):
+                    key = k[1:]
+                    try:
+                        fields.remove(key)
+                    except ValueError:
+                        pass
+                else:
+                    fields.append(k)
+
 
             output.draw_table(
                 outfile=self.outfile,

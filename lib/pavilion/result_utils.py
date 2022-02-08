@@ -3,7 +3,9 @@ test runs and series."""
 
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
+import datetime
 
+from pavilion import output
 from pavilion.exceptions import TestRunError, TestRunNotFoundError
 from pavilion.test_run import (TestRun)
 
@@ -13,12 +15,11 @@ from pavilion.test_run import (TestRun)
 BASE_FIELDS = [
     'id',
     'name',
-    'sys_name',
     'started',
-    'finished',
     'result'
 ]
 
+timefields = ['created', 'started', 'finished', 'duration']
 
 def get_result(test: TestRun):
     """Return the result for a single test_id.
@@ -28,6 +29,10 @@ def get_result(test: TestRun):
 
     try:
         results = test.results
+        results['nodes'] = results['sched']['test_nodes']
+        for tf in timefields:
+            results[tf] = output.get_relative_timestamp(
+                                    results[tf])
         results['results_log'] = test.results_log
 
     except (TestRunError, TestRunNotFoundError) as err:
