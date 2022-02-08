@@ -133,8 +133,6 @@ def print_status(statuses, outfile, note=False, series=False, json=False):
 :rtype: int
 """
 
-    statuses.sort(key=lambda v: v.get('test_id'))
-
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
