@@ -46,8 +46,13 @@ class ResultsCommand(Command):
                  "Use ~ (tilda) in front of default key to remove from default list."
         )
         group.add_argument(
+            "--list-keys", dest="list_keys", 
+            action="store_true", default=False,
+            help="List all available keys for test run or series."
+        )
+        group.add_argument(
             "-f", "--full", action="store_true", default=False,
-            help="Show all result keys."
+            help="Print results as json with all keys."
         )
         parser.add_argument(
             '-r', '--re-run', dest="re_run",
@@ -78,6 +83,39 @@ class ResultsCommand(Command):
         )
         filters.add_test_filter_args(parser)
 
+    def printkeys(self, keydict):
+        print("AVAILABLE KEYS:")
+        for k, v in sorted(keydict.items()):
+            if not v:
+                continue
+            print('\t', k, ':')
+            for va in sorted(v):
+                print('\t\t', va)
+        return 0
+
+    def keylist(self, results):
+        klist = {}
+        for r in results:
+            dkey = r["name"].split('.')[0]
+            if dkey not in klist.keys():
+                klist[dkey] = set([r for r,v in r.items() if not isinstance(v, dict) or isinstance(v, list)])
+
+        if len(klist.keys()) == 1:
+            self.printkeys(klist)
+            return 0
+
+        vals = list(klist.values())
+        common_keys = vals[0].intersection(*vals[1:]) 
+        kfinal = {}
+        for k, v in klist.items():
+            test_keys = v.difference(common_keys)
+            if test_keys:
+                kfinal[k] = test_keys
+        kfinal['-common'] = common_keys
+        self.printkeys(kfinal)
+        return 0
+
+
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
@@ -94,7 +132,10 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
 
-        if args.json or args.full:
+        if args.list_keys:
+            self.keylist(results)
+
+        elif args.json or args.full:
             if not results:
                 output.fprint("Could not find any matching tests.",
                               color=output.RED, file=self.outfile)
@@ -119,7 +160,7 @@ class ResultsCommand(Command):
             fields = result_utils.BASE_FIELDS.copy()
 
             for k in argkeys:
-                if k.starswith('~'):
+                if k.startswith('~'):
                     key = k[1:]
                     try:
                         fields.remove(key)
@@ -127,7 +168,6 @@ class ResultsCommand(Command):
                         pass
                 else:
                     fields.append(k)
-
 
             output.draw_table(
                 outfile=self.outfile,

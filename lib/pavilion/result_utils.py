@@ -6,7 +6,7 @@ from typing import List
 import datetime
 
 from pavilion import output
-from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.test_run import (TestRun)
 
 # I suppose these are all the keys of the TestRun.results dict and the essential ones.
@@ -29,10 +29,12 @@ def get_result(test: TestRun):
 
     try:
         results = test.results
-        results['nodes'] = results['sched']['test_nodes']
         for tf in timefields:
-            results[tf] = output.get_relative_timestamp(
-                                    results[tf])
+            if tf in results.keys():
+                raw_key = tf+"_raw"
+                results[raw_key] = results[tf]
+                results[tf] = output.get_relative_timestamp(
+                                        results[tf])
         results['results_log'] = test.results_log
 
     except (TestRunError, TestRunNotFoundError) as err:
@@ -42,6 +44,12 @@ def get_result(test: TestRun):
 
         results['result'] = "Test not found: {}".format(err)
 
+    try:
+        nodes = test.var_man.get('sched.test_nodes', '')
+    except DeferredError:
+        nodes = ''
+
+    results['nodes'] = nodes
     return results
 
 

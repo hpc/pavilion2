@@ -89,15 +89,15 @@ def get_relative_timestamp(base_time, fullstamp=False):
         return str(datetime.timedelta(seconds=round(base_time)))
 
     now = datetime.datetime.now()
-    format_ = ['%Y', '%b %-d', '%H:%M:%S']  # year, month, day, time
     base_time = datetime.datetime.fromtimestamp(base_time)
-
+    dateformat = '%Y %b %-d'  # year, month, day
+    timeformat = '%H:%M:%S'  # time
+    final_form = " ".join([dateformat, timeformat])
     if not fullstamp:
-        final_form = [f for f in format_ if now.strftime(f) != base_time.strftime(f)]
-    else:
-        final_form = format_
+        if now.date() == base_time.date():
+            final_form = timeformat
 
-    return base_time.strftime(" ".join(final_form))
+    return base_time.strftime(final_form)
 
 
 def dbg_print(*args, color=YELLOW, file=sys.stderr, end="",
