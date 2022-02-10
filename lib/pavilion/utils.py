@@ -442,6 +442,76 @@ def union_dictionary(dict1, dict2):
 
     return dict1
 
+def flatten_nested_dict(dict_in, keycollect='', new_d=dict(), keysplit='.'):
+    """ Takes a nested dictionary and concatenates its nested keys
+    in a single key at the top level.
+
+    Remove keys whose value evaluates to False.
+    If dict_in has only one key and it's not the final key, discard it.
+    Remove key concatenator from front/back of key string.
+    """
+
+    knew = keycollect
+    for k, v in dict_in.items():
+        if not v:
+            continue
+        if len(dict_in.keys()) > 1 or not isinstance(v, dict):
+            knew = keysplit.join([keycollect,k])
+        if not isinstance(v, dict):
+            knew = knew.strip(keysplit)
+            new_d[knew] = v
+        else:
+            new_d = flatten_nested_dict(v, knew, new_d.copy())
+
+    return new_d
+
+
+def flatten_dictionaries(nested_dicts):
+    """ Takes a (possibly nested) dictionary or list of dictionaries
+    and returns a dictionary that contains only (key: value) pairs
+    by merging nested keys.
+
+    Remove keys whose value evaluates to False.
+    Returns the type you gave it, list or dict.
+    When when flattening a sub dictionary, check that the resulting
+    keys are not already in the main dict to be overwritten when
+    the flattened key:values are added. If the key is present,
+    append the parent dictionary key referring to the sub dictionary
+    to the flattened key and add to the flattened dictionary.
+    """
+    dictout = isinstance(nested_dicts, dict)
+    flat_dicts=[]
+
+    if dictout:
+        nested_ds = [nested_dicts]
+    else:
+        nested_ds = nested_dicts[:]
+
+    for nested_dict in nested_ds:
+        flat_dict = dict()
+        ndkeys = list(nested_dict.keys())
+        for k, v in nested_dict.items():
+            if not v:
+                continue
+            elif isinstance(v, dict):
+                flatv = flatten_nested_dict(v)
+                for kf, vf in flatv.items():
+                    kfa = kf
+                    if kf in ndkeys:
+                        kfa = ".".join([k,kf])
+                    flat_dict[kfa] = vf
+                flatv.clear()
+            else:
+                flat_dict[k] = v
+
+        flat_dicts.append(flat_dict)
+
+    if dictout:
+        flat_dicts = flat_dicts[0]
+
+    return flat_dicts
+
+
 
 def auto_type_convert(value):
     """Try to convert 'value' to a int, float, or bool. Otherwise leave

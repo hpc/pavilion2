@@ -44,12 +44,6 @@ def get_result(test: TestRun):
 
         results['result'] = "Test not found: {}".format(err)
 
-    try:
-        nodes = test.var_man.get('sched.test_nodes', '')
-    except DeferredError:
-        nodes = ''
-
-    results['nodes'] = nodes
     return results
 
 
@@ -62,3 +56,57 @@ def get_results(pav_cfg, tests: List[TestRun]) -> List[dict]:
 
     with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
         return list(pool.map(get_result, tests))
+
+
+def printkeys(keydict):
+    """ Print the keys collected by key list """
+    print("AVAILABLE KEYS:")
+    for k, v in sorted(keydict.items()):
+        if not v:
+            continue
+        print('\t', k+':')
+        for va in sorted(v):
+            print('\t\t', va)
+    return 0
+
+
+def keylist(results):
+    """ Called when the --list-keys flag is present in the results command.
+        Takes a list of flattened results dictionaries.
+        Prints out the available key options.
+
+        Sorts the key options into:
+        - Default keys
+        - Common keys: Available for all given tests
+        - Test keys: Available for at least one of the variants of this
+        particular test included in the given tests.
+        Any of these tests can be passed to the key flag.
+    """
+    klist = {}
+    for r in results:
+        keyset = set([r for r, v in r.items() if not isinstance(v, list)])
+        dkey = r["name"].split('.')[0]
+        if dkey not in klist.keys():
+            klist[dkey] = keyset
+        else:
+            ks = keyset.union(klist[dkey])
+            klist.update({dkey: ks})
+
+    if len(klist.keys()) == 1:
+        printkeys(klist)
+        return 0
+
+    vals = list(klist.values())
+    common_keys = vals[0].intersection(*vals[1:])
+    base_set = set(BASE_FIELDS)
+    kfinal = {"--DEFAULT": base_set}
+
+    for k, v in klist.items():
+        test_keys = v.difference(common_keys)
+        if test_keys:
+            kfinal[k] = test_keys
+    common_keys = common_keys.difference(base_set)
+    kfinal['-common'] = common_keys
+    printkeys(kfinal)
+
+    return 0

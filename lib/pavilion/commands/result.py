@@ -15,6 +15,7 @@ from pavilion import output
 from pavilion import resolver
 from pavilion import result
 from pavilion import result_utils
+from pavilion import utils
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
 from .base_classes import Command
@@ -46,7 +47,7 @@ class ResultsCommand(Command):
                  "Use ~ (tilda) in front of default key to remove from default list."
         )
         group.add_argument(
-            "--list-keys", dest="list_keys", 
+            "--list-keys", dest="list_keys",
             action="store_true", default=False,
             help="List all available keys for test run or series."
         )
@@ -83,39 +84,6 @@ class ResultsCommand(Command):
         )
         filters.add_test_filter_args(parser)
 
-    def printkeys(self, keydict):
-        print("AVAILABLE KEYS:")
-        for k, v in sorted(keydict.items()):
-            if not v:
-                continue
-            print('\t', k, ':')
-            for va in sorted(v):
-                print('\t\t', va)
-        return 0
-
-    def keylist(self, results):
-        klist = {}
-        for r in results:
-            dkey = r["name"].split('.')[0]
-            if dkey not in klist.keys():
-                klist[dkey] = set([r for r,v in r.items() if not isinstance(v, dict) or isinstance(v, list)])
-
-        if len(klist.keys()) == 1:
-            self.printkeys(klist)
-            return 0
-
-        vals = list(klist.values())
-        common_keys = vals[0].intersection(*vals[1:]) 
-        kfinal = {}
-        for k, v in klist.items():
-            test_keys = v.difference(common_keys)
-            if test_keys:
-                kfinal[k] = test_keys
-        kfinal['-common'] = common_keys
-        self.printkeys(kfinal)
-        return 0
-
-
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
@@ -132,8 +100,10 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
 
+        flat_results = utils.flatten_dictionaries(results)
+
         if args.list_keys:
-            self.keylist(results)
+            result_utils.keylist(flat_results)
 
         elif args.json or args.full:
             if not results:
@@ -176,7 +146,7 @@ class ResultsCommand(Command):
                     'finished': {'transform': output.get_relative_timestamp},
                 },
                 fields=fields,
-                rows=results,
+                rows=flat_results,
                 title="Test Results"
             )
 
