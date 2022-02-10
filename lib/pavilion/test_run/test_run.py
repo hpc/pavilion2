@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, Union
 
 import pavilion.exceptions
 from pavilion.config import PavConfig
@@ -224,6 +224,22 @@ class TestRun(TestAttributes):
     def id_pair(self) -> ID_Pair:
         """Returns an ID_pair (a tuple of the working dir and test id)."""
         return ID_Pair((self.working_dir, self.id))
+
+    @property
+    def series(self) -> Union[str, None]:
+        """Return the series id that this test belongs to. Returns None if it doesn't
+        belong to any series."""
+
+        series_path = self.path/'series'
+        if series_path.exists():
+            series = series_path.resolve().name
+            try:
+                series = int(series)
+            except ValueError:
+                return None
+            return 's{}'.format(series)
+        else:
+            return None
 
     def save(self):
         """Save the test configuration to file and create the builder. This
@@ -843,7 +859,7 @@ of result keys.
             pass
         results_tmp_path.rename(self.results_path)
 
-        self.result = results.get('../result')
+        self.result = results.get('result')
         self.save_attributes()
 
         result_logger = logging.getLogger('common_results')

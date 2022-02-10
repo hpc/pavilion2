@@ -56,7 +56,7 @@ class RunSeries(Command):
                                                           modes=args.modes)
             except series_config.SeriesConfigError as err:
                 output.fprint(
-                    "Load error: {}".format(args.series_name, err.args[0]),
+                    "Load error: {}\n{}".format(args.series_name, err.args[0]),
                     color=output.RED, file=self.errfile)
                 return errno.EINVAL
 

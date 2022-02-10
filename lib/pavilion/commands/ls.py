@@ -97,6 +97,7 @@ class LSCommand(Command):
             self.tree_(level, test_dir)
             return 0
 
+
         symlink = args.symlink or args.long
         perms = args.perms or args.long
         size = args.size or args.long

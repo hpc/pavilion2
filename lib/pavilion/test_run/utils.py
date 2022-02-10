@@ -50,8 +50,6 @@ def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestR
     :raises TestRunError: When loading a test fails
     """
 
-    id_pairs = set(id_pairs)
-
     tests = []
 
     # Only load tests that haven't already been loaded.
@@ -59,14 +57,15 @@ def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestR
     for pair in id_pairs:
         if pair in LOADED_TESTS:
             tests.append(LOADED_TESTS[pair])
-        else:
+        elif pair not in not_loaded:
             not_loaded.append(pair)
-    id_pairs = not_loaded
+
+    id_filtered_pairs = not_loaded
 
     with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
         results = []
-        for id_pair in id_pairs:
-            results.append(pool.submit(_load_test, pav_cfg, id_pair))
+        for pair in id_filtered_pairs:
+            results.append(pool.submit(_load_test, pav_cfg, pair))
 
         for result in results:
             try:

@@ -606,6 +606,9 @@ differentiate it from test ids."""
 
         self.tests[test.id_pair] = test
 
+        # Create a symlink from each test to its series
+        (test.path/'series').symlink_to(self.path)
+
         if not link_path.exists():
             try:
                 link_path.symlink_to(test.path)
