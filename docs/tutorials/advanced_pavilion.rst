@@ -23,7 +23,7 @@ Starting Point
 --------------
 
 This tutorial starts where the last left off, with a test configuration
-in ``examples/tutorials/tests/tutorial1.yaml`` that looked something like this:
+in ``examples/tutorials/tests/tutorial.yaml`` that looked something like this:
 
 .. code-block:: yaml
     basic:
@@ -71,9 +71,8 @@ you can also provide your own via the test config and through plugins. Variables
 into just about any string value in a Pavilion test config using double curly braces:
 ``'{{variable name}}'``.
 
-The first type of these variables are 'pav' variables - these are simple built-in bits of info
-you can use in any test. To see a list of them, use ``pav show pav_vars``. One you'll see in that
-list is the current user. Let's use it to customize our test a little bit.
+User provided variables are given in the 'variables' section of each test config. They have a
+fairly limited set of forms. They can be:
 
 Change the test config to look like this:
 
@@ -83,438 +82,668 @@ Change the test config to look like this:
 
     # ...
 
+    variables:
+        myuser: bob
+
     run:
         cmds:
             # We insert the user into our test.
-            - './hello {{user}}'
+            - './hello {{myuser}}'
 
     # ...
 
-*These are very different from environment variables.* They are resolved and their values are
-written out as part of the script. Let's run our test again (``pav run tutorial1``) and then look
-at the generated run script (``pav cat <test_id> run.sh``, get the 'test_id' from ``pav status``).
+Run this test, and look at the generated run script (``pav cat <test_id> run.sh``), you'll
+see that the variable was replaced in the config _BEFORE_ the run script was written.
+
+Variable Format
+~~~~~~~~~~~~~~~
+
+Variables in Pavilion can also be lists and dictionaries, but in a fairly limited way. Here's an
+example of all valid variable formats, and how to use them.
+
+.. code-block:: yaml
+
+    variable-formats:
+
+        variables:
+            single_value: "hello"
+
+            # A variable can be a list of values.
+            multi_value:
+                - "thing1"
+                - "thing2"
+
+            # A variable can be a single dictionary/mapping.
+            structured_value:
+                name: "Bob"
+                moniker: "bobzilla"
+                uid: "2341"
+
+            # Or a list of mappings, as long as they have the same keys.
+            more_structured_values:
+                - name: Paul
+                  moniker: "paulblematic"
+                - name: Nick
+                  moniker: "nickelback"
+                - name: Francine
+                  moniker: "frantastic"
+
+        run:
+            cmds:
+                # You can use most variables just about anywhere in the test config,
+                # not just here.
+
+                # As seen in the prior example.
+                - 'echo {{single_value}}'
+
+                # You can access individual list items like this, counting from 0.
+                - 'echo "{{multi_value.0}} {{multi_value.1}}"
+                # If you want the first item, the index is optional.
+                - 'echo "{{multi_value}}"
+
+                # For structured values, you have to specify a sub-key
+                - 'echo "My name is {{structured_value.name}}"'
+                - 'echo "Your name is {{more_structured_values.1.name}}"'
+
+The above config is also in ``tests/vars-example.yaml``. You should run it
+(``pav run vars-example``) and look at the created run script to see how all the variables were
+handled.
+
+**NOTES**:
+
+- **ALL** Pavilion variables are limited to the above formats, regardless of where they come from.
+- While our example shows indexing the second list item, it's generally unsafe to do so!
+  You don't know if there even is a second item. There are plenty of neat ways to deal with all
+  items in a list that are safer. We'll cover those below.
+
+Other Variable Sources
+~~~~~~~~~~~~~~~~~~~~~~
+
+Pavilion also provides a bunch of variables for you:
+
+'Pavilion' Variables (pav)
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+'Pavilion' variables are provided by the core of Pavilion itself - it's all stuff that's pretty
+system agnostic, like the current user and time.
+
+Use ``pav show pav_vars`` to get a list of them.
+
+'System' Variables (sys)
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+'System' variables are variables that provide information that may be system specific in
+how you get it. Pavilion provides a few of these by default.
+
+Use ``pav show sys_vars`` to get a list of them.
+
+If the name starts with 'host', they are specific to the head node of the allocation the test is
+actually running on. If the name starts with 'sys', they're meant to be a cluster-wide value.
+Some of them are deferred, meaning Pavilion won't know the value until it's running on an
+allocation.
+
+'Scheduler' Variables (sched)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Scheduler variables are provided by the scheduler plugin. Despite being scheduler specific, they
+are *mostly* uniform across scheduler plugins.
+
+Use ``pav show sched`` to see a list of available scheduler plugins, and
+``pav show sched --vars <sched_name>`` to see the scheduler variables for a particular
+scheduler, with example values.
+
+These have a naming convention too - The 'test\_' prefix denotes that the values are
+specific to the allocation the test is actually running on. As such, many of these are
+*deferred* as well.
+
+Variable Long Form
+^^^^^^^^^^^^^^^^^^
+
+You can access any of the above variables just by their name in a config regardless of where
+they come from. But you *can* also specify where the variable came from with the source
+prefixes (``sched``, ``pav``, ``sys``, ``var``). This order is important! If the source
+isn't specified, later sources in this list will override that value if one is provided.
+
+.. code-block:: yaml
+
+    var-example2:
+        variables:
+            cookies: "oatmeal"
+            user: 'bob'
+
+        run:
+            # These two are equivalent (kind-of)
+            - echo "I am running on cluster {{sys_name}}"
+            - echo "I am running on cluster {{sys.sys_name}}"
+
+            # But these two aren't!
+            - echo "{{user}}"       # Will always print 'bob'
+            - echo "{{pav.user}}"   # Will print the current user.
+            - echo "{{var.user}}"   # Will also always print 'bob'
+
+This allows you to specify the source if needed, but also allows you to override values
+of variable provided by sources with lower priority.
+
+Variables Can Contain Variables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can build up variables from multiple sources. Order doesn't matter, just don't create
+any reference loops!
 
 .. code-block::
 
-    $ pav cat 18 run.sh
-
-    #!/bin/bash
-
-    # The first (and only) argument of the build script is the test id.
-    export TEST_ID=${1:-0}
-    export PAV_CONFIG_FILE=/home/pflarr/repos/pavilion/examples/tutorials/pavilion.yaml
-    source /home/pflarr/repos/pavilion/bin/pav-lib.bash
-
-    # Perform the sequence of test commands.
-    ./hello pflarr
-
-Our variable got resolved and inserted into our test command directly. Nice!
-
-Other Pav
-~~~~~~~~~~~~~~~~
-
-System variables are so named because they're often dependent on the configuration of the
-system they're running on. Pavilion provides a lot of these as built-ins using as full proof
-of a method as possible to get the data, often with fairly useless results. These
-variables are actually plugins - they can be overridden by user-provided plugins that better
-suite the environment that they expect to run Pavilion in.  Documentation on writing these is here:
-:ref:`plugins.sys_vars`.
-
-To see see a list of these, run ``pav show sys_vars``. Some values are '<deferred>' we'll talk
-about that in a bit.
-
-The most important of these is ``sys_name`` - it's meant to tell you the name of the cluster
-you are running tests on. It's used internally by Pavilion to differentiate between clusters,
-and is saved in the results of every test. The built-in method gives frontend the hostname minus
-trailing numbers,  but it's really nice to write a plugin to get the more colloquial name for
-your systems.
-
-You can, if you like, play with these by inserting them into your test, but we're going to move on.
-
-Scheduler Variables
-~~~~~~~~~~~~~~~~~~~
-
-These variables are specific to the scheduler you chose. You can view the list of available
-scheduler plugins with ``pav show sched``, and the list of scheduler variables with
-``pav show sched --vars <scheduler_name>``. All schedulers provide a base set of common
-variables,
-
-.. _supermagic: https://github.com/hpc/supermagic
-
-We're going to use the `supermagic`_ hpc test as our example.
-
-
-1. Download an archive of the source.
-
-   - Put it in ``~/.pavilion/test_src``
-2. Create a file called ``~/.pavilion/tests/supermagic.yaml``
-
-My ``~/.pavilion`` directory structure now looks like this:
-
-.. code-block:: text
-
-    test_src/
-        supermagic-master.zip
-    tests/
-        supermagic.yaml
-
-The ``tests/supermagic.yaml`` file is a test **suite**. It's meant to
-contain multiple test configurations, generally of the same base test. Let's
-add to it:
-
-.. code-block:: yaml
-
-    # This is the name of your test. The full name of this test would be
-    # 'supermagic.basic'.
-    basic:
-
-        # This will display as the test summary when you run 'pav show tests'
-        summary: A basic supermagic run.
-
-        # This section defines how the test is built, mainly by detailing how
-        # to write a 'build.sh' script.
-        build:
-            # Pavilion will auto-extract this archive. The extracted directory
-            # will be your build directory.
-            source_location: supermagic-master.zip
-
-            # Each of these commands is added as a separate line to the
-            # build script.
-            cmds:
-                - gcc -o supermagic supermagic.c
-
-        # The run section defines how the create the 'run.sh' script.
-        run:
-            cmds:
-                # Each of these commands will be inserted into our run script.
-                - ./supermagic
-
-Use the command '``pav show tests``' to get a list of all known tests, including
-yours.
-
-Note:
-  The above config won't work, but that's intentional. We'll fix it over the
-  course of this tutorial.
-
-.. code-block:: shell
-
-    $ pav show tests
-
-    -----------------+------------------------
-     Name            | Summary
-    -----------------+------------------------
-    supermagic.basic | A basic supermagic run.
-
-If your suite or test is highlighted in red and/or followed by an asterisk,
-there was an error in your config. Use '``pav show tests --err``' to get
-information on what and where the problem is in your yaml file.
-
-
-Test Building
-~~~~~~~~~~~~~
-
-The combined cryptographic hashes of the build source and build script will
-be the build name in <working_dir>/builds.
-
-For instance, if our build hash is 'ac3251801d831', we'll end up with a
-build directory like this:
-
-.. code-block:: text
-
-    <working_dir>/ac3251801d831/
-        Makefile.am
-        supermagic.c
-        supermagic.h
-        util/
-            ...
-        ...
-
-We'll also end up with a build script that looks like this:
-
-.. code-block:: bash
-
-    #!/bin/bash
-
-    # The first (and only) argument of the build script is the test id.
-    export TEST_ID=${1:-0}
-    export PAV_CONFIG_FILE=/home/bob/pav2/config/pavilion.yaml
-    source /home/bob/pav2/src/bin/pav-lib.bash
-
-    # Perform the sequence of test commands.
-    gcc -o supermagic supermagic.c
-
-When building the test Pavilion will run that script in the extracted build
-directory.
-
-Let's try it:
-
-.. code-block:: shell
-
-    $ pav run supermagic.basic
-    Test supermagic.basic run 72 building 787aceaa19ac9a21
-
-    Error building test:
-    status BUILD_FAILED - Build returned a non-zero result.
-    For more information, run 'pav log build 72'
-
-Oh no! Our build failed. Let's follow the suggestion, and look at the build
-log for our test. We can also use '``pav cat 72 build.sh``' to output the build
-script itself too.
-
-Note:
-  Your test run number will be different.
-
-.. code-block:: shell
-
-    $ pav log build 72
-
-    In file included from supermagic.c:20:0:
-    supermagic.h:78:17: fatal error: mpi.h: No such file or directory
-     #include "mpi.h"
-                 ^
-    compilation terminated.
-
-Loading a Reasonable Compiler
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-We tried to build with gcc, but supermagic requires an mpi compiler wrapper.
-We'll have to provide that somehow. Typically that's done with module files.
-So let's modify the build section of our test config to load those modules.
-
-Note:
-  Module loading works with lmod and environment modules (tmod), and
-  assumes the module environment is set up automatically on login. This is
-  covered in more details in the
-  `install instructions <../install.html>`__.
-
-.. code-block:: yaml
-
-    build:
-        # In our environment, we would load a compiler module and an
-        # mpi module. Your environment is probably different.
-        # Note that we can just use the module default (like with gcc),
-        # or specify a version (like with openmpi).
-        modules: [gcc, openmpi/2.1.2]
-        # We can also set environment variables. In this case we want to
-        # set CC to 'mpicc' so the configure script knows which compiler
-        # to use.
-        env:
-            CC: mpicc
-
-        source_location: supermagic-master.zip
-        cmds:
-            # We must use autotools to write our configure script
-            - ./autogen
-
-            # Then run that configures script to generate our Makefile.
-            - ./configure
-
-            # Then finally simply run make.
-            - make
-
-Now try running your test again, and look at both the build log and build
-scripts. If you've set up your modules correctly, the test should build. It
-will probably fail to run, but we'll fix that next. If it still fails to
-build, check the build log and the build script itself.
-
-.. code-block:: shell
-
-    $ pav run supermagic.basic
-    Test supermagic.basic run 19 building 990e7094373e28c1
-    1 test started as test series s81.
-
-    $ pav log build 19
-    $ pav cat 19 builds.h
-
-Pavilion also saves failed builds in the test run's directory. These
-will be in ``<working_dir>/test_runs/<test_run_id>/build``. From there you can
-run and debug the build script directly.
-
-Successful Builds
-^^^^^^^^^^^^^^^^^
-
-Successful builds are reused by multiple tests runs. Instead of copying their
-contents, Pavilion instead recreates their directory structure and makes
-symlinks to the individual files. The test run script will run in this
-'simulated' build directory, and is free to delete, add, or overwrite any
-files in the build it wants. The run scripts can't append to or otherwise
-edit the files though!
-
-
-Getting the Test to Run
------------------------
-
-Now that our test has built, let's actually try to get it to run. That's
-going to involve a scheduler. We need to configure our test to so it knows
-what scheduler resources ask for.
-
-Note:
-    This tutorial uses Slurm as the scheduler, mainly because that's the only
-    one (other than raw/local scheduling) that Pavilion supports.
-    Fortunately, Pavilion was designed pretty generically where schedulers
-    are concerned, and schedulers are simply another type of Pavilion plugin.
-    If you use a different scheduler, we'd love to help add a Pavilion plugin
-    for it. Just contact the Pavilion developers via github.
-
-Add the following to your supermagic test config:
-
-.. code-block:: yaml
-
-    basic:
-
-        # We'll just configure slurm to use two nodes, and two processes each.
-        # We could also put in a range, or even 'all'.
-        slurm:
-            num_nodes: 2
-            tasks_per_node: 2
-
-        # Tell pavilion to use the slurm scheduler for this test.
-        scheduler: slurm
-
-        run:
-            # Odds are good that your program will need to find your openmpi
-            # libs at run time.
-            modules: ['gcc', 'openmpi/2.1.2']
-
-            cmd:
-                # We'll go over this in a second.
-                - '{{sched.test_cmd}} ./supermagic'
-
-Kickoff Scripts
-~~~~~~~~~~~~~~~
-
-Every scheduler writes a kickoff script and saves it in the test's run
-directory. This script is expected to be the root process of the scheduled
-job. It should set up a reasonable environment, and then runs any Pavilion tests
-that need to run in that allocation. Our kickoff script for the above test
-might look like this (with extra comments):
-
-.. code-block:: bash
-
-    #!/bin/bash
-
-    # Slurm kickoff scripts are an sbatch script. All the sbatch configuration
-    # is done in the script header for consistency.
-    #SBATCH --job-name "pav test #20"
-    #SBATCH -p standard
-    #SBATCH -N 2-2
-    #SBATCH --tasks-per-node=2
-
-    # Redirect all output to kickoff.log
-    exec >/users/pflarr/.pavilion/working_dir/test_runs/0000020/kickoff.log 2>&1
-
-    # Set the path so we can find the pavilion command that started this test.
-    export PATH=/yellow/usr/projects/hpctools/pflarr/repos/pavilion/bin:${PATH}
-
-    # Point pavilion to the config file that configured it.
-    export PAV_CONFIG_FILE=None
-
-    # Actually run this particular test in the allocation.
-    pav _run 20
-
-The most important bit here is the '``pav _run 20``' line. This starts pavilion
-up again, within the allocation, to start our test run. From there it will
-load the test and eventually run it's 'run.sh' script.
-
-The kickoff log is also available to view with the
-'``pav log kickoff <run_id>``' command. Unless you have bad scheduler options,
-that log is typically empty.
-
-Run Scripts
+    var-example3:
+        variables:
+            flags: '-a -b -c'
+            cmd: './run-this {{flags}} -u {{user}}'
+
+Expressions
 ~~~~~~~~~~~
 
-Pavilion generates a run script for every test run as well. Just like with
-build scripts, it's composed of the module loads, environment variable
-exports, and finally the run commands themselves.
+Variable references are actually an 'expression block', and contain full mathematical expressions
+and some function calls.
 
-Unlike with build scripts though, Pavilion often doesn't know exactly what
-the run script should look like until we're in the allocation, so it has to
-wait until then to write the final '``run.sh``' file. Here's ours:
+ - Basic operations (+, -, /, *, ^) are supported, as are logic operations (AND, OR, NOT),
+   as well as grouping with parenthesis.
+ - Multiple variable names may be referenced in each expression block.
+ - Types are figured out automatically - If it looks like an int, it becomes an int.
+   'True' and 'False' are also read as booleans.
 
-.. code-block:: bash
+Functions are also available. To get a list of available functions for Pavilion expressions,
+run ``pav show functions``. Many of these functions take lists of values. Giving '*' as the
+index value for the variable (ie ``myvar.*``) will return a list of values.
 
-    #!/bin/bash
+**Change your test to look like this:**
 
-    # The first (and only) argument of the build script is the test id.
-    unset PAV_CONFIG_FILE
-    export TEST_ID=${1:-0}
-    source /yellow/usr/projects/hpctools/pflarr/repos/pavilion/bin/pav-lib.bash
+.. code-block::
 
-    # Perform the sequence of test commands.
-    srun -N 2 -n 4 ./supermagic
 
-There are few things to point out.
+    basic:
 
-1.  The result of a test defaults to the whether run script returns zero. This
-    usually just ends up being the return value of the last of your test
-    commands.
-    If there are critical commands before that, make sure to add an
-    ``|| exit 1`` to them. (This isn't needed in this case).
-2.  Our test script cmd was '``{{sched.test_cmd}} ./supermagic``. The part in
-    double curly braces is a Pavilion variable reference, which our scheduler
-    replaces with an srun command based on our scheduler settings.
-3.  It's important to use '``{{sched.test_cmd}}``'  rather than srun directly.
-    Pavilion tests may run in larger allocations than you request, and this
-    makes sure each test only runs under what it requested.
+    # ...
 
-Debugging Test Runs
-^^^^^^^^^^^^^^^^^^^
+    variables:
+        people:
+            - Robert
+            - Suzy
+            - Yennifer
+        base: 3
+        exponent: 7
+        constant: 5.3
 
-Like with builds, we can use pavilion commands to look at our test run scripts
-and logs to see what went wrong.
+    run:
+        cmds:
+            - 'echo "Doing some math: {{ (base ^ exponent) - constant }}"'
+            # Giving '*' as the list index on any variable gives the whole list.
+            - 'echo "Saying hello to {{len(people.*)}} people."'
+            # We insert the user into our test.
+            - './hello {{people.0}} {{people.1}} {{people.2}}'
 
-``pav log run <run_id>>``
-    Prints the log for that test run.
-``pav cat <run_id> run.sh``
-    Outputs the run script.
+Run the above ``pav run tutorial``, and look at the output of the run script (``pav log run
+<test_id>``). You'll see that our math was done, and the 'len' function gave the length of
+our people list. While this is a silly, contrived example, it shows the power of the expression
+blocks in Pavilion, and we'll be using these expressions more in the advanced result parsing
+tutorial (:ref:tutorials.extracting_results)
 
-From within an appropriate interactive allocation, you can also directly run
-the run script.
+Writing Generic Tests using Hosts and Modes Files
+-------------------------------------------------
 
-Test Results
-------------
+When writing a test wrapper script, a common goal is to make it 'system agnostic' - independent
+of the configuration of the system its running on. The primary way to do this is to move
+any system specific information into variables, and provide the value of those variables through
+the host configuration.
 
-Every test run produces a 'results' object. This includes the test **result**
-value, but it can contain any arbitrary json data you'd like. To extract that
-information, we can configure result parsers for our test:
+Host files, which are placed in the ``<configs>/hosts/`` directory, provide that functionality.
+Each host file is like a single test configuration that forms the defaults for all tests run on
+that system. Values in the test config will override these defaults (see below for a way around
+this).
+
+**Let's create our first host file.**
+
+First you need the name of your host, from Pavilion's perspective. Run ``pav show sys_vars``,
+and look at the value of the ``sys_name`` variable. Pavilion strips out any trailing numbers
+in the name (multiple frontends on the same cluster are considered the same 'host'). Create
+a file based on that name in the ``hosts/`` directory: ``hosts/<sys_name>.yaml``.
+
+Put the following into that file:
+
+.. code-block:: yaml
+
+    # Unlike with test suite configurations, there is no top level test name mapping
+
+    # We're providing some variable values at the host level. These will be
+    # available for every test that runs on that host.
+    variables:
+        people:
+            - Robert
+            - Suzy
+            - Dave
+            - Isabella
+
+Then, in your ``tests/tutorial.yaml``, erase the people variable in your variables section.
+Now run your test. ``pav run tutorial``
+
+When you look at the output (``pav log run <test_id>``), you'll see that it now prints the
+names from our host file instead of the three names that were originally in our test's variables.
+
+BUT WAIT! What about the last name? It's missing. We'll show how to write our tests to
+dynamically handle any number of items like this in a bit.
+
+Keeping Host Variables Simple
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To keep this host configurations simple, you should try to design these variables such that their
+usable across multiple tests. For instance, you might have a list of filesystems that need to
+be tested, or a list of compilers that test software should be built against.
+
+Additionally, you should calculate values wherever possible. For instance, if a problem size
+should scale with the number of cores on a machine, try using the ``test_min_cpus`` scheduler
+variable rather than relying on host based settings. For example:
+``{{ floor(test_min_cpus / 2) }}``.
+
+To keep it even more simple, you should also provide sensible defaults for all of these variables
+in the test themselves, that way the host configuration need only set those values that are needed.
+To provide defaults in a test, append a '?' to the variable's name - this will tell Pavilion to
+only use that value if another value wasn't provided already. You can use this to provide a
+sensible default, or leave it empty to denote that a value *MUST* be provided by the host file.
+
+**Edit your test to look like this:**
 
 .. code-block:: yaml
 
     basic:
-        ...
+        # ...
+        variables:
+            # ...
+            # You can also provide an empty list or no value.
+            people?:
+                - Default_human
 
-        result_parse:
-            regex:
-                  # The key is where to store found items in our results
-                  # structure.
-                num_tests:
-                  # The regex needs to be in 'literal' single quotes. The
-                  # backslash still needs to be escaped.
-                  regex: 'num tests.*: (\\d+)'
+Mode Files
+~~~~~~~~~~
 
-                # If we match this regex, then we'll say the test passed.
-                result:
-                  regex:  '<results> PASSED'
-                  action: 'store_true'
+Mode files are the opposite of host files - they provide a way to override anything provided by
+the host file or test itself. These are usually used to override scheduler parameters in certain
+situations. They have the exact same format as host files, But are applied using the
+``--mode/-m`` option: ``pav run -m gpu_partition mytests``. You can apply more than one mode
+file, if needed.
+
+Examining the Final Test Config
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Given all these layers and variables, sometimes it's hard to make sense of what the final
+test config will look like. To get a view of it, use the ``pav view`` command. It will show you
+the final test configuration.
+
+**Try it now**  ``pav view tutorial``
+
+List Expansions, Permutations, Inheritance
+------------------------------------------
+
+Pavilion provides several ways to dynamically adapt tests for varying circumstances.
+
+List Expansions
+~~~~~~~~~~~~~~~
+
+When we added the host file, we saw that the fourth name wasn't being used in our run command. It
+could have been worse! If we had had less names, Pavilion would have thrown an error due to the
+missing third value. Let's fix our test to handle any number of people, including zero!
+
+List Expansions allow you to repeat a piece of text for every value in a variable list. It works
+even if the value isn't a list (technically, variables are always lists of 1 or more values), and
+if that list is empty!
+
+To do so, we use the special list expansion syntax.
+**Change your test run commands to look like this:**
+
+.. code-block::
+
+    basic:
+        run:
+            cmds:
+            - 'echo "Doing some math: {{ (base ^ exponent) - constant }}"'
+            - 'echo "Saying hello to {{len(people.*)}} people."'
+
+            # Each of the people will be listed, including the trailing space.
+            - './hello [~{{people}} ~]'
+
+Run your test, and check the output. It should now be printing all 4 people from your host file.
+
+Note the trailing space after ``{{people}}``. It will be included in each of the repetitions,
+providing a defacto separator. If you want an actual separator, you can insert one between the
+closing tilde and bracket, like this: ``$PATH:[~{{PATHS}}~:]``, which would produce something like
+``$PATH:/path1:/path2``.
+
+Inheritance
+~~~~~~~~~~~
+
+Inheritance lets us create a new test based mostly on another test in the same suite. This
+allows us to create the foundation for the test, then create variations on how to run that test.
+Sometimes a very different system type will require changes to a test beyond what we can handle
+with just a host file, for instance.
+
+To inherit from a test, just use the ``inherits_from`` key in your test.
+
+**Let's try that now. Create new test in your tutorial test suite:**
+
+.. code-block:: yaml
+
+    basic:
+        # Leave the basic test alone for now.
+
+    big_numbers:
+        inherits_from: basic
+
+        variables:
+            # We're going to override these variables in our original test.
+            base: 33
+            exponent: 40
+            constant: 25
+
+            # Lists of values are completely overridden.
+            people:
+                - Dave
+
+And that's it. The new 'big_numbers' test will use everything set under 'basic', but override
+all those variables we set. You can override anything from the base test config, from test commands
+to scheduler parameters.
+
+Now that we have two tests in the suite, running ``pav run tutorial`` will run both of them. To
+run just one or the other, give the full test name such as ``pav run tutorial.big_numbers``.
+
+More Inheritance
+^^^^^^^^^^^^^^^^
+
+It's often useful to include a test that acts as the base for all other tests in the suite, but
+is never meant to be run itself. You can make a test **hidden** by prepending an underscore to
+its name, such as ``_base``. You can still inherit from such tests, but when you run the whole
+test suite hidden tests aren't run.
+
+You can also inherit in a chain. 'testc' can inherit from 'testb' which inherits from 'testa'.
+
+Permutations
+~~~~~~~~~~~~
+
+Permutations are kind of like list expansions, except they make an entire new test for every
+value permuted over! To use this, set the ``permute_on`` option to any (non-deferred) variable -
+One test will be created for each value of that variable, and in that test the variable will only
+contain that single value.
+
+**Let's try that now. Add a new inherited, permuting test to your config:**
+
+.. code-block:: yaml
+
+    permuted_example:
+        # We'll create a test for every person in the people list.
+        permute_on: people
+
+        # The tests will be just like the basic test, except the people
+        # 'people' variable will have a single value in each (for each different person in
+        # the people list).
+        inherits_from: basic
+
+That was easy - let's run it.  ``pav run --status tutorial.permuted_example``
+I added a '--status' to give us an immediate status print out. How did we live without that?
+
+A few things to note:
+
+- There's one test for each of the 'people'!
+- The person is included in the test name. Nice.
+
+Multiple Variables
+^^^^^^^^^^^^^^^^^^
+
+You can actually provide a list of values to ``permute_on``. In that case you'll end up with a
+test for every combination of those lists. So if you specified two lists with three values each
+(``['a', 'b', 'c'] and ['1', '2', '3']``) you'd end up with nine tests: ``'a1', 'a2', 'a3', 'b1',
+...``  This is actually true of list expansions too, just less useful there.
+
+Complex Variable Permutations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can also permute (and list expand) over complex variables too, but how do we choose a
+what to call each permutation? By default, Pavilion picks the first key alphabetically. If that's
+not what you want, you can specify that name manually"
+
+.. code-block:: yaml
+
+    ex2:
+        permute_on: complex_user
+        # This will be the last component of the test's name.
+        subtitle: "{{complex_user.name}}"
+
+        variables:
+            complex_user:
+                - name: bob
+                  uid: 32
+                - name: suzy
+                  uid: 37
+
+        run:
+            cmds:
+                - 'echo "Hi {{compex_user.name}}"
+
+Scheduling
+----------
+
+If it weren't for scheduling, there really wouldn't be much of a point to Pavilion. After all,
+there are numerous test frameworks that work just fine. Pavilion is all about setting tests
+up to run on clusters, and that comes with its own set of problems not handled by most test
+harnesses.
+
+So far we've been using the 'raw' scheduler, which simply kicks tests off as on the command line
+on the local machine. The basic operation is the same though, so let's start there.
+
+What does Pavilion do to 'kickoff' tests? Pretty much the same thing, regardless of scheduler.
+
+1. Ask the scheduler about its nodes.
+2. Filter the nodes by the 'schedule' parameters to figure out what nodes to run on.
+3. Give the test the scheduler variables.
+4. Create a 'job' for the test run.
+4. Write a 'kickoff' script for the test run.
+5. Call the command to 'schedule' the kickoff script.
+6. The kickoff script then runs pavilion again to run the given test_run on the machine.
+
+Basic schedulers like 'raw' skip steps 1 and 2, which if done, enables a bunch of neat features
+we'll talk about later.
+
+** Do this **
+Look at the contents of your last run test ``pav ls <test_id>``. You'll see a 'job' directory. We
+can look at the contents of that with ``pav ls <test_id> job``. It contains the kickoff script,
+kickoff log, and a directory of symlinks back to the job's tests (a job can have more than one
+test).
+
+Cat the kickoff script: ``pav cat <test_id> job/kickoff``. In the case of the raw scheduler, the
+kickoff script only needs to set up the environment for Pavilion and then use the top secret
+``_run`` command to start test_run number 16. If the job has more than one test to run, it will
+simply kick each of them off in turn. All output from this script is sent to the kickoff log,
+which is a good place to look (with ``pav log kickoff <test_id>``) when something goes wrong with
+scheduling.
+
+Running a Test Under A Cluster Scheduler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**NOTE**: This section requires a cluster using the Slurm scheduler.
+
+We're now going to run our test under Slurm. Not a whole lot needs to change.
+
+1. We need to set the scheduler to 'slurm'.
+2. We need to set scheduler parameters to appropriate values.
+3. We need to run the test on all the nodes in the allocation.
+
+Most of steps 1 and 2 can be done in host or mode files. Tests that need the raw
+scheduler can set that in the test itself as an exception to the rule. Parameters that
+you always use when testing a host, such as the QOS, partition, account, etc should
+be set in the host file. Slurm parameters that you occasionally use can be set up in
+their own mode files.
+
+For instance, when regression testing machines we use a special 'maintenance' reservation. So
+we've but that (and the additional related parameters) in a 'maint' mode file that we use in
+those circumstances.
+
+**Do this**
+
+In your host file for this machine, set the ``scheduler`` option to 'slurm', and
+set additional slurm parameters as needed for your machine. See ``pav show sched --config`` for
+a listing of all options that go in the ``schedule`` section and their documentation.
+
+You should end up with a host file that includes something like this:
+
+.. code-block:: yaml
+
+    scheduler: slurm
+    schedule:
+        # These will depend on your system. You shouldn't rely on your account
+        # defaults - Pavilion will choose its own defaults that might not match yours.
+        qos: standard
+        partition: standard
+        account: myteam
+
+Pavilion will use these parameters to query Slurm about the systems, and filter out any nodes
+that don't match. This gives Pavilion an explicit list of nodes that can be allocated, which lets
+us use keywords like 'all' or percentages when asking for nodes.
+
+**Also do this**
+
+In your test, add a scheduler as well and tell the test how man nodes to request. We're assuming
+you're already the expert on what constitutes a reasonable request.
+
+We also need to run our test under the task scheduling command - typically 'srun'. Pavilion does
+most of the work of determining what that command should look like, and puts that in the
+``test_cmd`` scheduler variable. You can safely use this with any scheduler - for 'raw' it's blank,
+and the Slurm scheduler config has options to use 'mpirun' instead.
+
+.. code-block:: yaml
+
+    basic:
+        # ...
+
+        # We need to override the scheduler set in the host file for most of these.
+        scheduler: raw
+
+    slurmy:
+        inherits_from: basic
+
+        run:
+            cmds:
+                # We're going to overwrite the whole command list, and just do the hello command.
+                # {{test cmd}} will get replaced with an 'srun' invocation
+                - '{{test_cmd}} ./hello {{people}}'
+
+        # We need to override the 'raw' setting from basic, which we inherited from. Usually
+        # it's not this convoluted.
+        scheduler: slurm
+        schedule:
+            # You can give an absolute number, the keyword 'all' (all UP nodes), or a percentage
+            # (the percentage of UP nodes)
+            nodes: 2
+
+Now let's try running it: ``pav run tutorial.slurmy``. You can keep an eye on the test's status
+with ``pav status`` as normal, it will track the job in the slurm queue, and tell you when it
+has started running. Depending on your cluster, it may take a bit of time for slurm to actually
+decide to run your test.
+
+You can look at the output as we have before, but you should also take a look at the kickoff
+script for the test (``pav cat <test_id> job/kickoff``). You'll quickly notice that it's very
+similar to the 'raw' kickoff script before, except with a full complement of 'sbatch' headers.
+
+Cancelling Tests
+^^^^^^^^^^^^^^^^
+
+The ``pav cancel`` command can be used to cancel specific tests, or the entire test 'series' that
+you started with an invocation ``pav run``. When cancelled by Pavilion, the tests will be marked
+as complete, their run will be stopped under the scheduler, and if all tests in a job are
+cancelled, the slurm job will be cancelled as well. See ``pav cancel --help`` for more.
+
+Debugging Slurm Runs
+^^^^^^^^^^^^^^^^^^^^
+
+Your test may fail to run, most likely do to issues with the slurm parameters. Let's talk about
+how to debug such issues.
+
+The first step is to take a look at the kickoff log: ``pav log kickoff <test_id>``.
+This will give you the output of slurm when sbatch was run on the script.
+
+The most common problem is bad qos, partition, or account settings. Here you'll have to rely on
+your own knowledge of the system to find the right combination - Slurm is unfortunately obtuse
+about which combinations actually work together. I typically try to launch a job manually until I
+find a reasonable combination, and then translate that into the Pavilion configs.
+
+It's also possible that your local cluster users slurm node states that Pavilion doesn't
+recognize. Pavilion keeps three lists of state names for Slurm: 'avail_states', 'up_states', and
+'reserved_states'. You can redefine these lists as needed under 'schedule.slurm.up_states', etc.
+
+An occasional problem is with node selection with 'features'. Pavilion does not, by default, filter
+nodes according to node 'features', but often nodes with different features can't be allocated
+together or without specifically requesting the given features. Pavilion provides mechanisms to
+do this under Slurm - see the slurm specific 'features' options via ``pav show sched --config``.
 
 
-Now when we run the test, we get the 'num_tests' value added to our results.
+More Scheduler Features
+~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: text
+Pavilion's scheduler plugins provide quite a few more features than we need to get in here, such
+as allocation sharing (on by default), random node selection, testing across consistent system
+'chunks', etc. For more information on all of these see the scheduling documentation
+(:ref:`test.scheduling`).
 
-    $ pav results -f 29
+Tutorial Final Test
+-------------------
 
-    {
-        "name": "supermagic.basic",
-        "id": "19",
-        "result": "PASS",
-        "created": "2019-12-03 15:46:13.241378",
-        "duration": "0:00:00.872191",
-        "finished": "2019-12-03 15:46:13.247315",
-        "errors": [],
-        "num_tests": "11",
-    }
+Let's finish off this tutorial by writing a wrapper for a real (albeit lightweight) test:
+Supermagic.
+
+The skeleton of a supermagic test config is already in your ``tutorials/tests`` directory, it will
+be up to us to finish it.
+
+Let's configure this test not only to build and run, but to check a few filesystems while we're
+at it.
+
+Building
+~~~~~~~~
+
+Pavilion will automatically extract the zip file listed, and the build root will be the root
+directory of that archive.
+
+To build supermagic we will most likely need to load a compiler and mpi, and set CC to the
+appropriate mpi compiler wrapper for your system.
+
+Remember: ``pav log build <test_id>`` is your friend here.
+
+Variables
+~~~~~~~~~
+
+You should set a 'test_filesystems' variable with paths to a few filesystems you can write to,
+including your home directory. To make keep the test runnable by more than just you, make sure to
+use {{user}} instead of your user name in paths.
+
+Running
+~~~~~~~
+
+We also need to add a 'run' section and commands to our test. Once built, we can run supermagic
+with a ``{{test_cmds}} ./super_magic`` command. You will probably also need to load the
+same compiler/mpi combo from the build section.
+
+To perform the write test, use the ``-w <path>`` option. You can use *list expansions* or
+*permutations* to either provide this argument multiple times or test each path independently.
+
+Result Parsing
+~~~~~~~~~~~~~~
+
+There isn't much to parse out of the results of super magic, so let's just rely on it's return
+code to determine whether the test passed or failed. As long as your supermagic call is
+the last line in your 'run.cmds' section, you should be fine.
+
+Go here (:ref:`tutorials.extracting_results`) for an in-depth tutorial on parsing results.
 
 Conclusion
-----------
-So now you have your first test written.
+~~~~~~~~~~
+
+Through this tutorial we learned about making tests generic and a lot of the ways Pavilion
+provides to make that easy to do. But that's not all! Check out the full Pavilion documentation
+for even more useful options:
+
+- Skip Conditions (:ref:`tests.skip_conditions`)
+- File Creation (:ref:`tests.file_creation`)
+- Inherited command extending (:ref:`tests.extending_commands`)
+-

@@ -5,7 +5,8 @@ Tutorial: Basic Pavilion
 
 This is a step-by-step tutorial on how to write your first test in Pavilion. It is designed to
 work on a generic linux system - no cluster required. Further tutorials do require a cluster,
-however.
+however. If you have access to a slurm cluster (especially one where you can quickly get
+allocations), it's advised to do this and further tutorials there.
 
 .. contents:: Table of Contents
 
@@ -265,6 +266,13 @@ does the build! So we just re-use the old build. If you to run the test again, y
 
 Note that it says it reused one build.
 
+Source File Types
+~~~~~~~~~~~~~~~~~
+
+In our example we're using a single C source file as our our test, but most archives and whole
+directories will work as well. Archives will be extracted automatically for you, and the root
+directory of that archive will be the root of your build directory.
+
 Build Directories
 ~~~~~~~~~~~~~~~~~
 
@@ -287,6 +295,9 @@ replace existing symlinks with real files.
 
 If you need an actual file instead of a symlink, you can use the ``build.copy_files`` to list
 files to actually copy. See :ref:`tests.build` for more info.
+
+**NOTE**: The 'run script' will be executed from within each test's build directory. So all of
+the commands in your 'run.cmds' section should be relative to to that path.
 
 Running a Test
 --------------

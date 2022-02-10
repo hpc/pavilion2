@@ -1,7 +1,10 @@
 """List the directory of the specified run."""
-
+import collections
 import errno
+import grp
+import pwd
 import os
+import shutil
 import sys
 import stat
 
@@ -101,7 +104,7 @@ class LSCommand(Command):
 
         return self.ls_(test_dir, symlink, perms, size, date)
 
-    MAX_FN_WIDTH = 40
+    BASE_FN_WIDTH = 40
 
     def ls_(self, dir_, show_symlinks, show_perms, show_size, show_date):
         """Print a directory listing for the given run directory."""
@@ -114,68 +117,78 @@ class LSCommand(Command):
         files = []
         for file in dir_.iterdir():
             filename = file.name
-            perms = None
-            size = None
-            date = None
+            file_info = {'target': ''}
 
-            if file.is_dir():
-                filename += '/'
-                filename = output.ANSIString(filename, code=output.BLUE)
-            elif file.is_symlink():
-                if show_symlinks:
+            if file.is_symlink():
+                if not file.exists():
+                    filename = output.ANSIString(filename, code=output.RED)
+                elif show_symlinks:
                     resolved = file.resolve()
                     abs_path = file.absolute()
                     rel = utils.relative_to(resolved, abs_path.parent)
                     rel_str = str(rel)
                     res_str = str(resolved)
                     dest = rel_str if len(res_str) > len(rel_str) else res_str
-                    filename = '{} -> {}'.format(filename, dest)
                     filename = output.ANSIString(filename, code=output.CYAN)
+                    file_info['target'] = output.ANSIString(dest, code=output.CYAN)
                 else:
+                    if file.is_dir():
+                        filename += '/'
                     filename = output.ANSIString(filename, code=output.CYAN)
+            elif file.is_dir():
+                filename += '/'
+                filename = output.ANSIString(filename, code=output.BLUE)
 
-            if show_perms or show_size:
-                fstat = file.stat()
-                perms = file.owner(), file.group(), stat.filemode(fstat.st_mode)
-                size = utils.human_readable_size(fstat.st_size)
-                date = output.get_relative_timestamp(fstat.st_mtime)
+            file_info['filename'] = filename
 
-            files.append((filename, perms, size, date))
+            if show_perms or show_size or show_date:
+                if file.exists():
+                    fstat = file.stat()
+                    file_info['group'] = file.group()
+                    file_info['owner'] = file.owner()
+                else:
+                    fstat = file.lstat()
+                    try:
+                        file_info['group'] = grp.getgrgid(fstat.st_gid).gr_name
+                    except KeyError:
+                        file_info['group'] = fstat.st_gid
+                    try:
+                        file_info['owner'] = pwd.getpwuid(fstat.st_uid).pw_name
+                    except KeyError:
+                        file_info['owner'] = fstat.st_uid
 
-        fn_width = min(max([len(file_info[0]) for file_info in files]), self.MAX_FN_WIDTH)
+                file_info['perms'] = stat.filemode(fstat.st_mode)
+                file_info['size'] = utils.human_readable_size(fstat.st_size)
+                file_info['date'] = output.get_relative_timestamp(fstat.st_mtime)
+
+            files.append(file_info)
+
+        max_widths = collections.defaultdict(lambda: 0)
+        for file_info in files:
+            for key in file_info:
+                max_widths[key] = max(max_widths[key], len(file_info[key]))
+
+        line_format = ['{{filename:{}s}}  '.format(max_widths['filename'])]
+
         if show_perms:
-            perm_widths = []
-            perm_infos = [file_info[1] for file_info in files]
-            for i in 0, 1, 2:
-                perm_info = [len(pi[i]) for pi in perm_infos]
-                perm_widths.append(max(perm_info))
-
-            user_width, group_width, mode_width = perm_widths
-        else:
-            user_width = group_width = mode_width = None
+            line_format.append('{{owner:{}s}}'.format(max_widths['owner']))
+            line_format.append('{{group:{}s}}'.format(max_widths['group']))
+            line_format.append('{{perms:{}s}}'.format(max_widths['perms']))
 
         if show_size:
-            size_width = max([len(file_info[2]) for file_info in files])
+            line_format.append('{{size:{}s}}'.format(max_widths['size']))
+
         if show_date:
-            date_width = max([len(file_info[3]) for file_info in files])
+            line_format.append('{{date:{}s}}'.format(max_widths['date']))
 
-        for filename, perm_info, size, date in files:
-            line = []
+        if show_symlinks:
+            line_format.append('{target}')
 
-            if show_perms:
-                user, group, mode = perm_info
-                line.append('{user:{width}s}'.format(user=user, width=user_width))
-                line.append('{group:{width}s}'.format(group=group, width=group_width))
-                line.append('{mode:{width}s}'.format(mode=mode, width=mode_width))
+        line_format = ' '.join(line_format)
 
-            if show_size:
-                line.append('{size:{width}s}'.format(size=size, width=size_width))
-            if show_date:
-                line.append('{date:{width}s}'.format(date=date, width=date_width))
-
-            line.append('{fn:{width}s}'.format(fn=filename, width=fn_width))
-
-            output.fprint(' '.join(line), file=self.outfile)
+        for file_info in files:
+            line = line_format.format(**file_info)
+            output.fprint(line, file=self.outfile)
 
         return 0
 

@@ -6,6 +6,7 @@
 int main(int argc, char ** argv) {
 
     struct timeval tv;
+    int i;
     double lucky;
 
     gettimeofday(&tv, NULL);
@@ -15,9 +16,11 @@ int main(int argc, char ** argv) {
 
     // This prints a different message given an argument. 
     if (argc > 1) {
-        printf("Hello %s!\n", argv[1]);
+        for (i=1; i < argc; i++) {
+            printf("Hello %s!\n", argv[i]);
+        }
     } else {
-        printf("Usage: ./hello <thing>\n");
+        printf("Usage: ./hello <thing>...\n");
         printf("I need to know what to say hello to.\n");
         return 1;
     }
