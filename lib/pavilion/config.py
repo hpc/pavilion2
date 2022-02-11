@@ -179,7 +179,6 @@ class PavConfigDict:
 
         return adict
 
-
 class PavConfig(PavConfigDict):
     """Define types and attributes for Pavilion config options."""
 
@@ -472,7 +471,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 class LocalConfig(PavConfigDict):
     """This provides type checkers something to working with. See PavConfig above."""
     def __init__(self, set_attrs: dict = None):
-        self.label: str = 'dummy'
+        self.label: str = None
         self.working_dir: Union[None, Path] = None
         self.path: OptPath = None
         self.group: Union[str, None] = None
@@ -603,6 +602,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
 
         config['working_dir'] = working_dir
         config['path'] = config_dir
+        config['label'] = label
         configs[label] = config
 
     return configs
@@ -675,6 +675,14 @@ found in these directories the default config search paths:
     # Make sure this path is absolute too.
     if not pav_cfg.working_dir.is_absolute():
         pav_cfg['working_dir'] = pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir']
+
+    if pav_cfg['working_dir'] is None:
+        if warn:
+            output.fprint(
+                "Pavilion working dir was not set, using 'working_dir' in the "
+                "current directory.",
+                file=sys.stderr, color=output.YELLOW)
+        pav_cfg['working_dir'] = Path('working_dir')
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 

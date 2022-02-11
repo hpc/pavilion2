@@ -141,7 +141,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(slurm_conf['srun_extra'])
         else:
-            cmd = ['mpirun', '--map-by ppr:{}:node'.format(tasks)]
+            cmd = ['mpirun']
 
             rank_by = slurm_conf['mpirun_rank_by']
             bind_to = slurm_conf['mpirun_bind_to']
@@ -272,10 +272,11 @@ class Slurm(SchedulerPluginAdvanced):
         defaults = {
             'up_states': ['ALLOCATED',
                           'COMPLETING',
+                          'PLANNED',
                           'MAINTENANCE',
                           'IDLE',
                           'MAINT'],
-            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE'],
+            'avail_states': ['IDLE', 'MAINT', 'MAINTENANCE', 'PLANNED'],
             'features': [],
             'reserved_states': ['RESERVED'],
             'sbatch_extra': [],
