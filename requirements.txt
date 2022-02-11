@@ -1,3 +1,5 @@
-requests >= 2.19
-lark-parser >= 0.8.5
+Pillow
+requests >= 2.27.1
+yapsy
+lark >= 1.0
 matplotlib

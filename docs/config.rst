@@ -4,28 +4,25 @@ Configuring Pavilion
 ====================
 
 Pavilion is driven largely by configurations. This documentation page covers
-the ``pavilion.yaml`` file, which sets global pavilion settings.
+the ``pavilion.yaml`` file, which sets global pavilion settings, as well as
+how configuration directories are arranged and managed.
 
-See :ref:`tests.format` for information on the other types of
-pavilion configuration.
+See :ref:`tests.format` for information on test configurations.
 
 This documentation only covers a few important settings. For a full list
 of settings, use the ``pav show config --template`` command, which will give
-the full docs.
+the full docs for each configuration option in the ``pavilion.yaml`` file.
 
 .. contents::
 
-.. _config.config_dirs:
+Finding the Pavilion.yaml file
+------------------------------
 
-Config Directories
-------------------
-
-Pavilion looks its main ``pavilion.yaml`` config in the following hierarchy
+Pavilion looks for its main ``pavilion.yaml`` config in the following hierarchy
 and uses the first one it finds.
 
 -  The user's `~/.pavilion` directory.
 -  The directory given via the ``PAV_CONFIG_DIR`` environment variable.
--  The Pavilion lib directory **(don't put configs here)**
 
 The pavilion.yaml file can configure additional locations to look for test,
 mode, and host configs, as well as plugins using the ``config_dirs`` option.
@@ -33,24 +30,56 @@ The ``~/.pavilion`` directory is only searched for ``pavilion.yaml`` by
 default, but searches for other configs there can be turned on in ``pavilion
 .yaml``
 
-Each config directory can (optionally) have any of the sub-directories
-shown here.
+.. _config.config_dirs:
+
+Config Directories
+------------------
+
+Each pavilion config directory (Pavilion supports having more than one) can (optionally)
+have any of the sub-directories shown here.
 
 .. figure:: imgs/config_dir.png
    :alt: Pavilion Config Directory
 
    Config Directory Layout
 
-It's ok to run pavilion without a ``pavilion.yaml``; the defaults should
-be good enough in many cases.
+To generate this directory structure and a ``pavilion.yaml`` template file, run
+``pav config setup <config_path> <working_dir>``. The ``<config_path>`` is where to put the
+configuration directory, and the ``<working_dir>`` is where to put the working directory that
+will hold all of the test builds and run information. We usually deploy Pavilion in a structure
+that looks like this:
 
-Generating a pavilion.yaml template
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ - ``<some_path>/pavilion``
+ - ``<some_path>/pavilion/src``         (The Pavilion source checkout)
+ - ``<some_path>/pavilion/configs``     (The Pavilion configurations)
+ - ``<some_path>/pavilion/working_dir`` (The Pavilion working directory)
 
-Pavilion can print template files, with documentation, for all of it's
-config files. In this case, use the command ``pav show config --template``.
-Since this file is self documenting, refer to
-it for more information about each of the configuration settings.
+
+Config Generation
+~~~~~~~~~~~~~~~~~
+
+As mentioned, Pavilion can have multiple configuration directories. Each of them (other than
+the primary one) should have a ``config.yaml`` file for settings specific to
+that directory. This is created automatically for you if you use the
+``pav config create <label> <path>`` command.
+
+This config can also set a distinct working directory and group permissions (this can all be
+given as ``pav config create`` options). Test runs created from tests in a given config directory
+will always be located in its configured working directory and assigned the given group
+permissions. Only test run directories are placed in these config specific working directories,
+everything else (series, jobs, etc) are always kept in the ``main`` working dir.
+
+Config directory labels are the shorthand for differentiating between tests in different
+working directories. The default label is ``main``, so referencing test id ``138`` and
+``main.138`` are equivalent. In fact, any test located in the ``main`` working directory
+can be referenced without this label.
+
+Writing a Pavilion.yaml
+-----------------------
+
+The easiest way to create a new ``pavilion.yaml`` is with the aforementioned
+``pav config setup <path> <working_dir_path>`` command. This will create the ``pavilion.yaml``
+file, if it doesn't already exist, along with the standard config directory structure.
 
 Setting You Should Set
 ~~~~~~~~~~~~~~~~~~~~~~

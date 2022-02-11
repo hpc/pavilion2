@@ -1,0 +1,75 @@
+#!/bin/bash
+
+PAV_ROOT=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
+YAML_CONFIG_URL="https://github.com/lanl-preteam/yaml_config/archive/refs/heads/master.zip"
+
+pushd "$PAV_ROOT" || exit 1
+
+if git status; then
+  echo "In a git repo, using submodules to get dependencies."
+
+  if git submodule update --init; then
+    echo "Dependencies successfully obtained."
+    exit 0
+  else
+    echo "Could not get dependencies."
+    echo "You may need to double check your proxy settings."
+    exit 1
+  fi
+fi
+popd || exit
+
+echo "Installing dependencies via virtual environments."
+virtual_env_path="$1"
+
+if [[ -z $virtual_env_path ]]; then
+  echo "You need to provide a path to where you would like the virtual environment installed."
+  echo "Usage: ${BASH_SOURCE[0]} <virtual_env>"
+  echo "  virtual_env - If a virtual environment already exists here, Pavilion will use it. "
+  echo "                Otherwise, Pavilion will create one at that location."
+  exit 1
+fi
+
+if [[ -x $virtual_env_path/bin/activate ]]; then
+  echo "Virtual environment already exists."
+else
+  if ! python3 -m venv "$virtual_env_path"; then
+    echo "Failed to install virtual environment at $virtual_env_path"
+    exit 1
+  fi
+fi
+
+echo "Activating virtual environment"
+if ! source "$virtual_env_path"/bin/activate; then
+  echo "Could not activate virtual environment."
+fi
+
+echo "Upgrading pip"
+if ! pip install --upgrade pip; then
+    echo "Failed to upgrade pip"
+    exit 1
+fi
+
+echo "Installing dependencies in requirements.txt"
+if ! pip install -r "$PAV_ROOT"/requirements.txt; then
+  echo "Failed to install requirements."
+  exit 1
+fi
+
+if [[ -d "$PAV_ROOT"/lib/sub_repos/yaml_config/README.md ]]; then
+  echo "Yaml_config already installed."
+else
+  echo "Installing non-pip dependencies"
+  if ! wget "$YAML_CONFIG_URL"; then
+    echo "Could not download yaml_config."
+    exit 1
+  fi
+
+  unzip master.zip >/dev/null 2>&1 || exit 1
+  rm master.zip
+  rm -rf "$PAV_ROOT"/lib/sub_repos/yaml_config
+  mv yaml_config-master "$PAV_ROOT"/lib/sub_repos/yaml_config || exit 1
+fi
+
+echo "Finished installing dependencies"
+echo "To run Pavilion, you must first activate the virtual environment at ${virtual_env_path}"

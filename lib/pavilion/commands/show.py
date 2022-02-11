@@ -677,9 +677,10 @@ class ShowCommand(Command):
                 title="Variables for the {} scheduler plugin.".format(args.vars)
             )
 
-        elif args.config is not None:
+        elif args.config:
 
             defaults = sched_config.CONFIG_DEFAULTS
+
             class Loader(yaml_config.YamlConfigLoader):
                 """Loader for just a scheduler's config."""
                 ELEMENTS = sched_config.ScheduleConfig.ELEMENTS

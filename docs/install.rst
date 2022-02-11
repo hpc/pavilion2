@@ -116,7 +116,7 @@ Dependencies
 ------------
 
 Pavilion has a few dependencies, and most aren't required. Pavilion was
-designed and tested against fairly recent (as of 2019-05) versions of
+designed and tested against fairly recent (as of 2022-01) versions of
 these, but it's likely that older, system provided versions may work
 just as well. Conversely, the latest version should be fine as well. The
 supported and tests versions for each are recorded in ``requirements.txt``.
@@ -127,67 +127,34 @@ supported and tests versions for each are recorded in ``requirements.txt``.
    for Pavilion's plugin architecture.
 -  `lark <https://github.com/lark-parser/lark>`__ **(required)** - Used for
    Pavilion string value and expression parsing.
+-  `matplotlib <https://matplotlib.org/>`__ - Needed for the graph command.
 -  `requests <https://pypi.org/project/requests/2.7.0/>`__ - Used for
    automatic downloads of test source files. This feature is disabled in
    the absence of this library, and tests that use it will fail with an
-   error. The remaining dependencies are needed by requests.
--  `chardet <https://pypi.org/project/chardet/>`__
--  `idna <https://github.com/kjd/idna>`__
--  `python-certifi <https://pypi.org/project/certifi/>`__
--  `urllib3 <https://urllib3.readthedocs.io/en/latest/>`__
+   error. The remaining dependencies are needed by requests. The following are sub-dependencies of
+   requests.
+
+  -  `chardet <https://pypi.org/project/chardet/>`__
+  -  `idna <https://github.com/kjd/idna>`__
+  -  `python-certifi <https://pypi.org/project/certifi/>`__
+  -  `urllib3 <https://urllib3.readthedocs.io/en/latest/>`__
 
 Installing Dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There are two methods for installing the dependencies, via sub-repos or
-using PIP and virtual environments.
-
-Sub-repos
-^^^^^^^^^
-
-The Pavilion repository comes with all of it's dependencies as
-sub-repos. To download them in this manner, simply run:
+To install the pavilion dependencies simply run the included:
 
 .. code:: bash
 
-    git submodule update --init --recursive
+    bin/setup_pav_deps
 
-This clones each of the dependencies into lib/sub\_repos. A softlink in
-lib for each of the dependencies is included in lib that points to the
-correct sub-directory for each of these. If you would prefer to use the
-system version of a particular dependency, simply delete the
-corresponding softlink in your install.
+If you downloaded Pavilion as a git repository, this will simply run ``submodule update --init``
+on that repository, which will fetch the dependencies (not including matplotlib).
 
-virtualenv and pip
-^^^^^^^^^^^^^^^^^^
-
-You can also build pavilion dependencies using virtualenv and pip. If
-you're unfamiliar, virtualenv sets up a custom python environment that
-uses your system python and it's libraries as a base. You can then use
-the virtual env's PIP package manager to download any additional (or
-just newer) libraries needed by an application. As long as you use the
-/bin/python, you'll have access to those additional libs.
-
-It comes with a couple of caveats:
-
-#. You will have to activate the virtual environment before running
-   Pavilion, and in Pavilion scheduled jobs using the pavilion.yaml
-   'pre\_kickoff' option.
-#. All tests will run under this environment. That could cause problems for
-   tests that utilize python (especially python2.x).
-
-.. code:: bash
-
-    pushd /your/pavilion/install
-    VENV_PATH=/your/virtualenv/path
-    # Setup a virtual environment
-    virtualenv -p /usr/lib/python3 ${VENV_PATH}
-    # Update pip, because older versions sometimes have issues.
-    ${VENV_PATH}/bin/pip install --update pip
-    # Install all the pavilion requirements.
-    ${VENV_PATH}/bin/pip install -f requirements.txt
-    # This has to be run before pav will work.
-    ${VENV_PATH}/bin/activate
+If you downloaded Pavilion as zip/tarball, The command will tell you to rerun it with
+a path to where it should create (or reuse) a virtual environment. The script will then install
+most needed dependencies via pip. A few non-pip dependencies will be downloaded and installed
+in the pavilion directory directly.
 
 Environment Modules
 -------------------
