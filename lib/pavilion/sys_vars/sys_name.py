@@ -1,6 +1,7 @@
-import subprocess
-from .base_classes import SystemPlugin
 import re
+import subprocess
+
+from .base_classes import SystemPlugin
 
 
 class SystemName(SystemPlugin):
@@ -24,4 +25,3 @@ class SystemName(SystemPlugin):
         name = match.groups()[0]
 
         return name
-

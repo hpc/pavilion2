@@ -1,7 +1,7 @@
-.. _tutorial.advanced:
+.. _tutorials.advanced:
 
 Tutorial: Advanced Pavilion
-========================
+===========================
 
 This tutorial assumes you already understand the basics of using Pavilion, and have it set up
 for the tutorials. That's already covered here: :ref:`tutorial.basic`.
@@ -26,6 +26,7 @@ This tutorial starts where the last left off, with a test configuration
 in ``examples/tutorials/tests/tutorial.yaml`` that looked something like this:
 
 .. code-block:: yaml
+
     basic:
         build:
             source_path: hello_world.c
@@ -230,7 +231,7 @@ Variables Can Contain Variables
 You can build up variables from multiple sources. Order doesn't matter, just don't create
 any reference loops!
 
-.. code-block::
+.. code-block:: yaml
 
     var-example3:
         variables:
@@ -243,7 +244,7 @@ Expressions
 Variable references are actually an 'expression block', and contain full mathematical expressions
 and some function calls.
 
- - Basic operations (+, -, /, *, ^) are supported, as are logic operations (AND, OR, NOT),
+ - Basic operations (+, -, /, \*, ^) are supported, as are logic operations (AND, OR, NOT),
    as well as grouping with parenthesis.
  - Multiple variable names may be referenced in each expression block.
  - Types are figured out automatically - If it looks like an int, it becomes an int.
@@ -255,8 +256,7 @@ index value for the variable (ie ``myvar.*``) will return a list of values.
 
 **Change your test to look like this:**
 
-.. code-block::
-
+.. code-block:: yaml
 
     basic:
 
@@ -536,13 +536,13 @@ on the local machine. The basic operation is the same though, so let's start the
 
 What does Pavilion do to 'kickoff' tests? Pretty much the same thing, regardless of scheduler.
 
-1. Ask the scheduler about its nodes.
-2. Filter the nodes by the 'schedule' parameters to figure out what nodes to run on.
-3. Give the test the scheduler variables.
-4. Create a 'job' for the test run.
-4. Write a 'kickoff' script for the test run.
-5. Call the command to 'schedule' the kickoff script.
-6. The kickoff script then runs pavilion again to run the given test_run on the machine.
+    1. Ask the scheduler about its nodes.
+    2. Filter the nodes by the 'schedule' parameters to figure out what nodes to run on.
+    3. Give the test the scheduler variables.
+    4. Create a 'job' for the test run.
+    5. Write a 'kickoff' script for the test run.
+    6. Call the command to 'schedule' the kickoff script.
+    7. The kickoff script then runs pavilion again to run the given test_run on the machine.
 
 Basic schedulers like 'raw' skip steps 1 and 2, which if done, enables a bunch of neat features
 we'll talk about later.
@@ -567,9 +567,9 @@ Running a Test Under A Cluster Scheduler
 
 We're now going to run our test under Slurm. Not a whole lot needs to change.
 
-1. We need to set the scheduler to 'slurm'.
-2. We need to set scheduler parameters to appropriate values.
-3. We need to run the test on all the nodes in the allocation.
+    1. We need to set the scheduler to 'slurm'.
+    2. We need to set scheduler parameters to appropriate values.
+    3. We need to run the test on all the nodes in the allocation.
 
 Most of steps 1 and 2 can be done in host or mode files. Tests that need the raw
 scheduler can set that in the test itself as an exception to the rule. Parameters that
@@ -685,7 +685,7 @@ More Scheduler Features
 Pavilion's scheduler plugins provide quite a few more features than we need to get in here, such
 as allocation sharing (on by default), random node selection, testing across consistent system
 'chunks', etc. For more information on all of these see the scheduling documentation
-(:ref:`test.scheduling`).
+(:ref:`tests.scheduling`).
 
 Tutorial Final Test
 -------------------
@@ -741,9 +741,9 @@ Conclusion
 
 Through this tutorial we learned about making tests generic and a lot of the ways Pavilion
 provides to make that easy to do. But that's not all! Check out the full Pavilion documentation
-for even more useful options:
+for even more useful options, see the rest of the Pavilion documentation.:
 
 - Skip Conditions (:ref:`tests.skip_conditions`)
-- File Creation (:ref:`tests.file_creation`)
-- Inherited command extending (:ref:`tests.extending_commands`)
--
+- Build Specificity (:ref:`tests.build`)
+- File Creation (:ref:`tests.run.create_files`)
+- Inherited command extending (:ref:`tests.run.extending_commands`)

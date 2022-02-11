@@ -295,14 +295,14 @@ class ParserTests(unittest.PavTestCase):
         # unforeseen consequences, and this is one of the best places to
         # look for those.
         bad_syntax = {
-            #'hello {{ foo bar baz what 9 + 3': 'Unmatched "{{"',
-            #'{{': 'Unmatched "{{"',
-            #'hello [~ foo': 'Unmatched "[~"',
-            #'[~': 'Unmatched "[~"',
-            #'{{ expr {{ nope }} }}': 'Nested Expression',
-            #'foo}}': 'Unmatched "}}"',
-            #'}}': 'Unmatched "}}"',
-            #'[~ }} ~]': 'Unmatched "}}"',
+            'hello {{ foo bar baz what 9 + 3': 'Unmatched "{{"',
+            '{{': 'Unmatched "{{"',
+            'hello [~ foo': 'Unmatched "[~"',
+            '[~': 'Unmatched "[~"',
+            '{{ expr {{ nope }} }}': 'Nested Expression',
+            'foo}}': 'Unmatched "}}"',
+            '}}': 'Unmatched "}}"',
+            '[~ }} ~]': 'Unmatched "}}"',
             'foo\\': 'Trailing Backslash',
             '~foo': 'Unescaped tilde',
             '[~ foo [~bar~]~]': 'Nested Iteration',

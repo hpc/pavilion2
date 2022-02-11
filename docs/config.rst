@@ -56,7 +56,7 @@ create the main pavilion config directory or ``pav config create <label> <path>`
 to create additional config directories.
 
 Config Directory Config
-^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Each config directory should have a ``config.yaml`` file for settings specific to
 that directory. This is created automatically for you if you use the

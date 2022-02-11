@@ -148,8 +148,8 @@ the host configs, but multiple can be provided per test.
 
 Unlike host configs, mode configs _override_ any values set.
 
-For example, the following mode file could be used to override the account and partiton
-scheduler settings. It would reside in ``modes/tester.yaml``in a pavilion config directory.
+For example, the following mode file could be used to override the account and partition
+scheduler settings. It would reside in ``modes/tester.yaml`` in a pavilion config directory.
 
 .. code:: yaml
 
