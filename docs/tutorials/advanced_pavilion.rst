@@ -1,10 +1,10 @@
 .. _tutorials.advanced:
 
-Tutorial: Advanced Pavilion
-===========================
+Advanced Pavilion
+=================
 
 This tutorial assumes you already understand the basics of using Pavilion, and have it set up
-for the tutorials. That's already covered here: :ref:`tutorial.basic`.
+for the tutorials. That's already covered here: :ref:`tutorials.basic`.
 
 This tutorial will teach you:
 
@@ -64,9 +64,6 @@ everything else we tell you to do in this tutorial.
 Variables and Expressions
 -------------------------
 
-Our hello world test config works, but it's pretty specific. It says hello to you, but
-it would be really nice if it said hello to whoever ran it.
-
 Pavilion comes with a wide variety of variables you can use to make your tests more generic, and
 you can also provide your own via the test config and through plugins. Variables can be inserted
 into just about any string value in a Pavilion test config using double curly braces:
@@ -84,17 +81,19 @@ Change the test config to look like this:
     # ...
 
     variables:
-        myuser: bob
+        other_user: bob
 
     run:
         cmds:
-            # We insert the user into our test.
-            - './hello {{myuser}}'
+            # The text can take multiple people as input.
+            # {{user}} is your current username, provided as a built-in variable by Pavilion.
+            - './hello {{other_user}} {{user}}'
 
     # ...
 
-Run this test, and look at the generated run script (``pav cat <test_id> run.sh``), you'll
-see that the variable was replaced in the config _BEFORE_ the run script was written.
+Run this test (``pav run tutorial``), find the test id number (``pav status``) and look at the
+generated run script (``pav cat <test_id> run.sh``), you'll see that the variable was replaced
+in the config _BEFORE_ the run script was written.
 
 Variable Format
 ~~~~~~~~~~~~~~~
@@ -145,6 +144,10 @@ example of all valid variable formats, and how to use them.
                 # For structured values, you have to specify a sub-key
                 - 'echo "My name is {{structured_value.name}}"'
                 - 'echo "Your name is {{more_structured_values.1.name}}"'
+                # If you leave out the index, you still get the first item:
+                - 'echo "Your other name is {{more_structured_values.name}}"'
+
+**Do this**
 
 The above config is also in ``tests/vars-example.yaml``. You should run it
 (``pav run vars-example``) and look at the created run script to see how all the variables were
@@ -168,13 +171,18 @@ Pavilion also provides a bunch of variables for you:
 'Pavilion' variables are provided by the core of Pavilion itself - it's all stuff that's pretty
 system agnostic, like the current user and time.
 
+**Do this**
+
 Use ``pav show pav_vars`` to get a list of them.
 
 'System' Variables (sys)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 'System' variables are variables that provide information that may be system specific in
-how you get it. Pavilion provides a few of these by default.
+how you get it. Unlike 'Pavilion' variables, these are plugins - Pavilion provides a few of
+these by default, but you can easily add your own. See :ref:`plugins.sys_vars` to see how.
+
+**Do this**
 
 Use ``pav show sys_vars`` to get a list of them.
 
@@ -188,6 +196,8 @@ allocation.
 
 Scheduler variables are provided by the scheduler plugin. Despite being scheduler specific, they
 are *mostly* uniform across scheduler plugins.
+
+**Do this**
 
 Use ``pav show sched`` to see a list of available scheduler plugins, and
 ``pav show sched --vars <sched_name>`` to see the scheduler variables for a particular
@@ -241,8 +251,8 @@ any reference loops!
 Expressions
 ~~~~~~~~~~~
 
-Variable references are actually an 'expression block', and contain full mathematical expressions
-and some function calls.
+Variable references are actually an 'expression block', and contain full mathematical
+expressions, function calls, and multiple variable references.
 
  - Basic operations (+, -, /, \*, ^) are supported, as are logic operations (AND, OR, NOT),
    as well as grouping with parenthesis.
@@ -283,7 +293,7 @@ Run the above ``pav run tutorial``, and look at the output of the run script (``
 <test_id>``). You'll see that our math was done, and the 'len' function gave the length of
 our people list. While this is a silly, contrived example, it shows the power of the expression
 blocks in Pavilion, and we'll be using these expressions more in the advanced result parsing
-tutorial (:ref:tutorials.extracting_results)
+tutorial (:ref:`tutorials.extracting_results`).
 
 Writing Generic Tests using Hosts and Modes Files
 -------------------------------------------------
@@ -301,8 +311,9 @@ this).
 **Let's create our first host file.**
 
 First you need the name of your host, from Pavilion's perspective. Run ``pav show sys_vars``,
-and look at the value of the ``sys_name`` variable. Pavilion strips out any trailing numbers
-in the name (multiple frontends on the same cluster are considered the same 'host'). Create
+and look at the value of the ``sys_name`` variable. The provided ``sys_name`` plugin is
+just the short hostname of the system, with trailing numbers removed such that systems with
+multiple frontends on the same cluster are considered the same 'host'. Create
 a file based on that name in the ``hosts/`` directory: ``hosts/<sys_name>.yaml``.
 
 Put the following into that file:
@@ -326,14 +337,14 @@ Now run your test. ``pav run tutorial``
 When you look at the output (``pav log run <test_id>``), you'll see that it now prints the
 names from our host file instead of the three names that were originally in our test's variables.
 
-BUT WAIT! What about the last name? It's missing. We'll show how to write our tests to
+*BUT WAIT!* What about the last name (Isabella)? It's missing. We'll show how to write our tests to
 dynamically handle any number of items like this in a bit.
 
 Keeping Host Variables Simple
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To keep this host configurations simple, you should try to design these variables such that their
-usable across multiple tests. For instance, you might have a list of filesystems that need to
+To keep this host configurations simple, you should try to design these variables such that they
+are usable across multiple tests. For instance, you might have a list of filesystems that need to
 be tested, or a list of compilers that test software should be built against.
 
 Additionally, you should calculate values wherever possible. For instance, if a problem size
@@ -393,7 +404,10 @@ List Expansions allow you to repeat a piece of text for every value in a variabl
 even if the value isn't a list (technically, variables are always lists of 1 or more values), and
 if that list is empty!
 
-To do so, we use the special list expansion syntax.
+To do so, we use the special list expansion syntax. You can add sections bracked in ``[~ text
+~]`` brackets (square and tilde). Everything inside those brackets will be repeated for each value
+of the variables contained within.
+
 **Change your test run commands to look like this:**
 
 .. code-block::
@@ -451,6 +465,10 @@ to scheduler parameters.
 Now that we have two tests in the suite, running ``pav run tutorial`` will run both of them. To
 run just one or the other, give the full test name such as ``pav run tutorial.big_numbers``.
 
+**Try running just our ``big numbers`` test** - ``pav run tutorial.big_numbers`` - and check out
+the different output.
+
+
 More Inheritance
 ^^^^^^^^^^^^^^^^
 
@@ -459,7 +477,7 @@ is never meant to be run itself. You can make a test **hidden** by prepending an
 its name, such as ``_base``. You can still inherit from such tests, but when you run the whole
 test suite hidden tests aren't run.
 
-You can also inherit in a chain. 'testc' can inherit from 'testb' which inherits from 'testa'.
+You can also inherit in a chain. 'testc' can inherit from 'testb' which inherits from 'testa', etc.
 
 Permutations
 ~~~~~~~~~~~~
@@ -494,9 +512,10 @@ Multiple Variables
 ^^^^^^^^^^^^^^^^^^
 
 You can actually provide a list of values to ``permute_on``. In that case you'll end up with a
-test for every combination of those lists. So if you specified two lists with three values each
-(``['a', 'b', 'c'] and ['1', '2', '3']``) you'd end up with nine tests: ``'a1', 'a2', 'a3', 'b1',
-...``  This is actually true of list expansions too, just less useful there.
+test for every combination of those lists. So if you specified two variables with three
+values each (``['a', 'b', 'c'] and ['1', '2', '3']``) you'd end up with nine tests:
+``'a1', 'a2', 'a3', 'b1',...``
+This is actually true of list expansions too, just less useful there.
 
 Complex Variable Permutations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -510,7 +529,7 @@ not what you want, you can specify that name manually"
     ex2:
         permute_on: complex_user
         # This will be the last component of the test's name.
-        subtitle: "{{complex_user.name}}"
+        subtitle: "{{complex_user.uid}}"
 
         variables:
             complex_user:
@@ -527,7 +546,7 @@ Scheduling
 ----------
 
 If it weren't for scheduling, there really wouldn't be much of a point to Pavilion. After all,
-there are numerous test frameworks that work just fine. Pavilion is all about setting tests
+there are numerous non-HPC test frameworks that work just fine. Pavilion is all about setting tests
 up to run on clusters, and that comes with its own set of problems not handled by most test
 harnesses.
 
@@ -540,14 +559,15 @@ What does Pavilion do to 'kickoff' tests? Pretty much the same thing, regardless
     2. Filter the nodes by the 'schedule' parameters to figure out what nodes to run on.
     3. Give the test the scheduler variables.
     4. Create a 'job' for the test run.
-    5. Write a 'kickoff' script for the test run.
+    5. Write a 'kickoff' script for the job.
     6. Call the command to 'schedule' the kickoff script.
     7. The kickoff script then runs pavilion again to run the given test_run on the machine.
 
 Basic schedulers like 'raw' skip steps 1 and 2, which if done, enables a bunch of neat features
 we'll talk about later.
 
-** Do this **
+**Do this**
+
 Look at the contents of your last run test ``pav ls <test_id>``. You'll see a 'job' directory. We
 can look at the contents of that with ``pav ls <test_id> job``. It contains the kickoff script,
 kickoff log, and a directory of symlinks back to the job's tests (a job can have more than one
@@ -578,14 +598,15 @@ be set in the host file. Slurm parameters that you occasionally use can be set u
 their own mode files.
 
 For instance, when regression testing machines we use a special 'maintenance' reservation. So
-we've but that (and the additional related parameters) in a 'maint' mode file that we use in
+we've built that (and the additional related parameters) into a 'maint' mode file that we use in
 those circumstances.
 
 **Do this**
 
 In your host file for this machine, set the ``scheduler`` option to 'slurm', and
 set additional slurm parameters as needed for your machine. See ``pav show sched --config`` for
-a listing of all options that go in the ``schedule`` section and their documentation.
+a listing of all options that can go in the ``schedule`` section, their documentation, and
+defaults.
 
 You should end up with a host file that includes something like this:
 
@@ -605,8 +626,8 @@ us use keywords like 'all' or percentages when asking for nodes.
 
 **Also do this**
 
-In your test, add a scheduler as well and tell the test how man nodes to request. We're assuming
-you're already the expert on what constitutes a reasonable request.
+In your test, add a scheduler as well and tell the test how many nodes to request. We're assuming
+you're already the expert on what constitutes a reasonable request for your cluster.
 
 We also need to run our test under the task scheduling command - typically 'srun'. Pavilion does
 most of the work of determining what that command should look like, and puts that in the
@@ -669,20 +690,24 @@ your own knowledge of the system to find the right combination - Slurm is unfort
 about which combinations actually work together. I typically try to launch a job manually until I
 find a reasonable combination, and then translate that into the Pavilion configs.
 
-It's also possible that your local cluster users slurm node states that Pavilion doesn't
+It's also possible that your local cluster uses slurm node states that Pavilion doesn't
 recognize. Pavilion keeps three lists of state names for Slurm: 'avail_states', 'up_states', and
 'reserved_states'. You can redefine these lists as needed under 'schedule.slurm.up_states', etc.
+The one you probably care most about is 'up_states' - The list of states that are allowed for a
+node to be considered 'up'. If any of the node's states aren't in this list Pavilion doesn't
+count it.  Don't worry about non-alpha pre- or post- fixes on the states, like 'MAINT*'. Pavilion
+strips that stuff automatically.
 
-An occasional problem is with node selection with 'features'. Pavilion does not, by default, filter
-nodes according to node 'features', but often nodes with different features can't be allocated
-together or without specifically requesting the given features. Pavilion provides mechanisms to
-do this under Slurm - see the slurm specific 'features' options via ``pav show sched --config``.
-
+Another occasional problem is with node selection with 'features'. Pavilion does not, by default,
+filter nodes according to node 'features', but often nodes with different features can't be
+allocated together or without specifically requesting the given features. Pavilion provides
+mechanisms to do this under Slurm - see the slurm specific 'features' options via ``pav show
+sched --config``.
 
 More Scheduler Features
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Pavilion's scheduler plugins provide quite a few more features than we need to get in here, such
+Pavilion's scheduler plugins provide quite a few more features than we need to get into here, such
 as allocation sharing (on by default), random node selection, testing across consistent system
 'chunks', etc. For more information on all of these see the scheduling documentation
 (:ref:`tests.scheduling`).
@@ -715,7 +740,7 @@ Variables
 
 You should set a 'test_filesystems' variable with paths to a few filesystems you can write to,
 including your home directory. To make keep the test runnable by more than just you, make sure to
-use {{user}} instead of your user name in paths.
+use ``{{user}}`` instead of your user name in paths.
 
 Running
 ~~~~~~~
@@ -724,14 +749,15 @@ We also need to add a 'run' section and commands to our test. Once built, we can
 with a ``{{test_cmds}} ./super_magic`` command. You will probably also need to load the
 same compiler/mpi combo from the build section.
 
-To perform the write test, use the ``-w <path>`` option. You can use *list expansions* or
-*permutations* to either provide this argument multiple times or test each path independently.
+To perform the write test, use supermagic's ``-w <path>`` option. You can use *list expansions* or
+*permutations* to either provide this argument multiple times or test each path independently. It's
+up to you which method you use.
 
 Result Parsing
 ~~~~~~~~~~~~~~
 
-There isn't much to parse out of the results of super magic, so let's just rely on it's return
-code to determine whether the test passed or failed. As long as your supermagic call is
+There isn't much to parse out of the results of super magic, so let's just rely on its return
+value to determine whether the test passed or failed. As long as your supermagic call is
 the last line in your 'run.cmds' section, you should be fine.
 
 Go here (:ref:`tutorials.extracting_results`) for an in-depth tutorial on parsing results.

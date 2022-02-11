@@ -1,8 +1,9 @@
-Pavilion Advanced Usage
-=======================
+Advanced Features
+=================
 
 This page is an overview of some of the advanced features of Pavilion, to
-give you a better idea of what it's capable of.
+give you a better idea of what it's capable of. See :ref:`tutorials` for full
+tutorials on using these and other features.
 
 .. contents::
 
@@ -65,7 +66,7 @@ resolution order):
 - The selected scheduler (sched)
 
 Variable names must be in lowercase and start with a letter, but may
-contain numbers, dashes and underscores.
+contain number and underscores.
 
 .. code-block:: yaml
 

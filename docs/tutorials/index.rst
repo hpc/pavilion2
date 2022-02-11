@@ -1,3 +1,5 @@
+.. _tutorials:
+
 .. toctree::
   :maxdepth: 2
   :caption: Tutorial Contents:

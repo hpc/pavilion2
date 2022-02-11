@@ -1,7 +1,7 @@
-.. _tutorial.basic:
+.. _tutorials.basic:
 
-Tutorial: Basic Pavilion
-========================
+Basic Pavilion
+==============
 
 This is a step-by-step tutorial on how to write your first test in Pavilion. It is designed to
 work on a generic linux system - no cluster required. Further tutorials do require a cluster,
@@ -19,7 +19,8 @@ Preliminary Steps
 
 If you're doing this on a cluster, you should put all files on a (non-lustre)
 filesystem that's accessible from all nodes and the frontend (via the same path). More
-requirements are in the full install docs (:ref:`install`), but you
+requirements are in the full install docs (:ref:`install`), but that's mostly NFS settings that
+should be turned on for any sane shared filesystem.
 
 Now, simply download Pavilion (either via a git checkout
 ``git checkout https://github.com/hpc/pavilion2.git`` or via the

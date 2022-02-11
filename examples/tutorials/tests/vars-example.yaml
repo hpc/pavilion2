@@ -39,3 +39,5 @@ variable-formats:
             # For structured values, you have to specify a sub-key
             - 'echo "My name is {{structured_value.name}}"'
             - 'echo "Your name is {{more_structured_values.1.name}}"'
+            # If you leave out the index, you still get the first item:
+            - 'echo "Your other name is {{more_structured_values.name}}"'

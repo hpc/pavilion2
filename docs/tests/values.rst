@@ -9,21 +9,20 @@ alter the each test configuration.
 
 .. contents::
 
-.. _tests.values.expressions:
-
 Environment Variables
 ---------------------
 
-Environment variables can be used in Pavilion configs **only** in certain
-areas that will be written to a run or build script. This is limited to
-the 'cmds' and 'env' values under either 'run' or 'build'.
+To head off some confusion we've ran into with new Pavilion users - Variables
+in Pavilion **are NOT** environment variables. Pavilion variable references/expressions
+are resolved before any scripts are written, while environment variables would
+be resolved during the execution of those scripts.
 
-Anywhere else, you must use Pavilion variables. If there's an environment
-variable you need, consider capturing it using a
-:ref:`system variable plugin <plugins.sys_vars>`.
+For more information on environment variables in Pavilion, see :ref:`tests.env.variables`.
 
-Expressions
------------
+.. _tests.values.expressions:
+
+Mathematical Expressions
+------------------------
 
 Expressions are contained within double curly braces. They can contain
 :ref:`variable references <tests.variables>`, function calls, and math

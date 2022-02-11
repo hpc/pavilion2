@@ -3,6 +3,9 @@
 Getting Started
 ===============
 
+This document is meant to give you a quick overview of Pavilion features, and some setup
+instructions. For a more in-depth tutorial, see :ref:`tutorials.basic`.
+
 .. contents:: Table of Contents
 
 IMPORTANT
@@ -111,7 +114,7 @@ exits.
 Host Configs
 ^^^^^^^^^^^^
 
-Every system (host) that you run tests on will can have a host configuration
+Every system (host) that you run tests on can have a host configuration
 file. These are located in ``hosts/<sys_name>.yaml`` in a pavilion
 config directory. (To find the ``sys_name`` of your current system, run ``pav show sys_vars``.)
 
@@ -131,42 +134,20 @@ without the name for that test.
         foo: "bar"
 
 The above host config would set the default scheduler to 'slurm' for
-tests kicked off on a host with a hostname of ``my_host``, and also add a
+tests kicked off on a host with a ``sys_name`` of ``my_host``, and also add a
 "foo" pavilion variable for all tests run on that system. Pavilion uses
 the contents of the ``sys_name`` test config variable to determine the
 current host, which is provided via a built-in
 :ref:`plugins.sys_vars`. This behaviour can be overridden by
-providing your own sys\_var plugin, which is especially useful on
-clusters with multiple front-ends.
-
-Mode Configs
-^^^^^^^^^^^^
-
-In addition to host config files, you can provide mode config files that
-you can apply to any test when you run it. They have the same format as
-the host configs, but multiple can be provided per test.
-
-Unlike host configs, mode configs _override_ any values set.
-
-For example, the following mode file could be used to override the account and partition
-scheduler settings. It would reside in ``modes/tester.yaml`` in a pavilion config directory.
-
-.. code:: yaml
-
-    schedule:
-        account: tester
-        reservation: regression
-
-.. code:: bash
-
-    pav run -m tester -f post_dst_tests.txt
+providing your own sys\_var plugin, typically to use more colloquial names for
+systems.
 
 Running tests
 ~~~~~~~~~~~~~
 
 Running tests is easy. All you need is the test suite name (the name of
-the test file), and the test name (the name of the test in the suite).
-Did you forget what you named them? That's ok! Just ask Pavilion.
+the test file, minus the ``.yaml`` extension), and the test name (the name of the test in the
+suite). Did you forget what you named them? That's ok! Just ask Pavilion.
 
 .. code:: bash
 
@@ -233,7 +214,8 @@ command.
 
 .. code:: bash
 
-    $ pav results Test Results
+    $ pav results
+    Test Results
     ------------+----+--------
     Name        | Id | Result
     ------------+----+--------

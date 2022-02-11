@@ -30,14 +30,6 @@ The ``~/.pavilion`` directory is only searched for ``pavilion.yaml`` by
 default, but searches for other configs there can be turned on in ``pavilion
 .yaml``
 
-Generating a pavilion.yaml template
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Pavilion can print template files, with documentation, for all of it's
-config files. In this case, use the command ``pav show config --template``.
-Since this file is self documenting, refer to
-it for more information about each of the configuration settings.
-
 .. _config.config_dirs:
 
 Config Directories
@@ -51,14 +43,23 @@ have any of the sub-directories shown here.
 
    Config Directory Layout
 
-You can create this directory structure by running ``pav config setup <path>`` to
-create the main pavilion config directory or ``pav config create <label> <path>``
-to create additional config directories.
+To generate this directory structure and a ``pavilion.yaml`` template file, run
+``pav config setup <config_path> <working_dir>``. The ``<config_path>`` is where to put the
+configuration directory, and the ``<working_dir>`` is where to put the working directory that
+will hold all of the test builds and run information. We usually deploy Pavilion in a structure
+that looks like this:
 
-Config Directory Config
-~~~~~~~~~~~~~~~~~~~~~~~
+ - ``<some_path>/pavilion``
+ - ``<some_path>/pavilion/src``         (The Pavilion source checkout)
+ - ``<some_path>/pavilion/configs``     (The Pavilion configurations)
+ - ``<some_path>/pavilion/working_dir`` (The Pavilion working directory)
 
-Each config directory should have a ``config.yaml`` file for settings specific to
+
+Config Generation
+~~~~~~~~~~~~~~~~~
+
+As mentioned, Pavilion can have multiple configuration directories. Each of them (other than
+the primary one) should have a ``config.yaml`` file for settings specific to
 that directory. This is created automatically for you if you use the
 ``pav config create <label> <path>`` command.
 
