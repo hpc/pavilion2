@@ -286,6 +286,7 @@ The list of commands to perform the build.
    doesn't result in a failed ``make``, etc), append ``|| exit 1`` to
    your commands as needed. You can also use ``set -e`` to exit on any
    failure.
+- The 'cmds' list can be extended via inheritance. See :ref:`tests.run.extending_commands`.
 
 Generate a Build Hash
 ~~~~~~~~~~~~~~~~~~~~~

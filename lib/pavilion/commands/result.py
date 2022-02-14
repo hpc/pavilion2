@@ -3,7 +3,7 @@
 import datetime
 import errno
 import io
-from multiprocessing.sharedctypes import Value
+import pathlib
 import pprint
 import shutil
 from typing import List, IO
@@ -155,17 +155,24 @@ class ResultsCommand(Command):
                 output.fprint(log_file.getvalue(), file=self.outfile,
                               color=output.GREY)
             else:
-                for test_log in results:
-                    output.fprint("\nResult logs for test {}\n"
-                                  .format(test_log['name']), file=self.outfile)
-                    if test_log['results_log'].exists():
-                        with test_log['results_log'].open() as log_file:
-                            output.fprint(
-                                log_file.read(), color=output.GREY,
-                                file=self.outfile)
-                    else:
-                        output.fprint("<log file missing>", file=self.outfile,
-                                      color=output.YELLOW)
+                if len(results) > 1:
+                    output.fprint("Please give a single test id when requesting the full"
+                                  "result log.",
+                                  file=self.errfile, color=output.YELLOW)
+                    return 1
+
+                result_set = results[0]
+                log_path = pathlib.Path(result_set['results_log'])
+                output.fprint("\nResult logs for test {}\n"
+                              .format(result_set['name']), file=self.outfile)
+                if log_path.exists():
+                    with log_path.open() as log_file:
+                        output.fprint(
+                            log_file.read(), color=output.GREY,
+                            file=self.outfile)
+                else:
+                    output.fprint("Log file '{}' missing>".format(log_path),
+                                  file=self.outfile, color=output.YELLOW)
 
         return 0
 

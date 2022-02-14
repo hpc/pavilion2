@@ -8,7 +8,7 @@ This tutorial is for developers writing unittests of the Pavilion code itself.
 What You Need To Test
 ---------------------
 
-Here are some basic tenants:
+Here are some basic tenets:
 
 1.  Test the end results, not intermediate results.
 
@@ -205,7 +205,7 @@ Each plugin type in Pavilion provides a function to find a plugin by name
 
             run_cmd = pavilion.commands.get_plugin('run')
             slurm = pavilion.schedulers.get_plugin('slurm')
-            regex_parser = pavilion.get_plugin('regex')
+            regex_parser = pavilion.result_parsers.get_plugin('regex')
 
             # System Variable Plugins simply provide values through the
             # sys_vars dict.
@@ -220,7 +220,6 @@ Test Run Objects
 It's very likely that your test will require one or more test run objects. Your
 PavTestCase can help with that via the
 `_quick_test() <../source/unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
-
 and
 `_quick_test_cfg() <../source/unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
 methods.
@@ -237,7 +236,7 @@ methods.
 
             # This will create a test run object, along with its run directory.
 
-            # The test is essentially a 'hello world'.
+            # The default test is essentially a 'hello world'.
             test = self._quick_test()
             test.run()
 
@@ -286,11 +285,8 @@ object.
 
             # Get the command itself.
             log_cmd = commands.get_plugin('log')
-            # Instead of printing to stdout and stderr, we should capture the
-            # command output. Remember, we'll reload the plugins for each test,
-            # so this change won't be permanent.
-            log_cmd.outfile = io.StringIO()
-            log_cmd.errfile = io.StringIO()
+            # Set the command's output streams to memory buffers
+            log_cmd.silence()
 
             # Get the argument parser.
             arg_parser = arguments.get_parser()
@@ -309,8 +305,8 @@ object.
                 # Run the command with the given args.
                 log_cmd.run(self.pav_cfg, args)
 
-                # We could check that the output is sane here (in this case
-                # we can do so easily, so we should). The StringIO objects
-                # we used above would make that fairly easy.
+                # Get the contents of the output streams and clear them.
+                out, err_out = log_cmd.clear_output()
+                self.assertContains("foo", out)
 
             plugins._reset_plugins()

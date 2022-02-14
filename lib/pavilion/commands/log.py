@@ -110,7 +110,6 @@ class LogCommand(Command):
         if cmd_name in ['global', 'all_results', 'allresults', 'all-results']:
             if 'results' in cmd_name:
                 file_name = pav_cfg.working_dir/'results.log'
-
             else:
                 file_name = pav_cfg.working_dir/'pav.log'
 

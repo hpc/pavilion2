@@ -109,3 +109,43 @@ timeout
 By default test runs timeout if they don't produce output within 30 seconds.
 This setting allows you to extend that time arbitrarily,
 including to such large numbers that your test will never time out.
+
+.. _tests.run.extending_commands:
+
+Extending Commands
+~~~~~~~~~~~~~~~~~~
+
+While in most cases, when inheriting from a test, overriding a list of values overwrites the
+entire inherited list, there are a couple exceptions. The ``prepend_cmds`` and ``append_cmds``
+options work a little differently. They provide the ability - at each level of inheritance -
+to prepend/append a list of commands to those inherited. For example:
+
+.. code-block:: yaml
+
+    base:
+        run:
+            cmds:
+                - a
+                - b
+                - c
+
+    next:
+        run:
+            prepend_cmds:
+                - 'prepend_a'
+                - 'prepend_b'
+            append_cmds:
+                - 'append_a'
+                - 'append_b'
+
+For the 'next' test, we would end up with a list of run commands like this:
+
+.. code-block::
+
+    - 'prepend_a'
+    - 'prepend_b'
+    - a
+    - b
+    - c
+    - 'append_a'
+    - 'append_b'

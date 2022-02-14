@@ -190,6 +190,8 @@ def match_examples(exc, parse_fn, examples, text):
 
     closest_dist = 2.0
     closest_example = NO_MATCH_EXAMPLE
+    closest_err = None
+    closest_ex = None
 
     # Find an example error that fails at the same parser state.
     for example in examples:
@@ -220,9 +222,16 @@ def match_examples(exc, parse_fn, examples, text):
                 # If just the state matches, we'll call it a partial match
                 # and look for something better.
 
+                # We annotate the errors from the expression parser, so we don't
+                # get confused by similar state stacks that happen to have been labeled
+                # in a similar way.
+                if not hasattr(err, 'expr_error') == hasattr(exc, 'expr_error'):
+                    continue
+
                 if err.state == exc.state and err.token == exc.token:
                     # Try exact match first
                     return example.message
+
                 else:
                     stack1 = list(err.state.state_stack)
                     stack2 = list(exc.state.state_stack)
@@ -230,8 +239,10 @@ def match_examples(exc, parse_fn, examples, text):
                     if exc.token.type == err.token.type:
                         dist -= 1
                     if dist <= closest_dist:
+                        closest_err = err
                         closest_dist = dist
                         closest_example = example
+                        closest_ex = ex_text
 
             except ParserValueError:
                 # Examples should only raise Token or UnexpectedChar errors.

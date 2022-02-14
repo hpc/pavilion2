@@ -1,0 +1,5 @@
+The hosts directory is where you put 'host' configurations for pavilion. These look a lot
+like test yaml files, except without top level 'test name' mapping. The host configuration
+provides the default values for all tests run on that host.
+
+See the advanced tutorial for more information. 

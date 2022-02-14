@@ -1,5 +1,6 @@
 
 .. _tutorials.extracting_results:
+.. _tutorials.results:
 
 Extracting Results Tutorial
 ===========================

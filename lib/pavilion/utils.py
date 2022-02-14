@@ -28,58 +28,6 @@ def str_bool(val):
         return False
 
 
-# Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
-# pylint: disable=protected-access
-def resolve_path(path, strict=False):
-    """Stolen straight from python3.6 pathlib."""
-
-    sep = '/'
-    accessor = path._accessor
-    seen = {}
-
-    def _resolve(path_, rest):
-        if rest.startswith(sep):
-            path_ = ''
-
-        for name in rest.split(sep):
-            if not name or name == '.':
-                # current dir
-                continue
-            if name == '..':
-                # parent dir
-                path_, _, _ = path_.rpartition(sep)
-                continue
-            newpath = str(path_) + sep + name
-            if newpath in seen:
-                # Already seen this path
-                path_ = seen[newpath]
-                if path_ is not None:
-                    # use cached value
-                    continue
-                # The symlink is not resolved, so we must have a symlink loop.
-                raise RuntimeError("Symlink loop from %r" % newpath)
-            # Resolve the symbolic link
-            try:
-                target = accessor.readlink(newpath)
-            except OSError as err:
-                if err.errno != errno.EINVAL and strict:
-                    raise
-                # Not a symlink, or non-strict mode. We just leave the path
-                # untouched.
-                path_ = newpath
-            else:
-                seen[newpath] = None  # not resolved symlink
-                path_ = _resolve(path_, target)
-                seen[newpath] = path_  # resolved symlink
-
-        return Path(path_)
-
-    # NOTE: according to POSIX, getcwd() cannot contain path components
-    # which are symlinks.
-    base = '' if path.is_absolute() else os.getcwd()
-    return _resolve(base, str(path)) or sep
-
-
 def dir_contains(file, directory):
     """Check if 'file' is or is contained by 'directory'."""
 
@@ -296,6 +244,22 @@ class ZipFileFixed(zipfile.ZipFile):
         return ret
 
 
+def human_readable_size(size: int):
+    """Convert the given raw size in bytes to a human readable size."""
+
+    sizes = ['P', 'T', 'G', 'M', 'K']
+
+    unit = None
+    while size > 1024 and sizes:
+        unit = sizes.pop()
+        size = size/1024.0
+
+    if unit is None:
+        return '{}'.format(size)
+    else:
+        return '{:0.1f}{}'.format(size, unit)
+
+
 def relative_to(other: Path, base: Path) -> Path:
     """Get a relative path from base to other, even if other isn't contained
     in base."""
@@ -305,8 +269,8 @@ def relative_to(other: Path, base: Path) -> Path:
             "The base '{}' must be a directory."
             .format(base))
 
-    base = Path(resolve_path(base))
-    other = Path(resolve_path(other))
+    base = base.resolve()
+    other = other.resolve()
 
     bparts = base.parts
     oparts = other.parts
@@ -340,8 +304,7 @@ def repair_symlinks(base: Path) -> None:
             # Found a second thing that pathlib doesn't do (though a requst
             # for Path.readlink has already been merged in the Python develop
             # branch)
-            target = Path(os.readlink(file.as_posix()))
-            target = Path(resolve_path(target))
+            target = Path(os.readlink(file.as_posix())).resolve()
             sym_dir = file.parent
             if target.is_absolute() and dir_contains(target, base):
                 rel_target = relative_to(target, sym_dir)

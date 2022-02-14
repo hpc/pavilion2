@@ -67,6 +67,7 @@ Project goals:
    :caption: For Developers:
 
    DevelopmentGuidelines.rst
+   dev_tutorials/index.rst
 
 .. toctree::
    :hidden:

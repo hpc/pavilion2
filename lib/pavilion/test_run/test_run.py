@@ -952,7 +952,7 @@ be set by the scheduler plugin as soon as it's known."""
                                "that test is scheduled.")
 
         try:
-            job_path.symlink_to(job.path)
+            job_path.symlink_to(job.path.resolve())
         except OSError as err:
             self._add_warning("Could not create job link: {}".format(err))
 

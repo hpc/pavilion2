@@ -419,6 +419,7 @@ class TestSet:
                         "the test build log (pav log build {id})"
                         .format(test=test.name, id=test.full_id,
                                 set_name=self.name))
+                msg = '\n  '.join(msg)
 
                 raise TestSetError(msg)
 

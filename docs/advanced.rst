@@ -1,8 +1,9 @@
-Pavilion Advanced Usage
-=======================
+Advanced Features
+=================
 
 This page is an overview of some of the advanced features of Pavilion, to
-give you a better idea of what it's capable of.
+give you a better idea of what it's capable of. See :ref:`tutorials` for full
+tutorials on using these and other features.
 
 .. contents::
 
@@ -15,14 +16,17 @@ In addition to host config files, you can provide mode config files that
 you can apply to any test when you run it. They have the same format as
 the host configs, but multiple can be provided per test.
 
+Unlike host configs, mode configs apply _last_ in the process, overriding
+values set be host configs and the test itself.
+
 For example, the following mode file could be used to set a particular
 set of slurm vars:
 
 .. code-block:: yaml
 
-    slurm:
+    schedule:
         account: tester
-        partition: post-dst
+        reservation: post-dst
 
 .. code-block:: bash
 
@@ -43,7 +47,7 @@ Advanced Test Configs
 ---------------------
 
 Test configs aren't just static files. They can be re-shaped dynamically
-through variable substitution, module file loads, and environment
+through Pavilion variable substitution, module file loads, and environment
 variables.
 
 Variables
@@ -62,7 +66,7 @@ resolution order):
 - The selected scheduler (sched)
 
 Variable names must be in lowercase and start with a letter, but may
-contain numbers, dashes and underscores.
+contain number and underscores.
 
 .. code-block:: yaml
 
@@ -118,11 +122,11 @@ Deferred Variables
 ^^^^^^^^^^^^^^^^^^
 
 Deferred variables are those that can't be resolved at test kickoff
-time. They need to know something about the node the test is being
+time. They need to know something about the nodes the test is being
 started on (which we won't know till the scheduler gives us nodes), or
 something about the allocation.
 
-Because some parts of the test are resolved at kickoff time (usually on
+Because some parts of the test are resolved at kickoff time (on
 a front-end) rather than on the nodes, deferred variables aren't allowed
 in those sections. Namely, this includes the ``build`` and various
 scheduler config sections, as well as root level config values. Pavilion
@@ -187,7 +191,7 @@ Rules of Inheritance
    list.)
 3. A test can inherit from a test, which inherits from a test, and so
    on.
-4. Inheritance is resolved before permutations or any variables
+4. Inheritance is resolved before permutations or any variable
    substitutions.
 
 Permutations
@@ -378,8 +382,8 @@ compiler wrapper environment variable.
             - gcc
             - openmpi
 
-Module wrappers are also useful for smoothing the differences clusters that
-have distinct module setups. For instance, one might wrap the gcc module
+Module wrappers are also useful for smoothing the differences between
+clusters that have distinct module setups. For instance, one might wrap the gcc module
 such that it loads normally on some systems, but it performs a module swap
 on an odd system that loads a different compiler by default. This can allow
 for a single, host-agnostic set of tests.
@@ -416,11 +420,14 @@ scheduler, but don't configure one. It's time to rectify that.
 
     super_magic:
         scheduler: slurm
-        slurm:
-          # Slurm lets us set a number of nodes as a range.
-          num_nodes: 2-all
-          # These are standard slurm options.
+        schedule:
+          # We can ask for all the nodes that match our filter parameters
+          nodes: all
+          # We can also set a minimum number of nodes
+          min_nodes: 4
           tasks_per_node: 3
+          # Most additional parameters denote how to filter the nodes down to
+          # just those you want.
           partition: test_partition
           reservation: testing
           qos: test
@@ -435,29 +442,14 @@ scheduler, but don't configure one. It's time to rectify that.
           cmds:
             # Regardless of scheduler used, scheduler vars are in the 'sched'
             # category. This var generates an srun command based on the slurm args
-            # given above. Assuming we got 10 nodes, it will look like:
-            # srun -N 10 -n 30 ./supermagic -a
+            # given above. Assuming we got 50 nodes, it will look like:
+            # srun -N 50 -n 150 ./supermagic -a
             # Note that this would run in an sbatch script within an allocation
             # that conforms to the rest of the slurm settings.
             - {sched.test_cmd} ./supermagic -a
 
-Schedulers are plugins in Pavilion, and are
-fairly loosely defined. They must at least do the following:
 
-* Provide a scheduler variable set for use in configs (the set may be empty).
-* The available keys/values are up to the plugin writer.
 
-  - See ``pav show sched --vars <sched_name>`` for a listing of what's
-    available for a given scheduler.
-* Define a configuration section for test configs.
-
-  - See ``pav show sched --config <sched_name>`` for the definition.
-* Provide a means to kickoff tests.
-
-  - The scheduler writes a script that does little more than call Pavilion
-    again to actually run a test.
-  - The Slurm plugin runs this script using ``sbatch``.
-  - The Raw plugin simply runs it as a subprocess.
-* Provide a means to monitor scheduled tests.
-* Provide a means to cancel scheduled tests.
-
+- See ``pav show sched --vars <sched_name>`` for a listing of what variables are
+  available for a given scheduler.
+- See ``pav show sched --config`` for full scheduler configuration documentation.

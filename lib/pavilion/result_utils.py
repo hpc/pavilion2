@@ -35,7 +35,8 @@ def get_result(test: TestRun):
                 results[raw_key] = results[tf]
                 results[tf] = output.get_relative_timestamp(
                                         results[tf])
-        results['results_log'] = test.results_log
+
+        results['results_log'] = test.results_log.as_posix()
 
     except (TestRunError, TestRunNotFoundError) as err:
         results = {'id': test.full_id}

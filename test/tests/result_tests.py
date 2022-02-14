@@ -623,7 +623,7 @@ class ResultParserTests(PavTestCase):
 
         # Make sure the log argument doesn't blow up.
         res_args = arg_parser.parse_args(
-            ('result', '--show-log') + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result', '--show-log') + (run_cmd.last_tests[0].full_id,))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"

@@ -1,0 +1,24 @@
+basic:
+
+  
+  
+  build:
+    # Pavilion will reach out and download this file for you, and put it in the
+    # test_src directory at the 'source_path' name. If you're behind a proxy, 
+    # you can set proxies in the pavilion.yaml file (see `pav show config --template`)
+    # or simply download the given link at put it there. 
+    source_url: https://github.com/hpc/supermagic/archive/refs/heads/master.zip
+    source_path: supermagic.zip
+
+    # Load an appropriate compiler and mpi library for your cluster
+    modules: []
+
+    env:
+      # We need to set CC to a reasonable mpicc for our build. This may already be set by your
+      # modulefiles.
+      CC: mpicc
+
+    cmds:
+      - ./autogen
+      - ./configure
+      - make 

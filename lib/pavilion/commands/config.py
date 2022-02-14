@@ -112,6 +112,7 @@ class ConfigCommand(Command):
         return self._run_sub_command(pav_cfg, args)
 
     @sub_cmd()
+
     def _create_cmd(self, pav_cfg: config.PavConfig, args):
 
         label = args.label
@@ -136,6 +137,7 @@ class ConfigCommand(Command):
         return 0
 
     @sub_cmd()
+
     def _setup_cmd(self, pav_cfg: config.PavConfig, args):
         """Similar to the 'config create' command, but with the expectation that this will
          be the primary pavilion config location."""
@@ -153,6 +155,7 @@ class ConfigCommand(Command):
                 return 1
         else:
             group = None
+
 
         pav_cfg: config.PavConfig = config.PavilionConfigLoader().load_empty()
         pav_cfg.working_dir = args.working_dir
@@ -184,6 +187,7 @@ class ConfigCommand(Command):
                                  .format(user, group_name))
 
         return group
+
 
     def create_config_dir(self, pav_cfg: config.PavConfig, path: Path,
                           label: str, group: Union[None, grp.struct_group],
