@@ -415,16 +415,16 @@ def flatten_nested_dict(dict_in, keycollect='', new_d=dict(), keysplit='.'):
     """
 
     knew = keycollect
-    for k, v in dict_in.items():
-        if not v:
+    for key, val in dict_in.items():
+        if not val:
             continue
-        if len(dict_in.keys()) > 1 or not isinstance(v, dict):
-            knew = keysplit.join([keycollect,k])
-        if not isinstance(v, dict):
+        if len(dict_in.keys()) > 1 or not isinstance(val, dict):
+            knew = keysplit.join([keycollect,key])
+        if not isinstance(val, dict):
             knew = knew.strip(keysplit)
-            new_d[knew] = v
+            new_d[knew] = val
         else:
-            new_d = flatten_nested_dict(v, knew, new_d.copy())
+            new_d = flatten_nested_dict(val, knew, new_d.copy())
 
     return new_d
 
@@ -457,19 +457,19 @@ def flatten_dictionaries(nested_dicts):
     for nested_dict in nested_ds:
         flat_dict = dict()
         ndkeys = list(nested_dict.keys())
-        for k, v in nested_dict.items():
-            if not v:
+        for key, val in nested_dict.items():
+            if not val:
                 continue
-            elif isinstance(v, dict):
-                flatv = flatten_nested_dict(v)
-                for kf, vf in flatv.items():
-                    kfa = kf
-                    if kf in ndkeys:
-                        kfa = ".".join([k,kf])
-                    flat_dict[kfa] = vf
+            elif isinstance(val, dict):
+                flatv = flatten_nested_dict(val)
+                for keyf, valf in flatv.items():
+                    kfa = keyf
+                    if keyf in ndkeys:
+                        kfa = ".".join([key,keyf])
+                    flat_dict[kfa] = valf
                 flatv.clear()
             else:
-                flat_dict[k] = v
+                flat_dict[key] = val
 
         flat_dicts.append(flat_dict)
 

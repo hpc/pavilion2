@@ -29,12 +29,12 @@ def get_result(test: TestRun):
 
     try:
         results = test.results
-        for tf in timefields:
-            if tf in results.keys():
-                raw_key = tf+"_raw"
-                results[raw_key] = results[tf]
-                results[tf] = output.get_relative_timestamp(
-                                        results[tf])
+        for tfields in timefields:
+            if tfields in results.keys():
+                raw_key = tfields+"_raw"
+                results[raw_key] = results[tfields]
+                results[tfields] = output.get_relative_timestamp(
+                                        results[tfields])
 
         results['results_log'] = test.results_log.as_posix()
 
@@ -62,12 +62,12 @@ def get_results(pav_cfg, tests: List[TestRun]) -> List[dict]:
 def printkeys(keydict):
     """ Print the keys collected by key list """
     print("AVAILABLE KEYS:")
-    for k, v in sorted(keydict.items()):
-        if not v:
+    for key, val in sorted(keydict.items()):
+        if not val:
             continue
-        print('\t', k+':')
-        for va in sorted(v):
-            print('\t\t', va)
+        print('\t', key+':')
+        for sval in sorted(val):
+            print('\t\t', sval)
     return 0
 
 
@@ -86,10 +86,11 @@ def keylist(results):
     klist = {}
     if not isinstance(results, list):
         results = list(results)
-    
-    for r in results:
-        keyset = set([r for r, v in r.items() if not isinstance(v, list)])
-        dkey = r["name"].split('.')[0]
+
+    for res in results:
+        keyset = set([res for res, val in res.items() 
+                      if not isinstance(val, list)])
+        dkey = res["name"].split('.')[0]
         if dkey not in klist.keys():
             klist[dkey] = keyset
         else:
@@ -105,10 +106,10 @@ def keylist(results):
     base_set = set(BASE_FIELDS)
     kfinal = {"--DEFAULT": base_set}
 
-    for k, v in klist.items():
-        test_keys = v.difference(common_keys)
+    for key, val in klist.items():
+        test_keys = val.difference(common_keys)
         if test_keys:
-            kfinal[k] = test_keys
+            kfinal[key] = test_keys
     common_keys = common_keys.difference(base_set)
     kfinal['-common'] = common_keys
     printkeys(kfinal)
