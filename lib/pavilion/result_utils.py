@@ -84,6 +84,9 @@ def keylist(results):
         Any of these tests can be passed to the key flag.
     """
     klist = {}
+    if not isinstance(results, list):
+        results = list(results)
+    
     for r in results:
         keyset = set([r for r, v in r.items() if not isinstance(v, list)])
         dkey = r["name"].split('.')[0]

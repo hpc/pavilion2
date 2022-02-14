@@ -447,8 +447,12 @@ def flatten_dictionaries(nested_dicts):
 
     if dictout:
         nested_ds = [nested_dicts]
-    else:
+    elif isinstance(nested_dicts, list):
         nested_ds = nested_dicts[:]
+    else:
+        raise ValueError(
+            "Input to utils.flatten_dictionaries is neither "
+            "dict nor list but {}.".format(type(nested_dict)))
 
     for nested_dict in nested_ds:
         flat_dict = dict()
