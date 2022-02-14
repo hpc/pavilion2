@@ -27,6 +27,9 @@ Naming Conventions:
 
     # Only deferred vars need examples.
     EXAMPLE = {
+        'chunk_ids': ['0', '1', '2', '3'],
+        'errors': ['oh no, there was an error.'],
+        'node_list': ['node01', 'node03', 'node04'],
         'tasks_per_node': "5",
         'test_nodes':     '45',
         'test_node_list': ['node02', 'node04'],
@@ -88,7 +91,7 @@ Naming Conventions:
         except (KeyError, ValueError, OSError):
             pass
 
-        if example is None or isinstance(example, DeferredVariable):
+        if example is None or isinstance(example, DeferredVariable) or example == []:
             example = self.EXAMPLE.get(key, self.NO_EXAMPLE)
 
         if isinstance(example, list):

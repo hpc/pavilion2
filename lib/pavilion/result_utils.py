@@ -28,7 +28,7 @@ def get_result(test: TestRun):
 
     try:
         results = test.results
-        results['results_log'] = test.results_log
+        results['results_log'] = test.results_log.as_posix()
 
     except (TestRunError, TestRunNotFoundError) as err:
         results = {'id': test.full_id}

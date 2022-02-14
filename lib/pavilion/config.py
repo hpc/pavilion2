@@ -137,11 +137,6 @@ class PavConfigDict:
     def __iter__(self):
         return self.keys()
 
-    def as_dict(self):
-        """Convert into a dictionary."""
-
-        return dict(self)
-
     def values(self):
         """Produce an iterable of the values."""
 
@@ -175,6 +170,14 @@ class PavConfigDict:
         other_dict = {k: v for k, v in other.items()}
         return this_dict == other_dict
 
+    def as_dict(self) -> dict:
+        """Return keys and values as a standard dictionary."""
+
+        adict = {}
+        for key, value in self.items():
+            adict[key] = value
+
+        return adict
 
 class PavConfig(PavConfigDict):
     """Define types and attributes for Pavilion config options."""
@@ -584,7 +587,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             working_dir = pav_cfg['working_dir']
         working_dir = working_dir.expanduser()
         if not working_dir.is_absolute():
-            working_dir = config_dir/working_dir
+            working_dir = (config_dir/working_dir).resolve()
 
         if label != '_lib':
             try:
@@ -622,7 +625,7 @@ found in these directories the default config search paths:
          testing the permissions themselves.
 """
 
-    pav_cfg = None
+    pav_cfg: Union[PavConfig, None] = None
 
     for path in target, PAV_CONFIG_FILE:
         if path is not None:
@@ -656,6 +659,22 @@ found in these directories the default config search paths:
             output.fprint("Could not find a pavilion config file. Using an "
                           "empty/default config.", file=sys.stderr, color=output.YELLOW)
         pav_cfg = PavilionConfigLoader().load_empty()
+        pav_cfg.pav_cfg_file = Path('pavilion.yaml')
+
+    # Make sure this path is absolute.
+    pav_cfg.pav_cfg_file = pav_cfg.pav_cfg_file.resolve()
+
+    if pav_cfg['working_dir'] is None:
+        if warn:
+            output.fprint(
+                "Pavilion working dir was not set, using 'working_dir' in the "
+                "directory above the config directory.",
+                file=sys.stderr, color=output.YELLOW)
+        pav_cfg['working_dir'] = Path('working_dir')
+
+    # Make sure this path is absolute too.
+    if not pav_cfg.working_dir.is_absolute():
+        pav_cfg['working_dir'] = pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir']
 
     if pav_cfg['working_dir'] is None:
         if warn:

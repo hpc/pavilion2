@@ -319,8 +319,8 @@ class StringTransformer(PavTransformer):
             err.pos_in_stream += expr.start_pos
             # Alter the error state to make sure it can be differentiated
             # from string_parser states.
-            #err.state = ''.format(err.state)
-            raise
+            err.expr_error = True
+            raise err
 
     def _resolve_expr(self,
                       expr: lark.Token, var_man,

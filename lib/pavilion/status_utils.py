@@ -6,10 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import TextIO, List
 
-from pavilion import exceptions
 from pavilion import output
 from pavilion import schedulers
-from pavilion import series
 from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
@@ -68,7 +66,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         nodes = ''
 
     result = test.results.get('result', '') or ''
-    series = test.series or ''
+    series_id = test.series or ''
 
     return {
         'job_id':  str(test.job) if test.job is not None else '',
@@ -76,7 +74,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         'nodes':   nodes,
         'note':    status_f.note,
         'result':  result,
-        'series':  series,
+        'series':  series_id,
         'state':   status_f.state,
         'test_id': test.id,
         'time':    status_f.when,
@@ -120,14 +118,16 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
         return list(pool.map(get_this_status, tests))
 
 
-def print_status(statuses, outfile, note=False, series=False, json=False):
+def print_status(statuses: List[dict], outfile, note=False, series=False, json=False):
     """Prints the statuses provided in the statuses parameter.
 
-:param list statuses: list of dictionary objects containing the test_id,
+:param statuses: list of dictionary objects containing the test_id,
                       job_id, name, state, time of state update, and note
                       associated with that state.
-:param bool json: Whether state should be printed as a JSON object or
+:param json: Whether state should be printed as a JSON object or
                   not.
+:param note: Print the status note.
+:param series: Print the series id.
 :param stream outfile: Stream to which the statuses should be printed.
 :return: success or failure.
 :rtype: int
@@ -142,6 +142,7 @@ def print_status(statuses, outfile, note=False, series=False, json=False):
             fields.insert(0, 'series')
         if note:
             fields.append('note')
+
         output.draw_table(
             outfile=outfile,
             field_info={

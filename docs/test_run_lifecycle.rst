@@ -87,8 +87,8 @@ Lastly, let's assume we're on a host called ``tester.my.org``. Let's say our
 .. code-block:: yaml
 
   scheduler: slurm
-  slurm:
-    num_nodes: 4
+  schedule:
+    nodes: 4
 
 Step 1: Test Name -> Raw Config
 -------------------------------

@@ -100,9 +100,8 @@ tests that are normally run just to make sure the machine works.
   # all tests
   modes: ['all_partitions', 'all_nodes']
 
-  # We want this series to run continuously. The default is 'False', which means
-  # the series will run (or attempt to run) each set once only.
-  restart: True
+  # Run this entire series just once.
+  repeat: 1
 
 Running, Monitoring, and Cancelling the Series
 ----------------------------------------------

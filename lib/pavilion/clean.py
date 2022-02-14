@@ -27,7 +27,7 @@ def _delete_series_filter(path: Path) -> bool:
     for test_path in path.iterdir():
         if (test_path.is_symlink() and
                 test_path.exists() and
-                utils.resolve_path(test_path).exists()):
+                test_path.resolve().exists()):
             return False
 
     return True
@@ -105,7 +105,7 @@ def _get_used_build_paths(pav_cfg, tests_dir: Path) -> set:
         build_origin = None
         if (build_origin_symlink.exists() and
                 build_origin_symlink.is_symlink() and
-                utils.resolve_path(build_origin_symlink).exists()):
+                build_origin_symlink.resolve().exists()):
             build_origin = build_origin_symlink.resolve()
 
         if build_origin is not None:

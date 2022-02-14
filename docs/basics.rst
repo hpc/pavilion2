@@ -1,8 +1,20 @@
+.. _basics:
+
 Getting Started
 ===============
 
+This document is meant to give you a quick overview of Pavilion features, and some setup
+instructions. For a more in-depth tutorial, see :ref:`tutorials.basic`.
 
 .. contents:: Table of Contents
+
+IMPORTANT
+~~~~~~~~~
+
+If you're using Pavilion on a cluster (which is the point) make sure to install the source,
+configs, and working directory (see below) on a filesystem accessible from all nodes. An NFS
+file system is preferred. See :ref:`install` for full requirements (it will probably just work
+though).
 
 Setup
 ~~~~~
@@ -23,10 +35,46 @@ Then simply run pavilion:
 
     pav --help
 
+.. _basics.create_config:
+
+Create a Config Directory
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pavilion needs a config directory where it can find tests and other configuration files. To create
+one, use the ``pav config`` command.
+
+.. code::
+
+    # Create a new config directory
+    pav config setup <path to my configs> <path to working_dir>
+
+    # Point Pavilion to this configuration directory.
+    export PAV_CONFIG_DIR=<path to my configs>
+
+    export PATH=$PATH:<pav source dir>/bin
+
+This will:
+
+- Create the config directory and all used subdirectories. (See :ref:`config` for more on that
+  structure).
+- Create a pavilion.yaml, for general pavilion configuration (see :ref:`config`)
+- Create a working directory, where Pavilion will store run tests, builds, etc.
+
+Multiple Config Directories
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pavilion supports having multiple configuration directories. You can use this to package a set of
+tests as a unit, or use it to handle access restrictions by setting group permissions on each.
+
+The Pavilion `pav config` command can manage these for you, with it's ``add``, ``delete``, and
+``list`` sub-commands. See ``pav config --help`` for more. You can also manage them manually via
+the ``pavilion.yaml`` config file.
+
 Configure Tests
 ~~~~~~~~~~~~~~~
 
-Pavilion doesn't come with any tests itself; it's just a system for
+Pavilion doesn't come with any tests itself (though it does come with
+example tests in ``examples/``); it's just a system for
 running them on HPC clusters. Each test needs a configuration script,
 and most will need some source files. Both of these will live in one of
 your :ref:`config.config_dirs` under the ``tests/`` and ``test_src/``
@@ -57,17 +105,18 @@ exits.
 - The test is named 'mytest'. The name of the yaml file determines the
   test's *suite*.
 - The test will PASS if that command returns 0.
-- It will run as a process on the local machine, as your user.
-- Pavilion doesn't have any special priviledges. It's meant to test things,
+- It will run as a process on the local machine, as your user (because the 'raw' scheduler was
+  chosen.
+- Pavilion doesn't have any special privileges. It's meant to test
   from a normal user's perspective. If you want to test stuff as root, you'll
   have to run pavilion as root.
 
 Host Configs
 ^^^^^^^^^^^^
 
-Every system(host) that you run tests on will need a host configuration
+Every system (host) that you run tests on can have a host configuration
 file. These are located in ``hosts/<sys_name>.yaml`` in a pavilion
-config directory.
+config directory. (To find the ``sys_name`` of your current system, run ``pav show sys_vars``.)
 
 This config is used to override the Pavilion defaults for values in
 every test config run on that system. You can use these to set default
@@ -81,42 +130,24 @@ without the name for that test.
     $ cat hosts/my_host.yaml
 
     scheduler: slurm
+    variables:
+        foo: "bar"
 
 The above host config would set the default scheduler to 'slurm' for
-tests kicked off on a host with a hostname of ``my_host``. Pavilion uses
+tests kicked off on a host with a ``sys_name`` of ``my_host``, and also add a
+"foo" pavilion variable for all tests run on that system. Pavilion uses
 the contents of the ``sys_name`` test config variable to determine the
 current host, which is provided via a built-in
 :ref:`plugins.sys_vars`. This behaviour can be overridden by
-providing your own sys\_var plugin, which is especially useful on
-clusters with multiple front-ends.
-
-Mode Configs
-^^^^^^^^^^^^
-
-In addition to host config files, you can provide mode config files that
-you can apply to any test when you run it. They have the same format as
-the host configs, but multiple can be provided per test.
-
-For example, the following mode file could be used to set a particular
-set of slurm vars. It would reside in ``modes/tester.yaml`` in a
-pavilion config directory.
-
-.. code:: yaml
-
-    slurm:
-        account: tester
-        partition: post-dst
-
-.. code:: bash
-
-    pav run -m tester -f post_dst_tests.txt
+providing your own sys\_var plugin, typically to use more colloquial names for
+systems.
 
 Running tests
 ~~~~~~~~~~~~~
 
 Running tests is easy. All you need is the test suite name (the name of
-the test file), and the test name (the name of the test in the suite).
-Did you forget what you named them? That ok! Just ask Pavilion.
+the test file, minus the ``.yaml`` extension), and the test name (the name of the test in the
+suite). Did you forget what you named them? That's ok! Just ask Pavilion.
 
 .. code:: bash
 
@@ -183,18 +214,24 @@ command.
 
 .. code:: bash
 
-    $ pav results Test Results
+    $ pav results
+    Test Results
     ------------+----+--------
     Name        | Id | Result
     ------------+----+--------
     supermagic  | 41 | PASS
 
+    # Use '--full' or '-f' to get the full result json with all fields.
     $ pav results --full Test Results
-    ------------+----+--------+----------+----------------+----------------+-----------------
-      Name      | Id | Result | Duration | Created        | Started        |  Finished
-    ------------+----+--------+----------+----------------+----------------+-----------------
-     supermagic | 41 | PASS   | 3.825702 | 19-05-16 10:38 | 19-05-16 10:38 | 19-05-16 10:38
-
+    {
+        "name": "supermagic",
+        "id": 41,
+        "result": "PASS",
+        "duration": 3.825,
+        "created": 2019-05-15 10:38,
+        "started": 2019-05-15 10:41,
+        "finished": 2019-05-15 10:42,
+    }
 
 Every test has a results object that contains a variety of useful,
 automatically populated keys. Additional keys can be defined through
