@@ -88,14 +88,14 @@ def keylist(results):
         results = list(results)
 
     for res in results:
-        keyset = set([res for res, val in res.items() 
+        keyset = set([res for res, val in res.items()
                       if not isinstance(val, list)])
         dkey = res["name"].split('.')[0]
         if dkey not in klist.keys():
             klist[dkey] = keyset
         else:
-            ks = keyset.union(klist[dkey])
-            klist.update({dkey: ks})
+            kset = keyset.union(klist[dkey])
+            klist.update({dkey: kset})
 
     if len(klist.keys()) == 1:
         printkeys(klist)
