@@ -28,15 +28,13 @@ class StatusCmdTests(PavTestCase):
 
         self.assertEqual(args.tests[0], 'test1')
         self.assertEqual(args.tests[1], 'test2')
-        self.assertEqual(args.json, False)
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['-j', 'test0', 'test9'])
+        args = parser.parse_args(['test0', 'test9'])
 
         self.assertEqual(args.tests[0], 'test0')
         self.assertEqual(args.tests[1], 'test9')
-        self.assertEqual(args.json, True)
 
     def test_status_command(self):
         """Test status command by generating a suite of tests."""

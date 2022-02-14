@@ -35,10 +35,8 @@ class ResultsCommand(Command):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
-            "-j", "--json",
-            action="store_true", default=False,
-            help="Give the results in json."
-        )
+            '--outfile', '-o', action='store', default=self.outfile,
+            help='Send output to file, type dependent on extension (json).')
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
             "-k", "--key", type=str, default='',
@@ -93,21 +91,21 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
 
-        if args.json or args.full:
+        if args.outfile.endswith('json'):
+            output.json_dump(results, args.outfile)
+
+        elif args.full:
             if not results:
                 output.fprint("Could not find any matching tests.",
-                              color=output.RED, file=self.outfile)
+                              color=output.RED, file=args.outfile)
                 return errno.EINVAL
 
             width = shutil.get_terminal_size().columns or 80
 
             try:
-                if args.json:
-                    output.json_dump(results, self.outfile)
-                else:
-                    pprint.pprint(results,  # ext-print: ignore
-                                  stream=self.outfile, width=width,
-                                  compact=True)
+                pprint.pprint(results,  # ext-print: ignore
+                              stream=args.outfile, width=width,
+                              compact=True)
             except OSError:
                 # It's ok if this fails. Generally means we're piping to
                 # another command.
@@ -117,7 +115,7 @@ class ResultsCommand(Command):
             fields = result_utils.BASE_FIELDS + args.key.replace(',', ' ').split()
 
             output.draw_table(
-                outfile=self.outfile,
+                outfile=args.outfile,
                 field_info={
                     'started': {'transform': output.get_relative_timestamp},
                     'finished': {'transform': output.get_relative_timestamp},
@@ -129,7 +127,7 @@ class ResultsCommand(Command):
 
         if args.show_log:
             if log_file is not None:
-                output.fprint(log_file.getvalue(), file=self.outfile,
+                output.fprint(log_file.getvalue(), file=args.outfile,
                               color=output.GREY)
             else:
                 if len(results) > 1:
@@ -141,15 +139,15 @@ class ResultsCommand(Command):
                 result_set = results[0]
                 log_path = pathlib.Path(result_set['results_log'])
                 output.fprint("\nResult logs for test {}\n"
-                              .format(result_set['name']), file=self.outfile)
+                              .format(result_set['name']), file=args.outfile)
                 if log_path.exists():
                     with log_path.open() as log_file:
                         output.fprint(
                             log_file.read(), color=output.GREY,
-                            file=self.outfile)
+                            file=args.outfile)
                 else:
                     output.fprint("Log file '{}' missing>".format(log_path),
-                                  file=self.outfile, color=output.YELLOW)
+                                  file=args.outfile, color=output.YELLOW)
 
         return 0
 

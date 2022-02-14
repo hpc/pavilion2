@@ -118,7 +118,7 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
         return list(pool.map(get_this_status, tests))
 
 
-def print_status(statuses: List[dict], outfile, note=False, series=False, json=False):
+def print_status(statuses: List[dict], outfile, note=False, series=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param statuses: list of dictionary objects containing the test_id,
@@ -133,7 +133,7 @@ def print_status(statuses: List[dict], outfile, note=False, series=False, json=F
 :rtype: int
 """
 
-    if json:
+    if outfile.endswith('json'):
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
     else:
@@ -195,7 +195,7 @@ def status_history_from_test_obj(test: TestRun) -> List[dict]:
     return status_history
 
 
-def print_status_history(test: TestRun, outfile: TextIO, json: bool = False):
+def print_status_history(test: TestRun, outfile: TextIO):
     """Print the status history for a given test object.
 
     :param test: Single test object.
@@ -210,7 +210,7 @@ def print_status_history(test: TestRun, outfile: TextIO, json: bool = False):
     for status in status_history:
         if status['note'] != "Test not found.":
             ret_val = 0
-    if json:
+    if outfile.endswith('json'):
         json_data = {'status_history': status_history}
         output.json_dump(json_data, outfile)
     else:
