@@ -405,7 +405,7 @@ def union_dictionary(dict1, dict2):
 
     return dict1
 
-def flatten_nested_dict(dict_in, keycollect='', new_d=dict(), keysplit='.'):
+def flatten_nested_dict(dict_in, keycollect='', new_d=None, keysplit='.'):
     """ Takes a nested dictionary and concatenates its nested keys
     in a single key at the top level.
 
@@ -415,6 +415,9 @@ def flatten_nested_dict(dict_in, keycollect='', new_d=dict(), keysplit='.'):
     """
 
     knew = keycollect
+    if new_d is None:
+        new_d = dict()
+
     for key, val in dict_in.items():
         if not val:
             continue
@@ -467,7 +470,6 @@ def flatten_dictionaries(nested_dicts):
                     if keyf in ndkeys:
                         kfa = ".".join([key,keyf])
                     flat_dict[kfa] = valf
-                flatv.clear()
             else:
                 flat_dict[key] = val
 
