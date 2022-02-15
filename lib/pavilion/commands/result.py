@@ -108,7 +108,7 @@ class ResultsCommand(Command):
 
             fields = ["default", "common"]
             test_fields = [f for f in flat_keys.keys() if f not in fields]
-            fields = fields + sorted(test_fields) 
+            fields = fields + sorted(test_fields)
             field_info = {}
 
             output.draw_table(outfile=self.outfile,
