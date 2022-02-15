@@ -105,14 +105,11 @@ class ResultsCommand(Command):
         if args.list_keys:
             flat_keys = result_utils.keylist(flat_results)
             flatter_keys = result_utils.make_key_table(flat_keys)
-            fields=["default","common"]
-            test_fields = sorted(list(flat_keys.keys()))
 
-            for field in fields:
-                if field in test_fields:
-                    test_fields.remove(field)
-
-            fields = fields + test_fields
+            fields = ["default", "common"]
+            test_fields = [f for f in flat_keys.keys() if f not in fields]
+            fields = fields + sorted(test_fields) 
+            field_info = {}
 
             output.draw_table(outfile=self.outfile,
                               field_info=field_info,
