@@ -108,14 +108,14 @@ class ResultsCommand(Command):
             fields=["default","common"]
             test_fields = sorted(list(flat_keys.keys()))
 
-            for f in fields:
-                if f in test_fields:
-                    test_fields.remove(f)
+            for field in fields:
+                if field in test_fields:
+                    test_fields.remove(field)
 
             fields = fields + test_fields
 
             output.draw_table(outfile=self.outfile,
-                              field_info={},
+                              field_info=field_info,
                               fields=fields,
                               rows=flatter_keys,
                               border=True,
