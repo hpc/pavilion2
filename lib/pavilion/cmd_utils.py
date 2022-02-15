@@ -114,8 +114,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
 def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                         verbose: TextIO = None) -> List[series.SeriesInfo]:
-    """Return a list of SeriesInfo objects based on the args.series attribute. When args.series is 
-    empty, default to the 'last' series started by the user on this system. If 'all' is given, 
+    """Return a list of SeriesInfo objects based on the args.series attribute. When args.series is
+    empty, default to the 'last' series started by the user on this system. If 'all' is given,
     search all series (with a default current user/system/1-day filter) and additonally filtered
     by args attributes provied via filters.add_series_filter_args()."""
 
@@ -136,12 +136,15 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
     matching_series = []
     seen_sids = []
     for sid in args.series:
-        # Go through each provided sid (including last and all) and find all 
+        # Go through each provided sid (including last and all) and find all
         # matching series. Then only add them if we haven't seen them yet.
         if sid == 'last':
-            sid = series.load_user_series_id(pav_cfg) 
-            found_series = [series.SeriesInfo.load(pav_cfg, sid).attr_dict()]
-            
+            sid = series.load_user_series_id(pav_cfg)
+            if sid is None:
+                return []
+
+            found_series = [series.SeriesInfo.load(pav_cfg, sid)]
+
         elif sid == 'all':
             order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
 
@@ -168,12 +171,12 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                 limit=limit,
             ).data
         else:
-            found_series = [series.SeriesInfo.load(pav_cfg, sid).attr_dict()]
+            found_series = [series.SeriesInfo.load(pav_cfg, sid)]
 
         for sinfo in found_series:
-            if sinfo['sid'] not in seen_sids:
+            if sinfo.sid not in seen_sids:
                 matching_series.append(sinfo)
-                seen_sids.append(sinfo['sid'])
+                seen_sids.append(sinfo.sid)
 
         return matching_series
 

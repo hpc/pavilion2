@@ -1,11 +1,18 @@
 """Common functions and globals"""
 
-from pavilion import status_file
-import datetime as dt
 import json
+import time
+from pathlib import Path
+from typing import Union
+
+from pavilion import config
+from pavilion import dir_db
+from pavilion import status_file
+from pavilion.test_run import TestRun
 
 COMPLETE_FN = 'SERIES_COMPLETE'
 STATUS_FN = 'status'
+
 
 # This is needed by both the series object and the series info object.
 def set_complete(path, when: float = None):
@@ -28,32 +35,42 @@ def set_complete(path, when: float = None):
         complete_fn_tmp.rename(complete_fn)
 
 
-def get_complete(series_path, check_tests=False) -> Union[dict, None]
+# If all tests in a series were completed more than this many seconds ago,
+# Call the series complete even if it wasn't marked as such.
+SERIES_COMPLETE_TIMEOUT = 3
+
+
+def get_complete(pav_cfg: config.PavConfig, series_path: Path,
+                 check_tests: bool = False) -> Union[dict, None]:
     """Get the series completion timestamp. Returns None when not complete.
-    
+
+    :param pav_cfg: Pavilion configuration
+    :param series_path: Path to the series
     :param check_tests: Check tests for completion and set completion if all
         tests are complete.
     """
 
-        complete_fn = series_path/COMPLETE_FN
-        if complete_fn.exists():
-            try:
-                with complete_fn.open() as complete_file:
-                    return json.load(complete_file)
-            except (OSError, json.decoder.JSONDecodeError):
+    complete_fn = series_path/COMPLETE_FN
+    if complete_fn.exists():
+        try:
+            with complete_fn.open() as complete_file:
+                return json.load(complete_file)
+        except (OSError, json.decoder.JSONDecodeError):
+            return None
+
+    if check_tests:
+        latest = None
+        for test_path in dir_db.select(pav_cfg, series_path).paths:
+            complete_file_path: Path = test_path/TestRun.COMPLETE_FN
+            if not complete_file_path.exists():
                 return None
 
-        if set_if_complete
+            file_stat = complete_file_path.stat()
+            if latest is None or latest < file_stat.st_mtime:
+                latest = file_stat.st_mtime
 
+        if latest is not None and latest - time.time() > SERIES_COMPLETE_TIMEOUT:
+            set_complete(series_path, latest)
+            return {'when': latest}
 
-        if not complete_fn.exists():
-            if all([(test_path / TestRun.COMPLETE_FN).exists()
-                    for test_path in self._tests]):
-                when = max([(test_path / TestRun.COMPLETE_FN).stat().st_mtime
-                            for test_path in self._tests]
-                            
-                common.set_complete(self.path, when)
-
-        if complete_fn.exists():
-
-
+    return None

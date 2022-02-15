@@ -19,7 +19,9 @@ class SeriesInfo:
     of properties for a given series path. It should be replaced with
     something like TestAttributes in the future."""
 
-    def __init__(self, pav_cfg, path: Path):
+    def __init__(self, pav_cfg: config.PavConfig, path: Path):
+
+        self._pav_cfg = pav_cfg
 
         self.path = path
 
@@ -73,36 +75,7 @@ class SeriesInfo:
     def complete(self):
         """True if all tests are complete."""
 
-
-
-        if self._complete is None:
-            self._complete = all([(test_path / TestRun.COMPLETE_FN).exists()
-                                  for test_path in self._tests])
-
-
-
-        return self._complete
-    def _get_complete(self) -> Tuple[bool, Union[None, dt.datetime]]:
-        """Save info on series completion. This has the side effect of setting the"""
-
-        if self._complete is not None:
-            return self._complete
-
-        complete_fn = self.path/common.COMPLETE_FN
-        if not complete_fn.exists():
-            if all([(test_path / TestRun.COMPLETE_FN).exists()
-                    for test_path in self._tests]):
-                when = max([(test_path / TestRun.COMPLETE_FN).stat().st_mtime
-                            for test_path in self._tests])
-                when = dt.datetime.fromtimestamp(when)
-
-                common.set_complete(self.path, when)
-
-        if complete_fn.exists():
-            self._complete = True, dt.datetime.fromtimestamp(complete_fn.stat().st_mtime)
-            return self._complete
-        else:
-            return False, None
+        return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None
 
     @property
     def user(self):
@@ -172,7 +145,7 @@ class SeriesInfo:
             return None
         return self._status.state
 
-
+    @property
     def status_note(self) -> Union[str, None]:
         """Return the series status note."""
 
@@ -181,6 +154,7 @@ class SeriesInfo:
             return None
         return self._status.note
 
+    @property
     def status_when(self) -> Union[dt.datetime, None]:
         """Return the most recent status update time."""
 
@@ -232,7 +206,6 @@ class SeriesInfo:
 
         return test_info.sys_name
 
-
     def test_info(self, test_path) -> Union[TestAttributes, None]:
         """Return the test info object for the given test path.
         If the test doesn't exist, return None."""
@@ -264,6 +237,38 @@ class SeriesInfo:
             raise TestSeriesError("Could not find series '{}'".format(sid))
         return cls(pav_cfg, series_path)
 
+    def __getitem__(self, item):
+        """Dictionary like access."""
+
+        if not isinstance(item, str) or item.startswith('_'):
+            raise KeyError("Invalid key in SeriesInfo (bad key): {}".format(item))
+
+        if hasattr(self, item):
+            attr = getattr(self, item)
+            if callable(attr):
+                raise KeyError("Invalid key in SeriesInfo (callable): {}".format(item))
+            return attr
+
+        else:
+            raise KeyError("Unknown key in SeriesInfo: {}".format(item))
+
+    def __contains__(self, item) -> bool:
+        """Provide dictionary like 'contains' checks."""
+
+        if isinstance(item, str) and not item.startswith('_'):
+            attr = getattr(self, item)
+            return not callable(attr)
+
+        return False
+
+    def get(self, item, default=None):
+        """Provided dictionary like get access."""
+
+        if item in self:
+            return self[item]
+        else:
+            return default
+
 
 def mk_series_info_transform(pav_cfg):
     """Create and return a series info transform function."""
@@ -271,7 +276,7 @@ def mk_series_info_transform(pav_cfg):
     def series_info_transform(path):
         """Transform a path into a series info dict."""
 
-        return SeriesInfo(pav_cfg, path).attr_dict()
+        return SeriesInfo(pav_cfg, path)
 
     return series_info_transform
 

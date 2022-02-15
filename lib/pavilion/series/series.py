@@ -463,6 +463,7 @@ differentiate it from test ids."""
                 potential_sets = list(self.test_sets.values())
 
         self.status.set(SERIES_STATES.RUN, "Series run complete.")
+        self.set_complete()
 
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
