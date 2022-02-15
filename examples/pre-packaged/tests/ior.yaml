@@ -50,9 +50,9 @@ base:
 
   scheduler: slurm
 
-  slurm:
+  schedule:
     tasks_per_node: 2
-    num_nodes: 4
+    nodes: 4
 
   run:
     modules:
@@ -118,9 +118,9 @@ xroads_load1:
   - a_flag
   - filecount
 
-  slurm:
+  schedule:
     tasks_per_node: '{{ taskspernode }}'
-    num_nodes: 'all'
+    nodes: 'all'
 
   run:
     timeout: 1800
@@ -267,8 +267,8 @@ xroads_load1_scaling:
       amount: '{{ floor( sched.alloc_max_mem * 0.95 ) }}'
     outname: '{{scratch.name}}-{{a_flag}}-{{transsize.spec}}-{{filecount}}-{{node_count}}-{{numtasks}}-{{mempernode.percent}}.dat'
 
-  slurm:
-    num_nodes: '{{node_count}}'
+  schedule:
+    nodes: '{{node_count}}'
 
 xroads_load2:
   inherits_from: xroads_load1
