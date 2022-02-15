@@ -103,7 +103,23 @@ class ResultsCommand(Command):
         flat_results = utils.flatten_dictionaries(results)
 
         if args.list_keys:
-            result_utils.keylist(flat_results)
+            flat_keys = result_utils.keylist(flat_results)
+            flatter_keys = result_utils.make_key_table(flat_keys)
+            fields=["default","common"]
+            test_fields = sorted(list(flat_keys.keys()))
+
+            for f in fields:
+                if f in test_fields:
+                    test_fields.remove(f)
+
+            fields = fields + test_fields
+
+            output.draw_table(outfile=self.outfile,
+                              field_info={},
+                              fields=fields,
+                              rows=flatter_keys,
+                              border=True,
+                              title="AVAILABLE KEYS")
 
         elif args.json or args.full:
             if not results:
@@ -135,7 +151,8 @@ class ResultsCommand(Command):
                     try:
                         fields.remove(key)
                     except ValueError:
-                        pass
+                        output.fprint("Warning: Given key,{}, is not in default".format(k),
+                                       color=output.RED, file=self.errfile)
                 else:
                     fields.append(k)
 

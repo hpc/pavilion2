@@ -59,16 +59,27 @@ def get_results(pav_cfg, tests: List[TestRun]) -> List[dict]:
         return list(pool.map(get_result, tests))
 
 
-def printkeys(keydict):
-    """ Print the keys collected by key list """
-    print("AVAILABLE KEYS:")
-    for key, val in sorted(keydict.items()):
-        if not val:
-            continue
-        print('\t', key+':')
-        for sval in sorted(val):
-            print('\t\t', sval)
-    return 0
+# def printkeys(keydict):
+#     """ Print the keys collected by key list """
+#     print("AVAILABLE KEYS:")
+#     for key, val in sorted(keydict.items()):
+#         if not val:
+#             continue
+#         print('\t', key+':')
+#         for sval in sorted(val):
+#             print('\t\t', sval)
+#     return 0
+
+def make_key_table(flat_keys):
+    table_keys=[]
+    while any(flat_keys.values()):
+        tbl={}
+        for key, val in flat_keys.items():
+            tbl[key] = '' if not val else val.pop()
+
+        table_keys.append(tbl)
+
+    return table_keys
 
 
 def keylist(results):
@@ -98,20 +109,18 @@ def keylist(results):
             klist.update({dkey: kset})
 
     if len(klist.keys()) == 1:
-        printkeys(klist)
-        return 0
+        return klist
 
     vals = list(klist.values())
     common_keys = vals[0].intersection(*vals[1:])
     base_set = set(BASE_FIELDS)
-    kfinal = {"--DEFAULT": base_set}
+    kfinal = {"default": base_set}
 
     for key, val in klist.items():
         test_keys = val.difference(common_keys)
         if test_keys:
             kfinal[key] = test_keys
     common_keys = common_keys.difference(base_set)
-    kfinal['-common'] = common_keys
-    printkeys(kfinal)
+    kfinal['common'] = common_keys
 
-    return 0
+    return kfinal
