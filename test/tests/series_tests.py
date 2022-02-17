@@ -100,7 +100,7 @@ class SeriesTests(PavTestCase):
 
         test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(timeout=3)
+        test_series_obj.wait(timeout=10)
 
         last_ended = None
         for test_id in sorted(test_series_obj.tests):
@@ -277,6 +277,6 @@ class SeriesTests(PavTestCase):
         )
 
         series_obj.run()
-        series_obj.wait(timeout=3)
+        series_obj.wait(timeout=10)
 
         return series_obj
