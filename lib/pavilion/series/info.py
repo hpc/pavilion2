@@ -1,16 +1,17 @@
 """Object for summarizing series quickly."""
 import datetime as dt
+import json
 from pathlib import Path
 from typing import Union
 
 from pavilion import config
 from pavilion import dir_db
-from pavilion import utils
 from pavilion import status_file
-from pavilion.test_run import TestRun, TestAttributes
-from .errors import TestSeriesError
-from . import common
+from pavilion import utils
 from pavilion.exceptions import TestRunError
+from pavilion.test_run import TestRun, TestAttributes
+from . import common
+from .errors import TestSeriesError
 
 
 class SeriesInfo:
@@ -22,6 +23,8 @@ class SeriesInfo:
     def __init__(self, pav_cfg: config.PavConfig, path: Path):
 
         self._pav_cfg = pav_cfg
+
+        self._config = None
 
         self.path = path
 
@@ -72,6 +75,18 @@ class SeriesInfo:
         return int(self.path.name)
 
     @property
+    def name(self):
+        """Return the series name."""
+
+        try:
+            with open(self.path/common.CONFIG_FN) as config_file:
+                self._config = json.load(config_file)
+        except json.JSONDecodeError:
+            return '<unknown>'
+
+        return self._config.get('name', '<unknown>')
+
+    @property
     def complete(self):
         """True if all tests are complete."""
 
@@ -92,7 +107,7 @@ class SeriesInfo:
         return self.path.stat().st_mtime
 
     @property
-    def finished(self) -> Union[float]:
+    def finished(self) -> Union[float, None]:
         """When the series completion file was created."""
 
         complete_fn = self.path/common.COMPLETE_FN
@@ -162,7 +177,6 @@ class SeriesInfo:
         if status is None:
             return None
         return self._status.when
-
 
     def _get_status(self) -> status_file.SeriesStatusInfo:
         """Get the latest status and note from the series status file."""

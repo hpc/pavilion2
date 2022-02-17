@@ -3,6 +3,8 @@ also tracks the tests that have run under it."""
 
 import json
 import os
+import math
+import re
 import subprocess
 import time
 from collections import defaultdict, UserDict, OrderedDict
@@ -80,11 +82,10 @@ class TestSeries:
     the series as specified by its config, or when an error occurs. Series are
     identified by a 'sid', which takes the form 's<id_num>'."""
 
-    CONFIG_FN = 'config'
     DEPENDENCY_FN = 'dependency'
-    LOGGER_FMT = 'series({})'
     OUT_FN = 'series.out'
     PGID_FN = 'series.pgid'
+    NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
 
     def __init__(self, pav_cfg, config, _id=None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
@@ -99,6 +100,13 @@ class TestSeries:
         self.tests = LazyTestRunDict(pav_cfg)
 
         self.config = config or SeriesConfigLoader().load_empty()
+
+        name = self.config.get('name') or 'unnamed'
+        if not self.NAME_RE.match(name):
+            raise TestSeriesError(
+                "Invalid Series name: {}. Series names must start with a letter, and can "
+                "contain numbers, dashes and underscores.".format(config['name']))
+        self.name = name
 
         series_path = self.pav_cfg.working_dir/'series'
 
@@ -178,7 +186,7 @@ class TestSeries:
     def save_config(self) -> None:
         """Saves series config to a file."""
 
-        series_config_path = self.path/self.CONFIG_FN
+        series_config_path = self.path/common.CONFIG_FN
         try:
             series_config_tmp = series_config_path.with_suffix('.tmp')
             with series_config_tmp.open('w') as config_file:
@@ -186,8 +194,8 @@ class TestSeries:
 
             series_config_path.with_suffix('.tmp').rename(series_config_path)
         except OSError:
-            fprint("Could not write series config to file. Cancelling.",
-                   color=output.RED)
+            raise TestSeriesError(
+                "Could not write series config to file. Cancelling.")
 
     WAIT_INTERVAL = 1
 
@@ -236,7 +244,7 @@ differentiate it from test ids."""
 
         loader = SeriesConfigLoader()
         try:
-            with (series_path/cls.CONFIG_FN).open() as config_file:
+            with (series_path/common.CONFIG_FN).open() as config_file:
                 try:
                     config = loader.load(config_file)
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
@@ -267,7 +275,7 @@ differentiate it from test ids."""
 
         # create all TestSet objects
         universal_modes = self.config['modes']
-        for set_name, set_info in self.config['series'].items():
+        for set_name, set_info in self.config['test_sets'].items():
             set_obj = TestSet(
                 pav_cfg=self.pav_cfg,
                 name=set_name,
@@ -462,13 +470,17 @@ differentiate it from test ids."""
                 self._create_test_sets()
                 potential_sets = list(self.test_sets.values())
 
-        self.status.set(SERIES_STATES.RUN, "Series run complete.")
-        self.set_complete()
+        self.status.set(SERIES_STATES.ALL_STARTED,
+                        "All {} tests have been started.".format(len(self.tests)))
+        common.set_all_started(self.path)
 
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
 
-        end = time.time() + timeout
+        if timeout is None:
+            end = math.inf
+        else:
+            end = time.time() + timeout
         while time.time() < end:
             if self.complete:
                 return
@@ -482,23 +494,15 @@ differentiate it from test ids."""
         """Check if every test in the series has completed. A series is incomplete if
         no tests have been created."""
 
-        if (self.path/common.COMPLETE_FN).exists():
-            return True
-        else:
-            if not self.tests:
-                return True
+        complete_info = common.get_complete(self.pav_cfg, self.path, check_tests=True)
 
-            for test in self.tests.values():
-                if not test.complete:
-                    return False
-
-            self.set_complete()
-            return True
+        return complete_info is not None
 
     def set_complete(self):
         """Write a file in the series directory that indicates that the series
         has finished."""
 
+        # May raise a TestSeriesError
         common.set_complete(self.path)
 
     def info(self) -> SeriesInfo:
@@ -554,11 +558,11 @@ differentiate it from test ids."""
             passing. For unit testing only.
         """
 
-        if name in self.config['series']:
+        if name in self.config['test_sets']:
             raise TestSeriesError("A test set called '{}' already exists in series {}"
                                   .format(name, self.sid))
 
-        self.config['series'][name] = {
+        self.config['test_sets'][name] = {
             'tests': test_names,
             'depends_pass': _depends_pass,
             'depends_on': _depends_on or [],

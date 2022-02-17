@@ -32,8 +32,6 @@ class TestSet:
     - Kickoff: test_set.kickoff()
     """
 
-    LOGGER_FMT = 'series({})'
-
     # need info like
     # modes, only/not_ifs, next, prev
     def __init__(self,

@@ -51,9 +51,12 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     verbose = verbose or io.StringIO()
 
     if 'all' in args.tests:
-        output.fprint("Using default search filters: The current system, user, and "
-                      "newer_than 1 day ago.", file=verbose, color=output.CYAN)
-        if args.user is None and args.newer_than is None and args.sys_name is None:
+        for arg, default in filters.TEST_FILTER_DEFAULTS.items():
+            if hasattr(args, arg) and default != getattr(args, arg):
+                break
+        else:
+            output.fprint("Using default search filters: The current system, user, and "
+                          "newer_than 1 day ago.", file=verbose, color=output.CYAN)
             args.user = utils.get_login()
             args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
@@ -126,11 +129,14 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         args.series = ['last']
 
     if 'all' in args.series:
-        if args.user is None and args.newer_than is None and args.sys_name is None:
+        for arg, default in filters.SERIES_FILTER_DEFAULTS.items():
+            if hasattr(args, arg) and default != getattr(args, arg):
+                break
+        else:
             output.fprint("Using default search filters: The current system, user, and "
                           "newer_than 1 day ago.", file=verbose, color=output.CYAN)
             args.user = utils.get_login()
-            args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
+            args.newer_than = dt.datetime.now() - dt.timedelta(days=1)
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     matching_series = []
@@ -146,13 +152,13 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             found_series = [series.SeriesInfo.load(pav_cfg, sid)]
 
         elif sid == 'all':
-            order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
+            order_func, order_asc = filters.get_sort_opts(args.sort_by, 'SERIES')
 
             filter_func = filters.make_series_filter(
                 complete=args.complete,
                 has_state=args.has_state,
                 incomplete=args.incomplete,
-                # complete=args.complete,
+                name=args.name,
                 newer_than=args.newer_than,
                 older_than=args.older_than,
                 state=args.state,

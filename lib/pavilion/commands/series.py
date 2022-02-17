@@ -42,6 +42,10 @@ class RunSeries(Command):
             help="Series name."
         )
         run_p.add_argument(
+            '--re-name', action='store',
+            help="Ignore the series config file name, and rename the series to this."
+        )
+        run_p.add_argument(
             '-H', '--host', action='store', default=None,
             help='The host to configure this test for. If not specified, the '
                  'current host as denoted by the sys plugin \'sys_host\' is '
@@ -88,6 +92,9 @@ class RunSeries(Command):
                     "Load error: {}\n{}".format(args.series_name, err.args[0]),
                     color=output.RED, file=self.errfile)
                 return errno.EINVAL
+
+        if args.re_name is not None:
+            series_cfg['name'] = str(args.re_name)
 
         # create brand-new series object
         try:
@@ -137,23 +144,39 @@ class RunSeries(Command):
         rows = []
         for ser_info in matched_series:
             sinfo_dict = ser_info.attr_dict()
-            sinfo_dict['pfe'] = '{}/{}/{}'\
-                                .format(ser_info.passed, ser_info.failed, ser_info.errors)
             rows.append(sinfo_dict)
+
+        fields = [
+            'sid',
+            'name',
+            'status',
+            'num_tests',
+            'passed',
+            'failed',
+            'errors',
+            'user',
+            'sys_name',
+            'complete',
+            'status_when',
+        ]
 
         output.draw_table(
             outfile=self.outfile,
-            fields=['sid', 'status', 'num_tests', 'user', 'sys_name', 'complete', 'pfe',
-                    'status_when'],
+            fields=fields,
             rows=rows,
             field_info={
                 'num_tests': {'title': 'Tests'},
                 'pfe': {'title': 'P/F/Err'},
                 'sys_name': {'title': 'System'},
+                'passed': {'title': 'P',
+                           'transform': lambda t: output.ANSIString(t, output.GREEN)},
+                'failed': {'title': 'F',
+                           'transform': lambda t: output.ANSIString(t, output.RED)},
+                'errors': {'title': 'E',
+                           'transform': lambda t: output.ANSIString(t, output.YELLOW)},
                 'status_when': {'title': 'Updated',
-                                'transform': output.}
+                                'transform': output.get_relative_timestamp},
             }
         )
 
         return 0
-
