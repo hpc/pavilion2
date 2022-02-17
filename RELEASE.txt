@@ -31,8 +31,10 @@ RELEASE=2.3
    time.
  - Test nodes are (generally) chosen before a test is created, so you can permute over
    `sched.test_node_list` and similar.
+ - Added `pav series ls command`
+ - Added `pav config` commands.
 
- - Backwards compatibility breaks
+ - Backwards compatibility breakso
    - Scheduler configuration has been unified under the 'schedule' key in test configs (see below).
    - Imports for the base plugin libraries have changed (but those libraries have not).
    - Tests can no longer have skip conditions that are deferred.
@@ -43,6 +45,8 @@ RELEASE=2.3
      `pav show sched --vars slurm` (or 'raw').
    - The Slurm MPI scheduler plugin has been merged with Slurm. Use the slurm specific 'mpi_cmd'
      parameter to use `mpirun` instead of `srun`. Additional `mpirun` options are also available.
+   - In test series files, the 'series' key is now 'test_sets'.
+   - The `pav series` command is now 'pav series run`
 
 ### Upgrade guide
 
@@ -60,7 +64,7 @@ This update will unfortunately break most tests and plugins, but the fixes are s
 
 In general, this means you should rename all 'slurm' sections in test/host/mode configs to
 'schedule', and all 'num_nodes' to just 'nodes'. Some config values (like 'up_states') will need
-to be moved as well.
+to be moved as well. Also `nodes` no longer takes a range. Use `min_nodes` instead.
 
 For example, given the following:
 

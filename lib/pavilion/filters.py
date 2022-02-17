@@ -3,18 +3,16 @@ to dir_db commands."""
 
 import argparse
 import datetime as dt
-import time
 import fnmatch
-from pathlib import Path
 from functools import partial
-
+from pathlib import Path
 from typing import Dict, Any, Callable, List
 
-from pavilion.sys_vars import base_classes
+from pavilion import series
 from pavilion import utils
-from pavilion.series import TestSeries
-from pavilion.test_run import TestRun
 from pavilion.status_file import TestStatusFile, SeriesStatusFile, StatusError
+from pavilion.sys_vars import base_classes
+from pavilion.test_run import TestRun
 
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
@@ -36,8 +34,8 @@ TEST_FILTER_DEFAULTS = {
 }
 
 SORT_KEYS = {
-    "TEST": ["created", "finished", "name", "started", "user", "id"],
-    "SERIES": ["created", "id"]
+    "TEST": ["created", "finished", "name", "started", "user", "id", ],
+    "SERIES": ["created", "id", "status_when"]
 }
 
 
@@ -92,6 +90,12 @@ def add_common_filter_args(target: str,
         help=("Max number of {} to display.  Default: {}"
               .format(target, defaults['limit']))
 
+    )
+    arg_parser.add_argument(
+        '--name', default=defaults['name'],
+        help=("Include only tests/series that match this name. Globbing wildcards are "
+              "allowed. Default: {}"
+              .format(defaults['name']))
     )
     arg_parser.add_argument(
         '--older-than', type=utils.hr_cutoff_to_ts,
@@ -173,13 +177,6 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                     + ['-' + key for key in sort_functions])
 
     add_common_filter_args("test runs", arg_parser, defaults, sort_options)
-
-    arg_parser.add_argument(
-        '--name', default=defaults['name'],
-        help=("Include only tests that match this name. Globbing wildcards are "
-              "allowed. Default: {}"
-              .format(defaults['name']))
-    )
 
     pf_group = arg_parser.add_mutually_exclusive_group()
     pf_group.add_argument(
@@ -330,12 +327,14 @@ def make_test_run_filter(
 
     :param complete: Only accept complete tests
     :param failed: Only accept failed tests
+    :param has_state: Only accept tests that have had this state at some point.
     :param incomplete: Only accept incomplete tests
     :param name: Only accept names that match this glob.
     :param newer_than: Only accept tests that are more recent than this date.
     :param older_than: Only accept tests older than this date.
     :param passed: Only accept passed tests
     :param result_error: Only accept tests with a result error.
+    :param state: Only accept tests with this as the current state.
     :param sys_name: Only accept tests with a matching sys_name.
     :param user: Only accept tests started by this user.
     :return:
@@ -381,9 +380,10 @@ SERIES_FILTER_DEFAULTS = {
     'has_state': None,
     'incomplete': False,
     'limit': None,
+    'name': None,
     'newer_than': None,
     'older_than': None,
-    'sort_by': '-created',
+    'sort_by': '-status_when',
     'state': None,
     'sys_name': None,
     'user': None,
@@ -391,10 +391,11 @@ SERIES_FILTER_DEFAULTS = {
 
 
 def make_series_filter(complete: bool = False, has_state: str = None,
-                       incomplete: bool = False, newer_than: dt.datetime = None,
+                       incomplete: bool = False, name: str = None,
+                       newer_than: dt.datetime = None,
                        older_than: dt.datetime = None, state: str = None,
                        sys_name: str = None, user: str = None) \
-                    -> Callable[[Dict[str, Any]], bool]:
+                    -> Callable[[series.SeriesInfo], bool]:
     """Generate a filter for using with dir_db functions to filter series. This
     is expected to operate on series.SeriesInfo objects, so make sure to pass
     Series info as the dir_db transform function.
@@ -402,6 +403,7 @@ def make_series_filter(complete: bool = False, has_state: str = None,
     :param complete: Only accept series for which all tests are complete.
     :param has_state: Only accept tests that have had the given state.
     :param incomplete: Only accept series for which not all tests are complete.
+    :param name: Only accept series whose name matches the given glob.
     :param newer_than: Only accept series created after this time.
     :param older_than: Only accept series created before this time.
     :param state: Only accept series with the given state.
@@ -413,29 +415,35 @@ def make_series_filter(complete: bool = False, has_state: str = None,
         sys_vars = base_classes.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
-    def series_filter(series: Dict[str, Any]):
+    def series_filter(sinfo: series.SeriesInfo):
         """Generated series filter function."""
 
-        if user is not None and series['user'] != user:
+        if user is not None and sinfo['user'] != user:
             return False
 
-        if newer_than and series.get('created') < newer_than:
+        created = sinfo.get('created')
+        if newer_than and created < newer_than:
             return False
 
-        if older_than and series.get('created') > older_than:
+        if older_than and created > older_than:
             return False
 
-        if complete and not series.get('complete'):
+        if complete and not sinfo.get('complete'):
             return False
 
-        if incomplete and series.get('complete'):
+        if incomplete and sinfo.get('complete'):
             return False
 
-        if sys_name and series.get('sys_name') != sys_name:
+        if name:
+            series_name = sinfo.get('name')
+            if not fnmatch.fnmatch(series_name, name):
+                return False
+
+        if sys_name and sinfo.get('sys_name') != sys_name:
             return False
 
         if state or has_state:
-            series_status_path = Path(series['path'])/TestSeries.STATUS_FN
+            series_status_path = Path(sinfo['path']) / series.STATUS_FN
             try:
                 series_status = SeriesStatusFile(series_status_path)
             except StatusError:

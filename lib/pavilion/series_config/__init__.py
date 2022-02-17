@@ -28,9 +28,9 @@ The returned data structure looks like: ::
         }
 """
 
-    series = {}
+    found_series = []
 
-    for config in pav_cfg.configs:
+    for config in pav_cfg.configs.values():
         path = config['path'] / 'series'
 
         if not (path.exists() and path.is_dir()):
@@ -41,33 +41,35 @@ The returned data structure looks like: ::
             file = path / file
             if file.suffix == '.yaml' and file.is_file():
                 series_name = file.stem
+                series_info = {
+                    'path':       file,
+                    'name':       file.stem,
+                    'err':        '',
+                    'test_sets':  [],
+                    'supersedes': [],
+                    'summary':    '',
+                }
 
-                if series_name not in series:
-                    series[series_name] = {
-                        'path': file,
-                        'err': '',
-                        'tests': [],
-                        'supersedes': [],
-                    }
-                else:
-                    series[series_name]['supersedes'].append(file)
+                if series_name in found_series:
+                    series_info['supersedes'].append(file)
 
                 with file.open('r') as series_file:
                     try:
                         series_cfg = SeriesConfigLoader().load(
                             series_file, partial=True)
-                        series[series_name]['tests'] = list(
-                            series_cfg['series'].keys())
+                        series_info['test_sets'] = list(series_cfg['test_sets'].keys())
+                        series_info['summary'] = series_cfg['summary']
                     except (
                             TypeError,
                             KeyError,
                             ValueError,
                             yc_yaml.YAMLError,
                     ) as err:
-                        series[series_name]['err'] = err
-                        continue
+                        series_info['err'] = err
 
-    return series
+                found_series.append(series_info)
+
+    return found_series
 
 
 def make_config(raw_config: dict):
@@ -108,8 +110,11 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
     series_cfg = load_series_config(pav_cfg, series_name)
     resolver = TestConfigResolver(pav_cfg)
 
+    if series_cfg.get('name') is None:
+        series_cfg['name'] = series_name
+
     try:
-        for set_name, set_dict in series_cfg['series'].items():
+        for set_name, set_dict in series_cfg['test_sets'].items():
             all_modes = series_cfg['modes'] + set_dict['modes'] + modes
             resolver.load(set_dict['tests'], host, all_modes)
     except AttributeError as err:
@@ -122,6 +127,7 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
 
 
 def generate_series_config(
+        name: str,
         host: str = None,
         modes: List[str] = None,
         ordered: bool = None,
@@ -134,6 +140,7 @@ def generate_series_config(
 
     series_cfg = SeriesConfigLoader().load_empty()
 
+    series_cfg['name'] = name
     series_cfg['modes'] = modes or []
     series_cfg['host'] = host
     if ordered is not None:

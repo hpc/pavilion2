@@ -6,9 +6,10 @@ import logging
 from pavilion import utils, dir_db
 from ..sys_vars import base_classes
 from .errors import TestSeriesError, TestSeriesWarning
-from .info import SeriesInfo, path_to_sid
+from .info import SeriesInfo, path_to_sid, mk_series_info_transform
 from .series import TestSeries
 from .test_set import TestSet
+from .common import COMPLETE_FN, STATUS_FN
 
 logger = logging.getLogger(__file__)
 
