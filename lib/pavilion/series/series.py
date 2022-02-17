@@ -3,6 +3,8 @@ also tracks the tests that have run under it."""
 
 import json
 import os
+import math
+import re
 import subprocess
 import time
 from collections import defaultdict, UserDict, OrderedDict
@@ -24,6 +26,7 @@ from yaml_config import YAMLError, RequiredError
 from .errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo
 from .test_set import TestSet, TestSetError
+from . import common
 
 
 class LazyTestRunDict(UserDict):
@@ -79,13 +82,10 @@ class TestSeries:
     the series as specified by its config, or when an error occurs. Series are
     identified by a 'sid', which takes the form 's<id_num>'."""
 
-    COMPLETE_FN = 'SERIES_COMPLETE'
-    CONFIG_FN = 'config'
     DEPENDENCY_FN = 'dependency'
-    LOGGER_FMT = 'series({})'
     OUT_FN = 'series.out'
     PGID_FN = 'series.pgid'
-    STATUS_FN = 'status'
+    NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
 
     def __init__(self, pav_cfg, config, _id=None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
@@ -100,6 +100,13 @@ class TestSeries:
         self.tests = LazyTestRunDict(pav_cfg)
 
         self.config = config or SeriesConfigLoader().load_empty()
+
+        name = self.config.get('name') or 'unnamed'
+        if not self.NAME_RE.match(name):
+            raise TestSeriesError(
+                "Invalid Series name: {}. Series names must start with a letter, and can "
+                "contain numbers, dashes and underscores.".format(config['name']))
+        self.name = name
 
         series_path = self.pav_cfg.working_dir/'series'
 
@@ -125,7 +132,7 @@ class TestSeries:
 
             # Update user.json to record last series run per sys_name
             self._save_series_id()
-            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
+            self.status = SeriesStatusFile(self.path/common.STATUS_FN)
             self.status.set(SERIES_STATES.CREATED, "Created series.")
 
         # We're not creating this from scratch (an object was made ahead of
@@ -133,7 +140,7 @@ class TestSeries:
         else:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)
-            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
+            self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
@@ -179,7 +186,7 @@ class TestSeries:
     def save_config(self) -> None:
         """Saves series config to a file."""
 
-        series_config_path = self.path/self.CONFIG_FN
+        series_config_path = self.path/common.CONFIG_FN
         try:
             series_config_tmp = series_config_path.with_suffix('.tmp')
             with series_config_tmp.open('w') as config_file:
@@ -187,8 +194,8 @@ class TestSeries:
 
             series_config_path.with_suffix('.tmp').rename(series_config_path)
         except OSError:
-            fprint("Could not write series config to file. Cancelling.",
-                   color=output.RED)
+            raise TestSeriesError(
+                "Could not write series config to file. Cancelling.")
 
     WAIT_INTERVAL = 1
 
@@ -217,13 +224,16 @@ differentiate it from test ids."""
                 "Invalid SID '{}'. Must end in an integer.".format(sid))
 
     @classmethod
-    def load(cls, pav_cfg, sid: str):
+    def load(cls, pav_cfg, sid: Union[str, int]):
         """Load a series object from the given id, along with all of its
     associated tests.
 
     :raises TestSeriesError: From invalid series id or path."""
 
-        series_id = cls.sid_to_id(sid)
+        if isinstance(sid, str):
+            series_id = cls.sid_to_id(sid)
+        else:
+            series_id = sid
 
         series_path = pav_cfg.working_dir/'series'
         series_path = dir_db.make_id_path(series_path, series_id)
@@ -234,7 +244,7 @@ differentiate it from test ids."""
 
         loader = SeriesConfigLoader()
         try:
-            with (series_path/cls.CONFIG_FN).open() as config_file:
+            with (series_path/common.CONFIG_FN).open() as config_file:
                 try:
                     config = loader.load(config_file)
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
@@ -265,7 +275,7 @@ differentiate it from test ids."""
 
         # create all TestSet objects
         universal_modes = self.config['modes']
-        for set_name, set_info in self.config['series'].items():
+        for set_name, set_info in self.config['test_sets'].items():
             set_obj = TestSet(
                 pav_cfg=self.pav_cfg,
                 name=set_name,
@@ -431,7 +441,6 @@ differentiate it from test ids."""
                 test_start_count = simultaneous
                 while not test_set.done:
                     try:
-                        # TODO: Log when and how many tests kicked off.
                         kicked_off = test_set.kickoff(test_start_count)
                         fprint("Kicked off '{}' tests of test set '{}' in series '{}'."
                                .format(kicked_off, test_set.name, self.sid),
@@ -461,12 +470,17 @@ differentiate it from test ids."""
                 self._create_test_sets()
                 potential_sets = list(self.test_sets.values())
 
-        self.status.set(SERIES_STATES.RUN, "Series run complete.")
+        self.status.set(SERIES_STATES.ALL_STARTED,
+                        "All {} tests have been started.".format(len(self.tests)))
+        common.set_all_started(self.path)
 
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
 
-        end = time.time() + timeout
+        if timeout is None:
+            end = math.inf
+        else:
+            end = time.time() + timeout
         while time.time() < end:
             if self.complete:
                 return
@@ -480,30 +494,16 @@ differentiate it from test ids."""
         """Check if every test in the series has completed. A series is incomplete if
         no tests have been created."""
 
-        self.status.set(SERIES_STATES.COMPLETE, "Series has completed.")
+        complete_info = common.get_complete(self.pav_cfg, self.path, check_tests=True)
 
-        if (self.path/self.COMPLETE_FN).exists():
-            return True
-        else:
-            if not self.tests:
-                return True
-
-            for test in self.tests.values():
-                if not test.complete:
-                    return False
-
-            return True
+        return complete_info is not None
 
     def set_complete(self):
         """Write a file in the series directory that indicates that the series
         has finished."""
 
-        series_complete_path = self.path/self.COMPLETE_FN
-        series_complete_path_tmp = series_complete_path.with_suffix('.tmp')
-        with series_complete_path_tmp.open('w') as series_complete:
-            json.dump({'complete': time.time()}, series_complete)
-
-        series_complete_path_tmp.rename(series_complete_path)
+        # May raise a TestSeriesError
+        common.set_complete(self.path)
 
     def info(self) -> SeriesInfo:
         """Return the series info object for this test. Note that this is super
@@ -558,11 +558,11 @@ differentiate it from test ids."""
             passing. For unit testing only.
         """
 
-        if name in self.config['series']:
+        if name in self.config['test_sets']:
             raise TestSeriesError("A test set called '{}' already exists in series {}"
                                   .format(name, self.sid))
 
-        self.config['series'][name] = {
+        self.config['test_sets'][name] = {
             'tests': test_names,
             'depends_pass': _depends_pass,
             'depends_on': _depends_on or [],

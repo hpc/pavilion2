@@ -22,7 +22,7 @@ class SeriesTests(PavTestCase):
         # Initialize from scratch
         series1 = series.TestSeries(
             pav_cfg=self.pav_cfg,
-            config=series_config.generate_series_config()
+            config=series_config.generate_series_config('test')
         )
 
         # Add a basic test set and save.
@@ -54,7 +54,7 @@ class SeriesTests(PavTestCase):
         works as intended."""
 
         config = series_config.make_config({
-            'series': {
+            'test_sets': {
                 'set1': {
                     },
                 'set2': {
@@ -80,7 +80,7 @@ class SeriesTests(PavTestCase):
 
         config = series_config.make_config({
             'ordered': True,
-            'series': series_sec_cfg,
+            'test_sets': series_sec_cfg,
         })
         series2 = series.TestSeries(self.pav_cfg, config)
         with self.assertRaises(pavilion.series.errors.TestSeriesError):
@@ -93,14 +93,14 @@ class SeriesTests(PavTestCase):
         series_sec_cfg['set2'] = {'tests': ['echo_test.b']}
 
         series_cfg = series_config.make_config({
-                'series': series_sec_cfg,
+                'test_sets': series_sec_cfg,
                 'modes':        ['smode2'],
                 'simultaneous': '1',
             })
 
         test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(timeout=3)
+        test_series_obj.wait(timeout=10)
 
         last_ended = None
         for test_id in sorted(test_series_obj.tests):
@@ -115,7 +115,7 @@ class SeriesTests(PavTestCase):
         """Test if modes and host are applied correctly."""
 
         series_cfg = series_config.make_config({
-            'series': {
+            'test_sets': {
                 'only_set': {
                     'modes':      ['smode1'],
                     'tests':      ['echo_test.a']},
@@ -143,7 +143,7 @@ class SeriesTests(PavTestCase):
         """Tests if dependencies work as intended."""
 
         cfg = series_config.make_config({
-                'series': {
+                'test_sets': {
                     'a': {},
                     'b': {'depends_on': ['a']},
                     'c': {'depends_on': ['a', 'b']},
@@ -176,7 +176,7 @@ class SeriesTests(PavTestCase):
         appropriately."""
 
         cfg = series_config.make_config({
-            'series': {
+            'test_sets': {
                 'a': {
                     'tests': ['sched_errors.a_error', 'sched_errors.b_skipped']
                 }
@@ -188,7 +188,7 @@ class SeriesTests(PavTestCase):
             series1.run()
 
         cfg = series_config.make_config({
-            'series': {
+            'test_sets': {
                 'a': {
                     'tests': ['sched_errors.c_other_error', 'sched_errors.b_skipped']
                 }
@@ -263,6 +263,7 @@ class SeriesTests(PavTestCase):
         completed test series object."""
 
         series_cfg = series_config.generate_series_config(
+            name='test',
             modes=['smode2'],
         )
 
@@ -276,6 +277,6 @@ class SeriesTests(PavTestCase):
         )
 
         series_obj.run()
-        series_obj.wait(timeout=3)
+        series_obj.wait(timeout=10)
 
         return series_obj

@@ -12,7 +12,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
 
     ELEMENTS = [
         TestCatElem(
-            'series', sub_elem=yc.KeyedElem(
+            'test_sets', sub_elem=yc.KeyedElem(
                 elements=[
                     yc.ListElem('tests', sub_elem=yc.StrElem()),
                     yc.BoolElem('depends_pass', default=False),
@@ -28,6 +28,14 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                     ),
                 ]
             ),
+        ),
+        yc.StrElem(
+            'name', hidden=True,
+            help_text="The name of this series. Typically taken from series filename."
+        ),
+        yc.StrElem(
+            'summary', default='',
+            help_text="Brief description of the test series.",
         ),
         yc.StrElem(
             'host', hidden=True,

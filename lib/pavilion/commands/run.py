@@ -6,7 +6,6 @@ from typing import List
 import pavilion.series.errors
 from pavilion import cmd_utils
 from pavilion import output
-from pavilion import schedulers
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
@@ -67,6 +66,9 @@ class RunCommand(Command):
                  'current host as denoted by the sys plugin \'sys_host\' is '
                  'used.')
         parser.add_argument(
+            '-n', '--name', action='store', default=''
+        )
+        parser.add_argument(
             '-m', '--mode', action='append', dest='modes', default=[],
             help='Mode configurations to overlay on the host configuration for '
                  'each test. These are overlayed in the order given.')
@@ -121,7 +123,12 @@ class RunCommand(Command):
         # Note: We have to get a few arguments this way because this code
         # is reused between the build and run commands, and the don't quite have the
         # same arguments.
+        if args.name:
+            series_name = args.name
+        else:
+            series_name = 'cmdline'
         series_cfg = generate_series_config(
+            name=series_name,
             modes=args.modes,
             host=args.host,
             repeat=getattr(args, 'repeat', None),
