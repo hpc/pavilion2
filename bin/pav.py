@@ -159,6 +159,6 @@ if __name__ == '__main__':
         cProfile.runctx('main()', globals(), locals(), stats_path)
         stats = pstats.Stats(stats_path)
         print("Profile Table")
-        stats.strip_dirs().sort_stats(p_sort).print_stats(p_count)
+        stats.strip_dirs().sort_stats(p_sort).print_stats(int(p_count))
     else:
         main()
