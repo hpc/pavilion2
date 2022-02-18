@@ -6,6 +6,7 @@ import io
 import pathlib
 import pprint
 import shutil
+from tkinter import Y
 from typing import List, IO
 
 import pavilion.exceptions
@@ -99,9 +100,9 @@ class ResultsCommand(Command):
                 return errno.EINVAL
 
         results = result_utils.get_results(pav_cfg, tests)
-
+        flat_results = []
         for result in results:
-            flat_results = utils.flatten_dictionary(result)
+            flat_results.append(utils.flatten_dictionary(result))
 
         field_info = {}
 
