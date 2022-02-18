@@ -91,7 +91,7 @@ def get_relative_timestamp(base_time: float,
     base_time = datetime.datetime.fromtimestamp(base_time)
 
     if fullstamp:
-         format_ = full_date_string + time_stamp_format
+        format_ = full_date_string + time_stamp_format
     else:
         now = datetime.datetime.now()
         time_diff = now - base_time
