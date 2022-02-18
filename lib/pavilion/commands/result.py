@@ -100,7 +100,10 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
 
-        flat_results = utils.flatten_dictionaries(results)
+        for result in results:
+            flat_results = utils.flatten_dictionary(result)
+
+        field_info = {}
 
         if args.list_keys:
             flat_keys = result_utils.keylist(flat_results)
@@ -109,7 +112,6 @@ class ResultsCommand(Command):
             fields = ["default", "common"]
             test_fields = [f for f in flat_keys.keys() if f not in fields]
             fields = fields + sorted(test_fields)
-            field_info = {}
 
             output.draw_table(outfile=self.outfile,
                               field_info=field_info,
@@ -125,6 +127,10 @@ class ResultsCommand(Command):
                 return errno.EINVAL
 
             width = shutil.get_terminal_size().columns or 80
+
+            for result in results:
+                result['finish_date'] = output.get_relative_timestamp(
+                                        result['finished'], fullstamp=True)
 
             try:
                 if args.json:
@@ -153,12 +159,16 @@ class ResultsCommand(Command):
                 else:
                     fields.append(k)
 
+            field_info = {
+                'created': {'transform': output.get_relative_timestamp},
+                'started': {'transform': output.get_relative_timestamp},
+                'finished': {'transform': output.get_relative_timestamp},
+                'duration': {'transform': output.format_duration},
+                }
+
             output.draw_table(
                 outfile=self.outfile,
-                field_info={
-                    'started': {'transform': output.get_relative_timestamp},
-                    'finished': {'transform': output.get_relative_timestamp},
-                },
+                field_info=field_info,
                 fields=fields,
                 rows=flat_results,
                 title="Test Results"

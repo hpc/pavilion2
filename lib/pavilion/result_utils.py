@@ -19,8 +19,6 @@ BASE_FIELDS = [
     'result'
 ]
 
-timefields = ['created', 'started', 'finished', 'duration']
-
 def get_result(test: TestRun):
     """Return the result for a single test_id.
     Add result_log (path) to results dictionary.
@@ -29,13 +27,6 @@ def get_result(test: TestRun):
 
     try:
         results = test.results
-        for tfields in timefields:
-            if tfields in results.keys():
-                raw_key = tfields+"_raw"
-                results[raw_key] = results[tfields]
-                results[tfields] = output.get_relative_timestamp(
-                                        results[tfields])
-
         results['results_log'] = test.results_log.as_posix()
 
     except (TestRunError, TestRunNotFoundError) as err:
@@ -58,17 +49,6 @@ def get_results(pav_cfg, tests: List[TestRun]) -> List[dict]:
     with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
         return list(pool.map(get_result, tests))
 
-
-# def printkeys(keydict):
-#     """ Print the keys collected by key list """
-#     print("AVAILABLE KEYS:")
-#     for key, val in sorted(keydict.items()):
-#         if not val:
-#             continue
-#         print('\t', key+':')
-#         for sval in sorted(val):
-#             print('\t\t', sval)
-#     return 0
 
 def make_key_table(flat_keys):
     table_keys=[]
