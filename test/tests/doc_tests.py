@@ -85,7 +85,7 @@ class DocTests(PavTestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
 
-        out, _ = proc.communicate(timeout=20)
+        out, _ = proc.communicate(timeout=30)
         out = out.decode('utf8')
         result = proc.poll()
 

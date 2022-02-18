@@ -83,20 +83,22 @@ def get_relative_timestamp(base_time, fullstamp=False):
     if not isinstance(base_time, float):
         return base_time
 
-    #Duration
-    if base_time < 1e5:
-        return str(datetime.timedelta(seconds=round(base_time)))
+    time_stamp_format = '%H:%M:%S'
 
     now = datetime.datetime.now()
     base_time = datetime.datetime.fromtimestamp(base_time)
-    dateformat = '%Y %b %-d'  # year, month, day
-    timeformat = '%H:%M:%S'  # time
-    final_form = " ".join([dateformat, timeformat])
-    if not fullstamp:
-        if now.date() == base_time.date():
-            final_form = timeformat
+    time_diff = now - base_time
+    if time_diff.days < 1 and now.date() == base_time.date():
+        format_ = time_stamp_format
+    elif time_diff.days < 7:
+        format_ = '%a ' + time_stamp_format
+    elif now.year == base_time.year:
+        format_ = '%b %d ' + time_stamp_format
+    else:
+        format_ = '%Y/%m/%d ' + time_stamp_format
 
-    return base_time.strftime(final_form)
+    return base_time.strftime(format_)
+
 
 
 def dbg_print(*args, color=YELLOW, file=sys.stderr, end="",
@@ -672,6 +674,12 @@ def dt_format_rows(rows, fields, field_info):
     return formatted_rows
 
 
+def multi_line_len(value):
+    """Get the length of field given included newlines."""
+    lines = value.split('\n')
+    return max([len(line) for line in lines])
+
+
 def dt_calculate_widths(rows, fields, field_info):
     """Calculate the min and max width for each column, based on the length
     of all values in that column and the size of the words in each value."""
@@ -684,7 +692,7 @@ def dt_calculate_widths(rows, fields, field_info):
 
     for field in fields:
         all_words = sum([row[field].split() for row in rows], [])
-        max_widths[field] = max([len(row[field]) for row in rows])
+        max_widths[field] = max([multi_line_len(row[field]) for row in rows])
         longest_word = ''
         for word in all_words:
             if len(word) > len(longest_word):

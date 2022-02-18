@@ -237,6 +237,32 @@ class ShowCommand(Command):
             help='Display the path to the plugin file.'
         )
 
+        series = subparsers.add_parser(
+            'series',
+            help="Show available series and their information.",
+            description="Pavilion series."
+        )
+        series.add_argument(
+            '--path', '-p',
+            action='store_true', default=False,
+            help="Display the path to the series."
+        )
+        series.add_argument(
+            '--test-sets', '-s',
+            action='store_true', default=False,
+            help="Display the series test set names."
+        )
+        series.add_argument(
+            '--err',
+            action='store_true', default=False,
+            help='Display any errors encountered.'
+        )
+        series.add_argument(
+            '--conflicts',
+            action='store_true', default=False,
+            help='Show any superseded series files.'
+        )
+
         subparsers.add_parser(
             'states',
             aliases=['state'],
@@ -324,22 +350,6 @@ class ShowCommand(Command):
                         "configs should be under a test_name: key in a suite "
                         "file. The same format applies to host and mode "
                         "configs, except without the test name.")
-
-        series = subparsers.add_parser(
-            'series',
-            help="Show available series and their information.",
-            description="Pavilion series."
-        )
-        series.add_argument(
-            '--verbose', '-v',
-            action='store_true', default=False,
-            help="Display tests involved in series and paths of series."
-        )
-        series.add_argument(
-            '--err',
-            action='store_true', default=False,
-            help='Display any errors encountered.'
-        )
 
     def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command."""
@@ -876,37 +886,45 @@ class ShowCommand(Command):
     @sub_cmd('series')
     def _series_cmd(self, pav_cfg, args):
 
-        series_dict = series_config.find_all_series(pav_cfg)
+        all_series = series_config.find_all_series(pav_cfg)
 
-        rows = []
+        all_series.sort(key=lambda v: v['name'])
+        has_supersedes = False
 
-        for series_name in sorted(list(series_dict.keys())):
-            series = series_dict[series_name]
+        for series_info in all_series:
+            if series_info['err']:
+                series_info['name'] = output.ANSIString('{}.*'
+                                                        .format(series_info['name']), output.RED)
+                series_info['summary'] = 'Loading the series failed. For more info, run `pav ' \
+                                         'show series --err`.'
 
-            if series['err']:
-                series_name = output.ANSIString('{}.*'\
-                              .format(series_name), output.RED)
+            if series_info['supersedes']:
+                series_info['name'] = output.ANSIString(
+                    '{}.*'.format(series_info['name']), output.YELLOW)
+                has_supersedes = True
 
-            rows.append({
-                'name':    series_name,
-                'summary': 'Loading the series failed.  '
-                           'For more info, run `pav show series --err`.',
-                'path':    series['path'],
-                'err':     series['err']
-            })
+        if args.err:
+            fields = ['name', 'err']
+        else:
+            fields = ['name', 'summary']
 
-        fields = ['name']
-        if args.verbose or args.err:
-            fields.extend(['tests', 'path'])
+        if args.test_sets:
+            fields.append('test_sets')
 
-            if args.err:
-                fields.append('err')
+        if args.path or args.err:
+            fields.append('path')
+
+        if args.conflicts:
+            fields.append('supersedes')
 
         output.draw_table(
             self.outfile,
-            field_info={},
+            field_info={
+                'test_sets': {'transform': '\n'.join},
+                'supersedes': {'transform': '\n'.join},
+            },
             fields=fields,
-            rows=rows
+            rows=all_series,
         )
 
     def _test_docs_subcmd(self, pav_cfg, args):

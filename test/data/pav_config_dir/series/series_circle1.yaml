@@ -1,4 +1,4 @@
-series:
+test_sets:
 
     initial_tests:
         depends_on: ['next_tests']
@@ -6,6 +6,6 @@ series:
     next_tests:
         depends_on: ['initial_tests']
 
-    last_tests: 
+    last_tests:
 
 ordered: True
