@@ -133,25 +133,27 @@ def print_status(statuses: List[dict], outfile, note=False, series=False):
 :rtype: int
 """
 
-    if outfile.endswith('json'):
-        json_data = {'statuses': statuses}
-        output.json_dump(json_data, outfile)
-    else:
-        fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
-        if series:
-            fields.insert(0, 'series')
-        if note:
-            fields.append('note')
+    if isinstance(outfile, str):
+        if outfile.endswith('json'):
+            json_data = {'statuses': statuses}
+            output.json_dump(json_data, outfile)
+            return 0
 
-        output.draw_table(
-            outfile=outfile,
-            field_info={
-                'time': {'transform': output.get_relative_timestamp},
-                'test_id': {'title': 'Test'},
-            },
-            fields=fields,
-            rows=statuses,
-            title='Test statuses')
+    fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
+    if series:
+        fields.insert(0, 'series')
+    if note:
+        fields.append('note')
+
+    output.draw_table(
+        outfile=outfile,
+        field_info={
+            'time': {'transform': output.get_relative_timestamp},
+            'test_id': {'title': 'Test'},
+        },
+        fields=fields,
+        rows=statuses,
+        title='Test statuses')
 
     return 0
 

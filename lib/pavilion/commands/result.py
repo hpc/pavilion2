@@ -91,8 +91,9 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
 
-        if args.outfile.endswith('json'):
-            output.json_dump(results, args.outfile)
+        if isinstance(args.outfile, str):
+            if args.outfile.endswith('json'):
+                output.json_dump(results, args.outfile)
 
         elif args.full:
             if not results:
