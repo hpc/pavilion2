@@ -15,9 +15,9 @@ base:
       failure and the fix to be merged into this file.
 
     scheduler: slurm
-    slurm:
+    schedule:
         tasks_per_node: 2
-        num_nodes: 4
+        nodes: 4
 
     variables:
       # The question mark at the end of the variable names denote that

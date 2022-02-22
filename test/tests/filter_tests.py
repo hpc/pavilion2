@@ -8,7 +8,7 @@ from datetime import timedelta
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import plugins
-from pavilion.series import TestSeries
+from pavilion.series import TestSeries, SeriesInfo
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, test_run_attr_transform
 from pavilion.unittest import PavTestCase
@@ -231,14 +231,14 @@ class FiltersTest(PavTestCase):
 
         series = TestSeries(self.pav_cfg, None)
         series.add_test_set_config('test', test_names=['hello_world'])
-        series_info = series.info().attr_dict()
         series.run()
+        series_info = series.info().attr_dict()
 
         series2 = TestSeries(self.pav_cfg, None)
         series2.add_test_set_config('test', test_names=['hello_world'])
         series2_info = series2.info().attr_dict()
 
-        state_filter = filters.make_series_filter(state=SERIES_STATES.RUN)
+        state_filter = filters.make_series_filter(state=SERIES_STATES.ALL_STARTED)
         has_state_filter = filters.make_series_filter(has_state=SERIES_STATES.SET_MAKE)
 
         self.assertTrue(state_filter(series_info))

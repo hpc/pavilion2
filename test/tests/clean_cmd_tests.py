@@ -32,7 +32,7 @@ class CancelCmdTests(PavTestCase):
         run_cmd.run(self.pav_cfg, args)
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=3)
+            test.wait(timeout=10)
 
         args = arg_parser.parse_args([
             'clean'

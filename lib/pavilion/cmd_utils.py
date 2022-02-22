@@ -2,22 +2,24 @@
 multiple commands."""
 
 import argparse
+import datetime as dt
+import io
 import logging
+import time
 from pathlib import Path
 from typing import List, TextIO
-import time
-import datetime as dt
 
+from pavilion import config
 from pavilion import dir_db
 from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
 from pavilion import series
+from pavilion import sys_vars
 from pavilion import utils
+from pavilion.exceptions import TestRunError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
-from pavilion.exceptions import TestRunError, DeferredError
-from pavilion import sys_vars
 
 LOGGER = logging.getLogger(__name__)
 
@@ -49,9 +51,12 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     verbose = verbose or io.StringIO()
 
     if 'all' in args.tests:
-        output.fprint("Using default search filters: The current system, user, and "
-                      "newer_than 1 day ago.", file=verbose, color=output.CYAN)
-        if args.user is None and args.newer_than is None and args.sys_name is None:
+        for arg, default in filters.TEST_FILTER_DEFAULTS.items():
+            if hasattr(args, arg) and default != getattr(args, arg):
+                break
+        else:
+            output.fprint("Using default search filters: The current system, user, and "
+                          "newer_than 1 day ago.", file=verbose, color=output.CYAN)
             args.user = utils.get_login()
             args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
@@ -108,6 +113,78 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         ).paths
 
     return test_paths
+
+
+def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
+                        verbose: TextIO = None) -> List[series.SeriesInfo]:
+    """Return a list of SeriesInfo objects based on the args.series attribute. When args.series is
+    empty, default to the 'last' series started by the user on this system. If 'all' is given,
+    search all series (with a default current user/system/1-day filter) and additonally filtered
+    by args attributes provied via filters.add_series_filter_args()."""
+
+    limit = args.limit
+    verbose = verbose or io.StringIO()
+
+    if not args.series:
+        args.series = ['last']
+
+    if 'all' in args.series:
+        for arg, default in filters.SERIES_FILTER_DEFAULTS.items():
+            if hasattr(args, arg) and default != getattr(args, arg):
+                break
+        else:
+            output.fprint("Using default search filters: The current system, user, and "
+                          "newer_than 1 day ago.", file=verbose, color=output.CYAN)
+            args.user = utils.get_login()
+            args.newer_than = dt.datetime.now() - dt.timedelta(days=1)
+            args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+
+    matching_series = []
+    seen_sids = []
+    for sid in args.series:
+        # Go through each provided sid (including last and all) and find all
+        # matching series. Then only add them if we haven't seen them yet.
+        if sid == 'last':
+            sid = series.load_user_series_id(pav_cfg)
+            if sid is None:
+                return []
+
+            found_series = [series.SeriesInfo.load(pav_cfg, sid)]
+
+        elif sid == 'all':
+            order_func, order_asc = filters.get_sort_opts(args.sort_by, 'SERIES')
+
+            filter_func = filters.make_series_filter(
+                complete=args.complete,
+                has_state=args.has_state,
+                incomplete=args.incomplete,
+                name=args.name,
+                newer_than=args.newer_than,
+                older_than=args.older_than,
+                state=args.state,
+                sys_name=args.sys_name,
+                user=args.user,
+            )
+            found_series = dir_db.select(
+                pav_cfg=pav_cfg,
+                id_dir=pav_cfg.working_dir/'series',
+                filter_func=filter_func,
+                transform=series.mk_series_info_transform(pav_cfg),
+                order_func=order_func,
+                order_asc=order_asc,
+                use_index=False,
+                verbose=verbose,
+                limit=limit,
+            ).data
+        else:
+            found_series = [series.SeriesInfo.load(pav_cfg, sid)]
+
+        for sinfo in found_series:
+            if sinfo.sid not in seen_sids:
+                matching_series.append(sinfo)
+                seen_sids.append(sinfo.sid)
+
+        return matching_series
 
 
 def read_test_files(files: List[str]) -> List[str]:

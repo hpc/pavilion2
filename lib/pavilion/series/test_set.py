@@ -32,8 +32,6 @@ class TestSet:
     - Kickoff: test_set.kickoff()
     """
 
-    LOGGER_FMT = 'series({})'
-
     # need info like
     # modes, only/not_ifs, next, prev
     def __init__(self,
@@ -84,6 +82,9 @@ class TestSet:
         self.ready_to_start_tests = None  # type: Union[Dict[str, List[TestRun]], None]
         self.started_tests = None  # type: Union[List[TestRun], None]
         self.completed_tests = None  # type: Union[List[TestRun], None]
+
+        # A dictionary of test set info, written to the set info file.
+        self._info = {}
 
         self._should_run = None
         self._test_names = test_names

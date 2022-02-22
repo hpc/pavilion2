@@ -10,8 +10,8 @@ base:
             - gcc -o stream stream.c
 
     scheduler: slurm
-    slurm:
-        num_nodes: 2
+    schedule:
+        nodes: 2
 
     run:
         modules:

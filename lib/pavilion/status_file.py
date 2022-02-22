@@ -169,6 +169,7 @@ class SeriesStatesStruct(StatesStruct):
     SET_KICKOFF = "For when test sets are being kicked off."
     SKIPPED = "For logging when tests are skipped."
     RUN = "Running the series."
+    ALL_STARTED = "All tests that will be started, have been."
     ERROR = "General (fatal) error status."
     COMPLETE = "For when the test is completely complete."
 
