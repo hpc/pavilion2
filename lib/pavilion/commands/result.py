@@ -2,9 +2,9 @@
 
 import datetime
 import errno
+import json
 import io
 import pathlib
-import pprint
 import shutil
 from typing import List, IO
 
@@ -136,9 +136,8 @@ class ResultsCommand(Command):
                                         result['finished'], fullstamp=True)
 
             try:
-                pprint.pprint(results,  # ext-print: ignore
-                              stream=self.outfile, width=width,
-                              compact=True)
+                json_string = json.dumps(results, indent=2)
+                print(json_string, file=self.outfile)
             except OSError:
                 # It's ok if this fails. Generally means we're piping to
                 # another command.
