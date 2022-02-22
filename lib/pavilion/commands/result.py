@@ -6,7 +6,6 @@ import io
 import pathlib
 import pprint
 import shutil
-from tkinter import Y
 from typing import List, IO
 
 import pavilion.exceptions
