@@ -70,10 +70,14 @@ COLORS = {
     'UNDERLINE': UNDERLINE,
 }
 
+def format_duration(time_delta: float) -> str:
+    return str(datetime.timedelta(seconds=round(time_delta)))
 
-def get_relative_timestamp(base_time: float) -> str:
+def get_relative_timestamp(base_time: float,
+                           fullstamp: bool = False) -> str:
     """Print formatted time string based on the delta of time objects.
     :param base_time: The unix timestamp
+    :param bool fullstamp: Whether to return the full format timestamp.
     :returns: A formatted time string.
     """
 
@@ -81,18 +85,24 @@ def get_relative_timestamp(base_time: float) -> str:
         return ''
 
     time_stamp_format = '%H:%M:%S'
-
-    now = datetime.datetime.now()
+    full_date_string = '%Y/%m/%d '
+    dayofweek = '%a '
+    monthday = '%b %d '
     base_time = datetime.datetime.fromtimestamp(base_time)
-    time_diff = now - base_time
-    if time_diff.days < 1 and now.date() == base_time.date():
-        format_ = time_stamp_format
-    elif time_diff.days < 7:
-        format_ = '%a ' + time_stamp_format
-    elif now.year == base_time.year:
-        format_ = '%b %d ' + time_stamp_format
+
+    if fullstamp:
+        format_ = full_date_string + time_stamp_format
     else:
-        format_ = '%Y/%m/%d ' + time_stamp_format
+        now = datetime.datetime.now()
+        time_diff = now - base_time
+        if time_diff.days < 1 and now.date() == base_time.date():
+            format_ = time_stamp_format
+        elif time_diff.days < 7:
+            format_ = dayofweek + time_stamp_format
+        elif now.year == base_time.year:
+            format_ = monthday + time_stamp_format
+        else:
+            format_ = full_date_string + time_stamp_format
 
     return base_time.strftime(format_)
 
