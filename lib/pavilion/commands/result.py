@@ -136,7 +136,7 @@ class ResultsCommand(Command):
 
             try:
                 pprint.pprint(results,  # ext-print: ignore
-                              stream=args.outfile, width=width,
+                              stream=self.outfile, width=width,
                               compact=True)
             except OSError:
                 # It's ok if this fails. Generally means we're piping to
