@@ -227,7 +227,7 @@ def json_dump(obj, file, skipkeys=False, ensure_ascii=True,
     """Dump data to string as per the json dumps function, but using
 our custom encoder."""
 
-    return json.dump(obj, file, cls=PavEncoder,
+    json_rtn = json.dump(obj, file, cls=PavEncoder,
                      skipkeys=skipkeys,
                      ensure_ascii=ensure_ascii,
                      check_circular=check_circular,
@@ -237,6 +237,8 @@ our custom encoder."""
                      default=default,
                      sort_keys=sort_keys,
                      **kw)
+
+    return json_rtn
 
 
 def output_csv(outfile, fields, rows, field_info=None, header=False):

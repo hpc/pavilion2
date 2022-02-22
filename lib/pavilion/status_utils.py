@@ -136,8 +136,9 @@ def print_status(statuses: List[dict], outfile, note=False, series=False):
     if isinstance(outfile, str):
         if outfile.endswith('json'):
             json_data = {'statuses': statuses}
-            output.json_dump(json_data, outfile)
-            return 0
+            with outfile.open('w') as json_file:
+                output.json_dump(json_data, json_file)
+                return 0
 
     fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
     if series:
@@ -216,7 +217,9 @@ def print_status_history(test: TestRun, outfile: TextIO):
     if isinstance(outfile, str):
         if outfile.endswith('json'):
             json_data = {'status_history': status_history}
-            output.json_dump(json_data, outfile)
+            with outfile.open('w') as json_file:
+                output.json_dump(json_data, json_file)
+                return 0
 
     fields = ['state', 'time', 'note']
     output.draw_table(
