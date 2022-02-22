@@ -100,7 +100,7 @@ class ResultsCommand(Command):
         flat_results = []
         for result in results:
             flat_results.append(utils.flatten_dictionary(result))
-        
+
         field_info = {}
 
         if isinstance(args.outfile, str):
