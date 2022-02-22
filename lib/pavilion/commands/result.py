@@ -15,6 +15,7 @@ from pavilion import output
 from pavilion import resolver
 from pavilion import result
 from pavilion import result_utils
+from pavilion import utils
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
 from .base_classes import Command
@@ -43,10 +44,16 @@ class ResultsCommand(Command):
         group.add_argument(
             "-k", "--key", type=str, default='',
             help="Comma separated list of additional result keys to display."
+                 "Use ~ (tilda) in front of default key to remove from default list."
+        )
+        group.add_argument(
+            "--list-keys", dest="list_keys",
+            action="store_true", default=False,
+            help="List all available keys for test run or series."
         )
         group.add_argument(
             "-f", "--full", action="store_true", default=False,
-            help="Show all result keys."
+            help="Print results as json with all keys."
         )
         parser.add_argument(
             '-r', '--re-run', dest="re_run",
@@ -92,14 +99,38 @@ class ResultsCommand(Command):
                 return errno.EINVAL
 
         results = result_utils.get_results(pav_cfg, tests)
+        flat_results = []
+        for result in results:
+            flat_results.append(utils.flatten_dictionary(result))
 
-        if args.json or args.full:
+        field_info = {}
+
+        if args.list_keys:
+            flat_keys = result_utils.keylist(flat_results)
+            flatter_keys = result_utils.make_key_table(flat_keys)
+
+            fields = ["default", "common"]
+            test_fields = [f for f in flat_keys.keys() if f not in fields]
+            fields = fields + sorted(test_fields)
+
+            output.draw_table(outfile=self.outfile,
+                              field_info=field_info,
+                              fields=fields,
+                              rows=flatter_keys,
+                              border=True,
+                              title="AVAILABLE KEYS")
+
+        elif args.json or args.full:
             if not results:
                 output.fprint("Could not find any matching tests.",
                               color=output.RED, file=self.outfile)
                 return errno.EINVAL
 
             width = shutil.get_terminal_size().columns or 80
+
+            for result in results:
+                result['finish_date'] = output.get_relative_timestamp(
+                                        result['finished'], fullstamp=True)
 
             try:
                 if args.json:
@@ -114,16 +145,32 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            fields = result_utils.BASE_FIELDS + args.key.replace(',', ' ').split()
+            argkeys = args.key.replace(',', ' ').split()
+            fields = result_utils.BASE_FIELDS.copy()
+
+            for k in argkeys:
+                if k.startswith('~'):
+                    key = k[1:]
+                    try:
+                        fields.remove(key)
+                    except ValueError:
+                        output.fprint("Warning: Given key,{}, is not in default".format(k),
+                                       color=output.RED, file=self.errfile)
+                else:
+                    fields.append(k)
+
+            field_info = {
+                'created': {'transform': output.get_relative_timestamp},
+                'started': {'transform': output.get_relative_timestamp},
+                'finished': {'transform': output.get_relative_timestamp},
+                'duration': {'transform': output.format_duration},
+                }
 
             output.draw_table(
                 outfile=self.outfile,
-                field_info={
-                    'started': {'transform': output.get_relative_timestamp},
-                    'finished': {'transform': output.get_relative_timestamp},
-                },
+                field_info=field_info,
                 fields=fields,
-                rows=results,
+                rows=flat_results,
                 title="Test Results"
             )
 

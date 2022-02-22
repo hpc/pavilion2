@@ -13,7 +13,7 @@ import subprocess
 import zipfile
 from pathlib import Path
 from typing import Iterator, Union, TextIO
-from typing import List
+from typing import List, Dict
 
 
 def str_bool(val):
@@ -404,6 +404,66 @@ def union_dictionary(dict1, dict2):
         dict1[key] = dict1.get(key, []) + dict2[key]
 
     return dict1
+
+def flatten_nested_dict(dict_in, keycollect='', new_d=None, keysplit='.'):
+    """ Takes a nested dictionary and concatenates its nested keys
+    in a single key at the top level.
+
+    Remove keys whose value evaluates to False.
+    If dict_in has only one key and it's not the final key, discard it.
+    Remove key concatenator from front/back of key string.
+    """
+
+    knew = keycollect
+    if new_d is None:
+        new_d = dict()
+
+    for key, val in dict_in.items():
+        if not val:
+            continue
+        if len(dict_in.keys()) > 1 or not isinstance(val, dict):
+            knew = keysplit.join([keycollect,key])
+        if not isinstance(val, dict):
+            knew = knew.strip(keysplit)
+            new_d[knew] = val
+        else:
+            new_d = flatten_nested_dict(val, knew, new_d.copy())
+
+    return new_d
+
+
+def flatten_dictionary(nested_dict: Dict) -> Dict:
+    """ Takes a (possibly nested) dictionary (key: value) pairs
+    by merging nested keys.
+
+    Remove keys whose value evaluates to False.
+    When when flattening a sub dictionary, check that the resulting
+    keys are not already in the main dict to be overwritten when
+    the flattened key:values are added. If the key is present,
+    append the parent dictionary key referring to the sub dictionary
+    to the flattened key and add to the flattened dictionary.
+    """
+    if not isinstance(nested_dict, dict):
+        raise ValueError(
+            "Input to utils.flatten_dictionaries is not dict it is:\n"
+            "{}.".format(type(nested_dict)))
+
+    flat_dict = dict()
+    ndkeys = list(nested_dict.keys())
+    for key, val in nested_dict.items():
+        if not val:
+            continue
+        elif isinstance(val, dict):
+            flatv = flatten_nested_dict(val)
+            for keyf, valf in flatv.items():
+                kfa = keyf
+                if keyf in ndkeys:
+                    kfa = ".".join([key,keyf])
+                flat_dict[kfa] = valf
+        else:
+            flat_dict[key] = val
+
+    return flat_dict
 
 
 def auto_type_convert(value):
