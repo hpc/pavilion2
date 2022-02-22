@@ -105,7 +105,7 @@ class ResultsCommand(Command):
 
         if isinstance(args.outfile, str):
             if args.outfile.endswith('json'):
-                with args.outfile.open('w') as json_file:
+                with open(args.outfile, 'w') as json_file:
                     output.json_dump(results, json_file)
 
         elif args.list_keys:

@@ -136,7 +136,7 @@ def print_status(statuses: List[dict], outfile, note=False, series=False):
     if isinstance(outfile, str):
         if outfile.endswith('json'):
             json_data = {'statuses': statuses}
-            with outfile.open('w') as json_file:
+            with open(outfile, 'w') as json_file:
                 output.json_dump(json_data, json_file)
                 return 0
 
@@ -217,7 +217,7 @@ def print_status_history(test: TestRun, outfile: TextIO):
     if isinstance(outfile, str):
         if outfile.endswith('json'):
             json_data = {'status_history': status_history}
-            with outfile.open('w') as json_file:
+            with open(outfile, 'w') as json_file:
                 output.json_dump(json_data, json_file)
                 return 0
 
