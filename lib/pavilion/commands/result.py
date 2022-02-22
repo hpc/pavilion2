@@ -5,7 +5,6 @@ import errno
 import json
 import io
 import pathlib
-import shutil
 from typing import List, IO
 
 import pavilion.exceptions
@@ -129,15 +128,13 @@ class ResultsCommand(Command):
                               color=output.RED, file=args.outfile)
                 return errno.EINVAL
 
-            width = shutil.get_terminal_size().columns or 80
-
             for result in results:
                 result['finish_date'] = output.get_relative_timestamp(
                                         result['finished'], fullstamp=True)
 
             try:
                 json_string = json.dumps(results, indent=2)
-                print(json_string, file=self.outfile)
+                output.fprint(json_string, width=None, file=self.outfile)
             except OSError:
                 # It's ok if this fails. Generally means we're piping to
                 # another command.
