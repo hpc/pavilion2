@@ -212,18 +212,20 @@ def print_status_history(test: TestRun, outfile: TextIO):
     for status in status_history:
         if status['note'] != "Test not found.":
             ret_val = 0
-    if outfile.endswith('json'):
-        json_data = {'status_history': status_history}
-        output.json_dump(json_data, outfile)
-    else:
-        fields = ['state', 'time', 'note']
-        output.draw_table(
-            outfile=outfile,
-            field_info={
-                'time': {'transform': output.get_relative_timestamp}
-            },
-            fields=fields,
-            rows=status_history,
-            title='Test {} Status History ({})'.format(test.id, test.name))
+
+    if isinstance(outfile, str):
+        if outfile.endswith('json'):
+            json_data = {'status_history': status_history}
+            output.json_dump(json_data, outfile)
+
+    fields = ['state', 'time', 'note']
+    output.draw_table(
+        outfile=outfile,
+        field_info={
+            'time': {'transform': output.get_relative_timestamp}
+        },
+        fields=fields,
+        rows=status_history,
+        title='Test {} Status History ({})'.format(test.id, test.name))
 
     return ret_val

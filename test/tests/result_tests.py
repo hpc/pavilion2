@@ -597,7 +597,7 @@ class ResultParserTests(PavTestCase):
         # Check that the changed results are what we expected.
         result_cmd.clear_output()
         res_args = arg_parser.parse_args(
-            ('result', '--re-run', '--json') +
+            ('result', '--re-run', '--full') +
             tuple(t.full_id for t in run_cmd.last_tests))
         result_cmd.run(rerun_cfg, res_args)
 
