@@ -118,7 +118,7 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
         return list(pool.map(get_this_status, tests))
 
 
-def print_status(statuses: List[dict], outfile, note=False, series=False, json=False):
+def print_status(statuses: List[dict], outfile, note=False, series=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param statuses: list of dictionary objects containing the test_id,
@@ -133,25 +133,28 @@ def print_status(statuses: List[dict], outfile, note=False, series=False, json=F
 :rtype: int
 """
 
-    if json:
-        json_data = {'statuses': statuses}
-        output.json_dump(json_data, outfile)
-    else:
-        fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
-        if series:
-            fields.insert(0, 'series')
-        if note:
-            fields.append('note')
+    if isinstance(outfile, str):
+        if outfile.endswith('json'):
+            json_data = {'statuses': statuses}
+            with open(outfile, 'w') as json_file:
+                output.json_dump(json_data, json_file)
+                return 0
 
-        output.draw_table(
-            outfile=outfile,
-            field_info={
-                'time': {'transform': output.get_relative_timestamp},
-                'test_id': {'title': 'Test'},
-            },
-            fields=fields,
-            rows=statuses,
-            title='Test statuses')
+    fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
+    if series:
+        fields.insert(0, 'series')
+    if note:
+        fields.append('note')
+
+    output.draw_table(
+        outfile=outfile,
+        field_info={
+            'time': {'transform': output.get_relative_timestamp},
+            'test_id': {'title': 'Test'},
+        },
+        fields=fields,
+        rows=statuses,
+        title='Test statuses')
 
     return 0
 
@@ -195,7 +198,7 @@ def status_history_from_test_obj(test: TestRun) -> List[dict]:
     return status_history
 
 
-def print_status_history(test: TestRun, outfile: TextIO, json: bool = False):
+def print_status_history(test: TestRun, outfile: TextIO):
     """Print the status history for a given test object.
 
     :param test: Single test object.
@@ -210,18 +213,22 @@ def print_status_history(test: TestRun, outfile: TextIO, json: bool = False):
     for status in status_history:
         if status['note'] != "Test not found.":
             ret_val = 0
-    if json:
-        json_data = {'status_history': status_history}
-        output.json_dump(json_data, outfile)
-    else:
-        fields = ['state', 'time', 'note']
-        output.draw_table(
-            outfile=outfile,
-            field_info={
-                'time': {'transform': output.get_relative_timestamp}
-            },
-            fields=fields,
-            rows=status_history,
-            title='Test {} Status History ({})'.format(test.id, test.name))
+
+    if isinstance(outfile, str):
+        if outfile.endswith('json'):
+            json_data = {'status_history': status_history}
+            with open(outfile, 'w') as json_file:
+                output.json_dump(json_data, json_file)
+                return 0
+
+    fields = ['state', 'time', 'note']
+    output.draw_table(
+        outfile=outfile,
+        field_info={
+            'time': {'transform': output.get_relative_timestamp}
+        },
+        fields=fields,
+        rows=status_history,
+        title='Test {} Status History ({})'.format(test.id, test.name))
 
     return ret_val

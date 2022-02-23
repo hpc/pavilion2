@@ -28,15 +28,13 @@ class StatusCmdTests(PavTestCase):
 
         self.assertEqual(args.tests[0], 'test1')
         self.assertEqual(args.tests[1], 'test2')
-        self.assertEqual(args.json, False)
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['-j', 'test0', 'test9'])
+        args = parser.parse_args(['test0', 'test9'])
 
         self.assertEqual(args.tests[0], 'test0')
         self.assertEqual(args.tests[1], 'test9')
-        self.assertEqual(args.json, True)
 
     def test_status_command(self):
         """Test status command by generating a suite of tests."""
@@ -95,19 +93,20 @@ class StatusCmdTests(PavTestCase):
 
         status_cmd = commands.get_command('status')
         status_cmd.outfile = io.StringIO()
+        jsontest_file = ['-o', 'test.json']
 
         # Testing for individual tests with json output
         for test in series.tests.values():
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
-            arg_list = ['-j', test.full_id]
+            arg_list = jsontest_file + [test.full_id]
             args = parser.parse_args(arg_list)
             self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for multiple tests with json output
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        arg_list = ['-j'] + test_str.split()
+        arg_list = jsontest_file + test_str.split()
         args = parser.parse_args(arg_list)
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
@@ -216,6 +215,7 @@ class StatusCmdTests(PavTestCase):
 
         status_cmd = commands.get_command('status')
         status_cmd.silence()
+        jsontest_file = ['-o', 'test.json']
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
@@ -226,7 +226,7 @@ class StatusCmdTests(PavTestCase):
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['-j', 'test.{}'.format(test.id)])
+        args = parser.parse_args(jsontest_file + ['test.{}'.format(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 

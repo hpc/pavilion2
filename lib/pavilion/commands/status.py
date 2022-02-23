@@ -2,6 +2,7 @@
 other commands to print statuses."""
 
 import errno
+import sys
 
 from pavilion import cmd_utils
 from pavilion import filters
@@ -21,9 +22,8 @@ class StatusCommand(Command):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
-            '-j', '--json', action='store_true', default=False,
-            help='Give output as json, rather than as standard human readable.'
-        )
+            '--outfile', '-o', action='store', default=self.outfile,
+            help='Send output to file, type dependent on extension (json).')
         parser.add_argument(
             '--series', action='store_true', default=False,
             help='Show the series the test belongs to.')
@@ -68,7 +68,7 @@ class StatusCommand(Command):
                               file=self.errfile,
                               color=output.RED)
                 return 1
-            return status_utils.print_status_history(tests[-1], self.outfile, args.json)
+            return status_utils.print_status_history(tests[-1], args.outfile)
 
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
@@ -76,8 +76,8 @@ class StatusCommand(Command):
         if args.summary:
             return self.print_summary(statuses)
         else:
-            return status_utils.print_status(statuses, self.outfile, json=args.json,
-                                             series=args.series, note=args.note)
+            return status_utils.print_status(statuses, args.outfile, series=args.series,
+                                             note=args.note)
 
     def print_summary(self, statuses):
         """Print_summary takes in a list of test statuses.
