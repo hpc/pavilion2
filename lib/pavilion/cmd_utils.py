@@ -55,8 +55,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
             if hasattr(args, arg) and default != getattr(args, arg):
                 break
         else:
-            output.fprint("Using default search filters: The current system, user, and "
-                          "newer_than 1 day ago.", file=verbose, color=output.CYAN)
+            output.fprint(verbose, "Using default search filters: The current system, user, and "
+                                   "newer_than 1 day ago.", color=output.CYAN)
             args.user = utils.get_login()
             args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
@@ -133,8 +133,8 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             if hasattr(args, arg) and default != getattr(args, arg):
                 break
         else:
-            output.fprint("Using default search filters: The current system, user, and "
-                          "newer_than 1 day ago.", file=verbose, color=output.CYAN)
+            output.fprint(verbose, "Using default search filters: The current system, user, and "
+                                   "newer_than 1 day ago.", color=output.CYAN)
             args.user = utils.get_login()
             args.newer_than = dt.datetime.now() - dt.timedelta(days=1)
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
@@ -237,7 +237,7 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
             try:
                 test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
             except TestRunError as err:
-                output.fprint(err.args[0], file=errfile, color=output.YELLOW)
+                output.fprint(errfile, err.args[0], color=output.YELLOW)
                 continue
 
             test_paths.append(test_wd/TestRun.RUN_DIR/str(_id))
@@ -290,7 +290,7 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
 
     for test_path in test_paths:
         if not test_path.exists():
-            output.fprint("No test at path: {}".format(test_path))
+            output.fprint(None, "No test at path: {}".format(test_path))
 
         test_path = test_path.resolve()
 
@@ -298,9 +298,8 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
         try:
             test_id = int(test_path.name)
         except ValueError:
-            output.fprint("Invalid test id '{}' from test path '{}'"
-                          .format(test_path.name, test_path),
-                          color=output.YELLOW, file=errfile)
+            output.fprint(errfile, "Invalid test id '{}' from test path '{}'"
+                          .format(test_path.name, test_path), color=output.YELLOW)
             continue
 
         test_pairs.append(ID_Pair((test_wd, test_id)))
@@ -345,12 +344,8 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
             try:
                 series_obj = series.TestSeries.load(pav_cfg, raw_id)
             except series.TestSeriesError as err:
-                output.fprint(
-                    "Suite {} could not be found.\n{}"
-                    .format(raw_id, err),
-                    file=errfile,
-                    color=output.RED
-                )
+                output.fprint(errfile, "Suite {} could not be found.\n{}"
+                              .format(raw_id, err), color=output.RED)
                 continue
             test_id_pairs.extend(list(series_obj.tests.keys()))
 
@@ -360,7 +355,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
                 test_id_pairs.append(TestRun.parse_raw_id(pav_cfg, raw_id))
 
             except TestRunError as err:
-                output.fprint("Error loading test '{}': {}"
+                output.fprint(None, "Error loading test '{}': {}"
                               .format(raw_id, err.args[0]))
 
     if exclude_ids:

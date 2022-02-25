@@ -122,8 +122,7 @@ class WaitCommand(Command):
                     status_counts = []
                     for state, count in states.items():
                         status_counts.append(state + ': ' + str(count))
-                    fprint(' | '.join(status_counts), file=self.outfile,
-                           end='\r', width=None)
+                    fprint(self.outfile, ' | '.join(status_counts), width=None, end='\r')
                 else:
                     for test_state in stats:
                         stat = [str(time.ctime(time.time())), ':',
@@ -134,9 +133,8 @@ class WaitCommand(Command):
                                 test_state['note'],
                                 "\n"]
                         stats_out.append(' '.join(stat))
-                    fprint(''.join(map(str, stats_out)),
-                           file=self.outfile, width=None)
+                    fprint(self.outfile, ''.join(map(str, stats_out)), width=None)
 
         final_stats = status_utils.get_statuses(pav_cfg, tests)
-        fprint('\n', file=self.outfile)
+        fprint(self.outfile, '\n')
         status_utils.print_status(final_stats, self.outfile)

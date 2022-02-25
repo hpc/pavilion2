@@ -39,9 +39,8 @@ class CatCommand(Command):
         job_dir = dir_db.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
-            output.fprint("directory '{}' does not exist."
-                          .format(job_dir.as_posix()),
-                          file=sys.stderr, color=output.RED)
+            output.fprint(sys.stderr, "directory '{}' does not exist."
+                          .format(job_dir.as_posix()), color=output.RED)
             return errno.EEXIST
 
         return self.print_file(job_dir / args.file)
@@ -57,20 +56,17 @@ class CatCommand(Command):
                     block = file.read(4096)
                     if not block:
                         break
-                    output.fprint(block, width=None, file=self.outfile, end="")
-                output.fprint('', file=self.outfile)
+                    output.fprint(self.outfile, block, width=None, end="")
+                output.fprint(self.outfile, '')
 
         except FileNotFoundError:
-            output.fprint("file '{}' does not exist.".format(file),
-                          file=sys.stderr, color=output.RED)
+            output.fprint(sys.stderr, "file '{}' does not exist.".format(file), color=output.RED)
             return errno.EEXIST
 
         except IsADirectoryError:
-            output.fprint("{} is a directory.".format(file),
-                          file=sys.stderr, color=output.RED)
+            output.fprint(sys.stderr, "{} is a directory.".format(file), color=output.RED)
             return errno.EINVAL
 
         except (IOError, OSError, PermissionError) as err:
-            output.fprint("Error opening file '{}': {}".format(file, err),
-                          color=output.RED)
+            output.fprint(None, "Error opening file '{}': {}".format(file, err), color=output.RED)
             return errno.EIO

@@ -37,7 +37,7 @@ import random
 from collections import UserString, UserDict
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, TextIO
 
 BLACK = 30
 RED = 31
@@ -147,8 +147,8 @@ def clear_line(outfile):
     outfile.write('\r')
 
 
-def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
-           sep=' ', file=sys.stdout, end='\n', flush=False, clear=False):
+def fprint(file: TextIO, *args, color=None, bullet='', width=0, wrap_indent=0, sep=' ', end='\n',
+           flush=False, clear=False):
     """Print with automatic wrapping, bullets, and other features. Also accepts
     all print() kwargs.
 

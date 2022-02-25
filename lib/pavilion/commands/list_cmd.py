@@ -141,9 +141,8 @@ class ListCommand(Command):
             fields = [field.strip() for field in fields_arg.split(',')]
             for field in fields:
                 if field not in avail_fields:
-                    output.fprint(
-                        "Invalid output field '{}'. See 'pav list "
-                        "--show-fields.".format(field))
+                    output.fprint(None, "Invalid output field '{}'. See 'pav list "
+                                        "--show-fields.".format(field))
                     return errno.EINVAL
 
         if (len(fields) > 1 and mode_arg not in (self.OUTMODE_LONG,
@@ -170,13 +169,13 @@ class ListCommand(Command):
         """
 
         if not rows:
-            output.fprint("No matching items found.", file=self.errfile)
+            output.fprint(self.errfile, "No matching items found.")
             return 0
 
         if mode in (self.OUTMODE_SPACE, self.OUTMODE_NEWLINE):
             sep = ' ' if mode == self.OUTMODE_SPACE else '\n'
             for row in rows:
-                output.fprint(row[fields[0]], end=sep, file=self.outfile)
+                output.fprint(self.outfile, row[fields[0]], end=sep)
             output.fprint(file=self.outfile)
 
         elif mode == self.OUTMODE_LONG:
@@ -209,8 +208,7 @@ class ListCommand(Command):
 
         if args.show_fields:
             for field in TestAttributes.list_attrs():
-                output.fprint(field, '-', TestAttributes.attr_doc(field),
-                              file=self.outfile)
+                output.fprint(self.outfile, field, '-', TestAttributes.attr_doc(field))
             return 0
 
         fields, mode = self.get_fields(
@@ -243,10 +241,8 @@ class ListCommand(Command):
                         pav_cfg=pav_cfg,
                         sid=series_id))
                 except TestSeriesError as err:
-                    output.fprint(
-                        "Invalid test series '{}'.\n{}"
-                        .format(series_id, err.args[0]),
-                        color=output.RED, file=self.errfile)
+                    output.fprint(self.errfile, "Invalid test series '{}'.\n{}"
+                                  .format(series_id, err.args[0]), color=output.RED)
                     return errno.EINVAL
             runs = dir_db.select_from(
                 pav_cfg,
@@ -293,7 +289,7 @@ class ListCommand(Command):
 
         if args.show_fields:
             for field, doc in series_attrs.items():
-                output.fprint(field, '-', doc, file=self.outfile)
+                output.fprint(self.outfile, field, '-', doc)
             return 0
 
         fields, mode = self.get_fields(

@@ -251,9 +251,9 @@ class PluginTests(PavTestCase):
 
         # A bunch of plugins should fail to load, but this should be fine
         # anyway.
-        output.fprint("The following error message is expected; We're testing "
-                      "that such errors are caught and printed rather than "
-                      "crashing pavilion.", color=output.BLUE)
+        output.fprint(None, "The following error message is expected; We're testing "
+                            "that such errors are caught and printed rather than "
+                            "crashing pavilion.", color=output.BLUE)
         plugins.initialize_plugins(pav_cfg)
 
         yapsy_logger.removeHandler(hndlr)

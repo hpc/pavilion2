@@ -104,9 +104,10 @@ class ConfigCommand(Command):
 
         # This path is needed by (almost) all sub commands.
         if pav_cfg_file is None and args.sub_cmd != 'setup':
-            fprint("Main Pavilion config file path is missing. This would generally happen "
-                   "when loading a pavilion.yaml manually (not through 'find_pavilion_config)",
-                   )
+            fprint(self.outfile,
+                   "Main Pavilion config file path is missing. This would "
+                   "generally happen when loading a pavilion.yaml manually (not through "
+                   "'find_pavilion_config)")
             return 1
 
         return self._run_sub_command(pav_cfg, args)
@@ -123,7 +124,7 @@ class ConfigCommand(Command):
             try:
                 group = self.get_group(args.group)
             except ConfigCmdError as err:
-                fprint(err.args[0], file=self.errfile)
+                fprint(self.errfile, err.args[0])
                 return 1
         else:
             group = None
@@ -131,7 +132,7 @@ class ConfigCommand(Command):
         try:
             self.create_config_dir(pav_cfg, path, label, group, args.working_dir)
         except ConfigCmdError as err:
-            fprint(err.args[0], file=self.errfile)
+            fprint(self.errfile, err.args[0])
             return 1
 
         return 0
@@ -151,7 +152,7 @@ class ConfigCommand(Command):
             try:
                 group = self.get_group(args.group)
             except ConfigCmdError as err:
-                fprint(err.args[0], file=self.errfile)
+                fprint(self.errfile, err.args[0])
                 return 1
         else:
             group = None
@@ -164,7 +165,7 @@ class ConfigCommand(Command):
         try:
             self.create_config_dir(pav_cfg, path, 'main', group, working_dir=args.working_dir)
         except ConfigCmdError as err:
-            fprint(err.args[0], file=self.errfile)
+            fprint(self.errfile, err.args[0])
 
         return self.write_pav_cfg(pav_cfg)
 
@@ -265,7 +266,7 @@ class ConfigCommand(Command):
         path = path.resolve()
 
         if not path.exists():
-            fprint("Config path '{}' does not exist.".format(path), file=self.errfile)
+            fprint(self.errfile, "Config path '{}' does not exist.".format(path))
             return 1
 
         pav_cfg['config_dirs'].append(path)
@@ -285,7 +286,7 @@ class ConfigCommand(Command):
                 loader.dump(tmp_file, values=pav_cfg)
             pav_cfg_file_tmp.rename(pav_cfg_file)
         except OSError as err:
-            fprint("Failed to write pav config file at '{}': {}".format(pav_cfg_file, err))
+            fprint(None, "Failed to write pav config file at '{}': {}".format(pav_cfg_file, err))
             if pav_cfg_file_tmp.exists():
                 try:
                     pav_cfg_file_tmp.unlink()
@@ -310,11 +311,12 @@ class ConfigCommand(Command):
             resolved_dirs[config_dir.resolve()] = config_dir
 
         if path not in resolved_dirs:
-            fprint("Couldn't remove config dir '{}'. It was not in the list of known "
-                   "configuration directories.".format(args.config), file=self.errfile)
-            fprint("Known dirs:", file=self.errfile)
+            fprint(self.errfile,
+                   "Couldn't remove config dir '{}'. It was not in the list of known "
+                   "configuration directories.".format(args.config))
+            fprint(self.errfile, "Known dirs:")
             for conf_dir in pav_cfg.config_dirs:
-                fprint('  {}'.format(conf_dir), file=self.errfile)
+                fprint(self.errfile, '  {}'.format(conf_dir))
             return 1
 
         found_dir = resolved_dirs[path]

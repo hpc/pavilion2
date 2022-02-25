@@ -82,15 +82,15 @@ class LSCommand(Command):
             test_dir = test_dir/args.subdir
 
         if os.path.isdir(test_dir.as_posix()) is False:
-            output.fprint("directory '{}' does not exist.".format(test_dir),
-                          file=sys.stderr, color=output.RED)
+            output.fprint(sys.stderr, "directory '{}' does not exist.".format(test_dir),
+                          color=output.RED)
             return errno.EEXIST
 
         if args.path is True:
-            output.fprint(test_dir)
+            output.fprint(None, test_dir)
             return 0
 
-        output.fprint(str(test_dir) + ':', file=self.outfile)
+        output.fprint(self.outfile, str(test_dir) + ':')
 
         if args.tree is True:
             level = 0
@@ -111,8 +111,8 @@ class LSCommand(Command):
         """Print a directory listing for the given run directory."""
 
         if not dir_.is_dir():
-            output.fprint("directory '{}' does not exist.".format(dir_),
-                          file=self.errfile, color=output.RED)
+            output.fprint(self.errfile, "directory '{}' does not exist.".format(dir_),
+                          color=output.RED)
             return errno.EEXIST
 
         files = []
@@ -189,7 +189,7 @@ class LSCommand(Command):
 
         for file_info in files:
             line = line_format.format(**file_info)
-            output.fprint(line, file=self.outfile)
+            output.fprint(self.outfile, line)
 
         return 0
 
@@ -200,17 +200,13 @@ class LSCommand(Command):
         """
         for filename in path.iterdir():
             if filename.is_symlink():
-                output.fprint("{}{} -> {}".format('    '*level,
-                                                  filename.name,
-                                                  filename.resolve()),
-                              file=self.outfile,
+                output.fprint(self.outfile, "{}{} -> {}".format('    ' * level,
+                                                                filename.name,
+                                                                filename.resolve()),
                               color=output.CYAN)
             elif filename.is_dir():
-                output.fprint("{}{}/".format('    '*level,
-                                             filename.name),
-                              file=self.outfile,
-                              color=output.BLUE)
+                output.fprint(self.outfile, "{}{}/".format('    ' * level,
+                                                           filename.name), color=output.BLUE)
                 self.tree_(level + 1, filename)
             else:
-                output.fprint("{}{}".format('    '*level, filename.name),
-                              file=self.outfile)
+                output.fprint(self.outfile, "{}{}".format('    ' * level, filename.name))

@@ -384,9 +384,9 @@ class ShowCommand(Command):
         if args.detail:
             func = expression_functions.get_plugin(args.detail)
 
-            output.fprint(func.signature, color=output.CYAN, file=self.outfile)
-            output.fprint('-' * len(func.signature), file=self.outfile)
-            output.fprint(func.long_description, file=self.outfile)
+            output.fprint(self.outfile, func.signature, color=output.CYAN)
+            output.fprint(self.outfile, '-' * len(func.signature))
+            output.fprint(self.outfile, func.long_description)
 
         else:
             rows = []
@@ -468,12 +468,12 @@ class ShowCommand(Command):
                     title=var
                 )
             else:
-                output.fprint(var, file=self.outfile)
-                output.fprint("(Showing as json due to the insane number of "
-                              "keys)", file=self.outfile)
-                output.fprint(pprint.pformat(cfg['variables'][var],
-                                             compact=True), file=self.outfile)
-            output.fprint("\n", file=self.outfile)
+                output.fprint(self.outfile, var)
+                output.fprint(self.outfile, "(Showing as json due to the insane number of "
+                                            "keys)")
+                output.fprint(self.outfile, pprint.pformat(cfg['variables'][var],
+                                                           compact=True))
+            output.fprint(self.outfile, "\n")
 
     def show_configs_table(self, pav_cfg, conf_type, errors=False,
                            verbose=False):
@@ -518,11 +518,10 @@ class ShowCommand(Command):
                               .load_raw(config_file)
 
         if config_data is not None:
-            output.fprint(pprint.pformat(config_data, compact=True),
-                          file=self.outfile)
+            output.fprint(self.outfile, pprint.pformat(config_data, compact=True))
         else:
-            output.fprint("No {} config found for "
-                          "{}.".format(conf_type.strip('s'), cfg_name))
+            output.fprint(None, "No {} config found for "
+                                "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
     @sub_cmd('host')
@@ -619,13 +618,11 @@ class ShowCommand(Command):
             try:
                 res_plugin = result_parsers.get_plugin(args.doc)
             except result.common.ResultError:
-                output.fprint(
-                    "Invalid result parser '{}'.".format(args.doc),
-                    color=output.RED
-                )
+                output.fprint(None, "Invalid result parser '{}'.".format(args.doc),
+                              color=output.RED)
                 return errno.EINVAL
 
-            output.fprint(res_plugin.doc(), file=self.outfile)
+            output.fprint(self.outfile, res_plugin.doc())
 
         else:
 
@@ -664,10 +661,8 @@ class ShowCommand(Command):
             try:
                 sched = schedulers.get_plugin(sched_name)
             except schedulers.SchedulerPluginError:
-                output.fprint(
-                    "Invalid scheduler plugin '{}'.".format(sched_name),
-                    color=output.RED,
-                )
+                output.fprint(None, "Invalid scheduler plugin '{}'.".format(sched_name),
+                              color=output.RED)
                 return errno.EINVAL
 
         if args.vars is not None:
@@ -935,37 +930,32 @@ class ShowCommand(Command):
 
         parts = args.test_name.split('.')
         if len(parts) != 2:
-            output.fprint(
-                "You must give a test name as '<suite>.<test>'.",
-                file=self.outfile, color=output.RED)
+            output.fprint(self.outfile, "You must give a test name as '<suite>.<test>'.",
+                          color=output.RED)
             return
 
         suite_name, test_name = parts
 
         if suite_name not in suites:
-            output.fprint(
-                "No such suite: '{}'.\n"
-                "Available test suites:\n{}"
-                .format(suite_name, "\n".join(sorted(suites.keys()))),
-                file=self.outfile, color=output.RED)
+            output.fprint(self.outfile, "No such suite: '{}'.\n"
+                                        "Available test suites:\n{}"
+                          .format(suite_name, "\n".join(sorted(suites.keys()))), color=output.RED)
             return
         tests = suites[suite_name]['tests']
         if test_name not in tests:
-            output.fprint(
-                "No such test '{}' in suite '{}'.\n"
-                "Available tests in suite:\n{}"
-                .format(test_name, suite_name,
-                        "\n".join(sorted(tests.keys()))))
+            output.fprint(None, "No such test '{}' in suite '{}'.\n"
+                                "Available tests in suite:\n{}"
+                          .format(test_name, suite_name,
+                                  "\n".join(sorted(tests.keys()))))
             return
 
         test = tests[test_name]
 
         def pvalue(header, *values):
             """An item header."""
-            output.fprint(header, color=output.CYAN,
-                          file=self.outfile, end=' ')
+            output.fprint(self.outfile, header, color=output.CYAN, end=' ')
             for val in values:
-                output.fprint(val, file=self.outfile)
+                output.fprint(self.outfile, val)
 
         pvalue("Name:", args.test_name)
         pvalue("Maintainer:", test['maintainer'])
