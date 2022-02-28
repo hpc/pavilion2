@@ -122,8 +122,9 @@ class TestConfigResolver:
         except schedulers.SchedulerPluginError as err:
             # Errors should generally be deferred here, but just in case.
             raise TestConfigError(
-                "Error getting initial variables from scheduler {} with "
-                "config: {}".format(scheduler, pprint.pformat(schedule_cfg)))
+                "Error getting initial variables from scheduler {}: {} \n\n"
+                "Scheduler Config: \n{}"
+                .format(scheduler, err.args[0], pprint.pformat(schedule_cfg)))
 
         var_man.add_var_set('sched', sched_vars)
 
