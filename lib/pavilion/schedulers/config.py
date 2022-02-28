@@ -303,7 +303,7 @@ def _validate_tasks_per_node(val) -> Union[int, float]:
         except ValueError:
             raise SchedConfigError("Invalid tasks_per_node value: {}".format(val))
 
-    if val < 0:
+    if val <= 0:
         raise SchedConfigError("tasks_per_node must be more than 0, got '{}'"
                                .format(val))
 
