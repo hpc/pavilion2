@@ -55,7 +55,8 @@ class SeriesCmdTests(PavTestCase):
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
 
-        self._wait_for_all_start(series_cmd.last_run_series)
+        ser = series_cmd.last_run_series
+        self._wait_for_all_start(ser)
 
         cancel_args = arg_parser.parse_args(['series', 'cancel', series_cmd.last_run_series.sid])
         cancel_result = series_cmd.run(self.pav_cfg, cancel_args)
@@ -119,7 +120,7 @@ class SeriesCmdTests(PavTestCase):
                 stat_lines = ['current time: {}'.format(time.time())]
                 for stat in ser.status.history():
                     stat_lines.append(str(stat))
-                with ser.path/'series.out' as out:
+                with (ser.path/'series.out').open() as out:
                     print(out.read())
                 self.fail("Could not detect series start. Series status: \n{}"
                           .format('\n'.join(stat_lines)))
