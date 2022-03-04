@@ -62,7 +62,10 @@ def cancel_jobs(pav_cfg, tests: List[TestRun], errfile: TextIO = None) -> List[d
         return jobs_cancelled
 
 
-def cancel_tests(pav_cfg, tests: List, outfile: TextIO):
+SLEEP_PERIOD = 0.3
+
+
+def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
     """Cancel all of the given tests, printing useful user messages and error information."""
 
     user = utils.get_login()
@@ -88,7 +91,15 @@ def cancel_tests(pav_cfg, tests: List, outfile: TextIO):
 
     output.fprint("Giving tests a moment to quit.",
                   file=outfile)
-    time.sleep(TestRun.RUN_WAIT_MAX)
+    timeout = time.time() + max_wait
+    wait_tests = list(tests)
+    while wait_tests and time.time() > timeout:
+        for test in wait_tests.copy():
+            if test.complete:
+                wait_tests.remove(test)
+
+        if wait_tests:
+            time.sleep(SLEEP_PERIOD)
 
     job_cancel_info = cancel_jobs(pav_cfg, tests, outfile)
 
