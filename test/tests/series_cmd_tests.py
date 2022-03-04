@@ -116,7 +116,7 @@ class SeriesCmdTests(PavTestCase):
         start_time = time.time()
         while not ser.status.has_state(SERIES_STATES.ALL_STARTED):
             if time.time() - start_time > timeout:
-                stat_lines = []
+                stat_lines = ['current time: {}'.format(time.time())]
                 for stat in ser.status.history():
                     stat_lines.append(str(stat))
                 self.fail("Could not detect series start. Series status: \n{}"
