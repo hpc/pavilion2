@@ -10,7 +10,7 @@ jobs:
   # The debug job is meant for debugging CI related issues.
   debug:
     # Comment out the following line to enable.
-    if: ${{ false }}
+    #if: ${{ false }}
 
     runs-on: ubuntu-latest
 
@@ -39,13 +39,12 @@ jobs:
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
+        #./test/utils/spack_setup test
     
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
       run: | 
-        coverage run ./test/run_tests -q -o index -o kickoff_independent
-        coverage xml
+        coverage run ./test/run_tests -q -o index -o cancel_series
 
   style:
     runs-on: ubuntu-latest
@@ -139,8 +138,8 @@ jobs:
         
     - name: run_tests
       run: | 
-        coverage run ./test/run_tests 
-        coverage xml
+        ./test/run_tests 
+        #coverage xml
 
 #    - name: codecov-upload
 #      uses: codecov/codecov-action@v2

@@ -119,6 +119,8 @@ class SeriesCmdTests(PavTestCase):
                 stat_lines = ['current time: {}'.format(time.time())]
                 for stat in ser.status.history():
                     stat_lines.append(str(stat))
+                with ser.path/'series.out' as out:
+                    print(out.read())
                 self.fail("Could not detect series start. Series status: \n{}"
                           .format('\n'.join(stat_lines)))
             time.sleep(0.3)
