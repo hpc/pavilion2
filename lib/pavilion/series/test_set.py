@@ -1,13 +1,14 @@
 """Test sets translate the specifications of which tests to run (with which options),
 into a set of ready to run tests. They are ephemeral, and are not tracked between
 Pavilion runs."""
+import io
 import threading
 import time
 from collections import defaultdict
 from io import StringIO
 from typing import List, Dict, TextIO, Union, Set
 
-from pavilion import output, result, schedulers, cancel
+from pavilion import output, result, schedulers, cancel_utils
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.exceptions import TestRunError, TestConfigError
 from pavilion.resolver import TestConfigResolver
@@ -207,15 +208,16 @@ class TestSet:
 
         for ptest in test_configs:
             progress += 1.0 / tot_tests
-            output.fprint("Creating Test Runs: {:.0%}".format(progress),
-                          file=outfile, end='\r')
+            if not isinstance(outfile, io.StringIO):
+                output.fprint("Creating Test Runs: {:.0%}".format(progress),
+                              file=outfile, end='\r')
 
             if build_only and local_builds_only:
                 # Don't create test objects for tests that would build remotely.
                 if str_bool(ptest.config.get('build', {}).get('on_nodes', 'False')):
                     skip_count += 1
                     self.status.set(
-                        S_STATES.SKIPPED,
+                        S_STATES.TESTS_SKIPPED,
                         "Skipped test named '{}' from series '{}' - We're just "
                         "building locally, and this test builds only on nodes."
                         .format(ptest.config.get('name'), ptest.config.get('suite')))
@@ -231,13 +233,13 @@ class TestSet:
                 else:
                     skip_count += 1
                     self.status.set(
-                        S_STATES.SKIPPED,
+                        S_STATES.TESTS_SKIPPED,
                         "Test {} skipped because '{}'"
                         .format(test_run.name, test_run.skip_reasons[0])
                     )
                     if not test_run.abort_skipped():
                         self.status.set(
-                            S_STATES.SKIPPED,
+                            S_STATES.TESTS_SKIPPED,
                             "Cleanup of skipped test {} was unsuccessful.")
 
             except (TestRunError, TestConfigError) as err:
@@ -252,13 +254,13 @@ class TestSet:
 
         output.fprint('', file=outfile)
 
+        # make sure result parsers are ok. This will throw an exception if they are not.
+        self.check_result_format(self.tests)
+
         self.status.set(
             S_STATES.SET_MAKE,
             "Test set '{}' created {} tests, skipped {}"
             .format(self.name, len(self.tests), skip_count))
-
-        # make sure result parsers are ok
-        self.check_result_format(self.tests)
 
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
@@ -432,8 +434,9 @@ class TestSet:
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                output.fprint(line, end='\r', file=outfile, width=None,
-                              clear=True)
+                if not isinstance(outfile, io.StringIO):
+                    output.fprint(line, end='\r', file=outfile, width=None, clear=True)
+
             elif verbosity > 1:
                 for test in local_builds:
                     seen = message_counts[test.full_id]
@@ -461,12 +464,19 @@ class TestSet:
             if not (test.build_only and test.build_local) and not test.skipped:
                 self.ready_to_start_tests[test.scheduler].append(test)
 
+        self.status.set(S_STATES.SET_BUILD,
+                        "Completed build step for {} tests in set {}."
+                        .format(self.name, len(self.tests)))
+
     def kickoff(self, start_max: int = None) -> int:
         """Kickoff the tests in this set.
 
     :param start_max: The maximum number of tests to start.
     :return: The number of tests kicked off.
     """
+
+        self.status.set(S_STATES.SET_KICKOFF,
+                        "Kicking off test set {}".format(self.name))
 
         if self.tests is None:
             self.cancel("System error.")
@@ -516,15 +526,23 @@ class TestSet:
 
                 self.started_tests.extend(tests)
 
+        self.status.set(S_STATES.SET_KICKOFF,
+                        "Kickoff complete for test set {}. Started {} tests."
+                        .format(self.name, start_count))
+
         return start_count
 
     def cancel(self, reason):
         """Cancel all the tests in the test set."""
 
+        self.status.set(S_STATES.SET_CANCELED,
+                        "Test Set {} canceled for this reason: {}"
+                        .format(self.name, reason))
+
         for test in self.tests:
             test.cancel(reason)
 
-        cancel.cancel_jobs(self.pav_cfg, self.tests)
+        cancel_utils.cancel_jobs(self.pav_cfg, self.tests)
 
     @staticmethod
     def check_result_format(tests: List[TestRun]):

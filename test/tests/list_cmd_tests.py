@@ -43,7 +43,7 @@ class ListCmdTest(PavTestCase):
         series = []
         for i in range(0, 30, 5):
             time.sleep(0.01)
-            series.append(TestSeries(pav_cfg=self.pav_cfg, config={}))
+            series.append(TestSeries(pav_cfg=self.pav_cfg, series_cfg={}))
 
         parser = arguments.get_parser()
 

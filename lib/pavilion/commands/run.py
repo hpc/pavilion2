@@ -147,7 +147,7 @@ class RunCommand(Command):
         report_status = getattr(args, 'status', False)
 
         # create brand-new series object
-        series_obj = TestSeries(pav_cfg, config=series_cfg)
+        series_obj = TestSeries(pav_cfg, series_cfg=series_cfg)
 
         series_obj.add_test_set_config(
             'cmd_line',

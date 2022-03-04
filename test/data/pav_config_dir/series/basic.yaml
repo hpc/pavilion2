@@ -1,6 +1,4 @@
 test_sets:
-    zazzle:
-    blargl:
-    foo:
-    snit:
-    r2d2:
+    the_only:
+        tests:
+            - 'hello_world.hello'

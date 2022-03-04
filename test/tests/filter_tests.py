@@ -8,7 +8,7 @@ from datetime import timedelta
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import plugins
-from pavilion.series import TestSeries, SeriesInfo
+from pavilion.series import TestSeries
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, test_run_attr_transform
 from pavilion.unittest import PavTestCase
@@ -26,6 +26,7 @@ class FiltersTest(PavTestCase):
         """Test adding standardized test run filter args."""
 
         class ExitError(RuntimeError):
+            """Get around auto-exiting when argparse errors happen."""
             pass
 
         class NoExitParser(argparse.ArgumentParser):
@@ -66,7 +67,8 @@ class FiltersTest(PavTestCase):
 
         filters.add_common_filter_args("", common_parser,
                                        filters.SERIES_FILTER_DEFAULTS,
-                                       sort_options=sort_opts)
+                                       sort_options=sort_opts,
+                                       disable_opts=[])
         filters.add_series_filter_args(series_parser)
 
         self.assertEqual(

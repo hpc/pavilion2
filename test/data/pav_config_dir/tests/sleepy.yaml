@@ -1,24 +1,23 @@
-hello:
+_base:
+
+    variables:
+        sleep_time:
+
     build:
         cmds:
-            - echo "Building Hello"
+            - echo "Doing nothing"
+
     run:
         cmds:
-            - echo "Running World"
-
+            - 'sleep {{sleep_time}}'
     scheduler: "raw"
 
-world:
-    build:
-        cmds:
-            - echo "Building World"
-    run:
-        cmds:
-            - echo "Running World"
+short:
+    inherits_from: _base
+    variables:
+        sleep_time: 2
 
-    scheduler: "raw"
-
-narf:
-    inherits_from: world
-
-    scheduler: "dummy"
+long:
+    inherits_from: _base
+    variables:
+        sleep_time: 100

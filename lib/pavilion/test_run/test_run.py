@@ -1074,6 +1074,8 @@ be set by the scheduler plugin as soon as it's known."""
         if cmds:
             script.comment("Perform the sequence of test commands.")
             for line in config.get('cmds', []):
+                if line is None:
+                    line = ''
                 for split_line in line.split('\n'):
                     script.command(split_line)
         else:

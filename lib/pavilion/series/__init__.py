@@ -1,7 +1,7 @@
 """Module init for series objects and related functions."""
 
 import json
-import logging
+from typing import TextIO
 
 from pavilion import utils, dir_db
 from ..sys_vars import base_classes
@@ -11,28 +11,27 @@ from .series import TestSeries
 from .test_set import TestSet
 from .common import COMPLETE_FN, STATUS_FN
 
-logger = logging.getLogger(__file__)
 
-
-def load_user_series_id(pav_cfg):
+def load_user_series_id(pav_cfg) -> str:
     """Load the last series id used by the current user."""
 
+    user = utils.get_login()
     last_series_fn = pav_cfg.working_dir/'users'
-    last_series_fn /= '{}.json'.format(utils.get_login())
+    last_series_fn /= '{}.json'.format(user)
 
     sys_vars = base_classes.get_vars(True)
     sys_name = sys_vars['sys_name']
 
     if not last_series_fn.exists():
-        return None
+        raise TestSeriesError("No known last series for user {} on host {}."
+                              .format(user, sys_name))
     try:
         with last_series_fn.open() as last_series_file:
             sys_name_series_dict = json.load(last_series_file)
             return sys_name_series_dict[sys_name].strip()
     except (IOError, OSError, KeyError) as err:
-        logger.warning("Failed to read series id file '%s': %s",
-                       last_series_fn, err)
-        return None
+        raise TestSeriesError("Failed to read series id file '{}': {}"
+                              .format(last_series_fn, err))
 
 
 def list_series_tests(pav_cfg, sid: str):

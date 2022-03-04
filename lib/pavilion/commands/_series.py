@@ -50,7 +50,7 @@ class AutoSeries(Command):
             series_obj.run(outfile=self.outfile)
         except pavilion.series.errors.TestSeriesError as err:
             output.fprint("Error while running series '{}'. {}"
-                          .format(args.series, err.args[0]),
+                          .format(args.series_id, err.args[0]),
                           file=self.errfile)
 
         return 0

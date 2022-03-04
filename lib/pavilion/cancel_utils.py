@@ -90,7 +90,7 @@ def cancel_tests(pav_cfg, tests: List, outfile: TextIO):
                   file=outfile)
     time.sleep(TestRun.RUN_WAIT_MAX)
 
-    job_cancel_info = cancel_jobs(pav_cfg, tests, self.errfile)
+    job_cancel_info = cancel_jobs(pav_cfg, tests, outfile)
 
     if job_cancel_info:
         output.draw_table(

@@ -1,17 +1,20 @@
 """Series are built around a config that specifies a 'series' of tests to run. It
 also tracks the tests that have run under it."""
-
+import io
 import json
-import os
 import math
+import os
 import re
+import signal
 import subprocess
 import time
 from collections import defaultdict, UserDict, OrderedDict
 from pathlib import Path
 from typing import List, Dict, Set, Union, TextIO
 
-from pavilion import cancel
+import pavilion
+from pavilion import cancel_utils
+from pavilion import config
 from pavilion import dir_db
 from pavilion import output
 from pavilion import sys_vars
@@ -23,10 +26,10 @@ from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
 from yaml_config import YAMLError, RequiredError
+from . import common
 from .errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo
 from .test_set import TestSet, TestSetError
-from . import common
 
 
 class LazyTestRunDict(UserDict):
@@ -87,25 +90,25 @@ class TestSeries:
     PGID_FN = 'series.pgid'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
 
-    def __init__(self, pav_cfg, config, _id=None):
+    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id=None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
 
         :param pav_cfg: The pavilion configuration object.
-        :param config: Series config, if generated from a series file.
+        :param series_cfg: Series config, if generated from a series file.
         :param _id: The test id number. If this is given, it implies that
             we're regenerating this series from saved files.
         """
 
-        self.pav_cfg = pav_cfg
+        self.pav_cfg: config.PavConfig = pav_cfg
         self.tests = LazyTestRunDict(pav_cfg)
 
-        self.config = config or SeriesConfigLoader().load_empty()
+        self.config = series_cfg or SeriesConfigLoader().load_empty()
 
         name = self.config.get('name') or 'unnamed'
         if not self.NAME_RE.match(name):
             raise TestSeriesError(
                 "Invalid Series name: {}. Series names must start with a letter, and can "
-                "contain numbers, dashes and underscores.".format(config['name']))
+                "contain numbers, dashes and underscores.".format(series_cfg['name']))
         self.name = name
 
         series_path = self.pav_cfg.working_dir/'series'
@@ -145,20 +148,32 @@ class TestSeries:
     def run_background(self):
         """Run pav _series in background using subprocess module."""
 
-        self.status.set(SERIES_STATES.RUN, "Running in background.")
+        self.status.set(SERIES_STATES.RUN, "Managing series in the background.")
+
+        # This is normally, but not necessarily, in the users PATH
+        pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
+
+        # Similarly, we need to tell Pavilion where to find it's config.
+        env = os.environ.copy()
+        env['PAV_CONFIG_FILE'] = self.pav_cfg.pav_cfg_file.resolve().as_posix()
 
         # start subprocess
-        temp_args = ['pav', '_series', self.sid]
+        temp_args = [pav_exe, '_series', self.sid]
         try:
             series_out_path = self.path/self.OUT_FN
             with series_out_path.open('w') as series_out:
                 series_proc = subprocess.Popen(temp_args,
+                                               # Detach from this process. This will prevent
+                                               # killing the child from bubbling up to the
+                                               # parent, particularly in unit tests.
+                                               start_new_session=True,
+                                               env=env,
                                                stdout=series_out,
                                                stderr=series_out)
 
         except OSError as err:
-            raise TestSeriesError("Could start series in background: {}"
-                                  .format(err.args[0]))
+            raise TestSeriesError("Could not start series in background: {}"
+                                  .format(err.args))
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -196,8 +211,6 @@ class TestSeries:
         except OSError:
             raise TestSeriesError(
                 "Could not write series config to file. Cancelling.")
-
-    WAIT_INTERVAL = 1
 
     @property
     def sid(self):  # pylint: disable=invalid-name
@@ -246,7 +259,7 @@ differentiate it from test ids."""
         try:
             with (series_path/common.CONFIG_FN).open() as config_file:
                 try:
-                    config = loader.load(config_file)
+                    series_cfg = loader.load(config_file)
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
                     raise TestSeriesError(
                         "Error loading config for test series '{}': {}"
@@ -255,7 +268,7 @@ differentiate it from test ids."""
             raise TestSeriesError("Could not load config file for test series '{}': {}"
                                   .format(sid, err.args[0]))
 
-        series = cls(pav_cfg, _id=series_id, config=config)
+        series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg)
         series.tests.find_tests(series.path)
         return series
 
@@ -350,16 +363,27 @@ differentiate it from test ids."""
 
         self.test_sets = {}
 
-    def cancel(self, message=None):
+    def cancel(self, message=None, cancel_tests=True):
         """Goes through all test objects assigned to series and cancels tests
-        that haven't been completed. """
+        that haven't been completed.
 
-        self.status.set(SERIES_STATES.ABORTED, "Series cancelled: {}".format(message))
+        :param message: Reason to give for cancellation.
+        :param cancel_tests: Whether to cancel the attached tests. (Default True)
+        """
 
-        for test in self.tests.values():
-            test.cancel(message or "Cancelled via series. Reason not given.")
+        if self.pgid:
+            try:
+                os.killpg(self.pgid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
 
-        cancel.cancel_jobs(self.pav_cfg, List[self.tests.values()])
+        if cancel_tests:
+            for test in self.tests.values():
+                test.cancel(message or "Cancelled via series. Reason not given.")
+
+            cancel_utils.cancel_jobs(self.pav_cfg, List[self.tests.values()])
+
+        self.status.set(SERIES_STATES.CANCELED, "Series cancelled: {}".format(message))
 
     def run(self, build_only: bool = False, rebuild: bool = False,
             local_builds_only: bool = False, verbosity: int = 0,
@@ -382,7 +406,13 @@ differentiate it from test ids."""
             outfile = open('/dev/null', 'w')
 
         # create the test sets and link together.
-        self._create_test_sets()
+        try:
+            self._create_test_sets()
+        except TestSeriesError as err:
+            fprint("Error creating test sets:\n{}".format(err.args[0]), file=outfile)
+            self.status.set(SERIES_STATES.ERROR,
+                            "Error creating test sets: {}".format(err.args[0]))
+            raise
 
         # The names of all test sets that have completed.
         complete = set()  # type: Set[str]
@@ -414,6 +444,10 @@ differentiate it from test ids."""
                     output.fprint(
                         "Skipping test set '{}' due to parents not passing."
                         .format(test_set.name), file=outfile)
+                    parents = (par.name for par in test_set.parent_sets)
+                    self.status.set(SERIES_STATES.SET_SKIPPED,
+                                    "Skipping test set {}. Parent sets {} did not pass."
+                                    .format(test_set.name, parents))
                     continue
 
                 # Create the test objects
@@ -421,6 +455,10 @@ differentiate it from test ids."""
                     test_set.make(build_only, rebuild,
                                   local_builds_only=local_builds_only, outfile=outfile)
                 except TestSetError as err:
+                    self.status.set(SERIES_STATES.CREATION_ERROR,
+                                    "Error creating tests. See the series log "
+                                    "`pav log series {}`.  {}"
+                                    .format(self.sid, err.args[0]))
                     self.set_complete()
                     raise TestSeriesError(
                         "Error making tests for series '{}':\n {}"
@@ -433,6 +471,9 @@ differentiate it from test ids."""
                 try:
                     test_set.build(verbosity=verbosity, outfile=outfile)
                 except TestSetError as err:
+                    self.status.set(SERIES_STATES.BUILD_ERROR,
+                                    "Error building tests. See the series log `pav log series {}"
+                                    .format(self.sid))
                     self.set_complete()
                     raise TestSeriesError(
                         "Error building tests for series '{}': {}"
@@ -446,6 +487,10 @@ differentiate it from test ids."""
                                .format(kicked_off, test_set.name, self.sid),
                                file=outfile)
                     except TestSetError as err:
+                        self.status.set(
+                            SERIES_STATES.KICKOFF_ERROR,
+                            "Error kicking off tests. See the series log `pav log series {}"
+                            .format(self.sid))
                         self.set_complete()
                         raise TestSeriesError(
                             "Error in series '{}': {}".format(self.sid, err.args[0]))
@@ -474,6 +519,8 @@ differentiate it from test ids."""
                         "All {} tests have been started.".format(len(self.tests)))
         common.set_all_started(self.path)
 
+    WAIT_INTERVAL = 0.3
+
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
 
@@ -484,7 +531,7 @@ differentiate it from test ids."""
         while time.time() < end:
             if self.complete:
                 return
-            time.sleep(min(1, timeout or 1))
+            time.sleep(min(0., timeout or 1))
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))
@@ -632,7 +679,7 @@ differentiate it from test ids."""
         with LockFile(lockfile_path):
             data = {}
             try:
-                with json_file.open('r') as json_series_file:
+                with json_file.open() as json_series_file:
                     try:
                         data = json.load(json_series_file)
                     except json.decoder.JSONDecodeError:
