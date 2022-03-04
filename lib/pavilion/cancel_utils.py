@@ -3,9 +3,12 @@
 import io
 from collections import defaultdict
 from typing import List, TextIO
+import time
 
 from pavilion import schedulers
+from pavilion import utils
 from pavilion.test_run import TestRun, load_tests
+from pavilion import output
 
 
 def cancel_jobs(pav_cfg, tests: List[TestRun], errfile: TextIO = None) -> List[dict]:
@@ -57,3 +60,46 @@ def cancel_jobs(pav_cfg, tests: List[TestRun], errfile: TextIO = None) -> List[d
                     'msg': "Uncancelled tests still running."})
 
         return jobs_cancelled
+
+
+def cancel_tests(pav_cfg, tests: List, outfile: TextIO):
+    """Cancel all of the given tests, printing useful user messages and error information."""
+
+    user = utils.get_login()
+
+    # Cancel each test. Note that this does not cancel test jobs or builds.
+    cancelled_test_info = []
+    for test in tests:
+        # Don't try to cancel complete tests
+        if not test.complete:
+            test.cancel("Cancelled via cmdline by user '{}'".format(user))
+            cancelled_test_info.append(test)
+
+    if cancelled_test_info:
+        output.draw_table(
+            outfile=outfile,
+            fields=['name', 'id'],
+            rows=[{'name': test.name, 'id': test.full_id}
+                  for test in cancelled_test_info])
+    else:
+        output.fprint("No tests needed to be cancelled.",
+                      file=outfile)
+        return 0
+
+    output.fprint("Giving tests a moment to quit.",
+                  file=outfile)
+    time.sleep(TestRun.RUN_WAIT_MAX)
+
+    job_cancel_info = cancel_jobs(pav_cfg, tests, self.errfile)
+
+    if job_cancel_info:
+        output.draw_table(
+            outfile=outfile,
+            fields=['scheduler', 'job', 'success', 'msg'],
+            rows=job_cancel_info,
+            title="Cancelled {} jobs.".format(len(job_cancel_info)),
+        )
+    else:
+        output.fprint("No jobs needed to be cancelled.", file=outfile)
+
+    return 0
