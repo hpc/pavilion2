@@ -1,15 +1,12 @@
 """Test the cancel command."""
 
-import errno
-import sys
 import time
-from typing import Union, NewType
 
-import pavilion.series
-from pavilion.status_file import SERIES_STATES
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
+from pavilion import series
+from pavilion.status_file import SERIES_STATES
 from pavilion.unittest import PavTestCase
 
 
@@ -58,13 +55,7 @@ class SeriesCmdTests(PavTestCase):
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
 
-        # Wait for the series to start.
-        start_time = time.time()
-        ser = series_cmd.last_run_series
-        while not ser.status.has_state(SERIES_STATES.ALL_STARTED):
-            if time.time() - start_time > 10:
-                self.fail("Could not detect series start.")
-            time.sleep(0.3)
+        self._wait_for_all_start(series_cmd.last_run_series)
 
         cancel_args = arg_parser.parse_args(['series', 'cancel', series_cmd.last_run_series.sid])
         cancel_result = series_cmd.run(self.pav_cfg, cancel_args)
@@ -85,13 +76,7 @@ class SeriesCmdTests(PavTestCase):
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
 
-        # Wait for the series to start.
-        start_time = time.time()
-        ser = series_cmd.last_run_series
-        while not ser.status.has_state(SERIES_STATES.ALL_STARTED):
-            if time.time() - start_time > 10:
-                self.fail("Could not detect series start.")
-            time.sleep(0.3)
+        self._wait_for_all_start(series_cmd.last_run_series)
 
         list_args = [
             ['series', 'list'],
@@ -116,13 +101,7 @@ class SeriesCmdTests(PavTestCase):
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
 
-        # Wait for the series to start.
-        start_time = time.time()
-        ser = series_cmd.last_run_series
-        while not ser.status.has_state(SERIES_STATES.ALL_STARTED):
-            if time.time() - start_time > 10:
-                self.fail("Could not detect series start.")
-            time.sleep(0.3)
+        self._wait_for_all_start(series_cmd.last_run_series)
 
         list_args = [
             ['series', 'history', '--text'],
@@ -131,3 +110,15 @@ class SeriesCmdTests(PavTestCase):
         for raw_args in list_args:
             args = arg_parser.parse_args(raw_args)
             self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
+
+    def _wait_for_all_start(self, ser: series.TestSeries, timeout=30):
+        # Wait for the series to start.
+        start_time = time.time()
+        while not ser.status.has_state(SERIES_STATES.ALL_STARTED):
+            if time.time() - start_time > timeout:
+                stat_lines = []
+                for stat in ser.status.history():
+                    stat_lines.append(str(stat))
+                self.fail("Could not detect series start. Series status: \n{}"
+                          .format('\n'.join(stat_lines)))
+            time.sleep(0.3)
