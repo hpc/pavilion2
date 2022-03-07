@@ -35,7 +35,6 @@ class ResultParserTests(PavTestCase):
 
     def setUp(self):
         """This has to run before any command plugins are loaded."""
-        arguments.get_parser()
         plugins.initialize_plugins(self.pav_cfg)
 
     def tearDown(self):
@@ -324,6 +323,29 @@ class ResultParserTests(PavTestCase):
             self.assertIsNotNone(
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
+
+    def test_json_parser(self):
+        """Test json parser"""
+
+        cfg = self._quick_test_cfg()
+        cfg['build'] = {'source_path': 'json-blob.txt'}
+        cfg['result_parse'] = {
+            'json': { 
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar'],
+                    'exclude': ['foo2'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        test = self._quick_test(cfg=cfg)
+        test.run()
+
+        results = test.gather_results(0)
+        print(results)
+
 
     def test_table_parser(self):
         """Check table result parser operation."""
