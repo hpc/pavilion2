@@ -54,60 +54,82 @@ class Json(base_classes.ResultParser):
         return json_object
         
 
-    # To-do: Raise exception if this fails.
     def parse_json(self, file, stop_at):
+        _ = self
 
-        if stop_at is None:
-            json_string = file.read()
-        else:
-            lines = []
-            for line in file:
-                if stop_at in line:
-                    break
-                lines.append(line)
-            json_string = ''.join(lines)
+        try:
+            if stop_at is None:
+                return json.load(file)
+            else:
+                lines = []
+                for line in file:
+                    if stop_at in line:
+                        break
+                    lines.append(line)
+                json_string = ''.join(lines)
 
-        json_object = json.loads(json_string)
-        # To-do: Raise exception if this isn't valid JSON.
-
-        return json_object
-
-
-    # To-do: Raise exception if this fails.
-    def exclude_keys(self, dictionary, keys):
-        for i, key in enumerate(keys):
-            path = keys[i].split(".")
-            dictionary = self.remove_key(dictionary, path)
-        return dictionary
+            json_object = json.loads(json_string)
+            return json_object
+        
+        except json.JSONDecodeError as err:
+            raise base_classes.ResultError(
+                "Invalid JSON: '{}'"
+                .format(err)
+            )
 
 
-    # To-do: Raise exception if this fails.
-    def remove_key(self, dictionary, path):
+    def exclude_keys(self, old_dict, keys):
+        _ = self
+
+        try:
+            for i, key in enumerate(keys):
+                path = keys[i].split(".")
+                old_dict = self.remove_key(old_dict, path)
+            return old_dict
+
+        except (TypeError, KeyError) as err:
+            raise base_classes.ResultError(
+                "Key {} doesn't exist"
+                .format('.'.join(path))
+            )
+
+
+    def remove_key(self, old_dict, path):
+        _ = self
+
         if len(path) == 1:
-            del dictionary[path[0]]
-            return dictionary
+            del old_dict[path[0]]
+            return old_dict
         else:
-            dictionary[path[0]] = self.remove_key(dictionary[path[0]], path[1:])
-            return dictionary
-            
+            old_dict[path[0]] = self.remove_key(old_dict[path[0]], path[1:])
+            return old_dict
 
-    # To-do: Raise exception if this fails.
-    def include_only_keys(self, dictionary, keys):
-        key_paths = [key.split(".") for key in keys]
-        newdict = {}
 
-        for path in key_paths:
-            current_newdict = newdict
-            current_dictionary = dictionary
+    def include_only_keys(self, old_dict, keys):
+        _ = self
 
-            for index, part in enumerate(path):
-                if part not in current_newdict:
-                    if index == len(path) - 1:
-                        current_newdict[part] = current_dictionary[part]
-                    else:
-                        current_newdict[part] = {}
+        try:
+            key_paths = [key.split(".") for key in keys]
+            new_dict = {}
 
-                current_newdict = current_newdict[part]
-                current_dictionary = current_dictionary[part]
+            for path in key_paths:
+                current_new = new_dict
+                current_old = old_dict
 
-        return newdict
+                for index, part in enumerate(path):
+                    if part not in current_new:
+                        if index == len(path) - 1:
+                            current_new[part] = current_old[part]
+                        else:
+                            current_new[part] = {}
+
+                    current_new = current_new[part]
+                    current_old = current_old[part]
+
+            return new_dict
+
+        except (TypeError, KeyError) as err:
+            raise base_classes.ResultError(
+                "Key {} doesn't exist"
+                .format('.'.join(path))
+            )
