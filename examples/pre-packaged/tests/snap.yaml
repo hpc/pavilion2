@@ -50,7 +50,7 @@ _build:
     nthreads: [1, 2, 4]
     # The idea here is to keep the aspect ratio of the geometry dimensions
     # relatively square.
-    procs: "{{ floor( sqrt(sched.alloc_cpu_total) / 3 ) }}"
+    procs: "{{ floor( sqrt(sched.tasks_total) / 3 ) }}"
     npey: "{{ procs }}"
     # Divide by threads to ensure there is a "core" available for each thread.
     npez: "{{ floor( 2 * procs / nthreads ) }}"
@@ -100,7 +100,7 @@ _build:
       - sed -i 's/\(  ny=\)16/\1{{ny}}/' inp
       - sed -i 's/\(  nz=\)16/\1{{nz}}/' inp
       - sed -i 's/\(  nthreads=\)1/\1{{nthreads}}/' inp
-      - "{{test_cmd}} ./2018-xroads-trinity-snap/snap-src/{{executable}} inp out"
+      - "{{test_cmd}} ./2018-xroads-trinity-snap/snap-src/{{comp_config.executable}} inp out"
 
   result_parse:
     constant:
@@ -125,6 +125,13 @@ _build:
       allocated_words_per_rank:
         regex: 'per rank +(.*)'
         files: out
+
+  result_evaluate:
+    memory_per_rank_bytes: "allocated_words_per_rank*8"
+    memory_per_rank_Mbytes: "allocated_words_per_rank*8/1000000"
+    memory_per_rank_Gbytes: "allocated_words_per_rank*8/1000000000"
+    memory_per_node_Gbytes: "{{procs}}*allocated_words_per_rank*8/1000000000"
+    memory_total_Gbytes: "{{sched.nodes*procs}}*allocated_words_per_rank*8/1000000000"
 
 
 base:
@@ -196,13 +203,13 @@ xroads-scaling:
     # variable so that the number of processes used is appropriate for how SNAP
     # wants to be run and ensuring there is a "core" to perform the work of
     # each thread.
-    test_cmd: 'srun -n {{total_procs}} -c {{ 2*nthreads }} --cpu_bind=cores'
+    test_cmd: 'srun -N {{scale.node_count}} --ntasks-per-node={{scale.ranks_per_node}} -c {{ scale.threads_per_rank }} --cpu_bind=cores'
 
   permute_on: [ scale ]
 
   schedule:
     nodes: "{{scale.node_count}}"
-    tasks_per_node: all
+    tasks_per_node: "all"
 
   run:
     modules:
@@ -210,7 +217,14 @@ xroads-scaling:
       - "{{mpis}}"
 
     cmds:
-      - "{{test_cmd}} ./2018-xroads-trinity-snap/snap-src/{{executable}} {{input_path}} out"
+      - "{{test_cmd}} ./2018-xroads-trinity-snap/snap-src/{{comp_config.executable}} {{scale.input_path}} out"
+
+  result_evaluate:
+    memory_per_node_Gbytes: "{{scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
+    memory_total_Gbytes: "{{scale.node_count*scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
+    # Bug in pavilion causes this next line to error.
+    # "Results dict does not have the key 'memory_per_node_Gbytes'."
+    #memory_percentage_usage: "100 * memory_per_node_Gbytes / {{sched.test_min_mem}}"
 
 
 xc40-scaling:
