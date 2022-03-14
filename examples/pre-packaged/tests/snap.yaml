@@ -128,10 +128,10 @@ _build:
 
   result_evaluate:
     memory_per_rank_bytes: "allocated_words_per_rank*8"
-    memory_per_rank_Mbytes: "allocated_words_per_rank*8/1000000"
-    memory_per_rank_Gbytes: "allocated_words_per_rank*8/1000000000"
-    memory_per_node_Gbytes: "{{procs}}*allocated_words_per_rank*8/1000000000"
-    memory_total_Gbytes: "{{sched.nodes*procs}}*allocated_words_per_rank*8/1000000000"
+    memory_per_rank_mbytes: "allocated_words_per_rank*8/1000000"
+    memory_per_rank_gbytes: "allocated_words_per_rank*8/1000000000"
+    memory_per_node_gbytes: "{{procs}}*allocated_words_per_rank*8/1000000000"
+    memory_total_gbytes: "{{sched.nodes*procs}}*allocated_words_per_rank*8/1000000000"
 
 
 base:
@@ -220,11 +220,11 @@ xroads-scaling:
       - "{{test_cmd}} ./2018-xroads-trinity-snap/snap-src/{{comp_config.executable}} {{scale.input_path}} out"
 
   result_evaluate:
-    memory_per_node_Gbytes: "{{scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
-    memory_total_Gbytes: "{{scale.node_count*scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
+    memory_per_node_gbytes: "{{scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
+    memory_total_gbytes: "{{scale.node_count*scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
     # Bug in pavilion causes this next line to error.
     # "Results dict does not have the key 'memory_per_node_Gbytes'."
-    #memory_percentage_usage: "100 * memory_per_node_Gbytes / {{sched.test_min_mem}}"
+    memory_percentage_usage: "100 * memory_per_node_gbytes / {{sched.test_min_mem}}"
 
 
 xc40-scaling:
@@ -248,3 +248,13 @@ xc40-scaling:
         intel_comment: ''
         cray_comment: ''
         executable: 'isnap'
+
+  build:
+    modules:
+      - "{{comp_config.compiler}}"
+      - "{{mpis}}"
+
+  run:
+    modules:
+      - "{{comp_config.compiler}}"
+      - "{{mpis}}"
