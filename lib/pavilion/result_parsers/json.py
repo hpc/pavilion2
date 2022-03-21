@@ -57,41 +57,48 @@ class Json(base_classes.ResultParser):
     def parse_json(self, file, stop_at):
         _ = self
 
-        try:
-            if stop_at is None:
+        if stop_at is None:
+            try:
                 return json.load(file)
-            else:
-                lines = []
-                for line in file:
-                    if stop_at in line:
-                        break
-                    lines.append(line)
-                json_string = ''.join(lines)
-
-            json_object = json.loads(json_string)
-            return json_object
+            except json.JSONDecodeError as err:
+                raise ValueError(
+                    "Invalid JSON: '{}'"
+                    .format(err)
+                )
         
-        except json.JSONDecodeError as err:
-            raise base_classes.ResultError(
+        else:
+            lines = []
+            for line in file:
+                if stop_at in line:
+                    break
+                lines.append(line)
+            json_string = ''.join(lines)
+
+            try:
+                json_object = json.loads(json_string)
+            except json.JSONDecodeError as err:
+                raise ValueError(
                 "Invalid JSON: '{}'"
-                .format(err)
+               .format(err)
             )
+
+            return json_object
 
 
     def exclude_keys(self, old_dict, keys):
         _ = self
 
-        try:
-            for i, key in enumerate(keys):
-                path = keys[i].split(".")
+        for i, key in enumerate(keys):
+            path = keys[i].split(".")
+            try:
                 old_dict = self.remove_key(old_dict, path)
-            return old_dict
-
-        except (TypeError, KeyError) as err:
-            raise base_classes.ResultError(
-                "Key {} doesn't exist"
-                .format('.'.join(path))
-            )
+            except (TypeError, KeyError) as err:
+                raise ValueError(
+                    "Key {} doesn't exist"
+                    .format('.'.join(path))
+                )
+        
+        return old_dict
 
 
     def remove_key(self, old_dict, path):
@@ -129,7 +136,7 @@ class Json(base_classes.ResultParser):
             return new_dict
 
         except (TypeError, KeyError) as err:
-            raise base_classes.ResultError(
+            raise ValueError(
                 "Key {} doesn't exist"
                 .format('.'.join(path))
             )
