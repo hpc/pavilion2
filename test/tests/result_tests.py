@@ -3,6 +3,7 @@
 import copy
 import datetime
 import json
+import io
 import logging
 import pprint
 from collections import OrderedDict
@@ -366,8 +367,11 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(cfg=errorcfg)
         test.run()
 
-        results = test.gather_results(0)
+        log = io.StringIO()
+        results = test.gather_results(0, log_file=log)
         print(results)
+        log.seek(0)
+        print(log.read())
 
 
     def test_table_parser(self):
