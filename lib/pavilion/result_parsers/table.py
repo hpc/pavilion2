@@ -60,8 +60,6 @@ class Table(ResultParser):
                     'by_column',
                     help_text="Set to True if the user wants to organize the "
                               "nested dictionaries by columns. Default False. "
-                              "Only set if `has_header` is True. "
-                              "Otherwise, Pavilion will ignore."
                 ),
             ],
             defaults={
@@ -103,6 +101,7 @@ class Table(ResultParser):
 
         # Collect all the lines that belong to our table.
         for line in file:
+            line = line.lstrip()
             if reference_line is None and line.strip():
                 reference_line = line
 
@@ -131,6 +130,7 @@ class Table(ResultParser):
 
         if not col_names:
             col_names = [col.strip() for col in delimiter_re.split(lines.pop())]
+            print(col_names, has_row_labels)
 
             if has_row_labels:
                 col_names = col_names[1:]
