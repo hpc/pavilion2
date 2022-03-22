@@ -1,6 +1,7 @@
 """Parse JSON from file."""
 
 import json
+import re
 
 import yaml_config as yc
 from . import base_classes 
@@ -20,13 +21,13 @@ class Json(base_classes.ResultParser):
                     'include_only',
                     sub_elem = yc.StrElem(),
                     help_text="Include this key and exclude all others."
-                              "Looks like: a, b.c, b.d.e"
+                              "Example: '[key1, key2.subkey]'"
                 ),
                 yc.ListElem(
                     'exclude',
                     sub_elem = yc.StrElem(),
                     help_text="Exclude this key."
-                              "Looks like: a, b.c, b.d.e"
+                              "Example: '[key1, key2.subkey]'"
                 ),
                 yc.StrElem(
                     'stop_at',
@@ -34,7 +35,7 @@ class Json(base_classes.ResultParser):
                     "If the results contain more than just pure JSON, use the preceded_by"
                     "option to mark where the JSON begins and this option to mark where"
                     "the JSON ends."
-                    "Looks like: \"a string of text\""
+                    "Example: \"a string of text\""
                 )
             ]
         )
@@ -69,7 +70,7 @@ class Json(base_classes.ResultParser):
         else:
             lines = []
             for line in file:
-                if stop_at in line:
+                if re.search(stop_at, line):
                     break
                 lines.append(line)
             json_string = ''.join(lines)
@@ -88,8 +89,8 @@ class Json(base_classes.ResultParser):
     def exclude_keys(self, old_dict, keys):
         _ = self
 
-        for i, key in enumerate(keys):
-            path = keys[i].split(".")
+        for key in keys:
+            path = key.split(".")
             try:
                 old_dict = self.remove_key(old_dict, path)
             except (TypeError, KeyError) as err:
@@ -115,28 +116,24 @@ class Json(base_classes.ResultParser):
     def include_only_keys(self, old_dict, keys):
         _ = self
 
-        try:
-            key_paths = [key.split(".") for key in keys]
-            new_dict = {}
-
-            for path in key_paths:
-                current_new = new_dict
-                current_old = old_dict
-
-                for index, part in enumerate(path):
-                    if part not in current_new:
-                        if index == len(path) - 1:
+        key_paths = [key.split(".") for key in keys]
+        new_dict = {}
+        for path in key_paths:
+            current_new = new_dict
+            current_old = old_dict
+            for index, part in enumerate(path):
+                if part not in current_new:
+                    if index == len(path) - 1:
+                        try:
                             current_new[part] = current_old[part]
-                        else:
-                            current_new[part] = {}
-
-                    current_new = current_new[part]
-                    current_old = current_old[part]
-
-            return new_dict
-
-        except (TypeError, KeyError) as err:
-            raise ValueError(
-                "Key {} doesn't exist"
-                .format('.'.join(path))
-            )
+                        except (TypeError, KeyError) as err:
+                            raise ValueError(
+                                "Key {} doesn't exist"
+                                .format('.'.join(path))
+                            )
+                    else:
+                        current_new[part] = {}
+                current_new = current_new[part]
+                current_old = current_old[part]
+        
+        return new_dict

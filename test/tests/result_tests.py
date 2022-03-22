@@ -347,6 +347,29 @@ class ResultParserTests(PavTestCase):
         print(results)
 
 
+    def test_json_parser_errors(self):
+        """Test json parser with bad keys"""
+
+        errorcfg = self._quick_test_cfg()
+        errorcfg['build'] = {'source_path': 'json-blob.txt'}
+        errorcfg['result_parse'] = {
+            'json': { 
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar.badkey'],
+                    'exclude': ['foo2'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        test = self._quick_test(cfg=errorcfg)
+        test.run()
+
+        results = test.gather_results(0)
+        print(results)
+
+
     def test_table_parser(self):
         """Check table result parser operation."""
 
