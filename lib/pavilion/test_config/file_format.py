@@ -515,6 +515,39 @@ expected to be added to by various plugins.
                       "strings). Other result values (including those "
                       "from result parsers and other evaluations are "
                       "available to reference as variables."),
+
+        yc.CategoryElem(
+            'module_defs',
+            help_text="Module defs allow you to redefine how particular modules are loaded "
+                      "on a given system. Requests to load modules in the 'build' or 'run' "
+                      "sections will be automatically swapped out with the sequence of module "
+                      "commands specified"
+            sub_elem=yc.KeyedElem(
+                elements=[
+                    yc.StrElem(
+                        'version', default=None,
+                        help_text="Optional version string. May include 'globing' wildcards,"
+                                  "such as '2.4.*'. The module def only applies to modules that "
+                                  "match this version, or applies to all versions if none is "
+                                  "provided."),
+                    yc.ListElem(
+                        'modules', sub_elem=yc.StrElem(),
+                        help_text="A list of module actions to take when loading this module. "
+                                  "Uses the same format as the 'modules' section under the "
+                                  "'build' and 'run' sections. You can also use "
+                                  "the <requested> keyword, which will be substituted with "
+                                  "the module as requested by the user."
+                    ),
+                    EnvCatElem(
+                        'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
+                        help_text="Environment variables to set. Works just like "
+
+                    )
+                ]
+
+            )
+
+        )
     ]
     """Each YamlConfig instance in this list defines a key for the test config.
 
