@@ -155,9 +155,10 @@ lock regularly while it's in use for longer periods of time.
                     # The lockfile isn't expired yet, so wait.
                     time.sleep(self.SLEEP_PERIOD)
 
-            if not notified and start + self.NOTIFY_TIMEOUT < time.time():
+            if not notified and start + self.NOTIFY_TIMEOUT > time.time():
                 notified = True
-                output.fprint("Waiting for lock '{}'.", color=output.YELLOW, file=sys.stderr)
+                output.fprint("Waiting for lock '{}'.".format(self.lock_path), 
+                              color=output.YELLOW, file=sys.stderr)
 
         if not acquired:
             raise TimeoutError("Lock on file '{}' could not be acquired."
@@ -176,6 +177,7 @@ lock regularly while it's in use for longer periods of time.
         host, user, _, lock_id = self.read_lockfile()
 
         if lock_id is not None and lock_id != self._id:
+            # The lock has been replaced by a different one already.
             output.fprint("Lockfile '{}' mysteriously replaced with one from {}."
                           .format(self._lock_path, (host, user)),
                           color=output.YELLOW, file=sys.stderr)
