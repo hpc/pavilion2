@@ -6,11 +6,11 @@ from pathlib import Path
 import grp
 import logging
 import os
+import sys
 import time
 import uuid
 from pavilion import utils
-
-LOGGER = logging.getLogger('pav.' + __name__)
+from pavilion import output
 
 
 # Expires after a silly long time.
@@ -39,6 +39,10 @@ lock regularly while it's in use for longer periods of time.
     SLEEP_PERIOD = 0.2
 
     LOCK_PERMS = 0o774
+
+    # How long to wait before printing user notifications about potential
+    # problems.
+    NOTIFY_TIMEOUT = 5
 
     def __init__(self, lockfile_path, group=None, timeout=None,
                  expires_after=DEFAULT_EXPIRE):
@@ -86,6 +90,7 @@ lock regularly while it's in use for longer periods of time.
         acquired = False
         expiration = None
         first = True
+        notified = False
 
         # Try until we timeout (at least once).
         while (self._timeout is None or first or
@@ -104,19 +109,17 @@ lock regularly while it's in use for longer periods of time.
                 # We got the lock, quit the loop.
                 break
 
-            except (OSError, IOError):
-                if self._timeout is None:
-                    time.sleep(self.SLEEP_PERIOD)
-                    continue
-
+            except (OSError, IOError) as err:
                 try:
+                    # This is a race against file deletion by the lock holder.
                     lock_stat = self._lock_path.stat()
-                except (FileNotFoundError, OSError):
+                except (FileNotFoundError, OSError) as err:
+                    time.sleep(self.SLEEP_PERIOD)
                     continue
 
                 _, _, expiration, _ = self.read_lockfile()
 
-                if expiration is None or expiration < time.time():
+                if expiration is not None and expiration < time.time():
                     # The file is expired. Try to delete it.
                     exp_file = self._lock_path.with_name(
                         self._lock_path.name + '.expired')
@@ -128,7 +131,7 @@ lock regularly while it's in use for longer periods of time.
                             # the expiration.
                             try:
                                 lock_stat2 = self._lock_path.stat()
-                            except (FileNotFoundError, OSError):
+                            except (FileNotFoundError, OSError) as err:
                                 continue
 
                             if (lock_stat.st_ino != lock_stat2.st_ino or
@@ -137,7 +140,7 @@ lock regularly while it's in use for longer periods of time.
 
                             try:
                                 self._lock_path.unlink()
-                            except OSError:
+                            except OSError as err:
                                 pass
                     except TimeoutError:
                         # If we can't get the lock within 3 seconds, just
@@ -148,6 +151,13 @@ lock regularly while it's in use for longer periods of time.
                             pass
                     except OSError:
                         pass
+                else:
+                    # The lockfile isn't expired yet, so wait.
+                    time.sleep(self.SLEEP_PERIOD)
+
+            if not notified and start + self.NOTIFY_TIMEOUT < time.time():
+                notified = True
+                output.fprint("Waiting for lock '{}'.", color=output.YELLOW, file=sys.stderr)
 
         if not acquired:
             raise TimeoutError("Lock on file '{}' could not be acquired."
@@ -166,9 +176,9 @@ lock regularly while it's in use for longer periods of time.
         host, user, _, lock_id = self.read_lockfile()
 
         if lock_id is not None and lock_id != self._id:
-            LOGGER.error(
-                "Lockfile '%s' mysteriously replaced with one from %s.",
-                self._lock_path, (host, user))
+            output.fprint("Lockfile '{}' mysteriously replaced with one from {}."
+                          .format(self._lock_path, (host, user)),
+                          color=output.YELLOW, file=sys.stderr)
         else:
             try:
                 self._lock_path.unlink()
@@ -177,11 +187,13 @@ lock regularly while it's in use for longer periods of time.
                 host, user, _, lock_id = self.read_lockfile()
 
                 if lock_id == self._id:
-                    LOGGER.warning("Lockfile '%s' could not be deleted: '%s'",
-                                   self._lock_path, err)
+                    output.fprint("Lockfile '{}' could not be deleted: '{}'"
+                                  .format(self._lock_path, err),
+                                  color=output.YELLOW, file=sys.stderr)
                 else:
-                    LOGGER.error("Lockfile '%s' mysteriously disappeared.",
-                                 self._lock_path)
+                    output.fprint("Lockfile '{}' mysteriously disappeared."
+                                  .format(self._lock_path),
+                                  color=output.YELLOW, file=sys.stderr)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.unlock()
@@ -268,6 +280,7 @@ these values if there was an error..
                 expiration = 0
 
         except (OSError, IOError):
+            # Couldn't read the lockfile, so try again later. 
             return None, None, None, None
 
         return host, user, expiration, lock_id
