@@ -407,7 +407,6 @@ differentiate it from test ids."""
                     sets_to_run.append(test_set)
 
             for test_set in sets_to_run:
-
                 # Make sure it's ok to run this test set based on parent status.
                 if not test_set.should_run:
                     test_set.mark_completed()

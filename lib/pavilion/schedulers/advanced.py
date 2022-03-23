@@ -80,7 +80,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
         """Get initial variables (and chunks) for this scheduler."""
 
-        self._nodes = self._get_system_inventory(sched_config)
+        if self._nodes is None:
+            self._nodes = self._get_system_inventory(sched_config)
         filtered_nodes, filter_reasons = self._filter_nodes(sched_config)
         filtered_nodes.sort()
 
@@ -162,7 +163,6 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for raw_node in raw_node_data:
             node_info = self._transform_raw_node_data(sched_config, raw_node,
                                                       extra)
-
             if 'name' not in node_info:
                 raise RuntimeError("Advanced schedulers must always return a node"
                                    "'name' key when transforming raw node data."
