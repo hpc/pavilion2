@@ -93,10 +93,15 @@ class Json(base_classes.ResultParser):
             path = key.split(".")
             try:
                 old_dict = self.remove_key(old_dict, path)
-            except (TypeError, KeyError) as err:
+            except (KeyError) as err:
                 raise ValueError(
                     "Key {} doesn't exist"
                     .format('.'.join(path))
+                )
+            except (TypeError) as err:
+                raise ValueError(
+                    "You tried to exclude key {}, but {}'s value isn't a mapping"
+                    .format('.'.join(path), '.'.join(path[:-1]))
                 )
         
         return old_dict
@@ -126,10 +131,15 @@ class Json(base_classes.ResultParser):
                     if index == len(path) - 1:
                         try:
                             current_new[part] = current_old[part]
-                        except (TypeError, KeyError) as err:
+                        except (KeyError) as err:
                             raise ValueError(
                                 "Key {} doesn't exist"
                                 .format('.'.join(path))
+                            )
+                        except (TypeError) as err:
+                            raise ValueError(
+                                "You tried to include key {}, but {}'s value isn't a mapping"
+                                .format('.'.join(path), '.'.join(path[:-1]))
                             )
                     else:
                         current_new[part] = {}

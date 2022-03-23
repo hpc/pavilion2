@@ -325,8 +325,9 @@ class ResultParserTests(PavTestCase):
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
 
+
     def test_json_parser(self):
-        """Test json parser"""
+        """Check that JSON parser returns expected results."""
 
         cfg = self._quick_test_cfg()
         cfg['build'] = {'source_path': 'json-blob.txt'}
@@ -341,37 +342,89 @@ class ResultParserTests(PavTestCase):
             }
         }
 
+        expected_json = {'foo': {'bar': [1, 3, 5]}}
+
         test = self._quick_test(cfg=cfg)
         test.run()
 
         results = test.gather_results(0)
-        print(results)
+
+        self.assertEqual(results['myjson'], expected_json)
 
 
     def test_json_parser_errors(self):
-        """Test json parser with bad keys"""
+        """Check that JSON parser raises correct errors for a
+        variety of different inputs."""
 
-        errorcfg = self._quick_test_cfg()
-        errorcfg['build'] = {'source_path': 'json-blob.txt'}
-        errorcfg['result_parse'] = {
+        cfg_exclude_key_error = self._quick_test_cfg()
+        cfg_exclude_key_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_exclude_key_error['result_parse'] = {
             'json': { 
                 'myjson': {
                     'files': ['json-blob.txt'],
-                    'include_only': ['foo.bar.badkey'],
-                    'exclude': ['foo2'],
+                    'exclude': ['foo.badkey'],
                     'stop_at': 'this is a',
                 }
             }
         }
 
-        test = self._quick_test(cfg=errorcfg)
-        test.run()
+        cfg_exclude_type_error = self._quick_test_cfg()
+        cfg_exclude_type_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_exclude_type_error['result_parse'] = {
+            'json': { 
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'exclude': ['foo.bar.badkey'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
 
-        log = io.StringIO()
-        results = test.gather_results(0, log_file=log)
-        print(results)
-        log.seek(0)
-        print(log.read())
+        cfg_include_key_error = self._quick_test_cfg()
+        cfg_include_key_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_include_key_error['result_parse'] = {
+            'json': { 
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.badkey'],
+                    'exclude': ['foo.bar'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        cfg_include_type_error = self._quick_test_cfg()
+        cfg_include_type_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_include_type_error['result_parse'] = {
+            'json': { 
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar.badkey'],
+                    'exclude': ['foo.bar'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        cfgs = [cfg_exclude_key_error, cfg_exclude_type_error,
+                cfg_include_key_error] #, cfg_include_type_error]
+
+        error_texts = ["doesn't exist.",
+                        "isn't a mapping.",
+                        "doesn't exist.",
+                        "isn't a mapping."]
+
+        for i, cfg in enumerate(cfgs):
+            test = self._quick_test(cfg=cfg)
+            test.run()
+            results = test.gather_results(0)
+
+            print(results)
+            print("\n")
+
+            self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
+               error_texts[i]
+            )) 
 
 
     def test_table_parser(self):
