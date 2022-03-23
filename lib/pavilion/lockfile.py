@@ -110,6 +110,10 @@ lock regularly while it's in use for longer periods of time.
                 break
 
             except (OSError, IOError) as err:
+                if self._timeout is None:
+                    time.sleep(self.SLEEP_PERIOD)
+                    continue
+
                 try:
                     # This is a race against file deletion by the lock holder.
                     lock_stat = self._lock_path.stat()
@@ -155,9 +159,9 @@ lock regularly while it's in use for longer periods of time.
                     # The lockfile isn't expired yet, so wait.
                     time.sleep(self.SLEEP_PERIOD)
 
-            if not notified and start + self.NOTIFY_TIMEOUT > time.time():
+            if not notified and (start + self.NOTIFY_TIMEOUT < time.time()):
                 notified = True
-                output.fprint("Waiting for lock '{}'.".format(self.lock_path), 
+                output.fprint("Waiting for lock '{}'.".format(self._lock_path), 
                               color=output.YELLOW, file=sys.stderr)
 
         if not acquired:
