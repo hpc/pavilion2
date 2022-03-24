@@ -499,17 +499,20 @@ index, sub_var) tuple.
         :param pathlib.Path path: The file path to write to.
         """
 
+        tmp_path = path.with_suffix('.tmp')
+
         try:
-            with path.open('w') as outfile:
+            with tmp_path.open('w') as outfile:
                 data = self.as_dict()
                 # Save our set of deferred variables too.
                 data['__deferred'] = list(self.deferred)
 
                 json.dump(data, outfile)
+                tmp_path.rename(path)
         except (OSError, IOError, FileNotFoundError) as err:
             raise VariableError(
                 "Could not write variable file at '{}': {}"
-                .format(path, err.args[0])
+                .format(tmp_path, err.args[0])
             )
 
     @classmethod
