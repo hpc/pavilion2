@@ -63,7 +63,7 @@ class Json(base_classes.ResultParser):
                 return json.load(file)
             except json.JSONDecodeError as err:
                 raise ValueError(
-                    "Invalid JSON: '{}'"
+                    "'{}' is invalid JSON"
                     .format(err)
                 )
         
@@ -79,7 +79,7 @@ class Json(base_classes.ResultParser):
                 json_object = json.loads(json_string)
             except json.JSONDecodeError as err:
                 raise ValueError(
-                "Invalid JSON: '{}'"
+                "'{}' is invalid JSON"
                .format(err)
             )
 

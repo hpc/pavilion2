@@ -406,21 +406,50 @@ class ResultParserTests(PavTestCase):
             }
         }
 
+        cfg_stopat_none_error = self._quick_test_cfg()
+        cfg_stopat_none_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_stopat_none_error['result_parse'] = {
+            'json': { 
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar'],
+                    'exclude': ['foo.bar'],
+                }
+            }
+        }
+
+        cfg_stopat_bad_error = self._quick_test_cfg()
+        cfg_stopat_bad_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_stopat_bad_error['result_parse'] = {
+            'json': { 
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar'],
+                    'exclude': ['foo.bar'],
+                    'stop_at': 'this string does not exist',
+                }
+            }
+        }
+
         cfgs = [cfg_exclude_key_error, cfg_exclude_type_error,
-                cfg_include_key_error] #, cfg_include_type_error]
+                cfg_include_key_error, cfg_include_type_error, 
+                cfg_stopat_none_error, cfg_stopat_bad_error]
 
         error_texts = ["doesn't exist.",
                         "isn't a mapping.",
                         "doesn't exist.",
-                        "isn't a mapping."]
+                        "isn't a mapping.",
+                        "is invalid JSON.",
+                        "is invalid JSON.",
+                        ]
 
         for i, cfg in enumerate(cfgs):
             test = self._quick_test(cfg=cfg)
             test.run()
             results = test.gather_results(0)
 
-            print(results)
-            print("\n")
+            #print(results)
+            #print("\n")
 
             self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
                error_texts[i]
