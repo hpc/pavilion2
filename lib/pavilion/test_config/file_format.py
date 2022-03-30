@@ -442,6 +442,12 @@ expected to be added to by various plugins.
                     'timeout_file', default=None,
                     help_text='Specify a different file to follow for build '
                               'timeouts.'),
+                yc.StrElem(
+                    'autoexit',  choices=['true', 'True', 'False', 'false'],
+                    default='True',
+                    help_text='If True, test will fail if any of its build '
+                              'commands fail, rather than just the last '
+                              'command.'),
             ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
@@ -502,6 +508,11 @@ expected to be added to by various plugins.
                     'timeout_file', default=None,
                     help_text='Specify a different file to follow for run '
                               'timeouts.'),
+                yc.StrElem(
+                    'autoexit', choices=['true', 'True', 'False', 'false'],
+                    default='True',
+                    help_text='If True, test will fail if any of its run commands '
+                              'fail, rather than just the last command.'),
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
