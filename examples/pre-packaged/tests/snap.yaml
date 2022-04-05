@@ -71,8 +71,8 @@ _build:
     test_cmd: 'srun -n {{total_procs}} -c {{ 2*nthreads }} --cpu_bind=cores'
 
   build:
-    #source_path: https://www.lanl.gov/projects/crossroads/_assets/docs/ssi/snap-xroads-v1.0.0.tgz
-    source_path: snap-xroads-v1.0.0.tgz
+    source_path: https://www.lanl.gov/projects/crossroads/_assets/docs/ssi/snap-xroads-v1.0.0.tgz
+    #source_path: snap-xroads-v1.0.0.tgz
 
     modules:
       - "{{compilers}}"
