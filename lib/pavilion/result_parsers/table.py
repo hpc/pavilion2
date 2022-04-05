@@ -130,7 +130,6 @@ class Table(ResultParser):
 
         if not col_names:
             col_names = [col.strip() for col in delimiter_re.split(lines.pop())]
-            print(col_names, has_row_labels)
 
             if has_row_labels:
                 col_names = col_names[1:]
