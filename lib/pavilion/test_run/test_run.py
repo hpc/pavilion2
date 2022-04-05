@@ -1073,10 +1073,10 @@ be set by the scheduler plugin as soon as it's known."""
         cmds = config.get('cmds', [])
         if cmds:
             script.comment("Perform the sequence of test commands.")
+            if utils.str_bool(self.config.get(stype, {}).get('autoexit')):
+                script.command("set -e -o pipefail")
             for line in config.get('cmds', []):
                 for split_line in line.split('\n'):
-                    if utils.str_bool(self.config.get(stype, {}).get('autoexit')):
-                        split_line = ''.join(("set -e pipefail ", split_line))
                     script.command(split_line)
         else:
             script.comment('No commands given for this script.')

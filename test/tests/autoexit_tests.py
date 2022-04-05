@@ -21,17 +21,26 @@ class AutoexitTests(unittest.PavTestCase):
     def test_autoexit(self):
         """Test the autoexit config option."""
 
-        cfg_true = self._quick_test_cfg()
-        cfg_true['run'] = {'cmds': ['false']}
-        
-        #cfg_false = self._quick_test_cfg()
-        #cfg_false['build'] = {'autoexit': 'False'}
-        #cfg_false['run'] = {'cmds': 'False'}
+        cfg_run_yes = self._quick_test_cfg()
+        cfg_run_yes['run'] = {'cmds': ['false', 'true']}
+        test = self._quick_test(cfg=cfg_run_yes)
+        testreturn = test.run()
+        self.assertNotEqual(testreturn, 0)
 
-        test = self._quick_test(cfg=cfg_true)
-        test.run()
+        cfg_run_no = self._quick_test_cfg()
+        cfg_run_no['run'] = {'cmds': ['false', 'true'], 'autoexit': 'False'}
+        test = self._quick_test(cfg=cfg_run_no)
+        testreturn = test.run()
+        self.assertEqual(testreturn, 0)
 
-        results = test.gather_results(0)
-        print(results)
-
-        self.assertEqual(test.results['result'], TestRun.FAIL)    
+        #cfg_build_yes = self._quick_test_cfg()
+        #cfg_build_yes['build'] = {'cmds': ['false', 'true']}
+        #test = self._quick_test(cfg=cfg_build_yes)
+        #testreturn = test.run()
+        #self.assertNotEqual(testreturn, 0)
+#
+        #cfg_build_yes = self._quick_test_cfg()
+        #cfg_build_yes['build'] = {'cmds': ['false', 'true'], 'autoexit': 'False'}
+        #test = self._quick_test(cfg=cfg_build_yes)
+        #testreturn = test.run()
+        #self.assertNotEqual(testreturn, 0)
