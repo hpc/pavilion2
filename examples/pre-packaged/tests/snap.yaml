@@ -35,13 +35,17 @@ _build:
       - name: 'gcc-openmpi'
         compiler: 'gcc'
         gcc_comment: ''
+        gcc_mpi_comment: ''
         intel_comment: '#'
+        intel_mpi_comment: '#'
         cray_comment: '#'
         executable: 'gsnap'
       - name: 'intel-openmpi'
         compiler: 'intel'
         gcc_comment: '#'
+        gcc_mpi_comment: '#'
         intel_comment: ''
+        intel_mpi_comment: ''
         cray_comment: '#'
         executable: 'isnap'
     haswell_comment: ''
@@ -67,16 +71,25 @@ _build:
     test_cmd: 'srun -n {{total_procs}} -c {{ 2*nthreads }} --cpu_bind=cores'
 
   build:
-    source_path: https://www.lanl.gov/projects/crossroads/_assets/docs/ssi/snap-xroads-v1.0.0.tgz
+    #source_path: https://www.lanl.gov/projects/crossroads/_assets/docs/ssi/snap-xroads-v1.0.0.tgz
+    source_path: snap-xroads-v1.0.0.tgz
 
     modules:
       - "{{compilers}}"
       - "{{mpis}}"
 
+    env:
+      FCFLAGS: '-fallow-argument-mismatch'
+      FFLAGS: '-fallow-argument-mismatch'
+
     cmds:
       - cd 2018-xroads-trinity-snap/snap-src/
+      - pwd
+      - ls -la
+      - sed -i 's/\(FFLAGS = .*\)/\1 -fallow-argument-mismatch/' Makefile
       - sed -i 's/#\(FORTRAN = mpif90\)/{{comp_config.gcc_comment}}\1/' Makefile
-      - sed -i 's/#\(FORTRAN = mpiifort\)/{{comp_config.intel_comment}}\1/' Makefile
+      - sed -i 's/#\(FORTRAN = mpiifort\)/{{comp_config.intel_mpi_comment}}\1/' Makefile
+      - sed -i 's/#\(FORTRAN = mpif90\)/{{comp_config.gcc_mpi_comment}}\1/' Makefile
       - sed -i 's/\(FORTRAN = ftn\)/{{comp_config.cray_comment}}\1/' Makefile
       - sed -i 's/#\(TARGET = gsnap\)/{{comp_config.gcc_comment}}\1/' Makefile
       - sed -i 's/\(TARGET = isnap\)/{{comp_config.intel_comment}}\1/' Makefile
@@ -112,6 +125,9 @@ _build:
         files: out
       inner_iterations:
         regex: 'Inner Iterations +(.*)'
+        files: out
+      total_inner_iterations:
+        regex: 'Total inners for all time steps, outers = +(.*)'
         files: out
       total_execution_time:
         regex: 'Total Execution time +(.*)'
@@ -239,15 +255,21 @@ xc40-scaling:
       - name: 'gcc-mpich'
         compiler: 'gcc'
         gcc_comment: ''
+        gcc_mpi_comment: ''
         intel_comment: '#'
+        intel_mpi_comment: '#'
         cray_comment: ''
         executable: 'gsnap'
       - name: 'intel-mpich'
         compiler: 'intel'
         gcc_comment: '#'
+        gcc_mpi_comment: '#'
         intel_comment: ''
+        intel_mpi_comment: '#'
         cray_comment: ''
         executable: 'isnap'
+
+  permute_on: ['scale', 'comp_config']
 
   build:
     modules:
