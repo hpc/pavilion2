@@ -448,8 +448,8 @@ class ResultParserTests(PavTestCase):
             test.run()
             results = test.gather_results(0)
 
-            #print(results)
-            #print("\n")
+            print(results)
+            print("\n")
 
             self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
                error_texts[i]

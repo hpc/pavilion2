@@ -4,7 +4,7 @@ import json
 import re
 
 import yaml_config as yc
-from . import base_classes 
+from . import base_classes
 
 
 class Json(base_classes.ResultParser):
@@ -53,7 +53,7 @@ class Json(base_classes.ResultParser):
             json_object = self.include_only_keys(json_object, include_only)
 
         return json_object
-        
+
 
     def parse_json(self, file, stop_at):
         _ = self
@@ -66,7 +66,7 @@ class Json(base_classes.ResultParser):
                     "'{}' is invalid JSON"
                     .format(err)
                 )
-        
+
         else:
             lines = []
             for line in file:
@@ -103,7 +103,7 @@ class Json(base_classes.ResultParser):
                     "You tried to exclude key {}, but {}'s value isn't a mapping"
                     .format('.'.join(path), '.'.join(path[:-1]))
                 )
-        
+
         return old_dict
 
 
@@ -145,5 +145,5 @@ class Json(base_classes.ResultParser):
                         current_new[part] = {}
                 current_new = current_new[part]
                 current_old = current_old[part]
-        
+
         return new_dict
