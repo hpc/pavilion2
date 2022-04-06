@@ -399,7 +399,7 @@ class ResultParserTests(PavTestCase):
             'json': { 
                 'myjson': {
                     'files': ['json-blob.txt'],
-                    'include_only': ['foo.bar.badkey'],
+                    'include_only': ['foo.buzz.badkey'],
                     'exclude': ['foo.bar'],
                     'stop_at': 'this is a',
                 }
@@ -448,8 +448,10 @@ class ResultParserTests(PavTestCase):
             test.run()
             results = test.gather_results(0)
 
-            print(results)
-            print("\n")
+            #Isolating bug. Why is the error just "buzz"?
+            if i == 3:
+                print(results)
+                print("\n")
 
             self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
                error_texts[i]
