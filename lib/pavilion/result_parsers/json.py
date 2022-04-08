@@ -40,6 +40,7 @@ class Json(base_classes.ResultParser):
             ]
         )
 
+    # pylint: disable=arguments-differ
     def __call__(self, file, include_only=None, exclude=None, stop_at=None):
 
         json_object = self.parse_json(file, stop_at)
@@ -143,7 +144,18 @@ class Json(base_classes.ResultParser):
                             )
                     else:
                         current_new[part] = {}
-                current_new = current_new[part]
-                current_old = current_old[part]
+                try:
+                    current_new = current_new[part]
+                    current_old = current_old[part]
+                except (KeyError) as err:
+                    raise ValueError(
+                        "Key {} doesn't exist"
+                        .format('.'.join(path))
+                    )
+                except (TypeError) as err:
+                    raise ValueError(
+                        "You tried to include key {}, but {}'s value isn't a mapping"
+                        .format('.'.join(path), '.'.join(path[:-1]))
+                    )
 
         return new_dict

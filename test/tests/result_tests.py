@@ -438,7 +438,7 @@ class ResultParserTests(PavTestCase):
         error_texts = ["doesn't exist.",
                         "isn't a mapping.",
                         "doesn't exist.",
-                        "isn't a mapping.",
+                        "doesn't exist.",
                         "is invalid JSON.",
                         "is invalid JSON.",
                         ]
@@ -447,11 +447,6 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg=cfg)
             test.run()
             results = test.gather_results(0)
-
-            #Isolating bug. Why is the error just "buzz"?
-            if i == 3:
-                print(results)
-                print("\n")
 
             self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
                error_texts[i]
