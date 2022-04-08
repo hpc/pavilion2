@@ -32,15 +32,3 @@ class AutoexitTests(unittest.PavTestCase):
         test = self._quick_test(cfg=cfg_run_no)
         testreturn = test.run()
         self.assertEqual(testreturn, 0)
-
-        #cfg_build_yes = self._quick_test_cfg()
-        #cfg_build_yes['build'] = {'cmds': ['false', 'true']}
-        #test = self._quick_test(cfg=cfg_build_yes)
-        #testreturn = test.run()
-        #self.assertNotEqual(testreturn, 0)
-#
-        #cfg_build_yes = self._quick_test_cfg()
-        #cfg_build_yes['build'] = {'cmds': ['false', 'true'], 'autoexit': 'False'}
-        #test = self._quick_test(cfg=cfg_build_yes)
-        #testreturn = test.run()
-        #self.assertNotEqual(testreturn, 0)
