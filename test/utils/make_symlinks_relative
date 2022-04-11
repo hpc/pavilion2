@@ -8,12 +8,39 @@ def usage():
     print("Makes all the symlinks at or below the given path relative.")
     sys.exit(1)
 
-if len(sys.argv) != 2:
-    usage()
+def fix_symlinks(path):
 
-root = Path(sys.argv[1])
+    for file in path.iterdir():
+        if file.is_symlink() and file.exists():
+            fix_symlink(file)
+        elif file.is_dir():
+            fix_symlinks(file)
 
-if not (root.exists() and root.is_dir()):
-    print("Invalid directory: {}".format(root))
-    usage()
+def fix_symlink(file):
 
+    base = file.parent
+    target = file.resolve()
+    
+    path = []
+    parents = list(target.parents)
+    while base not in parents and base != Path('.'):
+        base = base.parent
+        path.append('..')
+    path.append(target.relative_to(base).as_posix())
+    rel_path = Path('/'.join(path))
+
+    print("Pointing {} to {} instead of {}".format(file, rel_path, target))
+    file.unlink()
+    file.symlink_to(rel_path)
+
+if __name__ == '__main__':     
+    if len(sys.argv) != 2:
+        usage()
+
+    root = Path(sys.argv[1])
+
+    if not (root.exists() and root.is_dir()):
+        print("Invalid directory: {}".format(root))
+        usage()
+        
+    fix_symlinks(root.resolve())
