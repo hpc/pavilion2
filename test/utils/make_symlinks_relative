@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+
+from pathlib import Path
+import sys
+
+def usage():
+    print("Usage: {} <path>".format(sys.argv[0]))
+    print("Makes all the symlinks at or below the given path relative.")
+    sys.exit(1)
+
+if len(sys.argv) != 2:
+    usage()
+
+root = Path(sys.argv[1])
+
+if not (root.exists() and root.is_dir()):
+    print("Invalid directory: {}".format(root))
+    usage()
+

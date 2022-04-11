@@ -59,7 +59,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: test_output
-        path: working_dir.zip
+        path: test/working_dir.zip
 
   style:
     if: ${{ false }}
