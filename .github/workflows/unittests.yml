@@ -10,7 +10,7 @@ jobs:
   # The debug job is meant for debugging CI related issues.
   debug:
     # Comment out the following line to enable.
-    if: ${{ false }}
+    #if: ${{ false }}
 
     runs-on: ubuntu-latest
 
@@ -22,7 +22,7 @@ jobs:
     - name: Set up Python 3.6
       uses: actions/setup-python@v2
       with:
-        python-version: 3.6
+        python-version: 3.10
     
     - name: Install dependencies
       run: |
@@ -44,8 +44,8 @@ jobs:
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
       run: | 
-        coverage run ./test/run_tests -q -o index -o kickoff_independent
-        coverage xml
+        ./test/run_tests -q -o multi_build
+
 
   style:
     runs-on: ubuntu-latest

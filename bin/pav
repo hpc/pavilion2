@@ -30,5 +30,5 @@ if [[ -n ${SHARED_GROUP} ]]; then
 EOF
 
 else
-    ${PYTHON} "${PAV_DIR}/bin/pav.py" "$@"
+    ${PYTHON} -X importtime "${PAV_DIR}/bin/pav.py" --profile "$@"
 fi
