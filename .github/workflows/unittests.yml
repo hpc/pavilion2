@@ -63,7 +63,6 @@ jobs:
         path: test/working_dir.zip
 
   style:
-    if: ${{ false }}
     runs-on: ubuntu-latest
 
     steps:
