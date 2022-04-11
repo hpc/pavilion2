@@ -46,12 +46,17 @@ jobs:
       run: | 
         ./test/run_tests -q -o multi_build
 
+    - name: zip_working_dir
+      if: always()
+      run: |
+        zip -yr working_dir.zip test/working_dir
+
     - name: logs
       if: always()
       uses: actions/upload-artifact@v1
       with:
         name: working_dir
-        path: test/working_dir
+        path: working_dir.zip
 
   style:
     if: ${{ false }}
