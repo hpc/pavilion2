@@ -51,7 +51,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: working_dir
-        path: working_dir
+        path: test/working_dir
 
   style:
     if: ${{ false }}
