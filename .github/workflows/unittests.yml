@@ -38,8 +38,8 @@ jobs:
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
+        #echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+        #./test/utils/spack_setup test
     
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
@@ -51,6 +51,7 @@ jobs:
         done
 
   style:
+    if: ${{ false }}
     runs-on: ubuntu-latest
 
     steps:
@@ -80,6 +81,7 @@ jobs:
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style # -o debug_prints"
 
   docs:
+    if: ${{ false }}
     runs-on: ubuntu-latest
 
     steps:
@@ -108,6 +110,7 @@ jobs:
       run: ./test/run_tests -o 'doc*' -q
 
   unittests-3_6:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     needs: 
         - style
@@ -152,6 +155,7 @@ jobs:
 #        token: c1100f28-f36f-4b92-8ba5-ec907a1bfea6
  
   unittests-3_10:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     needs: 
         - style
