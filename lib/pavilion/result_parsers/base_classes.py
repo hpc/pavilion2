@@ -147,7 +147,7 @@ take a `file` argument and kwargs to match the config arguments.
                         .format(key, name, self.path)
                     )
 
-                validators[key] = validator
+                self.validators[key] = validator
 
         config_elems = config_elems if config_elems is not None else []
         for elem in config_elems:

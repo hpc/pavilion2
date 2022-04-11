@@ -4,6 +4,7 @@ It shouldn't be run directly; use bin/pav instead."""
 import logging
 import os
 import sys
+import time
 import traceback
 
 from pavilion import arguments

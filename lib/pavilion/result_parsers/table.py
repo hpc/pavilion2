@@ -3,6 +3,7 @@
 import re
 
 import yaml_config as yc
+from pavilion import utils
 from .base_classes import ResultParser, ResultError
 
 
@@ -61,19 +62,26 @@ class Table(ResultParser):
                     help_text="Set to True if the user wants to organize the "
                               "nested dictionaries by columns. Default False. "
                 ),
+                yc.StrElem(
+                    'lstrip',
+                    help_text="Strip left-hand whitespace from each row."
+                ),
             ],
             defaults={
                 'delimiter_re':     r'\s+',
+                'by_column':        False,
+                'col_names':        [],
+                'has_row_labels':   True,
+                'lstrip':           False,
                 'row_ignore_re':    r'^(\s*(\||\+|-|=)+)+\s*$',
                 'table_end_re':     r'^\s*$',
-                'col_names':       [],
-                'has_row_labels':   'True',
-                'by_column':        'False',
             },
             validators={
-                'has_header': ('True', 'False'),
-                'by_column':  ('True', 'False'),
+                'by_column':  utils.str_bool,
                 'delimiter_re': re.compile,
+                'has_row_labels': utils.str_bool,
+                'lstrip': utils.str_bool,
+                'row_ignore_re': re.compile,
                 'table_end_re': re.compile,
             }
 
@@ -83,16 +91,9 @@ class Table(ResultParser):
 
     # pylint: disable=arguments-differ
     def __call__(self, file, delimiter_re=None,
-                 col_names=None, by_column=True,
+                 col_names=None, by_column=True, lstrip=False,
                  table_end_re=None, has_row_labels=False,
                  row_ignore_re=None):
-
-        col_names = [] if col_names is None else col_names
-        row_ignore_re = re.compile(row_ignore_re)
-        table_end_re = re.compile(table_end_re)
-        delimiter_re = re.compile(delimiter_re)
-        by_column = by_column == "True"
-        has_row_labels = has_row_labels == "True"
 
         lines = []
         # Record the first non-empty line we find as a point of reference
@@ -101,7 +102,9 @@ class Table(ResultParser):
 
         # Collect all the lines that belong to our table.
         for line in file:
-            line = line.lstrip()
+            if lstrip:
+                line = line.lstrip()
+
             if reference_line is None and line.strip():
                 reference_line = line
 

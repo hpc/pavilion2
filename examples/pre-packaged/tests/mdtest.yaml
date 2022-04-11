@@ -16,7 +16,7 @@ _base:
     # List of compilers modules for the cluster
     compilers?:
       # The base compiler module
-      - module: 
+      - module:
       # Module to load/swap to enable the compiler
       - preload:
     # List of mpi modules for the cluster
@@ -37,7 +37,7 @@ _base:
       - '{{compilers.preload}}'
       - '{{compilers.module}}'
       - '{{mpis}}'
-    
+
     cmds:
       # Someone tarred this up on a MAC, which includes a bunch of junk files
       # and means we have to cd in manually.
@@ -51,24 +51,25 @@ _base:
       - '{{mpis}}'
     cmds:
       - cd mdtest-1.8.4-xroads
-      - '{{test_cmd}} ./mdtest -n {{md_size}} -i {{md_iter}} -u -d {{md_filesystems.path}}'  
+      - '{{test_cmd}} ./mdtest -n {{md_size}} -i {{md_iter}} -u -d {{md_filesystems.path}}'
 
   scheduler: slurm
   schedule:
     nodes: 10
 
   result_parse:
-    regex: 
-      'fs_size, used_fs, inodes, used_inodes': 
+    regex:
+      'fs_size, used_fs, inodes, used_inodes':
         regex: '^FS: (\d+\.\d+\s+\w+)\s+\
                 Used FS: (\d+\.\d%)\s+\
                 Inodes: (\d+\.\d+ \w+)\s+\
                 Used Inodes: (\d+\.\d%)'
-    table: 
+    table:
       summary:
         delimiter_re: '[ :]{2,}'
         preceded_by: '^SUMMARY'
-        has_row_labels: True
+        has_row_labels: True,
+        lstrip: True,
 
 crossroads:
   inherits_from: _base
