@@ -49,13 +49,16 @@ jobs:
     - name: zip_working_dir
       if: always()
       run: |
-        zip -yr working_dir.zip test/working_dir
+        # If we don't zip this ourselves, it will run infinitely due to 
+        # symlink loops.
+        cd test
+        zip -yr working_dir.zip working_dir
 
     - name: logs
       if: always()
       uses: actions/upload-artifact@v1
       with:
-        name: working_dir
+        name: test_output
         path: working_dir.zip
 
   style:

@@ -14,6 +14,7 @@ from pavilion import log_setup
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import plugins
+from pavilion import utils
 
 try:
     import yc_yaml
@@ -155,7 +156,7 @@ if __name__ == '__main__':
         p_sort = _get_arg_val('profile-sort', arguments.PROFILE_SORT_DEFAULT)
         p_count = _get_arg_val('profile-count', arguments.PROFILE_COUNT_DEFAULT)
 
-        stats_path = '/tmp/{}_pav_pstats'.format(os.getlogin())
+        stats_path = '/tmp/{}_pav_pstats'.format(utils.get_login())
 
         cProfile.runctx('main()', globals(), locals(), stats_path)
         stats = pstats.Stats(stats_path)
