@@ -45,7 +45,10 @@ jobs:
     - name: run_tests
       run: | 
         ./test/run_tests -q -o multi_build
-
+        for test in working_dir/test_runs/; do 
+            echo $test
+            cat working_dir/test_runs/$test/job/kickstart.log
+        done
 
   style:
     runs-on: ubuntu-latest
