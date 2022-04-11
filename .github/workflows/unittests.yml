@@ -45,10 +45,13 @@ jobs:
     - name: run_tests
       run: | 
         ./test/run_tests -q -o multi_build
-        for test in working_dir/test_runs/; do 
-            echo $test
-            cat working_dir/test_runs/$test/job/kickstart.log
-        done
+
+    - name: logs
+      if: always()
+      uses: actions/upload-artifact@v1
+      with:
+        name: working_dir
+        path: working_dir
 
   style:
     if: ${{ false }}
