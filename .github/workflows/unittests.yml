@@ -22,7 +22,7 @@ jobs:
     - name: Set up Python 3.6
       uses: actions/setup-python@v2
       with:
-        python-version: 3.6
+        python-version: "3.10"
     
     - name: Install dependencies
       run: |
@@ -38,14 +38,29 @@ jobs:
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
+        #echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+        #./test/utils/spack_setup test
     
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
       run: | 
-        coverage run ./test/run_tests -q -o index -o kickoff_independent
-        coverage xml
+        ./test/run_tests -q -o multi_build
+
+    - name: zip_working_dir
+      if: always()
+      run: |
+        # If we don't zip this ourselves, it will run infinitely due to 
+        # symlink loops.
+        cd test
+        ./utils/make_symlinks_relative working_dir
+        zip -yr working_dir.zip working_dir
+
+    - name: logs
+      if: always()
+      uses: actions/upload-artifact@v1
+      with:
+        name: test_output
+        path: test/working_dir.zip
 
   style:
     runs-on: ubuntu-latest
@@ -142,6 +157,22 @@ jobs:
         coverage run ./test/run_tests 
         coverage xml
 
+    - name: zip_working_dir
+      if: failure()
+      run: |
+        # If we don't zip this ourselves, it will run infinitely due to 
+        # symlink loops.
+        cd test
+        ./utils/make_symlinks_relative working_dir
+        zip -yr working_dir.zip working_dir
+
+    - name: logs
+      if: failure()
+      uses: actions/upload-artifact@v1
+      with:
+        name: test_output_2.6
+        path: test/working_dir.zip
+
 #    - name: codecov-upload
 #      uses: codecov/codecov-action@v2
 #      with:
@@ -180,3 +211,19 @@ jobs:
     - name: run_tests
       run: | 
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+
+    - name: zip_working_dir
+      if: failure()
+      run: |
+        # If we don't zip this ourselves, it will run infinitely due to 
+        # symlink loops.
+        cd test
+        ./utils/make_symlinks_relative working_dir
+        zip -yr working_dir.zip working_dir
+
+    - name: logs
+      if: failure()
+      uses: actions/upload-artifact@v1
+      with:
+        name: test_output_2.10
+        path: test/working_dir.zip

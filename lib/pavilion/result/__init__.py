@@ -48,7 +48,7 @@ For evaluations we check for:
         for key_str, rconf in parser_conf[rtype].items():
 
             if ',' in key_str:
-                keys = [k.strip() for k in key_str.split() if k.strip()]
+                keys = [k.strip() for k in key_str.split(',') if k.strip()]
                 if parse.DEFAULT_KEY in keys:
                     raise ResultError(
                         "The default setting key '{}' can't be used in "
@@ -68,7 +68,7 @@ For evaluations we check for:
                         .format(key, rtype)
                     )
 
-                if key in key_names:
+                if key in key_names and key != '_':
                     raise ResultError(
                         "Duplicate result parser key name '{}' under parser "
                         "'{}'".format(key, rtype))
