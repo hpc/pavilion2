@@ -232,10 +232,10 @@ lock regularly while it's in use for longer periods of time.
         # needs to handle empty files specially.
         path = str(self.lock_path)
 
-        file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         file_note = ",".join([os.uname()[1], utils.get_login(), str(self.expire_period),
                               self._id])
         file_note = file_note.encode('utf8')
+        file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         os.write(file_num, file_note)
         os.close(file_num)
 
@@ -270,7 +270,8 @@ these values if there was an error..
                 host, user, expiration, lock_id = data.split(',')
                 expiration = float(expiration) + mtime
             except ValueError:
-                self._warn("Invalid format in lockfile '{}': {}".format(self.lock_path, data))
+                # This usually happens when a lockfile is very new, and hasn't had
+                # its data written yet. Give it a moment...
                 return None, None, mtime + 3, None
 
         except (OSError, IOError):
