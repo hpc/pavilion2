@@ -55,7 +55,6 @@ def msg(*args, color=output.BLUE, **kwargs):
     kwargs['color'] = color
     output.fprint(sys.stderr, *args, **kwargs)
 
-
 def main():
 
     from pavilion.unittest import PavTestCase, ColorResult, BetterRunner
@@ -100,6 +99,7 @@ def main():
     working_dir = this_file.parent/'working_dir'
     if not args.list and not args.no_clear and working_dir.exists():
         msg("Clearing out the working directory from prior unit test runs.")
+
         shutil.rmtree(working_dir.as_posix(), ignore_errors=False)
 
         log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
@@ -107,6 +107,7 @@ def main():
     verbosity = 0 if args.quiet else 2
 
     loader = unittest.TestLoader()
+
     msg("Finding all tests.")
     suite = loader.discover(tests_dir.as_posix(), pattern='*_tests.py')
 
@@ -114,8 +115,8 @@ def main():
         list_tests(suite)
         return 0
     else:
-
         msg("Starting test runs.")
+
         runner = BetterRunner(resultclass=ColorResult, verbosity=verbosity)
         result = runner.run(suite)
         return len(result.errors) + len(result.failures)

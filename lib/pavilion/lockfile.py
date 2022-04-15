@@ -286,6 +286,7 @@ these values if there was an error..
         output.fprint(self._errfile, msg, color=output.YELLOW)
 
 
+
 class LockFilePoker:
     """This context creates a thread that regularly 'pokes' a lockfile to make sure it
     doesn't expire."""

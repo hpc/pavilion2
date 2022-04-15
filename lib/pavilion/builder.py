@@ -516,7 +516,7 @@ class TestBuilder:
                 timeout = time.time() + self._timeout
                 while result is None:
                     try:
-                        result = proc.wait(timeout=1)
+                        result = proc.wait(timeout=0.2)
                     except subprocess.TimeoutExpired:
                         if self._timeout_file.exists():
                             timeout_file = self._timeout_file
