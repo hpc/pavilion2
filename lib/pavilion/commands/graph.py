@@ -123,25 +123,21 @@ class GraphCommand(Command):
         """Create a graph."""
 
         if not HAS_MATPLOTLIB:
-            output.fprint(
-                "The command requires matplotlib to function. Matplotlib is an "
-                "optional requirement of Pavilion.",
-                file=self.errfile)
+            output.fprint(self.errfile,
+                          "The command requires matplotlib to function. Matplotlib is an "
+                          "optional requirement of Pavilion.")
 
             return errno.EINVAL
 
         if args.dimensions:
             match = DIMENSIONS_RE.match(args.dimensions)
             if not match:
-                output.fprint(
-                    "Invalid '--dimensions' string '{}', doesn't match "
-                    "expected format. Using matplotlib default dimensions."
-                    .format(args.dimensions),
-                    color=output.YELLOW, file=self.errfile
-                )
+                output.fprint(self.errfile, "Invalid '--dimensions' string '{}', doesn't match "
+                                            "expected format. Using matplotlib default dimensions."
+                              .format(args.dimensions), color=output.YELLOW)
                 args.dimensions = ''
 
-        output.fprint("Generating Graph...", file=self.outfile)
+        output.fprint(self.outfile, "Generating Graph...")
 
         # Get filtered Test IDs.
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
@@ -156,8 +152,7 @@ class GraphCommand(Command):
         tests.extend(cmdline_tests)
 
         if not tests:
-            output.fprint("Test filtering resulted in an empty list.",
-                          file=self.errfile)
+            output.fprint(self.errfile, "Test filtering resulted in an empty list.")
             return errno.EINVAL
 
         # Build respective evaluation dictionaries.
@@ -172,9 +167,8 @@ class GraphCommand(Command):
         try:
             check_evaluations(all_evals)
         except ResultError as err:
-            output.fprint(
-                "Invalid graph evaluation:\n{}".format(err.args[0]),
-                file=self.errfile, color=output.RED)
+            output.fprint(self.errfile, "Invalid graph evaluation:\n{}".format(err.args[0]),
+                          color=output.RED)
 
         # Set colormap and build colormap dict
         colormap = matplotlib.pyplot.get_cmap('tab20')
@@ -188,15 +182,13 @@ class GraphCommand(Command):
                                                                  y_evals,
                                                                  test.results)
             except InvalidEvaluationError as err:
-                output.fprint("Error gathering graph data for test {}: \n{}"
-                              .format(test.id, err),
-                              file=self.errfile, color=output.YELLOW)
+                output.fprint(self.errfile, "Error gathering graph data for test {}: \n{}"
+                              .format(test.id, err), color=output.YELLOW)
                 continue
             except ResultTypeError as err:
-                output.fprint("Gather graph data for test {} resulted in "
-                              "invalid type: \n{}"
-                              .format(test.id, err),
-                              file=self.errfile, color=output.RED)
+                output.fprint(self.errfile, "Gather graph data for test {} resulted in "
+                                            "invalid type: \n{}"
+                              .format(test.id, err), color=output.RED)
                 return errno.EINVAL
 
             graph_data = GraphCommand.combine_graph_data(graph_data,
@@ -210,8 +202,8 @@ class GraphCommand(Command):
                        stats_dict, args.average, colormap,
                        args.outfile, args.dimensions)
         except PlottingError as err:
-            output.fprint("Error while graphing data:\n{}".format(err),
-                          file=self.errfile, color=output.RED)
+            output.fprint(self.errfile, "Error while graphing data:\n{}".format(err),
+                          color=output.RED)
             return errno.EINVAL
 
     @staticmethod
@@ -411,8 +403,8 @@ class GraphCommand(Command):
         if not pathlib.Path(outfile).suffix:
             outfile = outfile + '.png'
 
-        output.fprint("Completed. Graph saved as '{}'."
-                      .format(outfile), color=output.GREEN, file=self.outfile)
+        output.fprint(self.outfile, "Completed. Graph saved as '{}'."
+                      .format(outfile), color=output.GREEN)
 
 
 class ResultTypeError(RuntimeError):

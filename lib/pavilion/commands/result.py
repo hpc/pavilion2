@@ -122,8 +122,8 @@ class ResultsCommand(Command):
 
         elif args.json or args.full:
             if not results:
-                output.fprint("Could not find any matching tests.",
-                              color=output.RED, file=self.outfile)
+                output.fprint(self.outfile, "Could not find any matching tests.",
+                              color=output.RED)
                 return errno.EINVAL
 
             width = shutil.get_terminal_size().columns or 80
@@ -154,8 +154,9 @@ class ResultsCommand(Command):
                     try:
                         fields.remove(key)
                     except ValueError:
-                        output.fprint("Warning: Given key,{}, is not in default".format(k),
-                                       color=output.RED, file=self.errfile)
+                        output.fprint(self.errfile,
+                                      "Warning: Given key,{}, is not in default".format(k),
+                                      color=output.RED)
                 else:
                     fields.append(k)
 
@@ -176,27 +177,24 @@ class ResultsCommand(Command):
 
         if args.show_log:
             if log_file is not None:
-                output.fprint(log_file.getvalue(), file=self.outfile,
-                              color=output.GREY)
+                output.fprint(self.outfile, log_file.getvalue(), color=output.GREY)
             else:
                 if len(results) > 1:
-                    output.fprint("Please give a single test id when requesting the full"
-                                  "result log.",
-                                  file=self.errfile, color=output.YELLOW)
+                    output.fprint(self.errfile,
+                                  "Please give a single test id when requesting the full"
+                                  "result log.", color=output.YELLOW)
                     return 1
 
                 result_set = results[0]
                 log_path = pathlib.Path(result_set['results_log'])
-                output.fprint("\nResult logs for test {}\n"
-                              .format(result_set['name']), file=self.outfile)
+                output.fprint(self.outfile, "\nResult logs for test {}\n"
+                              .format(result_set['name']))
                 if log_path.exists():
                     with log_path.open() as log_file:
-                        output.fprint(
-                            log_file.read(), color=output.GREY,
-                            file=self.outfile)
+                        output.fprint(self.outfile, log_file.read(), color=output.GREY)
                 else:
-                    output.fprint("Log file '{}' missing>".format(log_path),
-                                  file=self.outfile, color=output.YELLOW)
+                    output.fprint(self.outfile, "Log file '{}' missing>".format(log_path),
+                                  color=output.YELLOW)
 
         return 0
 
@@ -231,24 +229,20 @@ class ResultsCommand(Command):
                     modes=test.config['modes'],
                 )
             except pavilion.exceptions.TestConfigError as err:
-                output.fprint(
-                    "Test '{}' could not be found: {}"
-                    .format(test.name, err.args[0]),
-                    color=output.RED, file=self.errfile)
+                output.fprint(self.errfile, "Test '{}' could not be found: {}"
+                              .format(test.name, err.args[0]), color=output.RED)
                 return False
 
             # These conditions guard against unexpected results from
             # load_raw_configs. They may not be possible.
             if not configs:
-                output.fprint(
-                    "No configs found for test '{}'. Skipping update."
-                    .format(test.name), color=output.YELLOW, file=self.errfile)
+                output.fprint(self.errfile, "No configs found for test '{}'. Skipping update."
+                              .format(test.name), color=output.YELLOW)
                 continue
             elif len(configs) > 1:
-                output.fprint(
-                    "Test '{}' somehow matched multiple configs."
-                    "Skipping update.".format(test.name),
-                    color=output.YELLOW, file=self.errfile)
+                output.fprint(self.errfile, "Test '{}' somehow matched multiple configs."
+                                            "Skipping update.".format(test.name),
+                              color=output.YELLOW)
                 continue
 
             cfg = configs[0]
@@ -263,17 +257,14 @@ class ResultsCommand(Command):
                         var_man=test.var_man,
                     )
                 except pavilion.exceptions.TestConfigError as err:
-                    output.fprint(
-                        "Test '{}' had a {} section that could not be "
-                        "resolved with it's original variables: {}"
-                        .format(test.name, section, err.args[0]),
-                        file=self.errfile, color=output.RED)
+                    output.fprint(self.errfile, "Test '{}' had a {} section that could not be "
+                                                "resolved with it's original variables: {}"
+                                  .format(test.name, section, err.args[0]), color=output.RED)
                     return False
                 except RuntimeError as err:
-                    output.fprint(
-                        "Unexpected error updating {} section for test "
-                        "'{}': {}".format(section, test.name, err.args[0]),
-                        color=output.RED, file=self.errfile)
+                    output.fprint(self.errfile, "Unexpected error updating {} section for test "
+                                                "'{}': {}".format(section, test.name,
+                                                                  err.args[0]), color=output.RED)
                     return False
 
             # Set the test's result section to the newly resolved one.
@@ -286,10 +277,8 @@ class ResultsCommand(Command):
                     test.config['result_evaluate'])
 
             except result.ResultError as err:
-                output.fprint(
-                    "Error found in results configuration: {}"
-                    .format(err.args[0]),
-                    color=output.RED, file=self.errfile)
+                output.fprint(self.errfile, "Error found in results configuration: {}"
+                              .format(err.args[0]), color=output.RED)
                 return False
 
             if save:

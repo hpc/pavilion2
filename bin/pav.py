@@ -19,18 +19,14 @@ from pavilion import utils
 try:
     import yc_yaml
 except ImportError:
-    output.fprint(
-        "Could not find python module 'yc_yaml'. Did you run "
-        "`submodule update --init --recursive` to get all the dependencies?"
-    )
+    output.fprint(sys.stdout, "Could not find python module 'yc_yaml'. Did you run "
+                              "`submodule update --init --recursive` to get all the dependencies?")
 
 try:
     import yaml_config
 except ImportError:
-    output.fprint(
-        "Could not find python module 'yaml_config'. Did you run "
-        "`submodule update --init --recursive` to get all the dependencies?"
-    )
+    output.fprint(sys.stdout, "Could not find python module 'yaml_config'. Did you run "
+                              "`submodule update --init --recursive` to get all the dependencies?")
 
 
 def main():
@@ -38,9 +34,7 @@ def main():
 
     # Pavilion is compatible with python >= 3.4
     if sys.version_info[0] != 3 or sys.version_info[1] < 5:
-        output.fprint("Pavilion requires python 3.5 or higher.",
-                      color=output.RED,
-                      file=sys.stderr)
+        output.fprint(sys.stderr, "Pavilion requires python 3.5 or higher.", color=output.RED)
         sys.exit(-1)
 
     # This has to be done before we initialize plugins
@@ -50,30 +44,23 @@ def main():
     try:
         pav_cfg = config.find_pavilion_config()
     except Exception as err:
-        output.fprint(
-            "Error getting config, exiting: {}"
-            .format(err),
-            file=sys.stderr,
-            color=output.RED)
+        output.fprint(sys.stderr, "Error getting config, exiting: {}"
+                      .format(err), color=output.RED)
         sys.exit(-1)
 
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
-        output.fprint(
-            "Could not set up loggers. This is usually because of a badly defined "
-            "working_dir in pavilion.yaml.",
-            file=sys.stderr, color=output.RED)
+        output.fprint(sys.stderr,
+                      "Could not set up loggers. This is usually because of a badly defined "
+                      "working_dir in pavilion.yaml.", color=output.RED)
         sys.exit(-1)
 
     # Initialize all the plugins
     try:
         plugins.initialize_plugins(pav_cfg)
     except plugins.PluginError as err:
-        output.fprint(
-            "Error initializing plugins: {}"
-            .format(err),
-            color=output.RED,
-            file=sys.stderr)
+        output.fprint(sys.stderr, "Error initializing plugins: {}"
+                      .format(err), color=output.RED)
         sys.exit(-1)
 
     # Parse the arguments
@@ -96,11 +83,8 @@ def run_cmd(pav_cfg, args):
     try:
         cmd = commands.get_command(args.command_name)
     except KeyError:
-        output.fprint(
-            "Unknown command '{}'."
-            .format(args.command_name),
-            color=output.RED,
-            file=sys.stderr)
+        output.fprint(sys.stderr, "Unknown command '{}'."
+                      .format(args.command_name), color=output.RED)
         sys.exit(-1)
 
     try:
@@ -118,19 +102,12 @@ def run_cmd(pav_cfg, args):
         logger = logging.getLogger('exceptions')
         logger.error(json_data)
 
-        output.fprint(
-            "Unknown error running command {}: {}."
-            .format(args.command_name, err),
-            color=output.RED,
-            file=sys.stderr,
-        )
+        output.fprint(sys.stderr, "Unknown error running command {}: {}."
+                      .format(args.command_name, err), color=output.RED)
         traceback.print_exc(file=sys.stderr)
 
-        output.fprint(
-            "Traceback logged to {}".format(pav_cfg.exception_log),
-            color=output.RED,
-            file=sys.stderr,
-        )
+        output.fprint(sys.stderr, "Traceback logged to {}".format(pav_cfg.exception_log),
+                      color=output.RED)
         sys.exit(-1)
 
 
