@@ -2,16 +2,17 @@
 and systems. It has to assume the file-system that these are written
 to has atomic, O_EXCL file creation. """
 
-from pathlib import Path
 import grp
-import logging
 import os
+import sys
 import time
 import uuid
+from pathlib import Path
+from typing import Union, TextIO
+import threading
+
+from pavilion import output
 from pavilion import utils
-
-LOGGER = logging.getLogger('pav.' + __name__)
-
 
 # Expires after a silly long time.
 NEVER = 10**10
@@ -40,28 +41,37 @@ lock regularly while it's in use for longer periods of time.
 
     LOCK_PERMS = 0o774
 
-    def __init__(self, lockfile_path, group=None, timeout=None,
-                 expires_after=DEFAULT_EXPIRE):
+    # How long to wait before printing user notifications about potential
+    # problems.
+    NOTIFY_TIMEOUT = 5
+
+    def __init__(self, lockfile_path: Path, group: str = None, timeout: float = None,
+                 expires_after: int = DEFAULT_EXPIRE, errfile: TextIO = sys.stderr):
         """Initialize the lock file. The resulting class can be reused
         multiple times.
 
-:param Path lockfile_path: The path to the lockfile. Should
+:param lockfile_path: The path to the lockfile. Should
     probably start with a '.', and end with '.lock', but that's up to
     the user.
-:param str group: The name of the group to set lockfiles to. If
+:param group: The name of the group to set lockfiles to. If
     this is given,
-:param int timeout: When to quit trying to acquire the lock in seconds.
+:param timeout: When to quit trying to acquire the lock in seconds.
     None (default) denotes non-blocking mode.
-:param int expires_after: When to consider the lock dead,
+:param expires_after: When to consider the lock dead,
     and overwritable (in seconds). The NEVER module variable is
     provided as easily named long time. (10^10 secs, 317 years)
+:param errfile: File object to print errors to.
 """
 
-        self._lock_path = Path(lockfile_path)
-        self._timeout = timeout
-        self._expire_period = expires_after
+        self.lock_path = Path(lockfile_path)
+        self._timeout: Union[float, None] = timeout
+        self.expire_period = expires_after
+        if expires_after is None:
+            raise ValueError("Invalid value for 'expires_after'. Value must be an int/float. "
+                             "Use lockfile.NEVER for a non-expiring lock.")
         self._group = None
         self._last_renew = time.time()
+        self._errfile = errfile
 
         if group is not None:
             # This could error out, but should be checked by pavilion
@@ -84,8 +94,8 @@ lock regularly while it's in use for longer periods of time.
 
         start = time.time()
         acquired = False
-        expiration = None
         first = True
+        notified = False
 
         # Try until we timeout (at least once).
         while (self._timeout is None or first or
@@ -94,32 +104,26 @@ lock regularly while it's in use for longer periods of time.
             first = False
             try:
 
-                self._create_lockfile(
-                    self._lock_path,
-                    self._expire_period,
-                    self._id,
-                    group_id=self._group)
+                self._create_lockfile()
                 acquired = True
 
                 # We got the lock, quit the loop.
                 break
 
             except (OSError, IOError):
-                if self._timeout is None:
-                    time.sleep(self.SLEEP_PERIOD)
-                    continue
-
                 try:
-                    lock_stat = self._lock_path.stat()
+                    # This is a race against file deletion by the lock holder.
+                    lock_stat = self.lock_path.stat()
                 except (FileNotFoundError, OSError):
+                    time.sleep(self.SLEEP_PERIOD)
                     continue
 
                 _, _, expiration, _ = self.read_lockfile()
 
-                if expiration is None or expiration < time.time():
+                if expiration is not None and expiration < time.time():
                     # The file is expired. Try to delete it.
-                    exp_file = self._lock_path.with_name(
-                        self._lock_path.name + '.expired')
+                    exp_file = self.lock_path.with_name(
+                        self.lock_path.name + '.expired')
                     try:
 
                         with LockFile(exp_file, timeout=3, expires_after=NEVER):
@@ -127,7 +131,7 @@ lock regularly while it's in use for longer periods of time.
                             # Make sure it's the same file as before we checked
                             # the expiration.
                             try:
-                                lock_stat2 = self._lock_path.stat()
+                                lock_stat2 = self.lock_path.stat()
                             except (FileNotFoundError, OSError):
                                 continue
 
@@ -136,7 +140,7 @@ lock regularly while it's in use for longer periods of time.
                                 continue
 
                             try:
-                                self._lock_path.unlink()
+                                self.lock_path.unlink()
                             except OSError:
                                 pass
                     except TimeoutError:
@@ -148,10 +152,17 @@ lock regularly while it's in use for longer periods of time.
                             pass
                     except OSError:
                         pass
+                else:
+                    # The lockfile isn't expired yet, so wait.
+                    time.sleep(self.SLEEP_PERIOD)
+
+            if not notified and (start + self.NOTIFY_TIMEOUT < time.time()):
+                notified = True
+                self._warn("Waiting for lock '{}'.".format(self.lock_path))
 
         if not acquired:
             raise TimeoutError("Lock on file '{}' could not be acquired."
-                               .format(self._lock_path))
+                               .format(self.lock_path))
 
         return self
 
@@ -166,22 +177,22 @@ lock regularly while it's in use for longer periods of time.
         host, user, _, lock_id = self.read_lockfile()
 
         if lock_id is not None and lock_id != self._id:
-            LOGGER.error(
-                "Lockfile '%s' mysteriously replaced with one from %s.",
-                self._lock_path, (host, user))
+            # The lock has been replaced by a different one already.
+            self._warn("Lockfile '{}' mysteriously replaced with one from {}."
+                       .format(self.lock_path, (host, user)))
         else:
             try:
-                self._lock_path.unlink()
+                self.lock_path.unlink()
             except OSError as err:
                 # There isn't really anything we can do in this case.
                 host, user, _, lock_id = self.read_lockfile()
 
                 if lock_id == self._id:
-                    LOGGER.warning("Lockfile '%s' could not be deleted: '%s'",
-                                   self._lock_path, err)
+                    self._warn("Lockfile '{}' could not be deleted: '{}'"
+                               .format(self.lock_path, err))
                 else:
-                    LOGGER.error("Lockfile '%s' mysteriously disappeared.",
-                                 self._lock_path)
+                    self._warn("Lockfile '{}' mysteriously disappeared."
+                               .format(self.lock_path))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.unlock()
@@ -195,53 +206,49 @@ lock regularly while it's in use for longer periods of time.
 
         now = time.time()
 
-        if self._timeout is None or self._last_renew + self._timeout/2 < now:
+        if self.expire_period is None or self._last_renew + self.expire_period/2 < now:
             return
 
         self._last_renew = now
         try:
-            self._lock_path.touch()
+            self.lock_path.touch()
         except OSError:
             pass
 
-    @classmethod
-    def _create_lockfile(cls, path, expires, lock_id, group_id=None):
+    def _create_lockfile(self):
         """Create and fill out a lockfile at the given path.
 
-:param Path path: Where the file will be created.
-:param int expires: How far in the future the lockfile expires.
-:param str lock_id: The unique identifier for this lockfile.
-:returns: None
-:raises IOError: When the file cannot be written too.
-:raises OSError: When the file cannot be opened or already exists.
-"""
+        :returns: None
+        :raises IOError: When the file cannot be written too.
+        :raises OSError: When the file cannot be opened or already exists.
+        """
 
         # DEV NOTE: This logic is separate so that we can create these files
         # outside of the standard mechanisms for testing purposes.
 
         # We're doing low level operations on the path, so we just need
         # it as a string.
-        path = str(path)
+        # Note that this is not atomic, so anything that reads the contents
+        # needs to handle empty files specially.
+        path = str(self.lock_path)
 
-        file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
-        file_note = ",".join([os.uname()[1], utils.get_login(), str(expires),
-                              lock_id])
+        file_note = ",".join([os.uname()[1], utils.get_login(), str(self.expire_period),
+                              self._id])
         file_note = file_note.encode('utf8')
+        file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         os.write(file_num, file_note)
         os.close(file_num)
 
         try:
-            os.chmod(path, cls.LOCK_PERMS)
+            os.chmod(path, self.LOCK_PERMS)
         except OSError as err:
-            LOGGER.warning("Lockfile at '%s' could not set permissions: %s",
-                           path, err)
+            self._warn("Lockfile at '{}' could not set permissions: {}".format(path, err))
 
-        if group_id is not None:
+        if self._group is not None:
             try:
-                os.chown(path, os.getuid(), group_id)
+                os.chown(path, os.getuid(), self._group)
             except OSError as err:
-                LOGGER.warning("Lockfile at '%s' could not set group: %s",
-                               path, err)
+                self._warn("Lockfile at '{}' could not set group: {}".format(path, err))
 
     def read_lockfile(self):
         """Returns the components of the lockfile content, or None for each of
@@ -251,23 +258,63 @@ these values if there was an error..
 """
 
         try:
-            with self._lock_path.open() as lock_file:
+            with self.lock_path.open() as lock_file:
                 data = lock_file.read()
 
             try:
-                host, user, expiration, lock_id = data.split(',')
-                expiration = float(expiration)
-            except ValueError:
-                LOGGER.warning("Invalid format in lockfile '%s': %s",
-                               self._lock_path, data)
-                return None, None, 0, None
+                mtime = self.lock_path.stat().st_mtime
+            except OSError:
+                mtime = 0
 
             try:
-                expiration = expiration + self._lock_path.stat().st_mtime
-            except OSError:
-                expiration = 0
+                host, user, expiration, lock_id = data.split(',')
+                expiration = float(expiration) + mtime
+            except ValueError:
+                # This usually happens when a lockfile is very new, and hasn't had
+                # its data written yet. Give it a moment...
+                return None, None, mtime + 3, None
 
         except (OSError, IOError):
+            # Couldn't read the lockfile, so try again later.
             return None, None, None, None
 
         return host, user, expiration, lock_id
+
+    def _warn(self, msg):
+        """Issue a warning message."""
+
+        output.fprint(msg, file=self._errfile, color=output.YELLOW)
+
+
+class LockFilePoker:
+    """This context creates a thread that regularly 'pokes' a lockfile to make sure it
+    doesn't expire."""
+
+    def __init__(self, lockfile: LockFile):
+        self._lockfile = lockfile
+        self._done_event = threading.Event()
+        self._done_event.clear()
+        self._thread = None
+
+    def __enter__(self):
+        """Create a thread to poke the lock file."""
+
+        sleep_time = self._lockfile.expire_period / 3
+
+        def lock_file_poker():
+            """Renew the lockfile continuously."""
+
+            while True:
+                if not self._done_event.wait(timeout=sleep_time):
+                    self._lockfile.renew()
+                else:
+                    break
+
+        self._thread = threading.Thread(target=lock_file_poker)
+        self._thread.start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Destroy/join the pokey thread."""
+
+        self._done_event.set()
+        self._thread.join()

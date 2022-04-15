@@ -127,6 +127,7 @@ class RunCommand(Command):
             series_name = args.name
         else:
             series_name = 'cmdline'
+
         series_cfg = generate_series_config(
             name=series_name,
             modes=args.modes,

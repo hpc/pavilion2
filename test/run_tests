@@ -47,17 +47,27 @@ def list_tests(suite):
         for test_name in sorted(by_suite[suite_name]):
             print('  {}'.format(test_name))
 
+from pavilion import output
+
+def msg(*args, color=output.BLUE, **kwargs):
+    """Print a message from the test runner."""
+
+    kwargs['file'] = sys.stderr
+    kwargs['color'] = color
+    output.fprint(*args, **kwargs)
+
 
 def main():
+
     from pavilion.unittest import PavTestCase, ColorResult, BetterRunner
     from pavilion import log_setup
 
     config = PavTestCase.TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
     if not config.exists():
-        print("\nERROR")
-        print("Could not find a config file at '{}'".format(config))
-        print("To run tests, this file must be created.")
-        print("It may be blank, or may contain proxy info.")
+        msg("\nERROR")
+        msg("Could not find a config file at '{}'".format(config))
+        msg("To run tests, this file must be created.")
+        msg("It may be blank, or may contain proxy info.")
         sys.exit(1)
 
     parser = argparse.ArgumentParser(
@@ -90,7 +100,7 @@ def main():
 
     working_dir = this_file.parent/'working_dir'
     if not args.list and not args.no_clear and working_dir.exists():
-        print("Clearing out the working directory from prior unit test runs.")
+        msg("Clearing out the working directory from prior unit test runs.", file=sys.stderr)
         shutil.rmtree(working_dir.as_posix(), ignore_errors=False)
 
         log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
@@ -98,12 +108,15 @@ def main():
     verbosity = 0 if args.quiet else 2
 
     loader = unittest.TestLoader()
+    msg("Finding all tests.", file=sys.stderr)
     suite = loader.discover(tests_dir.as_posix(), pattern='*_tests.py')
 
     if args.list:
         list_tests(suite)
         return 0
     else:
+
+        msg("Starting test runs.", file=sys.stderr)
         runner = BetterRunner(resultclass=ColorResult, verbosity=verbosity)
         result = runner.run(suite)
         return len(result.errors) + len(result.failures)
