@@ -8,15 +8,14 @@ import time
 import unittest
 import uuid
 from pathlib import Path
-import threading
 
-from pavilion import plugins
-from pavilion import wget
-from pavilion.status_file import STATES
-from pavilion.unittest import PavTestCase
-from pavilion.build_tracker import DummyTracker
 from pavilion import builder
 from pavilion import lockfile
+from pavilion import plugins
+from pavilion import wget
+from pavilion.build_tracker import DummyTracker
+from pavilion.status_file import STATES
+from pavilion.unittest import PavTestCase
 
 
 class BuilderTests(PavTestCase):
@@ -59,6 +58,9 @@ class BuilderTests(PavTestCase):
         # And now I'm using threading anyway...
         thread = threading.Thread(target=bldr.build, args=(test.full_id, DummyTracker()))
         thread.start()
+        # We must wait a moment for the builder to actually create the lockfile.
+        while not bldr_lock_path.exists():
+            time.sleep(0.1)
 
         start = time.time()
         with lockfile.LockFile(bldr_lock_path) as lock:

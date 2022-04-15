@@ -396,10 +396,11 @@ class Slurm(SchedulerPluginAdvanced):
             _, node_nums = seqs[base]
             node_nums.append(number)
 
+        # This compresses the node list into sequences like 'node[0095-0105,0900-1002]'
         node_seqs = []
         for base, (digits, nums) in sorted(seqs.items()):
             nums.sort(reverse=True)
-            num_digits = math.ceil(math.log(nums[0], 10))
+            num_digits = len(str(nums[0]))
             pre_digits = digits - num_digits
 
             num_list = []
