@@ -39,12 +39,8 @@ if PAV_CONFIG_DIR is not None:
         PAV_CONFIG_DIR = PAV_CONFIG_DIR.resolve()
         PAV_CONFIG_SEARCH_DIRS.append(PAV_CONFIG_DIR)
     else:
-        output.fprint(
-            "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
-            .format(PAV_CONFIG_DIR),
-            color=output.YELLOW,
-            file=sys.stderr
-        )
+        output.fprint(sys.stderr, "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
+                      .format(PAV_CONFIG_DIR), color=output.YELLOW)
 
 PAV_ROOT = Path(__file__).resolve().parents[2]
 
@@ -247,20 +243,15 @@ def config_dirs_validator(config, values):
         path = Path(value)
         try:
             if not path.exists():
-                output.fprint(
-                    "Config directory {} does not exist. Ignoring."
-                    .format(value),
-                    file=sys.stderr,
-                    color=output.YELLOW
-                )
+                output.fprint(sys.stderr, "Config directory {} does not exist. Ignoring."
+                              .format(value), color=output.YELLOW)
 
                 # Attempt to force a permissions error if we can't read this directory.
                 list(path.iterdir())
 
         except PermissionError:
-            output.fprint(
-                "Cannot access config directory {}. Ignoring.",
-                file=sys.stderr, color=output.YELLOW)
+            output.fprint(sys.stderr, "Cannot access config directory {}. Ignoring.",
+                          color=output.YELLOW)
             continue
 
         if path not in config_dirs:
@@ -541,10 +532,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                     config = loader.load(config_file)
 
         except PermissionError as err:
-            output.fprint(
-                "Could not load pavilion config at '{}'. Skipping...: {}"
-                .format(config_path.as_posix(), err.args[0])
-            )
+            output.fprint(sys.stdout, "Could not load pavilion config at '{}'. Skipping...: {}"
+                          .format(config_path.as_posix(), err.args[0]))
 
             continue
 
@@ -576,10 +565,9 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             label = '<not_defined>' if label is None else label
             new_label = 'lbl{}'.format(label_i)
             label_i += 1
-            output.fprint(
-                "Missing or duplicate label '{}' for config path '{}'. "
-                "Using label '{}'".format(label, config_path.as_posix(), new_label),
-                file=sys.stderr, color=output.YELLOW)
+            output.fprint(sys.stderr, "Missing or duplicate label '{}' for config path '{}'. "
+                                      "Using label '{}'".format(label, config_path.as_posix(),
+                                                                new_label), color=output.YELLOW)
             config['label'] = new_label
 
         working_dir = config.get('working_dir')  # type: Path
@@ -594,10 +582,10 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                 if setup_working_dirs:
                     _setup_working_dir(working_dir, group)
             except RuntimeError as err:
-                output.fprint(
-                    "Could not configure working directory for config path '{}'. "
-                    "Skipping.\n{}".format(config_path.as_posix(), err.args[0]),
-                    file=sys.stderr, color=output.YELLOW)
+                output.fprint(sys.stderr,
+                              "Could not configure working directory for config path '{}'. "
+                              "Skipping.\n{}".format(config_path.as_posix(), err.args[0]),
+                              color=output.YELLOW)
                 continue
 
         config['working_dir'] = working_dir
@@ -656,8 +644,8 @@ found in these directories the default config search paths:
 
     if pav_cfg is None:
         if warn:
-            output.fprint("Could not find a pavilion config file. Using an "
-                          "empty/default config.", file=sys.stderr, color=output.YELLOW)
+            output.fprint(sys.stderr, "Could not find a pavilion config file. Using an "
+                                      "empty/default config.", color=output.YELLOW)
         pav_cfg = PavilionConfigLoader().load_empty()
         pav_cfg.pav_cfg_file = Path('pavilion.yaml')
 
@@ -666,10 +654,9 @@ found in these directories the default config search paths:
 
     if pav_cfg['working_dir'] is None:
         if warn:
-            output.fprint(
-                "Pavilion working dir was not set, using 'working_dir' in the "
-                "directory above the config directory.",
-                file=sys.stderr, color=output.YELLOW)
+            output.fprint(sys.stderr,
+                          "Pavilion working dir was not set, using 'working_dir' in the "
+                          "directory above the config directory.", color=output.YELLOW)
         pav_cfg['working_dir'] = Path('working_dir')
 
     # Make sure this path is absolute too.
@@ -678,10 +665,9 @@ found in these directories the default config search paths:
 
     if pav_cfg['working_dir'] is None:
         if warn:
-            output.fprint(
-                "Pavilion working dir was not set, using 'working_dir' in the "
-                "current directory.",
-                file=sys.stderr, color=output.YELLOW)
+            output.fprint(sys.stderr,
+                          "Pavilion working dir was not set, using 'working_dir' in the "
+                          "current directory.", color=output.YELLOW)
         pav_cfg['working_dir'] = Path('working_dir')
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)

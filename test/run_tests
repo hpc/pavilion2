@@ -52,9 +52,8 @@ from pavilion import output
 def msg(*args, color=output.BLUE, **kwargs):
     """Print a message from the test runner."""
 
-    kwargs['file'] = sys.stderr
     kwargs['color'] = color
-    output.fprint(*args, **kwargs)
+    output.fprint(sys.stderr, *args, **kwargs)
 
 
 def main():
@@ -100,7 +99,7 @@ def main():
 
     working_dir = this_file.parent/'working_dir'
     if not args.list and not args.no_clear and working_dir.exists():
-        msg("Clearing out the working directory from prior unit test runs.", file=sys.stderr)
+        msg("Clearing out the working directory from prior unit test runs.")
         shutil.rmtree(working_dir.as_posix(), ignore_errors=False)
 
         log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
@@ -108,7 +107,7 @@ def main():
     verbosity = 0 if args.quiet else 2
 
     loader = unittest.TestLoader()
-    msg("Finding all tests.", file=sys.stderr)
+    msg("Finding all tests.")
     suite = loader.discover(tests_dir.as_posix(), pattern='*_tests.py')
 
     if args.list:
@@ -116,7 +115,7 @@ def main():
         return 0
     else:
 
-        msg("Starting test runs.", file=sys.stderr)
+        msg("Starting test runs.")
         runner = BetterRunner(resultclass=ColorResult, verbosity=verbosity)
         result = runner.run(suite)
         return len(result.errors) + len(result.failures)

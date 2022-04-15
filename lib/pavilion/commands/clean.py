@@ -54,36 +54,36 @@ class CleanCommand(Command):
 
         # Clean Tests
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
-        output.fprint("Removing Tests...", file=self.outfile, end=end)
+        output.fprint(self.outfile, "Removing Tests...", end=end)
         rm_tests_count, msgs = clean.delete_tests(pav_cfg, tests_dir, filter_func,
                                                   args.verbose)
         if args.verbose:
             for msg in msgs:
-                output.fprint(msg, color=output.YELLOW, file=self.outfile)
-        output.fprint("Removed {} test(s).".format(rm_tests_count),
-                      file=self.outfile, color=output.GREEN, clear=True)
+                output.fprint(self.outfile, msg, color=output.YELLOW)
+        output.fprint(self.outfile, "Removed {} test(s).".format(rm_tests_count),
+                      color=output.GREEN, clear=True)
 
         # Clean Series
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
-        output.fprint("Removing Series...", file=self.outfile, end=end)
+        output.fprint(self.outfile, "Removing Series...", end=end)
         rm_series_count, msgs = clean.delete_series(pav_cfg, series_dir, args.verbose)
         if args.verbose:
             for msg in msgs:
-                output.fprint(msg, color=output.YELLOW, file=self.outfile)
-        output.fprint("Removed {} series.".format(rm_series_count),
-                      file=self.outfile, color=output.GREEN, clear=True)
+                output.fprint(self.outfile, msg, color=output.YELLOW)
+        output.fprint(self.outfile, "Removed {} series.".format(rm_series_count),
+                      color=output.GREEN, clear=True)
 
         # Clean Builds
         builds_dir = pav_cfg.working_dir / 'builds'        # type: Path
-        output.fprint("Removing Builds...", file=self.outfile, end=end)
+        output.fprint(self.outfile, "Removing Builds...", end=end)
         rm_builds_count, msgs = clean.delete_builds(pav_cfg, builds_dir, tests_dir,
                                                     args.verbose)
         msgs.extend(clean.delete_lingering_build_files(pav_cfg, builds_dir, tests_dir,
                                                        args.verbose))
         if args.verbose:
             for msg in msgs:
-                output.fprint(msg, color=output.YELLOW, file=self.outfile)
-        output.fprint("Removed {} build(s).".format(rm_builds_count),
-                      file=self.outfile, color=output.GREEN, clear=True)
+                output.fprint(self.outfile, msg, color=output.YELLOW)
+        output.fprint(self.outfile, "Removed {} build(s).".format(rm_builds_count),
+                      color=output.GREEN, clear=True)
 
         return 0

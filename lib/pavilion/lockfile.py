@@ -283,7 +283,7 @@ these values if there was an error..
     def _warn(self, msg):
         """Issue a warning message."""
 
-        output.fprint(msg, file=self._errfile, color=output.YELLOW)
+        output.fprint(self._errfile, msg, color=output.YELLOW)
 
 
 class LockFilePoker:

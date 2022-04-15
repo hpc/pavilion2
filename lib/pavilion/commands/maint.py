@@ -65,7 +65,7 @@ class MaintCommand(Command):
         try:
             pruned = result.prune_result_log(pav_cfg.result_log, args.ids)
         except pavilion.result.common.ResultError as err:
-            output.fprint(err.args[0], file=self.errfile, color=output.RED)
+            output.fprint(self.errfile, err.args[0], color=output.RED)
             return errno.EACCES
 
         if args.json:

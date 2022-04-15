@@ -207,8 +207,7 @@ class TestSet:
 
         for ptest in test_configs:
             progress += 1.0 / tot_tests
-            output.fprint("Creating Test Runs: {:.0%}".format(progress),
-                          file=outfile, end='\r')
+            output.fprint(outfile, "Creating Test Runs: {:.0%}".format(progress), end='\r')
 
             if build_only and local_builds_only:
                 # Don't create test objects for tests that would build remotely.
@@ -250,7 +249,7 @@ class TestSet:
                             .format(self.name))
                 raise TestSetError(msg)
 
-        output.fprint('', file=outfile)
+        output.fprint(outfile, '')
 
         self.status.set(
             S_STATES.SET_MAKE,
@@ -281,8 +280,8 @@ class TestSet:
             raise RuntimeError("You must run TestSet.make() on the test set before"
                                "it can be built.")
 
-        output.fprint("Building {} tests for test set {}."
-                      .format(len(self.tests), self.name), file=outfile)
+        output.fprint(outfile, "Building {} tests for test set {}."
+                      .format(len(self.tests), self.name))
 
         outfile = outfile or StringIO()
 
@@ -337,11 +336,9 @@ class TestSet:
         test_by_threads = {}
 
         if verbosity > 0:
-            output.fprint(
-                self.BUILD_STATUS_PREAMBLE.format(
-                    when='When', test_id='TestID',
-                    state_len=STATES.max_length, state='State'),
-                'Message', file=outfile, width=None)
+            output.fprint(outfile, self.BUILD_STATUS_PREAMBLE.format(
+                when='When', test_id='TestID',
+                state_len=STATES.max_length, state='State'), 'Message', width=None)
 
         builds_running = 0
         # Run and track <max_threads> build threads, giving output according
@@ -381,8 +378,8 @@ class TestSet:
                                         .format(when=when, test_id=test.full_id,
                                                 state_len=STATES.max_length,
                                                 state=state))
-                            output.fprint(preamble, msg, wrap_indent=len(preamble),
-                                          file=outfile, width=None)
+                            output.fprint(outfile, preamble, msg, width=None,
+                                          wrap_indent=len(preamble))
 
             test_threads = [thr for thr in test_threads if thr is not None]
 
@@ -398,10 +395,8 @@ class TestSet:
                             "Run aborted due to failures in other builds.")
                     test.set_run_complete()
 
-                output.fprint(
-                    color=output.RED, file=outfile, clear=True)
-                output.fprint(
-                    color=output.CYAN, file=outfile)
+                output.fprint(file=outfile, color=output.RED, clear=True)
+                output.fprint(file=outfile, color=output.CYAN)
 
                 msg = [
                     "Build error while building tests. Cancelling all builds.",
@@ -432,8 +427,7 @@ class TestSet:
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                output.fprint(line, end='\r', file=outfile, width=None,
-                              clear=True)
+                output.fprint(outfile, line, width=None, end='\r', clear=True)
             elif verbosity > 1:
                 for test in local_builds:
                     seen = message_counts[test.full_id]
@@ -445,15 +439,15 @@ class TestSet:
                             when=when, test_id=test.id,
                             state_len=STATES.max_length, state=state)
 
-                        output.fprint(preamble, msg, wrap_indent=len(preamble),
-                                      file=outfile, width=None)
+                        output.fprint(outfile, preamble, msg, width=None,
+                                      wrap_indent=len(preamble))
                     message_counts[test.full_id] += len(msgs)
 
             time.sleep(self.BUILD_SLEEP_TIME)
 
         if verbosity == 0:
             # Print a newline after our last status update.
-            output.fprint(width=None, file=outfile)
+            output.fprint(file=outfile, width=None)
 
         self.built_tests = local_builds
         self.ready_to_start_tests = defaultdict(lambda: [])
