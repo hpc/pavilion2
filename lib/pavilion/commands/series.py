@@ -88,9 +88,9 @@ class RunSeries(Command):
                                                           host=args.host,
                                                           modes=args.modes)
             except series_config.SeriesConfigError as err:
-                output.fprint(
-                    "Load error: {}\n{}".format(args.series_name, err.args[0]),
-                    color=output.RED, file=self.errfile)
+                output.fprint(self.errfile,
+                              "Load error: {}\n{}".format(args.series_name, err.args[0]),
+                              color=output.RED)
                 return errno.EINVAL
 
         if args.re_name is not None:
@@ -100,37 +100,30 @@ class RunSeries(Command):
         try:
             series_obj = series.TestSeries(pav_cfg, config=series_cfg)
         except pavilion.series.errors.TestSeriesError as err:
-            output.fprint(
-                "Error creating test series '{}': {}"
-                .format(args.series_name, err.args[0]),
-                color=output.RED, file=self.errfile)
+            output.fprint(self.errfile, "Error creating test series '{}': {}"
+                          .format(args.series_name, err.args[0]), color=output.RED)
             return errno.EINVAL
 
         # pav _series runs in background using subprocess
         try:
             series_obj.run_background()
         except pavilion.series.errors.TestSeriesError as err:
-            output.fprint(
-                "Error starting series '{}': '{}'"
-                .format(args.series_name, err.args[0]),
-                color=output.RED, file=self.errfile)
+            output.fprint(self.errfile, "Error starting series '{}': '{}'"
+                          .format(args.series_name, err.args[0]), color=output.RED)
             return errno.EINVAL
         except pavilion.series.errors.TestSeriesWarning as err:
-            output.fprint(str(err.args[0]), color=output.YELLOW, file=self.errfile)
+            output.fprint(self.errfile, str(err.args[0]), color=output.YELLOW)
 
-        output.fprint("Started series {sid}.\n"
-                      "Run `pav status {sid}` to view status.\n"
-                      .format(sid=series_obj.sid), file=self.outfile)
+        output.fprint(self.outfile, "Started series {sid}.\n"
+                                    "Run `pav status {sid}` to view status.\n"
+                      .format(sid=series_obj.sid))
 
         if series_obj.pgid is not None:
-            output.fprint(
-                "PGID is {pgid}.\nTo kill, use `pav cancel {sid}`."
-                .format(sid=series_obj.sid, pgid=series_obj.pgid),
-                file=self.outfile)
+            output.fprint(self.outfile, "PGID is {pgid}.\nTo kill, use `pav cancel {sid}`."
+                          .format(sid=series_obj.sid, pgid=series_obj.pgid))
         else:
-            output.fprint(
-                "To cancel, use `kill -14 -s{pgid}"
-                .format(pgid=series_obj.pgid))
+            output.fprint(sys.stdout, "To cancel, use `kill -14 -s{pgid}"
+                          .format(pgid=series_obj.pgid))
 
         return 0
 

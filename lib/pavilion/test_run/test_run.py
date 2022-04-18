@@ -566,7 +566,11 @@ class TestRun(TestAttributes):
         else:
             self.builder.fail_path.rename(self.build_path)
             for file in utils.flat_walk(self.build_path):
-                file.chmod(file.stat().st_mode | 0o200)
+                try:
+                    file.chmod(file.stat().st_mode | 0o220)
+                except FileNotFoundError:
+                    # Builds can have symlinks that point to non-existent files.
+                    pass
             build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')

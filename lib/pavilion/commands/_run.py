@@ -43,7 +43,7 @@ class _RunCommand(Command):
             test = TestRun.load(pav_cfg, working_dir=args.working_dir,
                                 test_id=args.test_id)
         except TestRunError as err:
-            fprint("Error loading test '{}': {}".format(args.test_id, err))
+            fprint(sys.stdout, "Error loading test '{}': {}".format(args.test_id, err))
             raise
 
         try:
@@ -55,10 +55,10 @@ class _RunCommand(Command):
                     STATES.RUN_ERROR,
                     "Error resolving scheduler variables at run time. "
                     "See'pav log kickoff {}' for the full error.".format(test.id))
-                fprint("Error resolving scheduler variables at run time. Got "
-                       "the following:")
+                fprint(sys.stdout, "Error resolving scheduler variables at run time. Got "
+                                   "the following:")
                 for error in var_man.get('sched.errors.*'):
-                    fprint(error)
+                    fprint(sys.stdout, error)
 
             try:
                 TestConfigResolver.finalize(test, var_man)
@@ -77,7 +77,7 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     if not test.build():
-                        fprint("Test {} failed to build.".format(test.full_id))
+                        fprint(sys.stdout, "Test {} failed to build.".format(test.full_id))
 
             except Exception:
                 test.status.set(
@@ -169,8 +169,7 @@ class _RunCommand(Command):
                 results = test.gather_results(run_result, log_file=log_file)
 
         except Exception as err:
-            fprint("Unexpected error gathering results: \n{}",
-                   traceback.format_exc())
+            fprint(sys.stdout, "Unexpected error gathering results: \n{}", traceback.format_exc())
             test.status.set(STATES.RESULTS_ERROR,
                             "Unexpected error parsing results: {}. (This is a "
                             "bug, you should report it.)"

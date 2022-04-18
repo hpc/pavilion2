@@ -1,0 +1,282 @@
+_build:
+  summary: Build the SNAP mini-app.
+
+  subtitle: "{{comp_config.name}}-{{nthreads}}threads"
+
+  doc: |
+    SNAP is special in a number of respects.  For building, it requires manual
+    modification of the Makefile by commenting out variables that specify any
+    compilers/MPIs that you aren't using and uncommenting any that specify
+    the compiler and MPI that you are using.  It is also necessary to change
+    the executable name that you will be using to match the compiler that
+    you're using as it affects the logic path taken in the Makefile.
+
+    Running is its own issue.  The product of 'npey * npez' must be equal to
+    the number of processors on which the mini-apps is being run.  In order to
+    try to scale to an arbitrary number of nodes for testing, the 'npey' and
+    'npez' values are calculated based on the total number of processors in the
+    allocation.  While trying to utilize most of the available processors, it
+    can require not using some processors.  So, the number of cells is derived
+    from the number of processors but then the final number of processors is
+    determined by the number of cells.
+
+    The calculation is structured to try and keep a reasonably
+    square aspect ratio for the mesh.
+
+  maintainer:
+    name: Nicholas Sly
+    email: sly@lanl.gov
+
+  variables:
+    # Making this a list enables permuting over it.  This means you can
+    # specify one of the sub-keys as `comp_config.name` and Pavilion will know
+    # what you mean in the context of the permutation.
+    comp_config:
+      - name: 'gcc-openmpi'
+        compiler: 'gcc'
+        gcc_comment: ''
+        gcc_mpi_comment: ''
+        intel_comment: '#'
+        intel_mpi_comment: '#'
+        cray_comment: '#'
+        executable: 'gsnap'
+      - name: 'intel-openmpi'
+        compiler: 'intel'
+        gcc_comment: '#'
+        gcc_mpi_comment: '#'
+        intel_comment: ''
+        intel_mpi_comment: ''
+        cray_comment: '#'
+        executable: 'isnap'
+    haswell_comment: ''
+    # This list enables scaling the number of threads used to investigate what
+    # results in the best performance.
+    nthreads: [1, 2, 4]
+    # The idea here is to keep the aspect ratio of the geometry dimensions
+    # relatively square.
+    procs: "{{ floor( sqrt(sched.tasks_total) / 3 ) }}"
+    npey: "{{ procs }}"
+    # Divide by threads to ensure there is a "core" available for each thread.
+    npez: "{{ floor( 2 * procs / nthreads ) }}"
+    # ny and nz must divide evenly by npey and npez, respectively.
+    ny: "{{ npey * 8 }}"
+    nz: "{{ npez * 8 }}"
+    # SNAP requires that the total number of processes equal npey*npez.  This
+    # does not include threads.
+    total_procs: "{{ npey * npez }}"
+    # Re-create the test_cmd to override the scheduler-provided test_cmd
+    # variable so that the number of processes used is appropriate for how SNAP
+    # wants to be run and ensuring there is a "core" to perform the work of
+    # each thread.
+    test_cmd: 'srun -n {{total_procs}} -c {{ 2*nthreads }} --cpu_bind=cores'
+
+  build:
+    source_path: https://www.lanl.gov/projects/crossroads/_assets/docs/ssi/snap-xroads-v1.0.0.tgz
+    #source_path: snap-xroads-v1.0.0.tgz
+
+    modules:
+      - "{{compilers}}"
+      - "{{mpis}}"
+
+    env:
+      FCFLAGS: '-fallow-argument-mismatch'
+      FFLAGS: '-fallow-argument-mismatch'
+
+    cmds:
+      - cd 2018-xroads-trinity-snap/snap-src/
+      - pwd
+      - ls -la
+      - sed -i 's/\(FFLAGS = .*\)/\1 -fallow-argument-mismatch/' Makefile
+      - sed -i 's/#\(FORTRAN = mpif90\)/{{comp_config.gcc_comment}}\1/' Makefile
+      - sed -i 's/#\(FORTRAN = mpiifort\)/{{comp_config.intel_mpi_comment}}\1/' Makefile
+      - sed -i 's/#\(FORTRAN = mpif90\)/{{comp_config.gcc_mpi_comment}}\1/' Makefile
+      - sed -i 's/\(FORTRAN = ftn\)/{{comp_config.cray_comment}}\1/' Makefile
+      - sed -i 's/#\(TARGET = gsnap\)/{{comp_config.gcc_comment}}\1/' Makefile
+      - sed -i 's/\(TARGET = isnap\)/{{comp_config.intel_comment}}\1/' Makefile
+      - sed -i 's/\(HASWELL = yes\)/{{haswell_comment}}\1/' Makefile
+      - make
+
+  scheduler: slurm
+
+  schedule:
+    tasks_per_node: all
+
+  run:
+    modules:
+      - "{{compilers}}"
+      - "{{mpis}}"
+
+    cmds:
+      - cp 2018-xroads-trinity-snap/inputs/inh0001t1 ./inp
+      - sed -i 's/\(  npey=\)4/\1{{npey}}/' inp
+      - sed -i 's/\(  npez=\)8/\1{{npez}}/' inp
+      - sed -i 's/\(  ny=\)16/\1{{ny}}/' inp
+      - sed -i 's/\(  nz=\)16/\1{{nz}}/' inp
+      - sed -i 's/\(  nthreads=\)1/\1{{nthreads}}/' inp
+      - "{{test_cmd}} ./2018-xroads-trinity-snap/snap-src/{{comp_config.executable}} inp out"
+
+  result_parse:
+    constant:
+      test_cmd:
+        const: "{{test_cmd}}"
+    regex:
+      solve_time:
+        regex: 'Solve +(.*)'
+        files: out
+      inner_iterations:
+        regex: 'Inner Iterations +(.*)'
+        files: out
+      total_inner_iterations:
+        regex: 'Total inners for all time steps, outers = +(.*)'
+        files: out
+      total_execution_time:
+        regex: 'Total Execution time +(.*)'
+        files: out
+      grind_time_ns:
+        regex: 'Grind Time \(nanoseconds\) +(.*)'
+        files: out
+      # Allocated words per rank should be used for the Crossroads acceptance
+      # to ensure that <50% (and preferrably <40%) of the memory on any node is
+      # used as well as across the system.
+      allocated_words_per_rank:
+        regex: 'per rank +(.*)'
+        files: out
+
+  result_evaluate:
+    memory_per_rank_bytes: "allocated_words_per_rank*8"
+    memory_per_rank_mbytes: "allocated_words_per_rank*8/1000000"
+    memory_per_rank_gbytes: "allocated_words_per_rank*8/1000000000"
+    memory_per_node_gbytes: "{{procs}}*allocated_words_per_rank*8/1000000000"
+    memory_total_gbytes: "{{sched.nodes*procs}}*allocated_words_per_rank*8/1000000000"
+
+
+base:
+  inherits_from: _build
+  summary: Base build of SNAP for arbitrary allocation sizes.
+
+  doc: |
+    The base instance of SNAP that just uses the run configuration from the
+    _build subtest that scales to an arbitrary allocation size.
+
+xroads-scaling:
+  inherits_from: _build
+  summary: Crossroads scaling of SNAP.
+
+  subtitle: "{{scale.node_count}}nodes-{{scale.ranks_per_node}}ranks-{{scale.threads_per_rank}}threads"
+
+  doc: |
+    Crossroads runs scaling across all of the node, rank, and thread counts
+    used in the specification.  The node counts are 1, 64, and 4096.  The ranks
+    scale from 8 ranks per node to 16 and 32 ranks.  The threads per rank count
+    spans 1, 2, and 4 threads per rank.  As the number of ranks scales up, the
+    threads per rank scales down.  As such, this results in 9 runs.  These
+    settings have been set in a set of pre-generated inputs included in the
+    source tarball.
+
+    The results to reference are the "Solve" time, "Total inners" for the
+    cumulative number of inner iterations, and "Allocated words" to determine
+    if the amount of memory per node stays below 40-50%.
+
+  variables:
+    scale:
+      - node_count: 1
+        ranks_per_node: 8
+        threads_per_rank: 4
+        input_path: ./2018-xroads-trinity-snap/inputs/inh0001t4
+      - node_count: 64
+        ranks_per_node: 8
+        threads_per_rank: 4
+        input_path: ./2018-xroads-trinity-snap/inputs/inh0064t4
+      - node_count: 4096
+        ranks_per_node: 8
+        threads_per_rank: 4
+        input_path: ./2018-xroads-trinity-snap/inputs/inh4096t4
+      - node_count: 1
+        ranks_per_node: 16
+        threads_per_rank: 2
+        input_path: ./2018-xroads-trinity-snap/inputs/inh0001t2
+      - node_count: 64
+        ranks_per_node: 16
+        threads_per_rank: 2
+        input_path: ./2018-xroads-trinity-snap/inputs/inh0064t2
+      - node_count: 4096
+        ranks_per_node: 16
+        threads_per_rank: 2
+        input_path: ./2018-xroads-trinity-snap/inputs/inh4096t2
+      - node_count: 1
+        ranks_per_node: 32
+        threads_per_rank: 1
+        input_path: ./2018-xroads-trinity-snap/inputs/inh0001t1
+      - node_count: 64
+        ranks_per_node: 32
+        threads_per_rank: 1
+        input_path: ./2018-xroads-trinity-snap/inputs/inh0064t1
+      - node_count: 4096
+        ranks_per_node: 32
+        threads_per_rank: 1
+        input_path: ./2018-xroads-trinity-snap/inputs/inh4096t1
+    # Re-create the test_cmd to override the scheduler-provided test_cmd
+    # variable so that the number of processes used is appropriate for how SNAP
+    # wants to be run and ensuring there is a "core" to perform the work of
+    # each thread.
+    test_cmd: 'srun -N {{scale.node_count}} --ntasks-per-node={{scale.ranks_per_node}} -c {{ scale.threads_per_rank }} --cpu_bind=cores'
+
+  permute_on: [ scale ]
+
+  schedule:
+    nodes: "{{scale.node_count}}"
+    tasks_per_node: "all"
+
+  run:
+    modules:
+      - "{{compilers}}"
+      - "{{mpis}}"
+
+    cmds:
+      - "{{test_cmd}} ./2018-xroads-trinity-snap/snap-src/{{comp_config.executable}} {{scale.input_path}} out"
+
+  result_evaluate:
+    memory_per_node_gbytes: "{{scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
+    memory_total_gbytes: "{{scale.node_count*scale.ranks_per_node}}*allocated_words_per_rank*8/1000000000"
+    # Bug in pavilion causes this next line to error.
+    # "Results dict does not have the key 'memory_per_node_Gbytes'."
+    memory_percentage_usage: "100 * memory_per_node_gbytes / {{sched.test_min_mem}}"
+
+
+xc40-scaling:
+  inherits_from: xroads-scaling
+  summary: Scaling for XC40 cray machines.
+
+  variables:
+    # Making this a list enables permuting over it.  This means you can
+    # specify one of the sub-keys as `comp_config.name` and Pavilion will know
+    # what you mean in the context of the permutation.
+    comp_config:
+      - name: 'gcc-mpich'
+        compiler: 'gcc'
+        gcc_comment: ''
+        gcc_mpi_comment: ''
+        intel_comment: '#'
+        intel_mpi_comment: '#'
+        cray_comment: ''
+        executable: 'gsnap'
+      - name: 'intel-mpich'
+        compiler: 'intel'
+        gcc_comment: '#'
+        gcc_mpi_comment: '#'
+        intel_comment: ''
+        intel_mpi_comment: '#'
+        cray_comment: ''
+        executable: 'isnap'
+
+  permute_on: ['scale', 'comp_config']
+
+  build:
+    modules:
+      - "{{comp_config.compiler}}"
+      - "{{mpis}}"
+
+  run:
+    modules:
+      - "{{comp_config.compiler}}"
+      - "{{mpis}}"

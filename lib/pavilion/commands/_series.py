@@ -33,7 +33,7 @@ class AutoSeries(Command):
         try:
             series_obj = series.TestSeries.load(pav_cfg, args.series_id)
         except pavilion.series.errors.TestSeriesError as err:
-            output.fprint("Error in _series cmd: {}".format(err.args[0]))
+            output.fprint(sys.stdout, "Error in _series cmd: {}".format(err.args[0]))
             sys.exit(1)
 
         # handles SIGTERM (15) signal
@@ -49,8 +49,7 @@ class AutoSeries(Command):
             # call function to actually run series
             series_obj.run(outfile=self.outfile)
         except pavilion.series.errors.TestSeriesError as err:
-            output.fprint("Error while running series '{}'. {}"
-                          .format(args.series, err.args[0]),
-                          file=self.errfile)
+            output.fprint(self.errfile, "Error while running series '{}'. {}"
+                          .format(args.series, err.args[0]))
 
         return 0

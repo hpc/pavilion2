@@ -396,10 +396,11 @@ class Slurm(SchedulerPluginAdvanced):
             _, node_nums = seqs[base]
             node_nums.append(number)
 
+        # This compresses the node list into sequences like 'node[0095-0105,0900-1002]'
         node_seqs = []
         for base, (digits, nums) in sorted(seqs.items()):
             nums.sort(reverse=True)
-            num_digits = math.ceil(math.log(nums[0], 10))
+            num_digits = len(str(nums[0]))
             pre_digits = digits - num_digits
 
             num_list = []
@@ -510,7 +511,7 @@ class Slurm(SchedulerPluginAdvanced):
                 node_info['reservations'].append(reservation)
 
         # Convert to an integer in GBytes
-        node_info['mem'] = int(node_info['mem'])/1024**2
+        node_info['mem'] = int(node_info['mem']) * 1024**2
 
         # Convert to an integer
         node_info['cpus'] = int(node_info['cpus'])
@@ -522,8 +523,10 @@ class Slurm(SchedulerPluginAdvanced):
             up_states = up_states + reserved_states
             avail_states = avail_states + reserved_states
 
+
         node_info['up'] = all(state in up_states for state in node_info['states'])
         node_info['available'] = all(state in avail_states for state in node_info['states'])
+
 
         return node_info
 

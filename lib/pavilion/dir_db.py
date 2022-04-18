@@ -160,10 +160,9 @@ def index(pav_cfg,
                 idx = pickle.load(idx_file)
         except (OSError, PermissionError, json.JSONDecodeError) as err:
             # In either error case, start from scratch.
-            output.fprint(
-                "Error reading index at '{}'. Regenerating from "
-                "scratch. {}".format(idx_path.as_posix(), err.args[0]),
-                file=verbose, color=output.GRAY)
+            output.fprint(verbose, "Error reading index at '{}'. Regenerating from "
+                                   "scratch. {}".format(idx_path.as_posix(), err.args[0]),
+                          color=output.GRAY)
 
     if not id_dir.exists():
         return idx
