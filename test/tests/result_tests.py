@@ -439,8 +439,8 @@ class ResultParserTests(PavTestCase):
                         "isn't a mapping.",
                         "doesn't exist.",
                         "doesn't exist.",
-                        "is invalid JSON.",
-                        "is invalid JSON.",
+                        "Invalid JSON:",
+                        "Invalid JSON:",
                         ]
 
         for i, cfg in enumerate(cfgs):
@@ -448,9 +448,8 @@ class ResultParserTests(PavTestCase):
             test.run()
             results = test.gather_results(0)
 
-            self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
-               error_texts[i]
-            )) 
+            self.assertTrue(
+                error_texts[i] in results[result.RESULT_ERRORS][0])
 
 
     def test_table_parser(self):
