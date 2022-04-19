@@ -508,6 +508,11 @@ class ResultParserTests(PavTestCase):
                         'delimiter_re': r',',
                         'by_column': 'True',
                     },
+                    'mdtest': {
+                        'preceded_by': '^SUMMARY:',
+                        'delimiter_re': r'[ :]{2,}',
+                        'lstrip': 'True',
+                    }
                 }
             }
         }
@@ -577,6 +582,27 @@ class ResultParserTests(PavTestCase):
                     'overhead': 'N/A', 'runtime': 0.0, 'speedup': 'N/A',
                     'us_loop': 0.0},
             },
+            'mdtest': {
+                'directory_creation': {
+                    'max': 56142.185, 'min': 51275.966, 'mean': 53720.139, 'std_dev': 1507.151},
+                'directory_stat': {
+                    'max': 82058.105, 'min': 73594.508, 'mean': 78318.159, 'std_dev': 2463.194},
+                'directory_removal': {
+                    'max': 60147.14, 'min': 38256.728, 'mean': 54513.053, 'std_dev': 8174.081},
+                'file_creation': {
+                    'max': 34165.337, 'min': 23620.775, 'mean': 31777.61, 'std_dev': 2874.459},
+                'file_stat': {
+                    'max': 35447.875, 'min': 16235.606, 'mean': 30449.403, 'std_dev': 6233.127},
+                'file_read': {
+                    'max': 44255.713, 'min': 40119.544, 'mean': 41821.671, 'std_dev': 1302.742},
+                'file_removal': {
+                    'max': 51791.173, 'min': 48547.479, 'mean': 50687.506, 'std_dev': 1104.267},
+                'tree_creation': {
+                    'max': 3394.929, 'min': 1559.637, 'mean': 2944.616, 'std_dev': 505.474},
+                'tree_removal': {
+                    'max': 1684.514, 'min': 1092.882, 'mean': 1483.38, 'std_dev': 171.119}
+            },
+
         }
 
         test = self._quick_test(cfg, 'table_test')
