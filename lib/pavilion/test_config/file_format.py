@@ -4,6 +4,7 @@ dynamic nature of test configs, there are a few extra complications this module
 handles that are documented below.
 """
 
+import copy
 import re
 from collections import OrderedDict
 
@@ -104,7 +105,7 @@ class VarCatElem(yc.CategoryElem):
           levels of the config stack.
         """
 
-        base = old.copy()
+        base = copy.deepcopy(old)
         for key, value in new.items():
             # Handle special key properties
             if key[-1] in '?+':

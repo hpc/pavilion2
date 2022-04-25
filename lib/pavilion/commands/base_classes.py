@@ -208,9 +208,8 @@ case that includes:
         cmd_name = args.sub_cmd
 
         if cmd_name is None:
-            output.fprint(
-                "You must provide a sub command '{}'.".format(cmd_name),
-                color=output.RED, file=self.errfile)
+            output.fprint(self.errfile, "You must provide a sub command '{}'.".format(cmd_name),
+                          color=output.RED)
             self._parser.print_help(file=self.errfile)
             return errno.EINVAL
 

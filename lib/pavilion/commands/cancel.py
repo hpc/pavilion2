@@ -56,42 +56,34 @@ class CancelCommand(Command):
                     series_pgid = test_series.pgid
                     tests.extend(test_series.tests.values())
                 except series.errors.TestSeriesError as err:
-                    output.fprint(
-                        "Series {} could not be found.\n{}"
-                        .format(test_id, err.args[0]),
-                        file=self.errfile, color=output.RED)
+                    output.fprint(self.errfile, "Series {} could not be found.\n{}"
+                                  .format(test_id, err.args[0]), color=output.RED)
                     return errno.EINVAL
                 except ValueError as err:
-                    output.fprint(
-                        "Series {} is not a valid series.\n{}"
-                        .format(test_id, err.args[0]),
-                        color=output.RED, file=self.errfile)
+                    output.fprint(self.errfile, "Series {} is not a valid series.\n{}"
+                                  .format(test_id, err.args[0]), color=output.RED)
                     return errno.EINVAL
 
                 try:
                     # if there's a series PGID, kill the series PGID
                     if series_pgid:
                         os.killpg(series_pgid, signal.SIGTERM)
-                        output.fprint('Killed process {}, which is series {}.'
-                                      .format(series_pgid, test_id),
-                                      file=self.outfile)
+                        output.fprint(self.outfile, 'Killed process {}, which is series {}.'
+                                      .format(series_pgid, test_id))
 
                 except ProcessLookupError:
-                    output.fprint("Unable to kill {}. No such process: {}"
-                                  .format(test_id, series_pgid),
-                                  color=output.RED, file=self.errfile)
+                    output.fprint(self.errfile, "Unable to kill {}. No such process: {}"
+                                  .format(test_id, series_pgid), color=output.RED)
             else:
                 try:
                     tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))
                 except TestRunError as err:
-                    output.fprint(
-                        "Test {} is not a valid test.\n{}".format(test_id, err),
-                        file=self.errfile, color=output.RED
-                    )
+                    output.fprint(self.errfile,
+                                  "Test {} is not a valid test.\n{}".format(test_id, err),
+                                  color=output.RED)
                     return errno.EINVAL
 
-        output.fprint("Found {} tests to try to cancel.".format(len(tests)),
-                      file=self.outfile)
+        output.fprint(self.outfile, "Found {} tests to try to cancel.".format(len(tests)))
 
         # Cancel each test. Note that this does not cancel test jobs or builds.
         cancelled_test_info = []
@@ -108,12 +100,10 @@ class CancelCommand(Command):
                 rows=[{'name': test.name, 'id': test.full_id}
                       for test in cancelled_test_info])
         else:
-            output.fprint("No tests needed to be cancelled.",
-                          file=self.outfile)
+            output.fprint(self.outfile, "No tests needed to be cancelled.")
             return 0
 
-        output.fprint("Giving tests a moment to quit.",
-                      file=self.outfile)
+        output.fprint(self.outfile, "Giving tests a moment to quit.")
         time.sleep(TestRun.RUN_WAIT_MAX)
 
         job_cancel_info = cancel.cancel_jobs(pav_cfg, tests, self.errfile)
@@ -126,6 +116,6 @@ class CancelCommand(Command):
                 title="Cancelled {} jobs.".format(len(job_cancel_info)),
             )
         else:
-            output.fprint("No jobs needed to be cancelled.", file=self.outfile)
+            output.fprint(self.outfile, "No jobs needed to be cancelled.")
 
         return 0

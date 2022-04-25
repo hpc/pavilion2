@@ -212,7 +212,6 @@ class TestRun(TestAttributes):
 
         if not new_test:
             self.builder = self._make_builder()
-            self.build_name = self.builder.name
 
         # This will be set by the scheduler
         self._job = None
@@ -301,6 +300,7 @@ class TestRun(TestAttributes):
                 status=self.status,
                 download_dest=download_dest,
                 working_dir=self.working_dir,
+                build_name=self.build_name,
             )
         except pavilion.exceptions.TestBuilderError as err:
             raise TestRunError(

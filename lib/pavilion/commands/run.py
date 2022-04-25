@@ -140,7 +140,7 @@ class RunCommand(Command):
         try:
             tests.extend(cmd_utils.read_test_files(args.files))
         except ValueError as err:
-            output.fprint("Error reading given test list files.\n{}"
+            output.fprint(sys.stdout, "Error reading given test list files.\n{}"
                           .format(err))
             return errno.EINVAL
 
@@ -168,9 +168,7 @@ class RunCommand(Command):
             self.last_tests = list(series_obj.tests.values())
         except pavilion.series.errors.TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
-            output.fprint(
-                str(err.args[0]),
-                file=self.errfile, color=output.RED)
+            output.fprint(self.errfile, str(err.args[0]), color=output.RED)
             return errno.EAGAIN
 
         if report_status:
