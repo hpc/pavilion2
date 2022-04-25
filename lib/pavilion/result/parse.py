@@ -360,9 +360,9 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
             res = parser(file, **parser_args)
         except (ValueError, LookupError, OSError) as exc:
             log("Error calling result parser {}.".format(parser.name))
-            log(traceback.format_exc(exc))
-            return ParseErrorMsg(parser, "Exception when calling result parser. "
-                                         "See result log for full error."), log
+            log(traceback.format_exc())
+            return ParseErrorMsg(parser, "Parser error in {} parser: {}."
+                                         .format(parser.name, exc)), log
 
         file.seek(next_pos)
 
@@ -385,7 +385,7 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
         except IndexError:
             log("Match select index '{}' out of range. There were only {} "
                 "matches.".format(match_idx, len(matches)))
-            return None, log
+            return one, log
 
 
 def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:
