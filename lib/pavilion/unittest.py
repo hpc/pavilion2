@@ -340,7 +340,7 @@ The default config is: ::
                 scheduler = pavilion.schedulers.get_plugin(test.scheduler)
                 fin_sched_vars = scheduler.get_final_vars(test)
                 fin_var_man.add_var_set('sched', fin_sched_vars)
-                res.finalize(test, fin_var_man)
+                test.finalize(fin_var_man)
 
             tests.append(test)
 
@@ -402,7 +402,7 @@ The default config is: ::
             fin_var_man.add_var_set('sys', fin_sys)
             fin_sched_vars = sched.get_final_vars(test)
             fin_var_man.add_var_set('sched', fin_sched_vars)
-            TestConfigResolver.finalize(test, fin_var_man)
+            test.finalize(fin_var_man)
         return test
 
     def wait_tests(self, working_dir: Path, timeout=5):

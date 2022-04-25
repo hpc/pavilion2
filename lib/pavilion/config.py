@@ -179,6 +179,7 @@ class PavConfigDict:
 
         return adict
 
+
 class PavConfig(PavConfigDict):
     """Define types and attributes for Pavilion config options."""
 
@@ -211,6 +212,35 @@ class PavConfig(PavConfigDict):
         self.configs: Dict[str: LocalConfig] = {}
 
         super().__init__(set_attrs)
+
+    def find_file(self, file: Path, sub_dir: Union[str, Path] = None) \
+            -> Union[Path, None]:
+        """Look for the given file and return a full path to it. Relative paths
+        are searched for in all config directories under 'sub_dir', if it exists.
+
+    :param file: The path to the file.
+    :param sub_dir: The subdirectory in each config directory in which to
+        search.
+    :returns: The full path to the found file, or None if no such file
+        could be found."""
+
+        if file.is_absolute():
+            if file.exists():
+                return file
+            else:
+                return None
+
+        # Assemble a potential location from each config dir.
+        for config in self.configs.values():
+            path = config['path']
+            if sub_dir is not None:
+                path = path/sub_dir
+            path = path/file
+
+            if path.exists():
+                return path
+
+        return None
 
 
 class ExPathElem(yc.PathElem):

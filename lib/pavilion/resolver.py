@@ -17,7 +17,7 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Union
+from typing import List, IO, Union, Tuple, Dict
 
 import yc_yaml
 from pavilion import output, parsers, variables
@@ -1234,7 +1234,7 @@ class TestConfigResolver:
                 var_man=var_man,
                 allow_deferred=True,
                 deferred_only=deferred_only,
-                key_parts=[section_name + '[{}]'.format(key)])
+                key_parts=(section_name + '[{}]'.format(key),))
 
             # The value will have already been resolved.
             new_dict[new_key] = value
@@ -1242,8 +1242,11 @@ class TestConfigResolver:
         return new_dict
 
     @classmethod
-    def resolve_section_values(cls, component, var_man, allow_deferred=False,
-                               deferred_only=False, key_parts=None):
+    def resolve_section_values(cls, component: Union[Dict, List, str],
+                               var_man: variables.VariableSetManager,
+                               allow_deferred: bool = False,
+                               deferred_only: bool = False,
+                               key_parts: Union[None, Tuple[str]] = None):
         """Recursively resolve the given config component's value strings
         using a variable manager.
 

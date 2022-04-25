@@ -23,9 +23,11 @@ from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion import create_files
+from pavilion import resolver
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
-from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.exceptions import TestRunError, TestRunNotFoundError, TestConfigError
 from pavilion.jobs import Job
 from pavilion.variables import VariableSetManager
 from pavilion.result.common import ResultError
@@ -381,13 +383,16 @@ class TestRun(TestAttributes):
 
         return test_run
 
-    def _finalize(self):
+    def finalize(self, new_vars: VariableSetManager):
         """Resolve any remaining deferred variables, and generate the final
         run script.
 
         DO NOT USE THIS DIRECTLY - Use the resolver finalize method, which
             will call this.
         """
+
+        self.var_man.undefer(new_vars)
+        self.config = resolver.TestConfigResolver.resolve_deferred(self.config, self.var_man)
 
         if not self.saved:
             raise RuntimeError("You must call the 'test.save()' method before "
@@ -397,33 +402,18 @@ class TestRun(TestAttributes):
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
 
-        # Create files specified via run config key.
-        files_to_create = self.config['run'].get('create_files', [])
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                file_path = Path(self.build_path / file)
-                # Prevent files from being written outside build directory.
-                if not utils.dir_contains(file_path, self.build_path):
-                    raise TestRunError("'create_file: {}': file path"
-                                       " outside build context."
-                                       .format(file_path))
-                # Prevent files from overwriting existing directories.
-                if file_path.is_dir():
-                    raise TestRunError("'create_file: {}' clashes with"
-                                       " existing directory in build dir."
-                                       .format(file_path))
-                # Create file parent directory(ies).
-                dirname = file_path.parent
-                (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
+        for file, contents in self.config['run'].get('create_files', {}).items():
+            try:
+                create_files.create_file(file, self.build_path, contents)
+            except TestConfigError as err:
+                raise TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
 
-                # Don't try to overwrite a symlink without removing it first.
-                if file_path.is_symlink():
-                    file_path.unlink()
-
-                # Write file.
-                with file_path.open('w') as file_:
-                    for line in contents:
-                        file_.write("{}\n".format(line))
+        for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
+            try:
+                tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
+            except TestConfigError as err:
+                TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
 
         self.save_attributes()
 
@@ -432,6 +422,7 @@ class TestRun(TestAttributes):
             self.run_script_path,
             self.config['run'],
         )
+
 
     @staticmethod
     def make_name(config):

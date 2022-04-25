@@ -83,7 +83,7 @@ class TestRunTests(PavTestCase):
         test.save()
         self.assert_(test.build())
 
-        TestConfigResolver.finalize(test, VariableSetManager())
+        test.finalize(VariableSetManager())
 
         self.assertEqual(test.run(), 0, msg="Test failed to run.")
 
@@ -94,7 +94,7 @@ class TestRunTests(PavTestCase):
         test.save()
         self.assert_(test.build())
 
-        TestConfigResolver.finalize(test, VariableSetManager())
+        test.finalize(VariableSetManager())
 
         self.assertEqual(
             test.run(), 1,
@@ -116,10 +116,9 @@ class TestRunTests(PavTestCase):
         test = TestRun(self.pav_cfg, config3)
         test.save()
         self.assertTrue(test.build())
-        TestConfigResolver.finalize(test, VariableSetManager())
+        test.finalize(VariableSetManager())
         with self.assertRaises(TimeoutError,
-                               msg="Test should have failed due "
-                                   "to timeout. {}"):
+                               msg="Test should have failed due to timeout."):
             test.run()
 
     def test_create_file(self):

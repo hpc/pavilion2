@@ -404,7 +404,7 @@ class ResolverTests(PavTestCase):
         sched = schedulers.get_plugin('raw')
         fin_var_man.add_var_set('sched', sched.get_final_vars(test))
 
-        resolver.TestConfigResolver.finalize(test, fin_var_man)
+        test.finalize(fin_var_man)
 
         results = test.gather_results(test.run())
         test.save_results(results)
