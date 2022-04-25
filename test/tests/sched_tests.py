@@ -290,7 +290,7 @@ class SchedTests(PavTestCase):
             # This is here to debug node selection and visually examine the node
             # selection algorithm results, as they are mostly random.
             if enable_view:
-                output.fprint(select, sorted(list(chunks[0])))
+                output.fprint(sys.stdout, select, sorted(list(chunks[0])))
 
     def test_shared_kickoff(self):
         """Check that shared kickoffs work as expected."""

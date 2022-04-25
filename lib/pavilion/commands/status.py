@@ -56,17 +56,15 @@ class StatusCommand(Command):
             test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
                                                       verbose=self.errfile)
         except ValueError as err:
-            output.fprint(err.args[0], color=output.RED, file=self.errfile)
+            output.fprint(self.errfile, err.args[0], color=output.RED)
             return errno.EINVAL
 
         if args.history:
             tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
             if len(tests) != 1:
-                output.fprint("'--history' flag requires a single test id, "
-                              "got: {}"
-                              .format(len(test_paths)),
-                              file=self.errfile,
-                              color=output.RED)
+                output.fprint(self.errfile, "'--history' flag requires a single test id, "
+                                            "got: {}"
+                              .format(len(test_paths)), color=output.RED)
                 return 1
             return status_utils.print_status_history(tests[-1], self.outfile, args.json)
 

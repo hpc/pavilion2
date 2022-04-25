@@ -70,7 +70,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 picked_nodes=node_range,
             )
 
-            script.command('time pav _run {t.working_dir} {t.id}'.format(t=test))
+            script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
             job.info = self._kickoff(pav_cfg, job, sched_config)

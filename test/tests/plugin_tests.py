@@ -16,6 +16,7 @@ from pavilion.resolver import variables
 from pavilion.unittest import PavTestCase
 import io
 import logging
+import sys
 import subprocess
 
 LOGGER = logging.getLogger(__name__)
@@ -251,9 +252,9 @@ class PluginTests(PavTestCase):
 
         # A bunch of plugins should fail to load, but this should be fine
         # anyway.
-        output.fprint("The following error message is expected; We're testing "
-                      "that such errors are caught and printed rather than "
-                      "crashing pavilion.", color=output.BLUE)
+        output.fprint(sys.stdout, "The following error message is expected; We're testing "
+                                  "that such errors are caught and printed rather than "
+                                  "crashing pavilion.", color=output.BLUE)
         plugins.initialize_plugins(pav_cfg)
 
         yapsy_logger.removeHandler(hndlr)

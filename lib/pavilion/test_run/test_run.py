@@ -210,7 +210,6 @@ class TestRun(TestAttributes):
 
         if not new_test:
             self.builder = self._make_builder()
-            self.build_name = self.builder.name
 
         # This will be set by the scheduler
         self._job = None
@@ -299,6 +298,7 @@ class TestRun(TestAttributes):
                 status=self.status,
                 download_dest=download_dest,
                 working_dir=self.working_dir,
+                build_name=self.build_name,
             )
         except pavilion.exceptions.TestBuilderError as err:
             raise TestRunError(
@@ -566,7 +566,11 @@ class TestRun(TestAttributes):
         else:
             self.builder.fail_path.rename(self.build_path)
             for file in utils.flat_walk(self.build_path):
-                file.chmod(file.stat().st_mode | 0o200)
+                try:
+                    file.chmod(file.stat().st_mode | 0o220)
+                except FileNotFoundError:
+                    # Builds can have symlinks that point to non-existent files.
+                    pass
             build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')

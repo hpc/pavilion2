@@ -369,9 +369,9 @@ class TestConfigResolver:
                             complete += 1
                             progress = len(raw_tests) - complete
                             progress = (1 - progress/len(raw_tests))
-                            output.fprint(
-                                "Resolving Test Configs: {:.0%}".format(progress),
-                                file=outfile, end='\r')
+                            output.fprint(outfile,
+                                          "Resolving Test Configs: {:.0%}".format(progress),
+                                          end='\r')
 
                     try:
                         aresult.wait(0.5)
@@ -379,7 +379,7 @@ class TestConfigResolver:
                         pass
 
         if outfile:
-            output.fprint('', file=outfile)
+            output.fprint(outfile, '')
 
         # NOTE: The deferred scheduler errors will be handled when we try to save
         #       the test object. (See build_variable_manager() above)

@@ -63,9 +63,8 @@ class ViewCommand(run.RunCommand):
         overrides = []
         for ovr in args.overrides:
             if '=' not in ovr:
-                fprint("Invalid override value. Must be in the form: "
-                       "<key>=<value>. Ex. -c run.modules=['gcc'] ",
-                       file=self.errfile)
+                fprint(self.errfile, "Invalid override value. Must be in the form: "
+                                     "<key>=<value>. Ex. -c run.modules=['gcc'] ")
                 return errno.EINVAL
 
             key, value = ovr.split('=', 1)
@@ -88,7 +87,7 @@ class ViewCommand(run.RunCommand):
                 outfile=self.outfile,
             )
         except CommandError as err:
-            fprint(err, file=self.errfile, color=output.RED)
+            fprint(self.errfile, err, color=output.RED)
             return errno.EINVAL
 
         configs = {pt.config['name']: pt.config for pt in proto_tests}

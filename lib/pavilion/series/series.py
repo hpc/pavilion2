@@ -407,13 +407,11 @@ differentiate it from test ids."""
                     sets_to_run.append(test_set)
 
             for test_set in sets_to_run:
-
                 # Make sure it's ok to run this test set based on parent status.
                 if not test_set.should_run:
                     test_set.mark_completed()
-                    output.fprint(
-                        "Skipping test set '{}' due to parents not passing."
-                        .format(test_set.name), file=outfile)
+                    output.fprint(outfile, "Skipping test set '{}' due to parents not passing."
+                                  .format(test_set.name))
                     continue
 
                 # Create the test objects
@@ -442,9 +440,8 @@ differentiate it from test ids."""
                 while not test_set.done:
                     try:
                         kicked_off = test_set.kickoff(test_start_count)
-                        fprint("Kicked off '{}' tests of test set '{}' in series '{}'."
-                               .format(kicked_off, test_set.name, self.sid),
-                               file=outfile)
+                        fprint(outfile, "Kicked off '{}' tests of test set '{}' in series '{}'."
+                               .format(kicked_off, test_set.name, self.sid))
                     except TestSetError as err:
                         self.set_complete()
                         raise TestSeriesError(

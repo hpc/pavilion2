@@ -71,8 +71,7 @@ def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestR
             try:
                 tests.append(result.result())
             except TestRunError as err:
-                output.fprint(
-                    "Error loading test: {}".format(err.args[0]),
-                    color=output.YELLOW, file=errfile)
+                output.fprint(errfile, "Error loading test: {}".format(err.args[0]),
+                              color=output.YELLOW)
 
     return tests

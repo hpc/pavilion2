@@ -379,9 +379,7 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
             lock_path = self.path.with_suffix('.lock')
-            with lockfile.LockFile(lock_path,
-                                   group=self._pav_cfg.shared_group)\
-                    as lock:
+            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group) as lock:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists():
@@ -403,27 +401,27 @@ class TestBuilder:
                                 .format(err.args[0]))
                             return False
 
-                    # Attempt to perform the actual build, this shouldn't
-                    # raise an exception unless something goes terribly
-                    # wrong.
-                    # This will also set the test status for
-                    # non-catastrophic cases.
-                    if not self._build(self.path, cancel_event, test_id,
-                                       tracker, lock=lock):
+                    with lockfile.LockFilePoker(lock):
+                        # Attempt to perform the actual build, this shouldn't
+                        # raise an exception unless something goes terribly
+                        # wrong.
+                        # This will also set the test status for
+                        # non-catastrophic cases.
+                        if not self._build(self.path, cancel_event, test_id, tracker):
 
-                        try:
-                            self.path.rename(self.fail_path)
-                        except FileNotFoundError as err:
-                            tracker.error(
-                                "Failed to move build {} from {} to "
-                                "failure path {}: {}"
-                                .format(self.name, self.path,
-                                        self.fail_path, err))
-                            self.fail_path.mkdir()
-                        if cancel_event is not None:
-                            cancel_event.set()
+                            try:
+                                self.path.rename(self.fail_path)
+                            except FileNotFoundError as err:
+                                tracker.error(
+                                    "Failed to move build {} from {} to "
+                                    "failure path {}: {}"
+                                    .format(self.name, self.path,
+                                            self.fail_path, err))
+                                self.fail_path.mkdir()
+                            if cancel_event is not None:
+                                cancel_event.set()
 
-                        return False
+                            return False
 
                     try:
                         self.finished_path.touch()
@@ -481,16 +479,13 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, test_id,
-               tracker: BuildTracker, lock: lockfile.LockFile = None):
+    def _build(self, build_dir, cancel_event, test_id, tracker: BuildTracker):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
             should stop.
         :param test_id: The 'full_id' of the test initiating the build.
         :param tracker: Build tracker for this build.
-        :param lock: The lockfile object. This will need to be refreshed to
-            keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
@@ -523,7 +518,6 @@ class TestBuilder:
                     try:
                         result = proc.wait(timeout=0.2)
                     except subprocess.TimeoutExpired:
-                        lock.renew()
                         if self._timeout_file.exists():
                             timeout_file = self._timeout_file
                         else:
