@@ -8,6 +8,7 @@ from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion import resolver
+from pavilion import resolve
 from pavilion import schedulers
 from pavilion import test_run
 from pavilion.deferred import DeferredVariable
@@ -481,7 +482,7 @@ class ResolverTests(PavTestCase):
 
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
-            out_test = self.resolver.resolve_test_vars(test, var_man)
+            out_test = resolve.test_vars(test, var_man)
             # This is a random number that gets added. It can't be predicted.
             del out_test['permute_base']
             self.assertIn(out_test, answers)
@@ -504,7 +505,7 @@ class ResolverTests(PavTestCase):
 
         with self.assertRaises(TestConfigError):
             # No deferred variables in the build section.
-            self.resolver.resolve_test_vars(test, permuted[0])
+            resolve.test_vars(test, permuted[0])
 
     def test_env_order(self):
         """Make sure environment variables keep their order from the test

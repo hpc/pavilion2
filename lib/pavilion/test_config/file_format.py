@@ -355,7 +355,7 @@ expected to be added to by various plugins.
                 PathCategoryElem(
                     'templates',
                     key_case=PathCategoryElem.KC_MIXED,
-                    sub_elem=yc.PathElem(),
+                    sub_elem=yc.StrElem(),
                     help_text="Template files to resolve using Pavilion test variables. The "
                               "key is the path to the template file (typically with a "
                               "'.pav' extension), in the 'test_src' directory. The value is the "
@@ -487,7 +487,7 @@ expected to be added to by various plugins.
                 PathCategoryElem(
                     'templates',
                     key_case=PathCategoryElem.KC_MIXED,
-                    sub_elem=yc.PathElem(),
+                    sub_elem=yc.StrElem(),
                     help_text="Template files to resolve using Pavilion test variables. The "
                               "key is the path to the template file (typically with a "
                               "'.pav' extension), in the 'test_src' directory. The value is the "

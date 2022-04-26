@@ -13,7 +13,7 @@ import threading
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Union
+from typing import Union, Dict
 
 import pavilion.config
 from pavilion import extract, lockfile, utils, wget, create_files
@@ -51,6 +51,7 @@ class TestBuilder:
 
     def __init__(self, pav_cfg: pavilion.config.PavConfig, working_dir: Path, config: dict,
                  script: Path, status: TestStatusFile, download_dest: Path,
+                 templates: Dict[Path, Path] = None,
                  spack_config: dict = None, build_name=None):
         """Initialize the build object.
 
@@ -58,6 +59,7 @@ class TestBuilder:
         :param working_dir: The working directory where this build should go.
         :param config: The build configuration.
         :param script: Path to the build script
+        :param templates: Paths to template files and their destinations.
         :param spack_config: Give a spack config to enable spack builds.
         :param build_name: The build name, if this is a build that
             already exists.
@@ -69,6 +71,7 @@ class TestBuilder:
         self._spack_config = spack_config
         self._script_path = script
         self._download_dest = download_dest
+        self._templates: Dict[Path, Path] = templates or {}
 
         try:
             self._timeout = parse_timeout(config.get('timeout'))
@@ -197,6 +200,10 @@ class TestBuilder:
                 raise TestBuilderError(
                     "Invalid src location {}."
                     .format(src_path))
+
+        # Hash all the given template files.
+        for tmpl_src in sorted(self._templates.keys()):
+            hash_obj.update(self._hash_file(tmpl_src))
 
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
@@ -693,6 +700,10 @@ class TestBuilder:
                         "Could not copy test src '{}' to '{}': {}"
                         .format(src_path, dest, err))
 
+        tracker.update(
+            state=STATES.CREATED,
+            note="Generating dynamically created files (create_files, templates, extra_files)")
+
         # Create build time file(s).
         for file, contents in self._config.get('create_files', {}).items():
             try:
@@ -702,20 +713,24 @@ class TestBuilder:
                     "Error creating 'create_file' '{}': {}"
                     .format(file, err.args[0]))
 
-        # Now we just need to copy over all of the extra files.
+        # Copy over the template files.
+        for tmpl_src, tmpl_dest in self._templates.items():
+            tmpl_dest = self.path/tmpl_dest
+            try:
+                tmpl_dest.parent.mkdir(exist_ok=True)
+                shutil.copyfile(tmpl_src, tmpl_dest)
+            except OSError as err:
+                raise TestBuilderError(
+                    "Error copying template file from {} to {}: {}"
+                    .format(tmpl_src, tmpl_dest, err))
+
+        # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
             path = self._pav_cfg.find_file(extra, 'test_src')
             final_dest = dest / path.name
             try:
                 if path.is_dir():
-                    # IF extra_file in extra_files is directory
-                    tracker.update(
-                        state=STATES.CREATED,
-                        note=("Copying EXTRA_FILES directory {} to {} "
-                              "as the build directory."
-                              .format(path, final_dest)))
-
                     utils.copytree(
                         path.as_posix(),
                         final_dest.as_posix(),

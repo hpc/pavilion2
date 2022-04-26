@@ -20,7 +20,6 @@ import re
 from typing import List
 
 import lark as _lark
-from lark.parsers.lalr_parser import ParserState
 from .common import ParserValueError
 from .expressions import (get_expr_parser, EvaluationExprTransformer,
                           VarRefVisitor)

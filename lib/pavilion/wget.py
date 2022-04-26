@@ -6,6 +6,8 @@ import logging
 import tempfile
 import urllib.parse
 
+import certifi
+
 _MISSING_LIBS = []
 try:
     import ssl  # pylint: disable=W0611
@@ -44,6 +46,25 @@ class WGetError(RuntimeError):
 REDIRECT_LIMIT = 10
 
 
+CA_CERT_PATH = None
+
+
+def ca_cert_path():
+    """Try to get system ca certs, then fall back to certifi."""
+
+    global CA_CERT_PATH
+    if CA_CERT_PATH is None:
+        for ca_path in ('/etc/ssl/certs/ca-bundle.crt',
+                        '/etc/ssl/certs/ca-certificates.crt'):
+            if Path(ca_path).exists():
+                CA_CERT_PATH = ca_path
+                break
+        else:
+            CA_CERT_PATH = certifi.where()
+
+    return CA_CERT_PATH
+
+
 def get(pav_cfg, url, dest):
     """Download the file at the given url and store it at dest. If a file
     already exists at dest it will be overwritten (assuming we have the
@@ -60,10 +81,11 @@ def get(pav_cfg, url, dest):
     session = requests.Session()
     session.trust_env = False
 
-    dest_dir = dest.parent.resolve()
+    dest_dir = Path(dest).resolve().parent
 
     try:
         response = session.get(url, proxies=proxies, stream=True,
+                               verify=ca_cert_path(),
                                timeout=pav_cfg.wget_timeout)
         with tempfile.NamedTemporaryFile(dir=str(dest_dir),
                                          delete=False) as tmp:
@@ -101,6 +123,7 @@ def head(pav_cfg, url):
     try:
         response = session.head(url,
                                 proxies=proxies,
+                                verify=ca_cert_path(),
                                 timeout=pav_cfg.wget_timeout)
         # The location header is the redirect location. While the requests
         # library resolves these automatically, it still returns the first
@@ -115,6 +138,7 @@ def head(pav_cfg, url):
             proxies = _get_proxies(pav_cfg, redirect_url)
             response = session.head(redirect_url,
                                     proxies=proxies,
+                                    verify=ca_cert_path(),
                                     timeout=pav_cfg.wget_timeout)
 
     except requests.exceptions.RequestException as err:

@@ -1,12 +1,13 @@
 """Functions to dynamically generate test files."""
 
 from pathlib import Path
-from typing import Dict, List, Union, TextIO
+from typing import List, Union, TextIO
 
 import pavilion.config
+from pavilion import resolve
 from pavilion import utils
 from pavilion import variables
-from pavilion.resolver import TestConfigResolver, TestConfigError
+from pavilion.exceptions import TestConfigError
 
 
 def create_file(dest: Union[str, Path], rel_path: Path, contents: List[str],
@@ -48,7 +49,7 @@ def verify_path(dest, rel_path) -> Path:
 
     file_path = rel_path / dest
     # Prevent files from being written outside build directory.
-    if not utils.dir_contains(file_path, rel_path):
+    if not utils.dir_contains(file_path, rel_path, symlink_ok=True):
         raise TestConfigError("'create_file/templates: {}': file path"
                               " outside build context.".format(file_path))
     # Prevent files from overwriting existing directories.
@@ -73,8 +74,9 @@ def resolve_template(pav_cfg: pavilion.config.PavConfig, template: str,
             tmpl_lines = tmpl_file.readlines()
     except OSError as err:
         raise TestConfigError("Error reading template file '{}': {}".format(tmpl_path, err))
+
     try:
-        return TestConfigResolver.resolve_section_values(tmpl_lines, var_man)
+        return resolve.section_values(tmpl_lines, var_man)
     except TestConfigError as err:
         raise TestConfigError("Error resolving template '{}': {}"
                               .format(tmpl_path, err.args[0]))

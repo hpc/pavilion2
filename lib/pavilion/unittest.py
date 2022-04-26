@@ -19,6 +19,7 @@ import pavilion.schedulers
 from pavilion import arguments
 from pavilion import config
 from pavilion import dir_db
+from pavilion import resolve
 from pavilion import pavilion_variables
 from pavilion.sys_vars import base_classes
 from pavilion.output import dbg_print
@@ -385,7 +386,7 @@ The default config is: ::
 
         var_man.resolve_references()
 
-        cfg = TestConfigResolver.resolve_test_vars(cfg, var_man)
+        cfg = resolve.test_vars(cfg, var_man)
 
         test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
         if test.skipped:

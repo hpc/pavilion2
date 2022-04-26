@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import TextIO, Union
+from typing import TextIO, Union, Dict
 
 import pavilion.exceptions
 from pavilion.config import PavConfig
@@ -24,7 +24,7 @@ from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion import create_files
-from pavilion import resolver
+from pavilion import resolve
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
 from pavilion.exceptions import TestRunError, TestRunNotFoundError, TestConfigError
@@ -91,6 +91,9 @@ class TestRun(TestAttributes):
 
     JOB_FN = 'job'
     """Link to the test's scheduler job."""
+
+    BUILD_TEMPLATE_DIR = 'templates'
+    """Directory that holds build templates."""
 
     def __init__(self, pav_cfg: PavConfig, config, var_man=None,
                  _id=None, rebuild=False, build_only=False):
@@ -291,6 +294,8 @@ class TestRun(TestAttributes):
         else:
             download_dest = None
 
+        templates = self._create_build_templates()
+
         try:
             test_builder = builder.TestBuilder(
                 pav_cfg=self._pav_cfg,
@@ -300,6 +305,7 @@ class TestRun(TestAttributes):
                 status=self.status,
                 download_dest=download_dest,
                 working_dir=self.working_dir,
+                templates=templates,
                 build_name=self.build_name,
             )
         except pavilion.exceptions.TestBuilderError as err:
@@ -309,6 +315,32 @@ class TestRun(TestAttributes):
             )
 
         return test_builder
+
+    def _create_build_templates(self) -> Dict[Path, Path]:
+        """Generate templated files for the builder to use."""
+
+        templates = self.config.get('build', {}).get('templates', {})
+        tmpl_dir = self.path/self.BUILD_TEMPLATE_DIR
+        if templates:
+            if not tmpl_dir.exists():
+                try:
+                    tmpl_dir.mkdir(exist_ok=True)
+                except OSError as err:
+                    raise TestRunError("Could not create build template directory: {}"
+                                       .format(err))
+
+        tmpl_paths = {}
+        for tmpl_src, tmpl_dest in templates.items():
+            if not (tmpl_dir/tmpl_dest).exists():
+                try:
+                    tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                    create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
+                except TestConfigError as err:
+                    raise TestRunError("Error resolving Build template files: {}"
+                                       .format(err.args[0]))
+            tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
+
+        return tmpl_paths
 
     def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
@@ -392,7 +424,7 @@ class TestRun(TestAttributes):
         """
 
         self.var_man.undefer(new_vars)
-        self.config = resolver.TestConfigResolver.resolve_deferred(self.config, self.var_man)
+        self.config = resolve.deferred(self.config, self.var_man)
 
         if not self.saved:
             raise RuntimeError("You must call the 'test.save()' method before "
@@ -422,7 +454,6 @@ class TestRun(TestAttributes):
             self.run_script_path,
             self.config['run'],
         )
-
 
     @staticmethod
     def make_name(config):
