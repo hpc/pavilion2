@@ -122,7 +122,7 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
             rewrite_log_path.open('w') as rewrite_log:
 
         for line in result_log:
-            lock.renew()
+            lock.renew(rate_limit=True)
             try:
                 result = json.loads(line)
             except json.JSONDecodeError:
