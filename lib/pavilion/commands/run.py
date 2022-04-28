@@ -1,6 +1,7 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
 import errno
+import sys
 from typing import List
 
 import pavilion.series.errors
