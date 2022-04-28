@@ -348,7 +348,19 @@ expected to be added to by various plugins.
                     key_case=PathCategoryElem.KC_MIXED,
                     sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                     help_text="File(s) to create at path relative to the test's"
-                              "test source directory"),
+                              "build/run directory. The key is the filename, "
+                              "while the contents is a list of lines to include in the "
+                              "file. Pavilion test variables will be resolved in this lines "
+                              "before they are written."),
+                PathCategoryElem(
+                    'templates',
+                    key_case=PathCategoryElem.KC_MIXED,
+                    sub_elem=yc.StrElem(),
+                    help_text="Template files to resolve using Pavilion test variables. The "
+                              "key is the path to the template file (typically with a "
+                              "'.pav' extension), in the 'test_src' directory. The value is the "
+                              "output file location, relative to the test's build/run "
+                              "directory."),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the build "
@@ -464,7 +476,23 @@ expected to be added to by various plugins.
                     key_case=PathCategoryElem.KC_MIXED,
                     sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                     help_text="File(s) to create at path relative to the test's"
-                              "test source directory"),
+                              "build/run directory. The key is the filename, "
+                              "while the contents is a list of lines to include in the "
+                              "file. Pavilion test variables will be resolved in this lines "
+                              "before they are written."),
+
+                # Note - Template have to come from the test_src directory (or elsewhere on
+                #        the filesystem, because we have to be able to process them before
+                #        we can create a build hash.
+                PathCategoryElem(
+                    'templates',
+                    key_case=PathCategoryElem.KC_MIXED,
+                    sub_elem=yc.StrElem(),
+                    help_text="Template files to resolve using Pavilion test variables. The "
+                              "key is the path to the template file (typically with a "
+                              "'.pav' extension), in the 'test_src' directory. The value is the "
+                              "output file location, relative to the test's build/run "
+                              "directory."),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the run "

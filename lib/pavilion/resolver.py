@@ -17,14 +17,15 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Union
+from typing import List, IO
 
 import yc_yaml
-from pavilion import output, parsers, variables
+from pavilion import output, variables
 from pavilion import pavilion_variables
+from pavilion import resolve
 from pavilion import schedulers
 from pavilion import sys_vars
-from pavilion.exceptions import VariableError, DeferredError, TestConfigError
+from pavilion.exceptions import VariableError, TestConfigError
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
@@ -115,7 +116,7 @@ class TestConfigResolver:
             )
 
         schedule_cfg = raw_test_cfg.get('schedule', {})
-        schedule_cfg = self.resolve_test_vars(schedule_cfg, var_man)
+        schedule_cfg = resolve.test_vars(schedule_cfg, var_man)
 
         try:
             sched_vars = sched.get_initial_vars(schedule_cfg)
@@ -420,8 +421,7 @@ class TestConfigResolver:
         for ptest_cfg, pvar_man in permuted_tests:
             # Resolve all variables for the test (that aren't deferred).
             try:
-                resolved_config = self.resolve_test_vars(
-                    ptest_cfg, pvar_man)
+                resolved_config = resolve.test_vars(ptest_cfg, pvar_man)
             except TestConfigError as err:
                 msg = ('In test {} from {}:\n{}'
                        .format(test_cfg['name'], test_cfg['suite_path'],
@@ -743,7 +743,7 @@ class TestConfigResolver:
                         "Host config '{}' raised a type error, but that "
                         "should never happen. {}".format(host_cfg_path, err))
 
-            test_cfg = self.resolve_cmd_inheritance(test_cfg)
+            test_cfg = resolve.cmd_inheritance(test_cfg)
 
         return test_cfg
 
@@ -792,7 +792,7 @@ class TestConfigResolver:
                     "Mode config '{}' raised a type error, but that "
                     "should never happen. {}".format(mode_cfg_path, err))
 
-            test_cfg = self.resolve_cmd_inheritance(test_cfg)
+            test_cfg = resolve.cmd_inheritance(test_cfg)
 
         return test_cfg
 
@@ -867,8 +867,7 @@ class TestConfigResolver:
             suite_tests[test_cfg_name] = test_config_loader.merge(parent,
                                                                   test_cfg)
 
-            suite_tests[test_cfg_name] = self.resolve_cmd_inheritance(
-                suite_tests[test_cfg_name])
+            suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
@@ -1120,268 +1119,3 @@ class TestConfigResolver:
                     for k, v in value.items()}
         else:
             raise ValueError("Invalid type in override value: {}".format(value))
-
-    DEFERRED_PREFIX = '!deferred!'
-
-    @classmethod
-    def was_deferred(cls, val):
-        """Return true if config item val was deferred when we tried to resolve
-        the config.
-
-        :param str val: The config value to check.
-        :rtype: bool
-        """
-
-        return val.startswith(cls.DEFERRED_PREFIX)
-
-    @classmethod
-    def resolve_test_vars(cls, config, var_man):
-        """Recursively resolve the variables in the value strings in the given
-        configuration.
-
-        Deferred Variable Handling
-          When a config value references a deferred variable, it is left
-          unresolved and prepended with the DEFERRED_PREFIX. To complete
-          these, use resolve_deferred().
-
-        :param dict config: The config dict to resolve recursively.
-        :param variables.VariableSetManager var_man: A variable manager. (
-            Presumably a permutation of the base var_man)
-        :return: The resolved config,
-        """
-
-        no_deferred_allowed = schedulers.list_plugins()
-        # This can eventually be allowed if the build is non-local.
-        no_deferred_allowed.append('build')
-        no_deferred_allowed.append('scheduler')
-        # This can be allowed, eventually.
-        no_deferred_allowed.append('only_if')
-        no_deferred_allowed.append('not_if')
-
-        resolved_dict = {}
-
-        for section in config:
-            resolved_dict[section] = cls.resolve_section_values(
-                component=config[section],
-                var_man=var_man,
-                allow_deferred=section not in no_deferred_allowed,
-                key_parts=(section,),
-            )
-
-        for section in ('only_if', 'not_if'):
-            if section in config:
-                resolved_dict[section] = cls.resolve_keys(
-                    base_dict=resolved_dict.get(section, {}),
-                    var_man=var_man,
-                    section_name=section)
-
-        return resolved_dict
-
-    @classmethod
-    def resolve_deferred(cls, config, var_man):
-        """Resolve only those values prepended with the DEFERRED_PREFIX. All
-        other values are presumed to be resolved already.
-
-        :param dict config: The configuration
-        :param variables.VariableSetManager var_man: The variable manager. This
-            must not contain any deferred variables.
-        """
-
-        if var_man.deferred:
-            deferred = [
-                ".".join([part for part in var_parts if part is not None])
-                for var_parts in var_man.deferred
-            ]
-
-            raise RuntimeError(
-                "The variable set manager must not contain any deferred "
-                "variables, but contained these: {}"
-                .format(deferred)
-            )
-
-        config = cls.resolve_section_values(config, var_man,
-                                            deferred_only=True)
-        for section in ('only_if', 'not_if'):
-            if section in config:
-                config[section] = cls.resolve_keys(
-                    base_dict=config.get(section, {}),
-                    var_man=var_man,
-                    section_name=section,
-                    deferred_only=True)
-
-        return config
-
-    @classmethod
-    def resolve_keys(cls, base_dict, var_man,
-                     section_name, deferred_only=False) -> dict:
-        """Some sections of the test config can have Pavilion Strings for
-        keys. Resolve the keys of the given dict.
-
-        :param dict[str,str] base_dict: The dict whose keys need to be resolved.
-        :param variables.VariableSetManager var_man: The variable manager to
-            use to resolve the keys.
-        :param str section_name: The name of this config section, for error
-            reporting.
-        :param bool deferred_only: Resolve only deferred keys, otherwise
-            mark deferred keys as deferred.
-        :returns: A new dictionary with the updated keys.
-        """
-
-        new_dict = type(base_dict)()
-        for key, value in base_dict.items():
-            new_key = cls.resolve_section_values(
-                component=key,
-                var_man=var_man,
-                allow_deferred=True,
-                deferred_only=deferred_only,
-                key_parts=[section_name + '[{}]'.format(key)])
-
-            # The value will have already been resolved.
-            new_dict[new_key] = value
-
-        return new_dict
-
-    @classmethod
-    def resolve_section_values(cls, component, var_man, allow_deferred=False,
-                               deferred_only=False, key_parts=None):
-        """Recursively resolve the given config component's value strings
-        using a variable manager.
-
-        :param Union[dict,list,str] component: The config component to resolve.
-        :param var_man: A variable manager. (Presumably a permutation of the
-            base var_man)
-        :param bool allow_deferred: Allow deferred variables in this section.
-        :param bool deferred_only: Only resolve values prepended with
-            the DEFERRED_PREFIX, and throw an error if such values can't be
-            resolved. If this is True deferred values aren't allowed anywhere.
-        :param Union[tuple[str],None] key_parts: A list of the parts of the
-            config key traversed to get to this point.
-        :return: The component, resolved.
-        :raises: RuntimeError, TestConfigError
-        """
-
-        if key_parts is None:
-            key_parts = tuple()
-
-        if isinstance(component, dict):
-            resolved_dict = type(component)()
-            for key in component.keys():
-                resolved_dict[key] = cls.resolve_section_values(
-                    component[key],
-                    var_man,
-                    allow_deferred=allow_deferred,
-                    deferred_only=deferred_only,
-                    key_parts=key_parts + (key,))
-
-            return resolved_dict
-
-        elif isinstance(component, list):
-            resolved_list = type(component)()
-            for i in range(len(component)):
-                resolved_list.append(
-                    cls.resolve_section_values(
-                        component[i], var_man,
-                        allow_deferred=allow_deferred,
-                        deferred_only=deferred_only,
-                        key_parts=key_parts + (i,)
-                    ))
-            return resolved_list
-
-        elif isinstance(component, str):
-
-            if deferred_only:
-                # We're only resolving deferred value strings.
-
-                if component.startswith(cls.DEFERRED_PREFIX):
-                    component = component[len(cls.DEFERRED_PREFIX):]
-
-                    try:
-                        resolved = parsers.parse_text(component, var_man)
-                    except DeferredError:
-                        raise RuntimeError(
-                            "Tried to resolve a deferred config component, "
-                            "but it was still deferred: {}"
-                            .format(component)
-                        )
-                    except parsers.StringParserError as err:
-                        raise TestConfigError(
-                            "Error resolving value '{}' in config at '{}':\n"
-                            "{}\n{}"
-                            .format(component, '.'.join(map(str, key_parts)),
-                                    err.message, err.context))
-                    return resolved
-
-                else:
-                    # This string has already been resolved in the past.
-                    return component
-
-            else:
-                if component.startswith(cls.DEFERRED_PREFIX):
-                    # This should never happen
-                    raise RuntimeError(
-                        "Tried to resolve a pavilion config string, but it was "
-                        "started with the deferred prefix '{}'. This probably "
-                        "happened because Pavilion called setup.resolve_config "
-                        "when it should have called resolve_deferred."
-                        .format(cls.DEFERRED_PREFIX)
-                    )
-
-                try:
-                    resolved = parsers.parse_text(component, var_man)
-                except DeferredError:
-                    if allow_deferred:
-                        return cls.DEFERRED_PREFIX + component
-                    else:
-                        raise TestConfigError(
-                            "Deferred variable in value '{}' under key "
-                            "'{}' where it isn't allowed"
-                            .format(component, '.'.join(map(str, key_parts))))
-                except parsers.StringParserError as err:
-                    raise TestConfigError(
-                        "Error resolving value '{}' in config at '{}':\n"
-                        "{}\n{}"
-                        .format(component,
-                                '.'.join([str(part) for part in key_parts]),
-                                err.message, err.context))
-                else:
-                    return resolved
-        elif component is None:
-            return None
-        else:
-            raise TestConfigError("Invalid value type '{}' for '{}' when "
-                                  "resolving strings. Key parts: {}"
-                                  .format(type(component), component, key_parts))
-
-    def resolve_cmd_inheritance(self, test_cfg):
-        """Extend the command list by adding any prepend or append commands,
-        then clear those sections so they don't get added at additional
-        levels of config merging."""
-
-        _ = self
-
-        for section in ['build', 'run']:
-            config = test_cfg.get(section)
-            if not config:
-                continue
-            new_cmd_list = []
-            if config.get('prepend_cmds', []):
-                new_cmd_list.extend(config.get('prepend_cmds'))
-                config['prepend_cmds'] = []
-            new_cmd_list += test_cfg[section]['cmds']
-            if config.get('append_cmds', []):
-                new_cmd_list.extend(config.get('append_cmds'))
-                config['append_cmds'] = []
-            test_cfg[section]['cmds'] = new_cmd_list
-
-        return test_cfg
-
-    @classmethod
-    def finalize(cls, test_run, new_vars: variables.VariableSetManager):
-        """Finalize the given test run object with the given new variables."""
-
-        test_run.var_man.undefer(new_vars=new_vars)
-
-        test_run.config = cls.resolve_deferred(
-            test_run.config, test_run.var_man)
-
-        test_run._finalize()  # pylint: disable=protected-access

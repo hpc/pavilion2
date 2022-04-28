@@ -55,6 +55,7 @@ def msg(*args, color=output.BLUE, **kwargs):
     kwargs['color'] = color
     output.fprint(sys.stderr, *args, **kwargs)
 
+
 def main():
 
     from pavilion.unittest import PavTestCase, ColorResult, BetterRunner

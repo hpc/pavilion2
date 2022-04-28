@@ -13,11 +13,12 @@ import threading
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Union
+from typing import Union, Dict
 
-from pavilion import extract, lockfile, utils, wget
+import pavilion.config
+from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
-from pavilion.exceptions import TestBuilderError
+from pavilion.exceptions import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
@@ -48,15 +49,17 @@ class TestBuilder:
 
     LOG_NAME = "pav_build_log"
 
-    def __init__(self, pav_cfg, working_dir: Path, config: dict, script: Path,
-                 status: TestStatusFile, download_dest: Path, spack_config: dict = None,
-                 build_name=None):
+    def __init__(self, pav_cfg: pavilion.config.PavConfig, working_dir: Path, config: dict,
+                 script: Path, status: TestStatusFile, download_dest: Path,
+                 templates: Dict[Path, Path] = None,
+                 spack_config: dict = None, build_name=None):
         """Initialize the build object.
 
         :param pav_cfg: The Pavilion config object
         :param working_dir: The working directory where this build should go.
         :param config: The build configuration.
         :param script: Path to the build script
+        :param templates: Paths to template files and their destinations.
         :param spack_config: Give a spack config to enable spack builds.
         :param build_name: The build name, if this is a build that
             already exists.
@@ -68,6 +71,7 @@ class TestBuilder:
         self._spack_config = spack_config
         self._script_path = script
         self._download_dest = download_dest
+        self._templates: Dict[Path, Path] = templates or {}
 
         try:
             self._timeout = parse_timeout(config.get('timeout'))
@@ -104,15 +108,25 @@ class TestBuilder:
         else:
             self._timeout_file = self.tmp_log_path
 
-        # Don't allow a file to be written outside of the build context dir.
-        files_to_create = self._config.get('create_files')
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                file_path = Path((self.path / file).resolve())
-                if not utils.dir_contains(file_path, self.path.resolve()):
-                    raise TestBuilderError("'create_file: {}': file path"
-                                           " outside build context."
-                                           .format(file_path))
+        # Verify template and file creation destinations
+        for file in self._config.get('create_files', {}).keys():
+            try:
+                create_files.verify_path(file, self.path)
+            except TestConfigError as err:
+                raise TestBuilderError("build.create_file has bad path '{}': {}"
+                                       .format(file, err.args[0]))
+
+        for tmpl, dest in self._config.get('templates', {}).items():
+            try:
+                create_files.verify_path(tmpl, self.path)
+            except TestConfigError as err:
+                raise TestBuilderError("build.create_file has bad template path '{}': {}"
+                                       .format(tmpl, err.args[0]))
+            try:
+                create_files.verify_path(dest, self.path)
+            except TestConfigError as err:
+                raise TestBuilderError("build.create_file has bad destination path '{}': {}"
+                                       .format(dest, err.args[0]))
 
     def exists(self):
         """Return True if the given build exists."""
@@ -187,10 +201,14 @@ class TestBuilder:
                     "Invalid src location {}."
                     .format(src_path))
 
+        # Hash all the given template files.
+        for tmpl_src in sorted(self._templates.keys()):
+            hash_obj.update(self._hash_file(tmpl_src))
+
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
-            full_path = self._find_file(extra_file, Path('test_src'))
+            full_path = self._pav_cfg.find_file(extra_file, Path('test_src'))
 
             if full_path is None:
                 raise TestBuilderError(
@@ -211,15 +229,11 @@ class TestBuilder:
         # hashed before build time. Thus, we include a hash of each file
         # consisting of the filename (including path) and it's contents via
         # IOString object.
-        files_to_create = self._config.get('create_files')
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                io_contents = io.StringIO()
+        for file, contents in self._config.get('create_files', {}).items():
+            with io.StringIO() as io_contents:
                 io_contents.write("{}\n".format(file))
-                for line in contents:
-                    io_contents.write("{}\n".format(line))
+                create_files.write_file(contents, io_contents)
                 hash_obj.update(self._hash_io(io_contents))
-                io_contents.close()
 
         hash_obj.update(self._config.get('specificity', '').encode())
 
@@ -284,7 +298,7 @@ class TestBuilder:
                 "or absolute, got '{}':\n{}"
                 .format(src_path, err.args[0]))
 
-        found_src_path = self._find_file(src_path, 'test_src')
+        found_src_path = self._pav_cfg.find_file(src_path, 'test_src')
 
         src_url = self._config.get('source_url')
         src_download = self._config.get('source_download')
@@ -611,7 +625,7 @@ class TestBuilder:
         if raw_src_path is None:
             src_path = None
         else:
-            src_path = self._find_file(Path(raw_src_path), 'test_src')
+            src_path = self._pav_cfg.find_file(Path(raw_src_path), 'test_src')
             if src_path is None:
                 raise TestBuilderError("Could not find source file '{}'"
                                        .format(raw_src_path))
@@ -686,36 +700,37 @@ class TestBuilder:
                         "Could not copy test src '{}' to '{}': {}"
                         .format(src_path, dest, err))
 
-        # Create build time file(s).
-        files_to_create = self._config.get('create_files')
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                file_path = (dest / file).resolve()
-                # Do not allow file to clash with existing directory.
-                if file_path.is_dir():
-                    raise TestBuilderError("'create_file: {}' clashes with"
-                                           " existing directory in test source."
-                                           .format(str(file_path)))
-                dirname = file_path.parent
-                (dest / dirname).mkdir(parents=True, exist_ok=True)
-                with file_path.open('w') as file_:
-                    for line in contents:
-                        file_.write("{}\n".format(line))
+        tracker.update(
+            state=STATES.CREATED,
+            note="Generating dynamically created files.")
 
-        # Now we just need to copy over all of the extra files.
+        # Create build time file(s).
+        for file, contents in self._config.get('create_files', {}).items():
+            try:
+                create_files.create_file(file, self.path, contents)
+            except TestConfigError as err:
+                raise TestBuilderError(
+                    "Error creating 'create_file' '{}': {}"
+                    .format(file, err.args[0]))
+
+        # Copy over the template files.
+        for tmpl_src, tmpl_dest in self._templates.items():
+            tmpl_dest = self.path/tmpl_dest
+            try:
+                tmpl_dest.parent.mkdir(exist_ok=True)
+                shutil.copyfile(tmpl_src, tmpl_dest)
+            except OSError as err:
+                raise TestBuilderError(
+                    "Error copying template file from {} to {}: {}"
+                    .format(tmpl_src, tmpl_dest, err))
+
+        # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            path = self._find_file(extra, 'test_src')
+            path = self._pav_cfg.find_file(extra, 'test_src')
             final_dest = dest / path.name
             try:
                 if path.is_dir():
-                    # IF extra_file in extra_files is directory
-                    tracker.update(
-                        state=STATES.CREATED,
-                        note=("Copying EXTRA_FILES directory {} to {} "
-                              "as the build directory."
-                              .format(path, final_dest)))
-
                     utils.copytree(
                         path.as_posix(),
                         final_dest.as_posix(),
@@ -917,35 +932,6 @@ class TestBuilder:
         """Determine if the given path is a url."""
         parsed = urllib.parse.urlparse(url)
         return parsed.scheme != ''
-
-    def _find_file(self, file: Path, sub_dir: Union[str, Path] = None) \
-            -> Union[Path, None]:
-        """Look for the given file and return a full path to it. Relative paths
-        are searched for in all config directories under 'test_src'.
-
-    :param file: The path to the file.
-    :param sub_dir: The subdirectory in each config directory in which to
-        search.
-    :returns: The full path to the found file, or None if no such file
-        could be found."""
-
-        if file.is_absolute():
-            if file.exists():
-                return file
-            else:
-                return None
-
-        # Assemble a potential location from each config dir.
-        for config in self._pav_cfg.configs.values():
-            path = config['path']
-            if sub_dir is not None:
-                path = path/sub_dir
-            path = path/file
-
-            if path.exists():
-                return path
-
-        return None
 
     @staticmethod
     def _date_dir(base_path):

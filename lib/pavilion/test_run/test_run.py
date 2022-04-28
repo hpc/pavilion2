@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import TextIO, Union
+from typing import TextIO, Union, Dict
 
 import pavilion.exceptions
 from pavilion.config import PavConfig
@@ -23,9 +23,11 @@ from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion import create_files
+from pavilion import resolve
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
-from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.exceptions import TestRunError, TestRunNotFoundError, TestConfigError
 from pavilion.jobs import Job
 from pavilion.variables import VariableSetManager
 from pavilion.result.common import ResultError
@@ -89,6 +91,9 @@ class TestRun(TestAttributes):
 
     JOB_FN = 'job'
     """Link to the test's scheduler job."""
+
+    BUILD_TEMPLATE_DIR = 'templates'
+    """Directory that holds build templates."""
 
     def __init__(self, pav_cfg: PavConfig, config, var_man=None,
                  _id=None, rebuild=False, build_only=False):
@@ -289,6 +294,8 @@ class TestRun(TestAttributes):
         else:
             download_dest = None
 
+        templates = self._create_build_templates()
+
         try:
             test_builder = builder.TestBuilder(
                 pav_cfg=self._pav_cfg,
@@ -298,6 +305,7 @@ class TestRun(TestAttributes):
                 status=self.status,
                 download_dest=download_dest,
                 working_dir=self.working_dir,
+                templates=templates,
                 build_name=self.build_name,
             )
         except pavilion.exceptions.TestBuilderError as err:
@@ -307,6 +315,32 @@ class TestRun(TestAttributes):
             )
 
         return test_builder
+
+    def _create_build_templates(self) -> Dict[Path, Path]:
+        """Generate templated files for the builder to use."""
+
+        templates = self.config.get('build', {}).get('templates', {})
+        tmpl_dir = self.path/self.BUILD_TEMPLATE_DIR
+        if templates:
+            if not tmpl_dir.exists():
+                try:
+                    tmpl_dir.mkdir(exist_ok=True)
+                except OSError as err:
+                    raise TestRunError("Could not create build template directory: {}"
+                                       .format(err))
+
+        tmpl_paths = {}
+        for tmpl_src, tmpl_dest in templates.items():
+            if not (tmpl_dir/tmpl_dest).exists():
+                try:
+                    tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                    create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
+                except TestConfigError as err:
+                    raise TestRunError("Error resolving Build template files: {}"
+                                       .format(err.args[0]))
+            tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
+
+        return tmpl_paths
 
     def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
@@ -381,13 +415,16 @@ class TestRun(TestAttributes):
 
         return test_run
 
-    def _finalize(self):
+    def finalize(self, new_vars: VariableSetManager):
         """Resolve any remaining deferred variables, and generate the final
         run script.
 
         DO NOT USE THIS DIRECTLY - Use the resolver finalize method, which
             will call this.
         """
+
+        self.var_man.undefer(new_vars)
+        self.config = resolve.deferred(self.config, self.var_man)
 
         if not self.saved:
             raise RuntimeError("You must call the 'test.save()' method before "
@@ -397,33 +434,18 @@ class TestRun(TestAttributes):
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
 
-        # Create files specified via run config key.
-        files_to_create = self.config['run'].get('create_files', [])
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                file_path = Path(self.build_path / file)
-                # Prevent files from being written outside build directory.
-                if not utils.dir_contains(file_path, self.build_path):
-                    raise TestRunError("'create_file: {}': file path"
-                                       " outside build context."
-                                       .format(file_path))
-                # Prevent files from overwriting existing directories.
-                if file_path.is_dir():
-                    raise TestRunError("'create_file: {}' clashes with"
-                                       " existing directory in build dir."
-                                       .format(file_path))
-                # Create file parent directory(ies).
-                dirname = file_path.parent
-                (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
+        for file, contents in self.config['run'].get('create_files', {}).items():
+            try:
+                create_files.create_file(file, self.build_path, contents)
+            except TestConfigError as err:
+                raise TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
 
-                # Don't try to overwrite a symlink without removing it first.
-                if file_path.is_symlink():
-                    file_path.unlink()
-
-                # Write file.
-                with file_path.open('w') as file_:
-                    for line in contents:
-                        file_.write("{}\n".format(line))
+        for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
+            try:
+                tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
+            except TestConfigError as err:
+                TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
 
         self.save_attributes()
 
