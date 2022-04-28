@@ -702,7 +702,7 @@ class TestBuilder:
 
         tracker.update(
             state=STATES.CREATED,
-            note="Generating dynamically created files (create_files, etc)")
+            note="Generating dynamically created files.")
 
         # Create build time file(s).
         for file, contents in self._config.get('create_files', {}).items():
