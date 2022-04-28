@@ -1,0 +1,13 @@
+{ 
+  "foo": {
+  "bar": [1, 3, 5],
+
+  
+          "baz": 6
+  },
+  "foo2": 37
+}
+this is a garbage line and the script should stop parsing here
+aksdjnfkajsbdfkljas
+asdkjbfalskjbdf
+{"foo3": "bad"}
