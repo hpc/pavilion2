@@ -319,7 +319,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             chunk_extra = sched_config['chunking']['extra']
 
             node_list = self._node_lists[node_list_id]
-            if chunk_size in (None, 0):
+            if chunk_size in (None, 0) or chunk_size > len(node_list):
                 chunk_size = len(node_list)
 
             chunks_id = (node_list_id, chunk_size, node_select, chunk_extra)

@@ -96,6 +96,7 @@ lock regularly while it's in use for longer periods of time.
         acquired = False
         first = True
         notified = False
+        expiration = None
 
         # Try until we timeout (at least once).
         while (self._timeout is None or first or
@@ -156,7 +157,8 @@ lock regularly while it's in use for longer periods of time.
                     # The lockfile isn't expired yet, so wait.
                     time.sleep(self.SLEEP_PERIOD)
 
-            if not notified and (start + self.NOTIFY_TIMEOUT < time.time()):
+            if not notified and (start + self.NOTIFY_TIMEOUT < time.time()) \
+                    and expiration is None:
                 notified = True
                 self._warn("Waiting for lock '{}'.".format(self.lock_path))
 
@@ -200,13 +202,17 @@ lock regularly while it's in use for longer periods of time.
     def __enter__(self):
         return self.lock()
 
-    def renew(self):
-        """Renew a lockfile that's been acquired by touching the file. This
-        rate limits the renewal to not be overly stressful on the filesystem."""
+    def renew(self, rate_limit=False):
+        """Renew a lockfile that's been acquired by touching the file.
+
+        :param rate_limit: Limit how frequently the lock can be renewed."""
 
         now = time.time()
 
-        if self.expire_period is None or self._last_renew + self.expire_period/2 < now:
+        if self.expire_period is None:
+            return
+
+        if rate_limit and self._last_renew + self.expire_period/10 < now:
             return
 
         self._last_renew = now
