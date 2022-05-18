@@ -4,7 +4,7 @@ import json
 import re
 
 import yaml_config as yc
-from . import base_classes 
+from . import base_classes
 
 
 class Json(base_classes.ResultParser):
@@ -103,7 +103,7 @@ class Json(base_classes.ResultParser):
                     "You tried to exclude key {}, but {}'s value isn't a mapping"
                     .format('.'.join(path), '.'.join(path[:-1]))
                 )
-                
+    
         return old_dict
 
 
