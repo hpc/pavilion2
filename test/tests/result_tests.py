@@ -399,7 +399,7 @@ class ResultParserTests(PavTestCase):
             'json': { 
                 'myjson': {
                     'files': ['json-blob.txt'],
-                    'include_only': ['foo.bar.badkey'],
+                    'include_only': ['foo.buzz.badkey'],
                     'exclude': ['foo.bar'],
                     'stop_at': 'this is a',
                 }
@@ -438,23 +438,17 @@ class ResultParserTests(PavTestCase):
         error_texts = ["doesn't exist.",
                         "isn't a mapping.",
                         "doesn't exist.",
-                        "isn't a mapping.",
-                        "is invalid JSON.",
-                        "is invalid JSON.",
+                        "doesn't exist.",
+                        "Invalid JSON:",
+                        "Invalid JSON:",
                         ]
 
         for i, cfg in enumerate(cfgs):
             test = self._quick_test(cfg=cfg)
             test.run()
             results = test.gather_results(0)
-
-            #print(results)
-            #print("\n")
-
-            self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
-               error_texts[i]
-            )) 
-
+            self.assertTrue(
+                error_texts[i] in results[result.RESULT_ERRORS][0])
 
     def test_table_parser(self):
         """Check table result parser operation."""

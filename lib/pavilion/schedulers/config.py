@@ -1,9 +1,9 @@
 """Functions and definitions relating to scheduler configuration in tests."""
 
 from typing import Any, Dict, Union, List
-from pavilion import utils
 
 import yaml_config as yc
+from pavilion import utils
 
 
 class ScheduleConfig(yc.KeyedElem):
@@ -15,7 +15,7 @@ class ScheduleConfig(yc.KeyedElem):
             help_text="The number of nodes to acquire to scheduler the job as "
                       "whole. This may be a number, a percentage, "
                       "or the keyword 'all'. In all cases, this limit is applied "
-                      "after chunking, so 'all' when the chunk_size is 1000 will be "
+                      "after chunking, so 'all' when the chunk.size is 1000 will be "
                       "1000 nodes. A single node is both the default and "
                       "minimum selection."),
         yc.StrElem(
@@ -422,7 +422,7 @@ CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
-        'size':           min_int('chunk_size', min_val=0),
+        'size':           min_int('chunk.size', min_val=0),
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
     },

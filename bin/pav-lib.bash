@@ -255,11 +255,6 @@ function module_loaded() {
     return 3
   fi
 
-  if [[ -z "${module_version}" ]]; then
-    module_version=$(module_avail | grep "^${module_name}," |
-                     grep ",default" | head -1 | awk -F, '{ print $2 }')
-  fi
-
   # Get the version of the module that is currently loaded, if at all.
   local loaded_version
   if ! loaded_version=$(module_loaded_version "${module_name}"); then
@@ -270,7 +265,7 @@ function module_loaded() {
   echo "mod_vers, loaded_vers: ${module_version}, ${loaded_version}"
 
   if [[ -z "$module_version" ]]; then
-    # No version was specified, and we couldn't find a default to check against.
+    # No version was specified
     echo "module ${module_name} loaded as expected."
     return 0
   # Check if the loaded version matches what we want.

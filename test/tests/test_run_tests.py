@@ -1,14 +1,22 @@
+"""Test the 'TestRun' object'"""
+
 import io
+from pathlib import Path
 
 from pavilion import plugins
 from pavilion.exceptions import TestRunError
-from pavilion.resolver import TestConfigResolver
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 from pavilion.variables import VariableSetManager
 
 
 class TestRunTests(PavTestCase):
+
+    def setUp(self) -> None:
+        plugins.initialize_plugins(self.pav_cfg)
+
+    def tearDown(self) -> None:
+        plugins._reset_plugins()
 
     def test_obj(self):
         """Test pavtest object initialization."""
@@ -62,6 +70,7 @@ class TestRunTests(PavTestCase):
                 msg="Mismatch for key {}.\n{}\n{}".format(key, orig_val, loaded_val))
 
     def test_run(self):
+        """Perform basic create test on the test run object."""
         config1 = {
             'name': 'run_test',
             'scheduler': 'raw',
@@ -83,7 +92,7 @@ class TestRunTests(PavTestCase):
         test.save()
         self.assert_(test.build())
 
-        TestConfigResolver.finalize(test, VariableSetManager())
+        test.finalize(VariableSetManager())
 
         self.assertEqual(test.run(), 0, msg="Test failed to run.")
 
@@ -94,7 +103,7 @@ class TestRunTests(PavTestCase):
         test.save()
         self.assert_(test.build())
 
-        TestConfigResolver.finalize(test, VariableSetManager())
+        test.finalize(VariableSetManager())
 
         self.assertEqual(
             test.run(), 1,
@@ -116,16 +125,14 @@ class TestRunTests(PavTestCase):
         test = TestRun(self.pav_cfg, config3)
         test.save()
         self.assertTrue(test.build())
-        TestConfigResolver.finalize(test, VariableSetManager())
+        test.finalize(VariableSetManager())
         with self.assertRaises(TimeoutError,
-                               msg="Test should have failed due "
-                                   "to timeout. {}"):
+                               msg="Test should have failed due to timeout."):
             test.run()
 
     def test_create_file(self):
         """Ensure runtime file creation is working correctly."""
 
-        plugins.initialize_plugins(self.pav_cfg)
         files_to_create = {
             'runtime_0': ['line_0', 'line_1'],
             'wild/runtime_1': ['line_0', 'line_1'],  # dir exists
@@ -171,29 +178,33 @@ class TestRunTests(PavTestCase):
             original.close()
             created_file.close()
 
-    def test_files_create_errors(self):
-        """Ensure runtime file creation expected errors occur."""
+        # Check that errors are handled properly.
+        config = self._quick_test_cfg()
+        config['build']['create_files'] = {'../../blah': []}
+        with self.assertRaises(TestRunError) as context:
+            self._quick_test(config)
 
-        plugins.initialize_plugins(self.pav_cfg)
+    def test_templates(self):
+        """Make sure template creation works and errors out correctly."""
 
-        # Ensure a file can't be written outside the build context.
-        files_to_fail = ['../file', '../../file', 'wild/../../file']
-        for file in files_to_fail:
-            file_arg = {file: []}
-            config = self._quick_test_cfg()
-            config['build']['source_path'] = 'file_tests.tgz'
-            config['build']['create_files'] = file_arg
-            with self.assertRaises(TestRunError) as context:
-                self._quick_test(config)
-            self.assertTrue('outside build context' in str(context.exception))
+        # Check that run templates work.
+        cfg = self._quick_test_cfg()
+        cfg['run']['templates'] = {'tmpl_test.pav': 'foo/tmpl_out'}
+        cfg['variables'] = {'var1': 'val1'}
 
-        # Ensure a file can't overwrite existing directories.
-        files_to_fail = ['wild', 'rec']
-        for file in files_to_fail:
-            file_arg = {file: []}
-            config = self._quick_test_cfg()
-            config['build']['source_path'] = 'file_tests.tgz'
-            config['build']['create_files'] = file_arg
-            test = TestRun(self.pav_cfg, config)
-            test.save()
-            self.assertFalse(test.build())
+        test = self._quick_test(cfg)
+        test_file = test.path/'build'/'foo'/'tmpl_out'
+        cmp_file = self.TEST_DATA_ROOT / 'create_files_results' / 'tmpl1.txt'
+        self.assertFalse(test_file.is_symlink())
+        self.assertEqual(test_file.open().read(), cmp_file.open().read())
+
+        # Check that build templates work
+        cfg = self._quick_test_cfg()
+        cfg['build']['templates'] = {'tmpl_test.pav': 'foo/tmpl_out'}
+        cfg['variables'] = {'var1': 'val1'}
+
+        test = self._quick_test(cfg)
+        test_file = test.path / 'build' / 'foo' / 'tmpl_out'
+        cmp_file = self.TEST_DATA_ROOT / 'create_files_results' / 'tmpl1.txt'
+        self.assertTrue(test_file.is_symlink())
+        self.assertEqual(test_file.open().read(), cmp_file.open().read())

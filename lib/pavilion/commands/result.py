@@ -13,6 +13,7 @@ from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
 from pavilion import resolver
+from pavilion import resolve
 from pavilion import result
 from pavilion import result_utils
 from pavilion import utils
@@ -100,8 +101,8 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
         flat_results = []
-        for result in results:
-            flat_results.append(utils.flatten_dictionary(result))
+        for rslt in results:
+            flat_results.append(utils.flatten_dictionary(rslt))
 
         field_info = {}
 
@@ -128,9 +129,9 @@ class ResultsCommand(Command):
 
             width = shutil.get_terminal_size().columns or 80
 
-            for result in results:
-                result['finish_date'] = output.get_relative_timestamp(
-                                        result['finished'], fullstamp=True)
+            for rslt in results:
+                rslt['finish_date'] = output.get_relative_timestamp(
+                                      rslt['finished'], fullstamp=True)
 
             try:
                 if args.json:
@@ -252,7 +253,7 @@ class ResultsCommand(Command):
                 # Try to resolve the updated result section of the config using
                 # the original variable values.
                 try:
-                    updates[section] = reslvr.resolve_section_values(
+                    updates[section] = resolve.section_values(
                         component=cfg[section],
                         var_man=test.var_man,
                     )

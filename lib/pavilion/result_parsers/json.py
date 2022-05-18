@@ -40,6 +40,8 @@ class Json(base_classes.ResultParser):
             ]
         )
 
+
+    # pylint: disable=arguments-differ
     def __call__(self, file, include_only=None, exclude=None, stop_at=None):
 
         json_object = self.parse_json(file, stop_at)
@@ -53,7 +55,6 @@ class Json(base_classes.ResultParser):
             json_object = self.include_only_keys(json_object, include_only)
 
         return json_object
-        
 
     def parse_json(self, file, stop_at):
         _ = self
@@ -63,10 +64,9 @@ class Json(base_classes.ResultParser):
                 return json.load(file)
             except json.JSONDecodeError as err:
                 raise ValueError(
-                    "'{}' is invalid JSON"
-                    .format(err)
+                    "Invalid JSON: {}".format(err)
                 )
-        
+
         else:
             lines = []
             for line in file:
@@ -79,8 +79,8 @@ class Json(base_classes.ResultParser):
                 json_object = json.loads(json_string)
             except json.JSONDecodeError as err:
                 raise ValueError(
-                "'{}' is invalid JSON"
-               .format(err)
+
+                "'Invalid JSON: {}".format(err)
             )
 
             return json_object
@@ -103,7 +103,7 @@ class Json(base_classes.ResultParser):
                     "You tried to exclude key {}, but {}'s value isn't a mapping"
                     .format('.'.join(path), '.'.join(path[:-1]))
                 )
-        
+                
         return old_dict
 
 
@@ -143,7 +143,18 @@ class Json(base_classes.ResultParser):
                             )
                     else:
                         current_new[part] = {}
-                current_new = current_new[part]
-                current_old = current_old[part]
-        
+                try:
+                    current_new = current_new[part]
+                    current_old = current_old[part]
+                except (KeyError) as err:
+                    raise ValueError(
+                        "Key {} doesn't exist"
+                        .format('.'.join(path))
+                    )
+                except (TypeError) as err:
+                    raise ValueError(
+                        "You tried to include key {}, but {}'s value isn't a mapping"
+                        .format('.'.join(path), '.'.join(path[:-1]))
+                    )
+
         return new_dict

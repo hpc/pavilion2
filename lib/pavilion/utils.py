@@ -5,7 +5,6 @@ plugins.
 """
 
 import datetime as dt
-import errno
 import os
 import re
 import shutil
@@ -28,11 +27,31 @@ def str_bool(val):
         return False
 
 
-def dir_contains(file, directory):
-    """Check if 'file' is or is contained by 'directory'."""
+def dir_contains(file, directory, symlink_ok: bool = False):
+    """Check if 'file' is or is contained by 'directory'. Both file and directory
+    are first resolved to their true path.
+
+    :
+    param file: The file to check.
+    :param directory: The directory the file must be in.
+    :param symlink_ok: Allow the final path component to be a symlink, regardless
+        of where it points.
+    """
 
     file = Path(file)
-    directory = Path(directory)
+    try:
+        if file.is_symlink() and symlink_ok:
+            file = file.parent.resolve() / file.name
+        else:
+            file = file.resolve()
+    except OSError:
+        return False
+
+    try:
+        directory = Path(directory).resolve()
+    except OSError:
+        return False
+
     while file.parent != file:
         if file == directory:
             return True

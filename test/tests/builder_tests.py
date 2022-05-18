@@ -16,6 +16,7 @@ from pavilion import wget
 from pavilion.build_tracker import DummyTracker
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
+from pavilion.exceptions import TestRunError
 
 
 class BuilderTests(PavTestCase):
@@ -447,3 +448,26 @@ class BuilderTests(PavTestCase):
             self.fail("Build did not respond quickly enough to being canceled.")
 
         self.assertEqual(test.status.current().state, STATES.ABORTED)
+
+    def test_create_files(self):
+        """Make sure test config file creation works in the builder."""
+
+        cfg = self._quick_test_cfg()
+        cfg['build']['create_files'] = {
+            'runtime_0': ['line_0', 'line_1'],
+        }
+
+        test = self._quick_test(cfg)
+        file_path = test.path/'build'/'runtime_0'
+        self.assertEqual(file_path.open().read(), 'line_0\nline_1\n')
+        self.assertTrue(file_path.is_symlink())
+
+        # Make sure errors are handled appropriately
+        cfg = self._quick_test_cfg()
+        cfg['build']['create_files'] = {
+            '../../bad_loc': ['line_0', 'line_1'],
+        }
+
+        with self.assertRaises(TestRunError):
+            self._quick_test(cfg)
+

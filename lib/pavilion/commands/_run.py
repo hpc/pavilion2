@@ -61,7 +61,7 @@ class _RunCommand(Command):
                     fprint(sys.stdout, error)
 
             try:
-                TestConfigResolver.finalize(test, var_man)
+                test.finalize(var_man)
             except Exception as err:
                 test.status.set(
                     STATES.RUN_ERROR,
