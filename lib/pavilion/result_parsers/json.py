@@ -103,7 +103,6 @@ class Json(base_classes.ResultParser):
                     "You tried to exclude key {}, but {}'s value isn't a mapping"
                     .format('.'.join(path), '.'.join(path[:-1]))
                 )
-    
         return old_dict
 
 
