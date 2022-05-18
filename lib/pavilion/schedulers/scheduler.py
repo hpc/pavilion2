@@ -378,6 +378,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         for command in pav_cfg.env_setup:
             script.command(command)
 
+        script.command('date +%s.%N')
+
         return script
 
     def _get_kickoff_script_header(self, job_name: str, sched_config: dict,

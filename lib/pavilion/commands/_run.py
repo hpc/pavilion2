@@ -133,6 +133,9 @@ class _RunCommand(Command):
 
         _ = self
 
+        import time
+        print(time.time())
+
         try:
             run_result = test.run()
         except TestRunError as err:
