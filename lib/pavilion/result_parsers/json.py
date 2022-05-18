@@ -40,6 +40,7 @@ class Json(base_classes.ResultParser):
             ]
         )
 
+
     # pylint: disable=arguments-differ
     def __call__(self, file, include_only=None, exclude=None, stop_at=None):
 
@@ -54,7 +55,6 @@ class Json(base_classes.ResultParser):
             json_object = self.include_only_keys(json_object, include_only)
 
         return json_object
-
 
     def parse_json(self, file, stop_at):
         _ = self
@@ -79,6 +79,7 @@ class Json(base_classes.ResultParser):
                 json_object = json.loads(json_string)
             except json.JSONDecodeError as err:
                 raise ValueError(
+
                 "'Invalid JSON: {}".format(err)
             )
 
@@ -102,7 +103,6 @@ class Json(base_classes.ResultParser):
                     "You tried to exclude key {}, but {}'s value isn't a mapping"
                     .format('.'.join(path), '.'.join(path[:-1]))
                 )
-
         return old_dict
 
 

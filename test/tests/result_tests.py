@@ -447,10 +447,8 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg=cfg)
             test.run()
             results = test.gather_results(0)
-
             self.assertTrue(
                 error_texts[i] in results[result.RESULT_ERRORS][0])
-
 
     def test_table_parser(self):
         """Check table result parser operation."""
