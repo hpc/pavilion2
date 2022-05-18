@@ -8,7 +8,7 @@ import pprint
 import shutil
 from typing import List, IO
 
-import pavilion.exceptions
+from pavilion.errors import TestConfigError
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
@@ -229,9 +229,9 @@ class ResultsCommand(Command):
                     host=test.config['host'],
                     modes=test.config['modes'],
                 )
-            except pavilion.exceptions.TestConfigError as err:
+            except TestConfigError as err:
                 output.fprint(self.errfile, "Test '{}' could not be found: {}"
-                              .format(test.name, err.args[0]), color=output.RED)
+                              .format(test.name, err), color=output.RED)
                 return False
 
             # These conditions guard against unexpected results from
@@ -257,15 +257,15 @@ class ResultsCommand(Command):
                         component=cfg[section],
                         var_man=test.var_man,
                     )
-                except pavilion.exceptions.TestConfigError as err:
+                except TestConfigError as err:
                     output.fprint(self.errfile, "Test '{}' had a {} section that could not be "
                                                 "resolved with it's original variables: {}"
-                                  .format(test.name, section, err.args[0]), color=output.RED)
+                                  .format(test.name, section, err), color=output.RED)
                     return False
                 except RuntimeError as err:
                     output.fprint(self.errfile, "Unexpected error updating {} section for test "
                                                 "'{}': {}".format(section, test.name,
-                                                                  err.args[0]), color=output.RED)
+                                                                  err), color=output.RED)
                     return False
 
             # Set the test's result section to the newly resolved one.
@@ -279,7 +279,7 @@ class ResultsCommand(Command):
 
             except result.ResultError as err:
                 output.fprint(self.errfile, "Error found in results configuration: {}"
-                              .format(err.args[0]), color=output.RED)
+                              .format(err), color=output.RED)
                 return False
 
             if save:

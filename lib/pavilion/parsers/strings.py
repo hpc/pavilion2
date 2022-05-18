@@ -363,8 +363,7 @@ class StringTransformer(PavTransformer):
             except ValueError as err:
                 raise ParserValueError(
                     expr,
-                    "Invalid format_spec '{}': {}"
-                    .format(format_spec, err.args[0]))
+                    "Invalid format_spec '{}': {}".format(format_spec, err))
         else:
             value = str(value)
 

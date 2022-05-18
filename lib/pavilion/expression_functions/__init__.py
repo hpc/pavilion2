@@ -4,8 +4,8 @@ in result evaluations.
 """
 
 from .base import (FunctionPlugin, _FUNCTIONS, num, __reset)
-from .common import FunctionPluginError, FunctionArgError
 from .core import CoreFunctionPlugin
+from ..errors import FunctionPluginError
 
 
 def get_plugin(name: str) -> FunctionPlugin:

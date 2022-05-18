@@ -16,7 +16,7 @@ from pavilion import wget
 from pavilion.build_tracker import DummyTracker
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError
 
 
 class BuilderTests(PavTestCase):

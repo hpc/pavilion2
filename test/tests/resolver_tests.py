@@ -12,7 +12,7 @@ from pavilion import resolve
 from pavilion import schedulers
 from pavilion import test_run
 from pavilion.deferred import DeferredVariable
-from pavilion.exceptions import TestConfigError, VariableError, TestRunError
+from pavilion.errors import TestConfigError, VariableError, TestRunError
 from pavilion.pavilion_variables import PavVars
 from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes

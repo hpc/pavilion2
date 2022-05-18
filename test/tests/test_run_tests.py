@@ -4,7 +4,7 @@ import io
 from pathlib import Path
 
 from pavilion import plugins
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 from pavilion.variables import VariableSetManager

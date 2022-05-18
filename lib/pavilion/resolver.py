@@ -25,7 +25,7 @@ from pavilion import pavilion_variables
 from pavilion import resolve
 from pavilion import schedulers
 from pavilion import sys_vars
-from pavilion.exceptions import VariableError, TestConfigError
+from pavilion.errors import VariableError, TestConfigError
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
@@ -986,7 +986,7 @@ class TestConfigResolver:
         for var_man in var_men:
             try:
                 var_man.resolve_references()
-            except (KeyError, ValueError) as err:
+            except (KeyError, ValueError, VariableError) as err:
                 raise TestConfigError(
                     "Error resolving vars in permuted test '{}':\n{}"
                     .format(test_cfg.get('name', '<no name>'), err))

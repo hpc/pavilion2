@@ -9,7 +9,7 @@ from pavilion import output
 from pavilion import series
 from pavilion.test_run import TestRun
 from .base_classes import Command
-from ..exceptions import TestRunError
+from ..errors import TestRunError
 
 
 class CancelCommand(Command):
@@ -57,11 +57,11 @@ class CancelCommand(Command):
                     tests.extend(test_series.tests.values())
                 except series.errors.TestSeriesError as err:
                     output.fprint(self.errfile, "Series {} could not be found.\n{}"
-                                  .format(test_id, err.args[0]), color=output.RED)
+                                  .format(test_id, err), color=output.RED)
                     return errno.EINVAL
                 except ValueError as err:
                     output.fprint(self.errfile, "Series {} is not a valid series.\n{}"
-                                  .format(test_id, err.args[0]), color=output.RED)
+                                  .format(test_id, err), color=output.RED)
                     return errno.EINVAL
 
                 try:

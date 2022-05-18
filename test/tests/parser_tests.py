@@ -5,7 +5,7 @@ import lark
 from pavilion import plugins
 from pavilion import unittest
 from pavilion import parsers
-from pavilion.exceptions import DeferredError
+from pavilion.errors import DeferredError
 from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 

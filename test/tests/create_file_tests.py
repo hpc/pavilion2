@@ -1,7 +1,7 @@
 from pavilion import create_files
 from pavilion import plugins
 from pavilion import variables
-from pavilion.exceptions import TestConfigError
+from pavilion.errors import TestConfigError
 from pavilion.unittest import PavTestCase
 
 

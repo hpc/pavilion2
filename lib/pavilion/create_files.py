@@ -7,7 +7,7 @@ import pavilion.config
 from pavilion import resolve
 from pavilion import utils
 from pavilion import variables
-from pavilion.exceptions import TestConfigError
+from pavilion.errors import TestConfigError
 
 
 def create_file(dest: Union[str, Path], rel_path: Path, contents: List[str],
@@ -79,4 +79,4 @@ def resolve_template(pav_cfg: pavilion.config.PavConfig, template: str,
         return resolve.section_values(tmpl_lines, var_man)
     except TestConfigError as err:
         raise TestConfigError("Error resolving template '{}': {}"
-                              .format(tmpl_path, err.args[0]))
+                              .format(tmpl_path, err))

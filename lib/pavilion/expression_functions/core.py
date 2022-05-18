@@ -7,7 +7,7 @@ import re
 from typing import List
 
 from .base import FunctionPlugin, num
-from .common import FunctionPluginError, FunctionArgError
+from ..errors import FunctionPluginError, FunctionArgError
 
 
 class CoreFunctionPlugin(FunctionPlugin):
@@ -110,6 +110,7 @@ class SumPlugin(CoreFunctionPlugin):
 
         return sum(vals)
 
+
 class MaxPlugin(CoreFunctionPlugin):
     """Get the max of the given numbers."""
 
@@ -127,6 +128,7 @@ class MaxPlugin(CoreFunctionPlugin):
 
         return max(vals)
 
+
 class MinPlugin(CoreFunctionPlugin):
     """Get the min of the given numbers."""
 
@@ -143,6 +145,7 @@ class MinPlugin(CoreFunctionPlugin):
         """Get the min of vals."""
 
         return min(vals)
+
 
 class AvgPlugin(CoreFunctionPlugin):
     """Get the average of the given numbers."""
@@ -289,7 +292,7 @@ class RegexSearch(CoreFunctionPlugin):
             regex = re.compile(regex)
         except re.error as err:
             raise FunctionArgError(
-                "Could not compile regex:\n{}".format(err.args[0])
+                "Could not compile regex:\n{}".format(err)
             )
 
         match = regex.search(data)

@@ -1,7 +1,6 @@
 import pavilion.deferred
-import pavilion.exceptions
 from pavilion.resolver import variables
-from pavilion.exceptions import VariableError
+from pavilion.errors import VariableError, DeferredError
 from pavilion.unittest import PavTestCase
 
 
@@ -174,7 +173,7 @@ class TestVariables(PavTestCase):
         var_man.add_var_set('sys', sys_data)
         var_man.add_var_set('sched', slurm_data)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(DeferredError):
             var_man.len('sys', 'var1')
 
         for key in (
@@ -184,7 +183,7 @@ class TestVariables(PavTestCase):
                 'sys.var1.noexist'):
             try:
                 _ = var_man[key]
-            except (KeyError, pavilion.exceptions.DeferredError):
+            except (KeyError, DeferredError):
                 pass
             else:
                 self.fail("Did not raise the appropriate error.")

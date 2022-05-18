@@ -2,7 +2,7 @@
 """
 import errno
 
-import pavilion.exceptions
+import pavilion.errors
 from pavilion import output
 from pavilion import series, series_config
 from pavilion.test_run import TestRun

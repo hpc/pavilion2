@@ -2,6 +2,7 @@
 
 # Pycharm says this isn't available in python 3.9+. It is wrong.
 import grp
+import sys
 import os
 import shutil
 import stat
@@ -9,7 +10,6 @@ import uuid
 from pathlib import Path
 from typing import Union
 
-import pavilion
 import yc_yaml as yaml
 from pavilion import config
 from pavilion.output import fprint, draw_table
@@ -112,7 +112,6 @@ class ConfigCommand(Command):
         return self._run_sub_command(pav_cfg, args)
 
     @sub_cmd()
-
     def _create_cmd(self, pav_cfg: config.PavConfig, args):
 
         label = args.label
@@ -123,7 +122,7 @@ class ConfigCommand(Command):
             try:
                 group = self.get_group(args.group)
             except ConfigCmdError as err:
-                fprint(self.errfile, err.args[0])
+                fprint(self.errfile, err)
                 return 1
         else:
             group = None
@@ -131,13 +130,12 @@ class ConfigCommand(Command):
         try:
             self.create_config_dir(pav_cfg, path, label, group, args.working_dir)
         except ConfigCmdError as err:
-            fprint(self.errfile, err.args[0])
+            fprint(self.errfile, err)
             return 1
 
         return 0
 
     @sub_cmd()
-
     def _setup_cmd(self, pav_cfg: config.PavConfig, args):
         """Similar to the 'config create' command, but with the expectation that this will
          be the primary pavilion config location."""
@@ -151,11 +149,10 @@ class ConfigCommand(Command):
             try:
                 group = self.get_group(args.group)
             except ConfigCmdError as err:
-                fprint(self.errfile, err.args[0])
+                fprint(self.errfile, err)
                 return 1
         else:
             group = None
-
 
         pav_cfg: config.PavConfig = config.PavilionConfigLoader().load_empty()
         pav_cfg.working_dir = args.working_dir
@@ -164,7 +161,7 @@ class ConfigCommand(Command):
         try:
             self.create_config_dir(pav_cfg, path, 'main', group, working_dir=args.working_dir)
         except ConfigCmdError as err:
-            fprint(self.errfile, err.args[0])
+            fprint(self.errfile, err)
 
         return self.write_pav_cfg(pav_cfg)
 
@@ -187,7 +184,6 @@ class ConfigCommand(Command):
                                  .format(user, group_name))
 
         return group
-
 
     def create_config_dir(self, pav_cfg: config.PavConfig, path: Path,
                           label: str, group: Union[None, grp.struct_group],

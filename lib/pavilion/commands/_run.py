@@ -12,7 +12,7 @@ from pavilion.sys_vars import base_classes
 from pavilion.variables import VariableSetManager
 from pavilion.resolver import TestConfigResolver
 from pavilion.test_run import TestRun
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError
 from .base_classes import Command
 
 
@@ -67,7 +67,7 @@ class _RunCommand(Command):
                     STATES.RUN_ERROR,
                     "Unexpected error finalizing test\n{}\n"
                     "See 'pav log kickoff {}' for the full error."
-                    .format(err.args[0], test.id))
+                    .format(err, test.id))
                 raise
 
             if test.skipped:
@@ -161,8 +161,7 @@ class _RunCommand(Command):
             except result.ResultError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
-                    "Error checking result parser configs: {}"
-                    .format(err.args[0]))
+                    "Error checking result parser configs: {}".format(err))
                 return 1
 
             with test.results_log.open('w') as log_file:

@@ -168,7 +168,7 @@ class RunCommand(Command):
             self.last_tests = list(series_obj.tests.values())
         except pavilion.series.errors.TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
-            output.fprint(self.errfile, str(err.args[0]), color=output.RED)
+            output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN
 
         if report_status:

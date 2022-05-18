@@ -5,19 +5,19 @@ import argparse
 import datetime as dt
 import io
 import logging
+import sys
 import time
 from pathlib import Path
 from typing import List, TextIO
 
 from pavilion import config
 from pavilion import dir_db
-from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
 from pavilion import series
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError, CommandError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
 
@@ -237,7 +237,7 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
             try:
                 test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
             except TestRunError as err:
-                output.fprint(errfile, err.args[0], color=output.YELLOW)
+                output.fprint(errfile, err, color=output.YELLOW)
                 continue
 
             test_paths.append(test_wd/TestRun.RUN_DIR/str(_id))
@@ -330,7 +330,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
         if series_id is not None:
             test_ids.append(series_id)
         else:
-            raise exceptions.CommandError(
+            raise CommandError(
                 "No tests specified and no last series was found."
             )
 
@@ -356,7 +356,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
 
             except TestRunError as err:
                 output.fprint(sys.stdout, "Error loading test '{}': {}"
-                              .format(raw_id, err.args[0]))
+                              .format(raw_id, err))
 
     if exclude_ids:
         test_id_pairs = _filter_tests_by_raw_id(pav_cfg, test_id_pairs, exclude_ids)

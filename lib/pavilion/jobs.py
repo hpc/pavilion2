@@ -65,8 +65,8 @@ class Job:
     def __init__(self, path: Path):
         """Initial a job object based on an existing job directory."""
 
-        self.name = path.name
-        self.path = path
+        self.path = path.resolve()
+        self.name = self.path.name
         self.kickoff_path = self.path/self.KICKOFF_FN
         self.tests_path = path/self.TESTS_DIR
         self.sched_log = path/self.SCHED_LOG_FN
@@ -101,9 +101,10 @@ class Job:
             raise JobError("Could not save job id: {}".format(err))
 
     def __str__(self):
-        parts = [self.path.name[:8]]
+        parts = []
         if self.info is not None:
-            parts.extend(str(val) for val in self.info.values())
+            for key in sorted(self.info.keys()):
+                parts.extend(str(self.info[key]))
         return "_".join(parts)
 
     def save_node_data(self, nodes: Nodes):

@@ -9,7 +9,7 @@ from pavilion.commands import run
 from pavilion.output import fprint
 from pavilion import resolver
 from .base_classes import Command
-from ..exceptions import CommandError
+from ..errors import CommandError
 
 
 class ViewCommand(run.RunCommand):

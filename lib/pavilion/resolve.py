@@ -4,7 +4,7 @@ from typing import Union, List, Tuple, Dict
 
 from pavilion import parsers
 from pavilion import variables
-from pavilion.exceptions import TestConfigError, DeferredError
+from pavilion.errors import TestConfigError, DeferredError
 
 DEFERRED_PREFIX = '!deferred!'
 NO_DEFERRED_ALLOWED = [

@@ -141,8 +141,8 @@ class ListCommand(Command):
             fields = [field.strip() for field in fields_arg.split(',')]
             for field in fields:
                 if field not in avail_fields:
-                    output.fprint(sys.stdout, "Invalid output field '{}'. See 'pav list "
-                                              "--show-fields.".format(field))
+                    output.fprint(self.errfile, "Invalid output field '{}'. See 'pav list "
+                                                "--show-fields.".format(field))
                     return errno.EINVAL
 
         if (len(fields) > 1 and mode_arg not in (self.OUTMODE_LONG,
@@ -242,7 +242,7 @@ class ListCommand(Command):
                         sid=series_id))
                 except TestSeriesError as err:
                     output.fprint(self.errfile, "Invalid test series '{}'.\n{}"
-                                  .format(series_id, err.args[0]), color=output.RED)
+                                  .format(series_id, err), color=output.RED)
                     return errno.EINVAL
             runs = dir_db.select_from(
                 pav_cfg,
