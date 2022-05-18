@@ -1,18 +1,18 @@
 """Given a pre-existing test run, runs the test in the scheduled
 environment."""
 
+import sys
 import traceback
 from pathlib import Path
 
-from pavilion.output import fprint
 from pavilion import result
 from pavilion import schedulers
+from pavilion.errors import TestRunError
+from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
-from pavilion.variables import VariableSetManager
-from pavilion.resolver import TestConfigResolver
 from pavilion.test_run import TestRun
-from pavilion.errors import TestRunError
+from pavilion.variables import VariableSetManager
 from .base_classes import Command
 
 
@@ -38,6 +38,9 @@ class _RunCommand(Command):
 
     def run(self, pav_cfg, args):
         """Load and run an already prepped test."""
+
+        import time
+        print('in _run', time.time())
 
         try:
             test = TestRun.load(pav_cfg, working_dir=args.working_dir,
