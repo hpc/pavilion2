@@ -262,6 +262,16 @@ class SchedTests(PavTestCase):
                     num_chunks += 1
                 self.assertEqual(len(chunks), num_chunks)
 
+                test_cfg = self._quick_test_cfg()
+                test_cfg['scheduler'] = 'dummy'
+                test_cfg['schedule'] = {
+                    'nodes': 'all',
+                    'chunking': {'size': str(size if size is not None else '0'),
+                                 'extra': extra}
+                }
+                test = self._quick_test(test_cfg, finalize=False)
+                dummy.schedule_tests(self.pav_cfg, [test])
+
     def test_node_selection(self):
         """Make sure node selection works as expected."""
 
