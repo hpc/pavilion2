@@ -18,7 +18,7 @@ umask ${UMASK}
 if [[ -n ${SHARED_GROUP} ]]; then
     # We have to construct a command string that has properly escaped and
     # quoted
-    CMD="${PYTHON} ${PAV_DIR}/bin/pav.py"
+    CMD="${PYTHON} -m pavilion.main"
     for arg in "$@"; do
         arg=\"$(echo ${arg} | sed 's/"/\\"/g')\"
         CMD="${CMD} ${arg}"
@@ -30,5 +30,5 @@ if [[ -n ${SHARED_GROUP} ]]; then
 EOF
 
 else
-    ${PYTHON} "${PAV_DIR}/bin/pav.py" "$@"
+    ${PYTHON} -m pavilion.main "$@"
 fi

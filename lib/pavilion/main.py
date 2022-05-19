@@ -2,35 +2,43 @@
 It shouldn't be run directly; use bin/pav instead."""
 
 import logging
-import os
 import sys
 import time
 import traceback
 
-from pavilion import arguments
-from pavilion import commands
-from pavilion import config
-from pavilion import log_setup
-from pavilion import output
-from pavilion import pavilion_variables
-from pavilion import plugins
-from pavilion import utils
+print("Pre pav imports", time.time())
+
+from . import arguments
+from . import commands
+from . import config
+from . import log_setup
+from . import output
+from . import pavilion_variables
+from . import plugins
+from . import utils
 
 try:
     import yc_yaml
 except ImportError:
     output.fprint(sys.stdout, "Could not find python module 'yc_yaml'. Did you run "
-                              "`submodule update --init --recursive` to get all the dependencies?")
+                              "`submodule update --init --recursive` to get all "
+                              "the dependencies?")
 
 try:
     import yaml_config
 except ImportError:
     output.fprint(sys.stdout, "Could not find python module 'yaml_config'. Did you run "
-                              "`submodule update --init --recursive` to get all the dependencies?")
+                              "`submodule update --init --recursive` to get all the "
+                              "dependencies?")
+
+
+print("Loaded main", time.time())
 
 
 def main():
     """Setup Pavilion and run a command."""
+
+    print("main", time.time())
 
     # Pavilion is compatible with python >= 3.4
     if sys.version_info[0] != 3 or sys.version_info[1] < 5:
@@ -48,12 +56,16 @@ def main():
                       .format(err), color=output.RED)
         sys.exit(-1)
 
+    print("loaded configs", time.time())
+
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
         output.fprint(sys.stderr,
                       "Could not set up loggers. This is usually because of a badly defined "
                       "working_dir in pavilion.yaml.", color=output.RED)
         sys.exit(-1)
+
+    print("setup loggers", time.time())
 
     # Initialize all the plugins
     try:
@@ -63,17 +75,22 @@ def main():
                       .format(err), color=output.RED)
         sys.exit(-1)
 
+    print("inited plugins", time.time())
+
     # Parse the arguments
     try:
         args = parser.parse_args()
     except Exception:
         raise
 
+    print("parsed args", time.time())
+
     if args.command_name is None:
         parser.print_help()
         sys.exit(0)
 
     pav_cfg.pav_vars = pavilion_variables.PavVars()
+    print("Got pav vars", time.time())
     run_cmd(pav_cfg, args)
 
 
