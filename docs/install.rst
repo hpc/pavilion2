@@ -90,8 +90,10 @@ starts with a git pull of the latest release of Pavilion.
 
 .. code:: bash
 
-    $ git clone <pav_repo>
-    $ git checkout <release_tag>
+    git clone https://github.com/hpc/pavilion2.git
+    cd pavilion2
+    # You can also, optionally, check out a specific release version.
+    git checkout tags/v2.4
 
 You can also simply download and extract the source.
 

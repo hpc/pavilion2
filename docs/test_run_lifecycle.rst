@@ -173,12 +173,12 @@ In this instance, the 'build' section has the wrong indention level:
 .. code-block:: yaml
 
     bad_keys:
-      slurm:
-        num_nodes: 5
+      schedule:
+        nodes: 5
 
-        build:
-          source_location: "bad_keys.zip"
-          cmds: "gcc -o bad_keys bad_keys.c"
+      build:
+        source_location: "bad_keys.zip"
+        cmds: "gcc -o bad_keys bad_keys.c"
 
 
 The Raw Config

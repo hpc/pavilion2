@@ -23,9 +23,9 @@ requirements are in the full install docs (:ref:`install`), but that's mostly NF
 should be turned on for any sane shared filesystem.
 
 Now, simply download Pavilion (either via a git checkout
-``git checkout https://github.com/hpc/pavilion2.git`` or via the
+``git clone https://github.com/hpc/pavilion2.git`` or via the
 `zip file <https://github.com/hpc/pavilion2/archive/refs/heads/master.zip>`__ (extract it).
-Generally, the git checkout method is easier.
+Generally, the git clone method is easier.
 
 Then run the ``bin/setup_pav_deps`` scripts in the Pavilion source tree. That will download and
 install all of Pavilion's dependencies. If you downloaded a tarball, the script will ask you to
@@ -119,13 +119,13 @@ Writing a Test
 
 *Technically, we're not writing a test, we're wrapping a test so it can run anywhere!*
 
-The test itself is provided in ``test_src/hello_world.c``. We're going to write
+The test itself is provided in ``examples/tutorials/test_src/hello_world.c``. We're going to write
 a test configuration to build and run that test.
 
 A Basic Test Config
 ~~~~~~~~~~~~~~~~~~~
 
-Create a file called 'tutorial.yaml' in the ``tests/`` directory.
+Create a file called 'tutorial.yaml' in the ``examples/tutorials/tests/`` directory.
 
 Open it in your favorite editor. *Remember, use spaces for indentation!*
 
@@ -189,7 +189,7 @@ Now that our test is in better shape, let's run it.  Simply run ``pav run tutori
 
 It should start the process of building the test and.. OH NO, another failure.
 
-.. code-block::
+.. code-block:: bash
 
     $ pav run tutorial.basic
     Creating Test Runs: 100%
