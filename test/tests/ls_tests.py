@@ -2,17 +2,10 @@ import io
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
 from pavilion.unittest import PavTestCase
 
 
 class StatusTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def teatDown(self):
-        plugins._reset_plugins()
 
     def test_ls(self):
         """Checking ls command functionality"""

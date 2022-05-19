@@ -1,20 +1,13 @@
 """Tests for the Series object."""
+from collections import OrderedDict
+
 import pavilion.series.errors
-from pavilion import plugins
 from pavilion import series
 from pavilion import series_config
 from pavilion.unittest import PavTestCase
 
-from collections import OrderedDict
-
 
 class SeriesTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_init(self):
         """Check initialization of the series object."""

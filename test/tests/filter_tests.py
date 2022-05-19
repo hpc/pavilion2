@@ -7,20 +7,13 @@ from datetime import timedelta
 
 from pavilion import dir_db
 from pavilion import filters
-from pavilion import plugins
-from pavilion.series import TestSeries, SeriesInfo
+from pavilion.series import TestSeries
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 
 
 class FiltersTest(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_run_parser_args(self):
         """Test adding standardized test run filter args."""

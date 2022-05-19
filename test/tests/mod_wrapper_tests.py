@@ -78,12 +78,6 @@ class ModWrapperTests(PavTestCase):
         test_cfg['run']['preamble'] = preamble
         return test_cfg
 
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
-
     SORT_FUNC = '''function sort_mods {
     awk '{
         split($0, arr, ":");  # Split the values by :

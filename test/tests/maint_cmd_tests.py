@@ -5,17 +5,10 @@ from pathlib import Path
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
 from pavilion.unittest import PavTestCase
 
 
 class MaintCmdTest(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_pruning(self):
         """Check that we only prune what we expect to, and that the result
@@ -24,7 +17,7 @@ class MaintCmdTest(PavTestCase):
         tmp_path = Path(tempfile.mktemp())
         shutil.copy(self.pav_cfg.result_log.as_posix(), tmp_path.as_posix())
 
-        tests = [self._quick_test() for i in range(20)]
+        tests = [self._quick_test() for _ in range(20)]
 
         for test in tests:
             results = test.gather_results(test.run())

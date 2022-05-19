@@ -3,19 +3,12 @@ import time
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
-from pavilion.test_run import TestAttributes
 from pavilion.series.series import TestSeries
+from pavilion.test_run import TestAttributes
 from pavilion.unittest import PavTestCase
 
 
 class ListCmdTest(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_list_cmd(self):
         """Test the list command and the filters"""

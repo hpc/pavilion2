@@ -1,24 +1,17 @@
-from pavilion import plugins
-from pavilion import commands
-from pavilion.unittest import PavTestCase
 from pavilion import arguments
-from pavilion.commands.run import RunCommand
+from pavilion import commands
+from pavilion import plugins
 from pavilion.status_file import STATES
-import io
+from pavilion.unittest import PavTestCase
 
 
 class BuildCmdTests(PavTestCase):
     """The build command is really just the run command in disguise, so
     we only need to test the unique arguments that it enables."""
 
-    def setUp(self):
+    def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)
-        build_cmd = commands.get_command('build')
-        build_cmd.outfile = io.StringIO()
-        build_cmd.errfile = build_cmd.outfile
-
-    def tearDown(self):
-        plugins._reset_plugins()
+        commands.get_command('build').silence()
 
     def test_multi_build(self):
         """Make sure we can just build multiple simultaneous builds on
@@ -31,7 +24,7 @@ class BuildCmdTests(PavTestCase):
             'build_parallel'
         ])
 
-        build_cmd = commands.get_command(args.command_name)  # type: RunCommand
+        build_cmd = commands.get_command(args.command_name)
         build_ret = build_cmd.run(self.pav_cfg, args)
 
         build_cmd.outfile.seek(0)
@@ -63,7 +56,7 @@ class BuildCmdTests(PavTestCase):
             'build_parallel'
         ])
 
-        build_cmd = commands.get_command(args.command_name)  # type: RunCommand
+        build_cmd = commands.get_command(args.command_name)
         build_ret = build_cmd.run(self.pav_cfg, args)
 
         build_cmd.outfile.seek(0)
@@ -94,7 +87,7 @@ class BuildCmdTests(PavTestCase):
             '--rebuild',
         ])
 
-        build_cmd = commands.get_command(args.command_name)  # type: RunCommand
+        build_cmd = commands.get_command(args.command_name)
         self.assertEqual(build_cmd.run(self.pav_cfg, args), 0)
 
         for test in build_cmd.last_tests:
@@ -149,7 +142,7 @@ class BuildCmdTests(PavTestCase):
             ['build', '-H', 'this', '-l', '-b', 'build_parallel'],
             ['build', '-H', 'this', '-l', '-b', '-b', 'build_parallel'],
         ]
-        build_cmd = commands.get_command('build')  # type: BuildCmd
+        build_cmd = commands.get_command('build')
 
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)

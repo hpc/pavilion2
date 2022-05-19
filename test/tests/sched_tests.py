@@ -1,10 +1,8 @@
 import copy
 import inspect
-import time
 
 import pavilion.schedulers
 from pavilion import output
-from pavilion import plugins
 from pavilion import schedulers
 from pavilion.schedulers import SchedulerPluginAdvanced
 from pavilion.schedulers import config as sconfig
@@ -14,14 +12,6 @@ from pavilion.unittest import PavTestCase
 
 class SchedTests(PavTestCase):
     """Assorted tests to apply across all scheduler plugins."""
-
-    def setUp(self):
-
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-
-        plugins._reset_plugins()
 
     def test_check_examples(self):
         """Make sure scheduler examples are up-to-date."""

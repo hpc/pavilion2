@@ -1,12 +1,11 @@
-from pathlib import Path
 import json
 import logging
 import tempfile
 import unittest
+from pathlib import Path
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
-import traceback
 
 PAV_DIR = Path(__file__).resolve().parents[2]
 

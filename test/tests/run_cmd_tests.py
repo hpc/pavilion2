@@ -1,11 +1,10 @@
-from pavilion import plugins
-from pavilion import commands
-from pavilion.unittest import PavTestCase
-from pavilion import arguments
-from pavilion.commands.run import RunCommand
-from pavilion.status_file import STATES
 import io
-import logging
+
+from pavilion import arguments
+from pavilion import commands
+from pavilion import plugins
+from pavilion.status_file import STATES
+from pavilion.unittest import PavTestCase
 
 
 class RunCmdTests(PavTestCase):
@@ -15,10 +14,6 @@ class RunCmdTests(PavTestCase):
         run_cmd = commands.get_command('run')
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
-        self.logger = logging.getLogger('unittest.RunCmdTests')
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_run(self):
 
@@ -46,7 +41,7 @@ class RunCmdTests(PavTestCase):
             'build_parallel'
         ])
 
-        run_cmd = commands.get_command(args.command_name)  # type: RunCommand
+        run_cmd = commands.get_command(args.command_name)
         run_ret = run_cmd.run(self.pav_cfg, args)
 
         run_cmd.outfile.seek(0)
@@ -78,7 +73,7 @@ class RunCmdTests(PavTestCase):
             'build_parallel_fail'
         ])
 
-        run_cmd = commands.get_command(args.command_name)  # type: RunCommand
+        run_cmd = commands.get_command(args.command_name)
 
         self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
 
@@ -104,7 +99,7 @@ class RunCmdTests(PavTestCase):
             'build_parallel_lots'
         ])
 
-        run_cmd = commands.get_command(args.command_name)  # type: RunCommand
+        run_cmd = commands.get_command(args.command_name)
         run_ret = run_cmd.run(self.pav_cfg, args)
 
         run_cmd.outfile.seek(0)

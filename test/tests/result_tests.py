@@ -3,7 +3,6 @@
 import copy
 import datetime
 import json
-import io
 import logging
 import pprint
 from collections import OrderedDict
@@ -14,10 +13,8 @@ import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
-from pavilion import plugins
 from pavilion import result
 from pavilion import utils
-from pavilion.commands import run
 from pavilion.result import ResultError, base
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
@@ -33,14 +30,6 @@ class ResultParserTests(PavTestCase):
 
         # Don't limit the size of the error diff.
         self.maxDiff = None
-
-    def setUp(self):
-        """This has to run before any command plugins are loaded."""
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        """Reset all plugins."""
-        plugins._reset_plugins()
 
     def test_parse_results(self):
         """Check all the different ways in which we handle parsed results."""
@@ -325,14 +314,13 @@ class ResultParserTests(PavTestCase):
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
 
-
     def test_json_parser(self):
         """Check that JSON parser returns expected results."""
 
         cfg = self._quick_test_cfg()
         cfg['build'] = {'source_path': 'json-blob.txt'}
         cfg['result_parse'] = {
-            'json': { 
+            'json': {
                 'myjson': {
                     'files': ['json-blob.txt'],
                     'include_only': ['foo.bar'],
@@ -351,7 +339,6 @@ class ResultParserTests(PavTestCase):
 
         self.assertEqual(results['myjson'], expected_json)
 
-
     def test_json_parser_errors(self):
         """Check that JSON parser raises correct errors for a
         variety of different inputs."""
@@ -359,7 +346,7 @@ class ResultParserTests(PavTestCase):
         cfg_exclude_key_error = self._quick_test_cfg()
         cfg_exclude_key_error['build'] = {'source_path': 'json-blob.txt'}
         cfg_exclude_key_error['result_parse'] = {
-            'json': { 
+            'json': {
                 'myjson': {
                     'files': ['json-blob.txt'],
                     'exclude': ['foo.badkey'],
@@ -371,7 +358,7 @@ class ResultParserTests(PavTestCase):
         cfg_exclude_type_error = self._quick_test_cfg()
         cfg_exclude_type_error['build'] = {'source_path': 'json-blob.txt'}
         cfg_exclude_type_error['result_parse'] = {
-            'json': { 
+            'json': {
                 'myjson': {
                     'files': ['json-blob.txt'],
                     'exclude': ['foo.bar.badkey'],
@@ -383,7 +370,7 @@ class ResultParserTests(PavTestCase):
         cfg_include_key_error = self._quick_test_cfg()
         cfg_include_key_error['build'] = {'source_path': 'json-blob.txt'}
         cfg_include_key_error['result_parse'] = {
-            'json': { 
+            'json': {
                 'myjson': {
                     'files': ['json-blob.txt'],
                     'include_only': ['foo.badkey'],
@@ -396,7 +383,7 @@ class ResultParserTests(PavTestCase):
         cfg_include_type_error = self._quick_test_cfg()
         cfg_include_type_error['build'] = {'source_path': 'json-blob.txt'}
         cfg_include_type_error['result_parse'] = {
-            'json': { 
+            'json': {
                 'myjson': {
                     'files': ['json-blob.txt'],
                     'include_only': ['foo.buzz.badkey'],
@@ -409,7 +396,7 @@ class ResultParserTests(PavTestCase):
         cfg_stopat_none_error = self._quick_test_cfg()
         cfg_stopat_none_error['build'] = {'source_path': 'json-blob.txt'}
         cfg_stopat_none_error['result_parse'] = {
-            'json': { 
+            'json': {
                 'myjson': {
                     'files': ['json-blob.txt'],
                     'include_only': ['foo.bar'],
@@ -421,7 +408,7 @@ class ResultParserTests(PavTestCase):
         cfg_stopat_bad_error = self._quick_test_cfg()
         cfg_stopat_bad_error['build'] = {'source_path': 'json-blob.txt'}
         cfg_stopat_bad_error['result_parse'] = {
-            'json': { 
+            'json': {
                 'myjson': {
                     'files': ['json-blob.txt'],
                     'include_only': ['foo.bar'],
@@ -432,16 +419,16 @@ class ResultParserTests(PavTestCase):
         }
 
         cfgs = [cfg_exclude_key_error, cfg_exclude_type_error,
-                cfg_include_key_error, cfg_include_type_error, 
+                cfg_include_key_error, cfg_include_type_error,
                 cfg_stopat_none_error, cfg_stopat_bad_error]
 
         error_texts = ["doesn't exist.",
-                        "isn't a mapping.",
-                        "doesn't exist.",
-                        "doesn't exist.",
-                        "Invalid JSON:",
-                        "Invalid JSON:",
-                        ]
+                       "isn't a mapping.",
+                       "doesn't exist.",
+                       "doesn't exist.",
+                       "Invalid JSON:",
+                       "Invalid JSON:",
+                       ]
 
         for i, cfg in enumerate(cfgs):
             test = self._quick_test(cfg=cfg)
@@ -703,7 +690,7 @@ class ResultParserTests(PavTestCase):
 
         result_cmd = commands.get_command('result')
         result_cmd.silence()
-        run_cmd = commands.get_command('run')  # type: run.RunCommand
+        run_cmd = commands.get_command('run')
         run_cmd.silence()
 
         # We need to alter the config path for these, but those paths need

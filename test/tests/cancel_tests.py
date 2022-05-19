@@ -1,21 +1,13 @@
-from pavilion import plugins
-from pavilion import unittest
-from pavilion import schedulers
-from pavilion import cancel
-from pavilion.status_file import STATES
 import time
+
+from pavilion import cancel
+from pavilion import schedulers
+from pavilion import unittest
+from pavilion.status_file import STATES
 
 
 class CancelTests(unittest.PavTestCase):
     """Tests on job/test cancellation."""
-
-    def setUp(self):
-
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-
-        plugins._reset_plugins()
 
     def test_cancel_jobs(self):
         """Test job cancellation function."""

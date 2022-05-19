@@ -1,22 +1,11 @@
-import errno
-import os
 import io
-import sys
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
-from pavilion import output
 from pavilion.unittest import PavTestCase
 
 
 class StatusTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_cat(self):
         """Checking cat command functionality"""

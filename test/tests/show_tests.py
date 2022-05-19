@@ -8,8 +8,6 @@ class ShowTests(unittest.PavTestCase):
 
     def test_show_cmds(self):
 
-        plugins.initialize_plugins(self.pav_cfg)
-
         arg_lists = [
             ('show', 'config'),
             ('show', 'config', '--template'),
@@ -55,6 +53,3 @@ class ShowTests(unittest.PavTestCase):
         for arg_list in arg_lists:
             args = parser.parse_args(arg_list)
             show_cmd.run(self.pav_cfg, args)
-
-        plugins._reset_plugins()
-

@@ -1,18 +1,9 @@
 from pavilion import expression_functions
-from pavilion import plugins
 from pavilion.unittest import PavTestCase
 
 
 class ExprFuncTests(PavTestCase):
     """Check each of the expression functions."""
-
-    def setUp(self) -> None:
-
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-
-        plugins._reset_plugins()
 
     def test_core_functions(self):
         """Check core expression functions."""

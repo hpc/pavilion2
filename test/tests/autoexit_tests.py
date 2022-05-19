@@ -10,14 +10,6 @@ import time
 class AutoexitTests(unittest.PavTestCase):
     """Test the autoexit config option."""
 
-    def setUp(self):
-        """This has to run before any command plugins are loaded."""
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-        """Reset all plugins."""
-        plugins._reset_plugins()
-
     def test_autoexit(self):
         """Test the autoexit config option."""
 

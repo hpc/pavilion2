@@ -1,24 +1,15 @@
 """These make sure python's built in config creation and editing commands work as expected."""
-
-from pavilion import unittest
-from pavilion import commands
-from pavilion import arguments
-from pavilion import plugins
-from pavilion import config
-from pavilion.utils import get_login
-
-from pathlib import Path
-import stat
 import grp
+import stat
+
+from pavilion import arguments
+from pavilion import commands
+from pavilion import config
+from pavilion import unittest
+from pavilion.utils import get_login
 
 
 class ConfigCmdTests(unittest.PavTestCase):
-
-    def setUp(self) -> None:
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-        plugins._reset_plugins()
 
     def test_config_cmds(self):
 

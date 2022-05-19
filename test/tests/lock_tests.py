@@ -13,11 +13,14 @@ from pavilion.unittest import PavTestCase
 # actually check for that.
 class TestLocking(PavTestCase):
 
-    def setUp(self):
+    def set_up(self):
         self.lock_path = self.pav_cfg.working_dir/'lock_test.lock'
 
         if self.lock_path.exists():
             self.lock_path.unlink()
+
+    def tear_down(self):
+        pass
 
     def test_locks(self):
 

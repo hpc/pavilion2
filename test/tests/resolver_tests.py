@@ -7,12 +7,12 @@ import random
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import resolver
 from pavilion import resolve
+from pavilion import resolver
 from pavilion import schedulers
 from pavilion import test_run
 from pavilion.deferred import DeferredVariable
-from pavilion.errors import TestConfigError, VariableError, TestRunError
+from pavilion.errors import TestConfigError, TestRunError
 from pavilion.pavilion_variables import PavVars
 from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
@@ -29,10 +29,6 @@ class ResolverTests(PavTestCase):
         plugins.initialize_plugins(self.pav_cfg)
 
         self.resolver = resolver.TestConfigResolver(self.pav_cfg)
-
-    def tearDown(self):
-        """Reset the plugins."""
-        plugins._reset_plugins()
 
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
@@ -326,9 +322,9 @@ class ResolverTests(PavTestCase):
             'testj': ["4"]
         }
 
-        vars = test.var_man.as_dict()['var']
+        var_dict = test.var_man.as_dict()['var']
         for var in expected:
-            self.assertEqual(expected[var], vars[var],
+            self.assertEqual(expected[var], var_dict[var],
                              msg="Mismatch for var '{}'".format(var))
 
     def test_resolve_vars_in_vars(self):
@@ -449,8 +445,7 @@ class ResolverTests(PavTestCase):
                 'permute_on': ['foo', 'bar'],
                 'subtitle': '1-_bar_',
                 'build': {
-                       'cmds':
-                           ["echo 1 4", "echo 1", "echo 4a"],
+                       'cmds': ["echo 1 4", "echo 1", "echo 4a"],
                        'env': [
                            {'baz': '6'},
                            {'oof': '7-8'},
@@ -647,9 +642,8 @@ class ResolverTests(PavTestCase):
                 for test in ('cmd_inherit_extend.test1',
                              'cmd_inherit_extend.test2',
                              'cmd_inherit_extend.test3'):
-                    answer = None
 
-                    tests = self.resolver.load([test], host=host,modes=modes)
+                    tests = self.resolver.load([test], host=host, modes=modes)
                     test_cfg = tests[0].config
                     test_name = test_cfg.get('name')
                     for sec in ['build', 'run']:
@@ -661,6 +655,8 @@ class ResolverTests(PavTestCase):
     def test_version_compatibility(self):
         """Make sure version compatibility checks are working and populate the
         results.json file correctly."""
+
+        commands.load('run')
 
         pav_version = PavVars().version()
 
@@ -702,6 +698,8 @@ class ResolverTests(PavTestCase):
     def test_version_incompatibility(self):
         """Make sure incompatible versions exit gracefully when attempting to
         run."""
+
+        commands.load('run')
 
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([

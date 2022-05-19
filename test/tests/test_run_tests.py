@@ -1,9 +1,7 @@
 """Test the 'TestRun' object'"""
 
 import io
-from pathlib import Path
 
-from pavilion import plugins
 from pavilion.errors import TestRunError
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
@@ -11,12 +9,6 @@ from pavilion.variables import VariableSetManager
 
 
 class TestRunTests(PavTestCase):
-
-    def setUp(self) -> None:
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-        plugins._reset_plugins()
 
     def test_obj(self):
         """Test pavtest object initialization."""
