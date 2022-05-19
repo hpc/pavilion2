@@ -10,21 +10,21 @@ print("Pre pav imports", time.time())
 
 start = time.time()
 from . import arguments
-print('arguments', time.time()-start); start = time.time()
+print('arguments {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import commands
-print('commands', time.time()-start); start = time.time()
+print('commands {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import config
-print('config', time.time()-start); start = time.time()
+print('config {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import log_setup
-print('log_setup', time.time()-start); start = time.time()
+print('log_setup {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import output
-print('output', time.time()-start); start = time.time()
+print('output {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import pavilion_variables
-print('pav vars', time.time()-start); start = time.time()
+print('pav vars {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import plugins
-print('plugins', time.time()-start); start = time.time()
+print('plugins {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import utils
-print('utils', time.time()-start); start = time.time()
+print('utils {:0.2f}'.format(time.time()-start)); start = time.time()
 
 try:
     import yc_yaml

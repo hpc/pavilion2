@@ -6,7 +6,9 @@ PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib:${PAV_DIR}/lib/pavilion/dependencies"
 
+echo "qc_start $(date +%s.%N)"
 CONFIG_KEYS=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group umask)
+echo "qc_end $(date +%s.%N)"
 SHARED_GROUP=$(echo "${CONFIG_KEYS}" | awk -F: '/shared_group/{ print $2 }' )
 UMASK=$(echo "${CONFIG_KEYS}" | awk -F: '/umask/{ print $2 }' )
 
