@@ -27,6 +27,8 @@ def get_parser():
 
     parser = argparse.ArgumentParser(
         prog='pav',
+        # We'll add our own help option that doesn't auto-exit.
+        add_help=False,
         description="Pavilion is a framework for running tests on "
                     "supercomputers.")
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
@@ -36,6 +38,9 @@ def get_parser():
                         version='Pavilion ' + pavilion.config.get_version(),
                         default=False,
                         help='Displays the current version of Pavilion.')
+
+    parser.add_argument('--help', '-h', action='store_true',
+                        help='Display help and exit.')
 
     parser.add_argument(
         '--profile', action='store_true', default=False,

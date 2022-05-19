@@ -28,8 +28,8 @@ class ResultsCommand(Command):
     def __init__(self):
 
         super().__init__(
-            name="results",
-            aliases=['result'],
+            name="result",
+            aliases=['results'],
             description="Displays results from the given tests.",
             short_help="Displays results from the given tests."
         )

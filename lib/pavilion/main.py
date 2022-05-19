@@ -6,6 +6,8 @@ import sys
 import time
 import traceback
 
+import pavilion.commands
+
 print("Pre pav imports", time.time())
 
 start = time.time()
@@ -86,17 +88,28 @@ def main():
 
     print("inited plugins", time.time())
 
-    # Parse the arguments
-    try:
-        args = parser.parse_args()
-    except Exception:
-        raise
+    # Partially parse the arguments. All we really care about is the subcommand.
+    partial_args, _ = parser.parse_known_args()
+    print("partial parsed args", time.time())
 
-    print("parsed args", time.time())
-
-    if args.command_name is None:
+    # If there is no subcommand, just print help. This also applies when the user
+    # asks for help with --help/-h.  Sub-command help will trigger when we parse the full
+    # args.
+    if partial_args.command_name is None:
+        # Load all the commands (and add their arguments) before displaying help.
+        commands.load()
         parser.print_help()
-        sys.exit(0)
+        sys.exit(1)
+
+    # We find the command twice. The first time module loads it if necessary
+    # (builtin commands are lazily loaded).
+    commands.get_command(partial_args.command_name)
+    print("Preloaded command", time.time())
+
+    # Now that we've loaded the command (which adds its subparser to the main
+    # parser), we'll reparse the args for real.
+    args = parser.parse_args()
+    print("Parsed args", time.time())
 
     pav_cfg.pav_vars = pavilion_variables.PavVars()
     print("Got pav vars", time.time())
@@ -107,7 +120,7 @@ def run_cmd(pav_cfg, args):
     """Run the command specified by the user using the remaining arguments."""
 
     try:
-        cmd = commands.get_command(args.command_name)
+        cmd = pavilion.commands.get_command(args.command_name)
     except KeyError:
         output.fprint(sys.stderr, "Unknown command '{}'."
                       .format(args.command_name), color=output.RED)

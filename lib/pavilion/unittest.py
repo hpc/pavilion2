@@ -21,6 +21,7 @@ from pavilion import config
 from pavilion import dir_db
 from pavilion import resolve
 from pavilion import pavilion_variables
+from pavilion import plugins
 from pavilion.sys_vars import base_classes
 from pavilion.output import dbg_print
 from pavilion.variables import VariableSetManager
@@ -83,6 +84,23 @@ base class.
         # plugins can add to it.
         _ = arguments.get_parser()
         super().__init__(*args, **kwargs)
+
+    def setUp(self) -> None:
+        """Moving from the old camel case names to the standard naming scheme."""
+        self.set_up()
+
+    def tearDown(self) -> None:
+        self.tear_down()
+
+    def set_up(self):
+        """By default, initialize plugins before every test."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+    def tear_down(self):
+        """By default, reset plugins after every test."""
+
+        plugins._reset_plugins()
 
     def make_pav_config(self, config_dirs: List[Path] = None):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`

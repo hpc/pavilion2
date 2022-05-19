@@ -20,6 +20,7 @@ class ListCommand(Command):
 
         super().__init__(
             name='list',
+            aliases=['list_cmd'],
             short_help="Quickly and compactly list Pavilion test runs or "
                        "series.",
             sub_commands=True,
