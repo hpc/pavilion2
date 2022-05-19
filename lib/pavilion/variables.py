@@ -26,7 +26,7 @@ from typing import Union
 
 from pavilion import parsers
 from pavilion.deferred import DeferredVariable
-from pavilion.exceptions import DeferredError, VariableError
+from pavilion.errors import DeferredError, VariableError
 
 
 class VariableSetManager:
@@ -512,8 +512,7 @@ index, sub_var) tuple.
         except (OSError, IOError, FileNotFoundError) as err:
             raise VariableError(
                 "Could not write variable file at '{}': {}"
-                .format(tmp_path, err.args[0])
-            )
+                .format(tmp_path, err))
 
     @classmethod
     def load(cls, path):
@@ -531,7 +530,7 @@ index, sub_var) tuple.
             raise \
                 RuntimeError(
                     "Could not load variable file '{}': {}"
-                    .format(path, err.args[0]))
+                    .format(path, err))
 
         var_man = cls()
 

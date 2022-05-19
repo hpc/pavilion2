@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable, Any
 
 from pavilion import utils
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError
 
 
 # pylint: disable=protected-access

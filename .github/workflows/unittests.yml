@@ -30,8 +30,6 @@ jobs:
         pip install sphinx pylint
         pip install coverage
         pip install -r requirements.txt
-        sphinx-build --version
-        pylint --version
 
         
     - name: setup
@@ -44,7 +42,7 @@ jobs:
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
       run: | 
-        ./test/run_tests -q -o multi_build
+        ./test/run_tests
 
     - name: zip_working_dir
       if: always()

@@ -563,13 +563,13 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
 
         except PermissionError as err:
             output.fprint(sys.stdout, "Could not load pavilion config at '{}'. Skipping...: {}"
-                          .format(config_path.as_posix(), err.args[0]))
+                          .format(config_path.as_posix(), err))
 
             continue
 
         except Exception as err:
             raise RuntimeError("Pavilion.yaml for config path '{}' has error: {}"
-                               .format(config_dir.as_posix(), err.args[0]))
+                               .format(config_dir.as_posix(), err))
 
         label = config.get('label')
         group = config.get('group')
@@ -614,7 +614,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             except RuntimeError as err:
                 output.fprint(sys.stderr,
                               "Could not configure working directory for config path '{}'. "
-                              "Skipping.\n{}".format(config_path.as_posix(), err.args[0]),
+                              "Skipping.\n{}".format(config_path.as_posix(), err),
                               color=output.YELLOW)
                 continue
 

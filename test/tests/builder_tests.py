@@ -11,21 +11,14 @@ from pathlib import Path
 
 from pavilion import builder
 from pavilion import lockfile
-from pavilion import plugins
 from pavilion import wget
 from pavilion.build_tracker import DummyTracker
+from pavilion.errors import TestRunError
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
-from pavilion.exceptions import TestRunError
 
 
 class BuilderTests(PavTestCase):
-
-    def setUp(self) -> None:
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-        plugins._reset_plugins()
 
     def test_build_locking(self):
         """Make sure multiple builds of the same hash lock each other out."""
@@ -64,7 +57,7 @@ class BuilderTests(PavTestCase):
             time.sleep(0.1)
 
         start = time.time()
-        with lockfile.LockFile(bldr_lock_path) as lock:
+        with lockfile.LockFile(bldr_lock_path):
             self.assertGreater(time.time() - start, 5)
 
     def test_setup_build_dir(self):
@@ -320,7 +313,7 @@ class BuilderTests(PavTestCase):
 
         config = copy.deepcopy(config)
         config['build']['source_download'] = 'never'
-        config['build']['source_url'] = 'http://nowhere-that-exists.com'
+        config['build']['source_url'] = 'https://nowhere-that-exists.com'
         self._quick_test(config, build=False, finalize=False)
         # This should succeed, because the file exists and we're not
         # going to download it.
@@ -431,13 +424,13 @@ class BuilderTests(PavTestCase):
 
         # Wait for the test to actually start building.
         timeout = 5 + time.time()
-        states = [stat.state for stat in test.status.history()]
+        states = [status.state for status in test.status.history()]
         while STATES.BUILDING not in states:
             if time.time() > timeout:
                 self.fail("Test {} did not complete within 5 seconds."
                           .format(test.id))
             time.sleep(.5)
-            states = [stat.state for stat in test.status.history()]
+            states = [status.state for status in test.status.history()]
 
         time.sleep(.2)
         cancel_event.set()
@@ -470,4 +463,3 @@ class BuilderTests(PavTestCase):
 
         with self.assertRaises(TestRunError):
             self._quick_test(cfg)
-

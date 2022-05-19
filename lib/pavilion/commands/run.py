@@ -30,9 +30,6 @@ class RunCommand(Command):
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
 
-        self.last_series = None
-        self.last_tests = []  # type: List[TestRun]
-
     def _setup_arguments(self, parser):
 
         self._generic_arguments(parser)
@@ -169,7 +166,7 @@ class RunCommand(Command):
             self.last_tests = list(series_obj.tests.values())
         except pavilion.series.errors.TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
-            output.fprint(self.errfile, str(err.args[0]), color=output.RED)
+            output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN
 
         if report_status:

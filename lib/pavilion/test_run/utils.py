@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, TextIO
 
 from pavilion import dir_db, output
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError
 from pavilion.types import ID_Pair
 from .test_run import TestRun
 

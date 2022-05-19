@@ -3,22 +3,15 @@ import io
 import sys
 import time
 
+import pavilion.commands
 import pavilion.schedulers
-from pavilion import commands
-from pavilion import plugins
 from pavilion.unittest import PavTestCase
 
 
 class LogCmdTest(PavTestCase):
 
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
-
     def test_log_arguments(self):
-        log_cmd = commands.get_command('log')
+        log_cmd = pavilion.commands.get_command('log')
 
         parser = argparse.ArgumentParser()
         log_cmd._setup_arguments(parser)
@@ -93,7 +86,7 @@ class LogCmdTest(PavTestCase):
         self.assertEqual(err.getvalue(), '')
 
     def test_log_tail(self):
-        log_cmd = commands.get_command('log')
+        log_cmd = pavilion.commands.get_command('log')
 
         parser = argparse.ArgumentParser()
         log_cmd._setup_arguments(parser)

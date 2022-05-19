@@ -4,18 +4,11 @@ import argparse
 import io
 
 from pavilion import commands
-from pavilion import plugins
 from pavilion.series.series import TestSeries
 from pavilion.unittest import PavTestCase
 
 
 class WaitCmdTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_wait_command(self):
         """Test wait command."""

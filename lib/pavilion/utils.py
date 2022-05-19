@@ -140,7 +140,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
         # catch the Error from the recursive copytree so that we can
         # continue with other files
         except shutil.Error as err:
-            errors.extend(err.args[0])
+            errors.extend(str(err))
         except OSError as why:
             errors.append((srcname, dstname, str(why)))
     try:
@@ -410,7 +410,7 @@ def hr_cutoff_to_ts(cutoff_time: str,
             return dt.datetime(*parts).timestamp()
         except ValueError as err:
             raise ValueError(
-                "Invalid time '{}':\n{}".format(cutoff_time, err.args[0])
+                "Invalid time '{}':\n{}".format(cutoff_time, err)
             )
 
     raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))
@@ -423,6 +423,7 @@ def union_dictionary(dict1, dict2):
         dict1[key] = dict1.get(key, []) + dict2[key]
 
     return dict1
+
 
 def flatten_nested_dict(dict_in, keycollect='', new_d=None, keysplit='.'):
     """ Takes a nested dictionary and concatenates its nested keys

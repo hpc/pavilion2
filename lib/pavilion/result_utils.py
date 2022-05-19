@@ -6,7 +6,7 @@ from typing import List
 import datetime
 
 from pavilion import output
-from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
+from pavilion.errors import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.test_run import (TestRun)
 
 # I suppose these are all the keys of the TestRun.results dict and the essential ones.

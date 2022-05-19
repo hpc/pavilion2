@@ -161,7 +161,7 @@ def index(pav_cfg,
         except (OSError, PermissionError, json.JSONDecodeError) as err:
             # In either error case, start from scratch.
             output.fprint(verbose, "Error reading index at '{}'. Regenerating from "
-                                   "scratch. {}".format(idx_path.as_posix(), err.args[0]),
+                                   "scratch. {}".format(idx_path.as_posix(), err),
                           color=output.GRAY)
 
     if not id_dir.exists():

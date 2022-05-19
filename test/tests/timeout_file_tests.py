@@ -1,23 +1,13 @@
-import io
 import time
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
 from pavilion.status_utils import get_statuses
 from pavilion.unittest import PavTestCase
 
 
 class TimeoutFileTests(PavTestCase):
     """Assorted tests to ensure that timeout files work as expected."""
-
-    def setUp(self):
-
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-
-        plugins._reset_plugins()
 
     def test_build_timeouts(self):
         """Make sure build timeout file works as expected."""
@@ -78,6 +68,7 @@ class TimeoutFileTests(PavTestCase):
     def test_run_timeouts(self):
         """Make sure run timeout file works as expected."""
 
+        commands.load('status')
         run_cmd = commands.get_command('run')
         run_cmd.silence()
 

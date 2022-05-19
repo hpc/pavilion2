@@ -18,7 +18,7 @@ from typing import Union, Dict
 import pavilion.config
 from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
-from pavilion.exceptions import TestBuilderError, TestConfigError
+from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
@@ -114,19 +114,19 @@ class TestBuilder:
                 create_files.verify_path(file, self.path)
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad path '{}': {}"
-                                       .format(file, err.args[0]))
+                                       .format(file, err))
 
         for tmpl, dest in self._config.get('templates', {}).items():
             try:
                 create_files.verify_path(tmpl, self.path)
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad template path '{}': {}"
-                                       .format(tmpl, err.args[0]))
+                                       .format(tmpl, err))
             try:
                 create_files.verify_path(dest, self.path)
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad destination path '{}': {}"
-                                       .format(dest, err.args[0]))
+                                       .format(dest, err))
 
     def exists(self):
         """Return True if the given build exists."""
@@ -296,7 +296,7 @@ class TestBuilder:
             raise TestBuilderError(
                 "The source path must be a valid unix path, either relative "
                 "or absolute, got '{}':\n{}"
-                .format(src_path, err.args[0]))
+                .format(src_path, err))
 
         found_src_path = self._pav_cfg.find_file(src_path, 'test_src')
 
@@ -335,7 +335,7 @@ class TestBuilder:
                 except OSError as err:
                     raise TestBuilderError(
                         "Could not create parent directory to place "
-                        "downloaded source:\n{}".format(err.args[0]))
+                        "downloaded source:\n{}".format(err))
 
             self.status.set(STATES.BUILDING,
                             "Updating source at '{}'.".format(found_src_path))
@@ -345,7 +345,7 @@ class TestBuilder:
             except wget.WGetError as err:
                 raise TestBuilderError(
                     "Could not retrieve source from the given url '{}':\n{}"
-                    .format(src_url, err.args[0]))
+                    .format(src_url, err))
 
             return dwn_dest
 
@@ -412,7 +412,7 @@ class TestBuilder:
                         except OSError as err:
                             tracker.error(
                                 "Could not remove unfinished build.\n{}"
-                                .format(err.args[0]))
+                                .format(err))
                             return False
 
                     with lockfile.LockFilePoker(lock):
@@ -711,7 +711,7 @@ class TestBuilder:
             except TestConfigError as err:
                 raise TestBuilderError(
                     "Error creating 'create_file' '{}': {}"
-                    .format(file, err.args[0]))
+                    .format(file, err))
 
         # Copy over the template files.
         for tmpl_src, tmpl_dest in self._templates.items():

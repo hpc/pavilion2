@@ -15,10 +15,10 @@ import uuid
 from pathlib import Path
 from typing import TextIO, Union, Dict
 
-import pavilion.exceptions
 from pavilion.config import PavConfig
 from pavilion import builder
 from pavilion import dir_db
+from pavilion import errors
 from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
@@ -27,7 +27,7 @@ from pavilion import create_files
 from pavilion import resolve
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
-from pavilion.exceptions import TestRunError, TestRunNotFoundError, TestConfigError
+from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError
 from pavilion.jobs import Job
 from pavilion.variables import VariableSetManager
 from pavilion.result.common import ResultError
@@ -308,7 +308,7 @@ class TestRun(TestAttributes):
                 templates=templates,
                 build_name=self.build_name,
             )
-        except pavilion.exceptions.TestBuilderError as err:
+        except errors.TestBuilderError as err:
             raise TestRunError(
                 "Could not create builder for test {s.name} (run {s.id}): {err}"
                 .format(s=self, err=err)
@@ -580,7 +580,7 @@ class TestRun(TestAttributes):
 
             try:
                 self.builder.copy_build(self.build_path)
-            except pavilion.exceptions.TestBuilderError as err:
+            except errors.TestBuilderError as err:
                 tracker.fail("Error copying build: {}".format(err.args[0]))
                 cancel_event.set()
             build_result = True

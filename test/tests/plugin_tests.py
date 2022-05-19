@@ -1,32 +1,35 @@
 """Test plugin system functionality."""
 
 import argparse
+import io
+import logging
+import subprocess
+import sys
 
 import pavilion.deferred
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
+from pavilion import expression_functions
 from pavilion import module_wrapper
-from pavilion import plugins
 from pavilion import output
+from pavilion import plugins
 from pavilion import result_parsers
 from pavilion import sys_vars
-from pavilion import expression_functions
 from pavilion.resolver import variables
 from pavilion.unittest import PavTestCase
-import io
-import logging
-import sys
-import subprocess
 
 LOGGER = logging.getLogger(__name__)
 
 
 class PluginTests(PavTestCase):
 
-    def setUp(self):
+    def set_up(self):
         # This has to run before any command plugins are loaded.
         arguments.get_parser()
+
+    def tear_down(self):
+        pass
 
     def test_plugin_loading(self):
         """Check to make sure the plugin system initializes correctly. Separate

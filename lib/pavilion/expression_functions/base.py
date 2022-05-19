@@ -5,7 +5,7 @@ import logging
 import re
 
 from yapsy import IPlugin
-from .common import FunctionPluginError
+from ..errors import FunctionPluginError
 
 LOGGER = logging.getLogger(__file__)
 

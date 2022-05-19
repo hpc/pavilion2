@@ -1,18 +1,11 @@
 from pavilion import create_files
-from pavilion import plugins
 from pavilion import variables
-from pavilion.exceptions import TestConfigError
+from pavilion.errors import TestConfigError
 from pavilion.unittest import PavTestCase
 
 
 class CreateFileTests(PavTestCase):
     """Test create_file and template functions."""
-
-    def setUp(self) -> None:
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-        plugins._reset_plugins()
 
     def test_create_file(self):
         """Ensure runtime file creation is working correctly."""

@@ -56,7 +56,7 @@ class StatusCommand(Command):
             test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
                                                       verbose=self.errfile)
         except ValueError as err:
-            output.fprint(self.errfile, err.args[0], color=output.RED)
+            output.fprint(self.errfile, err, color=output.RED)
             return errno.EINVAL
 
         if args.history:

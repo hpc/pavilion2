@@ -5,14 +5,14 @@ import lark
 from pavilion import plugins
 from pavilion import unittest
 from pavilion import parsers
-from pavilion.exceptions import DeferredError
+from pavilion.errors import DeferredError
 from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 
 
 class ParserTests(unittest.PavTestCase):
 
-    def setUp(self) -> None:
+    def set_up(self) -> None:
         plugins.initialize_plugins(self.pav_cfg)
 
         self.var_man = variables.VariableSetManager()
@@ -36,9 +36,6 @@ class ParserTests(unittest.PavTestCase):
             ]
         })
         self.var_man.add_var_set('sys', base_classes.get_vars(defer=True))
-
-    def tearDown(self) -> None:
-        plugins._reset_plugins()
 
     def test_visitors(self):
         """Test the visitors used to collect all of the used variables."""

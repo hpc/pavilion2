@@ -9,7 +9,7 @@ import ast
 from typing import Dict, Callable, Any, List
 
 import lark
-import pavilion.expression_functions.common
+import pavilion.errors
 from pavilion import expression_functions as functions
 from pavilion.utils import auto_type_convert
 from .common import PavTransformer, ParserValueError
@@ -411,18 +411,18 @@ class BaseExprTransformer(PavTransformer):
 
         try:
             func = functions.get_plugin(func_name)
-        except pavilion.expression_functions.common.FunctionPluginError:
+        except pavilion.errors.FunctionPluginError:
             raise ParserValueError(
                 token=items[0],
                 message="No such function '{}'".format(func_name))
 
         try:
             result = func(*args)
-        except pavilion.expression_functions.common.FunctionArgError as err:
+        except pavilion.errors.FunctionArgError as err:
             raise ParserValueError(
                 self._merge_tokens(items, None),
                 "Invalid arguments: {}".format(err))
-        except pavilion.expression_functions.common.FunctionPluginError as err:
+        except pavilion.errors.FunctionPluginError as err:
             # The function plugins give a reasonable message.
             raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 

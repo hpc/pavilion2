@@ -7,18 +7,15 @@ import pavilion.series
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion.series import info
 from pavilion.status_utils import get_statuses
 from pavilion.unittest import PavTestCase
 
 
 class CancelCmdTests(PavTestCase):
 
-    def setUp(self):
+    def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
+        commands.load('run', 'cancel')
 
     def test_cancel(self):
         """Test cancel command with no arguments."""

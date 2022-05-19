@@ -132,8 +132,9 @@ class GraphCommand(Command):
         if args.dimensions:
             match = DIMENSIONS_RE.match(args.dimensions)
             if not match:
-                output.fprint(self.errfile, "Invalid '--dimensions' string '{}', doesn't match "
-                                            "expected format. Using matplotlib default dimensions."
+                output.fprint(self.errfile,
+                              "Invalid '--dimensions' string '{}', doesn't match expected "
+                              "format. Using matplotlib default dimensions."
                               .format(args.dimensions), color=output.YELLOW)
                 args.dimensions = ''
 
@@ -141,15 +142,15 @@ class GraphCommand(Command):
 
         # Get filtered Test IDs.
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
-        # Add any additional tests provided via the command line.
-        if args.tests:
-            cmdline_tests = cmd_utils.get_tests_by_id(pav_cfg, args.tests, self.errfile)
 
         # Load TestRun for all tests, skip those that are to be excluded.
         tests = cmd_utils.get_tests_by_paths(
             pav_cfg, test_paths, self.errfile, exclude_ids=args.exclude)
 
-        tests.extend(cmdline_tests)
+        # Add any additional tests provided via the command line.
+        if args.tests:
+            cmdline_tests = cmd_utils.get_tests_by_id(pav_cfg, args.tests, self.errfile)
+            tests.extend(cmdline_tests)
 
         if not tests:
             output.fprint(self.errfile, "Test filtering resulted in an empty list.")
@@ -167,7 +168,7 @@ class GraphCommand(Command):
         try:
             check_evaluations(all_evals)
         except ResultError as err:
-            output.fprint(self.errfile, "Invalid graph evaluation:\n{}".format(err.args[0]),
+            output.fprint(self.errfile, "Invalid graph evaluation:\n{}".format(err),
                           color=output.RED)
 
         # Set colormap and build colormap dict
@@ -252,8 +253,7 @@ class GraphCommand(Command):
         except ResultError as err:
             raise InvalidEvaluationError("Invalid graph evaluation for test "
                                          "{}:\n{}"
-                                         .format(test_results['id'],
-                                                 err.args[0]))
+                                         .format(test_results['id'], err))
         x_vals = test_results['x']
 
         if isinstance(x_vals, (int, float, str)):

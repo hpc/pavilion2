@@ -129,7 +129,7 @@ def parse_text(text, var_man) -> str:
     except ParserValueError as err:
         # These errors are already really specific. We don't have to
         # figure them out.
-        raise StringParserError(err.args[0], err.get_context(text))
+        raise StringParserError(str(err), err.get_context(text))
 
     return value
 

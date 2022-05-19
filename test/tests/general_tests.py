@@ -39,7 +39,7 @@ class GeneralTests(PavTestCase):
 
         self.umask = 0o007
 
-    def setUp(self) -> None:
+    def set_up(self) -> None:
         """Setup the special pav config for these tests."""
 
         with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
@@ -66,6 +66,9 @@ class GeneralTests(PavTestCase):
         self.config_dir = self.TEST_DATA_ROOT/'configs-permissions'
         with (self.config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
             yaml.dump(raw_cfg, stream=pav_cfg_file)
+
+    def tear_down(self):
+        pass
 
     def test_permissions(self):
         """Make sure all files written by Pavilion have the correct

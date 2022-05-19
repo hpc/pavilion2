@@ -8,7 +8,7 @@ from typing import TextIO, List
 
 from pavilion import output
 from pavilion import schedulers
-from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
+from pavilion.errors import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
 

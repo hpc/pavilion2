@@ -4,7 +4,7 @@ from typing import List
 import yc_yaml
 import yaml_config
 from pavilion.resolver import TestConfigResolver
-from ..exceptions import TestConfigError
+from ..errors import TestConfigError
 from .file_format import SeriesConfigLoader
 
 

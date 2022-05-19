@@ -1,15 +1,8 @@
-from pavilion import plugins
 from pavilion import unittest
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError
 
 
 class conditionalTest(unittest.PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_no_skip(self):  # this method runs some conditional successes
         test_list = []

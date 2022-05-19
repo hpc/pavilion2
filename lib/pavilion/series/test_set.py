@@ -9,7 +9,7 @@ from typing import List, Dict, TextIO, Union, Set
 
 from pavilion import output, result, schedulers, cancel
 from pavilion.build_tracker import MultiBuildTracker
-from pavilion.exceptions import TestRunError, TestConfigError
+from pavilion.errors import TestRunError, TestConfigError
 from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_run import TestRun

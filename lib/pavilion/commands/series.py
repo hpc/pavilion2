@@ -1,6 +1,7 @@
 """Start a series config defined test series."""
 
 import errno
+import sys
 
 import pavilion.series.errors
 from pavilion import filters
@@ -89,7 +90,7 @@ class RunSeries(Command):
                                                           modes=args.modes)
             except series_config.SeriesConfigError as err:
                 output.fprint(self.errfile,
-                              "Load error: {}\n{}".format(args.series_name, err.args[0]),
+                              "Load error: {}\n{}".format(args.series_name, err),
                               color=output.RED)
                 return errno.EINVAL
 
@@ -101,7 +102,7 @@ class RunSeries(Command):
             series_obj = series.TestSeries(pav_cfg, config=series_cfg)
         except pavilion.series.errors.TestSeriesError as err:
             output.fprint(self.errfile, "Error creating test series '{}': {}"
-                          .format(args.series_name, err.args[0]), color=output.RED)
+                          .format(args.series_name, err), color=output.RED)
             return errno.EINVAL
 
         # pav _series runs in background using subprocess
@@ -109,10 +110,10 @@ class RunSeries(Command):
             series_obj.run_background()
         except pavilion.series.errors.TestSeriesError as err:
             output.fprint(self.errfile, "Error starting series '{}': '{}'"
-                          .format(args.series_name, err.args[0]), color=output.RED)
+                          .format(args.series_name, err), color=output.RED)
             return errno.EINVAL
         except pavilion.series.errors.TestSeriesWarning as err:
-            output.fprint(self.errfile, str(err.args[0]), color=output.YELLOW)
+            output.fprint(self.errfile, str(err), color=output.YELLOW)
 
         output.fprint(self.outfile, "Started series {sid}.\n"
                                     "Run `pav status {sid}` to view status.\n"

@@ -18,14 +18,10 @@ def has_spack_path():
 
 class SpackTests(PavTestCase):
 
-    def setUp(self):
+    def set_up(self):
 
         self.working_dir = self.pav_cfg['working_dir']
         plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-
-        plugins._reset_plugins()
 
     @unittest.skipIf(not has_spack_path(), "spack dir does not exist")
     def test_spack_build(self):

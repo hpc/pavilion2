@@ -9,7 +9,7 @@ import re
 from collections import OrderedDict
 
 import yaml_config as yc
-from pavilion.exceptions import TestConfigError
+from pavilion.errors import TestConfigError
 
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)

@@ -44,7 +44,7 @@ class SlurmTests(PavTestCase):
         # the pavilion lib path.
         self.pav_config = config.PavilionConfigLoader().load_empty()
 
-    def setUp(self):
+    def set_up(self):
 
         plugins.initialize_plugins(self.pav_config)
 
@@ -54,10 +54,6 @@ class SlurmTests(PavTestCase):
                 self.slurm_mode = yaml.load(path.open())
         else:
             self.slurm_mode = {}
-
-    def tearDown(self):
-
-        plugins._reset_plugins()
 
     def _get_job(self, match, test):
         """Get a job id that from a job that contains match.
