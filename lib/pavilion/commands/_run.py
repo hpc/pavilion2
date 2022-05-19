@@ -39,9 +39,6 @@ class _RunCommand(Command):
     def run(self, pav_cfg, args):
         """Load and run an already prepped test."""
 
-        import time
-        print('in _run', time.time())
-
         try:
             test = TestRun.load(pav_cfg, working_dir=args.working_dir,
                                 test_id=args.test_id)
@@ -135,9 +132,6 @@ class _RunCommand(Command):
         """
 
         _ = self
-
-        import time
-        print(time.time())
 
         try:
             run_result = test.run()

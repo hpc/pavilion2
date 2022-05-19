@@ -3,30 +3,17 @@ It shouldn't be run directly; use bin/pav instead."""
 
 import logging
 import sys
-import time
 import traceback
 
 import pavilion.commands
-
-print("Pre pav imports", time.time())
-
-start = time.time()
 from . import arguments
-print('arguments {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import commands
-print('commands {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import config
-print('config {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import log_setup
-print('log_setup {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import output
-print('output {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import pavilion_variables
-print('pav vars {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import plugins
-print('plugins {:0.2f}'.format(time.time()-start)); start = time.time()
 from . import utils
-print('utils {:0.2f}'.format(time.time()-start)); start = time.time()
 
 try:
     import yc_yaml
@@ -43,13 +30,9 @@ except ImportError:
                               "dependencies?")
 
 
-print("Loaded main", time.time())
-
-
+# pylint: disable=broad-except
 def main():
     """Setup Pavilion and run a command."""
-
-    print("main", time.time())
 
     # Pavilion is compatible with python >= 3.4
     if sys.version_info[0] != 3 or sys.version_info[1] < 5:
@@ -67,16 +50,12 @@ def main():
                       .format(err), color=output.RED)
         sys.exit(-1)
 
-    print("loaded configs", time.time())
-
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
         output.fprint(sys.stderr,
                       "Could not set up loggers. This is usually because of a badly defined "
                       "working_dir in pavilion.yaml.", color=output.RED)
         sys.exit(-1)
-
-    print("setup loggers", time.time())
 
     # Initialize all the plugins
     try:
@@ -86,11 +65,8 @@ def main():
                       .format(err), color=output.RED)
         sys.exit(-1)
 
-    print("inited plugins", time.time())
-
     # Partially parse the arguments. All we really care about is the subcommand.
     partial_args, _ = parser.parse_known_args()
-    print("partial parsed args", time.time())
 
     # If there is no subcommand, just print help. This also applies when the user
     # asks for help with --help/-h.  Sub-command help will trigger when we parse the full
@@ -104,15 +80,12 @@ def main():
     # We find the command twice. The first time module loads it if necessary
     # (builtin commands are lazily loaded).
     commands.get_command(partial_args.command_name)
-    print("Preloaded command", time.time())
 
     # Now that we've loaded the command (which adds its subparser to the main
     # parser), we'll reparse the args for real.
     args = parser.parse_args()
-    print("Parsed args", time.time())
 
     pav_cfg.pav_vars = pavilion_variables.PavVars()
-    print("Got pav vars", time.time())
     run_cmd(pav_cfg, args)
 
 
@@ -164,19 +137,26 @@ def _get_arg_val(arg_name, default):
     return default
 
 
+def profile_main():
+    """Run main, but under the python profiler."""
+
+    # pylint: disable=import-outside-toplevel
+    import cProfile
+    import pstats
+
+    p_sort = _get_arg_val('profile-sort', arguments.PROFILE_SORT_DEFAULT)
+    p_count = _get_arg_val('profile-count', arguments.PROFILE_COUNT_DEFAULT)
+
+    stats_path = '/tmp/{}_pav_pstats'.format(utils.get_login())
+
+    cProfile.runctx('main()', globals(), locals(), stats_path)
+    stats = pstats.Stats(stats_path)
+    output.fprint(sys.stdout, "Profile Table")
+    stats.strip_dirs().sort_stats(p_sort).print_stats(int(p_count))
+
+
 if __name__ == '__main__':
     if '--profile' in sys.argv:
-        import cProfile
-        import pstats
-
-        p_sort = _get_arg_val('profile-sort', arguments.PROFILE_SORT_DEFAULT)
-        p_count = _get_arg_val('profile-count', arguments.PROFILE_COUNT_DEFAULT)
-
-        stats_path = '/tmp/{}_pav_pstats'.format(utils.get_login())
-
-        cProfile.runctx('main()', globals(), locals(), stats_path)
-        stats = pstats.Stats(stats_path)
-        print("Profile Table")
-        stats.strip_dirs().sort_stats(p_sort).print_stats(int(p_count))
+        profile_main()
     else:
         main()

@@ -491,7 +491,6 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 sched_config=sched_config,
                 picked_nodes=node_range)
 
-            script.command('date +%s.%N')
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 

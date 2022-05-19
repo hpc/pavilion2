@@ -95,11 +95,16 @@ base class.
     def set_up(self):
         """By default, initialize plugins before every test."""
 
+        _ = self
+
         plugins.initialize_plugins(self.pav_cfg)
 
     def tear_down(self):
         """By default, reset plugins after every test."""
 
+        _ = self
+
+        # pylint: disable=protected-access
         plugins._reset_plugins()
 
     def make_pav_config(self, config_dirs: List[Path] = None):
