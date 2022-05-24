@@ -97,6 +97,7 @@ class ModWrapperTests(PavTestCase):
         test_cfg = self._quick_test_cfg()
 
         test_cfg['run']['modules'] = [
+            '',               # A blank module
             'test_mod1/1.0',
             'test_mod1',      # Should load 1.1 as the default.
             'test_mod2',      # Un-versioned.
