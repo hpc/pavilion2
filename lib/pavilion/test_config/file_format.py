@@ -23,6 +23,12 @@ class PathCategoryElem(yc.CategoryElem):
     _NAME_RE = re.compile(r".+$")
 
 
+class VariableCatDict(dict):
+    """A dict class that also tracks defaults for sub-variables."""
+
+    def __init__(self):
+
+
 class VariableElem(yc.CategoryElem):
     """This is for values in the 'variables' section of a test config.
 

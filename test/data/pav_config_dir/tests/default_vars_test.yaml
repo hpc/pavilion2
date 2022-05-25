@@ -1,0 +1,41 @@
+base:
+  variables:
+    str: 'hello'
+    list: ['a', 'b']
+    dict:
+      a: 'a'
+    ldict:
+      - c: 'c'
+      - c: 'c1'
+
+def_layer:
+  inherits_from: base
+
+  variables:
+    str?: 'hello'
+    list?: ['a', 'b']
+    dict?:
+      a: 'a'
+      b: 'b'
+    ldict?:
+      - c: 'c_default'
+    d_str?: 'hello'
+    d_list?: ['a', 'b']
+    d_dict?:
+      a: 'a'
+      b: 'b'
+    d_ldict?:
+      - c: 'c'
+        d: 'd'
+
+itest:
+  inherits_from: def_layer
+
+  variables:
+    ldict:
+      c: 'c2'
+    d_ldict+:
+      - c: 'c1'
+        d: 'd1'
+      - c: 'c2'
+        d: 'd2'

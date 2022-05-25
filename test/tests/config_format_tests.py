@@ -3,6 +3,7 @@ from __future__ import print_function
 from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 from pavilion.config import PavilionConfigLoader
+from pavilion import resolver
 import tempfile
 
 
@@ -38,3 +39,13 @@ class TestConfig(PavTestCase):
             reloaded = PavilionConfigLoader().load(cfg_file)
 
         self.assertEqual(cfg, reloaded)
+
+    def test_default_vars(self):
+        """Make sure variable defaults work as intended."""
+
+        import pprint
+        rslvr = resolver.TestConfigResolver(self.pav_cfg)
+        tests = rslvr.load(['default_vars_test'], host='default_vars_host')
+        for test in tests:
+            print(test.config['name'])
+            pprint.pprint(test.var_man.as_dict()['var'])
