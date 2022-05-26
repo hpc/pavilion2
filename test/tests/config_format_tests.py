@@ -43,9 +43,37 @@ class TestConfig(PavTestCase):
     def test_default_vars(self):
         """Make sure variable defaults work as intended."""
 
-        import pprint
+        self.maxDiff = 1000
         rslvr = resolver.TestConfigResolver(self.pav_cfg)
         tests = rslvr.load(['default_vars_test'], host='default_vars_host')
-        for test in tests:
-            print(test.config['name'])
-            pprint.pprint(test.var_man.as_dict()['var'])
+        def_test = tests[0]
+        itest = tests[1]
+
+        def_expected = {
+            'str': ['hello_base'],
+            'list': ['a_base', 'b_base'],
+            'dict': [{'a': 'a_base', 'b': 'b_def'}],
+            'ldict': [{'c': 'c_base1', 'd': 'd_base1'}, {'c': 'c_def', 'd': 'd_base2'}],
+            'd_str': ['hello_def'],
+            'd_list': ['a_def', 'b_def'],
+            'd_dict': [{'a': 'a_def', 'b': 'b_def'}],
+            'd_ldict': [{'c': 'c_def1', 'd': 'd_def1'}],
+        }
+        inh_expected = {
+            'str': ['hello_inh'],
+            'd_str': ['hello_def', 'hello_inh'],
+            'list': ['a_inh'],
+            'd_list': ['a_def', 'b_def', 'a_inh', 'b_inh'],
+            'dict': [
+                {'a': 'a_inh', 'b': 'b_def'},
+                {'a': 'a_def', 'b': 'b_inh'}],
+            'd_dict': [{'a': 'a_def', 'b': 'b_def'},
+                       {'a': 'a_inh', 'b': 'b_def'},
+                       {'a': 'a_def', 'b': 'b_inh'}],
+            'd_ldict': [{'c': 'c_def1', 'd': 'd_def1'}],
+            'ldict': [{'c': 'c_base1', 'd': 'd_base1'},
+                      {'c': 'c_def', 'd': 'd_base2'}],
+        }
+
+        self.assertEqual(def_test.var_man.as_dict()['var'], def_expected)
+        self.assertEqual(itest.var_man.as_dict()['var'], inh_expected)

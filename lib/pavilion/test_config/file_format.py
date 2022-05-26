@@ -6,7 +6,7 @@ handles that are documented below.
 
 import copy
 import re
-from collections import OrderedDict
+from collections import OrderedDict, UserDict
 from typing import List
 
 import yaml_config as yc
@@ -101,9 +101,12 @@ class VarCatDict(dict):
 
     def __deepcopy__(self, memodict=None):
         """Also make sure to copy the defaults."""
-        deep_copy = copy.deepcopy(self)
-        deep_copy.defaults = self.defaults
-        return deep_copy
+
+        new = self.__class__()
+        for key, val in self.items():
+            new[key] = val
+        new.defaults = self.defaults
+        return new
 
     def add_items(self, start_items: List, items: List, key: str) -> List:
         """Rebase the dictionary on top of the defaults.
@@ -114,12 +117,18 @@ class VarCatDict(dict):
         :param key: The key to save the items to.
         """
 
+        start_items = copy.deepcopy(start_items)
+
         for item in items:
             if isinstance(item, dict):
                 rebase = {}
-                rebase.update(self.get(key, {}))
+                rebase.update(self.defaults.get(key, {}))
                 rebase.update(item)
-                start_items.append(rebase)
+                if rebase not in start_items:
+                    start_items.append(rebase)
+            else:
+                if item not in start_items:
+                    start_items.append(item)
 
         self[key] = start_items
 
@@ -166,16 +175,29 @@ class VarCatElem(yc.CategoryElem):
                         )
 
                     if isinstance(new_vals[0], dict):
+                        # Dictionaries get their defaults saved in the special 'defaults'
+                        # dict. Existing, undefined keys will be set, and any additional
+                        # added items will get these defaults too. If no items exist, the
+                        # defaults themselves will be set.
                         if len(new_vals) != 1:
                             raise TestConfigError(
                                 "Key '{}' in variables section is trying to set a list of "
                                 "sub-var defaults, but only one is allowed.".format(key))
-                        base.defaults[bkey].update(new_vals)
+                        defaults = base.defaults.get(bkey, {})
+                        defaults.update(new_vals[0])
+                        base.defaults[bkey] = defaults
 
+                        if base.get(bkey):
+                            base.add_items(self._sub_elem.type(), base[bkey], bkey)
+                        else:
+                            base.add_items(self._sub_elem.type(), new_vals, bkey)
                     else:
-                        # Use the new value only if there isn't an old one.
+                        # strings and lists of strings, put in the default value if one
+                        # isn't defined.
                         base[bkey] = base.get(bkey, new[key])
                 elif key.endswith('+'):
+                    # Extend the list of values. For dictionaries, fill in any missing
+                    # sub-vars with default values if defined.
                     if new_vals is None:
                         raise TestConfigError(
                             "Key '{key}' in variables section is in extend "
@@ -184,12 +206,9 @@ class VarCatElem(yc.CategoryElem):
                     initial_items = base.get(bkey, self._sub_elem.type())
                     base.add_items(initial_items, new_vals, bkey)
 
-            elif key in old:
-                new_items = self._sub_elem.type()
-                base.add_items(new_items, self._sub_elem.merge(old[key], new[key]), key)
             else:
-                new_items = self._sub_elem.type()
-                base.add_items(new_items, new[key], key)
+                # Otherwise, just replace the old values with new ones.
+                base.add_items(self._sub_elem.type(), new[key], key)
 
         return base
 

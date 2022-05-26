@@ -93,27 +93,28 @@ class TestConfigResolver:
 
         user_vars = raw_test_cfg.get('variables', {})
         var_man = copy.deepcopy(self.base_var_man)
+        test_name = raw_test_cfg.get('name', '<no name>')
 
         # Since per vars are the highest in resolution order, we can make things
         # a bit faster by adding these after we find the used per vars.
         try:
             var_man.add_var_set('var', user_vars)
         except VariableError as err:
-            raise TestConfigError("Error in variables section: {}".format(err))
+            raise TestConfigError("Error in variables section for test '{}': {}"
+                                  .format(test_name, err))
 
         scheduler = raw_test_cfg.get('scheduler', '<undefined>')
         try:
             sched = schedulers.get_plugin(scheduler)
         except schedulers.SchedulerPluginError:
             raise TestConfigError(
-                "Could not find scheduler '{}'"
-                .format(scheduler))
+                "Could not find scheduler '{}' for test '{}'"
+                .format(scheduler, test_name))
 
         if not sched.available():
             raise TestConfigError(
-                "Scheduler '{}' is not available on this system"
-                .format(sched.name)
-            )
+                "Scheduler '{}' is not available on this system (test {})"
+                .format(sched.name, test_name))
 
         schedule_cfg = raw_test_cfg.get('schedule', {})
         schedule_cfg = resolve.test_vars(schedule_cfg, var_man)
@@ -123,9 +124,9 @@ class TestConfigResolver:
         except schedulers.SchedulerPluginError as err:
             # Errors should generally be deferred here, but just in case.
             raise TestConfigError(
-                "Error getting initial variables from scheduler {}: {} \n\n"
+                "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
                 "Scheduler Config: \n{}"
-                .format(scheduler, err.args[0], pprint.pformat(schedule_cfg)))
+                .format(scheduler, test_name, err.args[0], pprint.pformat(schedule_cfg)))
 
         var_man.add_var_set('sched', sched_vars)
 
