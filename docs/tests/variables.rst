@@ -207,29 +207,53 @@ Pavilion provides.
           target_mount: '/tmp/'
           options: '-d {{target_mount}}'
 
-Expected Variables (?)
-^^^^^^^^^^^^^^^^^^^^^^
+Default Variables (?)
+^^^^^^^^^^^^^^^^^^^^^
 
-You can denote a variable as 'expected' by adding a question mark ``?``
+You can denote a variable as a 'default' by adding a question mark ``?``
 to the end of it's name. The value provided then simply acts as the
-default, and will be overridden if the host or mode configs provide
-values. You can also leave the value empty, an error will be given if no
-value is provided by an underlying host/mode config files.
+default, and will be overridden if the host or mode configs (or tests that
+inherit from this one) provide values. You can also leave the value empty,
+an error will be given if no value is provided by an underlying host/mode config files.
 
 .. code:: yaml
 
-    expected_test:
+    test_with_defaults:
       variables:
         # Pavilion will only use this value if the host or mode configs
-        # don't define it.
+        # don't define it. It can also be overridden by inheritance.
         intensity?: 1
 
-        # Pavilion expects the hosts or modes to provide this value.
+        # Pavilion will expect this to be defined at a different level.
         power?:
 
         run:
           cmds:
             - "./run_test -i {{intensity}} -p {{power}}"
+
+You can also set defaults for variables with 'sub-values'. These act the same as
+the above, providing the default if it isn't defined elsewhere, and throwing an error
+if not defined.
+
+.. code:: yaml
+
+    _base:
+      variables:
+        settings?:
+          x_scale: 3
+          y_scale: 8
+          z_scale: 16
+          # This most be defined by the host, mode, or inheritance
+          magnitude:
+
+    large:
+      variables:
+        settings?:
+          x_scale: 32
+          y_scale: 32
+          # We just use the default for z_scale
+          magnitude: 9000
+
 
 Appended Variables (+)
 ^^^^^^^^^^^^^^^^^^^^^^
