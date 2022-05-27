@@ -4,6 +4,7 @@ from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 from pavilion.config import PavilionConfigLoader
 from pavilion import resolver
+from pavilion import errors
 import tempfile
 
 
@@ -46,8 +47,8 @@ class TestConfig(PavTestCase):
         self.maxDiff = 1000
         rslvr = resolver.TestConfigResolver(self.pav_cfg)
         tests = rslvr.load(['default_vars_test'], host='default_vars_host')
-        def_test = tests[0]
-        itest = tests[1]
+        def_test = [test for test in tests if 'def' in test.config['name']][0]
+        itest = [test for test in tests if 'inh' in test.config['name']][0]
 
         def_expected = {
             'str': ['hello_base'],
@@ -77,3 +78,11 @@ class TestConfig(PavTestCase):
 
         self.assertEqual(def_test.var_man.as_dict()['var'], def_expected)
         self.assertEqual(itest.var_man.as_dict()['var'], inh_expected)
+
+        # Ensure that errors are thrown when loading tests with unset default vars.
+        with self.assertRaises(errors.TestConfigError):
+            tests = rslvr.load(['required_vars.req_base_var'])
+
+        with self.assertRaises(errors.TestConfigError):
+            rslvr.load(['required_vars.req_sub_var'])
+

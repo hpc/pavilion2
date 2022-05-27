@@ -105,7 +105,7 @@ class VarCatDict(dict):
         new = self.__class__()
         for key, val in self.items():
             new[key] = val
-        new.defaults = self.defaults
+        new.defaults = self.defaults.copy()
         return new
 
     def add_items(self, start_items: List, items: List, key: str) -> List:
@@ -167,14 +167,8 @@ class VarCatElem(yc.CategoryElem):
 
                 if key.endswith('?'):
                     if new_vals is None:
-                        raise TestConfigError(
-                            "Key '{key}' in variables section must have a "
-                            "value, either set as the default at this level or "
-                            "provided by an underlying host or mode config."
-                            .format(key=key)
-                        )
-
-                    if isinstance(new_vals[0], dict):
+                        base.defaults[bkey] = None
+                    elif isinstance(new_vals[0], dict):
                         # Dictionaries get their defaults saved in the special 'defaults'
                         # dict. Existing, undefined keys will be set, and any additional
                         # added items will get these defaults too. If no items exist, the
@@ -188,8 +182,11 @@ class VarCatElem(yc.CategoryElem):
                         base.defaults[bkey] = defaults
 
                         if base.get(bkey):
+                            # Re-add all existing values, given the new defaults.
                             base.add_items(self._sub_elem.type(), base[bkey], bkey)
                         else:
+                            # Add the default as the only defined value when none already
+                            # exist.
                             base.add_items(self._sub_elem.type(), new_vals, bkey)
                     else:
                         # strings and lists of strings, put in the default value if one

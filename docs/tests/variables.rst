@@ -210,11 +210,14 @@ Pavilion provides.
 Default Variables (?)
 ^^^^^^^^^^^^^^^^^^^^^
 
-You can denote a variable as a 'default' by adding a question mark ``?``
-to the end of it's name. The value provided then simply acts as the
-default, and will be overridden if the host or mode configs (or tests that
-inherit from this one) provide values. You can also leave the value empty,
-an error will be given if no value is provided by an underlying host/mode config files.
+You can denote a variable as a 'default' by adding a question mark ``?``. Default
+variables have *lowest* precedence, they will be overridden if set at any level, including in
+host files (which are normally the lowest).
+
+Defaults have one other function - they denote variables that *must* be set. That's not
+a problem if you give the default a value, since that counts as setting it. If you leave
+the value blank, however, Pavilion will give an error message saying that a required variable
+is unset.
 
 .. code:: yaml
 
@@ -232,8 +235,8 @@ an error will be given if no value is provided by an underlying host/mode config
             - "./run_test -i {{intensity}} -p {{power}}"
 
 You can also set defaults for variables with 'sub-values'. These act the same as
-the above, providing the default if it isn't defined elsewhere, and throwing an error
-if not defined.
+the above, providing the default for each sub-value if it isn't defined elsewhere, and throwing an
+error if not defined.
 
 .. code:: yaml
 

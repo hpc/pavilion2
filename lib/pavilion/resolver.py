@@ -17,7 +17,7 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO
+from typing import List, IO, Dict
 
 import yc_yaml
 from pavilion import output, variables
@@ -131,6 +131,30 @@ class TestConfigResolver:
         var_man.add_var_set('sched', sched_vars)
 
         return var_man
+
+    def check_required_variables(self, raw_tests: List[Dict]):
+        """Check all of the variables defined as defaults with a null value to
+        make sure they were actually defined."""
+
+        for config in raw_tests:
+            # This should be a VarCatElem, which has a built-in defaults dict.
+            defaults: Dict = config['variables'].defaults
+            vars = config['variables']
+            for key, def_val in defaults.items():
+                if def_val is None and key not in vars or vars[key] is None:
+                    raise TestConfigError(
+                        "In test '{}', variable '{}' is required but was never set."
+                        .format(config['name'], key))
+                elif isinstance(def_val, dict):
+                    # Check all the sub-value defaults for required values.
+                    for skey, sdef_val in def_val.items():
+                        # There's another potential case here where the base
+                        # variable doesn't exist. That shouldn't actually be possible,
+                        # as if nothing is defined the defaults are set as the value.
+                        if sdef_val is None and skey not in config['variables'].get(key, {}):
+                            raise TestConfigError(
+                                "In test '{}', variable '{}.{}' is required, but was not set"
+                                .format(config['name'], key, skey))
 
     def find_config(self, conf_type, conf_name) -> (str, Path):
         """Search all of the known configuration directories for a config of the
@@ -343,6 +367,8 @@ class TestConfigResolver:
                 msg = 'Error applying overrides to test {} from {}: {}' \
                     .format(raw_test['name'], raw_test['suite_path'], err)
                 raise TestConfigError(msg)
+
+        self.check_required_variables(raw_tests)
 
         complete = 0
 
@@ -869,6 +895,7 @@ class TestConfigResolver:
                                                                   test_cfg)
 
             suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
+            tcfg = suite_tests[test_cfg_name]
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
@@ -889,6 +916,8 @@ class TestConfigResolver:
         del suite_tests['__base__']
 
         for test_name, test_config in suite_tests.items():
+            # Validation hoses these. We need to restore them afterwords
+            variable_defaults = test_config['variables'].defaults
             try:
                 suite_tests[test_name] = test_config_loader\
                                             .validate(test_config)
@@ -915,6 +944,9 @@ class TestConfigResolver:
                     "Loaded test '{}' in suite '{}' raised a type error, "
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
+
+            suite_tests[test_name]['variables'].defaults = variable_defaults
+
             try:
                 self.check_version_compatibility(test_config)
             except TestConfigError as err:

@@ -4,7 +4,7 @@ PYTHON=$(which python3)
 
 PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
-export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib:${PAV_DIR}/lib/pavilion/dependencies"
+export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib"
 
 CONFIG_KEYS=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group umask)
 SHARED_GROUP=$(echo "${CONFIG_KEYS}" | awk -F: '/shared_group/{ print $2 }' )
