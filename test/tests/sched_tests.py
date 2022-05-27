@@ -71,12 +71,15 @@ class SchedTests(PavTestCase):
             'test_cmd': '',
             'tasks_per_node': '1',
             'chunk_ids': ['0', '1'],
+            'chunk_size': '3',
             'errors': [],
             'node_list_id': '5',
             'min_cpus': '5',
             'min_mem': '10',
             'nodes': str(len(nodes)),
             'node_list': [str(key) for key in nodes.keys()],
+            'partition': '',
+            'requested_nodes': '1',
             'test_nodes': str(len(nodes)),
             'test_node_list': [str(key) for key in nodes.keys()],
             'test_min_cpus': '5',
@@ -92,8 +95,9 @@ class SchedTests(PavTestCase):
             deferred=False,
         )
 
-        for key in sched_vars.keys():
-            val = sched_vars[key]
+        for key, val in sched_vars.items():
+            self.assertIn(key, expected,
+                          msg="Missing expected value for key {}: '{}'".format(key, val))
             self.assertEqual(val, expected[key],
                              msg="Unexpected value for sched var '{}'.\n"
                                  "Got {}, expected {}"
@@ -120,12 +124,15 @@ class SchedTests(PavTestCase):
             'test_cmd': '',
             'tasks_per_node': '1',
             'chunk_ids': [],
+            'chunk_size': '',
             'errors': [],
             'node_list_id': '5',
             'min_cpus': '4',
             'min_mem': str(8*1024**3),
             'nodes': '50',
             'node_list': [],
+            'partition': '',
+            'requested_nodes': '',
             'test_nodes': '0',
             'test_node_list': [],
             'test_min_cpus': '4',
@@ -141,8 +148,9 @@ class SchedTests(PavTestCase):
             deferred=False,
         )
 
-        for key in sched_vars.keys():
-            val = sched_vars[key]
+        for key, val in sched_vars.items():
+            self.assertIn(key, expected,
+                          msg="Missing expected value for key {}: '{}'".format(key, val))
             self.assertEqual(val, expected[key],
                              msg="Unexpected value for sched var '{}'.\n"
                                  "Got {}, expected {}"
