@@ -8,7 +8,7 @@ from pavilion.jobs import Job, JobError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.types import NodeInfo, Nodes
-from .config import validate_config
+from .config import validate_config, calc_node_range
 from .scheduler import SchedulerPlugin, SchedulerPluginError
 from .vars import SchedulerVariables
 
@@ -59,8 +59,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
 
             sched_config = validate_config(test.config['schedule'])
 
-            node_range = self._calc_node_range(sched_config,
-                                               sched_config['cluster_info']['node_count'])
+            node_range = calc_node_range(sched_config, sched_config['cluster_info']['node_count'])
 
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,

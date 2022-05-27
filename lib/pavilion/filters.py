@@ -392,8 +392,8 @@ SERIES_FILTER_DEFAULTS = {
 
 def make_series_filter(complete: bool = False, has_state: str = None,
                        incomplete: bool = False, name: str = None,
-                       newer_than: dt.datetime = None,
-                       older_than: dt.datetime = None, state: str = None,
+                       newer_than: float = None,
+                       older_than: float = None, state: str = None,
                        sys_name: str = None, user: str = None) \
                     -> Callable[[series.SeriesInfo], bool]:
     """Generate a filter for using with dir_db functions to filter series. This
@@ -423,7 +423,7 @@ def make_series_filter(complete: bool = False, has_state: str = None,
 
         created = sinfo.get('created')
         if newer_than and created < newer_than:
-            return False
+                return False
 
         if older_than and created > older_than:
             return False

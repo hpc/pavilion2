@@ -104,7 +104,7 @@ class Job:
         parts = []
         if self.info is not None:
             for key in sorted(self.info.keys()):
-                parts.extend(str(self.info[key]))
+                parts.append(str(self.info[key]))
         return "_".join(parts)
 
     def save_node_data(self, nodes: Nodes):

@@ -5,6 +5,7 @@ from typing import List
 from pavilion.deferred import DeferredVariable
 from pavilion.var_dict import VarDict, var_method, dfr_var_method
 from ..types import NodeInfo, Nodes, NodeList, NodeSet
+from .config import calc_node_range
 
 
 class SchedulerVariables(VarDict):
@@ -31,6 +32,7 @@ Naming Conventions:
         'chunk_ids': ['0', '1', '2', '3'],
         'errors': ['oh no, there was an error.'],
         'node_list': ['node01', 'node03', 'node04'],
+        'status_info': '', 
         'tasks_per_node': "5",
         'test_nodes':     '45',
         'test_node_list': ['node02', 'node04'],
@@ -137,6 +139,15 @@ Naming Conventions:
         return min_val
 
     @var_method
+    def partition(self):
+        """This variable provides extra status info for a test. It 
+        is particularly meant to be overridden by plugins."""
+        
+        _ = self
+
+        return self._sched_config['partition']
+
+    @var_method
     def test_cmd(self):
         """The command to prepend to a line to kick it off under the
         scheduler. This is blank by default, but most schedulers will
@@ -169,6 +180,30 @@ Naming Conventions:
     def chunk_ids(self):
         """A list of indices of the available chunks."""
         return list(range(len(self._chunks)))
+
+    @var_method
+    def chunk_size(self):
+        """The size of each chunk."""
+
+        if self._chunks:
+            return str(len(self._chunks[0]))
+        else:
+            return ''
+
+    @var_method
+    def requested_nodes(self):
+        """Number of requested nodes."""
+        
+        if self._chunks:
+            nmin, nmax = calc_node_range(self._sched_config, len(self._chunks[0]))
+            if nmin == nmax:
+                return str(nmax)
+            else:
+                return '{}-{}'.format(nmin, nmax)
+        else:
+            return ''
+
+        
 
     @var_method
     def node_list_id(self):

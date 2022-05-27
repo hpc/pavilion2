@@ -136,7 +136,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             output.fprint(verbose, "Using default search filters: The current system, user, and "
                                    "newer_than 1 day ago.", color=output.CYAN)
             args.user = utils.get_login()
-            args.newer_than = dt.datetime.now() - dt.timedelta(days=1)
+            args.newer_than = (dt.datetime.now() - dt.timedelta(days=1)).timestamp()
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     matching_series = []
