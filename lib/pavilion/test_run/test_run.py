@@ -1047,7 +1047,9 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Perform module related changes to the environment.')
 
             for module in config.get('modules', []):
-                script.module_change(module, self.var_man)
+                module = module.strip()
+                if module:
+                    script.module_change(module, self.var_man)
 
         env = config.get('env', {})
         if env:
