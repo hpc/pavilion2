@@ -136,12 +136,14 @@ class TestConfigResolver:
         """Check all of the variables defined as defaults with a null value to
         make sure they were actually defined."""
 
+        _ = self
+
         for config in raw_tests:
             # This should be a VarCatElem, which has a built-in defaults dict.
             defaults: Dict = config['variables'].defaults
-            vars = config['variables']
+            cvars = config['variables']
             for key, def_val in defaults.items():
-                if def_val is None and key not in vars or vars[key] is None:
+                if def_val is None and key not in cvars or cvars[key] is None:
                     raise TestConfigError(
                         "In test '{}', variable '{}' is required but was never set."
                         .format(config['name'], key))
@@ -895,7 +897,6 @@ class TestConfigResolver:
                                                                   test_cfg)
 
             suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
-            tcfg = suite_tests[test_cfg_name]
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
