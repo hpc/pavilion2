@@ -423,7 +423,7 @@ def make_series_filter(complete: bool = False, has_state: str = None,
 
         created = sinfo.get('created')
         if newer_than and created < newer_than:
-                return False
+            return False
 
         if older_than and created > older_than:
             return False

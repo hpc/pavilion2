@@ -32,7 +32,7 @@ Naming Conventions:
         'chunk_ids': ['0', '1', '2', '3'],
         'errors': ['oh no, there was an error.'],
         'node_list': ['node01', 'node03', 'node04'],
-        'status_info': '', 
+        'status_info': '',
         'tasks_per_node': "5",
         'test_nodes':     '45',
         'test_node_list': ['node02', 'node04'],
@@ -140,9 +140,9 @@ Naming Conventions:
 
     @var_method
     def partition(self):
-        """This variable provides extra status info for a test. It 
+        """This variable provides extra status info for a test. It
         is particularly meant to be overridden by plugins."""
-        
+
         _ = self
 
         return self._sched_config['partition']
@@ -193,7 +193,7 @@ Naming Conventions:
     @var_method
     def requested_nodes(self):
         """Number of requested nodes."""
-        
+
         if self._chunks:
             nmin, nmax = calc_node_range(self._sched_config, len(self._chunks[0]))
             if nmin == nmax:
@@ -203,7 +203,7 @@ Naming Conventions:
         else:
             return ''
 
-        
+
 
     @var_method
     def node_list_id(self):
