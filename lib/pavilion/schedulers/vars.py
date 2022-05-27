@@ -203,8 +203,6 @@ Naming Conventions:
         else:
             return ''
 
-
-
     @var_method
     def node_list_id(self):
         """Return the node list id, if available. This is meaningless to test
