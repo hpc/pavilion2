@@ -145,7 +145,7 @@ Naming Conventions:
 
         _ = self
 
-        return self._sched_config['partition']
+        return self._sched_config['partition'] or ''
 
     @var_method
     def test_cmd(self):
