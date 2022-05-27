@@ -100,7 +100,7 @@ class TestBuilder:
         self.tmp_log_path = self.path.with_suffix('.log')
         self.log_path = self.path/self.LOG_NAME
         fail_name = 'fail.{}.{}'.format(self.name, time.time())
-        self.fail_path = pav_cfg.working_dir/'builds'/fail_name
+        self.fail_path = self.path.parent/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
         if self._timeout_file is not None:
@@ -269,7 +269,7 @@ class TestBuilder:
         self.name = self.name_build()
         self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, time.time())
-        self.fail_path = self._pav_cfg.working_dir/'builds'/fail_name
+        self.fail_path = self.path.parent/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
     def deprecate(self):
