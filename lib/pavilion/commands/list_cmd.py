@@ -102,7 +102,7 @@ class ListCommand(Command):
             help="List test runs.",
             description="Print a list of test run id's."
         )
-        runs_p.add_argument('-l', '--label', default='main',
+        runs_p.add_argument('--label', default='main',
                             help="The config label to search under.")
 
         filters.add_test_filter_args(runs_p)
