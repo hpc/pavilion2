@@ -102,6 +102,8 @@ class ListCommand(Command):
             help="List test runs.",
             description="Print a list of test run id's."
         )
+        runs_p.add_argument('-l', '--label', default='main',
+                            help="The config label to search under.")
 
         filters.add_test_filter_args(runs_p)
 
@@ -255,9 +257,15 @@ class ListCommand(Command):
                 limit=args.limit,
             ).data
         else:
+            if args.label not in pav_cfg.configs:
+                output.fprint(self.errfile, "Invalid config label. These config areas"
+                                            "are available: {}".format(pav_cfg.configs.keys()))
+                return errno.EINVAL
+            test_runs_dir = pav_cfg.configs[args.label]['working_dir']
+
             runs = dir_db.select(
                 pav_cfg,
-                id_dir=pav_cfg.working_dir/'test_runs',
+                id_dir=test_runs_dir,
                 transform=test_run_attr_transform,
                 filter_func=filter_func,
                 order_func=order_func,

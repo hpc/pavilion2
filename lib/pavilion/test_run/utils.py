@@ -4,12 +4,13 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, TextIO
 
 from pavilion import dir_db, output
+from pavilion.config import PavConfig
 from pavilion.errors import TestRunError
 from pavilion.types import ID_Pair
 from .test_run import TestRun
 
 
-def get_latest_tests(pav_cfg, limit):
+def get_latest_tests(pav_cfg: PavConfig, limit):
     """Returns ID's of latest test given a limit
 
 :param pav_cfg: Pavilion config file
@@ -19,15 +20,17 @@ def get_latest_tests(pav_cfg, limit):
 """
 
     test_dir_list = []
-    runs_dir = pav_cfg.working_dir/TestRun.RUN_DIR
-    for test_dir in dir_db.select(pav_cfg, runs_dir).paths:
-        mtime = test_dir.stat().st_mtime
-        try:
-            test_id = int(test_dir.name)
-        except ValueError:
-            continue
+    for config in pav_cfg.configs.values():
 
-        test_dir_list.append((mtime, test_id))
+        runs_dir = config['working_dir']/TestRun.RUN_DIR
+        for test_dir in dir_db.select(pav_cfg, runs_dir).paths:
+            mtime = test_dir.stat().st_mtime
+            try:
+                test_id = int(test_dir.name)
+            except ValueError:
+                continue
+
+            test_dir_list.append((mtime, test_id))
 
     test_dir_list.sort()
     return [test_id for _, test_id in test_dir_list[-limit:]]
