@@ -22,8 +22,7 @@ class CatCommand(Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'test_id', type=int,
-            help="test id",
+            'test_id', help="test id",
             metavar='TEST_ID'
         )
         parser.add_argument(
@@ -36,10 +35,15 @@ class CatCommand(Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.job_id], self.errfile)
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
         if not tests:
-            output.fprint(self.errfile, "Could not find test '{}'.format(args.test_id")
+            output.fprint(self.errfile, "Could not find test '{}'".format(args.test_id))
             return errno.EEXIST
+        elif len(tests) > 1:
+            output.fprint(
+                self.errfile, "Matched multiple tests. Printing file contents for first "
+                              "test only (test {})".format(tests[0].full_id),
+                color=output.YELLOW)
 
         test = tests[0]
         if not test.path.is_dir():
