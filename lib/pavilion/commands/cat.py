@@ -6,6 +6,7 @@ import sys
 
 from pavilion import dir_db
 from pavilion import output
+from pavilion import cmd_utils
 from .base_classes import Command
 
 
@@ -21,9 +22,9 @@ class CatCommand(Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'job_id', type=int,
-            help="job id",
-            metavar='JOB_ID'
+            'test_id', type=int,
+            help="test id",
+            metavar='TEST_ID'
         )
         parser.add_argument(
             'file',
@@ -35,15 +36,23 @@ class CatCommand(Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        test_dir = pav_cfg.working_dir / 'test_runs'
-        job_dir = dir_db.make_id_path(test_dir, args.job_id)
-
-        if os.path.isdir(job_dir.as_posix()) is False:
-            output.fprint(sys.stderr, "directory '{}' does not exist."
-                          .format(job_dir.as_posix()), color=output.RED)
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.job_id], self.errfile)
+        if not tests:
+            output.fprint(self.errfile, "Could not find test '{}'.format(args.test_id")
             return errno.EEXIST
 
-        return self.print_file(job_dir / args.file)
+        test = tests[0]
+        if not test.path.is_dir():
+            output.fprint(sys.stderr, "Directory '{}' does not exist."
+                          .format(test.path.as_posix()), color=output.RED)
+            return errno.EEXIST
+
+        if not test.path/args.file:
+            output.fprint(sys.stderr, "File {} does not exist for test {}."
+                                      .format(args.file, test.full_id))
+            return errno.EEXIST
+
+        return self.print_file(test.path / args.file)
 
     def print_file(self, file):
         """Print the file at the given path.
