@@ -4,12 +4,11 @@ undefined) bits."""
 import errno
 from typing import List
 
-from pavilion import dir_db
+from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
-from pavilion.series.info import SeriesInfo, mk_series_info_transform
-from pavilion.series import TestSeriesError, list_series_tests
-from pavilion.test_run import TestAttributes, test_run_attr_transform
+from pavilion.series.info import SeriesInfo
+from pavilion.test_run import TestAttributes
 from .base_classes import Command, sub_cmd
 
 
@@ -102,20 +101,26 @@ class ListCommand(Command):
             help="List test runs.",
             description="Print a list of test run id's."
         )
-        runs_p.add_argument('--label', default='main',
+        runs_p.add_argument('--label', default=None,
                             help="The config label to search under.")
 
         filters.add_test_filter_args(runs_p)
 
         runs_p.add_argument(
-            'series', nargs="*",
-            help="Print only test runs from these series."
+            'tests', nargs="*", default=['all'],
+            help="Specific tests (or series) to filter from. Defaults to"
+                 "'all'."
         )
 
         series_p = subparsers.add_parser(
             'series',
             help="List test series.",
             description="Give a list of test series id's."
+        )
+
+        series_p.add_argument(
+            'series', nargs="*", default=['all'],
+            help="Specific series to filter from. Defaults to 'all'"
         )
 
         filters.add_series_filter_args(series_p)
@@ -222,65 +227,16 @@ class ListCommand(Command):
             avail_fields=TestAttributes.list_attrs()
         )
 
-        filter_func = filters.make_test_run_filter(
-            complete=args.complete,
-            failed=args.failed,
-            incomplete=args.incomplete,
-            name=args.name,
-            newer_than=args.newer_than,
-            older_than=args.older_than,
-            passed=args.passed,
-            sys_name=args.sys_name,
-            user=args.user,
-        )
+        test_runs = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).data
 
-        order_func, ascending = filters.get_sort_opts(args.sort_by, "TEST")
-
-        if args.series:
-            picked_runs = []
-            for series_id in args.series:
-                try:
-                    picked_runs.extend(list_series_tests(
-                        pav_cfg=pav_cfg,
-                        sid=series_id))
-                except TestSeriesError as err:
-                    output.fprint(self.errfile, "Invalid test series '{}'.\n{}"
-                                  .format(series_id, err), color=output.RED)
-                    return errno.EINVAL
-            runs = dir_db.select_from(
-                pav_cfg,
-                paths=picked_runs,
-                transform=test_run_attr_transform,
-                filter_func=filter_func,
-                order_func=order_func,
-                order_asc=ascending,
-                limit=args.limit,
-            ).data
-        else:
-            if args.label not in pav_cfg.configs:
-                output.fprint(self.errfile, "Invalid config label. These config areas"
-                                            "are available: {}".format(pav_cfg.configs.keys()))
-                return errno.EINVAL
-            test_runs_dir = pav_cfg.configs[args.label]['working_dir']
-
-            runs = dir_db.select(
-                pav_cfg,
-                id_dir=test_runs_dir,
-                transform=test_run_attr_transform,
-                filter_func=filter_func,
-                order_func=order_func,
-                order_asc=ascending,
-                limit=args.limit,
-            ).data
-
-        for run in runs:
+        for run in test_runs:
             for key, value in list(run.items()):
                 if value in [None, '']:
                     del run[key]
 
         self.write_output(
             mode=mode,
-            rows=runs,
+            rows=test_runs,
             fields=fields,
             header=args.header,
             vsep=args.vsep,
@@ -309,22 +265,9 @@ class ListCommand(Command):
             avail_fields=list(series_attrs.keys()),
         )
 
-        series_filter = filters.make_series_filter(complete=args.complete,
-                                                   incomplete=args.incomplete,
-                                                   newer_than=args.newer_than,
-                                                   older_than=args.older_than,
-                                                   sys_name=args.sys_name)
+        series = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
+        series = [dict(series_info) for series_info in series]
 
-        series_order, ascending = filters.get_sort_opts(args.sort_by, "SERIES")
-
-        series = dir_db.select(
-            pav_cfg,
-            id_dir=pav_cfg.working_dir/'series',
-            filter_func=series_filter,
-            transform=mk_series_info_transform(pav_cfg),
-            order_func=series_order,
-            order_asc=ascending,
-        ).data
         self.write_output(
             mode=mode,
             rows=series,

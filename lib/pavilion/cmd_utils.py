@@ -25,7 +25,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
-                       verbose: TextIO = None) -> List[Path]:
+                       verbose: TextIO = None) -> dir_db.SelectItems:
     """Search for test runs that match based on the argument values in args,
     and return a list of matching test id's.
 
@@ -78,7 +78,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
 
     if 'all' in args.tests:
-        test_paths = []
+        tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
 
@@ -91,10 +91,12 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                 order_func=order_func,
                 order_asc=order_asc,
                 verbose=verbose,
-                limit=limit).paths
+                limit=limit)
 
-            test_paths.extend(matching_tests)
-        return test_paths
+            tests.data.extend(matching_tests.data)
+            tests.paths.extend(matching_tests.paths)
+
+        return tests
 
     if not args.tests:
         args.tests.append('last')
@@ -102,7 +104,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
 
     if not args.disable_filter:
-        test_paths = dir_db.select_from(
+        return dir_db.select_from(
             pav_cfg,
             paths=test_paths,
             transform=test_run_attr_transform,
@@ -110,9 +112,11 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
             order_func=order_func,
             order_asc=order_asc,
             limit=limit
-        ).paths
+        )
 
-    return test_paths
+    return dir_db.SelectItems(
+        data=[test_run_attr_transform(path) for path in test_paths],
+        paths=test_paths)
 
 
 def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
@@ -336,9 +340,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
 
     # Convert series and test ids into test paths.
     test_id_pairs = []
-
     for raw_id in test_ids:
-
         # Series start with 's' (like 'snake') and never have labels
         if '.' not in raw_id and raw_id.startswith('s'):
             try:
