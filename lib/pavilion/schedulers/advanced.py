@@ -10,7 +10,7 @@ from pavilion.jobs import Job, JobError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.types import NodeInfo, Nodes, NodeList, NodeSet, NodeRange
-from .config import validate_config, AVAILABLE, BACKFILL
+from .config import validate_config, AVAILABLE, BACKFILL, calc_node_range
 from .scheduler import SchedulerPlugin, SchedulerPluginError
 from .vars import SchedulerVariables
 
@@ -94,7 +94,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                         "Requested node (via 'schedule.include_nodes') was filtered "
                         "due to other filtering ")
 
-        min_nodes, max_nodes = self._calc_node_range(sched_config, len(filtered_nodes))
+        min_nodes, max_nodes = calc_node_range(sched_config, len(filtered_nodes))
         if min_nodes > max_nodes:
             errors.append(
                 "Requested between {}-{} nodes, but the minimum is more than the maximum "
@@ -377,7 +377,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 # Only share allocations if the number of nodes needed by the test is the
                 # same. This greatly simplifies how tests need to request nodes during their
                 # run scripts.
-                min_nodes, max_nodes = self._calc_node_range(sched_config, len(chunk))
+                min_nodes, max_nodes = calc_node_range(sched_config, len(chunk))
 
                 acq_opts = [(min_nodes, max_nodes)]
 
@@ -482,7 +482,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             sched_config = sched_configs[test.full_id]
 
-            node_range = self._calc_node_range(sched_config, len(chunk))
+            node_range = calc_node_range(sched_config, len(chunk))
 
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
@@ -519,7 +519,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for test in tests:
             sched_config = sched_configs[test.full_id]
 
-            min_nodes, max_nodes = self._calc_node_range(sched_config, chunk_size)
+            min_nodes, max_nodes = calc_node_range(sched_config, chunk_size)
             needed_nodes = min(max_nodes, chunk_size)
 
             by_need.append((needed_nodes, test))
