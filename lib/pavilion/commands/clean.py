@@ -33,7 +33,7 @@ class CleanCommand(Command):
                  'regardless of age.')
 
         parser.add_argument(
-            '-l', '--label', action='store', default=None,
+            '--label', action='store', default=None,
             help="Clean up the tests in the config area with this label.")
 
     def run(self, pav_cfg: PavConfig, args):
