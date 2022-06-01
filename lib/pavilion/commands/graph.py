@@ -141,7 +141,7 @@ class GraphCommand(Command):
         output.fprint(self.outfile, "Generating Graph...")
 
         # Get filtered Test IDs.
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
 
         # Load TestRun for all tests, skip those that are to be excluded.
         tests = cmd_utils.get_tests_by_paths(

@@ -431,7 +431,13 @@ class TestBuilder:
                                     "failure path {}: {}"
                                     .format(self.name, self.path,
                                             self.fail_path, err))
-                                self.fail_path.mkdir()
+                                try:
+                                    self.fail_path.mkdir()
+                                except OSError as err2:
+                                    tracker.error(
+                                        "Could not create fail directory for "
+                                        "build {} at {}: {}"
+                                        .format(self.name, self.fail_path, err2))
                             if cancel_event is not None:
                                 cancel_event.set()
 
