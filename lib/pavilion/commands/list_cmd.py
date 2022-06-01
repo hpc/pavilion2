@@ -266,7 +266,7 @@ class ListCommand(Command):
         )
 
         series = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
-        series = [dict(series_info) for series_info in series]
+        series = [series_info.attr_dict() for series_info in series]
 
         self.write_output(
             mode=mode,
