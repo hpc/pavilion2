@@ -3,6 +3,7 @@
 import argparse
 import errno
 import pprint
+import fnmatch
 from typing import Union
 
 import pavilion.types
@@ -316,12 +317,26 @@ class ShowCommand(Command):
             action='store_true', default=False,
             help="List suite files superseded by this one."
         )
+        suites.add_argument(
+            '--path', '-p',
+            action='store_true', default=False,
+            help='Print the path for each suite file.'
+        )
 
         tests = subparsers.add_parser(
             'tests',
             aliases=['test'],
             help="Show the available tests.",
             description="Test configurations that can be run using Pavilion."
+        )
+        tests.add_argument(
+            'name_filter', type=str, nargs='?', default='',
+            help="Filter tests."
+        )
+        tests.add_argument(
+            '--path', '-p',
+            action='store_true', default=False,
+            help='Print the path for each suite file.'
         )
         tests.add_argument(
             '--verbose', '-v',
@@ -807,7 +822,7 @@ class ShowCommand(Command):
 
         fields = ['name', 'tests']
 
-        if args.verbose or args.err:
+        if args.verbose or args.err or args.path:
             fields.append('path')
 
             if args.err:
@@ -835,7 +850,8 @@ class ShowCommand(Command):
 
         for suite_name in sorted(list(suites.keys())):
             suite = suites[suite_name]
-
+            if not fnmatch.fnmatch(suite_name, args.name_filter) and args.name_filter:
+                continue
             if suite['err']:
                 suite_name = output.ANSIString(suite_name + '.*',
                                                output.RED)
@@ -852,11 +868,9 @@ class ShowCommand(Command):
 
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]
-
                 if test_name.startswith('_') and not args.hidden:
                     # Skip any hidden tests.
                     continue
-
                 rows.append({
                     'name':    '{}.{}'.format(suite_name, test_name),
                     'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT],
@@ -865,7 +879,7 @@ class ShowCommand(Command):
                 })
 
         fields = ['name', 'summary']
-        if args.verbose or args.err:
+        if args.verbose or args.err or args.path:
             fields.append('path')
 
             if args.err:
