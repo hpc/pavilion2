@@ -1,6 +1,7 @@
 """Functions and definitions relating to scheduler configuration in tests."""
 
-from typing import Any, Dict, Union, List
+from typing import Any, Dict, Union, List, Tuple
+import math
 
 import yaml_config as yc
 from pavilion import utils
@@ -531,3 +532,22 @@ def validate_config(config: Dict[str, str],
             raise RuntimeError("Invalid validator: '{}'".format(validator))
 
     return normalized_config
+
+def calc_node_range(sched_config, node_count) -> Tuple[int, int]:
+    """Calculate a node range for the job given the min_nodes and nodes, and
+    the number of nodes available (for percentages. Returns the calculated min and max.
+    """
+
+    nodes = sched_config['nodes']
+    if isinstance(nodes, float):
+        nodes = math.ceil(nodes * node_count)
+    nodes = max(nodes, 1)
+
+    min_nodes = sched_config['min_nodes']
+    if min_nodes in (None, 0):
+        min_nodes = nodes
+    elif isinstance(min_nodes, float):
+        min_nodes = math.ceil(min_nodes * node_count)
+        min_nodes = max(min_nodes, 1)
+
+    return min_nodes, nodes

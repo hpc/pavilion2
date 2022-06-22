@@ -1,11 +1,10 @@
 # pylint: disable=too-many-lines
 """The Slurm Scheduler Plugin."""
 
-# This pylint exception is a pylint bug
-import distutils.spawn  # pylint: disable=import-error
 import math
 import os
 import re
+import shutil
 import subprocess
 import time
 from typing import List, Union, Any, Tuple
@@ -50,7 +49,10 @@ slurm kickoff script.
             lines.append('#SBATCH --account {}'.format(self._config['account']))
         features = self._config['slurm']['features']
         if features:
-            constraint = '&'.join(features)
+            constraint = []
+            for feat in features:
+                constraint.append('|'.join(feat))
+            constraint = '&'.join(constraint)
             lines.append('#SBATCH --constraint {}'.format(constraint))
 
         time_limit = '{}:0:0'.format(self._config['time_limit'])
@@ -561,7 +563,7 @@ class Slurm(SchedulerPluginAdvanced):
         _ = self
 
         for command in 'scontrol', 'sbatch', 'sinfo':
-            if distutils.spawn.find_executable(command) is None:
+            if shutil.which(command) is None:
                 return False
 
         # Try to get basic system info from sinfo. Should return not-zero
