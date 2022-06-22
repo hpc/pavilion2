@@ -386,9 +386,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     for part in opt_name.split('.'):
                         if opt is not None and isinstance(opt, dict):
                             opt = opt.get(part)
-                    # Make the option hashable if its a list.
-                    if isinstance(opt, list):
-                        opt = tuple(opt)
+                    opt = convert_lists_to_tuples(opt)
                     acq_opts.append(opt)
 
                 acq_opts = tuple(acq_opts)
@@ -566,3 +564,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 STATES.SCHEDULED,
                 "Test kicked off (individually) under {} scheduler with {} nodes."
                 .format(self.name, len(test_chunk)))
+
+
+def convert_lists_to_tuples(obj):
+    """Replace any lists in the given ubject with tuples."""
+
+    if isinstance(obj, list):
+        return tuple(convert_lists_to_tuples(item) for item in obj)
