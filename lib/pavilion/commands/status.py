@@ -53,8 +53,7 @@ class StatusCommand(Command):
         series."""
 
         try:
-            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
-                                                      verbose=self.errfile)
+            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
         except ValueError as err:
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EINVAL
@@ -155,7 +154,7 @@ class StatusCommand(Command):
                 'transform': lambda t: output.ANSIString(t, output.RED),
             }}
 
-        rows.sort(key = lambda status: status['State'])
+        rows.sort(key=lambda status: status['State'])
 
         output.draw_table(outfile=self.outfile,
                           field_info=field_info,
