@@ -2,8 +2,8 @@
 
 import argparse
 import errno
-import pprint
 import fnmatch
+import pprint
 from typing import Union
 
 import pavilion.types
@@ -317,11 +317,6 @@ class ShowCommand(Command):
             action='store_true', default=False,
             help="List suite files superseded by this one."
         )
-        suites.add_argument(
-            '--path', '-p',
-            action='store_true', default=False,
-            help='Print the path for each suite file.'
-        )
 
         tests = subparsers.add_parser(
             'tests',
@@ -332,11 +327,6 @@ class ShowCommand(Command):
         tests.add_argument(
             'name_filter', type=str, nargs='?', default='',
             help="Filter tests."
-        )
-        tests.add_argument(
-            '--path', '-p',
-            action='store_true', default=False,
-            help='Print the path for each suite file.'
         )
         tests.add_argument(
             '--verbose', '-v',
@@ -822,7 +812,7 @@ class ShowCommand(Command):
 
         fields = ['name', 'tests']
 
-        if args.verbose or args.err or args.path:
+        if args.verbose or args.err:
             fields.append('path')
 
             if args.err:
@@ -879,7 +869,7 @@ class ShowCommand(Command):
                 })
 
         fields = ['name', 'summary']
-        if args.verbose or args.err or args.path:
+        if args.verbose or args.err:
             fields.append('path')
 
             if args.err:

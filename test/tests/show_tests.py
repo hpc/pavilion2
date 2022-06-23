@@ -35,7 +35,6 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'suites', '--err'),
             ('show', 'suites', '--supersedes'),
             ('show', 'suites', '--verbose'),
-            ('show', 'suites', '--path'),
             ('show', 'system_variables'),
             ('show', 'system_variables', '--verbose'),
             ('show', 'test_config'),
@@ -45,7 +44,6 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'tests', '--doc', 'hello_world.narf'),
             ('show', 'tests', '--hidden'),
             ('show', 'tests', '--verbose'),
-            ('show', 'tests', '--path'),
         ]
 
         parser = arguments.get_parser()
