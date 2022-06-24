@@ -189,7 +189,7 @@ class GraphCommand(Command):
             except ResultTypeError as err:
                 output.fprint(self.errfile, "Gather graph data for test {} resulted in "
                                             "invalid type: \n{}"
-                              .format(test.id, err), color=output.RED)
+                              .format(test.id, err), color=output.YELLOW)
                 continue
 
             graph_data = GraphCommand.combine_graph_data(graph_data,
