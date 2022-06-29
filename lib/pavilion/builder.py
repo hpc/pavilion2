@@ -707,7 +707,7 @@ class TestBuilder:
                         .format(src_path, dest, err))
 
         tracker.update(
-            state=STATES.CREATED,
+            state=STATES.BUILDING,
             note="Generating dynamically created files.")
 
         # Create build time file(s).
