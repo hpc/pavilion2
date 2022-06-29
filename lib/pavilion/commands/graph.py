@@ -141,7 +141,7 @@ class GraphCommand(Command):
         output.fprint(self.outfile, "Generating Graph...")
 
         # Get filtered Test IDs.
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
 
         # Load TestRun for all tests, skip those that are to be excluded.
         tests = cmd_utils.get_tests_by_paths(
@@ -189,8 +189,8 @@ class GraphCommand(Command):
             except ResultTypeError as err:
                 output.fprint(self.errfile, "Gather graph data for test {} resulted in "
                                             "invalid type: \n{}"
-                              .format(test.id, err), color=output.RED)
-                return errno.EINVAL
+                              .format(test.id, err), color=output.YELLOW)
+                continue
 
             graph_data = GraphCommand.combine_graph_data(graph_data,
                                                          test_graph_data)
@@ -403,6 +403,7 @@ class GraphCommand(Command):
         if not pathlib.Path(outfile).suffix:
             outfile = outfile + '.png'
 
+        fig.savefig(outfile)
         output.fprint(self.outfile, "Completed. Graph saved as '{}'."
                       .format(outfile), color=output.GREEN)
 

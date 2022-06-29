@@ -25,7 +25,9 @@ if [[ -n ${SHARED_GROUP} ]]; then
     done
 
     # Run pavilion under the given shared group, if one is in the config.
+    # newgrp drops LD_LIBRARY_PATH, which causes problems...
     newgrp "${SHARED_GROUP}" <<EOF
+        export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
         ${CMD}
 EOF
 

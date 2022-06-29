@@ -8,6 +8,7 @@ import shutil
 import sys
 import stat
 
+from pavilion import cmd_utils
 from pavilion import dir_db
 from pavilion import output
 from pavilion import utils
@@ -26,7 +27,7 @@ class LSCommand(Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'test_id', type=int,
+            'test_id',
             help="Test id number.",
             metavar='TEST_ID',
         )
@@ -76,13 +77,23 @@ class LSCommand(Command):
     def run(self, pav_cfg, args):
         """List the run directory for the given run."""
 
-        test_run_dir = pav_cfg.working_dir / 'test_runs'
-        test_dir = dir_db.make_id_path(test_run_dir, args.test_id)
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
+        if not tests:
+            output.fprint(self.errfile, "Could not find test '{}'".format(args.test_id))
+            return errno.EEXIST
+        elif len(tests) > 1:
+            output.fprint(
+                self.errfile, "Matched multiple tests. Listing files for first "
+                              "test only (test {})".format(tests[0].full_id),
+                color=output.YELLOW)
+        test = tests[0]
+
+        test_dir = test.path
         if args.subdir:
             test_dir = test_dir/args.subdir
 
-        if os.path.isdir(test_dir.as_posix()) is False:
-            output.fprint(sys.stderr, "directory '{}' does not exist.".format(test_dir),
+        if not test_dir.is_dir():
+            output.fprint(sys.stderr, "Path {} is not a directory.".format(test_dir),
                           color=output.RED)
             return errno.EEXIST
 
@@ -96,14 +107,13 @@ class LSCommand(Command):
             level = 0
             self.tree_(level, test_dir)
             return 0
+        else:
+            symlink = args.symlink or args.long
+            perms = args.perms or args.long
+            size = args.size or args.long
+            date = args.date or args.long
 
-
-        symlink = args.symlink or args.long
-        perms = args.perms or args.long
-        size = args.size or args.long
-        date = args.date or args.long
-
-        return self.ls_(test_dir, symlink, perms, size, date)
+            return self.ls_(test_dir, symlink, perms, size, date)
 
     BASE_FN_WIDTH = 40
 

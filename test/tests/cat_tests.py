@@ -17,7 +17,7 @@ class StatusTests(PavTestCase):
         cat_cmd.outfile = cat_cmd.errfile = io.StringIO()
 
         arg_parser = arguments.get_parser()
-        arg_sets = (['cat', str(test.id), 'run.tmpl'],)
+        arg_sets = (['cat', test.full_id, 'run.tmpl'],)
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             cat_cmd.run(self.pav_cfg, args)

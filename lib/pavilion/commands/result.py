@@ -88,7 +88,7 @@ class ResultsCommand(Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
         log_file = None

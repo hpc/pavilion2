@@ -561,6 +561,7 @@ class TestRun(TestAttributes):
         if cancel_event is None:
             cancel_event = threading.Event()
 
+        build_result = False
         if self.builder.build(self.full_id, tracker=tracker,
                               cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
@@ -586,7 +587,11 @@ class TestRun(TestAttributes):
             build_result = True
 
         else:
-            self.builder.fail_path.rename(self.build_path)
+            try:
+                self.builder.fail_path.rename(self.build_path)
+            except OSError as err:
+                tracker.error("Could not move failed build: {}".format(err))
+
             for file in utils.flat_walk(self.build_path):
                 try:
                     file.chmod(file.stat().st_mode | 0o220)
@@ -1047,7 +1052,9 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Perform module related changes to the environment.')
 
             for module in config.get('modules', []):
-                script.module_change(module, self.var_man)
+                module = module.strip()
+                if module:
+                    script.module_change(module, self.var_man)
 
         env = config.get('env', {})
         if env:
