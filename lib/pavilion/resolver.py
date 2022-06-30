@@ -17,7 +17,7 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO
+from typing import List, IO, Dict
 
 import yc_yaml
 from pavilion import output, variables
@@ -93,27 +93,28 @@ class TestConfigResolver:
 
         user_vars = raw_test_cfg.get('variables', {})
         var_man = copy.deepcopy(self.base_var_man)
+        test_name = raw_test_cfg.get('name', '<no name>')
 
         # Since per vars are the highest in resolution order, we can make things
         # a bit faster by adding these after we find the used per vars.
         try:
             var_man.add_var_set('var', user_vars)
         except VariableError as err:
-            raise TestConfigError("Error in variables section: {}".format(err))
+            raise TestConfigError("Error in variables section for test '{}': {}"
+                                  .format(test_name, err))
 
         scheduler = raw_test_cfg.get('scheduler', '<undefined>')
         try:
             sched = schedulers.get_plugin(scheduler)
         except schedulers.SchedulerPluginError:
             raise TestConfigError(
-                "Could not find scheduler '{}'"
-                .format(scheduler))
+                "Could not find scheduler '{}' for test '{}'"
+                .format(scheduler, test_name))
 
         if not sched.available():
             raise TestConfigError(
-                "Scheduler '{}' is not available on this system"
-                .format(sched.name)
-            )
+                "Scheduler '{}' is not available on this system (test {})"
+                .format(sched.name, test_name))
 
         schedule_cfg = raw_test_cfg.get('schedule', {})
         schedule_cfg = resolve.test_vars(schedule_cfg, var_man)
@@ -123,13 +124,39 @@ class TestConfigResolver:
         except schedulers.SchedulerPluginError as err:
             # Errors should generally be deferred here, but just in case.
             raise TestConfigError(
-                "Error getting initial variables from scheduler {}: {} \n\n"
+                "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
                 "Scheduler Config: \n{}"
-                .format(scheduler, err.args[0], pprint.pformat(schedule_cfg)))
+                .format(scheduler, test_name, err.args[0], pprint.pformat(schedule_cfg)))
 
         var_man.add_var_set('sched', sched_vars)
 
         return var_man
+
+    def check_required_variables(self, raw_tests: List[Dict]):
+        """Check all the variables defined as defaults with a null value to
+        make sure they were actually defined."""
+
+        _ = self
+
+        for config in raw_tests:
+            # This should be a VarCatElem, which has a built-in defaults dict.
+            defaults: Dict = config['variables'].defaults
+            cvars = config['variables']
+            for key, def_val in defaults.items():
+                if def_val is None and key not in cvars or cvars[key] is None:
+                    raise TestConfigError(
+                        "In test '{}', variable '{}' is required but was never set."
+                        .format(config['name'], key))
+                elif isinstance(def_val, dict):
+                    # Check all the sub-value defaults for required values.
+                    for skey, sdef_val in def_val.items():
+                        # There's another potential case here where the base
+                        # variable doesn't exist. That shouldn't actually be possible,
+                        # as if nothing is defined the defaults are set as the value.
+                        if sdef_val is None and skey not in config['variables'].get(key, {}):
+                            raise TestConfigError(
+                                "In test '{}', variable '{}.{}' is required, but was not set"
+                                .format(config['name'], key, skey))
 
     def find_config(self, conf_type, conf_name) -> (str, Path):
         """Search all of the known configuration directories for a config of the
@@ -342,6 +369,8 @@ class TestConfigResolver:
                 msg = 'Error applying overrides to test {} from {}: {}' \
                     .format(raw_test['name'], raw_test['suite_path'], err)
                 raise TestConfigError(msg)
+
+        self.check_required_variables(raw_tests)
 
         complete = 0
 
@@ -914,6 +943,7 @@ class TestConfigResolver:
                     "Loaded test '{}' in suite '{}' raised a type error, "
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
+
             try:
                 self.check_version_compatibility(test_config)
             except TestConfigError as err:

@@ -7,6 +7,7 @@ handles that are documented below.
 import copy
 import re
 from collections import OrderedDict
+from typing import List
 
 import yaml_config as yc
 from pavilion.errors import TestConfigError
@@ -84,8 +85,56 @@ class ResultParserCatElem(yc.CategoryElem):
     )
 
 
+class VarCatDict(dict):
+    """The variable category items can set sub-dictionary defaults. We track them here."""
+
+    def __init__(self, *args, **kwargs):
+        self.defaults = {}
+        super().__init__(*args, **kwargs)
+
+    def __copy__(self):
+        """Make sure to copy the defaults too."""
+
+        dict_copy = super().copy()
+        dict_copy.defaults = self.defaults
+        return dict_copy
+
+    def __deepcopy__(self, memodict=None):
+        """Also make sure to copy the defaults."""
+
+        new = self.__class__()
+        for key, val in self.items():
+            new[key] = val
+        new.defaults = self.defaults.copy()
+        return new
+
+    def add_items(self, start_items: List, items: List, key: str):
+        """Rebase the dictionary on top of the defaults.
+
+        :param start_items: A list type of any existing items.
+        :param items: List of items to add. These can be strings or dictionaries,
+            dictionaries will have their defaults set.
+        :param key: The key to save the items to.
+        """
+
+        start_items = copy.deepcopy(start_items)
+
+        for item in items:
+            if isinstance(item, dict):
+                rebase = {}
+                rebase.update(self.defaults.get(key, {}))
+                rebase.update(item)
+                if rebase not in start_items:
+                    start_items.append(rebase)
+            else:
+                if item not in start_items:
+                    start_items.append(item)
+
+        self[key] = start_items
+
+
 class VarCatElem(yc.CategoryElem):
-    """For describing how the variables section itself works.
+    """For describing how the variables' section itself works.
 
     Just like a regular category elem (any conforming key, but values must
     be the same type), but with some special magic when merging values.
@@ -93,6 +142,14 @@ class VarCatElem(yc.CategoryElem):
     :cvar _NAME_RE: Unlike normal categoryElem keys, these can have dashes.
     """
     _NAME_RE = VAR_NAME_RE
+    type = VarCatDict
+
+    def validate(self, value, partial=False):
+        """Make sure default value propagate through validation."""
+        validated = super().validate(value, partial=partial)
+        if value is not None:
+            validated.defaults = value.defaults
+        return validated
 
     def merge(self, old, new):
         """Merge, but allow for special keys that change our merge behavior.
@@ -105,40 +162,62 @@ class VarCatElem(yc.CategoryElem):
           levels of the config stack.
         """
 
-        base = copy.deepcopy(old)
+        base: VarCatDict = copy.deepcopy(old)
         for key, value in new.items():
             # Handle special key properties
             if key[-1] in '?+':
                 bkey = key[:-1]
                 new_vals = new[key]
+                # Standardize this as a list.
+                if not isinstance(new_vals, list) and new_vals is not None:
+                    new_vals = [new_vals]
 
                 if key.endswith('?'):
                     if new_vals is None:
-                        raise TestConfigError(
-                            "Key '{key}' in variables section must have a "
-                            "value, either set as the default at this level or "
-                            "provided by an underlying host or mode config."
-                            .format(key=key)
-                        )
-                    # Use the new value only if there isn't an old one.
-                    base[bkey] = base.get(bkey, new[key])
+                        base.defaults[bkey] = None
+                    elif isinstance(new_vals[0], dict):
+                        # Dictionaries get their defaults saved in the special 'defaults'
+                        # dict. Existing, undefined keys will be set, and any additional
+                        # added items will get these defaults too. If no items exist, the
+                        # defaults themselves will be set.
+                        if len(new_vals) != 1:
+                            raise TestConfigError(
+                                "Key '{}' in variables section is trying to set a list of "
+                                "sub-var defaults, but only one is allowed.".format(key))
+                        defaults = base.defaults.get(bkey, {})
+                        defaults.update(new_vals[0])
+                        base.defaults[bkey] = defaults
+
+                        if base.get(bkey):
+                            # Re-add all existing values, given the new defaults.
+                            base.add_items(self._sub_elem.type(), base[bkey], bkey)
+                        else:
+                            # Add the default as the only defined value when none already
+                            # exist.
+                            base.add_items(self._sub_elem.type(), new_vals, bkey)
+                    else:
+                        # strings and lists of strings, put in the default value if one
+                        # isn't defined.
+                        base[bkey] = base.get(bkey, new[key])
                 elif key.endswith('+'):
+                    # Extend the list of values. For dictionaries, fill in any missing
+                    # sub-vars with default values if defined.
                     if new_vals is None:
                         raise TestConfigError(
                             "Key '{key}' in variables section is in extend "
                             "mode, but provided no values."
                             .format(key=key))
+                    initial_items = base.get(bkey, self._sub_elem.type())
+                    base.add_items(initial_items, new_vals, bkey)
 
-                    # Appending the additional (unique) values
-                    base[bkey] = base.get(bkey, self._sub_elem.type())
-                    for item in new_vals:
-                        if item not in base[bkey]:
-                            base[bkey].append(item)
-
-            elif key in old:
-                base[key] = self._sub_elem.merge(old[key], new[key])
+            elif value is None:
+                raise TestConfigError(
+                    "Key '{key}' in variables section did not provide a value."
+                    .format(key=key)
+                )
             else:
-                base[key] = new[key]
+                # Otherwise, just replace the old values with new ones.
+                base.add_items(self._sub_elem.type(), new[key], key)
 
         return base
 
