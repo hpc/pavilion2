@@ -484,7 +484,7 @@ index, sub_var) tuple.
                 item = var_set.data[var_name]
 
                 if isinstance(item, DeferredVariable):
-                    dvar_sets[var_name] = None
+                    dvar_sets[var_set.name][var_name] = None
                 else:
                     for subitem in item.data:
                         if None in subitem.data:

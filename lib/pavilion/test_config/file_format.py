@@ -6,7 +6,7 @@ handles that are documented below.
 
 import copy
 import re
-from collections import OrderedDict, UserDict
+from collections import OrderedDict
 from typing import List
 
 import yaml_config as yc
@@ -108,7 +108,7 @@ class VarCatDict(dict):
         new.defaults = self.defaults.copy()
         return new
 
-    def add_items(self, start_items: List, items: List, key: str) -> List:
+    def add_items(self, start_items: List, items: List, key: str):
         """Rebase the dictionary on top of the defaults.
 
         :param start_items: A list type of any existing items.
@@ -134,7 +134,7 @@ class VarCatDict(dict):
 
 
 class VarCatElem(yc.CategoryElem):
-    """For describing how the variables section itself works.
+    """For describing how the variables' section itself works.
 
     Just like a regular category elem (any conforming key, but values must
     be the same type), but with some special magic when merging values.
@@ -143,6 +143,13 @@ class VarCatElem(yc.CategoryElem):
     """
     _NAME_RE = VAR_NAME_RE
     type = VarCatDict
+
+    def validate(self, value, partial=False):
+        """Make sure default value propagate through validation."""
+        validated = super().validate(value, partial=partial)
+        if value is not None:
+            validated.defaults = value.defaults
+        return validated
 
     def merge(self, old, new):
         """Merge, but allow for special keys that change our merge behavior.
@@ -203,6 +210,11 @@ class VarCatElem(yc.CategoryElem):
                     initial_items = base.get(bkey, self._sub_elem.type())
                     base.add_items(initial_items, new_vals, bkey)
 
+            elif value is None:
+                raise TestConfigError(
+                    "Key '{key}' in variables section did not provide a value."
+                    .format(key=key)
+                )
             else:
                 # Otherwise, just replace the old values with new ones.
                 base.add_items(self._sub_elem.type(), new[key], key)

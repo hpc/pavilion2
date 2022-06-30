@@ -133,7 +133,7 @@ class TestConfigResolver:
         return var_man
 
     def check_required_variables(self, raw_tests: List[Dict]):
-        """Check all of the variables defined as defaults with a null value to
+        """Check all the variables defined as defaults with a null value to
         make sure they were actually defined."""
 
         _ = self
@@ -917,8 +917,6 @@ class TestConfigResolver:
         del suite_tests['__base__']
 
         for test_name, test_config in suite_tests.items():
-            # Validation hoses these. We need to restore them afterwords
-            variable_defaults = test_config['variables'].defaults
             try:
                 suite_tests[test_name] = test_config_loader\
                                             .validate(test_config)
@@ -945,8 +943,6 @@ class TestConfigResolver:
                     "Loaded test '{}' in suite '{}' raised a type error, "
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
-
-            suite_tests[test_name]['variables'].defaults = variable_defaults
 
             try:
                 self.check_version_compatibility(test_config)

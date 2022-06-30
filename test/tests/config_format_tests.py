@@ -20,12 +20,12 @@ class TestConfig(PavTestCase):
         self.assertEqual(data.scheduler, 'slurm')
         self.assertEqual(data.run.cmds[0], 'true')
 
-        self.assertEqual(len(data.variables), 4)
-        self.assertEqual(data.variables.fish, ['halibut'])
-        self.assertEqual(data.variables.animal, ['squirrel'])
-        self.assertEqual(data.variables.bird, ['eagle', 'mockingbird',
-                                               'woodpecker'])
-        self.assertEqual(data.variables.horse[0].legs, '4')
+        variables = data['variables']
+        self.assertEqual(len(variables), 4)
+        self.assertEqual(variables['fish'], ['halibut'])
+        self.assertEqual(variables['animal'], ['squirrel'])
+        self.assertEqual(variables['bird'], ['eagle', 'mockingbird', 'woodpecker'])
+        self.assertEqual(variables['horse'][0].legs, '4')
 
     def test_pav_config_recycle(self):
         """Make sure a config template file is a valid config."""
