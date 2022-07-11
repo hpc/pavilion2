@@ -258,26 +258,16 @@ index, sub_var) tuple.
         else:
             return '.'.join([str(k) for k in key if k is not None])
 
-    def resolve_references(self, partial=False, skip: List = None, only: List = None):
+    def resolve_references(self, partial=False, skip: List = None):
         """Resolve all variable references that are within variable values
         defined in the 'variables' section of the test config.
 
+        :param partial: If true, will ignore errors from variables that can't resolve.
+        :param skip: Variables (a list of variable names) to skip
         :raises VariableError: When reference loops are found.
         """
 
         skip = skip or []
-
-        only_resolved = []
-        for var in (only or []):
-            # Filter out variable names we can't resolve or ones not in the var section.
-            try:
-                resolved = self.resolve_key(var)
-            except KeyError:
-                continue
-
-            if resolved[0] == 'var':
-                only_resolved.append(resolved[1])
-        only = only_resolved
 
         # We only want to resolve variable references in the variable section
         var_vars = self.variable_sets['var']
@@ -290,7 +280,7 @@ index, sub_var) tuple.
         for var, var_list in var_vars.data.items():
             # val is a list of dictionaries
 
-            if only and var not in only:
+            if var in skip:
                 continue
 
             for idx in range(len(var_list.data)):
@@ -324,7 +314,6 @@ index, sub_var) tuple.
         while unresolved_vars:
             did_resolve = False
             for uvar, (tree, variables) in unresolved_vars.copy().items():
-                print(uvar)
                 for var_str in variables:
                     try:
                         var_key = self.resolve_key(var_str)
@@ -395,7 +384,11 @@ index, sub_var) tuple.
         var_set, var, index, sub_var = key_parts = self.resolve_key(key)
 
         if var_set == 'var':
-            if
+            if key_parts in self.resolved_user_vars:
+                raise KeyError(
+                    "Variable {} has not yet been resolved. This is usually because you're "
+                    "trying to use permutation variables in the schedule section at the "
+                    "same time as you permute over scheduler variables.")
 
         if self.is_deferred(key_parts):
             raise DeferredError("Trying to get the value of a deferred "

@@ -121,15 +121,15 @@ class TestConfigResolver:
         permute_vars = raw_test_cfg.get('permute_on', []) or []
         for pvar in permute_vars:
             try:
-                var_man.resolve_key(pvar)
+                var_set, var, _, _ = var_man.resolve_key(pvar)
             except KeyError:
-                if pvar.startswith('sched.'):
-                    sched_permute = True
-                else:
-                    raise TestConfigError(
-                        "Permuting on variable '{}', but could not find its value. If this "
-                        "is supposed to be a scheduler variable, you must prefix it with "
-                        "'sched.'".format(pvar))
+                raise TestConfigError(
+                    "Permuting on variable '{}', but could not find its value. If this "
+                    "is supposed to be a scheduler variable, you must prefix it with "
+                    "'sched.'".format(pvar))
+
+            if var_set == 'sched':
+                sched_permute = True
 
         if sched_permute:
             # When permuting over a scheduler variable, we must first resolve all the
@@ -1089,10 +1089,15 @@ class TestConfigResolver:
                                   .format(sched_name, test_name))
         sched_cfg = test_cfg.get('schedule', {})
 
-        var_men = base_var_man.get_permutations(used_per_vars)
+        import pprint
+        pprint.pprint(base_var_man.as_dict())
         if 'sched' not in base_var_man.variable_sets:
             # When permuting over non-scheduler variables, we'll need to get the sched vars
             # after permuting on a test-by-test basis.
+            print(used_per_vars)
+            print(base_var_man.get('sched.nodes'))
+            var_men = base_var_man.get_permutations(used_per_vars)
+            print(len(var_men))
             for var_man in var_men:
                 var_man.resolve_references(partial=True)
                 try:
@@ -1111,6 +1116,8 @@ class TestConfigResolver:
                         .format(sched_name, test_name, err.args[0], pprint.pformat(sched_cfg)))
 
                 var_man.add_var_set('sched', sched_vars)
+        else:
+            var_men = base_var_man.get_permutations(used_per_vars)
 
         for var_man in var_men:
             try:
