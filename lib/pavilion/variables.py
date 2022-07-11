@@ -22,7 +22,7 @@ provided (sched).
 
 import copy
 import json
-from typing import Union
+from typing import Union, List
 
 from pavilion import parsers
 from pavilion.deferred import DeferredVariable
@@ -58,6 +58,10 @@ Usage: ::
 
         # A dictionary of the known deferred variables.
         self.deferred = set()
+
+        # A list of user variables that have been fully resolved in this variable manager,
+        # so that we don't try to resolve them twice.
+        self.resolved_user_vars = []
 
     def add_var_set(self, name, value_dict):
         """Add a new variable set to this variable set manager. Variables in
@@ -254,12 +258,26 @@ index, sub_var) tuple.
         else:
             return '.'.join([str(k) for k in key if k is not None])
 
-    def resolve_references(self):
+    def resolve_references(self, partial=False, skip: List = None, only: List = None):
         """Resolve all variable references that are within variable values
         defined in the 'variables' section of the test config.
 
         :raises VariableError: When reference loops are found.
         """
+
+        skip = skip or []
+
+        only_resolved = []
+        for var in (only or []):
+            # Filter out variable names we can't resolve or ones not in the var section.
+            try:
+                resolved = self.resolve_key(var)
+            except KeyError:
+                continue
+
+            if resolved[0] == 'var':
+                only_resolved.append(resolved[1])
+        only = only_resolved
 
         # We only want to resolve variable references in the variable section
         var_vars = self.variable_sets['var']
@@ -272,27 +290,49 @@ index, sub_var) tuple.
         for var, var_list in var_vars.data.items():
             # val is a list of dictionaries
 
+            if only and var not in only:
+                continue
+
             for idx in range(len(var_list.data)):
                 sub_var = var_list.data[idx]
                 for key, val in sub_var.data.items():
-                    tree = parser.parse(val)
-                    variables = var_visitor.visit(tree)
+                    var_tpl = ('var', var, idx, key)
+                    # Skip variables we've already resolved.
+                    if var_tpl in self.resolved_user_vars:
+                        continue
 
-                    if variables:
+                    # Check that we should even try parsing this variable value.
+                    if not parsers.strings.should_parse(val):
+                        self.resolved_user_vars.append(var_tpl)
+                        continue
+
+                    tree = parser.parse(val)
+                    tree_vars = var_visitor.visit(tree)
+
+                    if tree_vars:
                         # Unresolved variable reference that will be resolved
                         # below.
-                        unresolved_vars[('var', var, idx, key)] = (tree,
-                                                                   variables)
+                        unresolved_vars[('var', var, idx, key)] = (tree, tree_vars)
+                    else:
+                        self.resolved_user_vars.append(var_tpl)
 
         # unresolved variables form a tree where the leaves should all be
         # resolved variables. This iteratively finds unresolved variables whose
         # references are resolved and resolves them. This should collapse the
         # tree until there are no unresolved variables left.
+        can_not_resolve = set()
         while unresolved_vars:
             did_resolve = False
             for uvar, (tree, variables) in unresolved_vars.copy().items():
+                print(uvar)
                 for var_str in variables:
-                    var_key = self.resolve_key(var_str)
+                    try:
+                        var_key = self.resolve_key(var_str)
+                    except KeyError:
+                        if partial:
+                            break
+                        raise
+
                     # Set the index 0 if it is None
                     if var_key[2] == '*':
                         # If the var references a whole list of items,
@@ -307,6 +347,7 @@ index, sub_var) tuple.
 
                         if var_key in unresolved_vars:
                             break
+
                 else:
                     # All variables referenced in uvar are resolvable
                     var_set, var_name, index, sub_var = uvar
@@ -332,12 +373,16 @@ index, sub_var) tuple.
                     did_resolve = True
 
             # If no variable is resolved in this iteration, then all remaining
-            # unresolved variables are part of a variable reference loop and
-            # therefore cannot eventually be resolved.
+            # unresolved variables are part of a variable reference loop or simply
+            # can't be resolved.
             if not did_resolve:
-                raise VariableError(
-                    "Variables '{}' contained reference loop"
-                    .format([k[1] for k in unresolved_vars.keys()]))
+                # If we don't expect full resolution, this is ok.
+                if partial:
+                    break
+                else:
+                    raise VariableError(
+                        "Variables '{}' contained reference loop"
+                        .format([k[1] for k in unresolved_vars.keys()]))
 
     def __getitem__(self, key):
         """Find the item that corresponds to the given complex key.
@@ -348,6 +393,9 @@ index, sub_var) tuple.
         """
 
         var_set, var, index, sub_var = key_parts = self.resolve_key(key)
+
+        if var_set == 'var':
+            if
 
         if self.is_deferred(key_parts):
             raise DeferredError("Trying to get the value of a deferred "
@@ -617,6 +665,7 @@ index, sub_var) tuple.
 
         var_man.variable_sets = copy.deepcopy(self.variable_sets)
         var_man.deferred = copy.deepcopy(self.deferred)
+        var_man.resolved_user_vars = copy.deepcopy(self.resolved_user_vars)
 
         return var_man
 

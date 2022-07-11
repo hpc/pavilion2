@@ -477,7 +477,7 @@ class ResolverTests(PavTestCase):
 
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
-            out_test = resolve.test_vars(test, var_man)
+            out_test = resolve.test_config(test, var_man)
             # This is a random number that gets added. It can't be predicted.
             del out_test['permute_base']
             self.assertIn(out_test, answers)
@@ -500,7 +500,7 @@ class ResolverTests(PavTestCase):
 
         with self.assertRaises(TestConfigError):
             # No deferred variables in the build section.
-            resolve.test_vars(test, permuted[0])
+            resolve.test_config(test, permuted[0])
 
     def test_env_order(self):
         """Make sure environment variables keep their order from the test
@@ -736,3 +736,7 @@ class ResolverTests(PavTestCase):
 
         # This test should be fine.
         self.resolver.load(['sched_errors.d_no_nodes'])
+
+    def test_permute_order(self):
+        """Check that tests resolve with both variable/permute resolution orders."""
+

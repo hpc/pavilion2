@@ -8,12 +8,13 @@ import textwrap
 class PavilionError(RuntimeError):
     """Base class for all Pavilion errors."""
 
-    SPLIT_RE = re.compile(': *\n? *]')
+    SPLIT_RE = re.compile(': *\n? *')
     TAB_LEVEL = '  '
 
     def __str__(self):
         msg = self.args[0]
         parts = self.SPLIT_RE.split(msg)
+        print(parts)
         lines = []
         for i in range(len(parts)):
             lines.extend(textwrap.wrap(parts[i], 80, initial_indent=i*self.TAB_LEVEL))

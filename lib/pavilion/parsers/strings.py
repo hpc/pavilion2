@@ -95,6 +95,17 @@ def get_string_parser(debug=False):
     return parser
 
 
+def should_parse(text):
+    """Returns true if text is a string that needs to be parsed. We err on the side of
+    parsing some string unnecessarily, but this check is much faster than actually calling
+    the parser."""
+
+    if not text:
+        return False
+
+    return '{{' in text or '[~' in text or '\\' in text
+
+
 class ExprToken(lark.Token):
     """Denotes a special token that represents an expression."""
 

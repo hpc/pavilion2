@@ -17,7 +17,7 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Dict
+from typing import List, IO, Dict, Set, Tuple
 
 import yc_yaml
 from pavilion import output, variables
@@ -116,20 +116,52 @@ class TestConfigResolver:
                 "Scheduler '{}' is not available on this system (test {})"
                 .format(sched.name, test_name))
 
-        schedule_cfg = raw_test_cfg.get('schedule', {})
-        schedule_cfg = resolve.test_vars(schedule_cfg, var_man)
+        # Figure out if we're permuting over a scheduler provided variable.
+        sched_permute = False
+        permute_vars = raw_test_cfg.get('permute_on', []) or []
+        for pvar in permute_vars:
+            try:
+                var_man.resolve_key(pvar)
+            except KeyError:
+                if pvar.startswith('sched.'):
+                    sched_permute = True
+                else:
+                    raise TestConfigError(
+                        "Permuting on variable '{}', but could not find its value. If this "
+                        "is supposed to be a scheduler variable, you must prefix it with "
+                        "'sched.'".format(pvar))
 
-        try:
-            sched_vars = sched.get_initial_vars(schedule_cfg)
-        except schedulers.SchedulerPluginError as err:
-            # Errors should generally be deferred here, but just in case.
-            raise TestConfigError(
-                "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
-                "Scheduler Config: \n{}"
-                .format(scheduler, test_name, err.args[0], pprint.pformat(schedule_cfg)))
+        if sched_permute:
+            # When permuting over a scheduler variable, we must first resolve all the
+            # user variables and then the scheduler config.
 
-        var_man.add_var_set('sched', sched_vars)
+            # It's ok if not everything resolves. In particular, we don't want to resolve
+            # permutation variables because those should never appear in the scheduler config
+            # section.
+            var_man.resolve_references(partial=True, skip=permute_vars)
 
+            schedule_cfg = raw_test_cfg.get('schedule', {})
+            try:
+                schedule_cfg = resolve.test_config(schedule_cfg, var_man)
+            except KeyError as err:
+                raise TestConfigError(
+                    "Failed to resolve the scheduler config due to a missing or "
+                    "unresolved variable. When permuting over a scheduler variable, you "
+                    "can't include 'permute_on' variables in the scheduler config section: "
+                    "{}".format(err))
+
+            try:
+                sched_vars = sched.get_initial_vars(schedule_cfg)
+            except schedulers.SchedulerPluginError as err:
+                # Errors should generally be deferred here, but just in case.
+                raise TestConfigError(
+                    "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
+                    "Scheduler Config: \n{}"
+                    .format(scheduler, test_name, err.args[0], pprint.pformat(schedule_cfg)))
+
+            var_man.add_var_set('sched', sched_vars)
+
+        # This won't have a 'sched' variable set unless we're permuting over scheduler vars.
         return var_man
 
     def check_required_variables(self, raw_tests: List[Dict]):
@@ -448,9 +480,13 @@ class TestConfigResolver:
 
         # Set the scheduler variables for each test.
         for ptest_cfg, pvar_man in permuted_tests:
+            # The variables are dealt with separately
+            if 'variables' in ptest_cfg:
+                del ptest_cfg['variables']
+
             # Resolve all variables for the test (that aren't deferred).
             try:
-                resolved_config = resolve.test_vars(ptest_cfg, pvar_man)
+                resolved_config = resolve.test_config(ptest_cfg, pvar_man)
             except TestConfigError as err:
                 msg = ('In test {} from {}:\n{}'
                        .format(test_cfg['name'], test_cfg['suite_path'],
@@ -953,11 +989,76 @@ class TestConfigResolver:
 
         return suite_tests
 
+    def check_permute_vars(self, permute_on, var_man) -> List[Tuple[str, str]]:
+        """Check the permutation variables and report errors. Returns a set of the
+        (var_set, var) tuples."""
+        per_vars = set()
+        for per_var in permute_on:
+            try:
+                var_set, var, index, subvar = var_man.resolve_key(per_var)
+            except KeyError:
+                # We expect to call this without adding scheduler variables first.
+                if per_var.startswith('sched.') and '.' not in per_var:
+                    per_vars.add(('sched', per_var))
+                    continue
+                else:
+                    raise TestConfigError(
+                        "Permutation variable '{}' is not defined. Note that if you're permuting "
+                        "over a scheduler variable, you must specify the variable type "
+                        "(ie 'sched.node_list')"
+                        .format(per_var))
+            if index is not None or subvar is not None:
+                raise TestConfigError(
+                    "Permutation variable '{}' contains index or subvar. "
+                    "When giving a permutation variable only the variable name "
+                    "and variable set (optional) are allowed. Ex: 'sys.foo' "
+                    " or just 'foo'."
+                    .format(per_var))
+            elif var_man.any_deferred(per_var):
+                raise TestConfigError(
+                    "Permutation variable '{}' references a deferred variable "
+                    "or one with deferred components."
+                    .format(per_var))
+            per_vars.add((var_set, var))
+
+        return sorted(list(per_vars))
+
+    def make_subtitle_template(self, permute_vars, subtitle, var_man) -> str:
+        """Make an appropriate default subtitle given the permutation variables.
+
+        :param permute_vars: The permutation vars, as returned by check_permute_vars.
+        :param subtitle: The raw existing subtitle.
+        :param var_man: The variable manager.
+        """
+
+        parts = []
+        if permute_vars and subtitle is None:
+            var_dict = var_man.as_dict()
+            # These should already be sorted
+            for var_set, var in permute_vars:
+                if var_set == 'sched':
+                    parts.append('{{sched.' + var + '}}')
+                else:
+                    if isinstance(var_dict[var_set][var][0], dict):
+                        parts.append('_' + var + '_')
+
+            return '-'.join(parts)
+        else:
+            return subtitle
+
     def resolve_permutations(self, test_cfg, base_var_man):
         """Resolve permutations for all used permutation variables, returning a
         variable manager for each permuted version of the test config. We use
         this opportunity to populate the variable manager with most other
         variable types as well.
+
+        Note: Resolution order - The order in which we resolve scheduler variables and
+        permute varies based on whether we are permuting over scheduler variables themselves.
+        When permuting over scheduler variables, we must get those variables from the scheduler
+        first. As a consequence, we must resolve the scheduler section and that section cannot
+        contain any permuted variables. On the flip-side, if we don't permute over scheduler
+        variables, we fetch them on a permutation-by-permutation basis because the scheduler
+        config could depend on a permutation variable.
 
         :param dict test_cfg: The raw test configuration dictionary.
         :param variables.VariableSetManager base_var_man: The variables for
@@ -974,45 +1075,43 @@ class TestConfigResolver:
         permute_on = test_cfg['permute_on']
         test_cfg['permute_base'] = uuid.uuid4().hex
 
-        used_per_vars = set()
-        for per_var in permute_on:
-            try:
-                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
-            except KeyError:
-                raise TestConfigError(
-                    "Permutation variable '{}' is not defined."
-                    .format(per_var))
-            if index is not None or subvar is not None:
-                raise TestConfigError(
-                    "Permutation variable '{}' contains index or subvar. "
-                    "When giving a permutation variable only the variable name "
-                    "and variable set (optional) are allowed. Ex: 'sys.foo' "
-                    " or just 'foo'."
-                    .format(per_var))
-            elif base_var_man.any_deferred(per_var):
+        used_per_vars = self.check_permute_vars(permute_on, base_var_man)
+        test_cfg['subtitle'] = self.make_subtitle_template(
+            used_per_vars, test_cfg.get('subtitle'), base_var_man)
 
-                raise TestConfigError(
-                    "Permutation variable '{}' references a deferred variable "
-                    "or one with deferred components."
-                    .format(per_var))
-            used_per_vars.add((var_set, var))
+        test_name = test_cfg.get('name', '<no name>')
 
-        if permute_on and test_cfg.get('subtitle', None) is None:
-            subtitle = []
-            var_dict = base_var_man.as_dict()
-            for per_var in permute_on:
-                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
-                if isinstance(var_dict[var_set][var][0], dict):
-                    subtitle.append('_' + var + '_')
-                else:
-                    subtitle.append('{{' + per_var + '}}')
+        sched_name = test_cfg.get('scheduler', '<undefined>')
+        try:
+            sched = schedulers.get_plugin(sched_name)
+        except schedulers.SchedulerPluginError:
+            raise TestConfigError("Could not find scheduler '{}' for test '{}'"
+                                  .format(sched_name, test_name))
+        sched_cfg = test_cfg.get('schedule', {})
 
-            subtitle = '-'.join(subtitle)
+        var_men = base_var_man.get_permutations(used_per_vars)
+        if 'sched' not in base_var_man.variable_sets:
+            # When permuting over non-scheduler variables, we'll need to get the sched vars
+            # after permuting on a test-by-test basis.
+            for var_man in var_men:
+                var_man.resolve_references(partial=True)
+                try:
+                    sched_cfg = resolve.test_config(sched_cfg, var_man)
+                except KeyError as err:
+                    raise TestConfigError(
+                        "Failed to resolve the scheduler config due to a missing or "
+                        "unresolved variable for test {}: {}".format(test_name, err))
 
-            test_cfg['subtitle'] = subtitle
+                try:
+                    sched_vars = sched.get_initial_vars(sched_cfg)
+                except schedulers.SchedulerPluginError as err:
+                    raise TestConfigError(
+                        "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
+                        "Scheduler Config: \n{}"
+                        .format(sched_name, test_name, err.args[0], pprint.pformat(sched_cfg)))
 
-        # var_men is a list of variable managers, one for each permutation
-        var_men = base_var_man.get_permutations(list(used_per_vars))
+                var_man.add_var_set('sched', sched_vars)
+
         for var_man in var_men:
             try:
                 var_man.resolve_references()
@@ -1020,6 +1119,7 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Error resolving vars in permuted test '{}':\n{}"
                     .format(test_cfg.get('name', '<no name>'), err))
+
         return test_cfg, var_men
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
