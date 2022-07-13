@@ -273,15 +273,15 @@ def config_dirs_validator(config, values):
         path = Path(value)
         try:
             if not path.exists():
-                output.fprint(sys.stderr, "Config directory {} does not exist. Ignoring."
+                output.fprint(sys.stderr, "Config directory '{}' does not exist. Ignoring."
                               .format(value), color=output.YELLOW)
 
                 # Attempt to force a permissions error if we can't read this directory.
                 list(path.iterdir())
 
         except PermissionError:
-            output.fprint(sys.stderr, "Cannot access config directory {}. Ignoring.",
-                          color=output.YELLOW)
+            output.fprint(sys.stderr, "Cannot access config directory '{}'. Ignoring."
+                          .format(value), color=output.YELLOW)
             continue
 
         if path not in config_dirs:
