@@ -43,13 +43,16 @@ class ScheduleConfig(yc.KeyedElem):
         yc.StrElem(
             'tasks_per_node',
             help_text="The number of tasks to start per node. This can be"
-                      "an integer, the keyword 'all' or 'min', or a percentage."
-                      "The 'all' keyword will create a "
-                      "number of tasks equal to the number of CPUs across all "
-                      "nodes. Min will create a number of tasks per node equal "
+                      "an integer, the keyword 'all', or a percentage."
+                      "'all' will create a number of tasks per node equal "
                       "to the CPUs for the node with the least CPUs in the "
-                      "selected partition. A percentage will create a task "
-                      "for that percentage of the 'min', rounded down."),
+                      "selected nodes. A percentage will create a task "
+                      "for that percentage of the 'all', rounded down (min 1)."),
+        yc.StrElem(
+            'min_tasks_per_node',
+            help_text="A minimum number of tasks per node. Must be an integer (or undefined),"
+                      "This will take precedence over 'tasks_per_node' if it is larger than that "
+                      "value after it is calculated."),
         yc.StrElem(
             'partition',
             help_text="The partition to run the test on."),
@@ -428,6 +431,7 @@ CONFIG_VALIDATORS = {
         'extra':          NODE_EXTRA_OPTIONS,
     },
     'tasks_per_node':   _validate_tasks_per_node,
+    'min_tasks_per_node': min_int('min_tasks_per_node', min_val=1, required=False),
     'node_state':       NODE_STATE_OPTIONS,
     'partition':        None,
     'qos':              None,
@@ -438,10 +442,9 @@ CONFIG_VALIDATORS = {
     'share_allocation': utils.str_bool,
     'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
-        'node_count': min_int('cluster_info.node_count',
-                              min_val=1, required=False),
-        'mem':        min_int('cluster_info.mem', min_val=1, required=False),
-        'cpus':       min_int('cluster_info.cpus', min_val=1, required=False)
+        'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
+        'mem':          min_int('cluster_info.mem', min_val=1, required=False),
+        'cpus':         min_int('cluster_info.cpus', min_val=1, required=False)
     }
 }
 
@@ -454,6 +457,7 @@ CONFIG_DEFAULTS = {
         'extra':          BACKFILL,
     },
     'tasks_per_node':   '1',
+    'min_tasks_per_node': None,
     'node_state':       UP,
     'partition':        None,
     'qos':              None,
@@ -532,6 +536,7 @@ def validate_config(config: Dict[str, str],
             raise RuntimeError("Invalid validator: '{}'".format(validator))
 
     return normalized_config
+
 
 def calc_node_range(sched_config, node_count) -> Tuple[int, int]:
     """Calculate a node range for the job given the min_nodes and nodes, and

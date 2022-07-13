@@ -82,6 +82,7 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
                 'available': (node_id % 10) not in (0, 1),
                 'partitions': partitions,
                 'reservations': reservations,
+                'cpus': 13,
                 'features': features,
                 'foo': sched_config['dummy']['foo'],
             })
