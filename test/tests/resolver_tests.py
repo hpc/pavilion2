@@ -740,13 +740,7 @@ class ResolverTests(PavTestCase):
     def test_permute_order(self):
         """Check that tests resolve with both variable/permute resolution orders."""
 
-        tests = self.resolver.load([
-            'permute_order.sched',
-            'permute_order.multi-sched',
-        ])
-
-        tests2 = self.resolver.load([
-            'permute_order.both'
-        ])
-        print(len(tests2))
-
+        for test, count in ('sched', 100), ('multi-sched', 5), ('both', 10):
+            test = 'permute_order.{}'.format(test)
+            tests = self.resolver.load([test])
+            self.assertEqual(len(tests), count)

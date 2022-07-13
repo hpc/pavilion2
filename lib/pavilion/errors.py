@@ -14,7 +14,6 @@ class PavilionError(RuntimeError):
     def __str__(self):
         msg = self.args[0]
         parts = self.SPLIT_RE.split(msg)
-        print(parts)
         lines = []
         for i in range(len(parts)):
             lines.extend(textwrap.wrap(parts[i], 80, initial_indent=i*self.TAB_LEVEL))
@@ -39,19 +38,12 @@ class VariableError(PavilionError):
     """This error should be thrown when processing variable data,
 and something goes wrong."""
 
-    def __init__(self, message, var_set=None, var=None, index=None,
-                 sub_var=None):
-
-        super().__init__(message)
+    def __init__(self, message, var_set=None, var=None, index=None, sub_var=None):
 
         self.var_set = var_set
         self.var = var
         self.index = index
         self.sub_var = sub_var
-
-        self.base_message = message
-
-    def __str__(self):
 
         key = [str(self.var)]
         if self.var_set is not None:
@@ -63,8 +55,8 @@ and something goes wrong."""
 
         key = '.'.join(key)
 
-        return "Error processing variable key '{}': {}" \
-            .format(key, self.base_message)
+        message = "Error processing variable key '{}': {}".format(key, message)
+        super().__init__(message)
 
 
 class DeferredError(VariableError):
