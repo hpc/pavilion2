@@ -407,13 +407,6 @@ index, sub_var) tuple.
 
         var_set, var, index, sub_var = key_parts = self.resolve_key(key)
 
-        if var_set == 'var':
-            if key_parts in self.resolved_user_vars:
-                raise KeyError(
-                    "Variable {} has not yet been resolved. This is usually because you're "
-                    "trying to use permutation variables in the schedule section at the "
-                    "same time as you permute over scheduler variables.")
-
         if self.is_deferred(key_parts):
             raise DeferredError("Trying to get the value of a deferred "
                                 "variable.")

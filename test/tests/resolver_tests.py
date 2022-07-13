@@ -433,6 +433,7 @@ class ResolverTests(PavTestCase):
             },
             'permute_on': ['foo', 'bar'],
             'subtitle': None,
+            'scheduler': 'raw',
             'schedule': {
                 'nodes': '{{bar.0.p}}',
                 # Make sure recursive vars work too.
@@ -443,7 +444,7 @@ class ResolverTests(PavTestCase):
 
         answer1 = {
                 'permute_on': ['foo', 'bar'],
-                'subtitle': '1-_bar_',
+                'subtitle': '_bar_-1',
                 'build': {
                        'cmds': ["echo 1 4", "echo 1", "echo 4a"],
                        'env': [
@@ -452,6 +453,7 @@ class ResolverTests(PavTestCase):
                            {'pav': '9'},
                            {'sys': '10'}]
                    },
+                'scheduler': 'raw',
                 'schedule': {
                     'nodes': '4',
                     'reservation': '6',
@@ -461,7 +463,7 @@ class ResolverTests(PavTestCase):
         # This is all that changes between the two.
         answer2 = copy.deepcopy(answer1)
         answer2['build']['cmds'] = ["echo 2 4", "echo 2", "echo 4a"]
-        answer2['subtitle'] = '2-_bar_'
+        answer2['subtitle'] = '_bar_-2'
 
         answers = [answer1, answer2]
 
@@ -489,6 +491,7 @@ class ResolverTests(PavTestCase):
                 'cmds': ['echo {{foo}}']
             },
             'permute_on': [],
+            'scheduler': 'raw',
             'variables': {}
         }
 

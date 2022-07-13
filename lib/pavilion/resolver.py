@@ -216,8 +216,7 @@ class TestConfigResolver:
                     suite_cfgs = self.resolve_inheritance(
                         base_config=base,
                         suite_cfg=suite_cfg,
-                        suite_path=file
-                    )
+                        suite_path=file)
                 except Exception as err:  # pylint: disable=W0703
                     suites[suite_name]['err'] = err
                     continue
@@ -422,9 +421,6 @@ class TestConfigResolver:
 
         # Set the scheduler variables for each test.
         for ptest_cfg, pvar_man in permuted_tests:
-            # The variables are dealt with separately
-            if 'variables' in ptest_cfg:
-                del ptest_cfg['variables']
 
             # Resolve all variables for the test (that aren't deferred).
             try:
@@ -965,7 +961,7 @@ class TestConfigResolver:
                     .format(per_var))
             per_vars.add((var_set, var))
 
-        return list(per_vars)
+        return sorted(list(per_vars))
 
     def make_subtitle_template(self, permute_vars, subtitle, var_man) -> str:
         """Make an appropriate default subtitle given the permutation variables.
@@ -984,9 +980,10 @@ class TestConfigResolver:
             for var_set, var in permute_vars:
                 if var_set == 'sched':
                     parts.append('{{sched.' + var + '}}')
+                elif isinstance(var_dict[var_set][var][0], dict):
+                    parts.append('_' + var + '_')
                 else:
-                    if isinstance(var_dict[var_set][var][0], dict):
-                        parts.append('_' + var + '_')
+                    parts.append('{{' + var + '}}')
 
             return '-'.join(parts)
         else:
@@ -1027,7 +1024,7 @@ class TestConfigResolver:
 
         test_name = test_cfg.get('name', '<no name>')
 
-        sched_name = test_cfg.get('scheduler', '<undefined>')
+        sched_name = test_cfg.get('scheduler', 'raw')
         try:
             sched = schedulers.get_plugin(sched_name)
         except schedulers.SchedulerPluginError:
