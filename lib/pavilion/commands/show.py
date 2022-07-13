@@ -2,6 +2,7 @@
 
 import argparse
 import errno
+import fnmatch
 import pprint
 from typing import Union
 
@@ -322,6 +323,10 @@ class ShowCommand(Command):
             aliases=['test'],
             help="Show the available tests.",
             description="Test configurations that can be run using Pavilion."
+        )
+        tests.add_argument(
+            'name_filter', type=str, nargs='?', default='',
+            help="Filter tests."
         )
         tests.add_argument(
             '--verbose', '-v',
@@ -835,7 +840,8 @@ class ShowCommand(Command):
 
         for suite_name in sorted(list(suites.keys())):
             suite = suites[suite_name]
-
+            if not fnmatch.fnmatch(suite_name, args.name_filter) and args.name_filter:
+                continue
             if suite['err']:
                 suite_name = output.ANSIString(suite_name + '.*',
                                                output.RED)
@@ -852,11 +858,9 @@ class ShowCommand(Command):
 
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]
-
                 if test_name.startswith('_') and not args.hidden:
                     # Skip any hidden tests.
                     continue
-
                 rows.append({
                     'name':    '{}.{}'.format(suite_name, test_name),
                     'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT],
