@@ -95,7 +95,7 @@ class RunCommand(Command):
                  "under which Pavilion runs has changed."
         )
         parser.add_argument(
-            'tests', nargs='*', action='store',
+            'tests', nargs='*', action='store', metavar='TEST_NAME',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
                  '<suite_name>.<test_name>. Tests can be repeated explicitly '

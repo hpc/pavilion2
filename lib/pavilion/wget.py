@@ -18,10 +18,10 @@ except ImportError:
 try:
     import requests
 except ImportError as err:
-    if hasattr(err, 'name'):
+    if hasattr(err, 'name') and err.name is not None:
         _MISSING_LIBS.append(err.name)
     else:
-        _MISSING_LIBS.append(err)
+        _MISSING_LIBS.append(str(err))
 
     requests = None
 

@@ -1,0 +1,9 @@
+req_base_var:
+  variables:
+    foo?: 
+
+req_sub_var:
+  variables:
+    bar?:
+      var1: 
+      var2: "42" 
