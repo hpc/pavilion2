@@ -39,6 +39,7 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'system_variables', '--verbose'),
             ('show', 'test_config'),
             ('show', 'tests'),
+            ('show', 'tests', 'name_filter'),
             ('show', 'tests', '--err'),
             ('show', 'tests', '--doc', 'hello_world.narf'),
             ('show', 'tests', '--hidden'),
