@@ -409,7 +409,7 @@ The default config is: ::
 
         var_man.resolve_references()
 
-        cfg = resolve.test_vars(cfg, var_man)
+        cfg = resolve.test_config(cfg, var_man)
 
         test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
         if test.skipped:

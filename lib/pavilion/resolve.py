@@ -17,7 +17,7 @@ NO_DEFERRED_ALLOWED = [
 ]
 
 
-def test_vars(config, var_man):
+def test_config(config, var_man):
     """Recursively resolve the variables in the value strings in the given
     configuration.
 

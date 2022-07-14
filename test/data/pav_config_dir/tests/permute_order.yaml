@@ -1,0 +1,41 @@
+sched:
+  # Permute over a scheduler variable.
+
+  permute_on:
+    - sched.node_list
+
+  scheduler: dummy
+  schedule:
+    nodes: all
+    chunking:
+      size: 4
+
+multi-sched:
+  # Permute over
+  permute_on: nodes
+
+  variables:
+    nodes: [1,2,3,4,5]
+
+  scheduler: dummy
+  schedule:
+    nodes: '{{nodes}}'
+
+both:
+  permute_on:
+    - nodes
+    - sched.chunk_ids
+
+  variables:
+    nodes:
+      - all
+      - 5
+
+  scheduler: dummy
+  schedule:
+    nodes: '{{nodes}}'
+    chunking:
+      size: 20
+
+
+

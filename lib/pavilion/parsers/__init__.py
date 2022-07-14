@@ -23,7 +23,7 @@ import lark as _lark
 from .common import ParserValueError
 from .expressions import (get_expr_parser, EvaluationExprTransformer,
                           VarRefVisitor)
-from .strings import get_string_parser, StringTransformer
+from .strings import get_string_parser, StringTransformer, should_parse
 
 
 class ErrorCat:
@@ -103,6 +103,9 @@ def parse_text(text, var_man) -> str:
     :raises variables.DeferredError: When a deferred variable is used.
     :raises StringParserError: For syntax and other errors.
     """
+
+    if not should_parse(text):
+        return text
 
     parser = get_string_parser()
     transformer = StringTransformer(var_man)

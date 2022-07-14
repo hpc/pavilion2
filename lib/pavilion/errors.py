@@ -8,7 +8,7 @@ import textwrap
 class PavilionError(RuntimeError):
     """Base class for all Pavilion errors."""
 
-    SPLIT_RE = re.compile(': *\n? *]')
+    SPLIT_RE = re.compile(': *\n? *')
     TAB_LEVEL = '  '
 
     def __str__(self):
@@ -38,19 +38,12 @@ class VariableError(PavilionError):
     """This error should be thrown when processing variable data,
 and something goes wrong."""
 
-    def __init__(self, message, var_set=None, var=None, index=None,
-                 sub_var=None):
-
-        super().__init__(message)
+    def __init__(self, message, var_set=None, var=None, index=None, sub_var=None):
 
         self.var_set = var_set
         self.var = var
         self.index = index
         self.sub_var = sub_var
-
-        self.base_message = message
-
-    def __str__(self):
 
         key = [str(self.var)]
         if self.var_set is not None:
@@ -62,8 +55,8 @@ and something goes wrong."""
 
         key = '.'.join(key)
 
-        return "Error processing variable key '{}': {}" \
-            .format(key, self.base_message)
+        message = "Error processing variable key '{}': {}".format(key, message)
+        super().__init__(message)
 
 
 class DeferredError(VariableError):
