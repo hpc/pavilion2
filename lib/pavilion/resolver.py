@@ -345,21 +345,37 @@ class TestConfigResolver:
 
         self.check_required_variables(raw_tests)
 
+        permuted_tests = []
+        for test_cfg in raw_tests:
+            base_var_man = self.build_variable_manager(test_cfg)
+
+            # Resolve all configuration permutations.
+            try:
+                p_cfg, permutes = self.resolve_permutations(test_cfg, base_var_man)
+                for p_var_man in permutes:
+                    # Get the scheduler from the config.
+                    permuted_tests.append((p_cfg, p_var_man))
+
+            except TestConfigError as err:
+                msg = 'Error resolving permutations for test {} from {}: {}' \
+                    .format(test_cfg['name'], test_cfg['suite_path'], err)
+
+                raise TestConfigError(msg)
+
         complete = 0
 
-        if len(raw_tests) == 0:
+        if not permuted_tests:
             return []
-        elif len(raw_tests) == 1:
-            base_var_man = self.build_variable_manager(raw_tests[0])
-            return self.resolve(raw_tests[0], base_var_man)
+        elif len(permuted_tests) == 1:
+            test_cfg, var_man = permuted_tests[0]
+            return [self.resolve(test_cfg, var_man)]
         else:
             async_results = []
             proc_count = min(self.pav_cfg['max_cpu'], len(raw_tests))
             with mp.Pool(processes=proc_count) as pool:
-                for raw_test in raw_tests:
-                    base_var_man = self.build_variable_manager(raw_test)
+                for test_cfg, var_man in permuted_tests:
                     async_results.append(
-                        pool.apply_async(self.resolve, (raw_test, base_var_man))
+                        pool.apply_async(self.resolve, (test_cfg, var_man))
                     )
 
                 while async_results:
@@ -367,7 +383,7 @@ class TestConfigResolver:
                         if aresult.ready():
                             async_results.remove(aresult)
 
-                            resolved_tests.extend(aresult.get())
+                            resolved_tests.append(aresult.get())
 
                             complete += 1
                             progress = len(raw_tests) - complete
@@ -389,56 +405,19 @@ class TestConfigResolver:
 
         return resolved_tests
 
-    def resolve(self, test_cfg: dict, base_var_man: variables.VariableSetManager):
+    def resolve(self, test_cfg: dict, var_man: variables.VariableSetManager) -> ProtoTest:
         """Resolve one test config, and apply the given overrides."""
 
-        resolved_tests = []
-
-        # A list of tuples of test configs and their permuted var_man
-        permuted_tests = []  # type: (dict, variables.VariableSetManager)
-
-        sched_errors = base_var_man.get('sched.errors')
-
-        # Resolve all configuration permutations.
+        # Resolve all variables for the test (that aren't deferred).
         try:
-            p_cfg, permutes = self.resolve_permutations(
-                test_cfg,
-                base_var_man=base_var_man
-            )
-            for p_var_man in permutes:
-                # Get the scheduler from the config.
-                permuted_tests.append((p_cfg, p_var_man))
-
+            resolved_cfg = resolve.test_config(test_cfg, var_man)
+            return ProtoTest(resolved_cfg, var_man)
         except TestConfigError as err:
-            msg = 'Error resolving permutations for test {} from {}: {}' \
-                .format(test_cfg['name'], test_cfg['suite_path'], err)
-
-            if sched_errors is not None:
-                msg += "\nScheduler errors also happened, which may be the root " \
-                       "cause:\n{}".format(sched_errors)
+            msg = ('In test {} from {}:\n{}'
+                   .format(test_cfg['name'], test_cfg['suite_path'],
+                           err.args[0]))
 
             raise TestConfigError(msg)
-
-        # Set the scheduler variables for each test.
-        for ptest_cfg, pvar_man in permuted_tests:
-
-            # Resolve all variables for the test (that aren't deferred).
-            try:
-                resolved_config = resolve.test_config(ptest_cfg, pvar_man)
-            except TestConfigError as err:
-                msg = ('In test {} from {}:\n{}'
-                       .format(test_cfg['name'], test_cfg['suite_path'],
-                               err.args[0]))
-
-                if sched_errors is not None:
-                    msg += "\nScheduler errors also happened, which may be the root " \
-                           "cause:\n{}".format(sched_errors)
-
-                raise TestConfigError(msg)
-
-            resolved_tests.append(ProtoTest(resolved_config, pvar_man))
-
-        return resolved_tests
 
     def load_raw_configs(self, tests, host, modes):
         """Get a list of raw test configs given a host, list of modes,
@@ -992,17 +971,11 @@ class TestConfigResolver:
     def resolve_permutations(self, test_cfg: Dict, base_var_man: variables.VariableSetManager)\
             -> (Dict, List[variables.VariableSetManager]):
         """Resolve permutations for all used permutation variables, returning a
-        variable manager for each permuted version of the test config. We use
-        this opportunity to populate the variable manager with most other
-        variable types as well.
-
-        Note: Resolution order - The order in which we resolve scheduler variables and
-        permute varies based on whether we are permuting over scheduler variables themselves.
-        When permuting over scheduler variables, we must get those variables from the scheduler
-        first. As a consequence, we must resolve the scheduler section and that section cannot
-        contain any permuted variables. On the flip-side, if we don't permute over scheduler
-        variables, we fetch them on a permutation-by-permutation basis because the scheduler
-        config could depend on a permutation variable.
+        variable manager for each permuted version of the test config. This requires that
+        we iteratively apply permutations - permutation variables may contain references that
+        refer to each other (or scheduler variables), so we have to resolve non-permuted
+        variables, apply any permutations that are ready, and repeat until all are applied
+        (taking a break to add scheduler variables when we can't proceed without them anymore).
 
         :param dict test_cfg: The raw test configuration dictionary.
         :param variables.VariableSetManager base_var_man: The variables for
@@ -1062,6 +1035,7 @@ class TestConfigResolver:
         for var_man in var_men:
             # We've held off on resolving permutation variables, but now all of those left
             # should depend on the sched vars.
+
             var_man.resolve_references(partial=True)
             try:
                 sched_cfg = resolve.test_config(sched_cfg, var_man)

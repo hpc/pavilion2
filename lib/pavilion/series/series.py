@@ -376,6 +376,10 @@ differentiate it from test ids."""
         :return:
         """
 
+        from pavilion import schedulers
+        dummy = schedulers.get_plugin('dummy')
+        print(1, len(dummy._node_lists))
+
         self.status.set(SERIES_STATES.RUN, "Series running.")
 
         if outfile is None:
@@ -383,6 +387,7 @@ differentiate it from test ids."""
 
         # create the test sets and link together.
         self._create_test_sets()
+        print(2, len(dummy._node_lists))
 
         # The names of all test sets that have completed.
         complete = set()  # type: Set[str]
@@ -415,6 +420,7 @@ differentiate it from test ids."""
                     continue
 
                 # Create the test objects
+                print(3, len(dummy._node_lists))
                 try:
                     test_set.make(build_only, rebuild,
                                   local_builds_only=local_builds_only, outfile=outfile)
@@ -423,9 +429,11 @@ differentiate it from test ids."""
                     raise TestSeriesError(
                         "Error making tests for series '{}':\n {}"
                         .format(self.sid, err.args[0]))
+                print(4, len(dummy._node_lists))
 
                 # Add all the tests we created to this test set.
                 self._add_tests(test_set)
+                print(5, len(dummy._node_lists))
 
                 # Build each test
                 try:
@@ -435,6 +443,7 @@ differentiate it from test ids."""
                     raise TestSeriesError(
                         "Error building tests for series '{}': {}"
                         .format(self.sid, err.args[0]))
+                print(6, len(dummy._node_lists))
 
                 test_start_count = simultaneous
                 while not test_set.done:

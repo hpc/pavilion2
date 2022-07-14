@@ -319,6 +319,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             chunk_extra = sched_config['chunking']['extra']
 
             import pprint
+            print(self.__class__.__name__)
             print(node_list_id)
             pprint.pprint(self._node_lists)
             node_list = self._node_lists[node_list_id]
