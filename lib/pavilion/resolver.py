@@ -17,7 +17,7 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Dict, Set, Tuple
+from typing import List, IO, Dict, Tuple
 
 import yc_yaml
 from pavilion import output, variables
@@ -347,12 +347,11 @@ class TestConfigResolver:
 
         permuted_tests = []
         for test_cfg in raw_tests:
-            base_var_man = self.build_variable_manager(test_cfg)
+            var_man = self.build_variable_manager(test_cfg)
 
             # Resolve all configuration permutations.
             try:
-                p_cfg, permutes = self.resolve_permutations(test_cfg, base_var_man
-                )
+                p_cfg, permutes = self.resolve_permutations(test_cfg, var_man)
                 for p_var_man in permutes:
                     # Get the scheduler from the config.
                     permuted_tests.append((p_cfg, p_var_man))
@@ -361,41 +360,39 @@ class TestConfigResolver:
                 msg = 'Error resolving permutations for test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
 
-                if sched_errors is not None:
-                    msg += "\nScheduler errors also happened, which may be the root " \
-                           "cause:\n{}".format(sched_errors)
-
                 raise TestConfigError(msg)
         complete = 0
 
-        if len(raw_tests) == 0:
+        if not permuted_tests:
             return []
-        elif len(raw_tests) == 1:
-            base_var_man = self.build_variable_manager(raw_tests[0])
-            return self.resolve(raw_tests[0], base_var_man)
+        elif len(permuted_tests) == 1:
+            test_cfg, var_man = permuted_tests[0]
+            resolved_cfg = self.resolve(test_cfg, var_man)
+            return [ProtoTest(resolved_cfg, var_man)]
         else:
             async_results = []
-            proc_count = min(self.pav_cfg['max_cpu'], len(raw_tests))
+            proc_count = min(self.pav_cfg['max_cpu'], len(permuted_tests))
             with mp.Pool(processes=proc_count) as pool:
-                for raw_test in raw_tests:
-                    base_var_man = self.build_variable_manager(raw_test)
-                    async_results.append(
-                        pool.apply_async(self.resolve, (raw_test, base_var_man))
-                    )
+                for test_cfg, var_man in permuted_tests:
+                    aresult = pool.apply_async(self.resolve, (test_cfg, var_man))
+                    async_results.append((aresult, var_man))
 
                 while async_results:
-                    for aresult in list(async_results):
+                    not_ready = []
+                    for aresult, var_man in list(async_results):
                         if aresult.ready():
-                            async_results.remove(aresult)
-
-                            resolved_tests.extend(aresult.get())
+                            result = aresult.get()
+                            resolved_tests.append(ProtoTest(result, var_man))
 
                             complete += 1
-                            progress = len(raw_tests) - complete
-                            progress = (1 - progress/len(raw_tests))
+                            progress = len(permuted_tests) - complete
+                            progress = (1 - progress/len(permuted_tests))
                             output.fprint(outfile,
                                           "Resolving Test Configs: {:.0%}".format(progress),
                                           end='\r')
+                        else:
+                            not_ready.append((aresult, var_man))
+                    async_results = not_ready
 
                     try:
                         aresult.wait(0.5)
@@ -410,36 +407,22 @@ class TestConfigResolver:
 
         return resolved_tests
 
-    def resolve(self, test_cfg: dict, base_var_man: variables.VariableSetManager):
-        """Resolve one test config, and apply the given overrides."""
+    def resolve(self, test_cfg: dict, var_man: variables.VariableSetManager) -> Dict:
+        """Resolve all the strings in one test config. This mostly exists to consolidate
+        error handling (we could call resolve.test_config directly)."""
 
-        resolved_tests = []
-
-        # A list of tuples of test configs and their permuted var_man
-        permuted_tests = []  # type: (dict, variables.VariableSetManager)
-
-
-
-        # Set the scheduler variables for each test.
-        for ptest_cfg, pvar_man in permuted_tests:
-
-            # Resolve all variables for the test (that aren't deferred).
-            try:
-                resolved_config = resolve.test_config(ptest_cfg, pvar_man)
-            except TestConfigError as err:
-                msg = ('In test {} from {}:\n{}'
-                       .format(test_cfg['name'], test_cfg['suite_path'],
-                               err.args[0]))
-
-                if sched_errors is not None:
-                    msg += "\nScheduler errors also happened, which may be the root " \
-                           "cause:\n{}".format(sched_errors)
-
-                raise TestConfigError(msg)
-
-            resolved_tests.append(ProtoTest(resolved_config, pvar_man))
-
-        return resolved_tests
+        try:
+            return resolve.test_config(test_cfg, var_man)
+        except TestConfigError as err:
+            if test_cfg.get('permute_on'):
+                print(test_cfg['permute_on'])
+                permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
+                raise TestConfigError(
+                    "Error resolving test {} with permute values {}: {}"
+                    .format(test_cfg['name'], permute_values, err))
+            else:
+                raise TestConfigError(
+                    "Error resolving test {}: {}".format(test_cfg['name'], err))
 
     def load_raw_configs(self, tests, host, modes):
         """Get a list of raw test configs given a host, list of modes,

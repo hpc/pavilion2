@@ -34,9 +34,10 @@ class ResolverTests(PavTestCase):
 
         import time
         start = time.time()
-        self.resolver.load(['speed'])
+        tests = self.resolver.load(['speed'])
         end = time.time()
         print('timing', end - start)
+        print('tests', len(tests))
 
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
