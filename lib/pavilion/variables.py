@@ -285,6 +285,7 @@ index, sub_var) tuple.
         for var, var_list in var_vars.data.items():
             # val is a list of dictionaries
 
+
             fully_resolved = True
             for idx in range(len(var_list.data)):
                 sub_var = var_list.data[idx]

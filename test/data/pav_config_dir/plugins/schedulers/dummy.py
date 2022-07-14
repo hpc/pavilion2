@@ -26,9 +26,6 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
                 "You can't ask for 42 nodes in dummy scheduler."
             ])
 
-        print('initing dummy')
-        print(self._node_lists)
-
         return sched_vars
 
     def _get_alloc_nodes(self, job: Job) -> NodeList:

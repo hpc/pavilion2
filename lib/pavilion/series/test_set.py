@@ -170,8 +170,6 @@ class TestSet:
         the test creation status."""
 
         self.status.set(S_STATES.SET_MAKE, "Creating test runs.")
-        dummy = schedulers.get_plugin('dummy')
-        print('3a', len(dummy._node_lists))
 
         if self.tests is not None:
             msg = "Already created the tests for TestSet '{}'".format(self.name)
@@ -185,7 +183,6 @@ class TestSet:
         }
 
         cfg_resolver = TestConfigResolver(self.pav_cfg)
-        print('3b', len(dummy._node_lists))
 
         try:
             test_configs = cfg_resolver.load(
@@ -201,7 +198,6 @@ class TestSet:
                    .format(self.name, err.args[0]))
             self.status.set(S_STATES.ERROR, msg)
             raise TestSetError(msg)
-        print('3c', len(dummy._node_lists))
 
         progress = 0
         tot_tests = len(test_configs)
@@ -503,7 +499,6 @@ class TestSet:
                     self.status.set(S_STATES.SET_KICKOFF,
                                     "Kicking off {} tests under scheduler {}"
                                     .format(len(tests), sched_name))
-                    print(sched_name, len(tests))
                     scheduler.schedule_tests(self.pav_cfg, tests)
                 except schedulers.SchedulerPluginError as err:
                     self.cancel(

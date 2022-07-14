@@ -30,14 +30,9 @@ class ResolverTests(PavTestCase):
 
         self.resolver = resolver.TestConfigResolver(self.pav_cfg)
 
-    def test_speed(self):
+    def test_resolve_speed(self):
 
-        import time
-        start = time.time()
-        tests = self.resolver.load(['speed'])
-        end = time.time()
-        print('timing', end - start)
-        print('tests', len(tests))
+        self.resolver.load(['speed'])
 
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
@@ -70,7 +65,6 @@ class ResolverTests(PavTestCase):
         tests = self.resolver.load(['hidden'], 'this', [])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['hello', 'narf'])
-        print('3c', len(dummy._node_lists))
         tests = self.resolver.load(['hidden._hidden'], 'this', [])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['_hidden'])
@@ -215,6 +209,7 @@ class ResolverTests(PavTestCase):
             },
             'permute_on': ['foo', 'bar', 'baz'],
             'subtitle': '{{foo}}-{{bar.p}}-{{baz}}',
+            'scheduler': 'raw',
         }
 
         orig_permutations = raw_test['variables']
@@ -343,7 +338,8 @@ class ResolverTests(PavTestCase):
                 'fruit': ['apple', 'orange', 'banana'],
                 'snacks': ['{{fruit}}-x', '{{sys.soda}}'],
                 'stuff': 'y{{fruit}}-{{snacks}}',
-            }
+            },
+            'scheduler': 'raw',
         }
 
         var_man = variables.VariableSetManager()

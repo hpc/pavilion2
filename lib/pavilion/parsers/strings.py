@@ -103,7 +103,7 @@ def should_parse(text):
     if not text:
         return False
 
-    return '{{' in text or '[~' in text or '\\' in text
+    return '{{' in text or '[~' in text or '\\' in text or '}}' in text or '~' in text
 
 
 class ExprToken(lark.Token):

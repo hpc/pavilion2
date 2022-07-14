@@ -411,11 +411,12 @@ class TestConfigResolver:
         """Resolve all the strings in one test config. This mostly exists to consolidate
         error handling (we could call resolve.test_config directly)."""
 
+        _ = self
+
         try:
             return resolve.test_config(test_cfg, var_man)
         except TestConfigError as err:
             if test_cfg.get('permute_on'):
-                print(test_cfg['permute_on'])
                 permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
                 raise TestConfigError(
                     "Error resolving test {} with permute values {}: {}"
@@ -1002,12 +1003,19 @@ class TestConfigResolver:
 
         test_name = test_cfg.get('name', '<no name>')
 
-        sched_name = test_cfg.get('scheduler', 'raw')
+        sched_name = test_cfg.get('scheduler')
+        if sched_name is None:
+            raise TestConfigError("No scheduler was given. This should only happen "
+                                  "when unit tests fail to define it.")
         try:
             sched = schedulers.get_plugin(sched_name)
         except schedulers.SchedulerPluginError:
             raise TestConfigError("Could not find scheduler '{}' for test '{}'"
                                   .format(sched_name, test_name))
+        if not sched.available():
+            raise TestConfigError("Test {} requested scheduler {}, but it isn't "
+                                  "available on this system.".format(test_name, sched_name))
+
         sched_cfg = test_cfg.get('schedule', {})
 
         var_men = [base_var_man]
@@ -1023,9 +1031,9 @@ class TestConfigResolver:
             # Variables to permute on this iteration.
             permute_now = []
             for var_set, var in used_per_vars.copy():
-                if var_set not in ('sched', 'var') and (var_set, var) in resolved:
-                    basic_per_vars.remove(var)
-                    permute_now.append(('var', var))
+                if var_set not in ('sched', 'var') or (var_set, var) in resolved:
+                    permute_now.append((var_set, var))
+                    used_per_vars.remove((var_set, var))
 
             # We've done all we can without resolving scheduler variables.
             if not permute_now:
@@ -1034,6 +1042,7 @@ class TestConfigResolver:
             new_var_men = []
             for var_man in var_men:
                 new_var_men.extend(var_man.get_permutations(permute_now))
+            var_men = new_var_men
 
         # Everything left at this point will require the sched vars to deal with.
         all_var_men = []
