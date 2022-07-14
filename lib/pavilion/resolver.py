@@ -351,7 +351,8 @@ class TestConfigResolver:
 
             # Resolve all configuration permutations.
             try:
-                p_cfg, permutes = self.resolve_permutations(test_cfg, base_var_man)
+                p_cfg, permutes = self.resolve_permutations(test_cfg, base_var_man
+                )
                 for p_var_man in permutes:
                     # Get the scheduler from the config.
                     permuted_tests.append((p_cfg, p_var_man))
@@ -360,22 +361,26 @@ class TestConfigResolver:
                 msg = 'Error resolving permutations for test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
 
-                raise TestConfigError(msg)
+                if sched_errors is not None:
+                    msg += "\nScheduler errors also happened, which may be the root " \
+                           "cause:\n{}".format(sched_errors)
 
+                raise TestConfigError(msg)
         complete = 0
 
-        if not permuted_tests:
+        if len(raw_tests) == 0:
             return []
-        elif len(permuted_tests) == 1:
-            test_cfg, var_man = permuted_tests[0]
-            return [self.resolve(test_cfg, var_man)]
+        elif len(raw_tests) == 1:
+            base_var_man = self.build_variable_manager(raw_tests[0])
+            return self.resolve(raw_tests[0], base_var_man)
         else:
             async_results = []
             proc_count = min(self.pav_cfg['max_cpu'], len(raw_tests))
             with mp.Pool(processes=proc_count) as pool:
-                for test_cfg, var_man in permuted_tests:
+                for raw_test in raw_tests:
+                    base_var_man = self.build_variable_manager(raw_test)
                     async_results.append(
-                        pool.apply_async(self.resolve, (test_cfg, var_man))
+                        pool.apply_async(self.resolve, (raw_test, base_var_man))
                     )
 
                 while async_results:
@@ -383,7 +388,7 @@ class TestConfigResolver:
                         if aresult.ready():
                             async_results.remove(aresult)
 
-                            resolved_tests.append(aresult.get())
+                            resolved_tests.extend(aresult.get())
 
                             complete += 1
                             progress = len(raw_tests) - complete
@@ -405,19 +410,36 @@ class TestConfigResolver:
 
         return resolved_tests
 
-    def resolve(self, test_cfg: dict, var_man: variables.VariableSetManager) -> ProtoTest:
+    def resolve(self, test_cfg: dict, base_var_man: variables.VariableSetManager):
         """Resolve one test config, and apply the given overrides."""
 
-        # Resolve all variables for the test (that aren't deferred).
-        try:
-            resolved_cfg = resolve.test_config(test_cfg, var_man)
-            return ProtoTest(resolved_cfg, var_man)
-        except TestConfigError as err:
-            msg = ('In test {} from {}:\n{}'
-                   .format(test_cfg['name'], test_cfg['suite_path'],
-                           err.args[0]))
+        resolved_tests = []
 
-            raise TestConfigError(msg)
+        # A list of tuples of test configs and their permuted var_man
+        permuted_tests = []  # type: (dict, variables.VariableSetManager)
+
+
+
+        # Set the scheduler variables for each test.
+        for ptest_cfg, pvar_man in permuted_tests:
+
+            # Resolve all variables for the test (that aren't deferred).
+            try:
+                resolved_config = resolve.test_config(ptest_cfg, pvar_man)
+            except TestConfigError as err:
+                msg = ('In test {} from {}:\n{}'
+                       .format(test_cfg['name'], test_cfg['suite_path'],
+                               err.args[0]))
+
+                if sched_errors is not None:
+                    msg += "\nScheduler errors also happened, which may be the root " \
+                           "cause:\n{}".format(sched_errors)
+
+                raise TestConfigError(msg)
+
+            resolved_tests.append(ProtoTest(resolved_config, pvar_man))
+
+        return resolved_tests
 
     def load_raw_configs(self, tests, host, modes):
         """Get a list of raw test configs given a host, list of modes,

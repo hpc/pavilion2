@@ -30,6 +30,14 @@ class ResolverTests(PavTestCase):
 
         self.resolver = resolver.TestConfigResolver(self.pav_cfg)
 
+    def test_speed(self):
+
+        import time
+        start = time.time()
+        self.resolver.load(['speed'])
+        end = time.time()
+        print('timing', end - start)
+
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
@@ -61,7 +69,7 @@ class ResolverTests(PavTestCase):
         tests = self.resolver.load(['hidden'], 'this', [])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['hello', 'narf'])
-
+        print('3c', len(dummy._node_lists))
         tests = self.resolver.load(['hidden._hidden'], 'this', [])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['_hidden'])
