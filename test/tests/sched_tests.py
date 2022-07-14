@@ -4,6 +4,8 @@ import inspect
 import pavilion.schedulers
 from pavilion import output
 from pavilion import schedulers
+from pavilion import variables
+from pavilion import sys_vars
 from pavilion.schedulers import SchedulerPluginAdvanced
 from pavilion.schedulers import config as sconfig
 from pavilion.types import NodeInfo, Nodes, NodeSet
@@ -416,3 +418,32 @@ class SchedTests(PavTestCase):
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
+
+    def test_tasks_per_node(self):
+        """Check that tasks_per_node and min_tasks_per_node work as expected."""
+
+        base_test_cfg = self._quick_test_cfg()
+        base_test_cfg['scheduler'] = 'dummy'
+        base_test_cfg['schedule'] = {'nodes': '5'}
+        dummy = pavilion.schedulers.get_plugin('dummy')
+
+        for tpn, min_tpn, exp_tpn in ('5', '6', 6), \
+                                  ('10', None, 10), \
+                                  ('50%', None, 6),\
+                                  ('all', None, 13),\
+                                  ('all', '40', 40):
+            test_cfg = copy.deepcopy(base_test_cfg)
+            test_cfg['schedule']['tasks_per_node'] = tpn
+            if min_tpn:
+                test_cfg['schedule']['min_tasks_per_node'] = min_tpn
+            test = self._quick_test(test_cfg, finalize=False)
+            dummy.schedule_tests(self.pav_cfg, [test])
+            var_man = variables.VariableSetManager()
+            var_man.add_var_set('sched', dummy.get_final_vars(test))
+            var_man.add_var_set('sys', sys_vars.get_vars(defer=False))
+            test.finalize(var_man)
+            self.assertEqual(int(test.var_man['sched.tasks_per_node']), exp_tpn)
+
+
+
+
