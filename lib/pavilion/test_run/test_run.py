@@ -445,7 +445,7 @@ class TestRun(TestAttributes):
                 tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                 create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
             except TestConfigError as err:
-                TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
+                raise TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
 
         self.save_attributes()
 

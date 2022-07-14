@@ -287,14 +287,14 @@ def _validate_nodes(val) -> Union[float, int, None]:
 
 def _validate_tasks_per_node(val) -> Union[int, float]:
     """This accepts a positive integer, a percentage, or the keywords 'all' and
-    'min'. All translates to 100%, and min to an integer 0."""
+    'min'. All translates to 100%, and min to an integer 1."""
 
     val = val.strip()
 
     if val == 'all':
         return 1.0
     if val == 'min':
-        return 0
+        return 1
 
     if val.endswith('%'):
         try:

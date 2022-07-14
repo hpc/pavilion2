@@ -222,8 +222,10 @@ class FiltersTest(PavTestCase):
     def test_filter_series_states(self):
         """Check series filtering."""
 
+        from pavilion import schedulers
         series = TestSeries(self.pav_cfg, None)
         series.add_test_set_config('test', test_names=['hello_world'])
+        dummy = schedulers.get_plugin('dummy')
         series.run()
         series_info = series.info().attr_dict()
 
