@@ -83,7 +83,7 @@ class ScriptComposer:
         for key, value in env_dict.items():
 
             if value is not None:
-                # Auto quote variables that contain spaces if they aren't already 
+                # Auto quote variables that contain spaces if they aren't already
                 # quoted.
                 qvalue = str(value).strip()
                 if not (qvalue.startswith('"') or qvalue.startswith("'")) and ' ' in qvalue:
