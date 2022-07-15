@@ -1,3 +1,5 @@
+import sys
+
 import pavilion.deferred
 from pavilion.resolver import variables
 from pavilion.errors import VariableError, DeferredError
@@ -187,3 +189,90 @@ class TestVariables(PavTestCase):
                 pass
             else:
                 self.fail("Did not raise the appropriate error.")
+
+    def test_resolve_references(self):
+        """Check that references are resolved properly for variables."""
+
+        user_vars = {
+            'a': ['{{b}}1', '{{b}}2'],
+            'b': ['3', '{{d}}'],
+            'c': ['7', '8', '{{sched.nodes}}'],
+            'd': ['1', '2', '10'],
+            'e': ['{{sched.nodes}}'],
+            'f': ['{{c}}']
+        }
+        answer = {
+            'a': ['31', '32'],
+            'b': ['3', '1'],
+            'c': ['7', '8', '{{sched.nodes}}'],
+            'd': ['1', '2', '10'],
+            'e': ['{{sched.nodes}}'],
+            'f': ['{{c}}']
+        }
+
+        var_man = variables.VariableSetManager()
+        var_man.add_var_set('var', user_vars)
+
+        resolved = var_man.resolve_references(partial=True, skip_deps=['a', 'b', 'c'])
+        self.assertEqual(sorted(resolved), ['b', 'd'])
+
+        resolved = var_man.resolve_references(partial=True, skip_deps=['a', 'c'])
+        self.assertEqual(sorted(resolved), ['a', 'b', 'd'])
+
+        self.assertEqual(var_man.as_dict(), {'var': answer})
+
+    def test_get_permutations(self):
+        """Check that permutation creation works."""
+        user_vars = {
+            'a': ['{{b}}1', '{{b}}2'],
+            'b': ['3', '{{d}}'],
+            'c': ['7', '8', '{{sched.nodes}}'],
+            'd': ['1', '2', '10'],
+            'e': ['{{sched.nodes}}'],
+            'f': ['{{c}}']
+        }
+
+        answers = [
+            ('31', '3', '7'),
+            ('31', '3', '8'),
+            ('31', '3', '37'),
+            ('32', '3', '7'),
+            ('32', '3', '8'),
+            ('32', '3', '37'),
+            ('11', '1', '7'),
+            ('11', '1', '8'),
+            ('11', '1', '37'),
+            ('12', '1', '7'),
+            ('12', '1', '8'),
+            ('12', '1', '37'),
+        ]
+
+        var_man = variables.VariableSetManager()
+        var_man.add_var_set('var', user_vars)
+        var_man.resolve_references(partial=True, skip_deps=['a', 'b', 'c'])
+        var_men = var_man.get_permutations([('var', 'b')])
+
+        self.assertEqual(len(var_men), 2)
+        all_var_men = []
+        for var_man in var_men:
+            var_man.resolve_references(partial=True, skip_deps=['a', 'c'])
+            all_var_men.extend(var_man.get_permutations([('var', 'a')]))
+        var_men = all_var_men
+        self.assertEqual(len(var_men), 4)
+
+        all_var_men = []
+        for var_man in var_men:
+            var_man.add_var_set('sched', {'nodes': '37'})
+            var_man.resolve_references()
+            all_var_men.extend(var_man.get_permutations([('var', 'c')]))
+        var_men = all_var_men
+        self.assertEqual(len(var_men), 12)
+
+        # There are 12 answers and we assert that all permuted sets are unique,
+        # therefore if ever permuted variable set is in answers all answers also exist.
+        simplified = [(v['a'], v['b'], v['c']) for v in var_men]
+        self.assertEqual(len(simplified), len(set(simplified)))
+        for values in simplified:
+            self.assertIn(values, answers)
+
+

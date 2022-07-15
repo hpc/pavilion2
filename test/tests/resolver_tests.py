@@ -30,6 +30,10 @@ class ResolverTests(PavTestCase):
 
         self.resolver = resolver.TestConfigResolver(self.pav_cfg)
 
+    def test_resolve_speed(self):
+
+        self.resolver.load(['speed'])
+
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
@@ -61,7 +65,6 @@ class ResolverTests(PavTestCase):
         tests = self.resolver.load(['hidden'], 'this', [])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['hello', 'narf'])
-
         tests = self.resolver.load(['hidden._hidden'], 'this', [])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['_hidden'])
@@ -206,6 +209,7 @@ class ResolverTests(PavTestCase):
             },
             'permute_on': ['foo', 'bar', 'baz'],
             'subtitle': '{{foo}}-{{bar.p}}-{{baz}}',
+            'scheduler': 'raw',
         }
 
         orig_permutations = raw_test['variables']
@@ -334,7 +338,8 @@ class ResolverTests(PavTestCase):
                 'fruit': ['apple', 'orange', 'banana'],
                 'snacks': ['{{fruit}}-x', '{{sys.soda}}'],
                 'stuff': 'y{{fruit}}-{{snacks}}',
-            }
+            },
+            'scheduler': 'raw',
         }
 
         var_man = variables.VariableSetManager()
@@ -433,6 +438,7 @@ class ResolverTests(PavTestCase):
             },
             'permute_on': ['foo', 'bar'],
             'subtitle': None,
+            'scheduler': 'raw',
             'schedule': {
                 'nodes': '{{bar.0.p}}',
                 # Make sure recursive vars work too.
@@ -443,7 +449,7 @@ class ResolverTests(PavTestCase):
 
         answer1 = {
                 'permute_on': ['foo', 'bar'],
-                'subtitle': '1-_bar_',
+                'subtitle': '_bar_-1',
                 'build': {
                        'cmds': ["echo 1 4", "echo 1", "echo 4a"],
                        'env': [
@@ -452,6 +458,7 @@ class ResolverTests(PavTestCase):
                            {'pav': '9'},
                            {'sys': '10'}]
                    },
+                'scheduler': 'raw',
                 'schedule': {
                     'nodes': '4',
                     'reservation': '6',
@@ -461,7 +468,7 @@ class ResolverTests(PavTestCase):
         # This is all that changes between the two.
         answer2 = copy.deepcopy(answer1)
         answer2['build']['cmds'] = ["echo 2 4", "echo 2", "echo 4a"]
-        answer2['subtitle'] = '2-_bar_'
+        answer2['subtitle'] = '_bar_-2'
 
         answers = [answer1, answer2]
 
@@ -477,7 +484,7 @@ class ResolverTests(PavTestCase):
 
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
-            out_test = resolve.test_vars(test, var_man)
+            out_test = resolve.test_config(test, var_man)
             # This is a random number that gets added. It can't be predicted.
             del out_test['permute_base']
             self.assertIn(out_test, answers)
@@ -489,6 +496,7 @@ class ResolverTests(PavTestCase):
                 'cmds': ['echo {{foo}}']
             },
             'permute_on': [],
+            'scheduler': 'raw',
             'variables': {}
         }
 
@@ -500,7 +508,7 @@ class ResolverTests(PavTestCase):
 
         with self.assertRaises(TestConfigError):
             # No deferred variables in the build section.
-            resolve.test_vars(test, permuted[0])
+            resolve.test_config(test, permuted[0])
 
     def test_env_order(self):
         """Make sure environment variables keep their order from the test
@@ -736,3 +744,11 @@ class ResolverTests(PavTestCase):
 
         # This test should be fine.
         self.resolver.load(['sched_errors.d_no_nodes'])
+
+    def test_permute_order(self):
+        """Check that tests resolve with both variable/permute resolution orders."""
+
+        for test, count in ('sched', 100), ('multi-sched', 5), ('both', 10):
+            test = 'permute_order.{}'.format(test)
+            tests = self.resolver.load([test])
+            self.assertEqual(len(tests), count)

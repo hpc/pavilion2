@@ -950,7 +950,12 @@ class TestBuilder:
         latest = src_stat.st_mtime
 
         for path in utils.flat_walk(base_path):
-            dir_stat = path.stat()
+            try:
+                dir_stat = path.stat()
+            except OSError as err:
+                raise TestBuilderError(
+                    "Could not stat file in test source dir '{}': {}"
+                    .format(base_path, err))
             if dir_stat.st_mtime > latest:
                 latest = dir_stat.st_mtime
 

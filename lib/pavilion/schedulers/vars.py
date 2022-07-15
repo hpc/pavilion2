@@ -164,17 +164,22 @@ Naming Conventions:
         node info, just returns 1."""
 
         tasks_per_node = self._sched_config['tasks_per_node']
+        min_tasks = self._sched_config['min_tasks_per_node']
 
         if isinstance(tasks_per_node, int):
             if tasks_per_node == 0:
-                return self.min_cpus()
+                tasks = self.min_cpus()
             else:
-                return tasks_per_node
+                tasks = tasks_per_node
         else:  # Should be a float
             if self._nodes:
-                return max(math.floor(tasks_per_node * int(self.min_cpus())), 1)
+                tasks = max(math.floor(tasks_per_node * int(self.min_cpus())), 1)
             else:
-                return 1
+                tasks = 1
+        if min_tasks and min_tasks > tasks:
+            return min_tasks
+        else:
+            return tasks
 
     @var_method
     def chunk_ids(self):

@@ -66,8 +66,10 @@ def resolve_template(pav_cfg: pavilion.config.PavConfig, template: str,
 
     tmpl_path = pav_cfg.find_file(Path(template), 'test_src')
     if tmpl_path is None:
-        raise TestConfigError("Template file '{}' from 'templates' does not exist in"
-                              "any 'test_src' dir.".format(template))
+        raise TestConfigError("Template file '{}' from 'templates' does not exist in "
+                              "any 'test_src' dir (Note that it must be in a Pavilion config "
+                              "area's test_src directory - NOT the build directory.)"
+                              .format(template))
 
     try:
         with tmpl_path.open() as tmpl_file:

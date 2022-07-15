@@ -638,7 +638,7 @@ class VarRefVisitor(lark.Visitor):
 
         return None
 
-    def visit(self, tree):
+    def visit(self, tree) -> List[str]:
         """Visit the tree bottom up and return all the variable references
         found."""
 
