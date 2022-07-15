@@ -86,7 +86,7 @@ class ScriptComposer:
                 # Auto quote variables that contain spaces if they aren't already
                 # quoted.
                 qvalue = str(value).strip()
-                if qvalue and qvalue[0] in ('"', "'") and ' ' in qvalue:
+                if qvalue and qvalue[0] not in ('"', "'") and ' ' in qvalue:
                     value = '"{}"'.format(qvalue)
 
                 self._script_lines.append('export {}={}'.format(key, value))
