@@ -441,7 +441,9 @@ differentiate it from test ids."""
                     try:
                         kicked_off = test_set.kickoff(test_start_count)
                         ktests = []
+                        # Make a list of the first three started test ids
                         for ktest in test_set.started_tests[:3]:
+                            # Use the short id name when the config area is the 'main' one.
                             if ktest.full_id.startswith('main.'):
                                 ktests.append(str(ktest.id))
                             else:
