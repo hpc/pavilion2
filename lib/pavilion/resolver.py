@@ -1026,8 +1026,8 @@ class TestConfigResolver:
             # Resolve what references we can in variables, but refuse to resolve any based on
             # permute vars. (Note this does handle any recursive references properly)
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
-            resolved, could_resolve = base_var_man.resolve_references(partial=True,
-                                                                      skip_deps=basic_per_vars)
+            resolved, _ = base_var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
+
             # Convert to the same format as our per_vars
             resolved = [('var', var) for var in resolved]
 
@@ -1055,8 +1055,11 @@ class TestConfigResolver:
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
             _, could_resolve = var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
 
+            # Resolve permutations only for those 'could_resolve' variables that
+            # we actually permute over.
             all_var_men.extend(var_man.get_permutations(
-                [('var', var_name) for var_name in could_resolve]))
+                [('var', var_name) for var_name in could_resolve
+                 if var_name in could_resolve]))
         var_men = all_var_men
 
         # Everything left at this point will require the sched vars to deal with.

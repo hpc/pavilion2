@@ -25,6 +25,9 @@ multi:
         z2: 6
       - z1: 7
         z2: 8
+    bar:
+      - '{{foo.z1}}'
+      - '{{foo.z2}}'
 
 indirect:
   permute_on: foo
