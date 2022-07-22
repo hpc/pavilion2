@@ -440,8 +440,25 @@ differentiate it from test ids."""
                 while not test_set.done:
                     try:
                         kicked_off = test_set.kickoff(test_start_count)
-                        fprint(outfile, "Kicked off '{}' tests of test set '{}' in series '{}'."
-                               .format(kicked_off, test_set.name, self.sid))
+                        ktests = []
+                        # Make a list of the first three started test ids
+                        for ktest in test_set.started_tests[:3]:
+                            # Use the short id name when the config area is the 'main' one.
+                            if ktest.full_id.startswith('main.'):
+                                ktests.append(str(ktest.id))
+                            else:
+                                ktests.append(ktest.full_id)
+                        if len(test_set.started_tests) > 3:
+                            ktests.append('...')
+                        ktests = ', '.join(ktests)
+
+                        if len(test_set.started_tests) == 1:
+                            fprint(outfile, "Kicked off test {} for test set '{}' in series {}."
+                                            .format(ktests, test_set.name, self.sid))
+                        else:
+                            fprint(outfile, "Kicked off tests {} ({} total) for test set {} "
+                                            "in series {}."
+                                            .format(ktests, kicked_off, test_set.name, self.sid))
                     except TestSetError as err:
                         self.set_complete()
                         raise TestSeriesError(

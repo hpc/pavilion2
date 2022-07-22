@@ -83,6 +83,12 @@ class ScriptComposer:
         for key, value in env_dict.items():
 
             if value is not None:
+                # Auto quote variables that contain spaces if they aren't already
+                # quoted.
+                qvalue = str(value).strip()
+                if qvalue and qvalue[0] not in ('"', "'") and ' ' in qvalue:
+                    value = '"{}"'.format(qvalue)
+
                 self._script_lines.append('export {}={}'.format(key, value))
             else:
                 self._script_lines.append('unset {}'.format(key))
