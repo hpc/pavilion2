@@ -244,6 +244,37 @@ class ResolverTests(PavTestCase):
 
             self.assertIn(comb_dict, combinations)
 
+    def test_permute_on_ref(self):
+        """A regression test to make sure we handle references in the complex part
+        of a permuted variable correctly."""
+
+        # Make sure permute variables that reference themselves resolve correctly. There
+        # was a bug that resolved these variables before they were permuted on.
+        ptests = self.resolver.load(['permute_on_ref.multi'])
+        results = set()
+        expected = {'7', '11', '15'}
+        for ptest in ptests:
+            results.add(ptest.config['run']['cmds'][0])
+        self.assertEqual(results, expected)
+
+        # Similarly ensure that permutation variables that reference scheduler variables
+        # get permuted on after we get scheduler info. This wasn't a bug, but is a case
+        # that was similarly untested for.
+        results2 = set()
+        ptests2 = self.resolver.load(['permute_on_ref.sched'])
+        expected2 = {'0', '1', '100'}
+        for ptest in ptests2:
+            results2.add(ptest.config['run']['cmds'][0])
+        self.assertEqual(results2, expected2)
+
+        # Check that indirect self-references are permuted on as well
+        ptests = self.resolver.load(['permute_on_ref.indirect'])
+        results = set()
+        expected = {'7', '11'}
+        for ptest in ptests:
+            results.add(ptest.config['run']['cmds'][0])
+        self.assertEqual(results, expected)
+
     def test_deferred_errors(self):
         """Using deferred variables in inappropriate places should raise
         errors."""
