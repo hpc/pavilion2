@@ -14,7 +14,7 @@ from .common import COMPLETE_FN, STATUS_FN
 logger = logging.getLogger(__file__)
 
 
-def load_user_series_id(pav_cfg):
+def load_user_series_id(pav_cfg, errfile=None):
     """Load the last series id used by the current user."""
 
     last_series_fn = pav_cfg.working_dir/'users'
@@ -30,8 +30,9 @@ def load_user_series_id(pav_cfg):
             sys_name_series_dict = json.load(last_series_file)
             return sys_name_series_dict[sys_name].strip()
     except (IOError, OSError, KeyError) as err:
-        logger.warning("Failed to read series id file '%s': %s",
-                       last_series_fn, err)
+        if errfile:
+            output.fprint(errfile, "Failed to read series id file '{}': {}"
+                                   .format(last_series_fn, err))
         return None
 
 

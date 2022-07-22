@@ -87,7 +87,7 @@ jobs:
          
     - name: run_tests
       run: | 
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style # -o debug_prints"
+        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style -o debug_prints"
 
   docs:
     runs-on: ubuntu-latest

@@ -227,15 +227,27 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
 
     test_paths = []
     for raw_id in req_tests:
+
         if raw_id == 'last':
-            raw_id = series.load_user_series_id(pav_cfg)
+            raw_id = series.load_user_series_id(pav_cfg, errfile)
+            if raw_id is None:
+                if errfile:
+                    output.fprint(errfile, "User has no 'last' series for this machine.",
+                                  color=output.YELLOW)
+                continue
+
+        if raw_id is None:
+            continue
 
         if '.' not in raw_id and raw_id.startswith('s'):
             try:
                 test_paths.extend(
                     series.list_series_tests(pav_cfg, raw_id))
             except series.errors.TestSeriesError:
-                raise ValueError("Invalid series id '{}'".format(raw_id))
+                if errfile:
+                    output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
+                                  color=output.YELLOW)
+
 
         else:
             try:

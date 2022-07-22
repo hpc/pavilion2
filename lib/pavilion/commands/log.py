@@ -2,7 +2,7 @@
 """
 import errno
 
-import pavilion.errors
+from pavilion import errors
 from pavilion import output
 from pavilion import series, series_config
 from pavilion.test_run import TestRun
@@ -119,7 +119,7 @@ class LogCommand(Command):
                     test = series.TestSeries.load(pav_cfg, args.id)
                 else:
                     test = TestRun.load_from_raw_id(pav_cfg, args.id)
-            except pavilion.exceptions.TestRunError as err:
+            except errors.TestRunError as err:
                 output.fprint(self.errfile, "Error loading test: {}".format(err),
                               color=output.RED)
                 return 1
