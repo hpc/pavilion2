@@ -195,9 +195,9 @@ class Slurm(SchedulerPluginAdvanced):
 
     NODE_SEQ_REGEX_STR = (
         # The characters in a valid hostname.
-        r'[a-zA-Z][a-zA-Z_-]*\d*'
+        r'[a-zA-Z-][a-zA-Z0-9_-]*\d*'
         # A numeric range of nodes in square brackets.
-        r'(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
+        r'\-?(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
     )
     NODE_LIST_RE = re.compile(
         # Match a comma separated list of these things.
