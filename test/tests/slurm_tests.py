@@ -96,6 +96,8 @@ class SlurmTests(PavTestCase):
             (None, []),
             ('', []),
             ('ab03', ['ab03']),
+            ('cpn-m11-16', ['cpn-m11-16']),
+            ('cpn-m11-[16,18]', ['cpn-m11-16', 'cpn-m11-18']),
             ('ab-bc[3-004]', ['ab-bc3', 'ab-bc4']),
             ('ab_bc[03-10]',
              ['ab_bc{:02d}'.format(d) for d in range(3, 11)]),
