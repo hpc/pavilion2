@@ -19,7 +19,7 @@ There are expected to be multiple variable sets: plain variables (var),
 plugin provided via sys_vars (sys), core pavilion provided (pav), and scheduler
 provided (sched).
 """
-
+import collections
 import copy
 import json
 from typing import Union, List, Tuple
@@ -260,14 +260,17 @@ index, sub_var) tuple.
             return '.'.join([str(k) for k in key if k is not None])
 
     def resolve_references(self, partial=False, skip_deps: List = None) \
-            -> List[Tuple[str, str, str, str]]:
+            -> Tuple[List[str], List[str]]:
         """Resolve all variable references that are within variable values
         defined in the 'variables' section of the test config.
 
         :param partial: If true, will ignore errors from variables that can't resolve.
-        :param skip_deps: Variables (a list of variable names) to skip
+        :param skip_deps: Variables (a list of variable names) consider unresolvable by default,
+            which forces anything that depends on them to not resolve. This allows for delaying
+            resolution of such variables (primarily so we can permute on them first).
         :raises VariableError: When reference loops are found.
-        :returns: The list of resolved variable names.
+        :returns: The list of resolved variable names and a list of variable names that
+            would have been resolved if not for dependencies in 'skip_deps'.
         """
 
         skip_deps = skip_deps or []
@@ -284,7 +287,6 @@ index, sub_var) tuple.
         # Find all the variable value strings that reference variables
         for var, var_list in var_vars.data.items():
             # val is a list of dictionaries
-
 
             fully_resolved = True
             for idx in range(len(var_list.data)):
@@ -318,6 +320,9 @@ index, sub_var) tuple.
         # these to the fully resolved list if no components remain later.
         partially_resolved = set()
 
+        # User variables we could resolve, except that a reference was set as skipped
+        skipped_resolve = []
+
         # unresolved variables form a tree where the leaves should all be
         # resolved variables. This iteratively finds unresolved variables whose
         # references are resolved and resolves them. This should collapse the
@@ -325,6 +330,8 @@ index, sub_var) tuple.
         while unresolved_vars:
             did_resolve = False
             for uvar, (tree, variables) in unresolved_vars.copy().items():
+                resolvable_now = True
+                only_skipped_refs = True
                 for var_str in variables:
                     try:
                         r_var_set, r_var, r_index, r_subvar = ref_key = self.resolve_key(var_str)
@@ -334,11 +341,12 @@ index, sub_var) tuple.
 
                     if r_var_set != 'var' and r_var_set not in self.variable_sets:
                         # The variable set for this reference hasn't been loaded yet.
+                        resolvable_now = only_skipped_refs = False
                         break
 
                     if r_var_set == 'var' and r_var in skip_deps:
                         # Don't try to resolve user variables that are in the skip list.
-                        break
+                        resolvable_now = False
 
                     # Set the index 0 if it is None
                     if r_index == '*':
@@ -346,15 +354,27 @@ index, sub_var) tuple.
                         # make sure all are resolved.
                         if [key for key in unresolved_vars
                                 if (key[:2], key[3]) == (ref_key[:2], ref_key[3])]:
-                            break
+                            resolvable_now = False
+                            # Check if all were skipped due to 'skip_deps'
+                            if not [key for key in skipped_resolve
+                                    if (key[:2], key[3]) == (ref_key[:2], ref_key[3])]:
+                                only_skipped_refs = False
                     else:
                         if r_index is None:
                             ref_key = (r_var_set, r_var, 0, r_subvar)
 
                         if ref_key in unresolved_vars:
-                            break
+                            resolvable_now = False
+                            if ref_key not in skipped_resolve:
+                                only_skipped_refs = False
 
-                else:
+                if only_skipped_refs:
+                    # The only reason we don't resolve is because 'skip_deps' says not to.
+                    if uvar not in skipped_resolve:
+                        skipped_resolve.append(uvar)
+                        did_resolve = True
+
+                if resolvable_now:
                     # All variables referenced in uvar are resolvable
                     var_set, var_name, index, sub_var = uvar
                     partially_resolved.add(var_name)
@@ -391,12 +411,28 @@ index, sub_var) tuple.
                         "Variables '{}' contained reference loop"
                         .format([k[1] for k in unresolved_vars.keys()]))
 
+        # Check if there are any parts of each user variable that are still unresolved.
+        # If not, mark it resolved.
         unresolved_var_names = [var_key[1] for var_key in unresolved_vars.keys()]
         for var in partially_resolved:
             if var not in unresolved_var_names:
                 fully_resolved_vars.append(var)
+                self.resolved_user_vars.append(var)
 
-        return fully_resolved_vars
+        skipped_by_name = collections.defaultdict(list)
+        for skipped_var in skipped_resolve:
+            skipped_by_name[skipped_var[1]].append(skipped_var)
+
+        fully_skipped_user_vars = []
+        for var_name, skipped in skipped_by_name.items():
+            # If the number of 'skipped' parts of a variable equals the number of
+            # unresolved parts, then this var was fully skipped due to skip_refs
+            unresolved_parts = [None for _, uvar_name, _, _ in unresolved_vars
+                                if uvar_name == var_name]
+            if len(skipped) == len(unresolved_parts):
+                fully_skipped_user_vars.append(var_name)
+
+        return fully_resolved_vars, fully_skipped_user_vars
 
     def __getitem__(self, key):
         """Find the item that corresponds to the given complex key.

@@ -1019,12 +1019,15 @@ class TestConfigResolver:
         sched_cfg = test_cfg.get('schedule', {})
 
         var_men = [base_var_man]
-        # Keep trying to resolve variables and create permutations until we're out.
+        # Keep trying to resolve variables and create permutations until we're out. This
+        # iteratively takes care of any permutations that aren't self-referential and don't
+        # depend on the scheduler variables.
         while True:
             # Resolve what references we can in variables, but refuse to resolve any based on
             # permute vars. (Note this does handle any recursive references properly)
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
-            resolved = base_var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
+            resolved, _ = base_var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
+
             # Convert to the same format as our per_vars
             resolved = [('var', var) for var in resolved]
 
@@ -1044,12 +1047,24 @@ class TestConfigResolver:
                 new_var_men.extend(var_man.get_permutations(permute_now))
             var_men = new_var_men
 
+        # Calculate permutations for variables that we 'could resolve' if not for the fact
+        # that they are permutation variables. These are variables that refer to themselves
+        # (either directly (a.b->a.c) or indirectly (a.b -> d -> a.c).
+        all_var_men = []
+        for var_man in var_men:
+            basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
+            _, could_resolve = var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
+
+            # Resolve permutations only for those 'could_resolve' variables that
+            # we actually permute over.
+            all_var_men.extend(var_man.get_permutations(
+                [('var', var_name) for var_name in could_resolve
+                 if var_name in could_resolve]))
+        var_men = all_var_men
+
         # Everything left at this point will require the sched vars to deal with.
         all_var_men = []
         for var_man in var_men:
-            # We've held off on resolving permutation variables, but now all of those left
-            # should depend on the sched vars.
-
             var_man.resolve_references(partial=True)
             try:
                 sched_cfg = resolve.test_config(sched_cfg, var_man)

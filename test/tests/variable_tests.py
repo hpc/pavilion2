@@ -213,11 +213,14 @@ class TestVariables(PavTestCase):
         var_man = variables.VariableSetManager()
         var_man.add_var_set('var', user_vars)
 
-        resolved = var_man.resolve_references(partial=True, skip_deps=['a', 'b', 'c'])
+        resolved, could_resolve = var_man.resolve_references(partial=True,
+                                                             skip_deps=['a', 'b', 'c'])
         self.assertEqual(sorted(resolved), ['b', 'd'])
+        self.assertEqual(sorted(could_resolve), ['a', 'f'])
 
-        resolved = var_man.resolve_references(partial=True, skip_deps=['a', 'c'])
+        resolved, could_res = var_man.resolve_references(partial=True, skip_deps=['a', 'c'])
         self.assertEqual(sorted(resolved), ['a', 'b', 'd'])
+        self.assertEqual(sorted(could_res), ['f'])
 
         self.assertEqual(var_man.as_dict(), {'var': answer})
 
