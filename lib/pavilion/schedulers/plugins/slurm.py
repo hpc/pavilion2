@@ -194,10 +194,17 @@ class Slurm(SchedulerPluginAdvanced):
     KICKOFF_SCRIPT_HEADER_CLASS = SbatchHeader
 
     NODE_SEQ_REGEX_STR = (
-        # The characters in a valid hostname.
-        r'[a-zA-Z-][a-zA-Z0-9_-]*\d*'
-        # A numeric range of nodes in square brackets.
-        r'\-?(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
+        # A valid hostname: 'n', 'bob', 'host03q', 'foo-bar'
+        r'[a-zA-Z]'           # Hostnames must start with a normal character
+        r'(?:[a-zA-Z0-9_-]*'  # Followed optionally by one or more alphanumeric characters
+        r'[a-zA-Z_-])?'       # And end with a non-numeric character.
+        # The numeric node set
+        # 03, 50, 0[3], 10[1-9], 22[33,45,66-99]
+        r'(?:\d+|'             # Just a number or...
+        r'\d*(?\['             # A 'prefix' number followed by a square bracket
+        r'(?:\d+|\d+-\d+)'     # A number or dash separated pair (ie '09' or '09-25')
+        r'(?:,\d+|,\d+-\d+)*'  # We can have more than one number or dash-pair, comma sep.
+        r'\]))'                # Closing square bracket, end all matching groups.
     )
     NODE_LIST_RE = re.compile(
         # Match a comma separated list of these things.
@@ -206,8 +213,8 @@ class Slurm(SchedulerPluginAdvanced):
 
     NODE_BRACKET_FORMAT_RE = re.compile(
         # Match hostname followed by square brackets,
-        # group whats in the brackets.
-        r'([a-zA-Z][a-zA-Z0-9_-]*\d*)\[(.*)]'
+        # group what is in the brackets.
+        r'([a-zA-Z](?:[a-zA-Z0-9_-]*[a-zA-Z_-])?)\d*\[(.*)]'
     )
 
     def __init__(self):
