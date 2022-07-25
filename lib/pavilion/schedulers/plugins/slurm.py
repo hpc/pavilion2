@@ -195,9 +195,9 @@ class Slurm(SchedulerPluginAdvanced):
 
     NODE_SEQ_REGEX_STR = (
         # The characters in a valid hostname.
-        r'[a-zA-Z][a-zA-Z_-]*\d*'
+        r'[a-zA-Z-][a-zA-Z0-9_-]*\d*'
         # A numeric range of nodes in square brackets.
-        r'(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
+        r'\-?(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
     )
     NODE_LIST_RE = re.compile(
         # Match a comma separated list of these things.
@@ -207,7 +207,7 @@ class Slurm(SchedulerPluginAdvanced):
     NODE_BRACKET_FORMAT_RE = re.compile(
         # Match hostname followed by square brackets,
         # group whats in the brackets.
-        r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)]'
+        r'([a-zA-Z][a-zA-Z0-9_-]*\d*)\[(.*)]'
     )
 
     def __init__(self):
@@ -329,7 +329,7 @@ class Slurm(SchedulerPluginAdvanced):
                         "Invalid Node List: '{}'. Syntax error in item '{}'. "
                         "Node lists components be a hostname or hostname "
                         "prefix followed by a range of node numbers. "
-                        "Ex: foo003,foo0[10-20],foo[103-104], foo[10,12-14]"
+                        "Ex: foo003,foo0[10-20],foo[103-104],foo[10,12-14],foo-m11-16"
                         .format(node_list, part)
                     )
 
