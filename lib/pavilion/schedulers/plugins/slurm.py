@@ -201,7 +201,7 @@ class Slurm(SchedulerPluginAdvanced):
         # The numeric node set
         # 03, 50, 0[3], 10[1-9], 22[33,45,66-99]
         r'(?:\d+|'             # Just a number or...
-        r'\d*(?\['             # A 'prefix' number followed by a square bracket
+        r'\d*(?:\['             # A 'prefix' number followed by a square bracket
         r'(?:\d+|\d+-\d+)'     # A number or dash separated pair (ie '09' or '09-25')
         r'(?:,\d+|,\d+-\d+)*'  # We can have more than one number or dash-pair, comma sep.
         r'\]))'                # Closing square bracket, end all matching groups.
