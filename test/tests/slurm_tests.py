@@ -104,6 +104,8 @@ class SlurmTests(PavTestCase):
             ('n[003-143]', ['n{:03d}'.format(d) for d in range(3, 144)]),
             # Duplicates are accepted
             ('nid03,nid[03-04]', ['nid03', 'nid03', 'nid04']),
+            ('nid03-04,nid03-[05,10],nid03-[21-23]', ['nid03-04', 'nid03-05', 'nid03-10',
+                                                      'nid03-21', 'nid03-22', 'nid03-23']),
             ('nid03,nid[04-06],nid[12-33]',
              ['nid03', 'nid04', 'nid05', 'nid06'] +
              ['nid{:02d}'.format(d) for d in range(12, 34)]),
