@@ -214,7 +214,7 @@ class Slurm(SchedulerPluginAdvanced):
     NODE_BRACKET_FORMAT_RE = re.compile(
         # Match hostname followed by square brackets,
         # group what is in the brackets.
-        r'([a-zA-Z](?:[a-zA-Z0-9_-]*[a-zA-Z_-])?)\d*\[(.*)]'
+        r'([a-zA-Z](?:[a-zA-Z0-9_-]*[a-zA-Z_-])?\d*)\[(.*)]'
     )
 
     def __init__(self):
@@ -360,7 +360,7 @@ class Slurm(SchedulerPluginAdvanced):
                 for node in nodelist.split(","):
                     if '-' in node:
                         start, end = node.split('-')
-                        digits = min(len(start), len(end))
+                        digits = max(len(start), len(end))
                         if int(end) < int(start):
                             raise ValueError(
                                 "In node list '{}' part '{}', node range ends "

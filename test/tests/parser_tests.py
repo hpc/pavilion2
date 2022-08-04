@@ -24,6 +24,7 @@ class ParserTests(unittest.PavTestCase):
             'ints': ['0', '1', '2', '3', '4', '5'],
             'floats': ['0.1', '2.3'],
             'more_ints': ['0', '1'],
+            'note': "3",
             'struct': {
                 'cpus': '200',
                 'flops': '2.1',
@@ -79,6 +80,8 @@ class ParserTests(unittest.PavTestCase):
         'str1': 'hello',
         'ints.3': 3,
         'ints': 0,
+        # Make sure this isn't parsed as 'not e'
+        'note': 3,
         'struct.cpus * 0': 0,
         'struct.cpus // 7': 28,
         'struct.cpus / 7': 28.571428571428573,

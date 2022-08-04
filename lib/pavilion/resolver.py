@@ -1016,8 +1016,6 @@ class TestConfigResolver:
             raise TestConfigError("Test {} requested scheduler {}, but it isn't "
                                   "available on this system.".format(test_name, sched_name))
 
-        sched_cfg = test_cfg.get('schedule', {})
-
         var_men = [base_var_man]
         # Keep trying to resolve variables and create permutations until we're out. This
         # iteratively takes care of any permutations that aren't self-referential and don't
@@ -1066,6 +1064,7 @@ class TestConfigResolver:
         all_var_men = []
         for var_man in var_men:
             var_man.resolve_references(partial=True)
+            sched_cfg = test_cfg.get('schedule', {})
             try:
                 sched_cfg = resolve.test_config(sched_cfg, var_man)
             except KeyError as err:

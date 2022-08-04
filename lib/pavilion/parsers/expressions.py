@@ -28,8 +28,8 @@ expr: or_expr
 
 // These set order of operations. 
 // See https://en.wikipedia.org/wiki/Operator-precedence_parser
-or_expr: and_expr ( "or" and_expr )*        
-and_expr: not_expr ( "and" not_expr )*
+or_expr: and_expr ( OR and_expr )*        
+and_expr: not_expr ( AND not_expr )*
 not_expr: NOT? compare_expr 
 compare_expr: add_expr ((EQ | NOT_EQ | LT | GT | LT_EQ | GT_EQ ) add_expr)*
 add_expr: mult_expr ((PLUS | MINUS) mult_expr)*
@@ -77,7 +77,9 @@ TIMES: "*"
 DIVIDE: "/"
 INT_DIV: "//"
 MODULUS: "%"
-NOT.2: "not"
+AND: /and(?![a-zA-Z_])/
+OR: /or(?![a-zA-Z_])/
+NOT.2: /not(?![a-zA-Z_])/
 EQ: "=="
 NOT_EQ: "!="
 LT: "<"
@@ -198,7 +200,12 @@ class BaseExprTransformer(PavTransformer):
         :return:
         """
 
-        or_items = items.copy()
+        # Remove 'or' tokens
+        or_items = []
+        for i in range(len(items)):
+            if i%2 == 0:
+                or_items.append(items[i])
+
         or_items.reverse()
         base_tok = or_items.pop()
 
@@ -217,7 +224,11 @@ class BaseExprTransformer(PavTransformer):
         :return:
         """
 
-        and_items = items.copy()
+        # Remove 'and' tokens
+        and_items = []
+        for i in range(len(items)):
+            if i%2 == 0:
+                and_items.append(items[i])
         and_items.reverse()
         base_tok = and_items.pop()
 
