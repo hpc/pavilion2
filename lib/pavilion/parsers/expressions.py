@@ -78,8 +78,8 @@ DIVIDE: "/"
 INT_DIV: "//"
 MODULUS: "%"
 AND: /and(?![a-zA-Z_])/
-OR: /or(?![a-zA-Z_]|$)/
-NOT.2: /not(?![a-zA-Z_]|$)/
+OR: /or(?![a-zA-Z_])/
+NOT.2: /not(?![a-zA-Z_])/
 EQ: "=="
 NOT_EQ: "!="
 LT: "<"
