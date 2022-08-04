@@ -312,11 +312,47 @@ class Slurm(SchedulerPluginAdvanced):
         return elems, validators, defaults
 
     @classmethod
-    def parse_node_list(cls, node_list) -> NodeList:
+    def parse_node_list(cls, node_list, full=True) -> NodeList:
         """Convert a slurm format node list into a list of nodes, and throw
         errors that help the user identify their exact mistake."""
         if node_list is None or node_list == '':
             return NodeList([])
+
+        if full:
+            if "[" not in node_list:
+                return list(node_list)
+
+            isplit=node_list.split("[")
+            prefix=isplit[0]
+            nums=isplit[-1].strip("]").split(',')
+            allnodes = []
+            lennum=0
+            for n in nums:
+                if '-' in n:
+                    nlims = n.split('-')
+                    nrng  = range(int(nlims[0]),int(nlims[1])+1)
+                    nf    = nlims[0]
+                    allnodes.extend([str(na) for na in nrng])
+                else:
+                    nf = n
+                    allnodes.append(n)
+                
+                if lennum == 0:
+                    lennum = len(nf)
+                
+            replacenodes=[]
+            for i, anode in enumerate(allnodes):
+                lendiff = lennum - len(anode)
+                if lendiff > 0:
+                    aa='0'*lendiff
+                    newnode=aa+anode
+                    replacenodes.append((i,newnode))
+
+            for i, nn in replacenodes:
+                allnodes[i] = nn
+            
+            return [prefix+nodenum for nodenum in allnodes]
+
 
         match = cls.NODE_LIST_RE.match(node_list)
         if match is None:
@@ -452,7 +488,7 @@ class Slurm(SchedulerPluginAdvanced):
 
         _ = job
 
-        return self.parse_node_list(os.environ['SLURM_JOB_NODELIST'])
+        return self.parse_node_list(os.environ['SLURM_JOB_NODELIST'], full=True)
 
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
         """Use the `scontrol show node` command to collect data on nodes.
