@@ -186,6 +186,78 @@ def slurm_states(state):
 
     return states
 
+def parse_node_list_element(node_spec: str):
+    """ Takes a node_spec, a string with a node name or a prefix and a
+    shorthand list of nodes in [] brackets.
+    Returns a fully resolved list of nodes.
+    """
+
+    # No shorthand list, node_spec is fully resolved.
+    bracket_check = ("[" in node_spec) + ("]" in node_spec)
+    if bracket_check == 0:
+
+        # If the loop was broken for trailing nonsense. raise value error.
+        if not node_spec[-1].isdigit() or not node_spec.replace('-','0').isalnum():
+            raise ValueError(
+                "Node spec {} constains invalid characters."
+                .format(node_spec)
+            )
+        return [node_spec]
+    elif bracket_check == 1 or bracket_check > 2:
+        raise ValueError(
+            "Invalid Node List: '{}'. Unmatched or invalid range bracket []"
+            .format(node_spec)
+        )
+
+    # Get the node prefix by splitting on the starting square bracket.
+    # Strip the end bracket and split into a list of strings on comma.
+    # If the string has a dash it's a range, otherwise it's a single node.
+    # Remember the length of the first node number string in the list.
+    # Make the numbers into integers, create ranges and collect them as strings.
+    prefix, num_list = node_spec.split("[")
+    nums = num_list.rstrip("]").split(',')
+
+    if not "".join(nums).replace("-","0").isdigit():
+        raise ValueError(
+            "Node spec {} constains invalid characters."
+            .format(node_spec)
+        )
+
+    nlims = nums[0].split('-')
+    lennum = len(nlims[0])
+    nodenums = []
+    for num in nums:
+        if '-' in num:
+            numsplit = num.split('-')
+            nlims = [int(n) for n in numsplit]
+            if nlims[1] < nlims[0]:
+                raise ValueError(
+                    "In node list '{}' element '{}', node range ends "
+                    "before it starts."
+                    .format(node_spec, num))
+
+            nrng  = range(nlims[0], nlims[1]+1)
+            nodenums.extend([str(na) for na in nrng])
+        else:
+            nodenums.append(num)
+
+    # Find the node number strings that are shorter than they should be.
+    # Collect their position in the node number list and the padded node number
+    # string.
+    replacenodes=[]
+    for i, anode in enumerate(nodenums):
+        lendiff = lennum - len(anode)
+        if lendiff > 0:
+            padname='0'*lendiff
+            newnode=padname+anode
+            replacenodes.append((i,newnode))
+
+    # Replace the original node number string with padded versions where needed.
+    for i, nodenum in replacenodes:
+        nodenums[i] = nodenum
+
+    return [prefix+nodenum for nodenum in nodenums]
+
 
 class Slurm(SchedulerPluginAdvanced):
     """Schedule tests with Slurm!"""
@@ -318,21 +390,26 @@ class Slurm(SchedulerPluginAdvanced):
         if node_list is None or node_list == '':
             return NodeList([])
 
-        if full:
-            if "[" not in node_list:
-                return list(node_list)
+        # Split the nodelist on commas to seperate sections.
+        node_sections = node_list.replace(" ","").split(',')
+        allnodes = []
+        inner_split = False
+        inner_collect = []
 
-            isplit=node_list.split("[")
-            prefix=isplit[0]
-            nums=isplit[-1].strip("]").split(',')
-            allnodes = []
-            lennum=0
-            for n in nums:
-                if '-' in n:
-                    nlims = n.split('-')
-                    nrng  = range(int(nlims[0]),int(nlims[1])+1)
-                    nf    = nlims[0]
-                    allnodes.extend([str(na) for na in nrng])
+        # Collect sections so that each element is either a single node string
+        # or a node set descriptor.
+        for node_section in node_sections:
+            if inner_split:
+                inner_collect.append(node_section)
+                if "]" in node_section:
+                    inner_split = False
+                    allnodes.append(','.join(inner_collect))
+                    inner_collect = []
+            elif "[" not in node_section:
+                allnodes.append(node_section)
+            else:
+                if "]" in node_section:
+                    allnodes.append(node_section)
                 else:
                     nf = n
                     allnodes.append(n)
