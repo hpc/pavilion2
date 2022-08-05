@@ -411,85 +411,12 @@ class Slurm(SchedulerPluginAdvanced):
                 if "]" in node_section:
                     allnodes.append(node_section)
                 else:
-                    nf = n
-                    allnodes.append(n)
-
-                if lennum == 0:
-                    lennum = len(nf)
-
-            replacenodes=[]
-            for i, anode in enumerate(allnodes):
-                lendiff = lennum - len(anode)
-                if lendiff > 0:
-                    aa='0'*lendiff
-                    newnode=aa+anode
-                    replacenodes.append((i,newnode))
-
-            for i, nn in replacenodes:
-                allnodes[i] = nn
-
-            return [prefix+nodenum for nodenum in allnodes]
-
-
-        match = cls.NODE_LIST_RE.match(node_list)
-        if match is None:
-            node_part_re = re.compile(cls.NODE_SEQ_REGEX_STR + r'$')
-            # The following is required to handle foo[3,6-9].
-            prev = ""
-            for part in node_list.split(','):
-                # Logic used to recombined 'foo[3', '6-9]' after split.
-                if prev:
-                    part = prev + "," + part
-                    prev = ""
-                if '[' in part and ']' not in part:
-                    prev = part
-                    continue
-                if not node_part_re.match(part):
-                    raise ValueError(
-                        "Invalid Node List: '{}'. Syntax error in item '{}'. "
-                        "Node lists components be a hostname or hostname "
-                        "prefix followed by a range of node numbers. "
-                        "Ex: foo003,foo0[10-20],foo[103-104],foo[10,12-14],foo-m11-16"
-                        .format(node_list, part)
-                    )
-
-            # If all the parts matched, then it's an overall format issue.
-            raise ValueError("Invalid Node List: '{}' "
-                             "Good Example: foo003,foo0[10-20],"
-                             "foo[103-104], foo[10,12-14]")
+                    inner_collect.append(node_section)
+                    inner_split = True
 
         nodes = []
-        prev = ""
-        for part in node_list.split(','):
-            if prev:
-                part = prev + "," + part
-                prev = ""
-            if '[' in part and ']' not in part:
-                prev = part
-                continue
-            match = cls.NODE_BRACKET_FORMAT_RE.match(part)
-            if match:
-                host, nodelist = match.groups()
-                for node in nodelist.split(","):
-                    if '-' in node:
-                        start, end = node.split('-')
-                        digits = max(len(start), len(end))
-                        if int(end) < int(start):
-                            raise ValueError(
-                                "In node list '{}' part '{}', node range ends "
-                                "before it starts."
-                                .format(node_list, part)
-                            )
-                        for i in range(int(start), int(end)+1):
-                            node = ('{base}{num:0{digits}d}'
-                                    .format(base=host, num=i, digits=digits))
-                            nodes.append(node)
-                    else:
-                        node = ('{base}{num}'
-                                .format(base=host, num=node))
-                        nodes.append(node)
-            else:
-                nodes.append(part)
+        for anode in allnodes:
+            nodes.extend(parse_node_list_element(anode))
 
         return NodeList(nodes)
 
