@@ -414,6 +414,9 @@ class Slurm(SchedulerPluginAdvanced):
                     inner_collect.append(node_section)
                     inner_split = True
 
+        if inner_collect:
+            allnodes.append(','.join(inner_collect))
+
         nodes = []
         for anode in allnodes:
             nodes.extend(parse_node_list_element(anode))
