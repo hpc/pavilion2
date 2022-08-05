@@ -413,10 +413,10 @@ class Slurm(SchedulerPluginAdvanced):
                 else:
                     nf = n
                     allnodes.append(n)
-                
+
                 if lennum == 0:
                     lennum = len(nf)
-                
+
             replacenodes=[]
             for i, anode in enumerate(allnodes):
                 lendiff = lennum - len(anode)
@@ -427,7 +427,7 @@ class Slurm(SchedulerPluginAdvanced):
 
             for i, nn in replacenodes:
                 allnodes[i] = nn
-            
+
             return [prefix+nodenum for nodenum in allnodes]
 
 
