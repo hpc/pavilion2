@@ -679,7 +679,7 @@ found in these directories the default config search paths:
         pav_cfg = PavilionConfigLoader().load_empty()
         pav_cfg.pav_cfg_file = Path('pavilion.yaml')
 
-    # Make sure this path is absolute (to the symlink)
+    # Make sure this path is absolute (but keep any symlinks)
     if not pav_cfg.pav_cfg_file.is_absolute():
         pav_cfg.pav_cfg_file = Path(os.getcwd())/pav_cfg.pav_cfg_file
 
