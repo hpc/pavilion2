@@ -30,7 +30,9 @@ except OSError:
 
 PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 
-PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', None)
+PAV_ROOT = Path(__file__).resolve().parents[2]
+
+PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', PAV_ROOT.parent)
 
 if PAV_CONFIG_DIR is not None:
     PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR)
@@ -41,8 +43,6 @@ if PAV_CONFIG_DIR is not None:
     else:
         output.fprint(sys.stderr, "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
                       .format(PAV_CONFIG_DIR), color=output.YELLOW)
-
-PAV_ROOT = Path(__file__).resolve().parents[2]
 
 # Use this config file, if it exists.
 PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
