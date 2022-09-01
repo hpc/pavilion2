@@ -32,7 +32,7 @@ PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 
 PAV_ROOT = Path(__file__).resolve().parents[2]
 
-PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', PAV_ROOT.parent)
+PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', None)
 
 if PAV_CONFIG_DIR is not None:
     PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR)
@@ -529,7 +529,7 @@ class LocalConfigLoader(yc.YamlConfigLoader):
 
 def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     """Setup the config dictionaries for each configuration directory. This will involve
-    loading each directories pavilion.yaml, and saving the results in this dict.
+    loading each directories config.yaml, and saving the results in this dict.
     These will be in an ordered dictionary by label.
 
     :param pav_cfg: The pavilion config.
@@ -678,6 +678,7 @@ found in these directories the default config search paths:
                                       "empty/default config.", color=output.YELLOW)
         pav_cfg = PavilionConfigLoader().load_empty()
         pav_cfg.pav_cfg_file = Path('pavilion.yaml')
+        pav_cfg.config_dirs = [Path('.').resolve()]
 
     # Make sure this path is absolute (to the symlink)
     if not pav_cfg.pav_cfg_file.is_absolute():
@@ -693,13 +694,6 @@ found in these directories the default config search paths:
     # Make sure this path is absolute too.
     if not pav_cfg.working_dir.is_absolute():
         pav_cfg['working_dir'] = pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir']
-
-    if pav_cfg['working_dir'] is None:
-        if warn:
-            output.fprint(sys.stderr,
-                          "Pavilion working dir was not set, using 'working_dir' in the "
-                          "current directory.", color=output.YELLOW)
-        pav_cfg['working_dir'] = Path('working_dir')
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 

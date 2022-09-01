@@ -15,7 +15,10 @@ class StatusCommand(Command):
 
     def __init__(self):
         super().__init__('status', 'Check the status of a test, list of tests,'
-                                   ' or test series.',
+                                   ' or test series. You may also specify "all" as '
+                                   'the test id, to get the status of all tests. The '
+                                   'default "all" filter gives your recent tests, but setting '
+                                   'any filter argumument overrides that.',
                          short_help="Get status of tests.")
 
     def _setup_arguments(self, parser):
