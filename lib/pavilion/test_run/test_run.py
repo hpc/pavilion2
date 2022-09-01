@@ -132,7 +132,11 @@ class TestRun(TestAttributes):
         # Get an id for the test, if we weren't given one.
         if new_test:
             # These will be set by save() or on load.
-            id_tmp, run_path = dir_db.create_id_dir(tests_path)
+            try:
+                id_tmp, run_path = dir_db.create_id_dir(tests_path)
+            except (OSError, TimeoutError) as err:
+                raise TestRunError("Could not create test id directory at '{}': {}"
+                                   .format(tests_path, err))
             super().__init__(path=run_path, load=False)
             self._variables_path = self.path / 'variables'
             self.var_man = None
