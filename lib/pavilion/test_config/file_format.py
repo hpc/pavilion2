@@ -273,8 +273,8 @@ expected to be added to by various plugins.
             help_text="Modes used in the creation of this test. Value is added "
                       "automatically."
         ),
-        yc.RegexElem(
-            'inherits_from', regex=TEST_NAME_RE_STR,
+        yc.ListElem(
+            'inherits_from', sub_elem=yc.StrElem(),
             help_text="Inherit from the given test section, and override "
                       "parameters those specified in this one. Lists are "
                       "overridden entirely"),

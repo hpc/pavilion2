@@ -806,8 +806,13 @@ class TestConfigResolver:
         # we're done. If there are still unresolved nodes, then a loop must
         # exist.
 
-        # Organize tests into an inheritance tree.
+        # Track the child tests for each test.
         depended_on_by = defaultdict(list)
+        # Track the parents for each test
+        unresolved_deps = defaultdict(list)
+        # Track the inheritance separately from the raw config
+        inherits = {}
+
         # All the tests for this suite.
         suite_tests = {}
         # A list of tests whose parent's have had their dependencies
@@ -817,21 +822,26 @@ class TestConfigResolver:
             raise TestConfigError("Test Suite {} is empty.".format(suite_path))
         try:
             for test_cfg_name, test_cfg in suite_cfg.items():
+                inherits_from = test_cfg.get('inherits_from', [])
+                if isinstance(inherits_from, str):
+                    inherits_from = [inherits_from]
+
                 if test_cfg is None:
                     raise TestConfigError(
                         "{} in {} is empty. Nothing will execute."
                         .format(test_cfg_name, suite_path))
-                if test_cfg.get('inherits_from') is None:
-                    test_cfg['inherits_from'] = '__base__'
+                if not inherits_from:
+                    inherits_from = ['__base__']
                     # Tests that depend on nothing are ready to resolve.
                     ready_to_resolve.append(test_cfg_name)
                 else:
-                    depended_on_by[test_cfg['inherits_from']]\
-                        .append(test_cfg_name)
+                    for parent in inherits_from:
+                        depended_on_by[parent].append(test_cfg_name)
+                        unresolved_deps[test_cfg_name].append(parent)
+                inherits[test_cfg_name] = inherits_from
 
                 try:
-                    suite_tests[test_cfg_name] = TestConfigLoader()\
-                        .normalize(test_cfg)
+                    suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
                         "Test {} in suite {} has an error:\n{}"
@@ -841,24 +851,33 @@ class TestConfigResolver:
                 "Test Suite {} has objects but isn't a dict. Check syntax "
                 " or prepend '-f' if running a list of tests "
                 .format(suite_path))
+
         # Add this so we can cleanly depend on it.
         suite_tests['__base__'] = base_config
 
         # Resolve all the dependencies
         while ready_to_resolve:
-            # Grab a test whose parent's are resolved and the parent test.
+            # Grab a test whose parents are resolved.
             test_cfg_name = ready_to_resolve.pop(0)
             test_cfg = suite_tests[test_cfg_name]
-            parent = suite_tests[test_cfg['inherits_from']]
+            parents = [suite_tests[parent] for parent in inherits[test_cfg_name]]
 
-            # Merge the parent and test.
-            suite_tests[test_cfg_name] = test_config_loader.merge(parent,
-                                                                  test_cfg)
+            for parent in parents:
+                # Merge the parent and test.
+                suite_tests[test_cfg_name] = test_config_loader.merge(parent, test_cfg)
 
             suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
 
+            # Note that
+            for child in depended_on_by[test_cfg_name]:
+                unresolved_deps[child].remove(test_cfg_name)
+
             # Now all tests that depend on this one are ready to resolve.
-            ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
+            for child in depended_on_by[test_cfg_name]:
+                if not unresolved_deps[child]:
+                    # All deps have been resolved.
+                    ready_to_resolve.append(child)
+
             # Delete this test from here, for a sanity check to know we
             # resolved it.
             if test_cfg_name in depended_on_by:
@@ -877,8 +896,7 @@ class TestConfigResolver:
 
         for test_name, test_config in suite_tests.items():
             try:
-                suite_tests[test_name] = test_config_loader\
-                                            .validate(test_config)
+                suite_tests[test_name] = test_config_loader.validate(test_config)
             except RequiredError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a missing key. {}"

@@ -16,7 +16,7 @@ class TestConfig(PavTestCase):
 
         data = file_format.TestConfigLoader().load(f)
 
-        self.assertEqual(data.inherits_from, 'something_else')
+        self.assertEqual(data.inherits_from, ['something_else'])
         self.assertEqual(data.scheduler, 'slurm')
         self.assertEqual(data.run.cmds[0], 'true')
 
