@@ -331,7 +331,7 @@ def parse_result(key: str, parser_cfg: Dict, file: TextIO, parser: ResultParser)
         return ParseErrorMsg(parser, msg, key), log
     except Exception as err:  # pylint: disable=W0703
         msg = "UnexpectedError: {}".format(err)
-        log(msg)
+        log(traceback.format_exc())
         return ParseErrorMsg(parser, msg, key), log
 
 
@@ -385,7 +385,7 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
         except IndexError:
             log("Match select index '{}' out of range. There were only {} "
                 "matches.".format(match_idx, len(matches)))
-            return one, log
+            return None, log
 
 
 def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:

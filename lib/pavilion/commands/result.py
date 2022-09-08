@@ -129,10 +129,6 @@ class ResultsCommand(Command):
 
             width = shutil.get_terminal_size().columns or 80
 
-            for rslt in results:
-                rslt['finish_date'] = output.get_relative_timestamp(
-                                      rslt['finished'], fullstamp=True)
-
             try:
                 if args.json:
                     output.json_dump(results, self.outfile)
