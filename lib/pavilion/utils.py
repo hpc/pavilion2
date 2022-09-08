@@ -501,6 +501,10 @@ def auto_type_convert(value):
     if isinstance(value, (int, float, bool)):
         return value
 
+    if '_' in value:
+        # Don't allow underscores in numeric literals like python does.
+        return value
+
     # Probably a string?
     try:
         return int(value)
