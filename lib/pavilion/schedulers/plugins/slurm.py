@@ -131,14 +131,14 @@ class SlurmVars(SchedulerVariables):
 
         slurm_conf = self._sched_config['slurm']
 
-        nodes = len(self._nodes)
+        nodes = len(self._node_info)
         tasks = int(self.tasks_per_node()) * nodes
 
         if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
 
             cmd = ['srun',
                    '-N', str(nodes),
-                   '-w', Slurm.compress_node_list(self._nodes.keys()),
+                   '-w', Slurm.compress_node_list(self._node_info.keys()),
                    '-n', str(tasks)]
 
             cmd.extend(slurm_conf['srun_extra'])
@@ -156,7 +156,7 @@ class SlurmVars(SchedulerVariables):
                 for mca_opt in mca:
                     cmd.extend(['--mca', mca_opt])
 
-            hostlist = ','.join(self._nodes.keys())
+            hostlist = ','.join(self._node_info.keys())
             cmd.extend(['--host', hostlist])
 
             cmd.extend(self._sched_config['slurm']['mpirun_extra'])

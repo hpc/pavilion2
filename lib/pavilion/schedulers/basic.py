@@ -7,7 +7,7 @@ from typing import List
 from pavilion.jobs import Job, JobError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
-from pavilion.types import NodeInfo, Nodes
+from pavilion.types import NodeInfo, Nodes, NodeList
 from .config import validate_config, calc_node_range
 from .scheduler import SchedulerPlugin, SchedulerPluginError
 from .vars import SchedulerVariables
@@ -18,9 +18,16 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
     on manually set parameters in 'schedule.cluster_info'."""
 
     def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
-        """Get the initial variables for the basic scheduler."""
+        """Get the initial variables for the basic scheduler.
+        """
 
-        return self.VAR_CLASS(sched_config)
+        return self.VAR_CLASS(
+            sched_config=sched_config,
+            node_info=Nodes({}),
+            chunks=[NodeList([])],
+            chunk_id=0,
+            node_list_id=0,
+        )
 
     def get_final_vars(self, test: TestRun) -> SchedulerVariables:
         """Gather node information from within the allocation."""
@@ -37,7 +44,15 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
         for node in alloc_nodes:
             nodes[node] = self._get_alloc_node_info(node)
 
-        return self.VAR_CLASS(sched_config, nodes=nodes, deferred=False)
+        return self.VAR_CLASS(
+            sched_config=sched_config,
+            node_info=nodes,
+            chunks=[NodeList(list(nodes.keys()))],
+            chunk_id=0,
+            node_list_id=0,
+            test_nodes=NodeList(list(nodes.keys())),
+            deferred=False,
+        )
 
     def _get_alloc_node_info(self, node_name) -> NodeInfo:
         """Given that this is running on an allocation, get information about

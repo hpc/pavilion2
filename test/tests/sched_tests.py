@@ -91,7 +91,7 @@ class SchedTests(PavTestCase):
 
         sched_vars = schedulers.SchedulerVariables(
             config,
-            nodes=nodes,
+            node_info=nodes,
             chunks=chunks,
             node_list_id=5,
             deferred=False,
@@ -144,7 +144,7 @@ class SchedTests(PavTestCase):
 
         sched_vars = schedulers.SchedulerVariables(
             config,
-            nodes=nodes,
+            node_info=nodes,
             chunks=chunks,
             node_list_id=5,
             deferred=False,
@@ -252,7 +252,7 @@ class SchedTests(PavTestCase):
                     chunk_size = size
 
                 chunk_id = (node_list_id, chunk_size, 'contiguous', extra)
-                chunks = dummy._chunks[chunk_id]
+                chunks = dummy._chunk_sets[chunk_id]
                 for chunk in chunks:
                     self.assertEqual(len(chunk), chunk_size)
 
@@ -294,8 +294,8 @@ class SchedTests(PavTestCase):
             # Exercise each node selection method.
             sched_vars = dummy.get_initial_vars(sched_config)
             node_list_id = int(sched_vars['node_list_id'])
-            chunks = dummy._chunks[(node_list_id, chunk_size,
-                                    select, sconfig.BACKFILL)]
+            chunks = dummy._chunk_sets[(node_list_id, chunk_size,
+                                        select, sconfig.BACKFILL)]
 
             # This is here to debug node selection and visually examine the node
             # selection algorithm results, as they are mostly random.

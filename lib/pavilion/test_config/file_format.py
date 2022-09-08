@@ -331,10 +331,9 @@ expected to be added to by various plugins.
                       "group of tests. Not to be set by the user."),
         yc.StrElem(
             'chunk', default='any',
-            help_text="The scheduler chunk to run on. Will run on 'any' chunk "
-                      "by default, but the chunk may be specified by number. The "
-                      "available chunk ids are in the sched.chunks variable, and"
-                      "can be permuted on."
+            help_text="This config element is deprecated. Use "
+                      "schedule.chunking.group to set the chunking group"
+                      "(or specify a specific chunk) instead."
         ),
         CondCategoryElem(
             'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),

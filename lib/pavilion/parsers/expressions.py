@@ -346,7 +346,7 @@ class BaseExprTransformer(PavTransformer):
 
         return base_tok
 
-    # This have been generalized.
+    # These have been generalized.
     add_expr = math_expr
     mult_expr = math_expr
 

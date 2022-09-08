@@ -17,7 +17,7 @@ from pavilion.test_run import TestRun
 from pavilion.types import NodeList, PickedNodes
 from yapsy import IPlugin
 from . import config
-from . import node_selection
+from . import chunking
 from .config import validate_config, SchedConfigError, ScheduleConfig
 from .vars import SchedulerVariables
 
@@ -106,13 +106,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
     KICKOFF_SCRIPT_HEADER_CLASS = KickoffScriptHeader
     """The class to use when generating headers for kickoff scripts."""
 
-    NODE_SELECTION = {
-        'contiguous':  node_selection.contiguous,
-        'random':      node_selection.random,
-        'rand_dist':   node_selection.rand_dist,
-        'distributed': node_selection.distributed,
-    }
-
     def __init__(self, name, description, priority=PRIO_CORE):
         """Scheduler plugin that is expected to be overriden by subclasses.
         The plugin will populate a set of expected 'sched' variables."""
@@ -194,6 +187,11 @@ class SchedulerPlugin(IPlugin.IPlugin):
         raise NotImplementedError("Implemented in Basic/Advanced child classes.")
 
     # The remaining methods are shared by all plugins.
+    def get_chunk_count(self, raw_sched_config: dict) -> int:
+        """Get the number of chunks for the given configuration. Returns 1 on errors
+        and when chunking isn't supported."""
+
+        return 1
 
     def get_initial_vars(self, raw_sched_config: dict) -> SchedulerVariables:
         """Queries the scheduler to auto-detect its current state, and returns the

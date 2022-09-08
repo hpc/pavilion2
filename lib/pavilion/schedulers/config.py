@@ -120,6 +120,13 @@ class ScheduleConfig(yc.KeyedElem):
                               " 'backfill (default) - The extra nodes will be padded "
                               " out with nodes from the last chunk.\n"
                               " 'discard' - Don't use the extra nodes.\n"),
+                yc.StrElem(
+                    'group',
+                    help_text="Chunking 'group' to use. Defaults to the suite.test_name of "
+                              "each test (subtitle is ignored). Tests in the same chunking "
+                              "group won't overlap when selecting chunks.\n"
+                              "This may also be given as an integer, to specify specific "
+                              "chunk (modulus the number of chunks).")
             ]
         ),
         yc.KeyedElem(
@@ -429,6 +436,7 @@ CONFIG_VALIDATORS = {
         'size':           min_int('chunk.size', min_val=0),
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
+        'group':          None,
     },
     'tasks_per_node':   _validate_tasks_per_node,
     'min_tasks_per_node': min_int('min_tasks_per_node', min_val=1, required=False),
@@ -455,6 +463,7 @@ CONFIG_DEFAULTS = {
         'size':           '0',
         'node_selection': CONTIGUOUS,
         'extra':          BACKFILL,
+        'group':          'unset',
     },
     'tasks_per_node':   '1',
     'min_tasks_per_node': None,

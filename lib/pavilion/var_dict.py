@@ -28,6 +28,9 @@ def var_method(func):
         # This is primarily to enforce the fact that these can't take arguments
 
         value = func(self)
+        if isinstance(value, DeferredVariable):
+            return value
+
         norm_value = normalize_value(value)
         if norm_value is None:
             raise ValueError(
@@ -162,7 +165,7 @@ class VarDict(UserDict):
                 if self.DEFER_ERRORS:
                     formatted_err = traceback.format_exc()
                     msg = "Error getting key '{}' (See logs for full traceback): {}"\
-                            .format(key, err)
+                          .format(key, err)
                     self.data[key] = "<{}>".format(msg)
                     self._errors.append(msg + '\n' + formatted_err)
                 else:
