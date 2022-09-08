@@ -598,6 +598,15 @@ class TestConfigResolver:
                     test_cfg['host'] = host
                     test_cfg['modes'] = modes
 
+                    # Set up a schedule section if one doesn't already exist, and
+                    # add a default chunking group (the suite.test_name) if needed
+                    schedule = test_cfg.get('schedule', {})
+                    test_cfg['schedule'] = schedule
+                    chunking = schedule.get('chunking', {})
+                    test_cfg['schedule']['chunking'] = chunking
+                    if not chunking['group']:
+                        chunking['group'] = '{}.{}'.format(test_suite, test_cfg_name)
+
                 all_tests[test_suite] = suite_tests
 
             # Now that we know we've loaded and resolved a given suite,
@@ -1049,16 +1058,46 @@ class TestConfigResolver:
         # that they are permutation variables. These are variables that refer to themselves
         # (either directly (a.b->a.c) or indirectly (a.b -> d -> a.c).
         all_var_men = []
+        resolvable = []
         for var_man in var_men:
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
             _, could_resolve = var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
 
             # Resolve permutations only for those 'could_resolve' variables that
             # we actually permute over.
-            all_var_men.extend(var_man.get_permutations(
-                [('var', var_name) for var_name in could_resolve
-                 if var_name in could_resolve]))
+
+            resolvable = [('var', var_name) for var_name in could_resolve
+                          if var_name in could_resolve]
+            all_var_men.extend(var_man.get_permutations(resolvable))
+        # Remove vars we just resolved. It's ok that we grab the set from the last permutation,
+        # as they will always be the same across all permutations.
+        for resolved in resolvable:
+            used_per_vars.remove(resolved)
+
         var_men = all_var_men
+
+        # Permute on 'sched.chunks'. This one is special - it depends on the scheduler
+        # configuration, but it must be permuted on before the scheduler vars are pulled.
+        if ('sched', 'chunks') in used_per_vars:
+            used_per_vars.remove(('sched', 'chunks'))
+            # Make and resolve a dummy variable manager.
+            dummy_var_man = copy.deepcopy(var_men[0])
+            dummy_var_man.resolve_references(partial=True)
+            # Resolve the scheduler section and get a chunk count, otherwise just use 1 chunk.
+            try:
+                dummy_sched_cfg = resolve.test_config(sched_cfg, dummy_var_man)
+            except KeyError:
+                chunk_count = 1
+            else:
+                chunk_count = sched.get_chunk_count(dummy_sched_cfg)
+
+            # There's not actually anything to permute across yet, so just make extra duplicates
+            # of each test for each chunk. They'll get chunk ids assigned automatically.
+            all_var_men = []
+            for var_man in var_men:
+                for i in range(chunk_count):
+                    all_var_men.append(copy.deepcopy(var_man))
+            var_men = all_var_men
 
         # Everything left at this point will require the sched vars to deal with.
         all_var_men = []

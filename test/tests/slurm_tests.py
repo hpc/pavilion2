@@ -115,7 +115,11 @@ class SlurmTests(PavTestCase):
         )
 
         for ex, answer in examples:
-            nodes = slurm.parse_node_list(ex)
+            try:
+                nodes = slurm.parse_node_list(ex)
+            except Exception as err:
+                self.fail("Failed on example '{}': {}".format(ex, err))
+
             self.assertEqual(nodes, answer)
 
         bad_examples = (

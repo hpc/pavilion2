@@ -114,8 +114,7 @@ class Job:
             with (self.path/self.NODE_INFO_FN).open('wb') as data_file:
                 pickle.dump(nodes, data_file)
         except OSError as err:
-            raise JobError(
-                "Could not save node data: {}".format(err))
+            raise JobError("Could not save node data: {}".format(err))
 
     def load_sched_data(self) -> Nodes:
         """Load the scheduler data that was saved from the kickoff time."""

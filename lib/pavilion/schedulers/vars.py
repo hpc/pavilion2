@@ -1,11 +1,11 @@
 """Scheduler variable base class."""
 import math
-from typing import List
+from typing import Union, List
 
 from pavilion.deferred import DeferredVariable
 from pavilion.var_dict import VarDict, var_method, dfr_var_method
-from ..types import NodeInfo, Nodes, NodeList, NodeSet
 from .config import calc_node_range
+from ..types import Nodes, NodeList
 
 
 class SchedulerVariables(VarDict):
@@ -51,9 +51,11 @@ Naming Conventions:
     then harvesting the results of the test run."""
 
     def __init__(self, sched_config: dict,
-                 nodes: Nodes = None,
-                 chunks: List[NodeSet] = None,
-                 node_list_id: int = None,
+                 node_info: Nodes,
+                 chunks: List[NodeList],
+                 chunk_id: int,
+                 node_list_id: int,
+                 test_nodes: NodeList = None,
                  deferred=True):
         """Initialize the scheduler var dictionary. This will be initialized
         when preliminary variables are gathered vs when it is no longer deferred.
@@ -62,25 +64,49 @@ Naming Conventions:
         nodes that are part of the actual allocation. 'chunks' is not given in this
         case.
 
-        :param nodes: The dict of node names to node data. If None, will default to
+        :param node_info: The dict of node names to node data. If None, will default to
             an empty dict.
         :param sched_config: The scheduler configuration for the corresponding test.
-        :param chunks: The list of chunks, each of which is a list of node names. If
-            None, will default to an empty list.
         :param node_list_id: Should always be included when chunks is included.
             Provides the scheduler with a way to recover the original node list that
             was chunked without having to store it.
+        :param chunks: The list of chunks this could have used.
+        :param chunk_id: The id of the selected chunk.
+        :param test_nodes: The final list of nodes allocated for the test.
         :param deferred: Whether the variables are deferred.
         """
 
         super().__init__('sched', deferred=deferred)
 
         self._sched_config = sched_config
-        self._nodes = nodes if nodes else {}
-        self._chunks = chunks if chunks else []
+        self._node_info = node_info
+        self._chunk = chunks[chunk_id]
+        self._chunks = len(chunks)
         self._node_list_id = node_list_id
+        self._chunk_id = chunk_id
+        self._test_nodes = test_nodes
 
         self._keys = self._find_vars()
+
+    @classmethod
+    def finalize(cls, sched_config, node_info):
+        """Set up the scheduler variables with the finalized node list. The 'node_info'
+        variable should contain only those nodes for the final allocation, everything else
+        will be cut down to that or faked. Only those final nodes are needed to deal with
+        any deferred variables, everything involving chunks and general node lists will
+        have already been resolved and won't be queried."""
+
+        nodes = NodeList(list(node_info.keys()))
+
+        return cls(
+            sched_config=sched_config,
+            node_info=node_info,
+            node_list_id=0,
+            chunks=[nodes],
+            chunk_id=0,
+            test_nodes=nodes,
+            deferred=False,
+        )
 
     NO_EXAMPLE = '<no example>'
 
@@ -118,13 +144,12 @@ Naming Conventions:
     # front-end nodes have less resources than any compute node. Note that
     # they are all non-deferred, so they're safe to use in build scripts,
 
-    def _get_min(self, nodes: List[NodeInfo], attr: str, default: int):
+    def _get_min(self, values, attr: str, default: int):
         """Get the minimum of the given attribute across the list of nodes,
         settling for the cluster_info value, and then the default."""
 
         min_val = None
-        for node in nodes:
-            val = node.get(attr)
+        for val in values:
             if val is not None:
                 if min_val is None or val < min_val:
                     min_val = val
@@ -172,7 +197,7 @@ Naming Conventions:
             else:
                 tasks = tasks_per_node
         else:  # Should be a float
-            if self._nodes:
+            if self._node_info:
                 tasks = max(math.floor(tasks_per_node * int(self.min_cpus())), 1)
             else:
                 tasks = 1
@@ -182,31 +207,47 @@ Naming Conventions:
             return tasks
 
     @var_method
-    def chunk_ids(self):
-        """A list of indices of the available chunks."""
-        return list(range(len(self._chunks)))
+    def chunks(self):
+        """A list of the chunk ids. For the specific chunk id for a test see sched.chunk_id
+        even when permuting over sched.chunks."""
+
+        return list(range(self._chunks))
 
     @var_method
     def chunk_size(self):
         """The size of each chunk."""
 
-        if self._chunks:
-            return str(len(self._chunks[0]))
-        else:
-            return ''
+        return str(len(self._chunk))
+
+    @var_method
+    def chunk_nodes(self):
+        """A list of nodes in the selected chunk. The allocation will be on these nodes or
+        a subset of them."""
+
+        return [node for node in self._chunk]
+
+    @var_method
+    def chunk_id(self):
+        """The id of chunk that was selected."""
+
+        return self._chunk_id
+
+    @var_method
+    def chunk_ids(self):
+        """This variable is deprecated and always returns an empty list.  The
+        test resolver will warn the user if this is used."""
+
+        return []
 
     @var_method
     def requested_nodes(self):
-        """Number of requested nodes."""
+        """The requested node count or range."""
 
-        if self._chunks:
-            nmin, nmax = calc_node_range(self._sched_config, len(self._chunks[0]))
-            if nmin == nmax:
-                return str(nmax)
-            else:
-                return '{}-{}'.format(nmin, nmax)
+        nmin, nmax = calc_node_range(self._sched_config, len(self._chunk))
+        if nmin == nmax:
+            return str(nmax)
         else:
-            return ''
+            return '{}-{}'.format(nmin, nmax)
 
     @var_method
     def node_list_id(self):
@@ -220,17 +261,23 @@ Naming Conventions:
 
     @var_method
     def min_cpus(self):
-        """Get a minimum number of cpus available on each (filtered) noded. Defaults to
+        """Get a minimum number of cpus available on each (filtered) node. Defaults to
         1 if unknown."""
 
-        return self._get_min(list(self._nodes.values()), 'cpus', 1)
+        default = 1
+
+        return self._get_min([node.get('cpus', default) for node in self._node_info.values()],
+                             'cpus', default)
 
     @var_method
     def min_mem(self):
         """Get a minimum for any node across each (filtered) nodes. Returns
         a value in bytes (4 GB if unknown)."""
 
-        return self._get_min(list(self._nodes.values()), 'mem', 4*1024**3)
+        default = 4*1024**3
+
+        return self._get_min([node.get('mem', default) for node in self._node_info.values()],
+                             'mem', default)
 
     @var_method
     def nodes(self) -> int:
@@ -238,8 +285,8 @@ Naming Conventions:
         supports auto-detection, this will be the filtered count of nodes. Otherwise,
         this will be the 'cluster_info.node_count' value, or 1 if that isn't set."""
 
-        if self._nodes:
-            return len(self._nodes)
+        if self._node_info:
+            return len(self._node_info)
 
         if self._sched_config['cluster_info'].get('node_count') is None:
             return 1
@@ -251,42 +298,58 @@ Naming Conventions:
         """The list of node names on the system. If the scheduler supports
         auto-detection, will be the filtered list. This list will otherwise be empty."""
 
-        if self._nodes:
-            return NodeList(list(self._nodes.keys()))
+        if self._node_info:
+            return NodeList(list(self._node_info.keys()))
         else:
             return NodeList([])
 
-    @dfr_var_method
-    def test_nodes(self) -> int:
-        """The number of nodes for this specific test, determined once the test
-        has an allocation. Note that the allocation size may be larger than this
-        number."""
+    @var_method
+    def test_nodes(self) -> Union[int, DeferredVariable]:
+        """The number of nodes for this specific test's job. This may not be known (and
+        hence deferred) until the test has acquired the allocation."""
 
-        return len(self._nodes)
+        if self._test_nodes:
+            return len(self._test_nodes)
+        else:
+            return DeferredVariable()
 
-    @dfr_var_method
-    def test_node_list(self) -> NodeList:
-        """The list of nodes by name allocated for this test. Note that more
-        nodes than this may exist in the allocation."""
+    @var_method
+    def test_node_list(self) -> Union[NodeList, DeferredVariable]:
+        """The list of nodes by name allocated for this test's job. This is available
+        at test creation time when using chunking, but is otherwise deferred."""
 
-        return NodeList(list(self._nodes.keys()))
+        if self._test_nodes:
+            return self._test_nodes
+        else:
+            return DeferredVariable()
 
-    @dfr_var_method
+    @var_method
     def test_min_cpus(self):
         """The min cpus for each node in the chunk. Defaults to 1 if no info is
         available."""
 
-        return self._get_min(list(self._nodes.values()), 'cpus', 1)
+        if self._test_nodes:
+            cpus = [self._node_info[node]['cpus'] for node in self._test_nodes]
+            return self._get_min(cpus, 'cpus', 1)
+        else:
+            return DeferredVariable()
 
-    @dfr_var_method
+    @var_method
     def test_min_mem(self):
         """The min memory for each node in the chunk in bytes. Defaults to 4 GB if
         no info is available."""
 
-        return self._get_min(list(self._nodes.values()), 'mem', 4*1024**3)
+        if self._test_nodes:
+            mems = [self._node_info[node]['mem'] for node in self._test_nodes]
+            return self._get_min(mems, 'mem', 4 * 1024 ** 3)
+        else:
+            return DeferredVariable()
 
-    @dfr_var_method
+    @var_method
     def tasks_total(self):
         """Total tasks to create, based on number of nodes actually acquired."""
 
-        return self._sched_config.get('tasks_per_node', 1) * len(self._nodes)
+        if self._test_nodes:
+            return self._sched_config.get('tasks_per_node', 1) * len(self._test_nodes)
+        else:
+            return DeferredVariable()
