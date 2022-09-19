@@ -180,7 +180,6 @@ class SeriesInfo:
 
     def _get_status(self) -> status_file.SeriesStatusInfo:
         """Get the latest status and note from the series status file."""
-
         if self._status is None:
             status_fn = self.path/common.STATUS_FN
             if status_fn.exists():
