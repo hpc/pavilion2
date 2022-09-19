@@ -35,6 +35,9 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
 :rtype: list(dict)
     """
 
+    import IPython
+    IPython.embed()
+
     status_f = test.status.current()
 
     if status_f.state == STATES.BUILDING:
@@ -90,6 +93,9 @@ def get_status(test: TestRun, pav_conf):
     :param test: The test id being queried.
     :param pav_conf: The Pavilion config.
     """
+    print('here')
+    import IPython
+    IPython.embed()
 
     try:
         test_status = status_from_test_obj(pav_conf, test)

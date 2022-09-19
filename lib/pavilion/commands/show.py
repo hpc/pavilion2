@@ -658,7 +658,6 @@ class ShowCommand(Command):
         """
         :param argparse.Namespace args:
         """
-
         sched = None  # type : schedulers.SchedulerPlugin
         if args.vars is not None:
             sched_name = args.vars if args.vars is not None else args.config
