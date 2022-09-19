@@ -93,6 +93,23 @@ class CeilPlugin(CoreFunctionPlugin):
         return math.ceil(val)
 
 
+class SqrtPlugin(CoreFunctionPlugin):
+    """Get the square root of the given number."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="sqrt",
+            arg_specs=(float,))
+
+    @staticmethod
+    def sqrt(val):
+        """Get the square root of the given number."""
+
+        return math.sqrt(val)
+
+
 class SumPlugin(CoreFunctionPlugin):
     """Get the floating point sum of the given numbers."""
 
