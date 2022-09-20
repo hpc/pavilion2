@@ -234,9 +234,9 @@ Naming Conventions:
 
     @var_method
     def nodes(self) -> int:
-        """The number of nodes available on the system. If the scheduler
-        supports auto-detection, this will be the filtered count of nodes. Otherwise,
-        this will be the 'cluster_info.node_count' value, or 1 if that isn't set."""
+        """The number of nodes that a test may run on, after filtering according
+        to the test's 'schedule' section. The actual nodes selected for the test, whether
+        selected by Pavilion or the scheduler itself, will be in 'test_nodes'."""
 
         if self._nodes:
             return len(self._nodes)
@@ -248,8 +248,8 @@ Naming Conventions:
 
     @var_method
     def node_list(self) -> NodeList:
-        """The list of node names on the system. If the scheduler supports
-        auto-detection, will be the filtered list. This list will otherwise be empty."""
+        """The list of node names that the test could run on, after filtering, as per
+        the 'nodes' variable."""
 
         if self._nodes:
             return NodeList(list(self._nodes.keys()))
