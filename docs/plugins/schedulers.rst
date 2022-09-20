@@ -11,11 +11,6 @@ This may seem quite daunting at first. The hard part, however, is typically
 in parsing the information you get back from the scheduler itself. Interfacing
 that with Pavilion is fairly easy.
 
-**NOTE:** Pavilion 2.4 will be the *'scheduler'* update release. We're going to
-be revamping how these work to some extent in that release. There are notes
-below in the places this will matter. Conversions from <2.4 scheduler
-plugins to 2.4+ plugins should be fairly trivial.
-
 .. contents::
 
 Scheduler Requirements
@@ -40,7 +35,7 @@ The Scheduler Plugin Itself
     encompass:
 
     1. Provide a configuration section specific to your scheduler for the
-       test yaml files.
+       test yaml files. (optional)
     2. Gathering information about the system from the scheduler. (optional)
     3. Filtering the node list according to test parameters. (optional)
     4. Kicking off the test, typically by writing a kickoff script that
@@ -56,16 +51,9 @@ The Scheduler Plugin Itself
 
 Scheduler Variables
     This inherits from pavilion.schedulers.SchedulerVariables. It is meant
-    to provide variables that tests can use in their configurations.
-
-    They should provide:
-
-    1. A 'run_cmd' variable that resolves to a command to run a script under
-       the current allocation with parameters specified in the scheduler
-       specific section of the test config. For 'slurm', this means
-       an 'srun' command. For 'raw', it's an empty string.
-    2. Lists of nodes (where applicable) for the machine as a whole and
-       for the actual allocation.
+    to provide variables that tests can use in their configurations. Most of the
+    work is done by the base class. The big exception, which is (mostly) required,
+    is to override the `run_cmd` variable.
 
 In general, scheduler plugins:
 
@@ -74,22 +62,13 @@ In general, scheduler plugins:
     when that scheduler is actually going to be used.
 2. Don't know what each allocation is, until after it is made.
 
-Future Bits to Keep in Mind:
-
-1. While scheduler plugins only schedule one test run per allocatiion, we
-   would like to allow for multiple test runs per allocation in the future.
-   This will include cases where the allocation is not the exact size
-   asked for by the test.
-
 Writing a Scheduler Plugin Class
 --------------------------------
 
 A mentioned above, there are 6 basic things a scheduler must do. As such,
 there are specific methods of the scheduler class to override for each of
 those. You may have to add additional methods for handling data as it's
-returned from the scheduler; it's not always easy to parse. Additionally,
-Pavilion makes no assumptions about what that data looks like or how to
-structure it once received.
+returned from the scheduler; it's not always easy to parse.
 
 Handling Errors
 ~~~~~~~~~~~~~~~
@@ -123,7 +102,7 @@ Scheduler plugins initialize much like other Pavilion plugins:
 
     from pavilion import schedulers
 
-    class Slurm(schedulers.SchedulerPlugin):
+    class Slurm(schedulers.SchedulerPluginAdvanced):
 
         def __init__(self):
             super().__init__(
@@ -132,7 +111,8 @@ Scheduler plugins initialize much like other Pavilion plugins:
             )
 
 Most customization is through method overrides and a few class variables that
-we'll cover later.
+we'll cover later.  There is also a `SchedulerPluginBasic` which allows for working
+with schedulers with a much reduced feature set.
 
 
 .. _Yaml Config: https://yaml-config.readthedocs.io/en/latest/
@@ -140,78 +120,31 @@ we'll cover later.
 Configuraton
 ~~~~~~~~~~~~
 
+The `schedule` section for each test generically handles configuration for all schedulers. You
+only need to support the minimum set of options needed to schedule jobs with your scheduler, the
+rest are silently ignored.
+
+You can also, optionally, add a scheduler specific configuration section. To do this, you'll need
+to override the `_get_config_elems()` method. This method returns three items:
+
+  1. A list of YamlConfig Elements.
+  2. A dictionary of validation/normalization functions. These will be called to
+     transform the data for each key to a standard format.
+  3. A dictionary of default values for each key.
+
 Pavilion uses the `Yaml Config`_ library to manage it's configuration format.
 Yaml Config uses 'config elements' to describe each component of the
-configuration and their relationships. We'll be using a restricted set
-of these to add a scheduler specific config section to the test config.
+configuration and their relationships.
 
-The ``get_conf()`` method should be overridden to return a list
-of this configuration elements.
+The Slurm scheduler plugin provides a solid example of this, but in general:
 
-**NOTE** - In future updates much of this configuration will be unified.
-Where possible, use the same key values as below. It's ok if those keys
-don't accept the same values.
+  - You should only use yaml_config StrElem, ListElem, KeyedElem (a dict with specific key
+    and value formats), and CategoryElem (a dict with mostly unlimited keys, and a shared
+    value format).
+  - Validators for individual keys are optional, but you should do str to int conversion and value
+    range checking. These can take several forms, see the `SchedulerPlugin._get_config_elems()`
+    method documentation.
 
-.. code-block:: python
-
-    def get_conf(self):
-        """Set up the Slurm configuration attributes."""
-
-        return yc.KeyedElem(
-            self.name,
-            help_text="Configuration for the Slurm scheduler.",
-            elements=[
-                yc.StrElem(
-                    'num_nodes', default="1",
-                    help_text="Number of nodes requested for this test. "
-                              "This can be a range (e.g. 12-24)."),
-                yc.StrElem(
-                    'tasks_per_node', default="1",
-                    help_text="Number of tasks to run per node."),
-                yc.StrElem(
-                    'mem_per_node',
-                    help_text="The minimum amount of memory required in GB. "
-                              "This can be a range (e.g. 64-128)."),
-                yc.StrElem(
-                    'partition', default="standard",
-                    help_text="The partition that the test should be run "
-                              "on."),
-                yc.StrElem(
-                    'immediate', choices=['true', 'false', 'True', 'False'],
-                    default='false',
-                    help_text="Only consider nodes not currently running jobs"
-                              "when determining job size. Will set the minimum"
-                              "number of nodes "
-                ),
-                yc.StrElem(
-                    'qos',
-                    help_text="The QOS that this test should use."),
-                yc.StrElem(
-                    'account',
-                    help_text="The account that this test should run under."),
-                yc.StrElem(
-                    'reservation',
-                    help_text="The reservation this test should run under."),
-                yc.StrElem(
-                    'time_limit', regex=r'^(\d+-)?(\d+:)?\d+(:\d+)?$',
-                    help_text="The time limit to specify for the slurm job in"
-                              "the formats accepted by slurm "
-                              "(<hours>:<minutes> is typical)"),
-            ]
-        )
-
-There are some restrictions on configuration elements and features you can
-use:
-
-1. String values only - Non-structural elements (list, dict) should
-    be limited to the StrElem type.
-2. Manually Validate - We intend to include a system like that in
-    result_parsers for config validation in a future release,
-    but for now you must manually validate items as needed.
-
-While the example above only uses StrElem, you can have KeyedElem (a
-mapping that excepts only specific keys), ListElem,
-or CategoryElem (a mapping that accepts generic keys) structures as well.
 
 .. _plugins.scheduler.gather_data:
 
