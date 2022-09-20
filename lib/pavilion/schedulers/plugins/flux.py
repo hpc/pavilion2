@@ -1,11 +1,7 @@
 # pylint: disable=too-many-lines
 """The Flux Framework Scheduler Plugin."""
 
-import math
 import os
-import re
-import shutil
-import subprocess
 import time
 from typing import List, Union, Any, Tuple
 
@@ -14,11 +10,8 @@ from pavilion import sys_vars
 from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
-from pavilion.var_dict import dfr_var_method
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
-from ..scheduler import SchedulerPluginError, KickoffScriptHeader
-from ..vars import SchedulerVariables
 
 
 # Just import flux once
@@ -30,9 +23,22 @@ try:
 except ImportError:
     flux = None
 
+flux_states = [
+    "DEPEND",
+    "SCHED",
+    "RUN",
+    "CLEANUP",
+    "COMPLETED",
+    "FAILED",
+    "CANCELED",
+    "TIMEOUT",
+]
+
 
 class Flux(SchedulerPluginAdvanced):
-    """Schedule tests with Flux!"""
+    """
+    Schedule tests with Flux!
+    """
 
     def __init__(self):
         super().__init__("flux", "Schedules tests via the Flux Framework scheduler.")
@@ -56,15 +62,8 @@ class Flux(SchedulerPluginAdvanced):
         ]
 
         defaults = {
-            "up_states": [
-                "PENDING",
-                "COMPLETING",
-                "PLANNED",
-                "MAINTENANCE",
-                "IDLE",
-                "MAINT",
-            ],
-            "avail_states": ["IDLE", "MAINT", "MAINTENANCE", "PLANNED"],
+            "up_states": flux_states,
+            "avail_states": flux_states,
         }
 
         validators = {
@@ -76,24 +75,31 @@ class Flux(SchedulerPluginAdvanced):
 
     @classmethod
     def parse_node_list(cls, node_list) -> NodeList:
-        """Convert a list of strings into a list of nodes"""
+        """
+        Convert a list of strings into a list of nodes
+        """
         return NodeList(node_list)
 
     def _get_alloc_nodes(self, job) -> NodeList:
-        """Get the list of allocated nodes."""
-        rpc = flux.resource.list.resource_list(flux.Flux())
-        listing = rpc.get()
-        raw_node_data = listing.free
-        # This isn't exactly right - it returns free nodes.
-        # I'm not sure how to get allocated nodes with flux.
-        return [str(node) for node in listing.free.nodelist]
+        """
+        Get the list of allocated nodes.
+        """
+        listing = flux.job.list.JobList(flux.Flux(), ids=[job.info["jobid"]])
+        jobs = listing.jobs()
+        if not jobs:
+            return []
+        nodes = jobs[0]._nodelist
+        if not isinstance(nodes, list):
+            nodes = [nodes]
+        return nodes
 
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
-        """Get a flux resource list"""
+        """
+        Get a flux resource list
+        """
 
-        rpc = flux.resource.list.resource_list(self._flux)
+        rpc = flux.resource.list.resource_list(flux.Flux())
         listing = rpc.get()
-        raw_node_data = listing.free
 
         nodelist = [str(node) for node in listing.free.nodelist]
         # Flux doesn't currently support reservations
@@ -101,7 +107,9 @@ class Flux(SchedulerPluginAdvanced):
         return nodelist, extra
 
     def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
-        """Translate the gathered data into a NodeInfo dict."""
+        """
+        Translate the gathered data into a NodeInfo dict.
+        """
         listing = extra["nodes_listing"]
         del extra["nodes_listing"]
         node_info = NodeInfo({})
@@ -115,19 +123,21 @@ class Flux(SchedulerPluginAdvanced):
     def _filter_custom(
         self, sched_config: dict, node_name: str, node: NodeInfo
     ) -> Union[str, None]:
-        """Filter nodes by features. Flux doesn't have features."""
+        """
+        Filter nodes by features. Flux doesn't have features.
+        """
         return None
 
     def _available(self) -> bool:
-        """Ensure we can import and talk to flux."""
-        self._fexecutor = flux.job.FluxExecutor()
-
-        # used for resource list, etc.
-        self._flux = flux.Flux()
+        """
+        Ensure we can import and talk to flux.
+        """
         return flux is not None
 
     def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
-        """Submit the kick off script using sbatch."""
+        """
+        Submit the kick off script using sbatch.
+        """
 
         output = job.sched_log.as_posix()
         error = output.replace(".log", ".err")
@@ -137,7 +147,7 @@ class Flux(SchedulerPluginAdvanced):
         # flux does not support mem_mb, disk_mb
         fluxjob = JobspecV1.from_command(
             command=["/bin/bash", job.kickoff_path.as_posix()],
-            num_tasks=sched_config["tasks_per_node"] or 1,
+            num_tasks=sched_config["tasks_per_node"],
         )
 
         # Min time is one minute
@@ -154,7 +164,7 @@ class Flux(SchedulerPluginAdvanced):
         fluxjob.environment = dict(os.environ)
 
         # This submits without waiting
-        flux_future = flux.job.submit_async(self._flux, fluxjob)
+        flux_future = flux.job.submit_async(flux.Flux(), fluxjob)
 
         jobid = flux_future.get_id()
         while not jobid:
@@ -176,7 +186,9 @@ class Flux(SchedulerPluginAdvanced):
         )
 
     def _job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
-        """Get the current status of the flux job for the given test."""
+        """
+        Get the current status of the flux job for the given test.
+        """
         sys_name = sys_vars.get_vars(True)["sys_name"]
         if job_info["sys_name"] != sys_name:
             return TestStatusInfo(
@@ -187,7 +199,6 @@ class Flux(SchedulerPluginAdvanced):
         listing = flux.job.list.JobList(flux.Flux(), ids=[job_info["jobid"]])
         jobs = listing.jobs()
 
-        # TODO need to check on all these states
         if not listing:
             return TestStatusInfo(
                 state=STATES.COMPLETE,
@@ -195,18 +206,41 @@ class Flux(SchedulerPluginAdvanced):
                 when=time.time(),
             )
 
+        # State list is here
+        # https://flux-framework.readthedocs.io/projects/flux-rfc/en/latest/spec_21.html#state-diagram
+        # DEPEND
         job = jobs[0]
 
-        if job.state == "RUN":
+        if job.state == "COMPLETED":
+            return TestStatusInfo(
+                state=STATES.COMPLETE,
+                note=("Job is completed with state {}".format(job.state)),
+                when=time.time(),
+            )
+
+        if job.state in ["RUN", "CLEANUP"]:
             return TestStatusInfo(
                 state=STATES.SCHED_RUNNING,
                 note=(
-                    "Job is running or about to run. Has job state {}".format(job.state)
+                    "Job is running or cleaning up run. Has job state {}".format(
+                        job.state
+                    )
                 ),
                 when=time.time(),
             )
 
-        if job.state == "CANCEL":
+        if job.state in ["PRIORITY", "DEPEND"]:
+            return TestStatusInfo(
+                state=STATES.BUILD_WAIT,
+                note=(
+                    "Job is waiting for a dependency or about to be run. Has job state {}".format(
+                        job.state
+                    )
+                ),
+                when=time.time(),
+            )
+
+        if job.state == "CANCELED":
             return TestStatusInfo(
                 STATES.SCHED_CANCELLED,
                 "Job cancelled, has job state '{}'".format(job.state),
@@ -218,42 +252,40 @@ class Flux(SchedulerPluginAdvanced):
                 "The scheduler killed the job, it has job state '{}'".format(job.state),
             )
 
-        if job.state == "ERROR":
+        if job.state == "FAILED":
             return TestStatusInfo(
                 state=STATES.SCHED_ERROR, note=job.result, when=time.time()
             )
 
-        print(job.state)
+        if job.state in ["SCHED", "NEW"]:
+            return TestStatusInfo(
+                state=STATES.SCHEDULED,
+                note=("Flux job '{}' is scheduled.".format(job_info["id"])),
+                when=time.time(),
+            )
+
         return TestStatusInfo(
-            state=STATES.SCHEDULED,
-            note=(
-                "Could not find info on flux job '{}' in slurm.".format(job_info["id"])
-            ),
+            state=STATES.UNKNOWN,
+            note=("Could not find info on flux job '{}'.".format(job_info["id"])),
             when=time.time(),
         )
 
     def cancel(self, job_info: JobInfo) -> Union[str, None]:
-        """Scancel the job attached to the given test."""
-        print("CANCEL")
-        import IPython
-
-        IPython.embed()
-
-        _ = self
+        """
+        Cancel the job attached to the given test.
+        """
 
         if job_info["sys_name"] != sys_vars.get_vars(True)["sys_name"]:
             return "Could not cancel - job started on a different cluster ({}).".format(
                 job_info["sys_name"]
             )
 
-        cmd = ["scancel", job_info["id"]]
-
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = proc.communicate()
-
-        if proc.poll() == 0:
-            return None
-        else:
-            return "Tried (but failed) to cancel job {}: {}".format(
-                job_info["id"], stderr
+        try:
+            flux.job.cancel(
+                flux.Flux(), job_info["jobid"], "User requested cancellation."
+            )
+        # Job is inactive
+        except FileNotFoundError as err:
+            return "Attempted cancel, job is already inactive {}: {}".format(
+                job_info["id"], err
             )

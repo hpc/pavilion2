@@ -28,7 +28,6 @@ variable-formats:
         cmds:
             # You can use most variables just about anywhere in the test config,
             # not just here.
-            - sleep 60
 
             # As seen in the prior example.
             - 'echo {{single_value}}'
