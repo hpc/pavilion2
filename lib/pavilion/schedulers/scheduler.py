@@ -241,9 +241,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param pavilion.test_run.TestRun test: The test we're checking on.
         :return: A StatusInfo object representing the status.
         """
-        import IPython
-        IPython.embed()
-
         if test.job is None:
             return TestStatusInfo(
                 STATES.SCHED_ERROR, "Test does not have an associated job.")
