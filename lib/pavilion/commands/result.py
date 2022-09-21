@@ -209,16 +209,27 @@ class ResultsCommand(Command):
     def sort_results(self, args, fields, results):
 
         sort_key = args.sort_by
+        dval = None 
 
         sort_ascending = True
         if sort_key.startswith('-'):
             sort_ascending = False
             sort_key = sort_key[1:]
 
+        for r in results:
+            if sort_key in r.keys():
+                if isinstance(r[sort_key], str):
+                    dval = " "
+                else:
+                    dval = -100
+        
+        if not dval:
+            return results.copy()
+
         if sort_key in fields:
-            rslt = sorted(results, key=lambda d: d.get(sort_key, -100), reverse=not sort_ascending)
+            rslt = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
         else:
-            rslt = results[:]
+            rslt = results.copy()
 
         return rslt
 
