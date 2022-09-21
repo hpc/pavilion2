@@ -25,7 +25,7 @@ TEST_FILTER_DEFAULTS = {
     'older_than': None,
     'passed': False,
     'result_error': False,
-    'sort_by': '-created',
+    'sort_by': 'created',
     'state': None,
     'sys_name': None,
     'user': None,
@@ -48,7 +48,7 @@ def sort_func(test, choice, sort_type):
     """
     sort_key = TEST_FILTER_DEFAULTS['sort_by']
     if sort_type in SORT_KEYS.keys():
-        if choice not in SORT_KEYS[sort_type]:
+        if choice in SORT_KEYS[sort_type]:
             sort_key=choice
 
     return test[sort_key]
