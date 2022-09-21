@@ -135,7 +135,6 @@ def add_common_filter_args(target: str,
     if sort_options:
         arg_parser.add_argument(
             '--sort-by', type=str, default=defaults['sort_by'],
-            choices=sort_options,
             help=("How to sort the {}. Ascending by default. Prepend a '-' to "
                   "sort descending. This will also filter any items that "
                   "don't have the sorted attribute. Default: {}"

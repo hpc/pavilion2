@@ -88,7 +88,10 @@ class ResultsCommand(Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
+        fields = self.key_fields(args)
+
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
+                                verbose=self.errfile).paths
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
         log_file = None
@@ -142,20 +145,6 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            argkeys = args.key.replace(',', ' ').split()
-            fields = result_utils.BASE_FIELDS.copy()
-
-            for k in argkeys:
-                if k.startswith('~'):
-                    key = k[1:]
-                    try:
-                        fields.remove(key)
-                    except ValueError:
-                        output.fprint(self.errfile,
-                                      "Warning: Given key,{}, is not in default".format(k),
-                                      color=output.RED)
-                else:
-                    fields.append(k)
 
             field_info = {
                 'created': {'transform': output.get_relative_timestamp},
@@ -194,6 +183,42 @@ class ResultsCommand(Command):
                                   color=output.YELLOW)
 
         return 0
+
+    def key_fields(self, args):
+
+        argkeys = args.key.replace(',', ' ').split()
+        fields = result_utils.BASE_FIELDS.copy()
+
+        for k in argkeys:
+            if k.startswith('~'):
+                key = k[1:]
+                try:
+                    fields.remove(key)
+                except ValueError:
+                    output.fprint(self.errfile,
+                                    "Warning: Given key,{}, is not in default".format(k),
+                                    color=output.RED)
+            else:
+                fields.append(k)
+
+        return fields
+
+
+    def sort_results(self, args, fields, results):
+
+        sort_key = args.sort_by
+
+        sort_ascending = True
+        if sort_key.startswith('-'):
+            sort_ascending = False
+            sort_key = sort_key[1:]
+
+        if sort_key in fields:
+            rslt = sorted(results, key=lambda d: d[sort_key], reverse=not sort_ascending)
+        else:
+            rslt = results[:]
+
+        return rslt
 
     def update_results(self, pav_cfg: dict, tests: List[TestRun],
                        log_file: IO[str], save: bool = False) -> bool:
