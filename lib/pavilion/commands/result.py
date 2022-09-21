@@ -214,7 +214,7 @@ class ResultsCommand(Command):
             sort_key = sort_key[1:]
 
         if sort_key in fields:
-            rslt = sorted(results, key=lambda d: d[sort_key], reverse=not sort_ascending)
+            rslt = sorted(results, key=lambda d: d.get(sort_key, -100), reverse=not sort_ascending)
         else:
             rslt = results[:]
 

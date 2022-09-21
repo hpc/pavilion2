@@ -41,17 +41,17 @@ SORT_KEYS = {
 
 def sort_func(test, choice, sort_type):
     """Use partial to reduce inputs and use as key in sort function.
+    Sort by default key if given key is invalid at this stage.
     :param test: Dict within list to sort on.
     :param choice: Key in dict to sort by.
     :param sort_type: Type of list of dicts to sort by, check for key.
     """
+    sort_key = TEST_FILTER_DEFAULTS['sort_by']
+    if sort_type in SORT_KEYS.keys():
+        if choice not in SORT_KEYS[sort_type]:
+            sort_key=choice
 
-    if sort_type not in SORT_KEYS.keys():
-        return None
-    elif choice not in SORT_KEYS[sort_type]:
-        return None
-    else:
-        return test[choice]
+    return test[sort_key]
 
 
 def add_common_filter_args(target: str,
