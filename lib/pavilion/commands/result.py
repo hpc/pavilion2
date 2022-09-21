@@ -145,6 +145,7 @@ class ResultsCommand(Command):
                 pass
 
         else:
+            flat_sorted_results = self.sort_results(args, fields, flat_results)
 
             field_info = {
                 'created': {'transform': output.get_relative_timestamp},
@@ -157,7 +158,7 @@ class ResultsCommand(Command):
                 outfile=self.outfile,
                 field_info=field_info,
                 fields=fields,
-                rows=flat_results,
+                rows=flat_sorted_results,
                 title="Test Results"
             )
 
@@ -183,6 +184,7 @@ class ResultsCommand(Command):
                                   color=output.YELLOW)
 
         return 0
+
 
     def key_fields(self, args):
 
@@ -219,6 +221,7 @@ class ResultsCommand(Command):
             rslt = results[:]
 
         return rslt
+
 
     def update_results(self, pav_cfg: dict, tests: List[TestRun],
                        log_file: IO[str], save: bool = False) -> bool:
