@@ -15,7 +15,7 @@ class PavilionError(RuntimeError):
 
     def __str__(self):
         msg = self.args[0]
-        parts = self.SPLIT_RE.split(msg)
+        parts = self.SPLIT_RE.split(str(msg))
 
         lines = []
         for i in range(len(parts)):
@@ -130,4 +130,3 @@ class StringParserError(ValueError):
 
 class TestSetError(PavilionError):
     """For when creating a test set goes wrong."""
-
