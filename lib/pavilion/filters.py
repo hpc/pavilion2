@@ -25,7 +25,7 @@ TEST_FILTER_DEFAULTS = {
     'older_than': None,
     'passed': False,
     'result_error': False,
-    'sort_by': 'created',
+    'sort_by': '-created',
     'state': None,
     'sys_name': None,
     'user': None,
@@ -39,19 +39,14 @@ SORT_KEYS = {
 }
 
 
-def sort_func(test, choice, sort_type):
+def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
     Sort by default key if given key is invalid at this stage.
     :param test: Dict within list to sort on.
     :param choice: Key in dict to sort by.
-    :param sort_type: Type of list of dicts to sort by, check for key.
     """
-    sort_key = TEST_FILTER_DEFAULTS['sort_by']
-    if sort_type in SORT_KEYS.keys():
-        if choice in SORT_KEYS[sort_type]:
-            sort_key=choice
 
-    return test[sort_key]
+    return test[choice]
 
 
 def add_common_filter_args(target: str,
@@ -364,12 +359,17 @@ def get_sort_opts(
         for sort_name.
     """
 
-    sort_ascending = True
-    if sort_name.startswith('-'):
-        sort_ascending = False
-        sort_name = sort_name[1:]
+    sort_key = TEST_FILTER_DEFAULTS['sort_by']
+    if stype in SORT_KEYS.keys():
+        if sort_name.strip('-') in SORT_KEYS[stype]:
+            sort_key=sort_name
 
-    sortf = partial(sort_func, choice=sort_name, sort_type=stype)
+    sort_ascending = True
+    if sort_key.startswith('-'):
+        sort_ascending = False
+        sort_key = sort_key[1:]
+
+    sortf = partial(sort_func, choice=sort_key)
 
     return sortf, sort_ascending
 

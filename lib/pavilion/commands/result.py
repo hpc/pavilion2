@@ -187,7 +187,6 @@ class ResultsCommand(Command):
 
 
     def key_fields(self, args):
-
         """Update default fields with keys given as arguments.
         Returns a list of fields (columns) to be shown as output.
         """
@@ -209,9 +208,8 @@ class ResultsCommand(Command):
 
         return fields
 
-
+    @staticmethod
     def sort_results(self, args, results: List[dict]) -> List[dict]:
-
         """Same basic operation as pavilion.filters.get_sort_opts except
         here the sort operation is performed on the results array rather
         than stored as a function and called later.
