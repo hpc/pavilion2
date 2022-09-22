@@ -108,29 +108,52 @@ class VarCatDict(dict):
         new.defaults = self.defaults.copy()
         return new
 
-    def add_items(self, start_items: List, items: List, key: str):
-        """Rebase the dictionary on top of the defaults.
+    def apply_defaults(self) -> 'VarCatDict':
 
-        :param start_items: A list type of any existing items.
-        :param items: List of items to add. These can be strings or dictionaries,
-            dictionaries will have their defaults set.
-        :param key: The key to save the items to.
-        """
+        new_dict = type(self)()
+        new_dict.defaults = self.defaults
 
-        start_items = copy.deepcopy(start_items)
+        for key, values in self.items():
+            new_values = []
+            if values is not None:
+                if not isinstance(values, list):
+                    values = [values]
+                for value in values:
+                    if isinstance(value, dict):
+                        base = self.defaults.get(key, {})
+                        base.update(value)
+                        new_values.append(base)
+                    else:
+                        new_values.append(base)
 
-        for item in items:
-            if isinstance(item, dict):
-                rebase = {}
-                rebase.update(self.defaults.get(key, {}))
-                rebase.update(item)
-                if rebase not in start_items:
-                    start_items.append(rebase)
-            else:
-                if item not in start_items:
-                    start_items.append(item)
+            new_dict[key] = new_values
 
-        self[key] = start_items
+        return new_dict
+
+
+def add_items(self, start_items: List, items: List, key: str):
+    """Rebase the dictionary on top of the defaults.
+
+    :param start_items: A list type of any existing items.
+    :param items: List of items to add. These can be strings or dictionaries,
+        dictionaries will have their defaults set.
+    :param key: The key to save the items to.
+    """
+
+    start_items = copy.deepcopy(start_items)
+
+    for item in items:
+        if isinstance(item, dict):
+            rebase = {}
+            rebase.update(self.defaults.get(key, {}))
+            rebase.update(item)
+            if rebase not in start_items:
+                start_items.append(rebase)
+        else:
+            if item not in start_items:
+                start_items.append(item)
+
+    self[key] = start_items
 
 
 class VarCatElem(yc.CategoryElem):
@@ -147,8 +170,10 @@ class VarCatElem(yc.CategoryElem):
     def validate(self, value, partial=False):
         """Make sure default value propagate through validation."""
         validated = super().validate(value, partial=partial)
+
         if value is not None:
-            validated.defaults = value.defaults
+            validated = validated.apply_defaults()
+
         return validated
 
     def merge(self, old, new):
@@ -188,17 +213,9 @@ class VarCatElem(yc.CategoryElem):
                         defaults.update(new_vals[0])
                         base.defaults[bkey] = defaults
 
-                        if base.get(bkey):
-                            # Re-add all existing values, given the new defaults.
-                            base.add_items(self._sub_elem.type(), base[bkey], bkey)
-                        else:
-                            # Add the default as the only defined value when none already
-                            # exist.
-                            base.add_items(self._sub_elem.type(), new_vals, bkey)
                     else:
-                        # strings and lists of strings, put in the default value if one
-                        # isn't defined.
-                        base[bkey] = base.get(bkey, new[key])
+                        base.defaults[bkey] = new[key]
+
                 elif key.endswith('+'):
                     # Extend the list of values. For dictionaries, fill in any missing
                     # sub-vars with default values if defined.
@@ -208,7 +225,7 @@ class VarCatElem(yc.CategoryElem):
                             "mode, but provided no values."
                             .format(key=key))
                     initial_items = base.get(bkey, self._sub_elem.type())
-                    base.add_items(initial_items, new_vals, bkey)
+                    initial_items.extend(new_vals)
 
             elif value is None:
                 raise TestConfigError(
@@ -217,7 +234,7 @@ class VarCatElem(yc.CategoryElem):
                 )
             else:
                 # Otherwise, just replace the old values with new ones.
-                base.add_items(self._sub_elem.type(), new[key], key)
+                base[key] = new[key]
 
         return base
 

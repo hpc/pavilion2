@@ -877,8 +877,7 @@ class TestConfigResolver:
 
         for test_name, test_config in suite_tests.items():
             try:
-                suite_tests[test_name] = test_config_loader\
-                                            .validate(test_config)
+                suite_tests[test_name] = test_config_loader.validate(test_config)
             except RequiredError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a missing key. {}"
@@ -1115,11 +1114,10 @@ class TestConfigResolver:
             self._apply_override(test_cfg, key, value)
 
         try:
-            test_cfg = config_loader.normalize(test_cfg)
+            config_loader.normalize(test_cfg)
         except TypeError as err:
             raise TestConfigError("Invalid override: {}"
                                   .format(err))
-        config_loader.validate(test_cfg)
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.
