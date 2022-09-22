@@ -240,19 +240,20 @@ class ResultsCommand(Command):
             sort_ascending = False
             sort_key = sort_key[1:]
 
-        for r in results:
-            if sort_key in r.keys():
-                if isinstance(r[sort_key], str):
+        for rslt in results:
+            if sort_key in rslt.keys():
+                if isinstance(rslt[sort_key], str):
                     dval = " "
                 else:
                     dval = float("-inf")
+                break
 
         if not dval:
             return results.copy()
 
-        rslt = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
+        rslts = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
 
-        return rslt
+        return rslts
 
 
     def update_results(self, pav_cfg: dict, tests: List[TestRun],
