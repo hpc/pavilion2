@@ -110,6 +110,7 @@ class VarCatDict(dict):
 
     def apply_defaults(self) -> 'VarCatDict':
 
+        print('applying defaults', self, self.defaults)
         new_dict = type(self)()
         new_dict.defaults = self.defaults
 
@@ -124,9 +125,21 @@ class VarCatDict(dict):
                         base.update(value)
                         new_values.append(base)
                     else:
-                        new_values.append(base)
+                        new_values.append(value)
+            elif key in self.defaults:
+                if isinstance(self.defaults[key], dict):
+                    new_values = self.defaults[key].copy()
+                else:
+                    new_values = self.defaults[key]
 
             new_dict[key] = new_values
+
+        for key in self.defaults:
+            if key not in new_dict:
+                if isinstance(new_dict[key], dict):
+                    new_dict[key] = self.defaults[key].copy()
+                else:
+                    new_dict[key] = self.defaults[key]
 
         return new_dict
 
@@ -171,7 +184,7 @@ class VarCatElem(yc.CategoryElem):
         """Make sure default value propagate through validation."""
         validated = super().validate(value, partial=partial)
 
-        if value is not None:
+        if validated is not None:
             validated = validated.apply_defaults()
 
         return validated

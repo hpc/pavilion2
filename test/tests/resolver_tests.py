@@ -117,6 +117,8 @@ class ResolverTests(PavTestCase):
         stack1b_vars = find_test(tests, 'stack2a').config['variables']
         stack2b_vars = find_test(tests, 'stack2b').config['variables']
 
+        print(test_vars)
+
         self.assertEqual(test_vars['host_def'], ['host'])
         self.assertEqual(test_vars['mode_def'], ['mode'])
         self.assertEqual(test_vars['test_def'], ['test'])
