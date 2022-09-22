@@ -145,7 +145,7 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            flat_sorted_results = self.sort_results(args, fields, flat_results)
+            flat_sorted_results = self.sort_results(args, flat_results)
 
             field_info = {
                 'created': {'transform': output.get_relative_timestamp},
@@ -188,6 +188,10 @@ class ResultsCommand(Command):
 
     def key_fields(self, args):
 
+        """Update default fields with keys given as arguments.
+        Returns a list of fields (columns) to be shown as output.
+        """
+
         argkeys = args.key.replace(',', ' ').split()
         fields = result_utils.BASE_FIELDS.copy()
 
@@ -206,10 +210,30 @@ class ResultsCommand(Command):
         return fields
 
 
-    def sort_results(self, args, fields, results):
+    def sort_results(self, args, results: List[dict]) -> List[dict]:
+
+        """Same basic operation as pavilion.filters.get_sort_opts except
+        here the sort operation is performed on the results array rather
+        than stored as a function and called later.
+
+        If the sort-by key is present in the test object, the
+        sort will be performed in dir_db.select or select_from.
+        Otherwise the default sort will be performed in dir_db and here the
+        results dict will be sorted according to the key for output.
+
+        Results dicts without the key will be skipped with dummy value dval.
+        Thus the user may sort the results of incomplete series, by result keys specific to
+        a particular test in a series, or by keys that are not being displayed.
+        If the key is not in any of the results dicts, it simply returns a copy of
+        the results dict.
+
+        :param args: Command line arguments, for sort_by.
+        :param results: A list of flattened result dicts.
+        :returns: The sorted (or copied) list of results dicts.
+        """
 
         sort_key = args.sort_by
-        dval = None 
+        dval = None
 
         sort_ascending = True
         if sort_key.startswith('-'):
@@ -221,15 +245,12 @@ class ResultsCommand(Command):
                 if isinstance(r[sort_key], str):
                     dval = " "
                 else:
-                    dval = -100
-        
+                    dval = float("-inf")
+
         if not dval:
             return results.copy()
 
-        if sort_key in fields:
-            rslt = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
-        else:
-            rslt = results.copy()
+        rslt = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
 
         return rslt
 

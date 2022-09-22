@@ -13,23 +13,27 @@ DISABLE_SCHED_KEYS = [
 RESULT_ERRORS = 'pav_result_errors'
 
 
-def get_top_keys(test, topkey):
-    """Return the sched section keys. Keys whose name ends in 'list' will
-    always be a list, otherwise they'll be single items. Keys in
-    DISABLE_SCHED_KEYS won't be added."""
+def get_top_keys(test, topkey: str) -> dict:
+    """Return the topkey, e.g. sched, var, nested dict from the test object variable manager.
+    Keys whose name ends in 'list' will always be a list, otherwise they'll be single items.
+    Keys in DISABLE_SCHED_KEYS won't be added.
 
-    sched_keys = {}
+    :param test: Test object.
+    :param topkey: Key with dict type value in test object.
+    """
+
+    nested_dict = {}
 
     for key, value in test.var_man.as_dict().get(topkey, {}).items():
         if key in DISABLE_SCHED_KEYS:
             continue
 
         if isinstance(value, list) and len(value) > 1 or key.endswith('_list'):
-            sched_keys[key] = value
+            nested_dict[key] = value
         else:
-            sched_keys[key] = value[0] if value else None
+            nested_dict[key] = value[0] if value else None
 
-    return sched_keys
+    return nested_dict
 
 
 BASE_RESULTS = {
