@@ -97,16 +97,48 @@ class ResolverTests(PavTestCase):
         """Make sure default variables work as expected."""
 
         tests = self.resolver.load(
-            tests=['defaulted.test'],
+            tests=['defaulted'],
             host='defaulted',
             modes=['defaulted'],
         )
 
-        cfg = tests[0].config
-        self.assertEqual(cfg['variables']['host_def'], ['host'])
-        self.assertEqual(cfg['variables']['mode_def'], ['mode'])
-        self.assertEqual(cfg['variables']['test_def'], ['test'])
-        self.assertNotIn('no_val', cfg['variables'])
+        def find_test(tests, name):
+            """Find a test with the given name in the list of tests and return it."""
+            for test in tests:
+                if name in test.config['name']:
+                    return test
+            return None
+
+        test_vars = find_test(tests, 'base').config['variables']
+        # These make sure variable defaults with sub-dicts are resolved
+        # properly.
+        stack1a_vars = find_test(tests, 'stack1a').config['variables']
+        stack2a_vars = find_test(tests, 'stack2a').config['variables']
+        stack1b_vars = find_test(tests, 'stack2a').config['variables']
+        stack2b_vars = find_test(tests, 'stack2b').config['variables']
+
+        self.assertEqual(test_vars['host_def'], ['host'])
+        self.assertEqual(test_vars['mode_def'], ['mode'])
+        self.assertEqual(test_vars['test_def'], ['base'])
+        self.assertEqual(test_vars['stack_def'], {'a': 'base', 'b': 'base'})
+        self.assertNotIn('no_val', test_vars)
+
+        # stack1 just sets defaults all the way up, so the values
+        # at each level should just be the defaults set at that level.
+        self.assertEqual(stack1a_vars['stack_def']['a'], '1a-a')
+        self.assertEqual(stack1a_vars['stack_def']['b'], '1a-b')
+        self.assertEqual(stack2a_vars['stack_def']['a'], '2a-a')
+        self.assertEqual(stack2a_vars['stack_def']['b'], '2a-b')
+
+        # Stack2 sets 'a' but not 'b', so 'b' should be 'base' except
+        # at stack2b, where the default is changed. 'a' should be '1b-a'
+        # at levels higher than 'base'
+        self.assertEqual(stack1b_vars['stack_def']['a'], '1b-a')
+        self.assertEqual(stack1b_vars['stack_def']['b'], 'base')
+        self.assertEqual(stack2b_vars['stack_def']['a'], '1b-a')
+        self.assertEqual(stack2b_vars['stack_def']['b'], '2b-b')
+
+
 
         with self.assertRaises(TestConfigError):
             self.resolver.load(
