@@ -119,26 +119,24 @@ class ResolverTests(PavTestCase):
 
         self.assertEqual(test_vars['host_def'], ['host'])
         self.assertEqual(test_vars['mode_def'], ['mode'])
-        self.assertEqual(test_vars['test_def'], ['base'])
-        self.assertEqual(test_vars['stack_def'], {'a': 'base', 'b': 'base'})
+        self.assertEqual(test_vars['test_def'], ['test'])
+        self.assertEqual(test_vars['stack_def'], [{'a': 'base', 'b': 'base'}])
         self.assertNotIn('no_val', test_vars)
 
         # stack1 just sets defaults all the way up, so the values
         # at each level should just be the defaults set at that level.
-        self.assertEqual(stack1a_vars['stack_def']['a'], '1a-a')
-        self.assertEqual(stack1a_vars['stack_def']['b'], '1a-b')
-        self.assertEqual(stack2a_vars['stack_def']['a'], '2a-a')
-        self.assertEqual(stack2a_vars['stack_def']['b'], '2a-b')
+        self.assertEqual(stack1a_vars['stack_def'][0]['a'], '1a-a')
+        self.assertEqual(stack1a_vars['stack_def'][0]['b'], '1a-b')
+        self.assertEqual(stack2a_vars['stack_def'][0]['a'], '2a-a')
+        self.assertEqual(stack2a_vars['stack_def'][0]['b'], '2a-b')
 
         # Stack2 sets 'a' but not 'b', so 'b' should be 'base' except
         # at stack2b, where the default is changed. 'a' should be '1b-a'
         # at levels higher than 'base'
-        self.assertEqual(stack1b_vars['stack_def']['a'], '1b-a')
-        self.assertEqual(stack1b_vars['stack_def']['b'], 'base')
-        self.assertEqual(stack2b_vars['stack_def']['a'], '1b-a')
-        self.assertEqual(stack2b_vars['stack_def']['b'], '2b-b')
-
-
+        self.assertEqual(stack1b_vars['stack_def'][0]['a'], '1b-a')
+        self.assertEqual(stack1b_vars['stack_def'][0]['b'], 'base')
+        self.assertEqual(stack2b_vars['stack_def'][0]['a'], '1b-a')
+        self.assertEqual(stack2b_vars['stack_def'][0]['b'], '2b-b')
 
         with self.assertRaises(TestConfigError):
             self.resolver.load(
