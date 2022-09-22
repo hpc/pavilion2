@@ -9,17 +9,13 @@ from typing import List, Dict, TextIO, Union, Set
 
 from pavilion import output, result, schedulers, cancel
 from pavilion.build_tracker import MultiBuildTracker
-from pavilion.errors import TestRunError, TestConfigError
+from pavilion.errors import TestRunError, TestConfigError, TestSetError
 from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.utils import str_bool
 
 S_STATES = SERIES_STATES
-
-
-class TestSetError(RuntimeError):
-    """For when creating a test set goes wrong."""
 
 
 class TestSet:

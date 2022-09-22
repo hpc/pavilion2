@@ -4,6 +4,8 @@ problems."""
 import re
 import textwrap
 
+import lark
+
 
 class PavilionError(RuntimeError):
     """Base class for all Pavilion errors."""
@@ -14,6 +16,7 @@ class PavilionError(RuntimeError):
     def __str__(self):
         msg = self.args[0]
         parts = self.SPLIT_RE.split(msg)
+
         lines = []
         for i in range(len(parts)):
             lines.extend(textwrap.wrap(parts[i], 80, initial_indent=i*self.TAB_LEVEL))
@@ -88,3 +91,43 @@ class FunctionPluginError(RuntimeError):
 class FunctionArgError(ValueError):
     """Error raised when a function plugin has a problem with the
     function arguments."""
+
+
+class ParserValueError(lark.LarkError, PavilionError):
+    """A value error that contains the problematic token and its position."""
+
+    def __init__(self, token: lark.Token, message: str):
+        super().__init__(message)
+
+        self.token = token
+        self.pos_in_stream = token.start_pos
+        self.message = message
+
+    def __reduce__(self):
+        """Properly return the original arguments when pickling."""
+
+        return type(self), (self.token, self.message)
+
+    # Steal the get_context method
+    get_context = lark.UnexpectedInput.get_context
+
+
+class StringParserError(ValueError):
+    """Common error to raise when parsing problems are encountered."""
+
+    def __init__(self, message, context):
+        self.message = message
+        self.context = context
+
+        super().__init__()
+
+    def __str__(self):
+        return "\n".join([self.message, self.context])
+
+    def __reduce__(self):
+        return type(self), (self.message, self.context)
+
+
+class TestSetError(PavilionError):
+    """For when creating a test set goes wrong."""
+

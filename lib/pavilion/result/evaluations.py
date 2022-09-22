@@ -4,11 +4,11 @@ from typing import Dict
 
 import lark as _lark
 from pavilion import utils
-from pavilion.parsers import (check_expression, StringParserError,
-                              get_expr_parser,
+from pavilion.parsers import (check_expression, get_expr_parser,
                               EvaluationExprTransformer,
                               VarRefVisitor, match_examples,
-                              BAD_EXAMPLES, ParserValueError)
+                              BAD_EXAMPLES)
+from ..errors import ParserValueError, StringParserError
 from .base import BASE_RESULTS
 from .common import ResultError
 

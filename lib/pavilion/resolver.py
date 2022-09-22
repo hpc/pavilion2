@@ -381,7 +381,12 @@ class TestConfigResolver:
                     not_ready = []
                     for aresult, var_man in list(async_results):
                         if aresult.ready():
-                            result = aresult.get()
+                            # All kinds of things can go wrong here
+                            try:
+                                result = aresult.get()
+                            except Exception as err:
+                                raise TestConfigError(err)
+
                             resolved_tests.append(ProtoTest(result, var_man))
 
                             complete += 1
@@ -418,8 +423,10 @@ class TestConfigResolver:
         except TestConfigError as err:
             if test_cfg.get('permute_on'):
                 permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
+                permute_values = pprint.pformat(permute_values)
+
                 raise TestConfigError(
-                    "Error resolving test {} with permute values {}: {}"
+                    "Error resolving test {} with permute values \n{}: {}"
                     .format(test_cfg['name'], permute_values, err))
             else:
                 raise TestConfigError(

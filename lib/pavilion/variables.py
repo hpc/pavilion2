@@ -26,7 +26,7 @@ from typing import Union, List, Tuple
 
 from pavilion import parsers
 from pavilion.deferred import DeferredVariable
-from pavilion.errors import DeferredError, VariableError
+from pavilion.errors import DeferredError, VariableError, StringParserError, ParserValueError
 
 
 class VariableSetManager:
@@ -383,7 +383,7 @@ index, sub_var) tuple.
                         res_val = transformer.transform(tree)
                     except DeferredError:
                         res_val = None
-                    except (parsers.StringParserError, parsers.ParserValueError) as err:
+                    except (StringParserError, ParserValueError) as err:
                         raise VariableError(err, var_set=var_set, var=var_name, index=index,
                                             sub_var=sub_var)
 

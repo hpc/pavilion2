@@ -25,7 +25,8 @@ from pavilion.types import ID_Pair
 from yaml_config import YAMLError, RequiredError
 from .errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo
-from .test_set import TestSet, TestSetError
+from .test_set import TestSet
+from ..errors import TestSetError
 from . import common
 
 
@@ -422,7 +423,7 @@ differentiate it from test ids."""
                     self.set_complete()
                     raise TestSeriesError(
                         "Error making tests for series '{}':\n {}"
-                        .format(self.sid, err.args[0]))
+                        .format(self.sid, err))
 
                 # Add all the tests we created to this test set.
                 self._add_tests(test_set)

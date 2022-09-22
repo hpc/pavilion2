@@ -4,7 +4,7 @@ from typing import Union, List, Tuple, Dict
 
 from pavilion import parsers
 from pavilion import variables
-from pavilion.errors import TestConfigError, DeferredError
+from pavilion.errors import TestConfigError, DeferredError, StringParserError, ParserValueError
 
 DEFERRED_PREFIX = '!deferred!'
 NO_DEFERRED_ALLOWED = [
@@ -35,19 +35,25 @@ def test_config(config, var_man):
     resolved_dict = {}
 
     for section in config:
-        resolved_dict[section] = section_values(
-            component=config[section],
-            var_man=var_man,
-            allow_deferred=section not in NO_DEFERRED_ALLOWED,
-            key_parts=(section,),
-        )
+        try:
+            resolved_dict[section] = section_values(
+                component=config[section],
+                var_man=var_man,
+                allow_deferred=section not in NO_DEFERRED_ALLOWED,
+                key_parts=(section,),
+            )
+        except (StringParserError, ParserValueError) as err:
+            raise TestConfigError("Error parsing '{}' section: {}".format(section, err))
 
     for section in ('only_if', 'not_if'):
-        if section in config:
-            resolved_dict[section] = mapping_keys(
-                base_dict=resolved_dict.get(section, {}),
-                var_man=var_man,
-                section_name=section)
+        try:
+            if section in config:
+                resolved_dict[section] = mapping_keys(
+                    base_dict=resolved_dict.get(section, {}),
+                    var_man=var_man,
+                    section_name=section)
+        except (StringParserError, ParserValueError) as err:
+            raise TestConfigError("Error parsing key '{}' section: {}".format(section, err))
 
     return resolved_dict
 
@@ -178,7 +184,7 @@ def section_values(component: Union[Dict, List, str],
                         "but it was still deferred: {}"
                         .format(component)
                     )
-                except parsers.StringParserError as err:
+                except StringParserError as err:
                     raise TestConfigError(
                         "Error resolving value '{}' in config at '{}':\n"
                         "{}\n{}"
@@ -211,7 +217,7 @@ def section_values(component: Union[Dict, List, str],
                         "Deferred variable in value '{}' under key "
                         "'{}' where it isn't allowed"
                         .format(component, '.'.join(map(str, key_parts))))
-            except parsers.StringParserError as err:
+            except StringParserError as err:
                 raise TestConfigError(
                     "Error resolving value '{}' in config at '{}':\n"
                     "{}\n{}"

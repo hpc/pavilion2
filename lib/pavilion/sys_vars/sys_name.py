@@ -24,4 +24,9 @@ class SystemName(SystemPlugin):
         while name[end:].isdigit():
             end -= 1
 
-        return name[:end+1]
+        end += 1
+        if end == 0:
+            return name
+        else:
+            return name[:end+1]
+
