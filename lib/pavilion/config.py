@@ -280,8 +280,19 @@ def config_dirs_validator(config, values):
                 list(path.iterdir())
 
         except PermissionError:
-            output.fprint(sys.stderr, "Cannot access config directory '{}'. Ignoring."
+            output.fprint(sys.stderr,
+                          "Cannot access config directory '{}'. Ignoring that config dir."
                           .format(value), color=output.YELLOW)
+            continue
+        except FileNotFoundError:
+            output.fprint(sys.stderr,
+                          "Cannot find config directory '{}'. Ignoring that config dir."
+                          .format(value))
+            continue
+        except OSError as err:
+            output.fprint(sys.stderr,
+                          "Unexpected OS error accessing config dir '{}'. Ignoring that "
+                          "config dir.".format(value), err)
             continue
 
         if path not in config_dirs:
