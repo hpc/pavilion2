@@ -33,7 +33,7 @@ class AutoSeries(Command):
         try:
             series_obj = series.TestSeries.load(pav_cfg, args.series_id)
         except TestSeriesError as err:
-            output.fprint(sys.stdout, "Error in _series cmd: {}".format(err))
+            output.fprint(sys.stdout, "Error in _series cmd.", err)
             sys.exit(1)
 
         # handles SIGTERM (15) signal

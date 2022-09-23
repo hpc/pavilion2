@@ -164,7 +164,7 @@ def index(pav_cfg,
         except (OSError, PermissionError, json.JSONDecodeError) as err:
             # In either error case, start from scratch.
             output.fprint(verbose, "Error reading index at '{}'. Regenerating from "
-                                   "scratch. {}".format(idx_path.as_posix(), err),
+                                   "scratch.".format(idx_path.as_posix()), err,
                           color=output.GRAY)
 
     if not id_dir.exists():
@@ -197,7 +197,7 @@ def index(pav_cfg,
 
         try:
             return tid, transform(file)
-        except (ValueError, KeyError, TypeError, OSError) as err:
+        except (ValueError, KeyError, TypeError, OSError):
             return tid, None
 
     thread_max = pav_cfg.get('max_threads')
@@ -478,7 +478,7 @@ def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_
                 count += 1
                 if verbose:
                     msgs.append("Removed {} {}.".format(id_dir.name, path.name))
-    except TimeoutError as err:
+    except TimeoutError:
         msgs.append("Could not delete in dir '{}', lock '{}' could not be acquired"
                     .format(id_dir, lock_path))
 

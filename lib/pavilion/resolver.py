@@ -25,6 +25,7 @@ from pavilion import pavilion_variables
 from pavilion import resolve
 from pavilion import schedulers
 from pavilion import sys_vars
+from pavilion.errors import SystemPluginError
 from pavilion.errors import VariableError, TestConfigError, PavilionError, SchedulerPluginError
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import file_format
@@ -66,7 +67,7 @@ class TestConfigResolver:
             self.base_var_man.add_var_set(
                 'sys', sys_vars.get_vars(defer=True)
             )
-        except sys_vars.SystemPluginError as err:
+        except SystemPluginError as err:
             raise TestConfigError(
                 "Error in system variables"
                 .format(err)
@@ -387,7 +388,6 @@ class TestConfigResolver:
                                 raise
                             except Exception as err:
                                 raise TestConfigError("Unexpected error loading tests", err)
-
 
                             resolved_tests.append(ProtoTest(result, var_man))
 

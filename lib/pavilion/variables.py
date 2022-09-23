@@ -337,7 +337,7 @@ index, sub_var) tuple.
                         r_var_set, r_var, r_index, r_subvar = ref_key = self.resolve_key(var_str)
                     except KeyError as err:
                         raise VariableError("Key '{}'referenced by user variable '{}' could "
-                                            "not be parsed: {}".format(var_str, uvar, err))
+                                            "not be parsed.".format(var_str, uvar), err)
 
                     if r_var_set != 'var' and r_var_set not in self.variable_sets:
                         # The variable set for this reference hasn't been loaded yet.
@@ -451,11 +451,11 @@ index, sub_var) tuple.
         # If anything else goes wrong, this will throw a KeyError
         try:
             return self.variable_sets[var_set].get(var, index, sub_var)
-        except KeyError as msg:
+        except KeyError as err:
             # Make sure our error message gives the full key.
             raise KeyError(
-                "Could not resolve reference '{}': {}"
-                .format(self.key_as_dotted(key), msg.args[0]))
+                "Could not resolve reference '{}'"
+                .format(self.key_as_dotted(key), err.args[0]))
 
     def get(self, key: str, default=None) -> str:
         """Get an item, or the provided default, as per dict.get. """
@@ -606,8 +606,8 @@ index, sub_var) tuple.
                 tmp_path.rename(path)
         except (OSError, IOError, FileNotFoundError) as err:
             raise VariableError(
-                "Could not write variable file at '{}': {}"
-                .format(tmp_path, err))
+                "Could not write variable file at '{}'"
+                .format(tmp_path), err)
 
     @classmethod
     def load(cls, path):
@@ -621,9 +621,7 @@ index, sub_var) tuple.
                 data = json.load(stream)
         except (json.decoder.JSONDecodeError, IOError, FileNotFoundError) \
                 as err:
-            raise RuntimeError(
-                    "Could not load variable file '{}': {}"
-                    .format(path, err))
+            raise VariableError("Could not load variable file '{}'".format(path), err)
 
         var_man = cls()
 

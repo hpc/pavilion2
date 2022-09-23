@@ -619,7 +619,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             except PavConfigError as err:
                 output.fprint(sys.stderr,
                               "Could not configure working directory for config path '{}'. "
-                              "Skipping.\n{}".format(config_path.as_posix(), err),
+                              "Skipping.".format(config_path.as_posix()), err,
                               color=output.YELLOW)
                 continue
 

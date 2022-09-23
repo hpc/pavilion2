@@ -756,7 +756,7 @@ class ShowCommand(Command):
                 deferred = isinstance(value, DeferredVariable)
                 help_str = svars.help(key)
 
-            except sys_vars.SystemPluginError as err:
+            except pavilion.errors.SystemPluginError as err:
                 value = output.ANSIString('error', code=output.RED)
                 deferred = False
                 help_str = output.ANSIString(str(err), code=output.RED)

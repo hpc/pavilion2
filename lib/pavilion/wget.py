@@ -7,6 +7,7 @@ import tempfile
 import urllib.parse
 
 import certifi
+from pavilion.errors import WGetError
 
 _MISSING_LIBS = []
 try:
@@ -17,11 +18,11 @@ except ImportError:
 
 try:
     import requests
-except ImportError as err:
-    if hasattr(err, 'name') and err.name is not None:
-        _MISSING_LIBS.append(err.name)
+except ImportError as exc:
+    if hasattr(exc, 'name') and exc.name is not None:
+        _MISSING_LIBS.append(exc.name)
     else:
-        _MISSING_LIBS.append(str(err))
+        _MISSING_LIBS.append(str(exc))
 
     requests = None
 
@@ -35,10 +36,6 @@ def missing_libs():
     catch them all in one pass. An empty list is good.
     """
     return _MISSING_LIBS
-
-
-class WGetError(RuntimeError):
-    pass
 
 
 # How many times to follow redirects in a 'head' call before giving up and
@@ -95,14 +92,14 @@ def get(pav_cfg, url, dest):
         # The requests package exceptions are pretty descriptive already.
         raise WGetError(err)
     except (IOError, OSError) as err:
-        raise WGetError("Error writing download '{}' to file in '{}': {}"
-                        .format(url, dest_dir, err))
+        raise WGetError("Error writing download '{}' to file in '{}'."
+                        .format(url, dest_dir), err)
 
     try:
         Path(tmp.name).rename(dest)
     except (IOError, OSError) as err:
-        raise WGetError("Error moving file from '{}' to final location '{}': {}"
-                        .format(url, dest, err))
+        raise WGetError("Error moving file from '{}' to final location '{}'."
+                        .format(url, dest), err)
 
 
 def head(pav_cfg, url):

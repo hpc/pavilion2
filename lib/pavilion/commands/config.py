@@ -200,13 +200,14 @@ class ConfigCommand(Command):
             raise ConfigCmdError("Parent directory '{}' does not exist.".format(path.parent))
 
         if label in pav_cfg.configs:
-            ConfigCmdError("Given label '{}' already exists in the pav config.".format(label))
+            raise ConfigCmdError("Given label '{}' already exists in the pav config."
+                                 .format(label))
 
         # This should fail if it already exists.
         try:
             path.mkdir()
         except OSError as err:
-            ConfigCmdError("Could not create specified directory", err)
+            raise ConfigCmdError("Could not create specified directory", err)
 
         perms = 0o775
         if group is not None:

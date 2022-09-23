@@ -90,7 +90,7 @@ class RunSeries(Command):
                                                           modes=args.modes)
             except series_config.SeriesConfigError as err:
                 output.fprint(self.errfile,
-                              "Load error: {}\n{}".format(args.series_name, err),
+                              "Load error: {}".format(args.series_name), err,
                               color=output.RED)
                 return errno.EINVAL
 
@@ -101,19 +101,19 @@ class RunSeries(Command):
         try:
             series_obj = series.TestSeries(pav_cfg, config=series_cfg)
         except TestSeriesError as err:
-            output.fprint(self.errfile, "Error creating test series '{}': {}"
-                          .format(args.series_name, err), color=output.RED)
+            output.fprint(self.errfile, "Error creating test series '{}'"
+                          .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
 
         # pav _series runs in background using subprocess
         try:
             series_obj.run_background()
         except TestSeriesError as err:
-            output.fprint(self.errfile, "Error starting series '{}': '{}'"
-                          .format(args.series_name, err), color=output.RED)
+            output.fprint(self.errfile, "Error starting series '{}'"
+                          .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
         except TestSeriesWarning as err:
-            output.fprint(self.errfile, str(err), color=output.YELLOW)
+            output.fprint(self.errfile, err, color=output.YELLOW)
 
         output.fprint(self.outfile, "Started series {sid}.\n"
                                     "Run `pav status {sid}` to view status.\n"

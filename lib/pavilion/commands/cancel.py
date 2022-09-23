@@ -57,12 +57,12 @@ class CancelCommand(Command):
                     series_pgid = test_series.pgid
                     tests.extend(test_series.tests.values())
                 except TestSeriesError as err:
-                    output.fprint(self.errfile, "Series {} could not be found.\n{}"
-                                  .format(test_id, err), color=output.RED)
+                    output.fprint(self.errfile, "Series {} could not be found."
+                                  .format(test_id), err, color=output.RED)
                     return errno.EINVAL
                 except ValueError as err:
-                    output.fprint(self.errfile, "Series {} is not a valid series.\n{}"
-                                  .format(test_id, err), color=output.RED)
+                    output.fprint(self.errfile, "Series {} is not a valid series."
+                                  .format(test_id), err, color=output.RED)
                     return errno.EINVAL
 
                 try:
@@ -80,7 +80,7 @@ class CancelCommand(Command):
                     tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))
                 except TestRunError as err:
                     output.fprint(self.errfile,
-                                  "Test {} is not a valid test.\n{}".format(test_id, err),
+                                  "Test {} is not a valid test.".format(test_id), err,
                                   color=output.RED)
                     return errno.EINVAL
 

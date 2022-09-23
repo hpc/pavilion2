@@ -358,11 +358,11 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
         try:
             # Apply to the parser to that file starting on that line.
             res = parser(file, **parser_args)
-        except (ValueError, LookupError, OSError) as exc:
+        except (ValueError, LookupError, OSError) as err:
             log("Error calling result parser {}.".format(parser.name))
             log(traceback.format_exc())
-            return ParseErrorMsg(parser, "Parser error in {} parser: {}."
-                                         .format(parser.name, exc)), log
+            return ParseErrorMsg(parser, "Parser error in {} parser."
+                                         .format(parser.name), err), log
 
         file.seek(next_pos)
 

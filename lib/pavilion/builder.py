@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Union, Dict
 
 import pavilion.config
+import pavilion.errors
 from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
 from pavilion.errors import TestBuilderError, TestConfigError
@@ -340,7 +341,7 @@ class TestBuilder:
 
             try:
                 wget.update(self._pav_cfg, src_url, dwn_dest)
-            except wget.WGetError as err:
+            except pavilion.errors.WGetError as err:
                 raise TestBuilderError(
                     "Could not retrieve source from the given url '{}'".format(src_url), err)
 

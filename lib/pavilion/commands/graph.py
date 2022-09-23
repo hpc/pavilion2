@@ -169,7 +169,7 @@ class GraphCommand(Command):
         try:
             check_evaluations(all_evals)
         except ResultError as err:
-            output.fprint(self.errfile, "Invalid graph evaluation:\n{}".format(err),
+            output.fprint(self.errfile, "Invalid graph evaluation.", err,
                           color=output.RED)
 
         # Set colormap and build colormap dict
@@ -184,13 +184,13 @@ class GraphCommand(Command):
                                                                  y_evals,
                                                                  test.results)
             except InvalidEvaluationError as err:
-                output.fprint(self.errfile, "Error gathering graph data for test {}: \n{}"
-                              .format(test.id, err), color=output.YELLOW)
+                output.fprint(self.errfile, "Error gathering graph data for test {}."
+                              .format(test.id), err, color=output.YELLOW)
                 continue
             except ResultTypeError as err:
                 output.fprint(self.errfile, "Gather graph data for test {} resulted in "
-                                            "invalid type: \n{}"
-                              .format(test.id, err), color=output.YELLOW)
+                                            "invalid type."
+                              .format(test.id), err, color=output.YELLOW)
                 continue
 
             graph_data = GraphCommand.combine_graph_data(graph_data,
@@ -204,7 +204,7 @@ class GraphCommand(Command):
                        stats_dict, args.average, colormap,
                        args.outfile, args.dimensions)
         except PlottingError as err:
-            output.fprint(self.errfile, "Error while graphing data:\n{}".format(err),
+            output.fprint(self.errfile, "Error while graphing data.", err,
                           color=output.RED)
             return errno.EINVAL
 

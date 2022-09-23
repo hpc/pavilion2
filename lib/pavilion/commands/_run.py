@@ -43,7 +43,7 @@ class _RunCommand(Command):
             test = TestRun.load(pav_cfg, working_dir=args.working_dir,
                                 test_id=args.test_id)
         except TestRunError as err:
-            fprint(sys.stdout, "Error loading test '{}': {}".format(args.test_id, err))
+            fprint(sys.stdout, "Error loading test '{}'".format(args.test_id), err)
             raise
 
         try:
@@ -168,12 +168,12 @@ class _RunCommand(Command):
                 results = test.gather_results(run_result, log_file=log_file)
 
         except Exception as err:
-            fprint(sys.stdout, "Unexpected error gathering results: \n{}", traceback.format_exc())
+            fprint(sys.stdout, "Unexpected error gathering results.", err)
             test.status.set(STATES.RESULTS_ERROR,
-                            "Unexpected error parsing results: {}. (This is a "
+                            "Unexpected error parsing results: '{}'... (This is a "
                             "bug, you should report it.)"
                             "See 'pav log kickoff {}' for the full error."
-                            .format(err, test.id))
+                            .format(str(err)[:100], test.id))
             raise
 
         try:

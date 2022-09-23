@@ -247,8 +247,6 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
                 if errfile:
                     output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
                                   color=output.YELLOW)
-
-
         else:
             try:
                 test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
