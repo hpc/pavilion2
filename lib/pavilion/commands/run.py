@@ -2,15 +2,13 @@
 
 import errno
 import sys
-from typing import List
 
-import pavilion.series.errors
 from pavilion import cmd_utils
 from pavilion import output
+from pavilion.errors import TestSeriesError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
-from pavilion.test_run import TestRun
 from .base_classes import Command
 
 
@@ -164,7 +162,7 @@ class RunCommand(Command):
                 verbosity=args.build_verbosity,
                 outfile=self.outfile)
             self.last_tests = list(series_obj.tests.values())
-        except pavilion.series.errors.TestSeriesError as err:
+        except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN

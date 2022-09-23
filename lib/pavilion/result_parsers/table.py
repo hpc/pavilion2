@@ -4,7 +4,8 @@ import re
 
 import yaml_config as yc
 from pavilion import utils
-from .base_classes import ResultParser, ResultError
+from .base_classes import ResultParser
+from ..errors import ResultError
 
 
 class Table(ResultParser):

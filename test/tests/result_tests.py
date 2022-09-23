@@ -7,6 +7,7 @@ import logging
 import pprint
 from collections import OrderedDict
 
+import pavilion.errors
 import pavilion.result
 import pavilion.result.common
 import yaml_config as yc
@@ -15,7 +16,8 @@ from pavilion import commands
 from pavilion import config
 from pavilion import result
 from pavilion import utils
-from pavilion.result import ResultError, base
+from pavilion.result import base
+from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
@@ -681,7 +683,7 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg)
             test.run()
 
-            with self.assertRaises(pavilion.result.common.ResultError):
+            with self.assertRaises(pavilion.errors.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
 
     def test_result_command(self):
@@ -827,7 +829,7 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        with self.assertRaises(pavilion.result.common.ResultError):
+        with self.assertRaises(pavilion.errors.ResultError):
             result.check_config(cfg['result_parse'], {})
 
         test = self._quick_test(cfg, 'split_test')

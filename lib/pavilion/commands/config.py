@@ -12,12 +12,13 @@ from typing import Union
 
 import yc_yaml as yaml
 from pavilion import config
+from pavilion import errors
 from pavilion.output import fprint, draw_table
 from pavilion.utils import get_login
 from .base_classes import sub_cmd, Command
 
 
-class ConfigCmdError(RuntimeError):
+class ConfigCmdError(errors.PavilionError):
     """Raised for errors when creating configs."""
 
 
@@ -104,7 +105,7 @@ class ConfigCommand(Command):
 
         # This path is needed by (almost) all sub commands.
         if pav_cfg_file is None and args.sub_cmd != 'setup':
-            fprint(sys.stdout,
+            fprint(sys.stderr,
                    "Main Pavilion config file path is missing. This would generally happen "
                    "when loading a pavilion.yaml manually (not through 'find_pavilion_config)")
             return 1
@@ -205,7 +206,7 @@ class ConfigCommand(Command):
         try:
             path.mkdir()
         except OSError as err:
-            ConfigCmdError("Could not create specified directory: \n{}".format(err))
+            ConfigCmdError("Could not create specified directory", err)
 
         perms = 0o775
         if group is not None:
@@ -217,15 +218,15 @@ class ConfigCommand(Command):
                 os.chown(path, -1, group.gr_gid)
             except OSError as err:
                 shutil.rmtree(path)
-                raise ConfigCmdError("Could not set config dir group to '{}': {}"
-                                     .format(group.gr_name, err))
+                raise ConfigCmdError("Could not set config dir group to '{}'"
+                                     .format(group.gr_name), err)
 
         try:
             path.chmod(perms)
         except OSError as err:
             shutil.rmtree(path)
-            raise ConfigCmdError("Could not set permissions on config dir '{}': {}"
-                                 .format(path, err))
+            raise ConfigCmdError("Could not set permissions on config dir '{}'"
+                                 .format(path), err)
 
         if working_dir is not None:
             config_data['working_dir'] = str(working_dir)
@@ -239,8 +240,8 @@ class ConfigCommand(Command):
                 yaml.dump(config_data, config_file)
         except OSError as err:
             shutil.rmtree(path)
-            raise ConfigCmdError("Error writing config file at '{}': {}"
-                                 .format(config_file_path, err))
+            raise ConfigCmdError("Error writing config file at '{}'"
+                                 .format(config_file_path), err)
 
         for subdir in 'hosts', 'modes', 'tests', 'test_src', 'plugins':
             subdir = path/subdir
@@ -248,7 +249,7 @@ class ConfigCommand(Command):
                 subdir.mkdir()
             except OSError as err:
                 shutil.rmtree(path)
-                raise ConfigCmdError("Could not make config subdir '{}': {}".format(subdir, err))
+                raise ConfigCmdError("Could not make config subdir '{}'".format(subdir), err)
 
         # The working dir will be created automatically when Pavilion next runs.
         pav_cfg.config_dirs.append(path)
@@ -281,8 +282,8 @@ class ConfigCommand(Command):
                 loader.dump(tmp_file, values=pav_cfg)
             pav_cfg_file_tmp.rename(pav_cfg_file)
         except OSError as err:
-            fprint(sys.stdout,
-                   "Failed to write pav config file at '{}': {}".format(pav_cfg_file, err))
+            fprint(sys.stderr,
+                   "Failed to write pav config file at '{}'".format(pav_cfg_file), err)
             if pav_cfg_file_tmp.exists():
                 try:
                     pav_cfg_file_tmp.unlink()

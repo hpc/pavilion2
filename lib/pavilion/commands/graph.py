@@ -9,9 +9,10 @@ from argparse import RawDescriptionHelpFormatter
 from typing import Dict
 
 from pavilion import cmd_utils
+from pavilion import errors
 from pavilion import filters
 from pavilion import output
-from pavilion.result.common import ResultError
+from ..errors import ResultError
 from pavilion.result.evaluations import check_evaluations, evaluate_results
 from .base_classes import Command
 
@@ -252,8 +253,7 @@ class GraphCommand(Command):
             evaluate_results(results=test_results, evaluations=all_evals)
         except ResultError as err:
             raise InvalidEvaluationError("Invalid graph evaluation for test "
-                                         "{}:\n{}"
-                                         .format(test_results['id'], err))
+                                         "{}".format(test_results['id']), err)
         x_vals = test_results['x']
 
         if isinstance(x_vals, (int, float, str)):
@@ -269,8 +269,7 @@ class GraphCommand(Command):
         elif isinstance(x_vals, list):
             if not x_vals:
                 raise ResultTypeError("x value evaluation '{}' resulted in an "
-                                      "empty list."
-                                      .format(x_eval))
+                                      "empty list.".format(x_eval))
             for item in x_vals:
                 if not isinstance(item, (int, str, float)):
                     raise ResultTypeError("x value evaluation '{}' resulted in "
@@ -408,13 +407,13 @@ class GraphCommand(Command):
                       .format(outfile), color=output.GREEN)
 
 
-class ResultTypeError(RuntimeError):
+class ResultTypeError(errors.PavilionError):
     """Raise when evaluation results in an invalid type"""
 
 
-class InvalidEvaluationError(RuntimeError):
+class InvalidEvaluationError(errors.PavilionError):
     """Raise when evaluations result in some error."""
 
 
-class PlottingError(RuntimeError):
+class PlottingError(errors.PavilionError):
     """Raise when something goes wrong when graphing"""

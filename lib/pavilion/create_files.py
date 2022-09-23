@@ -29,8 +29,8 @@ def create_file(dest: Union[str, Path], rel_path: Path, contents: List[str],
             write_file(contents, file_, newlines=newlines)
 
     except OSError as err:
-        raise TestConfigError("Error writing create_file/template at '{}': {}"
-                              .format(dest, err))
+        raise TestConfigError("Error writing create_file/template at '{}'"
+                              .format(dest), err)
 
 
 def write_file(contents: List[str], outfile: TextIO, newlines='\n'):
@@ -45,7 +45,7 @@ def verify_path(dest, rel_path) -> Path:
     """Verify that the given dest is reasonable relative to rel_path. Returns the full path."""
     if Path(dest).is_absolute():
         raise TestConfigError("Only relative paths are allowed as the 'create_file' or "
-                              "'templates' destination. Got: {}".format(dest))
+                              "'templates' destination. Got".format(dest))
 
     file_path = rel_path / dest
     # Prevent files from being written outside build directory.
@@ -75,10 +75,10 @@ def resolve_template(pav_cfg: pavilion.config.PavConfig, template: str,
         with tmpl_path.open() as tmpl_file:
             tmpl_lines = tmpl_file.readlines()
     except OSError as err:
-        raise TestConfigError("Error reading template file '{}': {}".format(tmpl_path, err))
+        raise TestConfigError("Error reading template file '{}'".format(tmpl_path), err)
 
     try:
         return resolve.section_values(tmpl_lines, var_man)
     except TestConfigError as err:
-        raise TestConfigError("Error resolving template '{}': {}"
-                              .format(tmpl_path, err))
+        raise TestConfigError("Error resolving template '{}'"
+                              .format(tmpl_path), err)

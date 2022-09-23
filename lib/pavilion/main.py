@@ -6,6 +6,7 @@ import sys
 import traceback
 
 import pavilion.commands
+import pavilion.errors
 from . import arguments
 from . import commands
 from . import config
@@ -60,7 +61,7 @@ def main():
     # Initialize all the plugins
     try:
         plugins.initialize_plugins(pav_cfg)
-    except plugins.PluginError as err:
+    except pavilion.errors.PluginError as err:
         output.fprint(sys.stderr, "Error initializing plugins: {}"
                       .format(err), color=output.RED)
         sys.exit(-1)

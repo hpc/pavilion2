@@ -1,11 +1,10 @@
 """Tests for the various Pavilion parsers."""
 
 import lark
-
+from pavilion import parsers
 from pavilion import plugins
 from pavilion import unittest
-from pavilion import parsers
-from pavilion.errors import DeferredError, StringParserError
+from pavilion.errors import DeferredError, StringParserError, ParserValueError
 from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 
@@ -324,11 +323,12 @@ class ParserTests(unittest.PavTestCase):
         for string, exp_error in bad_syntax.items():
             try:
                 result = parsers.parse_text(string, self.var_man)
-            except StringParserError as err:
+            except (StringParserError, ParserValueError) as err:
                 self.assertEqual(err.message, exp_error,
                                  msg="Bad example '{}' produced an error '{}' "
                                      "that did not match expected error '{}'"
                                      .format(string, err.message, exp_error))
+
             else:
                 self.fail(
                     "Failed to fail on '{}', parsed to: '{}'"

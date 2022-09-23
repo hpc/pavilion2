@@ -1,7 +1,6 @@
 # pylint: disable=too-many-lines
 """The Slurm Scheduler Plugin."""
 
-import math
 import os
 import re
 import shutil
@@ -17,8 +16,9 @@ from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import dfr_var_method
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
-from ..scheduler import SchedulerPluginError, KickoffScriptHeader
+from ..scheduler import KickoffScriptHeader
 from ..vars import SchedulerVariables
+from ...errors import SchedulerPluginError
 
 
 class SbatchHeader(KickoffScriptHeader):

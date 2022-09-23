@@ -43,7 +43,7 @@ def test_config(config, var_man):
                 key_parts=(section,),
             )
         except (StringParserError, ParserValueError) as err:
-            raise TestConfigError("Error parsing '{}' section: {}".format(section, err))
+            raise TestConfigError("Error parsing '{}' section".format(section), err)
 
     for section in ('only_if', 'not_if'):
         try:
@@ -53,7 +53,7 @@ def test_config(config, var_man):
                     var_man=var_man,
                     section_name=section)
         except (StringParserError, ParserValueError) as err:
-            raise TestConfigError("Error parsing key '{}' section: {}".format(section, err))
+            raise TestConfigError("Error parsing key '{}' section".format(section), err)
 
     return resolved_dict
 

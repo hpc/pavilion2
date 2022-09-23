@@ -2,7 +2,9 @@
 problems."""
 
 import re
+import pprint
 import textwrap
+import shutil
 
 import lark
 
@@ -13,13 +15,64 @@ class PavilionError(RuntimeError):
     SPLIT_RE = re.compile(': *\n? *')
     TAB_LEVEL = '  '
 
+    def __init__(self, msg, prior_error=None, data=None):
+        """These take a new message and whatever prior error caused the problem.
+
+        :param msg: The error message.
+        :param prior_error: The exception object that triggered this exception.
+        :param data: Any relevant data that needs to be passed to the user.
+        """
+
+        self.msg = msg
+        self.prior_error = prior_error
+        self.data = data
+        super().__init__(msg)
+
+    def __reduce__(self):
+        return type(self), (self.msg, self.prior_error, self.data)
+
     def __str__(self):
-        msg = self.args[0]
-        parts = self.SPLIT_RE.split(str(msg))
+        if self.prior_error:
+            return '{}: {}'.format(self.msg, str(self.prior_error))
+        else:
+            return self.msg
+
+    def pformat(self) -> str:
+        """Specially format the exception for printing."""
 
         lines = []
-        for i in range(len(parts)):
-            lines.extend(textwrap.wrap(parts[i], 80, initial_indent=i*self.TAB_LEVEL))
+        next_exc = self.prior_error
+        width = shutil.get_terminal_size((100, 100)).columns
+        tab_level = 0
+        indent = self.TAB_LEVEL
+        lines.extend(textwrap.wrap(self.msg, width, initial_indent=indent,
+                                   subsequent_indent=indent))
+
+        # Add any included data.
+        if self.data:
+            data = pprint.pformat(self.data, width=width - tab_level*2)
+            for line in data.split('\n'):
+                lines.extend(tab_level*self.TAB_LEVEL + line)
+
+        while next_exc:
+            tab_level += 1
+            indent = tab_level * self.TAB_LEVEL
+            if isinstance(next_exc, PavilionError):
+                lines.extend(textwrap.wrap(next_exc.msg, width, initial_indent=indent,
+                                           subsequent_indent=indent))
+                if next_exc.data:
+                    data = pprint.pformat(next_exc.data, width=width - tab_level * 2)
+                    for line in data.split('\n'):
+                        lines.append((tab_level * self.TAB_LEVEL) + line)
+
+                next_exc = next_exc.prior_error
+            else:
+                if hasattr(next_exc, 'args') and isinstance(next_exc.args, list):
+                    msg = next_exc.args[0]
+                else:
+                    msg = str(next_exc)
+                lines.extend(textwrap.wrap(msg, width, initial_indent=indent,
+                                           subsequent_indent=indent))
 
         return '\n'.join(lines)
 
@@ -83,7 +136,7 @@ class TestBuilderError(PavilionError):
     """Exception raised when builds encounter an error."""
 
 
-class FunctionPluginError(RuntimeError):
+class FunctionPluginError(PavilionError):
     """Error raised when there's a problem with a function plugin
     itself."""
 
@@ -130,3 +183,24 @@ class StringParserError(ValueError):
 
 class TestSetError(PavilionError):
     """For when creating a test set goes wrong."""
+
+
+class PluginError(PavilionError):
+    """General Plugin Error"""
+
+
+class ResultError(PavilionError):
+    """Error thrown when a failure occurs with any sort of result
+    processing."""
+
+
+class SchedulerPluginError(PavilionError):
+    """Raised when scheduler plugins encounter an error."""
+
+
+class TestSeriesError(PavilionError):
+    """An error in managing a series of tests."""
+
+
+class TestSeriesWarning(PavilionError):
+    """A non-fatal series error."""

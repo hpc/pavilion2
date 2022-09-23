@@ -13,7 +13,7 @@ from typing import List, Union, Dict, Any, TextIO, Pattern, Tuple, NewType
 from pavilion.result_parsers import ResultParser, get_plugin
 from pavilion.utils import IndentedLog
 from .base import RESULT_ERRORS
-from .common import ResultError
+from ..errors import ResultError
 from .options import (PER_FILES, ACTIONS, MATCH_CHOICES, per_first,
                       ACTION_TRUE, ACTION_FALSE, MATCH_ALL, MATCH_UNIQ)
 

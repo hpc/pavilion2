@@ -4,7 +4,8 @@ import re
 import sre_constants
 
 import yaml_config as yc
-from .base_classes import ResultError, ResultParser
+from .base_classes import ResultParser
+from ..errors import ResultError
 
 
 class Regex(ResultParser):
@@ -46,7 +47,7 @@ class Regex(ResultParser):
             kwargs['regex'] = re.compile(kwargs['regex'])
         except (ValueError, sre_constants.error) as err:
             raise ResultError(
-                "Invalid regular expression: {}".format(err))
+                "Invalid regular expression.", err)
 
         return kwargs
 

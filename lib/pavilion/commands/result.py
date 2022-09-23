@@ -8,7 +8,7 @@ import pprint
 import shutil
 from typing import List, IO
 
-from pavilion.errors import TestConfigError
+from pavilion.errors import TestConfigError, ResultError
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
@@ -273,7 +273,7 @@ class ResultsCommand(Command):
                     test.config['result_parse'],
                     test.config['result_evaluate'])
 
-            except result.ResultError as err:
+            except ResultError as err:
                 output.fprint(self.errfile, "Error found in results configuration: {}"
                               .format(err), color=output.RED)
                 return False

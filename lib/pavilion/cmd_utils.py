@@ -17,7 +17,7 @@ from pavilion import output
 from pavilion import series
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.errors import TestRunError, CommandError
+from pavilion.errors import TestRunError, CommandError, TestSeriesError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
 
@@ -243,7 +243,7 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
             try:
                 test_paths.extend(
                     series.list_series_tests(pav_cfg, raw_id))
-            except series.errors.TestSeriesError:
+            except TestSeriesError:
                 if errfile:
                     output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
                                   color=output.YELLOW)
@@ -346,9 +346,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
         if series_id is not None:
             test_ids.append(series_id)
         else:
-            raise CommandError(
-                "No tests specified and no last series was found."
-            )
+            raise CommandError("No tests specified and no last series was found.")
 
     # Convert series and test ids into test paths.
     test_id_pairs = []
@@ -357,7 +355,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
         if '.' not in raw_id and raw_id.startswith('s'):
             try:
                 series_obj = series.TestSeries.load(pav_cfg, raw_id)
-            except series.TestSeriesError as err:
+            except TestSeriesError as err:
                 output.fprint(errfile, "Suite {} could not be found.\n{}"
                               .format(raw_id, err), color=output.RED)
                 continue

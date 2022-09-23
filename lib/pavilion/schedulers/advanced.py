@@ -11,7 +11,8 @@ from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.types import NodeInfo, Nodes, NodeList, NodeSet, NodeRange
 from .config import validate_config, AVAILABLE, BACKFILL, calc_node_range
-from .scheduler import SchedulerPlugin, SchedulerPluginError
+from .scheduler import SchedulerPlugin
+from ..errors import SchedulerPluginError
 from .vars import SchedulerVariables
 
 ChunksBySelect = NewType('ChunksBySelect', Dict[str, List[NodeList]])
@@ -140,7 +141,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         try:
             nodes = test.job.load_sched_data()
         except JobError as err:
-            raise SchedulerPluginError("Could not load node info: {}".format(err.args[0]))
+            raise SchedulerPluginError("Could not load node info.", err)
 
         # Get the list of allocation nodes
         alloc_nodes = self._get_alloc_nodes(test.job)
@@ -416,7 +417,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         try:
             job = Job.new(pav_cfg, tests, self.KICKOFF_FN)
         except JobError as err:
-            raise SchedulerPluginError("Error creating job: \n{}".format(err))
+            raise SchedulerPluginError("Error creating job.", err)
 
         # At this point the scheduler config should be effectively identical
         # for the test being allocated.
@@ -476,7 +477,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
                 job.save_node_data(node_info)
             except JobError as err:
-                raise SchedulerPluginError("Error creating job: \n{}".format(err))
+                raise SchedulerPluginError("Error creating job.", err)
 
             sched_config = sched_configs[test.full_id]
 
@@ -527,7 +528,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                raise SchedulerPluginError("Error creating job: \n{}".format(err))
+                raise SchedulerPluginError("Error creating job.", err)
 
             sched_config = sched_configs[test.full_id]
             if needed_nodes == 0:
@@ -546,7 +547,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job.save_node_data({node: self._nodes[node] for node in picked_nodes})
             except JobError as err:
-                raise SchedulerPluginError("Error saving node info to job.: \n{}".format(err))
+                raise SchedulerPluginError("Error saving node info to job.", err)
 
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,

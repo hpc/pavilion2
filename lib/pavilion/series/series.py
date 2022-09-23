@@ -23,10 +23,9 @@ from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
 from yaml_config import YAMLError, RequiredError
-from .errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo
 from .test_set import TestSet
-from ..errors import TestSetError
+from ..errors import TestSetError, TestSeriesError, TestSeriesWarning
 from . import common
 
 
@@ -125,8 +124,8 @@ class TestSeries:
                 self._id, self.path = dir_db.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
-                    "Could not get id or series directory in '{}': {}"
-                    .format(series_path, err))
+                    "Could not get id or series directory in '{}'"
+                    .format(series_path), err)
 
             # save series config
             self.save_config()
@@ -422,8 +421,8 @@ differentiate it from test ids."""
                 except TestSetError as err:
                     self.set_complete()
                     raise TestSeriesError(
-                        "Error making tests for series '{}':\n {}"
-                        .format(self.sid, err))
+                        "Error making tests for series '{}'."
+                        .format(self.sid), err)
 
                 # Add all the tests we created to this test set.
                 self._add_tests(test_set)
@@ -629,8 +628,8 @@ differentiate it from test ids."""
                 link_path.symlink_to(test.path)
             except OSError as err:
                 raise TestSeriesError(
-                    "Could not link test '{}' in series at '{}': {}"
-                    .format(test.path, link_path, err))
+                    "Could not link test '{}' in series at '{}'"
+                    .format(test.path, link_path), err)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user

@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 import pavilion.deferred
+import pavilion.errors
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
@@ -84,7 +85,7 @@ class PluginTests(PavTestCase):
             self.TEST_DATA_ROOT/'pav_config_dir2',
             self.TEST_DATA_ROOT / 'pav_config_dir_conflicts'])
 
-        self.assertRaises(plugins.PluginError,
+        self.assertRaises(pavilion.errors.PluginError,
                           lambda: plugins.initialize_plugins(pav_cfg))
 
         # Clean up our plugin initializations.

@@ -27,10 +27,9 @@ from pavilion import create_files
 from pavilion import resolve
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
-from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError
+from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError, ResultError
 from pavilion.jobs import Job
 from pavilion.variables import VariableSetManager
-from pavilion.result.common import ResultError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout

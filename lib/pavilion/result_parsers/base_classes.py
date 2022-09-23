@@ -9,7 +9,7 @@ from typing import List
 
 import pavilion.deferred
 import yaml_config as yc
-from pavilion.result.common import ResultError
+from pavilion.errors import ResultError
 from pavilion.result.options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
                                      PER_NAME_LIST, PER_ALL, PER_ANY, PER_FILES, MATCH_UNIQ,
                                      MATCH_FIRST, MATCH_LAST, MATCH_ALL, MATCH_CHOICES,
@@ -529,7 +529,7 @@ Example: ::
             self.check_args(**rconf)
         except ResultError as err:
             raise ResultError(
-                "Key '{}': {}".format(keys, err.args[0]))
+                "Key '{}'".format(keys), err)
 
     def activate(self):
         """Yapsy runs this when adding the plugin.

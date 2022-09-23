@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pavilion import result
 from pavilion import schedulers
-from pavilion.errors import TestRunError
+from pavilion.errors import TestRunError, ResultError
 from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
@@ -158,7 +158,7 @@ class _RunCommand(Command):
             try:
                 result.check_config(test.config['result_parse'],
                                     test.config['result_evaluate'])
-            except result.ResultError as err:
+            except ResultError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
                     "Error checking result parser configs: {}".format(err))

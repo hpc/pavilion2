@@ -443,8 +443,7 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
         try:
             ids.append(int(path.name))
         except ValueError:
-            raise ValueError(
-                "Invalid dir_db path '{}'".format(path.as_posix()))
+            raise ValueError("Invalid dir_db path '{}'".format(path.as_posix()))
     return ids
 
 

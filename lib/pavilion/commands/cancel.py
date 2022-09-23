@@ -7,6 +7,7 @@ import time
 from pavilion import cancel
 from pavilion import output
 from pavilion import series
+from pavilion.errors import TestSeriesError
 from pavilion.test_run import TestRun
 from .base_classes import Command
 from ..errors import TestRunError
@@ -55,7 +56,7 @@ class CancelCommand(Command):
                     test_series = series.TestSeries.load(pav_cfg, test_id)
                     series_pgid = test_series.pgid
                     tests.extend(test_series.tests.values())
-                except series.errors.TestSeriesError as err:
+                except TestSeriesError as err:
                     output.fprint(self.errfile, "Series {} could not be found.\n{}"
                                   .format(test_id, err), color=output.RED)
                     return errno.EINVAL

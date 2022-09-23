@@ -2,7 +2,7 @@
 undefined) bits."""
 import errno
 
-import pavilion.result.common
+from pavilion.errors import ResultError
 from pavilion import output
 from pavilion import result
 from .base_classes import Command, sub_cmd
@@ -64,7 +64,7 @@ class MaintCommand(Command):
 
         try:
             pruned = result.prune_result_log(pav_cfg.result_log, args.ids)
-        except pavilion.result.common.ResultError as err:
+        except ResultError as err:
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EACCES
 
