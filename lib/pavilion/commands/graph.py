@@ -1,8 +1,8 @@
 """Graph pavilion results data."""
 
 import collections
-import pathlib
 import errno
+import pathlib
 import re
 import statistics
 from argparse import RawDescriptionHelpFormatter
@@ -12,9 +12,9 @@ from pavilion import cmd_utils
 from pavilion import errors
 from pavilion import filters
 from pavilion import output
-from ..errors import ResultError
 from pavilion.result.evaluations import check_evaluations, evaluate_results
 from .base_classes import Command
+from ..errors import ResultError
 
 try:
     import matplotlib

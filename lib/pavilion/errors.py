@@ -211,4 +211,5 @@ class SystemPluginError(PavilionError):
 
 
 class WGetError(RuntimeError):
+    """Errors for the Wget subsystem."""
     pass
