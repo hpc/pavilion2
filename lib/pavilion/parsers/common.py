@@ -4,19 +4,6 @@ Pavilion parsers."""
 import lark
 
 
-class ParserValueError(lark.LarkError):
-    """A value error that contains the problematic token and its position."""
-
-    def __init__(self, token: lark.Token, message: str):
-        super().__init__(message)
-
-        self.token = token
-        self.pos_in_stream = token.start_pos
-
-    # Steal the get_context method
-    get_context = lark.UnexpectedInput.get_context
-
-
 class PavTransformer(lark.Transformer):
     """Transformers walk the parse tree and modify it. In our case, we'll
     be resolving it into a final value. Our transformer always passes up

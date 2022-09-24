@@ -70,8 +70,11 @@ COLORS = {
     'UNDERLINE': UNDERLINE,
 }
 
+
 def format_duration(time_delta: float) -> str:
+    """Format a floating point number as a duration."""
     return str(datetime.timedelta(seconds=round(time_delta)))
+
 
 def get_relative_timestamp(base_time: float,
                            fullstamp: bool = False) -> str:
@@ -170,7 +173,15 @@ def fprint(file, *args, color=None, bullet='', width=0, wrap_indent=0, sep=' ', 
     if clear:
         clear_line(file)
 
-    args = [str(a) for a in args]
+    new_args = []
+    for arg in args:
+        if hasattr(arg, 'pformat'):
+            new_args.append(arg.pformat())
+        else:
+            new_args.append(str(arg))
+
+    args = new_args
+
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 

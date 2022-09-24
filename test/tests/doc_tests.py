@@ -8,6 +8,7 @@ from collections import defaultdict
 from html.parser import HTMLParser
 from typing import List
 
+import pavilion.errors
 from pavilion import wget
 from pavilion.unittest import PavTestCase
 from pavilion.utils import flat_walk
@@ -260,7 +261,7 @@ class DocTests(PavTestCase):
 
                 try:
                     wget.head(self.pav_cfg, href)
-                except wget.WGetError:
+                except pavilion.errors.WGetError:
                     errors.put(href)
 
         threads = []  # type: List[threading.Thread]

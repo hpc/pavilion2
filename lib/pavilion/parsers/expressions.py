@@ -12,7 +12,8 @@ import lark
 import pavilion.errors
 from pavilion import expression_functions as functions
 from pavilion.utils import auto_type_convert
-from .common import PavTransformer, ParserValueError
+from .common import PavTransformer
+from ..errors import ParserValueError
 
 EXPR_GRAMMAR = r'''
 

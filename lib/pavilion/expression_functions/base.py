@@ -200,7 +200,7 @@ class FunctionPlugin(IPlugin.IPlugin):
             return func(*val_args)
         except Exception as err:
             raise FunctionPluginError(
-                "Error in function plugin {}: {}"
+                "Error in function plugin {}"
                 .format(self.name, err)
             )
 
@@ -293,8 +293,8 @@ class FunctionPlugin(IPlugin.IPlugin):
                     val_args[key] = self._validate_arg(arg[key], sub_spec)
                 except FunctionPluginError as err:
                     raise FunctionPluginError(
-                        "Invalid dict argument '{}' for key '{}': {}"
-                        .format(arg[key], key, err))
+                        "Invalid dict argument '{}' for key '{}'"
+                        .format(arg[key], key), err)
 
             return val_args
 

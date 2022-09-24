@@ -291,9 +291,7 @@ class RegexSearch(CoreFunctionPlugin):
         try:
             regex = re.compile(regex)
         except re.error as err:
-            raise FunctionArgError(
-                "Could not compile regex:\n{}".format(err)
-            )
+            raise FunctionArgError("Could not compile regex", err)
 
         match = regex.search(data)
         if match is None:
@@ -349,9 +347,7 @@ class Outliers(CoreFunctionPlugin):
 
         if len(values) != len(names):
             raise FunctionPluginError(
-                "The 'values' and 'names' arguments must be lists of equal"
-                "length."
-            )
+                "The 'values' and 'names' arguments must be lists of equal length.")
 
         mean = sum(values)/len(values)
         stddev = (sum([(val - mean)**2 for val in values])/len(values))**0.5

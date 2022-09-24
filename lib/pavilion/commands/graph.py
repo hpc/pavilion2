@@ -1,19 +1,20 @@
 """Graph pavilion results data."""
 
 import collections
-import pathlib
 import errno
+import pathlib
 import re
 import statistics
 from argparse import RawDescriptionHelpFormatter
 from typing import Dict
 
 from pavilion import cmd_utils
+from pavilion import errors
 from pavilion import filters
 from pavilion import output
-from pavilion.result.common import ResultError
 from pavilion.result.evaluations import check_evaluations, evaluate_results
 from .base_classes import Command
+from ..errors import ResultError
 
 try:
     import matplotlib
@@ -168,7 +169,7 @@ class GraphCommand(Command):
         try:
             check_evaluations(all_evals)
         except ResultError as err:
-            output.fprint(self.errfile, "Invalid graph evaluation:\n{}".format(err),
+            output.fprint(self.errfile, "Invalid graph evaluation.", err,
                           color=output.RED)
 
         # Set colormap and build colormap dict
@@ -183,13 +184,13 @@ class GraphCommand(Command):
                                                                  y_evals,
                                                                  test.results)
             except InvalidEvaluationError as err:
-                output.fprint(self.errfile, "Error gathering graph data for test {}: \n{}"
-                              .format(test.id, err), color=output.YELLOW)
+                output.fprint(self.errfile, "Error gathering graph data for test {}."
+                              .format(test.id), err, color=output.YELLOW)
                 continue
             except ResultTypeError as err:
                 output.fprint(self.errfile, "Gather graph data for test {} resulted in "
-                                            "invalid type: \n{}"
-                              .format(test.id, err), color=output.YELLOW)
+                                            "invalid type."
+                              .format(test.id), err, color=output.YELLOW)
                 continue
 
             graph_data = GraphCommand.combine_graph_data(graph_data,
@@ -203,7 +204,7 @@ class GraphCommand(Command):
                        stats_dict, args.average, colormap,
                        args.outfile, args.dimensions)
         except PlottingError as err:
-            output.fprint(self.errfile, "Error while graphing data:\n{}".format(err),
+            output.fprint(self.errfile, "Error while graphing data.", err,
                           color=output.RED)
             return errno.EINVAL
 
@@ -252,8 +253,7 @@ class GraphCommand(Command):
             evaluate_results(results=test_results, evaluations=all_evals)
         except ResultError as err:
             raise InvalidEvaluationError("Invalid graph evaluation for test "
-                                         "{}:\n{}"
-                                         .format(test_results['id'], err))
+                                         "{}".format(test_results['id']), err)
         x_vals = test_results['x']
 
         if isinstance(x_vals, (int, float, str)):
@@ -269,8 +269,7 @@ class GraphCommand(Command):
         elif isinstance(x_vals, list):
             if not x_vals:
                 raise ResultTypeError("x value evaluation '{}' resulted in an "
-                                      "empty list."
-                                      .format(x_eval))
+                                      "empty list.".format(x_eval))
             for item in x_vals:
                 if not isinstance(item, (int, str, float)):
                     raise ResultTypeError("x value evaluation '{}' resulted in "
@@ -408,13 +407,13 @@ class GraphCommand(Command):
                       .format(outfile), color=output.GREEN)
 
 
-class ResultTypeError(RuntimeError):
+class ResultTypeError(errors.PavilionError):
     """Raise when evaluation results in an invalid type"""
 
 
-class InvalidEvaluationError(RuntimeError):
+class InvalidEvaluationError(errors.PavilionError):
     """Raise when evaluations result in some error."""
 
 
-class PlottingError(RuntimeError):
+class PlottingError(errors.PavilionError):
     """Raise when something goes wrong when graphing"""

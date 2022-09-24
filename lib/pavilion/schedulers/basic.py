@@ -9,7 +9,8 @@ from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.types import NodeInfo, Nodes
 from .config import validate_config, calc_node_range
-from .scheduler import SchedulerPlugin, SchedulerPluginError
+from .scheduler import SchedulerPlugin
+from ..errors import SchedulerPluginError
 from .vars import SchedulerVariables
 
 
@@ -55,7 +56,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                raise SchedulerPluginError("Error creating Job: \n{}".format(err))
+                raise SchedulerPluginError("Error creating Job.", err)
 
             sched_config = validate_config(test.config['schedule'])
 
