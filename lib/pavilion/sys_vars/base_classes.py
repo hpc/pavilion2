@@ -7,20 +7,17 @@ for gathering site-specific information for your tests."""
 import collections
 import inspect
 import logging
+from typing import Union
 import re
 
 import pavilion.deferred
+from pavilion.errors import SystemPluginError
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
-
-class SystemPluginError(RuntimeError):
-    """Error thrown when a system plugin encounters an error."""
-
-
-_SYS_VAR_DICT = None
-_LOADED_PLUGINS = None  # type : dict
+_SYS_VAR_DICT: Union[dict, None] = None
+_LOADED_PLUGINS: Union[dict, None] = None
 
 
 class SysVarDict(collections.UserDict):
@@ -187,9 +184,8 @@ class SystemPlugin(IPlugin.IPlugin):
             values = self._get()
         except Exception as err:
             raise SystemPluginError(
-                "Error getting value for system plugin {s.name}: {err}"
-                .format(s=self, err=err)
-            )
+                "Error getting value for system plugin {s.name}."
+                .format(s=self), err)
 
         chk_vals = values
         if not isinstance(chk_vals, list):

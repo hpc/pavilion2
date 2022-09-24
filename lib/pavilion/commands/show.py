@@ -4,11 +4,13 @@ import argparse
 import errno
 import fnmatch
 import pprint
+import sys
 from typing import Union
 
-import pavilion.types
+import pavilion.errors
 import yaml_config
 from pavilion import config
+from pavilion.errors import ResultError
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
@@ -22,6 +24,7 @@ from pavilion import sys_vars
 from pavilion.deferred import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion import resolver
+from pavilion.types import Nodes
 from .base_classes import Command, sub_cmd
 
 
@@ -622,7 +625,7 @@ class ShowCommand(Command):
         if args.doc:
             try:
                 res_plugin = result_parsers.get_plugin(args.doc)
-            except result.common.ResultError:
+            except ResultError:
                 output.fprint(sys.stdout, "Invalid result parser '{}'.".format(args.doc),
                               color=output.RED)
                 return errno.EINVAL
@@ -665,7 +668,7 @@ class ShowCommand(Command):
 
             try:
                 sched = schedulers.get_plugin(sched_name)
-            except schedulers.SchedulerPluginError:
+            except pavilion.errors.SchedulerPluginError:
                 output.fprint(sys.stdout, "Invalid scheduler plugin '{}'.".format(sched_name),
                               color=output.RED)
                 return errno.EINVAL
@@ -675,7 +678,7 @@ class ShowCommand(Command):
 
             config = schedulers.validate_config({})
 
-            svars = sched.VAR_CLASS(config, pavilion.types.Nodes({}))
+            svars = sched.VAR_CLASS(config, Nodes({}))
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
@@ -753,7 +756,7 @@ class ShowCommand(Command):
                 deferred = isinstance(value, DeferredVariable)
                 help_str = svars.help(key)
 
-            except sys_vars.SystemPluginError as err:
+            except pavilion.errors.SystemPluginError as err:
                 value = output.ANSIString('error', code=output.RED)
                 deferred = False
                 help_str = output.ANSIString(str(err), code=output.RED)

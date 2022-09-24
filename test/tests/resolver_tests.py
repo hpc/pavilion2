@@ -294,7 +294,7 @@ class ResolverTests(PavTestCase):
         # that was similarly untested for.
         results2 = set()
         ptests2 = self.resolver.load(['permute_on_ref.sched'])
-        expected2 = {'0', '1', '100'}
+        expected2 = {'0', '1', '90'}
         for ptest in ptests2:
             results2.add(ptest.config['run']['cmds'][0])
         self.assertEqual(results2, expected2)
@@ -811,7 +811,7 @@ class ResolverTests(PavTestCase):
     def test_permute_order(self):
         """Check that tests resolve with both variable/permute resolution orders."""
 
-        for test, count in ('sched', 100), ('multi-sched', 5), ('both', 10):
+        for test, count in ('sched', 90), ('multi-sched', 5), ('both', 10):
             test = 'permute_order.{}'.format(test)
             tests = self.resolver.load([test])
             self.assertEqual(len(tests), count)

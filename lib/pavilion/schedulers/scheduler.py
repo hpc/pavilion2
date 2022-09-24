@@ -3,7 +3,6 @@ mechanisms to Pavilion.
 """
 
 import inspect
-import math
 import os
 import time
 from pathlib import Path
@@ -20,12 +19,9 @@ from . import config
 from . import node_selection
 from .config import validate_config, SchedConfigError, ScheduleConfig
 from .vars import SchedulerVariables
+from ..errors import SchedulerPluginError
 
 _SCHEDULER_PLUGINS = {}
-
-
-class SchedulerPluginError(RuntimeError):
-    """Raised when scheduler plugins encounter an error."""
 
 
 class KickoffScriptHeader(ScriptHeader):

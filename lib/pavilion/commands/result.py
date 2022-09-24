@@ -8,7 +8,7 @@ import pprint
 import shutil
 from typing import List, IO
 
-from pavilion.errors import TestConfigError
+from pavilion.errors import TestConfigError, ResultError
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
@@ -226,8 +226,8 @@ class ResultsCommand(Command):
                     modes=test.config['modes'],
                 )
             except TestConfigError as err:
-                output.fprint(self.errfile, "Test '{}' could not be found: {}"
-                              .format(test.name, err), color=output.RED)
+                output.fprint(self.errfile, "Test '{}' could not be found."
+                              .format(test.name), err, color=output.RED)
                 return False
 
             # These conditions guard against unexpected results from
@@ -255,13 +255,13 @@ class ResultsCommand(Command):
                     )
                 except TestConfigError as err:
                     output.fprint(self.errfile, "Test '{}' had a {} section that could not be "
-                                                "resolved with it's original variables: {}"
-                                  .format(test.name, section, err), color=output.RED)
+                                                "resolved with it's original variables."
+                                  .format(test.name, section), err, color=output.RED)
                     return False
                 except RuntimeError as err:
-                    output.fprint(self.errfile, "Unexpected error updating {} section for test "
-                                                "'{}': {}".format(section, test.name,
-                                                                  err), color=output.RED)
+                    output.fprint(self.errfile,
+                                  "Unexpected error updating {} section for test '{}'."
+                                  .format(section, test.name), err, color=output.RED)
                     return False
 
             # Set the test's result section to the newly resolved one.
@@ -273,9 +273,9 @@ class ResultsCommand(Command):
                     test.config['result_parse'],
                     test.config['result_evaluate'])
 
-            except result.ResultError as err:
-                output.fprint(self.errfile, "Error found in results configuration: {}"
-                              .format(err), color=output.RED)
+            except ResultError as err:
+                output.fprint(self.errfile, "Error found in results configuration.", err,
+                              color=output.RED)
                 return False
 
             if save:

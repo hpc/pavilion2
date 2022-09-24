@@ -1,6 +1,7 @@
 """Tests for the test_set module."""
 
-from pavilion.series.test_set import TestSet, TestSetError
+from pavilion.series.test_set import TestSet
+from pavilion.errors import TestSetError
 from pavilion.unittest import PavTestCase
 
 

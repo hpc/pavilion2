@@ -120,12 +120,10 @@ class LogCommand(Command):
                 else:
                     test = TestRun.load_from_raw_id(pav_cfg, args.id)
             except errors.TestRunError as err:
-                output.fprint(self.errfile, "Error loading test: {}".format(err),
-                              color=output.RED)
+                output.fprint(self.errfile, "Error loading test.", err, color=output.RED)
                 return 1
             except series_config.SeriesConfigError as err:
-                output.fprint(self.errfile, "Error loading series: {}".format(err),
-                              color=output.RED)
+                output.fprint(self.errfile, "Error loading series.", err, color=output.RED)
                 return 1
 
             file_name = test.path/self.LOG_PATHS[cmd_name]
@@ -145,8 +143,8 @@ class LogCommand(Command):
                     output.fprint(self.outfile, file.read(), width=None, end='')
 
         except (IOError, OSError) as err:
-            output.fprint(self.errfile, "Could not read log file '{}': {}"
-                          .format(file_name, err), color=output.RED)
+            output.fprint(self.errfile, "Could not read log file '{}'"
+                          .format(file_name), err, color=output.RED)
             return 1
 
         return 0

@@ -27,10 +27,10 @@ from pavilion import create_files
 from pavilion import resolve
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
-from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError
+from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError, ResultError, \
+    VariableError
 from pavilion.jobs import Job
 from pavilion.variables import VariableSetManager
-from pavilion.result.common import ResultError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
@@ -135,8 +135,8 @@ class TestRun(TestAttributes):
             try:
                 id_tmp, run_path = dir_db.create_id_dir(tests_path)
             except (OSError, TimeoutError) as err:
-                raise TestRunError("Could not create test id directory at '{}': {}"
-                                   .format(tests_path, err))
+                raise TestRunError("Could not create test id directory at '{}'"
+                                   .format(tests_path), err)
             super().__init__(path=run_path, load=False)
             self._variables_path = self.path / 'variables'
             self.var_man = None
@@ -175,7 +175,7 @@ class TestRun(TestAttributes):
 
             try:
                 self.var_man = VariableSetManager.load(self._variables_path)
-            except RuntimeError as err:
+            except VariableError as err:
                 raise TestRunError(*err.args)
 
         # If the cfg label is actually something that exists, use it in the
@@ -330,8 +330,7 @@ class TestRun(TestAttributes):
                 try:
                     tmpl_dir.mkdir(exist_ok=True)
                 except OSError as err:
-                    raise TestRunError("Could not create build template directory: {}"
-                                       .format(err))
+                    raise TestRunError("Could not create build template directory", err)
 
         tmpl_paths = {}
         for tmpl_src, tmpl_dest in templates.items():
@@ -340,7 +339,7 @@ class TestRun(TestAttributes):
                     tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                     create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
                 except TestConfigError as err:
-                    raise TestRunError("Error resolving Build template files: {}"
+                    raise TestRunError("Error resolving Build template files"
                                        .format(err.args[0]))
             tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
 
@@ -442,14 +441,14 @@ class TestRun(TestAttributes):
             try:
                 create_files.create_file(file, self.build_path, contents)
             except TestConfigError as err:
-                raise TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
+                raise TestRunError("Test run '{}'".format(self.full_id, err.args[0]))
 
         for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
             try:
                 tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                 create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
             except TestConfigError as err:
-                raise TestRunError("Test run '{}': {}".format(self.full_id, err.args[0]))
+                raise TestRunError("Test run '{}'".format(self.full_id, err.args[0]))
 
         self.save_attributes()
 
@@ -500,12 +499,12 @@ class TestRun(TestAttributes):
                 tmp_path.rename(config_path)
         except (OSError, IOError) as err:
             raise TestRunError(
-                "Could not save TestRun ({}) config at {}: {}"
-                .format(self.name, self.path, err))
+                "Could not save TestRun ({}) config at {}"
+                .format(self.name, self.path), err)
         except TypeError as err:
             raise TestRunError(
-                "Invalid type in config for ({}): {}"
-                .format(self.name, err))
+                "Invalid type in config for ({})"
+                .format(self.name), err)
 
     @classmethod
     def _load_config(cls, test_path):
@@ -522,11 +521,11 @@ class TestRun(TestAttributes):
                 # this is a reasonable way to load them.
                 return json.load(config_file)
         except TypeError as err:
-            raise TestRunError("Bad config values for config '{}': {}"
-                               .format(config_path, err))
+            raise TestRunError("Bad config values for config '{}'"
+                               .format(config_path), err)
         except (IOError, OSError) as err:
-            raise TestRunError("Error reading config file '{}': {}"
-                               .format(config_path, err))
+            raise TestRunError("Error reading config file '{}'"
+                               .format(config_path), err)
 
     def spack_enabled(self):
         """Check if spack is being used by this test run."""
@@ -565,7 +564,6 @@ class TestRun(TestAttributes):
         if cancel_event is None:
             cancel_event = threading.Event()
 
-        build_result = False
         if self.builder.build(self.full_id, tracker=tracker,
                               cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build

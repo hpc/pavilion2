@@ -171,8 +171,8 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         log_fn.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.fprint(err_out, "Could not write to pavilion log at '{}': {}"
-                      .format(log_fn, err), color=output.YELLOW)
+        output.fprint(err_out, "Could not write to pavilion log at '{}'"
+                      .format(log_fn), err, color=output.YELLOW)
     else:
         file_handler = logging.FileHandler(filename=log_fn.as_posix())
         file_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
@@ -195,8 +195,8 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         result_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.fprint(err_out, "Could not write to result log at '{}': {}"
-                      .format(pav_cfg.result_log, err), color=output.YELLOW)
+        output.fprint(err_out, "Could not write to result log at '{}'"
+                      .format(pav_cfg.result_log), err, color=output.YELLOW)
         return False
 
     result_logger = logging.getLogger('common_results')
@@ -221,8 +221,8 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         exception_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.fprint(err_out, "Could not write to exception log at '{}': {}"
-                      .format(pav_cfg.exception_log, err), color=output.YELLOW)
+        output.fprint(err_out, "Could not write to exception log at '{}'"
+                      .format(pav_cfg.exception_log), err, color=output.YELLOW)
     else:
         exc_handler = LockFileRotatingFileHandler(
             file_name=exception_log.as_posix(),

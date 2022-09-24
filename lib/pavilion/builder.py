@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Union, Dict
 
 import pavilion.config
+import pavilion.errors
 from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
 from pavilion.errors import TestBuilderError, TestConfigError
@@ -113,20 +114,19 @@ class TestBuilder:
             try:
                 create_files.verify_path(file, self.path)
             except TestConfigError as err:
-                raise TestBuilderError("build.create_file has bad path '{}': {}"
-                                       .format(file, err))
+                raise TestBuilderError("build.create_file has bad path '{}'".format(file), err)
 
         for tmpl, dest in self._config.get('templates', {}).items():
             try:
                 create_files.verify_path(tmpl, self.path)
             except TestConfigError as err:
-                raise TestBuilderError("build.create_file has bad template path '{}': {}"
-                                       .format(tmpl, err))
+                raise TestBuilderError("build.create_file has bad template path '{}'"
+                                       .format(tmpl), err)
             try:
                 create_files.verify_path(dest, self.path)
             except TestConfigError as err:
-                raise TestBuilderError("build.create_file has bad destination path '{}': {}"
-                                       .format(dest, err))
+                raise TestBuilderError("build.create_file has bad destination path '{}'"
+                                       .format(dest), err)
 
     def exists(self):
         """Return True if the given build exists."""
@@ -295,8 +295,7 @@ class TestBuilder:
         except ValueError as err:
             raise TestBuilderError(
                 "The source path must be a valid unix path, either relative "
-                "or absolute, got '{}':\n{}"
-                .format(src_path, err))
+                "or absolute, got '{}'".format(src_path), err)
 
         found_src_path = self._pav_cfg.find_file(src_path, 'test_src')
 
@@ -342,10 +341,9 @@ class TestBuilder:
 
             try:
                 wget.update(self._pav_cfg, src_url, dwn_dest)
-            except wget.WGetError as err:
+            except pavilion.errors.WGetError as err:
                 raise TestBuilderError(
-                    "Could not retrieve source from the given url '{}':\n{}"
-                    .format(src_url, err))
+                    "Could not retrieve source from the given url '{}'".format(src_url), err)
 
             return dwn_dest
 
@@ -428,15 +426,15 @@ class TestBuilder:
                             except FileNotFoundError as err:
                                 tracker.error(
                                     "Failed to move build {} from {} to "
-                                    "failure path {}: {}"
+                                    "failure path {}"
                                     .format(self.name, self.path,
-                                            self.fail_path, err))
+                                            self.fail_path), err)
                                 try:
                                     self.fail_path.mkdir()
                                 except OSError as err2:
                                     tracker.error(
                                         "Could not create fail directory for "
-                                        "build {} at {}: {}"
+                                        "build {} at {}"
                                         .format(self.name, self.fail_path, err2))
                             if cancel_event is not None:
                                 cancel_event.set()
@@ -584,8 +582,7 @@ class TestBuilder:
                 self.tmp_log_path.rename(build_dir/self.LOG_NAME)
             except OSError as err:
                 tracker.warn(
-                    "Could not move build log from '{}' to final location "
-                    "'{}': {}"
+                    "Could not move build log from '{}' to final location '{}': {}"
                     .format(self.tmp_log_path, build_dir, err))
 
         try:
@@ -703,8 +700,8 @@ class TestBuilder:
                     shutil.copy(src_path.as_posix(), copy_dest.as_posix())
                 except OSError as err:
                     raise TestBuilderError(
-                        "Could not copy test src '{}' to '{}': {}"
-                        .format(src_path, dest, err))
+                        "Could not copy test src '{}' to '{}'"
+                        .format(src_path, dest), err)
 
         tracker.update(
             state=STATES.BUILDING,
@@ -716,8 +713,8 @@ class TestBuilder:
                 create_files.create_file(file, self.path, contents)
             except TestConfigError as err:
                 raise TestBuilderError(
-                    "Error creating 'create_file' '{}': {}"
-                    .format(file, err))
+                    "Error creating 'create_file' '{}'"
+                    .format(file), err)
 
         # Copy over the template files.
         for tmpl_src, tmpl_dest in self._templates.items():
@@ -727,8 +724,8 @@ class TestBuilder:
                 shutil.copyfile(tmpl_src, tmpl_dest)
             except OSError as err:
                 raise TestBuilderError(
-                    "Error copying template file from {} to {}: {}"
-                    .format(tmpl_src, tmpl_dest, err))
+                    "Error copying template file from {} to {}"
+                    .format(tmpl_src, tmpl_dest), err)
 
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
@@ -747,8 +744,8 @@ class TestBuilder:
                     shutil.copyfile(path.as_posix(), final_dest.as_posix())
             except OSError as err:
                 raise TestBuilderError(
-                    "Could not copy extra file '{}' to dest '{}': {}"
-                    .format(path, dest, err))
+                    "Could not copy extra file '{}' to dest '{}'"
+                    .format(path, dest), err)
 
     def copy_build(self, dest: Path):
         """Copy the build (using 'symlink' copying to the destination.
@@ -772,7 +769,7 @@ class TestBuilder:
                     "rather than symlinked) could not be found:\n"
                     "base_glob: {}\n"
                     "full_glob: {}\n"
-                    "These files were available in the top glob dir: {}"
+                    "These files were available in the top glob dir"
                     .format(copy_glob, final_glob, avail))
 
             do_copy.update(blob)
@@ -801,7 +798,7 @@ class TestBuilder:
                             copy_function=maybe_symlink_copy)
         except OSError as err:
             raise TestBuilderError(
-                "Could not perform the build directory copy: {}".format(err))
+                "Could not perform the build directory copy".format(err))
 
         # Touch the original build directory, so that we know it was used
         # recently.
@@ -954,8 +951,8 @@ class TestBuilder:
                 dir_stat = path.stat()
             except OSError as err:
                 raise TestBuilderError(
-                    "Could not stat file in test source dir '{}': {}"
-                    .format(base_path, err))
+                    "Could not stat file in test source dir '{}'"
+                    .format(base_path), err)
             if dir_stat.st_mtime > latest:
                 latest = dir_stat.st_mtime
 
