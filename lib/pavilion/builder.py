@@ -512,8 +512,8 @@ class TestBuilder:
             self._setup_build_dir(build_dir, tracker)
         except TestBuilderError as err:
             tracker.error(
-                note=("Error setting up build directory '{}'"
-                      .format(build_dir), err))
+                note=("Error setting up build directory '{}': {}"
+                      .format(build_dir, err)))
             return False
 
         # Generate an anonymous spack environment for a new build.

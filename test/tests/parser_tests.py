@@ -324,10 +324,12 @@ class ParserTests(unittest.PavTestCase):
             try:
                 result = parsers.parse_text(string, self.var_man)
             except (StringParserError, ParserValueError) as err:
-                self.assertEqual(err.message, exp_error,
-                                 msg="Bad example '{}' produced an error '{}' "
-                                     "that did not match expected error '{}'"
-                                     .format(string, err.message, exp_error))
+                self.assertTrue(str(err).startswith(exp_error),
+                                msg="Bad example '{}' produced an error "
+                                    "that did not match expected error\n"
+                                    "Got:      {}\n"
+                                    "Expected: {}"
+                                    .format(string, err.message, exp_error))
 
             else:
                 self.fail(

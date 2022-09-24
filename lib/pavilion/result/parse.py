@@ -317,12 +317,14 @@ def parse_result(key: str, parser_cfg: Dict, file: TextIO, parser: ResultParser)
             match_idx=match_idx,
         )
 
-        log("Got result '{}' for key '{}'".format(res, key))
-        log.indent(elog)
-
         # Add the key information if there was an error.
         if isinstance(res, ParseErrorMsg):
             res.key = key
+            log(str(res))
+        else:
+            log("Got result '{}' for key '{}'".format(res, key))
+
+        log.indent(elog)
 
         return res, log
     except OSError as err:
@@ -361,8 +363,8 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
         except (ValueError, LookupError, OSError) as err:
             log("Error calling result parser {}.".format(parser.name))
             log(traceback.format_exc())
-            return ParseErrorMsg(parser, "Parser error in {} parser."
-                                         .format(parser.name), err), log
+            return ParseErrorMsg(parser, "Parser error in {} parser: {}"
+                                         .format(parser.name, err)), log
 
         file.seek(next_pos)
 

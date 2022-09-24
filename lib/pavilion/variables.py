@@ -454,7 +454,7 @@ index, sub_var) tuple.
         except KeyError as err:
             # Make sure our error message gives the full key.
             raise KeyError(
-                "Could not resolve reference '{}'"
+                "Could not resolve reference '{}': {}"
                 .format(self.key_as_dotted(key), err.args[0]))
 
     def get(self, key: str, default=None) -> str:

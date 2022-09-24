@@ -176,7 +176,6 @@ def fprint(file, *args, color=None, bullet='', width=0, wrap_indent=0, sep=' ', 
     new_args = []
     for arg in args:
         if hasattr(arg, 'pformat'):
-            new_args.append("\n")
             new_args.append(arg.pformat())
         else:
             new_args.append(str(arg))

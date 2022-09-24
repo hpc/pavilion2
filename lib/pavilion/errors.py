@@ -44,9 +44,7 @@ class PavilionError(RuntimeError):
         next_exc = self.prior_error
         width = shutil.get_terminal_size((100, 100)).columns
         tab_level = 0
-        indent = self.TAB_LEVEL
-        lines.extend(textwrap.wrap(self.msg, width, initial_indent=indent,
-                                   subsequent_indent=indent))
+        lines.extend(textwrap.wrap(self.msg, width=width))
 
         # Add any included data.
         if self.data:
@@ -73,6 +71,7 @@ class PavilionError(RuntimeError):
                     msg = str(next_exc)
                 lines.extend(textwrap.wrap(msg, width, initial_indent=indent,
                                            subsequent_indent=indent))
+                next_exc = None
 
         return '\n'.join(lines)
 
@@ -212,4 +211,3 @@ class SystemPluginError(PavilionError):
 
 class WGetError(RuntimeError):
     """Errors for the Wget subsystem."""
-    pass

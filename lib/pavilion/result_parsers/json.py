@@ -88,7 +88,7 @@ class Json(base_classes.ResultParser):
                 old_dict = self.remove_key(old_dict, path)
             except KeyError as err:
                 raise ValueError(
-                    "Key {} doesn't exist"
+                    "Excluded key {} doesn't exist"
                     .format('.'.join(path))
                 )
             except TypeError as err:
@@ -123,7 +123,7 @@ class Json(base_classes.ResultParser):
                             current_new[part] = current_old[part]
                         except KeyError as err:
                             raise ValueError(
-                                "Key {} doesn't exist"
+                                "Explicitly included JSON key '{}' doesn't exist"
                                 .format('.'.join(path))
                             )
                         except TypeError as err:
@@ -138,7 +138,7 @@ class Json(base_classes.ResultParser):
                     current_old = current_old[part]
                 except KeyError as err:
                     raise ValueError(
-                        "Key {} doesn't exist"
+                        "Explicitly included key '{}' doesn't exist in original JSON."
                         .format('.'.join(path))
                     )
                 except TypeError as err:
