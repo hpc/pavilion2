@@ -10,7 +10,8 @@ String LALR Grammar
 
 from typing import List
 import lark
-from .common import ParserValueError, PavTransformer
+from .common import PavTransformer
+from ..errors import ParserValueError
 from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
 
 STRING_GRAMMAR = r'''

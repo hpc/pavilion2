@@ -1,3 +1,5 @@
+from pavilion.errors import VariableError
+
 class DeferredVariable:
     """The value for some variables may not be available until a test is
 actually running. Deferred variables act as a placeholder in such
@@ -11,17 +13,13 @@ circumstances, and output an escape sequence when converted to a str.
         """Deferred variables should never have their value retrieved."""
 
         # This should always be caught before this point.
-        raise RuntimeError(
-            "Attempted to get the value of a deferred variable."
-        )
+        raise VariableError("Attempted to get the value of a deferred variable.")
 
     def __len__(self):
         """Deferred variables always have a single value."""
 
         # This should always be caught before this point.
-        raise RuntimeError(
-            "Attempted to get the length of a deferred variable."
-        )
+        raise VariableError("Attempted to get the length of a deferred variable.")
 
     DEFERRED_PREFIX = '!deferred!'
 

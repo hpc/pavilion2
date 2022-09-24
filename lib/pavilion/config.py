@@ -15,6 +15,7 @@ from typing import List, Union, Dict, NewType
 
 import yaml_config as yc
 from pavilion import output
+from pavilion import errors
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -62,6 +63,10 @@ LOG_FORMAT = "{asctime}, {levelname}, {hostname}, {name}: {message}"
 
 # An optional path type.
 OptPath = NewType("OptPath", Union[None, Path])
+
+
+class PavConfigError(errors.PavilionError):
+    """Config specific errors."""
 
 
 class PavConfigDict:
@@ -280,8 +285,19 @@ def config_dirs_validator(config, values):
                 list(path.iterdir())
 
         except PermissionError:
-            output.fprint(sys.stderr, "Cannot access config directory '{}'. Ignoring."
+            output.fprint(sys.stderr,
+                          "Cannot access config directory '{}'. Ignoring that config dir."
                           .format(value), color=output.YELLOW)
+            continue
+        except FileNotFoundError:
+            output.fprint(sys.stderr,
+                          "Cannot find config directory '{}'. Ignoring that config dir."
+                          .format(value))
+            continue
+        except OSError as err:
+            output.fprint(sys.stderr,
+                          "Unexpected OS error accessing config dir '{}'. Ignoring that "
+                          "config dir.".format(value), err)
             continue
 
         if path not in config_dirs:
@@ -301,21 +317,21 @@ def _setup_working_dir(working_dir: Path, group) -> None:
             try:
                 group_struct: grp.struct_group = grp.getgrnam(group)
             except KeyError:
-                raise RuntimeError("Group specified ({}) for working_dir '{}' "
-                                   "does not exist.")
+                raise PavConfigError("Group specified ({}) for working_dir '{}' "
+                                     "does not exist.")
 
             try:
                 os.chown(working_dir, -1, group_struct.gr_gid)
                 working_dir.chmod(stat.S_ISGID | 0o770)
             except OSError as err:
-                raise RuntimeError("Could not set group permissions on new working dir '{}': {}"
-                                   .format(working_dir, err))
+                raise PavConfigError("Could not set group permissions on new working dir '{}'"
+                                     .format(working_dir), err)
     else:
         if group is not None and working_dir.group() != group:
-            raise RuntimeError("Working dir should have group '{}', but has group '{}'. This "
-                               "usually means two config directories specify different groups "
-                               "but point to the same working directory. See `pav config list`."
-                               .format(group, working_dir.group()))
+            raise PavConfigError("Working dir should have group '{}', but has group '{}'. This "
+                                 "usually means two config directories specify different groups "
+                                 "but point to the same working directory. See `pav config list`."
+                                 .format(group, working_dir.group()))
 
     for path in [
             working_dir,
@@ -328,7 +344,7 @@ def _setup_working_dir(working_dir: Path, group) -> None:
         try:
             path.mkdir(exist_ok=True)
         except OSError as err:
-            raise RuntimeError("Could not create directory '{}': {}".format(path, err))
+            raise PavConfigError("Could not create directory '{}'".format(path), err)
 
 
 def make_invalidator(msg):
@@ -339,7 +355,7 @@ def make_invalidator(msg):
         """Raise a ValueError with the given message."""
 
         if value:
-            raise ValueError("Invalid Option: {}".format(msg))
+            raise ValueError("Invalid Option".format(msg))
 
     return invalidator
 
@@ -451,7 +467,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.CategoryElem(
             "proxies", sub_elem=yc.StrElem(),
             help_text="Proxies, by protocol, to use when accessing the "
-                      "internet. Eg: http: 'http://myproxy.myorg.org:8000'"),
+                      "internet. Eg: http: 'htt" + "p://myproxy.myorg.org:8000'"),
         yc.ListElem(
             "no_proxy", sub_elem=yc.StrElem(),
             help_text="A list of DNS suffixes to ignore for proxy purposes. "
@@ -492,7 +508,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 class LocalConfig(PavConfigDict):
     """This provides type checkers something to working with. See PavConfig above."""
     def __init__(self, set_attrs: dict = None):
-        self.label: str = None
+        self.label: Union[str, None] = None
         self.working_dir: Union[None, Path] = None
         self.path: OptPath = None
         self.group: Union[str, None] = None
@@ -562,14 +578,14 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                     config = loader.load(config_file)
 
         except PermissionError as err:
-            output.fprint(sys.stdout, "Could not load pavilion config at '{}'. Skipping...: {}"
-                          .format(config_path.as_posix(), err))
+            output.fprint(sys.stderr, "Could not load pavilion config at '{}'. Skipping..."
+                          .format(config_path.as_posix()), err)
 
             continue
 
         except Exception as err:
-            raise RuntimeError("Pavilion.yaml for config path '{}' has error: {}"
-                               .format(config_dir.as_posix(), err))
+            raise PavConfigError("Pavilion.yaml for config path '{}' has error"
+                                 .format(config_dir.as_posix()), err)
 
         label = config.get('label')
         group = config.get('group')
@@ -611,10 +627,10 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             try:
                 if setup_working_dirs:
                     _setup_working_dir(working_dir, group)
-            except RuntimeError as err:
+            except PavConfigError as err:
                 output.fprint(sys.stderr,
                               "Could not configure working directory for config path '{}'. "
-                              "Skipping.\n{}".format(config_path.as_posix(), err),
+                              "Skipping.".format(config_path.as_posix()), err,
                               color=output.YELLOW)
                 continue
 
@@ -655,8 +671,8 @@ found in these directories the default config search paths:
                         pav_cfg_file.open())  # pylint: disable=no-member
                     pav_cfg.pav_cfg_file = pav_cfg_file
                 except Exception as err:
-                    raise RuntimeError("Error in Pavilion config at {}: {}"
-                                       .format(pav_cfg_file, err))
+                    raise PavConfigError("Error in Pavilion config at {}"
+                                         .format(pav_cfg_file), err)
 
     if pav_cfg is None:
         for config_dir in PAV_CONFIG_SEARCH_DIRS:
@@ -669,8 +685,8 @@ found in these directories the default config search paths:
                     pav_cfg.pav_cfg_file = path
                     break
                 except Exception as err:
-                    raise RuntimeError("Error in Pavilion config at {}: {}"
-                                       .format(path, err))
+                    raise PavConfigError("Error in Pavilion config at {}"
+                                         .format(path), err)
 
     if pav_cfg is None:
         if warn:

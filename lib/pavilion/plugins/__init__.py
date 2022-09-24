@@ -17,6 +17,7 @@ import logging
 import traceback
 
 from pavilion.commands import Command
+from pavilion.errors import PluginError
 from pavilion.expression_functions import FunctionPlugin
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result_parsers import ResultParser
@@ -38,14 +39,9 @@ PLUGIN_CATEGORIES = {
 }
 
 __all__ = [
-    "PluginError",
     "initialize_plugins",
     "list_plugins",
 ]
-
-
-class PluginError(RuntimeError):
-    """General Plugin Error"""
 
 
 def initialize_plugins(pav_cfg):
@@ -77,7 +73,7 @@ def initialize_plugins(pav_cfg):
 
         pman.collectPlugins()
     except Exception as err:
-        raise PluginError("Error initializing plugin system: {}".format(err))
+        raise PluginError("Error initializing plugin system", err)
 
     # Activate each plugin in turn.
     for plugin in pman.getAllPlugins():
@@ -90,9 +86,9 @@ def initialize_plugins(pav_cfg):
         try:
             plugin.plugin_object.activate()
         except Exception as err:
-            raise PluginError("Error activating plugin {name}:\n{err}\n{tb}"
-                              .format(name=plugin.name, err=err,
-                                      tb=traceback.format_exc()))
+            raise PluginError("Error activating plugin {name}"
+                              .format(name=plugin.name),
+                              prior_error=err, data=traceback.format_exc())
 
     # Some plugin types have core plugins that are built-in.
     for _, cat_obj in PLUGIN_CATEGORIES.items():

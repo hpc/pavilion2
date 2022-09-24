@@ -2,11 +2,13 @@
 
 import copy
 import datetime
+import io
 import json
 import logging
 import pprint
 from collections import OrderedDict
 
+import pavilion.errors
 import pavilion.result
 import pavilion.result.common
 import yaml_config as yc
@@ -15,7 +17,8 @@ from pavilion import commands
 from pavilion import config
 from pavilion import result
 from pavilion import utils
-from pavilion.result import ResultError, base
+from pavilion.result import base
+from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
@@ -418,24 +421,23 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        cfgs = [cfg_exclude_key_error, cfg_exclude_type_error,
-                cfg_include_key_error, cfg_include_type_error,
-                cfg_stopat_none_error, cfg_stopat_bad_error]
+        cfgs = [
+            # config, expected error
+            (cfg_exclude_key_error,"Excluded key foo.badkey doesn't exist"),
+            (cfg_exclude_type_error, "but foo.bar's value isn't a mapping"),
+            (cfg_include_key_error, "Explicitly included JSON key 'foo.badkey' doesn't exist"),
+            (cfg_include_type_error, "Explicitly included key 'foo.buzz.badkey' doesn't exist "
+                                     "in original JSON."),
+            (cfg_stopat_none_error, "Invalid JSON: Extra data:"),
+            (cfg_stopat_bad_error, "Invalid JSON: Extra data:"),
+        ]
 
-        error_texts = ["doesn't exist.",
-                       "isn't a mapping.",
-                       "doesn't exist.",
-                       "doesn't exist.",
-                       "Invalid JSON:",
-                       "Invalid JSON:",
-                       ]
-
-        for i, cfg in enumerate(cfgs):
+        for cfg, exp_err in cfgs:
             test = self._quick_test(cfg=cfg)
             test.run()
-            results = test.gather_results(0)
-            self.assertTrue(
-                error_texts[i] in results[result.RESULT_ERRORS][0])
+            log = io.StringIO()
+            results = test.gather_results(0, log_file=log)
+            self.assertIn(exp_err, results[result.RESULT_ERRORS][0]) #, msg=log.getvalue())
 
     def test_table_parser(self):
         """Check table result parser operation."""
@@ -681,7 +683,7 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg)
             test.run()
 
-            with self.assertRaises(pavilion.result.common.ResultError):
+            with self.assertRaises(pavilion.errors.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
 
     def test_result_command(self):
@@ -827,7 +829,7 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        with self.assertRaises(pavilion.result.common.ResultError):
+        with self.assertRaises(pavilion.errors.ResultError):
             result.check_config(cfg['result_parse'], {})
 
         test = self._quick_test(cfg, 'split_test')

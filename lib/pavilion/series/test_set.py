@@ -7,19 +7,16 @@ from collections import defaultdict
 from io import StringIO
 from typing import List, Dict, TextIO, Union, Set
 
+import pavilion.errors
 from pavilion import output, result, schedulers, cancel
 from pavilion.build_tracker import MultiBuildTracker
-from pavilion.errors import TestRunError, TestConfigError
+from pavilion.errors import TestRunError, TestConfigError, TestSetError, ResultError
 from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.utils import str_bool
 
 S_STATES = SERIES_STATES
-
-
-class TestSetError(RuntimeError):
-    """For when creating a test set goes wrong."""
 
 
 class TestSet:
@@ -194,10 +191,9 @@ class TestSet:
                 outfile=outfile,
             )
         except TestConfigError as err:
-            msg = ("Error loading test configs for test set '{}': {}"
-                   .format(self.name, err.args[0]))
-            self.status.set(S_STATES.ERROR, msg)
-            raise TestSetError(msg)
+            msg = "Error loading test configs for test set '{}'".format(self.name)
+            self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
+            raise TestSetError(msg, err)
 
         progress = 0
         tot_tests = len(test_configs)
@@ -242,12 +238,12 @@ class TestSet:
             except (TestRunError, TestConfigError) as err:
                 tcfg = ptest.config
                 test_name = "{}.{}".format(tcfg.get('suite'), tcfg.get('name'))
-                msg = ("Error creating test '{}' in test set '{}': {}"
-                       .format(test_name, self.name, err.args[0]))
-                self.status.set(S_STATES.ERROR, msg)
+                msg = ("Error creating test '{}' in test set '{}'"
+                       .format(test_name, self.name))
+                self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
                 self.cancel("Error creating other tests in test set '{}'"
                             .format(self.name))
-                raise TestSetError(msg)
+                raise TestSetError(msg, err)
 
         output.fprint(outfile, '')
 
@@ -500,13 +496,13 @@ class TestSet:
                                     "Kicking off {} tests under scheduler {}"
                                     .format(len(tests), sched_name))
                     scheduler.schedule_tests(self.pav_cfg, tests)
-                except schedulers.SchedulerPluginError as err:
+                except pavilion.errors.SchedulerPluginError as err:
                     self.cancel(
                         "Error scheduling tests (not necessarily this one): {}"
                         .format(err.args[0]))
                     raise TestSetError(
-                        "Error starting tests in test set '{}': {}"
-                        .format(self.name, err.args[0]))
+                        "Error starting tests in test set '{}'"
+                        .format(self.name), err)
 
                 self.started_tests.extend(tests)
 
@@ -531,7 +527,7 @@ class TestSet:
             try:
                 result.check_config(test.config['result_parse'],
                                     test.config['result_evaluate'])
-            except result.ResultError as err:
+            except ResultError as err:
                 rp_errors.append((test, str(err)))
 
         if rp_errors:

@@ -1,4 +1,4 @@
-import pavilion.result.common
+from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 
 
@@ -20,7 +20,7 @@ class Filecheck(base_classes.ResultParser):
         """This should always have match_select set to 'first'."""
 
         if kwargs.get('match_select') != base_classes.MATCH_FIRST:
-            raise pavilion.result.common.ResultError(
+            raise ResultError(
                 "You must use 'match_select: {}' with the filecheck parser. "
                 "(it's the default)"
                 .format(base_classes.MATCH_FIRST))
