@@ -25,7 +25,8 @@ from pavilion import pavilion_variables
 from pavilion import resolve
 from pavilion import schedulers
 from pavilion import sys_vars
-from pavilion.errors import VariableError, TestConfigError
+from pavilion.errors import SystemPluginError
+from pavilion.errors import VariableError, TestConfigError, PavilionError, SchedulerPluginError
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
@@ -66,9 +67,9 @@ class TestConfigResolver:
             self.base_var_man.add_var_set(
                 'sys', sys_vars.get_vars(defer=True)
             )
-        except sys_vars.SystemPluginError as err:
+        except SystemPluginError as err:
             raise TestConfigError(
-                "Error in system variables: {}"
+                "Error in system variables"
                 .format(err)
             )
 
@@ -100,8 +101,8 @@ class TestConfigResolver:
         try:
             var_man.add_var_set('var', user_vars)
         except VariableError as err:
-            raise TestConfigError("Error in variables section for test '{}': {}"
-                                  .format(test_name, err))
+            raise TestConfigError("Error in variables section for test '{}'"
+                                  .format(test_name), err)
 
         # This won't have a 'sched' variable set unless we're permuting over scheduler vars.
         return var_man
@@ -339,7 +340,7 @@ class TestConfigResolver:
             try:
                 self.apply_overrides(raw_test, overrides)
             except (KeyError, ValueError) as err:
-                msg = 'Error applying overrides to test {} from {}: {}' \
+                msg = 'Error applying overrides to test {} from {}' \
                     .format(raw_test['name'], raw_test['suite_path'], err)
                 raise TestConfigError(msg)
 
@@ -357,7 +358,7 @@ class TestConfigResolver:
                     permuted_tests.append((p_cfg, p_var_man))
 
             except TestConfigError as err:
-                msg = 'Error resolving permutations for test {} from {}: {}' \
+                msg = 'Error resolving permutations for test {} from {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
 
                 raise TestConfigError(msg)
@@ -381,7 +382,13 @@ class TestConfigResolver:
                     not_ready = []
                     for aresult, var_man in list(async_results):
                         if aresult.ready():
-                            result = aresult.get()
+                            try:
+                                result = aresult.get()
+                            except PavilionError:
+                                raise
+                            except Exception as err:
+                                raise TestConfigError("Unexpected error loading tests", err)
+
                             resolved_tests.append(ProtoTest(result, var_man))
 
                             complete += 1
@@ -418,12 +425,13 @@ class TestConfigResolver:
         except TestConfigError as err:
             if test_cfg.get('permute_on'):
                 permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
+
                 raise TestConfigError(
-                    "Error resolving test {} with permute values {}: {}"
-                    .format(test_cfg['name'], permute_values, err))
+                    "Error resolving test {} with permute values:"
+                    .format(test_cfg['name']), err, data=permute_values)
             else:
                 raise TestConfigError(
-                    "Error resolving test {}: {}".format(test_cfg['name'], err))
+                    "Error resolving test {}".format(test_cfg['name']), err)
 
     def load_raw_configs(self, tests, host, modes):
         """Get a list of raw test configs given a host, list of modes,
@@ -490,7 +498,7 @@ class TestConfigResolver:
                         total_tests.extend([test_suite+"."+test]*int(count))
                         continue
                 except ValueError as err:
-                    raise TestConfigError("Invalid repeat notation: {}"
+                    raise TestConfigError("Invalid repeat notation"
                                           .format(err))
                 total_tests.append(test_name)
 
@@ -509,7 +517,7 @@ class TestConfigResolver:
                             raise ValueError("No digit present in {}"
                                              .format([left, right]))
                     except ValueError as err:
-                        raise TestConfigError("Invalid repeat notation: {}"
+                        raise TestConfigError("Invalid repeat notation"
                                               .format(err))
                 else:
                     total_tests.append(test_suite)
@@ -559,19 +567,19 @@ class TestConfigResolver:
 
                 except (IOError, OSError, ) as err:
                     raise TestConfigError(
-                        "Could not open test suite config {}: {}"
-                        .format(test_suite_path, err))
+                        "Could not open test suite config {}"
+                        .format(test_suite_path), err)
                 except ValueError as err:
                     raise TestConfigError(
-                        "Test suite '{}' has invalid value. {}"
-                        .format(test_suite_path, err))
+                        "Test suite '{}' has invalid value."
+                        .format(test_suite_path), err)
                 except KeyError as err:
                     raise TestConfigError(
-                        "Test suite '{}' has an invalid key. {}"
-                        .format(test_suite_path, err))
+                        "Test suite '{}' has an invalid key."
+                        .format(test_suite_path), err)
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
-                        "Test suite '{}' has a YAML Error: {}"
+                        "Test suite '{}' has a YAML Error"
                         .format(test_suite_path, err)
                     )
                 except TypeError as err:
@@ -579,7 +587,7 @@ class TestConfigResolver:
                     # and just about everything converts cleanly to a string.
                     raise RuntimeError(
                         "Test suite '{}' raised a type error, but that "
-                        "should never happen. {}".format(test_suite_path, err))
+                        "should never happen.".format(test_suite_path), err)
 
                 suite_tests = self.resolve_inheritance(
                     base_config,
@@ -709,19 +717,19 @@ class TestConfigResolver:
                             host_cfg_file,
                             partial=True)
                 except (IOError, OSError) as err:
-                    raise TestConfigError("Could not open host config '{}': {}"
-                                          .format(host_cfg_path, err))
+                    raise TestConfigError("Could not open host config '{}'"
+                                          .format(host_cfg_path), err)
                 except ValueError as err:
                     raise TestConfigError(
-                        "Host config '{}' has invalid value. {}"
-                        .format(host_cfg_path, err))
+                        "Host config '{}' has invalid value."
+                        .format(host_cfg_path), err)
                 except KeyError as err:
                     raise TestConfigError(
-                        "Host config '{}' has an invalid key. {}"
-                        .format(host_cfg_path, err))
+                        "Host config '{}' has an invalid key."
+                        .format(host_cfg_path), err)
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
-                        "Host config '{}' has a YAML Error: {}"
+                        "Host config '{}' has a YAML Error"
                         .format(host_cfg_path, err)
                     )
                 except TypeError as err:
@@ -729,7 +737,7 @@ class TestConfigResolver:
                     # and just about everything converts cleanly to a string.
                     raise RuntimeError(
                         "Host config '{}' raised a type error, but that "
-                        "should never happen. {}".format(host_cfg_path, err))
+                        "should never happen.".format(host_cfg_path), err)
 
             test_cfg = resolve.cmd_inheritance(test_cfg)
 
@@ -758,19 +766,19 @@ class TestConfigResolver:
                                                              mode_cfg_file,
                                                              partial=True)
             except (IOError, OSError) as err:
-                raise TestConfigError("Could not open mode config '{}': {}"
-                                      .format(mode_cfg_path, err))
+                raise TestConfigError("Could not open mode config '{}'"
+                                      .format(mode_cfg_path), err)
             except ValueError as err:
                 raise TestConfigError(
-                    "Mode config '{}' has invalid value. {}"
-                    .format(mode_cfg_path, err))
+                    "Mode config '{}' has invalid value."
+                    .format(mode_cfg_path), err)
             except KeyError as err:
                 raise TestConfigError(
-                    "Mode config '{}' has an invalid key. {}"
-                    .format(mode_cfg_path, err))
+                    "Mode config '{}' has an invalid key."
+                    .format(mode_cfg_path), err)
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
-                    "Mode config '{}' has a YAML Error: {}"
+                    "Mode config '{}' has a YAML Error"
                     .format(mode_cfg_path, err)
                 )
             except TypeError as err:
@@ -778,7 +786,7 @@ class TestConfigResolver:
                 # about everything converts cleanly to a string.
                 raise RuntimeError(
                     "Mode config '{}' raised a type error, but that "
-                    "should never happen. {}".format(mode_cfg_path, err))
+                    "should never happen.".format(mode_cfg_path), err)
 
             test_cfg = resolve.cmd_inheritance(test_cfg)
 
@@ -834,8 +842,8 @@ class TestConfigResolver:
                         .normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error:\n{}"
-                        .format(test_cfg_name, suite_path, err))
+                        "Test {} in suite {} has an error."
+                        .format(test_cfg_name, suite_path), err)
         except AttributeError:
             raise TestConfigError(
                 "Test Suite {} has objects but isn't a dict. Check syntax "
@@ -880,34 +888,34 @@ class TestConfigResolver:
                 suite_tests[test_name] = test_config_loader.validate(test_config)
             except RequiredError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has a missing key. {}"
-                    .format(test_name, suite_path, err))
+                    "Test {} in suite {} has a missing key."
+                    .format(test_name, suite_path), err)
             except ValueError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has an invalid value. {}"
-                    .format(test_name, suite_path, err))
+                    "Test {} in suite {} has an invalid value."
+                    .format(test_name, suite_path), err)
             except KeyError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has an invalid key. {}"
-                    .format(test_name, suite_path, err))
+                    "Test {} in suite {} has an invalid key."
+                    .format(test_name, suite_path), err)
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has a YAML Error: {}"
+                    "Test {} in suite {} has a YAML Error"
                     .format(test_name, suite_path, err)
                 )
             except TypeError as err:
                 # See the same error above when loading host configs.
                 raise RuntimeError(
                     "Loaded test '{}' in suite '{}' raised a type error, "
-                    "but that should never happen. {}"
-                    .format(test_name, suite_path, err))
+                    "but that should never happen."
+                    .format(test_name, suite_path), err)
 
             try:
                 self.check_version_compatibility(test_config)
             except TestConfigError as err:
                 raise TestConfigError(
-                    "Test '{}' in suite '{}' has incompatibility issues:\n{}"
-                    .format(test_name, suite_path, err))
+                    "Test '{}' in suite '{}' has incompatibility issues."
+                    .format(test_name, suite_path), err)
 
         return suite_tests
 
@@ -1008,7 +1016,7 @@ class TestConfigResolver:
                                   "when unit tests fail to define it.")
         try:
             sched = schedulers.get_plugin(sched_name)
-        except schedulers.SchedulerPluginError:
+        except SchedulerPluginError:
             raise TestConfigError("Could not find scheduler '{}' for test '{}'"
                                   .format(sched_name, test_name))
         if not sched.available():
@@ -1069,11 +1077,11 @@ class TestConfigResolver:
             except KeyError as err:
                 raise TestConfigError(
                     "Failed to resolve the scheduler config due to a missing or "
-                    "unresolved variable for test {}: {}".format(test_name, err))
+                    "unresolved variable for test {}".format(test_name), err)
 
             try:
                 sched_vars = sched.get_initial_vars(sched_cfg)
-            except schedulers.SchedulerPluginError as err:
+            except SchedulerPluginError as err:
                 raise TestConfigError(
                     "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
                     "Scheduler Config: \n{}"
@@ -1116,7 +1124,7 @@ class TestConfigResolver:
         try:
             config_loader.normalize(test_cfg)
         except TypeError as err:
-            raise TestConfigError("Invalid override: {}"
+            raise TestConfigError("Invalid override"
                                   .format(err))
 
     def _apply_override(self, test_cfg, key, value):
@@ -1189,8 +1197,8 @@ class TestConfigResolver:
             dummy_file = io.StringIO(value)
             value = yc_yaml.safe_load(dummy_file)
         except (yc_yaml.YAMLError, ValueError, KeyError) as err:
-            raise ValueError("Invalid value ({}) for key '{}' in overrides: {}"
-                             .format(value, disp_key, err))
+            raise ValueError("Invalid value ({}) for key '{}' in overrides"
+                             .format(value, disp_key), err)
 
         last_cfg[last_key] = self.normalize_override_value(value)
 

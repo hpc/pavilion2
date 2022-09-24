@@ -3,12 +3,12 @@
 import errno
 import sys
 
-import pavilion.series.errors
-from pavilion import filters
 from pavilion import cmd_utils
+from pavilion import filters
 from pavilion import output
 from pavilion import series
 from pavilion import series_config
+from pavilion.errors import TestSeriesError, TestSeriesWarning
 from .base_classes import Command, sub_cmd
 
 
@@ -90,7 +90,7 @@ class RunSeries(Command):
                                                           modes=args.modes)
             except series_config.SeriesConfigError as err:
                 output.fprint(self.errfile,
-                              "Load error: {}\n{}".format(args.series_name, err),
+                              "Load error: {}".format(args.series_name), err,
                               color=output.RED)
                 return errno.EINVAL
 
@@ -100,20 +100,20 @@ class RunSeries(Command):
         # create brand-new series object
         try:
             series_obj = series.TestSeries(pav_cfg, config=series_cfg)
-        except pavilion.series.errors.TestSeriesError as err:
-            output.fprint(self.errfile, "Error creating test series '{}': {}"
-                          .format(args.series_name, err), color=output.RED)
+        except TestSeriesError as err:
+            output.fprint(self.errfile, "Error creating test series '{}'"
+                          .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
 
         # pav _series runs in background using subprocess
         try:
             series_obj.run_background()
-        except pavilion.series.errors.TestSeriesError as err:
-            output.fprint(self.errfile, "Error starting series '{}': '{}'"
-                          .format(args.series_name, err), color=output.RED)
+        except TestSeriesError as err:
+            output.fprint(self.errfile, "Error starting series '{}'"
+                          .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
-        except pavilion.series.errors.TestSeriesWarning as err:
-            output.fprint(self.errfile, str(err), color=output.YELLOW)
+        except TestSeriesWarning as err:
+            output.fprint(self.errfile, err, color=output.YELLOW)
 
         output.fprint(self.outfile, "Started series {sid}.\n"
                                     "Run `pav status {sid}` to view status.\n"

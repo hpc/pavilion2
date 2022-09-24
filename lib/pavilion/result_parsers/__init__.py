@@ -1,8 +1,9 @@
 """Built in Result Parser plugins live here. While they're plugins, they're added
 manually for speed."""
 
-from .base_classes import (ResultParser, ResultError, get_plugin, list_plugins,
+from .base_classes import (ResultParser, get_plugin, list_plugins,
                            match_pos_validator, match_select_validator)
+from ..errors import ResultError
 
 from .command import Command
 from .constant import Constant

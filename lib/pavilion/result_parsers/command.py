@@ -1,9 +1,8 @@
 """Execute a command and get its output or return value."""
 import subprocess
 
-import pavilion.result.base
-import pavilion.result.common
 import yaml_config as yc
+from pavilion import errors
 from pavilion.result_parsers import base_classes
 
 
@@ -60,10 +59,9 @@ class Command(base_classes.ResultParser):
                 stderr=err,
             )
         except subprocess.CalledProcessError as err:
-            raise pavilion.result.common.ResultError(
-                "Command cannot be executed: '{}'\n{}"
-                .format(command, err.args[0])
-            )
+            raise errors.ResultError(
+                "Command cannot be executed: '{}'"
+                .format(command), err)
 
         out, err = proc.communicate()
 

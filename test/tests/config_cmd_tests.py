@@ -14,7 +14,6 @@ class ConfigCmdTests(unittest.PavTestCase):
     def test_config_cmds(self):
 
         test_config_root = self.pav_cfg.working_dir/'config_cmds_config'
-        test_config_root.mkdir(exist_ok=True)
         test_config_wd = self.pav_cfg.working_dir/'config_cmds_working_dir'
         test_pav_config_path = test_config_root/'pavilion.yaml'
 
@@ -45,7 +44,8 @@ class ConfigCmdTests(unittest.PavTestCase):
 
         # Reload our saved pav config.
         pav_cfg = config.find_pavilion_config(test_pav_config_path)
-        self.assertEqual(pav_cfg.config_dirs, [test_config_root])
+        msg = config_cmd.clear_output()
+        self.assertEqual(pav_cfg.config_dirs, [test_config_root], msg=msg)
         self.assertTrue('main' in pav_cfg.configs)
         self.assertEqual(pav_cfg.working_dir, test_config_wd)
         # Make sure all created files exist.

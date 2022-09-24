@@ -81,6 +81,6 @@ class CatCommand(Command):
             return errno.EINVAL
 
         except (IOError, OSError, PermissionError) as err:
-            output.fprint(sys.stdout, "Error opening file '{}': {}".format(file, err),
+            output.fprint(sys.stdout, "Error opening file '{}'".format(file), err,
                           color=output.RED)
             return errno.EIO

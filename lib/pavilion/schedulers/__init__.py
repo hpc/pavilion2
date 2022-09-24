@@ -6,8 +6,9 @@ from .plugins.slurm import Slurm
 from .advanced import SchedulerPluginAdvanced
 from .basic import SchedulerPluginBasic
 from .config import validate_config
-from .scheduler import (SchedulerPluginError, SchedulerPlugin, KickoffScriptHeader,
+from .scheduler import (SchedulerPlugin, KickoffScriptHeader,
                         _SCHEDULER_PLUGINS)
+from ..errors import SchedulerPluginError
 from ..types import NodeInfo, Nodes, NodeList, NodeSet
 from .vars import SchedulerVariables
 
