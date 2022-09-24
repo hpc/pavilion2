@@ -201,7 +201,7 @@ class ResultsCommand(Command):
                 except ValueError:
                     output.fprint(self.errfile,
                                     "Warning: Given key,{}, is not in default".format(k),
-                                    color=output.RED)
+                                    color=output.YELLOW)
             else:
                 fields.append(k)
 
