@@ -129,7 +129,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         chunks = self._get_chunks(node_list_id, sched_config)
 
-        sched_vars = self.VAR_CLASS(sched_config, nodes=self._nodes, chunks=chunks,
+        nodes = Nodes({node: self._nodes[node] for node in filtered_nodes})
+        sched_vars = self.VAR_CLASS(sched_config, nodes=nodes, chunks=chunks,
                                     node_list_id=node_list_id)
         sched_vars.add_errors(errors)
         return sched_vars
