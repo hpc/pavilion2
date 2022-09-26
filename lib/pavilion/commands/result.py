@@ -109,9 +109,8 @@ class ResultsCommand(Command):
             flat_results.append(utils.flatten_dictionary(rslt))
 
         field_info = {}
-        sid = args.tests
-        if not sid:
-            sid = [series.load_user_series_id(pav_cfg, self.errfile)]
+        last_s = series.load_user_series_id(pav_cfg, self.errfile)
+        sid = [last_s if s == 'last' else s for s in args.tests]
 
         if args.list_keys:
             flat_keys = result_utils.keylist(flat_results)
