@@ -12,6 +12,7 @@ from pavilion.errors import TestConfigError, ResultError
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
+from pavilion import series
 from pavilion import resolver
 from pavilion import resolve
 from pavilion import result
@@ -108,6 +109,9 @@ class ResultsCommand(Command):
             flat_results.append(utils.flatten_dictionary(rslt))
 
         field_info = {}
+        sid = args.tests
+        if not sid:
+            sid = [series.load_user_series_id(pav_cfg, self.errfile)]
 
         if args.list_keys:
             flat_keys = result_utils.keylist(flat_results)
@@ -122,7 +126,7 @@ class ResultsCommand(Command):
                               fields=fields,
                               rows=flatter_keys,
                               border=True,
-                              title="AVAILABLE KEYS")
+                              title=f"AVAILABLE KEYS FOR: {', '.join(sid)}")
 
         elif args.json or args.full:
             if not results:
@@ -159,7 +163,7 @@ class ResultsCommand(Command):
                 field_info=field_info,
                 fields=fields,
                 rows=flat_sorted_results,
-                title="Test Results"
+                title=f"Test Results for: {', '.join(sid)}"
             )
 
         if args.show_log:
