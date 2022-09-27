@@ -54,12 +54,12 @@ def make_key_table(flat_keys):
     table_keys=[]
     while any(flat_keys.values()):
         tbl={}
-        for key, val in flat_keys.items():
-            tbl[key] = '' if not val else val.pop()
+        for keyflat, val in flat_keys.items():
+            tbl[keyflat] = '' if not val else val.pop()
 
         table_keys.append(tbl)
 
-    return table_keys
+    return sorted(table_keys, key=lambda d: d[keyflat])
 
 
 def keylist(results):
