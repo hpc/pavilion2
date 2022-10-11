@@ -580,8 +580,7 @@ class TestConfigResolver:
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
                         "Test suite '{}' has a YAML Error"
-                        .format(test_suite_path, err)
-                    )
+                        .format(test_suite_path), err)
                 except TypeError as err:
                     # All config elements in test configs must be strings,
                     # and just about everything converts cleanly to a string.
@@ -730,8 +729,7 @@ class TestConfigResolver:
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
                         "Host config '{}' has a YAML Error"
-                        .format(host_cfg_path, err)
-                    )
+                        .format(host_cfg_path), err)
                 except TypeError as err:
                     # All config elements in test configs must be strings,
                     # and just about everything converts cleanly to a string.
@@ -779,8 +777,7 @@ class TestConfigResolver:
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Mode config '{}' has a YAML Error"
-                    .format(mode_cfg_path, err)
-                )
+                    .format(mode_cfg_path, err))
             except TypeError as err:
                 # All config elements in test configs must be strings, and just
                 # about everything converts cleanly to a string.
