@@ -169,6 +169,31 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise NotImplementedError("Must be implemented in the plugin class.")
 
+    def _get_alloc_nodes(self, job: Job) -> NodeList:
+        """Given that this is running on an allocation, return the allocation's
+        node list.
+
+        :param job: The Job is passed in case a scheduler saved node information with
+            the job. Usually not needed.
+        """
+
+        raise NotImplementedError("This must be implemented, even in basic schedulers.")
+
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+        """Schedule the test under this scheduler.
+
+
+
+        :param pav_cfg: The pavilion config.
+        :param job: The job to kick off.
+        :param sched_config: The scheduler configuration for this test or group of
+            tests.
+        :returns: The job info of the kicked off job.
+        """
+
+        raise NotImplementedError("How to perform test kickoff is left for the "
+                                  "specific scheduler to specify.")
+
     # These are all overridden by the Basic/Advanced classes, and don't need to be
     # defined by most plugins.
 
@@ -432,29 +457,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
                 del config.CONFIG_VALIDATORS[name]
             if name in config.CONFIG_DEFAULTS:
                 del config.CONFIG_DEFAULTS[name]
-
-    def _get_alloc_nodes(self, job: Job) -> NodeList:
-        """Given that this is running on an allocation, return the allocation's
-        node list.
-
-        :param job: The Job is passed in case a scheduler saved node information with
-            the job. Usually not needed.
-        """
-
-        raise NotImplementedError("This must be implemented, even in basic schedulers.")
-
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
-        """Schedule the test under this scheduler.
-
-        :param pav_cfg: The pavilion config.
-        :param job: The job to kick off.
-        :param sched_config: The scheduler configuration for this test or group of
-            tests.
-        :returns: The job info of the kicked off job.
-        """
-
-        raise NotImplementedError("How to perform test kickoff is left for the "
-                                  "specific scheduler to specify.")
 
 
 def __reset():

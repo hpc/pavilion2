@@ -9,13 +9,12 @@ _base:
         d: 'd_base1'
       - d: 'd_base2'
 
-
 def_test:
   inherits_from: _base
 
   variables:
     str?: 'hello_def'
-    list?: ['a_def', 'b_def']
+    list?: ['a_def']
     dict?:
       a: 'a_def'
       b: 'b_def'

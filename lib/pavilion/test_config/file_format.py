@@ -3,11 +3,11 @@ utilize the YamlConfig library to define the config structure. Because of the
 dynamic nature of test configs, there are a few extra complications this module
 handles that are documented below.
 """
-
+import collections
 import copy
 import re
 from collections import OrderedDict
-from typing import List
+from typing import Union
 
 import yaml_config as yc
 from pavilion.errors import TestConfigError
@@ -24,36 +24,124 @@ class PathCategoryElem(yc.CategoryElem):
     _NAME_RE = re.compile(r".+$")
 
 
+class SubVarDict(dict):
+    """Subclass for variable sub-items, mainly to track defaults properly."""
+
+    def __init__(self, *args, defaults=None, **kwargs):
+        """Defaults is a dictionary of default values."""
+
+        self.defaults = defaults or {}
+
+        super().__init__(*args, **kwargs)
+
+    def __copy__(self):
+        """Copy over the default dict too."""
+
+        return self.__class__(self, defaults=self.defaults)
+
+    def __deepcopy__(self, memodict=None):
+        """Copy the defaults too."""
+
+        new = SubVarDict(super().copy())
+        new.defaults = copy.deepcopy(self.defaults)
+
+        return new
+
+    def keys(self):
+        """Return all keys from both ourselves and the defaults as keys."""
+
+        for key in set(super().keys()).union(self.defaults.keys()):
+            yield key
+
+    def items(self):
+        """Return all values from both self and defaults."""
+
+        for key in self.keys():
+            yield key, self[key]
+
+    def values(self):
+        """Return all values across both self and the defaults."""
+
+        for key in self.keys():
+            yield self[key]
+
+
+    def flatten(self) -> dict:
+        """Return as a regular dictionary with all available values set."""
+
+        base = {}
+        for key, value in self.items():
+            base[key] = value
+
+        return base
+
+    def is_defaults_only(self) -> bool:
+        """Returns true if there isn't any regular data, just defaults."""
+        return not list(super().keys())
+
+    def super_keys(self):
+        return list(super().keys())
+
+    def __contains__(self, key):
+
+        return key in list(super().keys()) or key in self.defaults
+
+    def __getitem__(self, key):
+
+        if key not in self:
+            raise KeyError("KeyError: '{}'".format(key))
+
+        if key in super().keys():
+            return super().__getitem__(key)
+        else:
+            return self.defaults[key]
+
+    def __str__(self):
+        parts = []
+        for key in self.keys():
+            if key in super().keys():
+                parts.append('{}: {}'.format(key, self[key]))
+            else:
+                parts.append('{}: ({})'.format(key, self[key]))
+        return '{{ {} }}'.format(', '.join(parts))
+
+    def __repr__(self):
+        return str(self)
+
+
 class VariableElem(yc.CategoryElem):
     """This is for values in the 'variables' section of a test config.
 
     A variable entry can be either a single string value or an
-    arbitrary dictionary of strings. If we get a single value, we'll return it
-    instead of a dict.  Pavilion's variable handling code handles the
-    normalization of these values.
+    arbitrary dictionary of strings. If given a single string value, a dictionary
+    of '{None: value}' will be returned.
     """
 
     _NAME_RE = VAR_KEY_NAME_RE
+    type = SubVarDict
 
     def __init__(self, name=None, **kwargs):
         """Just like a CategoryElem, but the sub_elem must be a StrElem
         and it can't have defaults."""
+
         super(VariableElem, self).__init__(name=name,
                                            sub_elem=yc.StrElem(),
+                                           allow_empty_keys=True,
                                            **kwargs)
 
     def normalize(self, value):
         """Normalize to either a dict of strings or just a string."""
+
         if not isinstance(value, dict):
-            return yc.StrElem().normalize(value)
+            value = {None: value}
 
         return super().normalize(value)
 
     def validate(self, value, partial=False):
         """Check for a single item and return it, otherwise return a dict."""
 
-        if isinstance(value, str):
-            return value
+        if not isinstance(value, dict):
+            value = {None: value}
 
         return super().validate(value, partial=partial)
 
@@ -85,90 +173,6 @@ class ResultParserCatElem(yc.CategoryElem):
     )
 
 
-class VarCatDict(dict):
-    """The variable category items can set sub-dictionary defaults. We track them here."""
-
-    def __init__(self, *args, **kwargs):
-        self.defaults = {}
-        super().__init__(*args, **kwargs)
-
-    def __copy__(self):
-        """Make sure to copy the defaults too."""
-
-        dict_copy = super().copy()
-        dict_copy.defaults = self.defaults
-        return dict_copy
-
-    def __deepcopy__(self, memodict=None):
-        """Also make sure to copy the defaults."""
-
-        new = self.__class__()
-        for key, val in self.items():
-            new[key] = val
-        new.defaults = self.defaults.copy()
-        return new
-
-    def apply_defaults(self) -> 'VarCatDict':
-
-        print('applying defaults', self, self.defaults)
-        new_dict = type(self)()
-        new_dict.defaults = self.defaults
-
-        for key, values in self.items():
-            new_values = []
-            if values is not None:
-                if not isinstance(values, list):
-                    values = [values]
-                for value in values:
-                    if isinstance(value, dict):
-                        base = self.defaults.get(key, {})
-                        base.update(value)
-                        new_values.append(base)
-                    else:
-                        new_values.append(value)
-            elif key in self.defaults:
-                if isinstance(self.defaults[key], dict):
-                    new_values = self.defaults[key].copy()
-                else:
-                    new_values = self.defaults[key]
-
-            new_dict[key] = new_values
-
-        for key in self.defaults:
-            if key not in new_dict:
-                if isinstance(new_dict[key], dict):
-                    new_dict[key] = self.defaults[key].copy()
-                else:
-                    new_dict[key] = self.defaults[key]
-
-        return new_dict
-
-
-def add_items(self, start_items: List, items: List, key: str):
-    """Rebase the dictionary on top of the defaults.
-
-    :param start_items: A list type of any existing items.
-    :param items: List of items to add. These can be strings or dictionaries,
-        dictionaries will have their defaults set.
-    :param key: The key to save the items to.
-    """
-
-    start_items = copy.deepcopy(start_items)
-
-    for item in items:
-        if isinstance(item, dict):
-            rebase = {}
-            rebase.update(self.defaults.get(key, {}))
-            rebase.update(item)
-            if rebase not in start_items:
-                start_items.append(rebase)
-        else:
-            if item not in start_items:
-                start_items.append(item)
-
-    self[key] = start_items
-
-
 class VarCatElem(yc.CategoryElem):
     """For describing how the variables' section itself works.
 
@@ -178,14 +182,10 @@ class VarCatElem(yc.CategoryElem):
     :cvar _NAME_RE: Unlike normal categoryElem keys, these can have dashes.
     """
     _NAME_RE = VAR_NAME_RE
-    type = VarCatDict
 
     def validate(self, value, partial=False):
         """Make sure default value propagate through validation."""
         validated = super().validate(value, partial=partial)
-
-        if validated is not None:
-            validated = validated.apply_defaults()
 
         return validated
 
@@ -200,56 +200,156 @@ class VarCatElem(yc.CategoryElem):
           levels of the config stack.
         """
 
-        base: VarCatDict = copy.deepcopy(old)
-        for key, value in new.items():
+        base = copy.deepcopy(old)
+        new = copy.deepcopy(new)
+        for key, values in new.items():
             # Handle special key properties
-            if key[-1] in '?+':
-                bkey = key[:-1]
-                new_vals = new[key]
-                # Standardize this as a list.
-                if not isinstance(new_vals, list) and new_vals is not None:
-                    new_vals = [new_vals]
 
-                if key.endswith('?'):
-                    if new_vals is None:
-                        base.defaults[bkey] = None
-                    elif isinstance(new_vals[0], dict):
-                        # Dictionaries get their defaults saved in the special 'defaults'
-                        # dict. Existing, undefined keys will be set, and any additional
-                        # added items will get these defaults too. If no items exist, the
-                        # defaults themselves will be set.
-                        if len(new_vals) != 1:
+            key_suffix = None
+            if key[-1] in '?+':
+                key_suffix = key[-1]
+                key = key[:-1]
+
+            if values is None:
+                values = [SubVarDict({None: None})]
+
+            if not isinstance(values, list):
+                # TODO: I'm not sure this is necessary..
+                values = [values]
+
+            if key_suffix is None:
+                # Completely override existing values, but keep the defaults.
+
+                existing = base.get(key, [])
+                if existing:
+                    # Steal the defaults from the existing items.
+                    old_defaults = existing[0].defaults
+                else:
+                    old_defaults = {}
+
+                base[key] = []
+
+                # If there are no defaults, all items should have the same keys.
+                if not old_defaults:
+                    first_val_keys = set(values[0].keys())
+                    for value in values[1:]:
+                        if set(value.keys()) != first_val_keys:
+                            if first_val_keys == [None]:
+                                raise TestConfigError(
+                                    "Key '{}' in the variables section has items of differing "
+                                    "formats.".format(key))
+
+                for value in values:
+                    # Check that the keys being added match the defaults
+                    for subkey in value:
+                        if old_defaults and subkey not in old_defaults:
+                            raise TestConfigError(
+                                "Key '{}' in the variables section has defaults defined, but "
+                                "is trying to add a new sub-key '{}'. Existing subkeys are '{}'."
+                                .format(key, subkey, list(old_defaults.keys())))
+
+                    value.defaults = old_defaults
+                    base[key].append(value)
+
+            elif key_suffix == '?':
+                # If no value is set, that's ok. We'll check for these later.
+
+                def_type = 'subvar'
+                for value in values:
+                    if None in value:
+                        def_type = 'single_val'
+
+                if def_type == 'subvar':
+                    if len(values) > 1:
+                        if len(values[0]) != 1:
                             raise TestConfigError(
                                 "Key '{}' in variables section is trying to set a list of "
                                 "sub-var defaults, but only one is allowed.".format(key))
-                        defaults = base.defaults.get(bkey, {})
-                        defaults.update(new_vals[0])
-                        base.defaults[bkey] = defaults
 
+                    new_defaults = values[0]
+
+                    # If we don't have any values yet, add an empty dictionary with
+                    # the defaults set.
+                    if key not in base:
+                        base[key] = [SubVarDict(defaults=new_defaults)]
                     else:
-                        base.defaults[bkey] = new[key]
+                        # Update the defaults for all existing items.
+                        for existing in base[key]:
+                            if existing.defaults:
+                                # When there are existing defaults, make sure not to add
+                                # any new keys.
+                                for def_key in new_defaults.keys():
+                                    if def_key not in existing.defaults:
+                                        raise TestConfigError(
+                                            "Key '{}' in variables section trying to add a new "
+                                            "default sub-value key '{}', but the defaults were "
+                                            "already defined with keys: '{}'"
+                                            .format(key, def_key, list(existing.defaults.keys()))
+                                        )
+                                    existing.defaults[def_key] = new_defaults[def_key]
+                            else:
+                                # If there aren't any existing defaults, this defines them.
+                                existing.defaults = new_defaults.copy()
 
-                elif key.endswith('+'):
-                    # Extend the list of values. For dictionaries, fill in any missing
-                    # sub-vars with default values if defined.
-                    if new_vals is None:
-                        raise TestConfigError(
-                            "Key '{key}' in variables section is in extend "
-                            "mode, but provided no values."
-                            .format(key=key))
-                    initial_items = base.get(bkey, self._sub_elem.type())
-                    initial_items.extend(new_vals)
+                elif def_type == 'single_val':
+                    if base.get(key, []):
+                        # Values already exist. Don't apply defaults.
+                        pass
+                    else:
+                        base[key] = values
 
-            elif value is None:
-                raise TestConfigError(
-                    "Key '{key}' in variables section did not provide a value."
-                    .format(key=key)
-                )
+            elif key_suffix == '+':
+                # Extend the list of items.
+
+                if not values:
+                    raise TestConfigError(
+                        "Key '{}' in variables section in extend mode (has a '+' suffix) "
+                        "but no values were given.".format(key))
+
+                # Grab the defaults from an existing item, if there is one.
+                existing = base.get(key, [])
+                if existing:
+                    existing_defaults = existing[0].defaults
+                    existing_keys = list(existing[0].keys())
+                else:
+                    existing_defaults = {}
+                    existing_keys = None
+
+                # If the only entry is nothing but defaults, treat it as an empty placeholder.
+                if len(existing) == 1 and existing[0].is_defaults_only():
+                    existing = []
+
+                for value in values:
+                    # Check each for key conflicts
+                    for subkey in value.keys():
+                        if existing_keys and subkey not in existing_keys:
+                            raise TestConfigError(
+                                "Key '{}' in variables section trying to add a new subkey '{}', "
+                                "but the subkeys have already been set as: {}"
+                                .format(key, subkey, list(existing_defaults.keys())))
+
+                    # Add each value.
+                    value.defaults = existing_defaults
+                    existing.append(value)
+
+                base[key] = existing
+
             else:
-                # Otherwise, just replace the old values with new ones.
-                base[key] = new[key]
+                # Should never happen
+                raise RuntimeError("Invalid Variable Key Suffix '{}' for key '{}'"
+                                   .format(key_suffix, key))
 
         return base
+
+    def _check_val_merge(self, old: dict, new: dict) -> Union[None, str]:
+        """Check that every key in 'new' exists in 'old'. Returns the first
+         string found that doesn't match or None if everything is fine."""
+
+        for key in new:
+            if key not in old:
+                return key
+
+        return None
 
 
 class EnvCatElem(yc.CategoryElem):

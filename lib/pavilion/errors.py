@@ -56,7 +56,11 @@ class PavilionError(RuntimeError):
             tab_level += 1
             indent = tab_level * self.TAB_LEVEL
             if isinstance(next_exc, PavilionError):
-                lines.extend(textwrap.wrap(next_exc.msg, width, initial_indent=indent,
+                next_msg = next_exc.msg
+                if not isinstance(next_msg, str):
+                    next_msg = str(next_msg)
+
+                lines.extend(textwrap.wrap(next_msg, width, initial_indent=indent,
                                            subsequent_indent=indent))
                 if next_exc.data:
                     data = pprint.pformat(next_exc.data, width=width - tab_level * 2)

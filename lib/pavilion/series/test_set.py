@@ -535,7 +535,7 @@ class TestSet:
             for test, error in rp_errors:
                 msg.append("{} - {}".format(test.name, error))
 
-            raise TestSetError(msg)
+            raise TestSetError('\n'.join(msg))
 
     def force_completion(self):
         """Mark all of the tests as complete. We generally do this after

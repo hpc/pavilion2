@@ -11,7 +11,7 @@ stack1a:
   inherits_from: base
   variables:
     stack_def?:
-      a: '1a-b'
+      a: '1a-a'
       b: '1a-b'
 
 stack2a:

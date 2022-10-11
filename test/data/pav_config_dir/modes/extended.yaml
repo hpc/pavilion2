@@ -1,5 +1,5 @@
 variables:
-  long_base+: ['to', 'to', 'punk?']
+  long_base+: ['including', 'including', 'duplicates']
   single_base+: 'mode'
   no_base_mode+: 'mode'
   null_base_mode+: 'mode'

@@ -2,7 +2,7 @@
 the list of all known test runs."""
 
 # pylint: disable=too-many-lines
-
+import copy
 import json
 import logging
 import pprint
@@ -14,6 +14,7 @@ import time
 import uuid
 from pathlib import Path
 from typing import TextIO, Union, Dict
+import yc_yaml as yaml
 
 from pavilion.config import PavConfig
 from pavilion import builder
@@ -489,9 +490,25 @@ class TestRun(TestAttributes):
         # make lock
         tmp_path = config_path.with_suffix('.tmp')
 
+        # De-normalize variable values. YAML doesn't support None as a dictionary key.
+        config = copy.deepcopy(self.config)
+        variables = config.get('variables', {})
+        for var_key in variables:
+            new_list = []
+            for item in variables[var_key]:
+                if None in item:
+                    new_list.append(item[None])
+                else:
+                    # Yaml doesn't know what to do with our SubVarDict objects.
+                    # At this point though, they can be fully resolved into normal
+                    # dictionaries.
+                    new_list.append(dict(item))
+            config['variables'][var_key] = new_list
+
         try:
-            with tmp_path.open('w') as json_file:
-                output.json_dump(self.config, json_file)
+            with tmp_path.open('w') as config_file:
+
+                yaml.dump(config, config_file)
                 try:
                     config_path.unlink()
                 except OSError:
@@ -519,13 +536,26 @@ class TestRun(TestAttributes):
             with config_path.open('r') as config_file:
                 # Because only string keys are allowed in test configs,
                 # this is a reasonable way to load them.
-                return json.load(config_file)
+                config = yaml.load(config_file)
         except TypeError as err:
             raise TestRunError("Bad config values for config '{}'"
                                .format(config_path), err)
         except (IOError, OSError) as err:
             raise TestRunError("Error reading config file '{}'"
                                .format(config_path), err)
+
+        # Re-normalize variable values.
+        variables = config.get('variables', {})
+        for var_key in variables:
+            new_list = []
+            for item in variables[var_key]:
+                if isinstance(item, str):
+                    new_list.append({None: item})
+                else:
+                    new_list.append(item)
+            variables[var_key] = new_list
+
+        return config
 
     def spack_enabled(self):
         """Check if spack is being used by this test run."""

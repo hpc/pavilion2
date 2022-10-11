@@ -107,21 +107,20 @@ class ResolverTests(PavTestCase):
             for test in tests:
                 if name in test.config['name']:
                     return test
-            return None
+            raise ValueError("Could not find test {}".format(name))
 
         test_vars = find_test(tests, 'base').config['variables']
+
         # These make sure variable defaults with sub-dicts are resolved
         # properly.
         stack1a_vars = find_test(tests, 'stack1a').config['variables']
+        stack1b_vars = find_test(tests, 'stack1b').config['variables']
         stack2a_vars = find_test(tests, 'stack2a').config['variables']
-        stack1b_vars = find_test(tests, 'stack2a').config['variables']
         stack2b_vars = find_test(tests, 'stack2b').config['variables']
 
-        print(test_vars)
-
-        self.assertEqual(test_vars['host_def'], ['host'])
-        self.assertEqual(test_vars['mode_def'], ['mode'])
-        self.assertEqual(test_vars['test_def'], ['test'])
+        self.assertEqual(test_vars['host_def'], [{None: 'host'}])
+        self.assertEqual(test_vars['mode_def'], [{None: 'mode'}])
+        self.assertEqual(test_vars['test_def'], [{None: 'test'}])
         self.assertEqual(test_vars['stack_def'], [{'a': 'base', 'b': 'base'}])
         self.assertNotIn('no_val', test_vars)
 
@@ -157,18 +156,20 @@ class ResolverTests(PavTestCase):
         )
 
         cfg = tests[0].config
-        self.assertEqual(cfg['variables']['long_base'],
-                         ['what', 'are', 'you', 'up', 'to', 'punk?'])
+        long_answer = ['checking', 'for', 'proper', 'extending', 'including',
+                       'including', 'including', 'duplicates']
+        long_answer = [{None: word} for word in long_answer]
+        self.assertEqual(cfg['variables']['long_base'], long_answer)
         self.assertEqual(cfg['variables']['single_base'],
-                         ['host', 'test', 'mode'])
+                         [{None: key} for key in ['host', 'test', 'mode']])
         self.assertEqual(cfg['variables']['no_base_mode'],
-                         ['mode'])
+                         [{None: 'mode'}])
         self.assertEqual(cfg['variables']['no_base'],
-                         ['test'])
+                         [{None: 'test'}])
         self.assertEqual(cfg['variables']['null_base_mode'],
-                         ['mode'])
+                         [{None: 'mode'}])
         self.assertEqual(cfg['variables']['null_base'],
-                         ['test'])
+                         [{None: 'test'}])
 
     def test_apply_overrides(self):
         """Make sure overrides get applied to test configs correctly."""

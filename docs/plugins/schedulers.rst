@@ -25,60 +25,74 @@ For a scheduler to work with Pavilion, it must:
 The Pavilion Scheduler plugin system was designed to be flexible
 in order to support as many schedulers as possible.
 
+Pavilion also provides an advanced scheduler class that provides quite a few features:
+
+- Allows tests to auto-size relative to available/up nodes.
+- Will automatically break the system into discrete 'chunks' of nodes, allowing for
+  tests that run over the whole system in a piecemeal fashion.
+
+Advanced schedulers must be able to get an accurate inventory of nodes, including:
+
+- Whether each node is currently 'up' or 'allocated'.
+- System information about each node (CPUS, memory info, etc...)
+- The scheduler 'groups' that the node belongs to: reservations, partitions. Pavilion's
+  must be able to filter nodes according the allocation parameters the same way the scheduler would.
+
+Advanced schedulers must also be able to dictate to the scheduler exactly which nodes to use.
+
 Scheduler Plugins
 -----------------
 
-There are two parts to every scheduler plugin:
+The Scheduler Plugin
+~~~~~~~~~~~~~~~~~~~~
 
-The Scheduler Plugin Itself
-    This inherits from the 'pavilion.schedulers.SchedulerPlugin' class. They
-    encompass:
+This inherits from the 'pavilion.schedulers.BasicSchedulerPlugin' or
+'pavilion.schedulers.AdvancedSchedulerPlugin' class.  All of these are fully documented in
+the 'pavilion.schedulers.scheduler.SchedulerPlugin' class.
 
-    1. Provide a configuration section specific to your scheduler for the
-       test yaml files. (optional)
-    2. Gathering information about the system from the scheduler. (optional)
-    3. Filtering the node list according to test parameters. (optional)
-    4. Kicking off the test, typically by writing a kickoff script that
-       runs on the allocation and runs `pav _run <test_id>` for a given
-       test run.
-    5. Providing a means to cancel test runs.
-    6. Providing a means to get info on 'SCHEDULED' test runs.
-    7. Provide a means for the scheduler to know if you're currently in an
-       allocation.
+All scheduler plugin require that you extend the base class by providing:
 
-    Implementing each of these steps involves overriding the corresponding
-    method from the base SchedulerPlugin class.
+1. A 'kickoff' method - a means to acquire an allocation given the scheduler parameters
+   and run a script on it. Also needs to return a 'serializable' job id, to uniquely
+   identify a scheduler job.
+2. A 'job_status' method, that asks the scheduler whether a given job id is
+   scheduled, had a scheduling error, was cancelled, or is running.
+3. A 'cancel' method, to cancel a given job id.
+4. A '_get_alloc_nodes' method, to get the list of nodes in an allocation that
+   Pavilion is currently running under.
+
+Advanced schedulers must also override the following. They are fully documented
+in the 'pavilion.schedulers.advanced.SchedulerPluginAdvanced' class.
+
+1. '_get_raw_node_data' - Should fetch and return a list of information about each node.
+    This is the per-node information mentioned above.
+2. '_transform_row_node data' - Converts that data into a '{node: info_dict}' dictionary.
+   There are several required keys each node's info_dict must contain, see the method
+   documentation for info on the required and optional keys.
 
 Scheduler Variables
-    This inherits from pavilion.schedulers.SchedulerVariables. It is meant
-    to provide variables that tests can use in their configurations. Most of the
-    work is done by the base class. The big exception, which is (mostly) required,
-    is to override the `run_cmd` variable.
+~~~~~~~~~~~~~~~~~~~
 
-In general, scheduler plugins:
-
-1. Lazily evaluate - They should only ask the system once per invocation of
-    the pav command for information from the underlying scheduler, and only
-    when that scheduler is actually going to be used.
-2. Don't know what each allocation is, until after it is made.
+Every scheduler should also include a scheduler variables class, assigned to your
+class's 'VAR_CLASS' class variable. This provides information from the scheduler
+for each test to use in it's configuration, such as `sched.test_nodes` (the
+number of nodes in the test's allocation). The base class uses information given
+by the scheduler plugin and the test's configuration to figure out 99% of these
+on its own. You'll only need to override a few.
 
 Writing a Scheduler Plugin Class
 --------------------------------
-
-A mentioned above, there are 6 basic things a scheduler must do. As such,
-there are specific methods of the scheduler class to override for each of
-those. You may have to add additional methods for handling data as it's
-returned from the scheduler; it's not always easy to parse.
 
 Handling Errors
 ~~~~~~~~~~~~~~~
 
 Your scheduler class should catch any errors it reasonably expects to occur.
 This includes OSError when making system calls, ValueError when manipulating
-values (like converting strings to ints), etc. When handling the exception,
-record what went wrong along with the original message (in the exceptions
-first argument (``exc.args[0]``), and raise a SchedulerPluginError with that
-message.
+values (like converting strings to ints), etc. Once caught, then raise a Pavilion
+specific error, in this case it should always be SchedulerPluginError. Pavilion exceptions
+take a message about the local context as their first argument, and the prior exception
+as the second (optional) argument.
+
 
 .. code-block:: python
 
@@ -87,8 +101,7 @@ message.
     try:
         int(foo)
     except ValueError as exc:
-        raise SchedulerPluginError(
-            "Invalid value for foo.\n - {}".format(exc.args[0]))
+        raise SchedulerPluginError("Invalid value for foo.", exc)
 
 This allows Pavilion to catch and handle predictable errors, and pass them
 directly to the user.
@@ -120,9 +133,9 @@ with schedulers with a much reduced feature set.
 Configuraton
 ~~~~~~~~~~~~
 
-The `schedule` section for each test generically handles configuration for all schedulers. You
-only need to support the minimum set of options needed to schedule jobs with your scheduler, the
-rest are silently ignored.
+Pavilion has unified scheduler plugin configuration into the `schedule` section. Not all keys from
+this section will apply to your scheduler, and that's ok. Most keys are handled automatically given
+the information gathered on nodes.
 
 You can also, optionally, add a scheduler specific configuration section. To do this, you'll need
 to override the `_get_config_elems()` method. This method returns three items:
@@ -144,212 +157,72 @@ The Slurm scheduler plugin provides a solid example of this, but in general:
   - Validators for individual keys are optional, but you should do str to int conversion and value
     range checking. These can take several forms, see the `SchedulerPlugin._get_config_elems()`
     method documentation.
-
-
-.. _plugins.scheduler.gather_data:
-
-Gathering Scheduler Data
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-At this point you have two options:
-
-    1. Support ``num_nodes: 'all'``.
-    2. Support only specific node counts or ranges.
-
-It is highly recommended that you write your plugin to support 'all', but it
-is not strictly required. As a side effect, it means you can also support
-other dynamic node selection options for your scheduler.
-
-Setting num_nodes to 'all' tells Pavilion to use all currently useable nodes
-that also meet other restrictions such as the partition. Most schedulers (to
-our knowledge) don't natively support this, however. Your plugin will have to
-determine what 'all' means, given the state of the nodes on the system.
-
-To do this, you will have to gather the state of all nodes on the system.
-Most schedulers provide a means to do this; for slurm we do it through the
-'scontrol' command which is fairly fast and efficient even for a large number
-of nodes. It should be noted that such calls can be taxing on the scheduler
-itself, which is part of why Pavilion 'lazily' evaluates these calls.
-
-To gather data for your scheduler, override the ``_get_data()`` method, which
-should return a dictionary of the information. The structure of this
-dictionary is entirely up to you. How to gather that data is
-scheduler dependent, and thus out the scope of this tutorial.
-
-Filtering Node Data
-~~~~~~~~~~~~~~~~~~~
-
-If you chose to support 'num_nodes: all', you'll want to translate that
-into an actual number of nodes for Pavilion to request. The scheduler plugin
-base class provides a stub ``_filter_nodes()`` methods to accomplish this,
-though the implementation of this filter is entirely scheduler dependent.
-
-The Slurm plugin handles this into two steps:
- 1. It filters nodes based on the config criteria, like 'partition'.
- 2. It then uses that to calculate a 'node_range' string that can be
-    handed to Slurm.
-
-One needs to be very careful in the filtering of nodes and calculation of this
-range. Mismatches between what nodes Pavilion thinks are usable and which
-nodes your scheduler thinks are usable can and will cause Pavilion tests to
-hang waiting on nodes that will never be allocated.
-
-Lastly, it should be noted that the Slurm plugin provides an 'immediate'
-configuration flag. This changes the base criteria for node availability from
-'allocatable' to 'not currently allocated'. This is useful for tests that
-just need some nodes now, rather than a strict amount.
+  - Don't use the built-in validation and default options for the yaml_config objects,
+    use the validation callbacks/objects and defaults dictionary returned by the function
+    instead.
 
 Kicking Off Tests
 ~~~~~~~~~~~~~~~~~
 
-You must provide a means for Pavilion to use your scheduler to 'kick off'
-tests, because that's kind of the point of all of this. The built-in
-mechanisms for doing this involve generating a shell script that will be
-handed to the scheduler and run on an allocation.
+Pavilion scheduler plugins generate a kickoff script for each job - a script that will
+be handed to the scheduler to be run within the allocation. That script will run Pavilion
+one or more times within that allocation, starting a `run.sh` script for each test. It's
+the responsibility of the `run.sh` script to actually run applications under MPI, either
+with `mpirun`, `srun`, or similar.
 
-The scheduler plugin base class already generates this script through
-``_create_kickoff_script()`` method, all you have to do get your scheduler
-to run that script on an allocation appropriate given the test's requested
-scheduling parameters. For many schedulers, the heading of these scripts
-define the parameters for the job. For others, the parameters must be passed
-on the command line or through environment variables. We cover how to do all
-of these things below.
+Many schedulers rely on a header information in that `kickoff` script to relay to
+the scheduler what the settings for the allocation should be. This is header is optional - the
+default header adds nothing to the file except a `#!/bin/bash` line. If you need to
+define header lines, you'll need to create a class that inherits from
+`pavilion.schedulers.scheduler.KickoffScriptHeader`, and override the
+`_kickoff_lines` method. This method simply returns a list of header lines
+to add.
 
-You can, alternatively, not use the predefined kickoff script at all. In that
-case you must do the following to properly run a test in an allocation:
+Alternatively, when writing your `_kickoff` method, you can simply pass any relevant
+information about the job to the scheduler directly through the command line
+or API calls.
 
-1. The ``PATH`` environment variable on the allocation must include
-   the Pavilion bin directory (``pav_cfg.pav_root/'bin'``).
-2. The ``PAV_CONFIG_FILE`` environment variable must be set to
-   the path to the Pavilion config (``pav_cfg.pav_cfg_file``). *This is not
-   to be confused with the ``PAV_CONFIG_DIR`` environment variable.*
-3. You must then run the test on the allocation with ``pav _run <test_id>``.
-4. All output from the kickoff script should be redirected to the test's
-   'kickoff' log (``test_obj.path/'kickoff.log'``)
-
-Kicking off with a 'batch' script.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Most 'batch' scripts begin with a 'header' of scheduling parameters, followed
-by a shell script. In our case, the shell script is already generated for us,
-we simply need to define the header information. The composition of the
-kickoff script is handled by the Pavilion 'ScriptComposer' class, which happens
-to take a 'ScriptHeader' instance as an argument. We simply need to define a
-custom 'ScriptHeader' class, and override the ``_get_kickoff_script_header()``
-method to return that instead of the default.
-
-By default the auto-generated kickoff script will have a '.sh' extension. You
-can change that by setting the ``KICKOFF_SCRIPT_EXT`` class variable on your
-scheduler plugin.
-
-Here is an annoted excerpt from the Slurm scheduler plugin that demonstrates
-this:
-
-.. code-block:: python
-
-    from pavilion import scriptcomposer
-
-    class SbatchHeader(scriptcomposer.ScriptHeader):
-        """Provides header information specific to Slurm sbatch files."""
-
-        # Your init can take any arguments; we'll customize how it's called.
-        def __init__(self, sched_config, nodes, test_id, slurm_vars):
-            super().__init__()
-
-            # In this case, we'll use the whole scheduler config section
-            # from the test.
-            self._conf = sched_config
-
-            # We also take the preformatted value for '--nodes' directive.
-            self._nodes
-
-            # We use the test id to name the job
-            self._test_id = test_id
-
-            # We also use the 'sched' vars, as they already format some
-            # of the information we need in a slurm compatible way.
-            self._vars = slurm_vars
-
-        # This method simply returns a list of lines that will be placed
-        # at the top of our script.
-        def get_lines(self):
-            """Get the sbatch header lines."""
-
-            lines = super().get_lines()
-
-            # Here we just add directives in the slurm sbatch format,
-            # according to the test's configuration.
-            lines.append(
-                '#SBATCH --job-name "pav test #{s._test_id}"'
-                .format(s=self))
-            lines.append('#SBATCH -p {s._conf[partition]}'.format(s=self))
-            if self._conf.get('reservation') is not None:
-                lines.append('#SBATCH --reservation {s._conf[reservation]}'
-                             .format(s=self))
-            if self._conf.get('qos') is not None:
-                lines.append('#SBATCH --qos {s._conf[qos]}'.format(s=self))
-            if self._conf.get('account') is not None:
-                lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
-
-You'll also need to override the ``_get_kickoff_script_header()`` method of
-your scheduler plugin to return an instance of your custom header class for use
-in the kickoff script.
-
-.. code-block:: python
-
-    def _get_kickoff_script_header(self, test):
-        """Get the kickoff header. Most of the work here """
-
-        sched_config = test.config[self.name]
-
-        # For the slurm scheduler, we store our node info under 'nodes'.
-        nodes = self.get_data()['nodes']
-
-        return SbatchHeader(sched_config,
-                            # This is where we handle our node filtering and
-                            # get a pre-formatted node range.
-                            self._get_node_range(sched_config, nodes.values()),
-                            test.id,
-                            self.get_vars(test))
-
-
-Scheduling a Test
-~~~~~~~~~~~~~~~~~
-
-The ``_schedule()`` method of your scheduler class is responsible for handing
-control of each test run to the scheduler and returning a job id for that run.
-
-Typically this involves running one or more shell commands to tell your
-scheduler to enqueue a command or script. This is typically done with the
-``subprocess`` module. Since Pavilion support Python 3.5+, you can use the
-new(ish) ``subprocess.run()`` function, though ``subprocess.Popen()`` may be
-more appropriate.
+Either way, there are a set of parameters that must be passed on to the scheduler. These
+are described in the `SchedulerPlugin` docstring. For those parameters that are unsupported
+by
 
 
 Composing Commands
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
-You should compose your commands as a list. (Try to avoid the
-'shell=True' string based method. It tends to be error prone). Full paths
-to commands can be found with the distutils module.
+Your scheduler plugin will most likely require that you run commands in a subshell. This
+section provides guidance on how to do so reliably under Pavilion.
 
 .. code-block:: python
 
-    import distutils.spawn
+    # These should be at the top of the file, as standard
+    import subprocess
+    import shutil
 
-    srun = distutils.spawn.find_executable('srun')
-    if srun is None:
-        raise SchedulerError
+    # Use shutil.which to find the path to your executable, if needed
+    srun_cmd = shutil.which('srun')
+    if srun_cmd is None:
+        raise SchedulerError("Could not find srun command path.")
 
-    my_cmd = [srun]
+    my_cmd = [srun_cmd]
 
     # Building your commands with a list is simple and flexible.
-    if redirect_output:
-        my_cmd.extend(['-o', outfile])
+    if config['account']:
+        my_cmd.extend(['-A', config['account']])
 
-    mycmd.append('--partition=strange')
+    # subprocess.check_output will run your command to completion and simultaniously redirect
+    # and gather the output.
+    try:
+        # You should also redirect stderr, as is appropriate for your command.
+        run_output = subprocess.check_output(my_cmd, stderr=subprocess.STDOUT)
+    # A CalledProcessError will be raised if the command returns an error code.
+    except CalledProcessError as err:
+        raise SchedulerError("Error calling srun. Return code '{}', msg:\n{}"
+                             .format(err.returncode, err.output)
 
-    subprocess.run(my_cmd)
+    # The output will be binary, and will need to be decoded
+    run_output = run_output.decode()
+
 
 To find commands on a system, 'distutils.spawn.find_executable' is essentially
 an in-python version of 'which'.

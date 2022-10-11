@@ -113,8 +113,12 @@ class TestConfigResolver:
 
         _ = self
 
+        # TODO: Just check that there aren't any None values left.
+        return
+
         for config in raw_tests:
             # This should be a VarCatElem, which has a built-in defaults dict.
+
             defaults: Dict = config['variables'].defaults
             cvars = config['variables']
             for key, def_val in defaults.items():
@@ -860,8 +864,12 @@ class TestConfigResolver:
             parent = suite_tests[test_cfg['inherits_from']]
 
             # Merge the parent and test.
-            suite_tests[test_cfg_name] = test_config_loader.merge(parent,
-                                                                  test_cfg)
+            try:
+                suite_tests[test_cfg_name] = test_config_loader.merge(parent,
+                                                                      test_cfg)
+            except TestConfigError as err:
+                raise TestConfigError("Error merging in config '{}' from test suite '{}'."
+                                      .format(test_cfg_name, suite_path), err)
 
             suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
 
