@@ -72,6 +72,7 @@ class TestConfig(PavTestCase):
                 {'a': 'a_inh', 'b': 'b_def'},
                 {'a': 'a_def', 'b': 'b_inh'}],
             'd_dict': [{'a': 'a_def', 'b': 'b_def'},
+                       {'a': 'a_def', 'b': 'b_def'},
                        {'a': 'a_inh', 'b': 'b_def'},
                        {'a': 'a_def', 'b': 'b_inh'}],
             'd_ldict': [{'c': 'c_def1', 'd': 'd_def1'}],

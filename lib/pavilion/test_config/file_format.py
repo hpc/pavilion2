@@ -214,7 +214,6 @@ class VarCatElem(yc.CategoryElem):
                 values = [SubVarDict({None: None})]
 
             if not isinstance(values, list):
-                # TODO: I'm not sure this is necessary..
                 values = [values]
 
             if key_suffix is None:
@@ -230,11 +229,11 @@ class VarCatElem(yc.CategoryElem):
                 base[key] = []
 
                 # If there are no defaults, all items should have the same keys.
-                if not old_defaults:
+                if not old_defaults and values:
                     first_val_keys = set(values[0].keys())
                     for value in values[1:]:
                         if set(value.keys()) != first_val_keys:
-                            if first_val_keys == [None]:
+                            if first_val_keys == {None}:
                                 raise TestConfigError(
                                     "Key '{}' in the variables section has items of differing "
                                     "formats.".format(key))
@@ -292,11 +291,23 @@ class VarCatElem(yc.CategoryElem):
                                 existing.defaults = new_defaults.copy()
 
                 elif def_type == 'single_val':
+                    for value in values:
+                        if None not in value:
+                            raise TestConfigError(
+                                "Key '{}' in the variables section has been set with defaults "
+                                "of inconsistent type. A single default dict is allowed, or "
+                                "one or more simple string values."
+                                .format(key))
+
                     if base.get(key, []):
                         # Values already exist. Don't apply defaults.
                         pass
                     else:
-                        base[key] = values
+                        # Set each item as an empty dict with a default.
+                        new_values = []
+                        for value in values:
+                            new_values.append(SubVarDict(defaults=value))
+                        base[key] = new_values
 
             elif key_suffix == '+':
                 # Extend the list of items.
@@ -314,10 +325,6 @@ class VarCatElem(yc.CategoryElem):
                 else:
                     existing_defaults = {}
                     existing_keys = None
-
-                # If the only entry is nothing but defaults, treat it as an empty placeholder.
-                if len(existing) == 1 and existing[0].is_defaults_only():
-                    existing = []
 
                 for value in values:
                     # Check each for key conflicts

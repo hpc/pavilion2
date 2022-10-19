@@ -60,6 +60,7 @@ All scheduler plugin require that you extend the base class by providing:
 3. A 'cancel' method, to cancel a given job id.
 4. A '_get_alloc_nodes' method, to get the list of nodes in an allocation that
    Pavilion is currently running under.
+5. An 'available' method, to tell Pavilion if your scheduler can be used at all.
 
 Advanced schedulers must also override the following. They are fully documented
 in the 'pavilion.schedulers.advanced.SchedulerPluginAdvanced' class.
@@ -69,6 +70,9 @@ in the 'pavilion.schedulers.advanced.SchedulerPluginAdvanced' class.
 2. '_transform_row_node data' - Converts that data into a '{node: info_dict}' dictionary.
    There are several required keys each node's info_dict must contain, see the method
    documentation for info on the required and optional keys.
+
+Basic scheduler plugins don't require any extra methods, but are limited in functionality.
+See :ref:`tests.scheduling.types` for more info.
 
 Scheduler Variables
 ~~~~~~~~~~~~~~~~~~~
@@ -183,8 +187,8 @@ information about the job to the scheduler directly through the command line
 or API calls.
 
 Either way, there are a set of parameters that must be passed on to the scheduler. These
-are described in the `SchedulerPlugin` docstring. For those parameters that are unsupported
-by
+are described in the `SchedulerPlugin._kickoff` docstring. You can safely ignore parameters
+that aren't supported by your scheduler.
 
 
 Composing Commands
@@ -247,223 +251,138 @@ need to make sure to include the base environment in most cases.
 Job Id's
 ^^^^^^^^
 
-Regardless of how you kickoff a test, you must capture a 'job id' for it.
+Regardless of how you kickoff a test, you must capture a 'job id' for it, and return it
+as part of a JobInfo object (which is really just a dict). All scheduler commands that act on a
+job, like cancel, will have access to this object either directly or through an attached test.
 
-- It must be a string.
-- It can otherwise be of any format. Only your scheduler plugin will need
-  to understand that format.
-- You may want to consider including host/system information in the id,
-  so your plugin can know when it's running in a place that can actually
-  reference that id. For instance, the raw scheduler starts a local process,
-  but can't very well check the status of a process from a different machine.
+The JobInfo dict can contain any keys and values you like, as long as they're all strings. It's
+useful to include the 'sys_name' of the machine you're on (via 'sys_vars.get_vars(True)
+["sys_name"]') so that you also check if the system that started the job is the same as the one
+that's manipulating it.
 
-An Example
-^^^^^^^^^^
+Job Status
+~~~~~~~~~~
+
+The '_job_status()' method takes the Pavilion base config (Pavilion's configuration, rather than
+a test configuration), and the JobInfo for job that status is needed for. It returns a
+'TestStatusInfo' object, describing the job state returned by the scheduler.
+
+It's job is to translate all the complicated potential job states for any particular scheduler
+into one of four more basic states understood by Pavilion:
+
+- SCHED_ERROR - There was an error in scheduling the job
+- SCHED_CANCELLED - The job was cancelled (usually externally to Pavilion)
+- SCHED_RUNNING - The job is running (but not necessarily the particular test.
+- SCHEDULED - The job is simply waiting for an allocation.
+
+Note that this will only be called if the cached job status in the plugin's internal
+'_job_statuses' dictionary is out of date. In fact, you can (as the slurm plugin does), simply
+use the first call of this function to update the status of all the jobs on the system at once
+in that dictionary.
 
 .. code-block:: python
 
-    def _schedule(self, test, kickoff_path):
-        """Submit the kick off script using sbatch.
+    # The STATES object has attributes for each valid Pavilion test state,
+    # but you'll only be using those with the 'SCHED_' prefix.
+    from pavilion.status_file import STATES
+    from pavilion.status_file import TestStatusInfo
 
-        :param TestRun test: The TestRun we're kicking off.
-        :param Path kickoff_path: The kickoff script path.
-        :returns: The job id under this scheduler.
-        """
-
-        # We're going to save the slurm log in the test run directory, so it
-        # isn't put just anywhere.
-        slurm_out = test.path/'slurm.log'
-
-        # Run the command to scheduler our batch script.
-        # The default scripts use 'exec >' redirection to redirect all output
-        # script to the kickoff log.
-        # This should be a command that returns when our kickoff script is
-        # in the scheduler queue.
-        proc = subprocess.Popen(['sbatch',
-                                 '--output={}'.format(slurm_out),
-                                 kickoff_path.as_posix()],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-
-        # Slurm prints the job id when starting an sbatch script, which we
-        # capture and extract.
-        stdout, stderr = proc.communicate()
-
-        # Raise an error if the kickoff was a failure.
-        if proc.poll() != 0:
-            raise SchedulerPluginError(
-                "Sbatch failed for kickoff script '{}': {}"
-                .format(kickoff_path, stderr.decode('utf8'))
-            )
-
-        # Parse out the job id and return it. It will get attached to the
-        # test run object and tracked that way.
-        return stdout.decode('UTF-8').strip().split()[-1]
+    my_status = TestStatusInfo(
+        STATES.SCHED_ERROR,     # Simply pass one of the valid scheduler state constants.
+        "Cthulhu at my test.")  # Along with a longer message describing the state.
 
 Cancelling Runs
 ~~~~~~~~~~~~~~~
 
-To handle cancelling jobs, we'll be overriding the ``_cancel_job()``
-method of your scheduler class.
+To write the 'cancel()' method, all you need to do is use the job id you saved when you
+kicked a test off. If there's an error doing so, return a message why, otherwise simply
+return 'None' to denote success.
 
-You'll need to do the following:
+All the more complicated parts of cancelling are handled by functions that will wrap your method,
+so there really isn't too much to worry about here.  The Slurm plugin cancel command is a good
+example in how simple this can be.
 
-1. (Typically) Compose and run a command to cancel the job given the
-   job id you recorded.
-2. (If cancelling is successful) set 'test.set_run_complete()' to
-   mark the test as complete.
-3. Set the test status to 'STATES.SCHED_CANCELLED'.
-4. Return a ``StatusInfo`` object with the new status of the test, and
-   a reasonable status message.
+Finding the Allocation Nodes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Additionally, there are four basic cases that need to be handled:
+The `_get_alloc_nodes()` method needs to be overridden to find the list of nodes for
+a test's allocation. This will always be called only from within the allocation - typically
+the scheduler sets an environment variable with this information.
 
-1. The job was never started. This is handled for you in ``cancel_job()``,
-   which calls ``_cancel_job()``.
-2. The job is enqueued but not yet running (or somewhere in between).
-3. The job is running.
-4. The job has finished.
+Note that this may not always be called. If chunking is used, the scheduler plugin will know
+the exact list of allocation nodes before the test is kicked off.
 
-Most of the time, this simply means you will try to cancel the job id
-and capture any errors.
-
-Additionally, if your job id encodes information that could denote that
-the job can't be cancelled from the current machine, this is the place to
-use it.
-
-StatusInfo
-^^^^^^^^^^
-
-You shouldn't have to create a StatusInfo object (they come from
-``pavilion.status_file``), just return the one returned when you set the
-test status.
-
-Example
-^^^^^^^
-
-Here's the (annotated) ``_cancel_job()`` from the slurm plugin.
-
-.. code-block:: python
-
-    def _cancel_job(self, test):
-        """Scancel the job attached to the given test.
-
-        :param pavilion.test_run.TestRun test: The test to cancel.
-        :returns: A statusInfo object with the latest scheduler state.
-        :rtype: StatusInfo
-        """
-
-        # In this case we simply need call scancel with our simple job id.
-        cmd = ['scancel', test.job_id]
-
-        proc = subprocess.Popen(cmd,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        stdout, stderr = proc.communicate()
-
-        if proc.poll() == 0:
-            # Scancel successful, pass the stdout message
-
-            # Someday I'll add a method to do this in one shot.
-            test.set_run_complete()
-            return test.status.set(
-                STATES.SCHED_CANCELLED,
-                "Slurm jobid {} canceled via slurm.".format(test.job_id)
-
-            )
-        else:
-            # We failed to cancel the test, let the user know why.
-            return test.status.set(
-                STATES.SCHED_CANCELLED,
-                "Tried (but failed) to cancel job: {}".format(stderr))
-
-
-Checking Test Run Status
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-You'll need to override your scheduler's ``job_status()`` method. This method
-is only used within a small window of a test's existence - when it has the
-'SCHEDULED' state. This is set (for you) after your ``_schedule()`` method
-is called, and is replaced by other states as soon as the test starts
-running on the allocation.
-
-Like ``_cancel_job()``, ``job_status()`` should return a StatusInfo object.
-Unlike ``_cancel_job()`` you **should not set the test status**. This
-prevents the test from receiving status updates every time you check it's
-status.
-
-**There is one exception to this.** If you find that the test run was cancelled
-outside of Pavilion, do set the status to STATES.SCHED_CANCELLED and mark
-the test as complete using ``test.set_run_complete()``. This
-will prevent further calls to the scheduler regarding the status of this
-cancelled test, and let Pavilion know the run is done.
-
-For an example, refer to the ``job_status()`` method for the Slurm scheduler
-plugin. As you'll see, this can be quite complex, and will depend greatly on
-your scheduler.
 
 Scheduler Availability
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The final method to override is ``available()``. This method returns
-a bool denoting whether or not tests can be started with the given scheduler
-on the current machine. It lets Pavilion quickly determine if it should bother
-trying to start tests under this scheduler, and report errors to the user.
-
-You don't need to do anything fancy here, simply figuring out if the basic
-commands for your scheduler are installed is enough and using one to gather
-basic system info is enough.
-
-As mentioned above, ``distutils.spawn.find_executable()`` is useful here.
-
-.. code-block:: python
-
-    def available(self):
-        """Looks for several slurm commands, and tests slurm can talk to the
-        slurm db."""
-
-        for command in 'scontrol', 'sbatch', 'sinfo':
-            if distutils.spawn.find_executable(command) is None:
-                return False
-
-        # Try to get basic system info from sinfo. Should return not-zero
-        # on failure.
-        ret = subprocess.call(
-            ['sinfo'],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-        return ret == 0
+The 'available()' method simply tells Pavilion if the scheduler is available to run jobs
+on the given system. It's not a measure of operability, simply a True/False value saying
+whether the basic commands (or API modules) needed to use the plugin exist.
 
 .. _decoratored: https://www.programiz.com/python-programming/decorator
+
+Advanced Scheduler Methods
+--------------------------
+
+If you're trying to write an advanced scheduler plugin using the 'SchedulerPluginAdvanced'
+parent class, there are a couple more methods to override.  These are:
+
+- '_get_raw_node_data()' - A method to gather raw information on the cluster's nodes.
+- '_transform_raw_node_data' - A method that translates that same data into a dictionary of
+  information about each node.
+
+For information on overriding each of these, refer to the doc strings for each as defined
+in the 'pavilion.schedulers.advanced.SchedulerPluginAdvanced' class. They will tell you
+everything you need to know about how to write those methods.
+
+The purpose of these methods is to provide Pavilion with the information it needs to make
+decisions about what nodes to schedule on itself, rather than relying on the scheduler to do
+so. This allows Pavilion to partition the system in ways that the scheduler might not support
+on its own. These include the ability to specify 'all' as the number of nodes requested,
+and the ability to perform :ref:`tests.scheduling.chunking` of system into multiple, evenly sized
+pieces.
+
+The downside is that the per-node information must be perfectly accurate or jobs may be rejected by
+the scheduler (such as when improperly requesting nodes not in the selected partition) or simply
+wait in the queue forever (such as when selecting nodes that are down).
 
 Scheduler Variables
 -------------------
 
 The second part of creating a scheduler plugin is adding a set of variables that
-test configs can use to manipulate their test. Many of these will be
-:ref:`deferred <tests.variables.deferred>` (they're only available
-after the test is running on an allocation).
+test configs can use to manipulate their test. The vast majority of these are automatically
+derived from the information you gathered about the nodes for Advanced scheduler plugins or
+via the `schedule.cluster_info` test configuration information for Basic scheduler plugins.
 
 Pavilion provides a framework for creating these variables, the
-``pavilion.schedulers.SchedulerVariables`` class. By inheriting from this
+``pavilion.schedulers.vars.SchedulerVariables`` class. By inheriting from this
 class, you can define scheduler variables simply by adding `decoratored`_
 methods to your child class. The decorators do most of the hard work, you
-simply have create and return the value.
+simply have create and return the value. The class itself provides good documentation
+on how to do this.
 
-Useful Attributes
-~~~~~~~~~~~~~~~~~
+The most important variable in all of these is the `test_cmd` variable, which is probably the
+only variable that will need to be customized for your scheduler plugin. It provides
+tests with an mpi startup command, such as `mpirun`, with arguments automatically set
+according to the test's settings. Pavilion tests generally use this variable to prefix
+their mpi runs when writing their run scripts:
 
-You'll automatically get a number of useful things for creating variables
-values.
+.. code-block:: yaml
 
-1. The test run's scheduler config, via ``self.sched_config``.
-2. The scheduler object itself, via ``self.sched``.
-3. The scheduler's general data, via ``self.sched_data``.
+    test_cmd_example:
 
-   - This is the data generated in the :ref:`plugins.scheduler.gather_data`
-     step.
+      scheduler: slurm
+      schedule:
+        nodes: 32
+
+      run:
+        cmds:
+          - '{{test_cmd}} ./my_mpi_cmd'
+
+How to write a `test_cmd` variable is documented in the `SchedulerVariables.test_cmd()` method's
+doc string.
+
 
 Adding the Scheduler Vars to the Scheduler Plugin
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -480,122 +399,4 @@ set the variable class as the ``VAR_CLASS`` attribute on your scheduler.
 
     class MySchedPlugin(schedulers.SchedulerPlugin):
         VAR_CLASS = MyVarClass
-
-Variable Name Conventions
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-When naming your variables, keep in mind the following conventions:
-
-(no_prefix)
-    ``node_list``, ``nodes``, etc.
-
-    These variables apply to the whole cluster or the cluster head node.
-    **They should never be deferred.**
-
-alloc_*
-    ``alloc_node_list``, ``alloc_max_mem``, etc.
-
-    These variables apply to the whole allocation that a particular test
-    run is running on. **They are always deferred.**
-
-test_*
-    ``test_node_list``, ``test_procs``, etc.
-
-    These variables apply to the specific test run on a given allocation. At
-    the moment, there should be no difference between these and 'alloc\_'
-    variables. In the future, however, tests may be allocated on shared
-    allocations larger than what the test specifically requested or needs.
-
-test_cmd
-    This variable should use other 'test\_' variables to compose a command that
-    starts an MPI process within your allocation. It should restrict the
-    test to just the number of processors/nodes requested by the test.
-    Common examples are 'mpirun' or 'srun'.
-
-Return Types
-~~~~~~~~~~~~
-
-Values returned should be:
-
-1. A string
-2. A list of strings.
-3. A dict (with string keys and values)
-4. A list of such dicts.
-
-They cannot be more complex this this.
-
-You can actually return non-string values; they will be converted to strings
-automatically and recursively through the returned data structure.
-
-Adding Variables
-~~~~~~~~~~~~~~~~
-
-Here's an annotated example, from the Slurm scheduler plugin, to walk you
-through defining your own scheduler variable class.
-
-.. code-block:: python
-
-    import os
-    from pavilion.schedulers import (
-        SchedulerVariables, var_method, dfr_var_method)
-
-    class SlurmVars(SchedulerVariables):
-
-        # Methods that use the 'var_method' decorator are 'non-deferred'
-        # variables.
-        @var_method
-        def nodes(self):
-            """Number of nodes on the system."""
-
-            # Slurm's scheduler data includes a dictionary of nodes.
-            return len(self.sched_data['nodes'])
-
-        @var_method
-        def node_list(self):
-            """List of nodes on the system."""
-
-            return list(self.sched_data['nodes'].keys())
-
-        @var_method
-        def node_avail_list(self):
-            """List of nodes who are in an a state that is considered available.
-        Warning: Tests that use this will fail to start if no nodes are available."""
-
-            # The slurm plugin allows you to define what node states are
-            # considered 'available'. Actual node states are normalized to
-            # make this work.
-            avail_states = self.sched_config['avail_states']
-
-            nodes = []
-            for node, node_info in self.sched_data['nodes'].items():
-                if 'Partitions' not in node_info:
-                    # Skip nodes that aren't in any partition.
-                    continue
-
-                for state in node_info['State']:
-                    if state not in avail_states:
-                        break
-                else:
-                    nodes.append(node)
-
-            return nodes
-
-        # Methods that use the 'dfr_var_method' decorated are deferred.
-        @dfr_var_method
-        def alloc_nodes(self):
-            """The number of nodes in this allocation."""
-            # Since this is deferred, this will be gathered on the allocation.
-            return os.getenv('SLURM_NNODES')
-
-        @dfr_var_method
-        def test_cmd(self):
-            """Construct a cmd to run a process under this scheduler, with the
-            criteria specified by this test.
-            """
-
-            cmd = ['srun',
-                   '-N', self.test_nodes(),
-                   '-n', self.test_procs()]
-
-            return ' '.join(cmd)
 

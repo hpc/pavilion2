@@ -9,7 +9,3 @@ UnitTests
     :show-inheritance:
     :private-members:
     :exclude-members: ColorResult
-
-    .. autoclass:: ColorResult
-        :undoc-members:
-        :private-members:

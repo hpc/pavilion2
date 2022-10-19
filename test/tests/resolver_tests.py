@@ -146,6 +146,25 @@ class ResolverTests(PavTestCase):
                 modes=['defaulted'],
             )
 
+    def test_variable_consistency(self):
+        """Make sure the variable consistency checks catch what they're supposed to."""
+
+        bad_tests = [
+            'var_consistency.empty_var_list',
+            'var_consistency.empty_var',
+            'var_consistency.empty_subvar',
+            # TODO: There's some resolver work need to make these functional.
+            #'var_consistency.inconsistent_var1',
+            #'var_consistency.inconsistent_var2',
+            'var_consistency.inconsistent_var3',
+            'var_consistency.inconsistent_var4',
+            'var_consistency.foo',
+        ]
+
+        for bad_test in bad_tests:
+            with self.assertRaises(TestConfigError):
+                self.resolver.load([bad_test])
+
     def test_extended_variables(self):
         """Make sure default variables work as expected."""
 
@@ -181,6 +200,8 @@ class ResolverTests(PavTestCase):
             'run.cmds.0="echo nope"',
             # An item that doesn't exist (and must be normalized by yaml_config)
             'variables.foo="hello"',
+            # A complex variable value
+            'variables.bar={"hello": "world"}'
         ]
 
         bad_overrides = [

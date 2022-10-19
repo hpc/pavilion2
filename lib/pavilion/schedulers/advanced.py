@@ -431,18 +431,21 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         node_list = list(chunk)
         node_list.sort()
 
+        picked_nodes = None
+
         if base_sched_config['chunking']['size'] in (0, None):
-            picked_nodes = node_range
             job.save_node_data({node: self._nodes[node] for node in chunk})
         else:
             picked_nodes = node_list[:node_range[1]]
+            node_range = None
             job.save_node_data({node: self._nodes[node] for node in picked_nodes})
 
         job_name = 'pav_{}'.format(','.join(test.name for test in tests[:4]))
         if len(tests) > 4:
             job_name += ' ...'
         script = self._create_kickoff_script_stub(pav_cfg, job_name, job.kickoff_log,
-                                                  base_sched_config, picked_nodes)
+                                                  base_sched_config, nodes=picked_nodes,
+                                                  node_range=node_range)
 
         for test in tests:
             # Run each test via pavilion
@@ -458,7 +461,13 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for test in tests:
             test.job = job
 
-        job.info = self._kickoff(pav_cfg, job, base_sched_config)
+        job.info = self._kickoff(
+            pav_cfg=pav_cfg,
+            job=job,
+            sched_config=base_sched_config,
+            job_name=job_name,
+            nodes=picked_nodes,
+            node_range=node_range)
 
         for test in tests:
             test.status.set(
@@ -484,17 +493,24 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             node_range = calc_node_range(sched_config, len(chunk))
 
+            job_name = 'pav_{}'.format(test.name)
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
-                job_name='pav_{}'.format(test.name),
+                job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                picked_nodes=node_range)
+                node_range=node_range)
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(pav_cfg, job, sched_config)
+            job.info = self._kickoff(
+                pav_cfg=pav_cfg,
+                job=job,
+                sched_config=sched_config,
+                job_name=job_name,
+                node_range=node_range,
+            )
             test.job = job
             test.status.set(
                 STATES.SCHEDULED,
@@ -550,17 +566,23 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             except JobError as err:
                 raise SchedulerPluginError("Error saving node info to job.", err)
 
+            job_name = 'pav_{}'.format(test.name)
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
-                job_name='pav_{}'.format(test.name),
+                job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                picked_nodes=picked_nodes)
+                nodes=picked_nodes)
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(pav_cfg, job, sched_config)
+            job.info = self._kickoff(
+                pav_cfg=pav_cfg,
+                job=job,
+                sched_config=sched_config,
+                job_name=job_name,
+                nodes=picked_nodes)
             test.job = job
             test.status.set(
                 STATES.SCHEDULED,

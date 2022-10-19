@@ -1,0 +1,44 @@
+empty_var_list:
+  variables:
+    foo: []
+
+empty_var:
+  variables:
+    foo?:
+
+empty_subvar:
+  variables:
+    foo?:
+      bar:
+      baz: 3
+
+#inconsistent_var1:
+#  variables:
+#    foo:
+#      - 'a'
+#      - {'a': 'b'}
+
+#inconsistent_var2:
+#  variables:
+#    foo:
+#      - 'a'
+#      - {'a': 'b'}
+
+inconsistent_var3:
+  variables:
+    foo:
+      - {'a': 'a',
+         'b': 'b'}
+      - {'a': 'b'}
+
+inconsistent_var4:
+  variables:
+    foo:
+      - {'a': 'a'}
+      - {'b': 'b'}
+
+foo:
+  variables:
+    foo:
+      - 'a'
+      -

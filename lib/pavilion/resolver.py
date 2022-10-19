@@ -107,35 +107,64 @@ class TestConfigResolver:
         # This won't have a 'sched' variable set unless we're permuting over scheduler vars.
         return var_man
 
-    def check_required_variables(self, raw_tests: List[Dict]):
+    def check_variable_consistency(self, raw_tests: List[Dict]):
         """Check all the variables defined as defaults with a null value to
-        make sure they were actually defined."""
+        make sure they were actually defined, and that all sub-var dicts have consistent keys."""
 
         _ = self
 
-        # TODO: Just check that there aren't any None values left.
-        return
-
         for config in raw_tests:
-            # This should be a VarCatElem, which has a built-in defaults dict.
 
-            defaults: Dict = config['variables'].defaults
-            cvars = config['variables']
-            for key, def_val in defaults.items():
-                if def_val is None and key not in cvars or cvars[key] is None:
+            test_name = config.get('name', '<unnamed>')
+            test_suite = config.get('suite_path', '<no suite>')
+
+            for var_key, values in config.get('variables', {}).items():
+
+                if not values:
                     raise TestConfigError(
-                        "In test '{}', variable '{}' is required but was never set."
-                        .format(config['name'], key))
-                elif isinstance(def_val, dict):
-                    # Check all the sub-value defaults for required values.
-                    for skey, sdef_val in def_val.items():
-                        # There's another potential case here where the base
-                        # variable doesn't exist. That shouldn't actually be possible,
-                        # as if nothing is defined the defaults are set as the value.
-                        if sdef_val is None and skey not in config['variables'].get(key, {}):
+                        "In test '{}' from suite '{}', test variable '{}' was defined "
+                        "but wasn't given a value."
+                        .format(test_name, test_suite, var_key))
+
+                first_value_keys = set(values[0].keys())
+                for i, value in enumerate(values):
+                    for subkey, subval in value.items():
+                        if subkey is None:
+                            full_key = var_key
+                        else:
+                            full_key = '.'.join([var_key, subkey])
+
+                        if subval is None:
                             raise TestConfigError(
-                                "In test '{}', variable '{}.{}' is required, but was not set"
-                                .format(config['name'], key, skey))
+                                "In test '{}' from suite '{}', test variable '{}' has an empty "
+                                "value. Empty defaults are fine (as long as their "
+                                "overridden), but regular variables should always be given "
+                                "a value (even if it's just an empty string)."
+                                .format(test_name, test_suite, full_key))
+
+                    value_keys = set(value.keys())
+                    if value_keys != first_value_keys:
+                        if None in first_value_keys:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has  "
+                                "inconsistent keys. The first value was a simple variable "
+                                "with value '{}', while value {} had keys {}"
+                                .format(test_name, test_suite, var_key, values[0][None], i + 1,
+                                        value_keys))
+                        elif None in value_keys:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "inconsistent keys.The first value had keys {}, while value "
+                                "{} was a simple value '{}'."
+                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                        value[None]))
+                        else:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "inconsistent keys. The first value had keys {}, "
+                                "while value {} had keys {}"
+                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                        value_keys))
 
     def find_config(self, conf_type, conf_name) -> (str, Path):
         """Search all of the known configuration directories for a config of the
@@ -348,7 +377,7 @@ class TestConfigResolver:
                     .format(raw_test['name'], raw_test['suite_path'], err)
                 raise TestConfigError(msg)
 
-        self.check_required_variables(raw_tests)
+        self.check_variable_consistency(raw_tests)
 
         permuted_tests = []
         for test_cfg in raw_tests:
@@ -460,8 +489,7 @@ class TestConfigResolver:
 
         base_config = self.apply_host(base_config, host)
 
-        # A dictionary of test suites to a list of subtests to run in that
-        # suite.
+        # A dictionary of test suites to a list of subtests to run in that suite.
         all_tests = defaultdict(dict)
         picked_tests = []
         test_suite_loader = TestSuiteLoader()
@@ -526,7 +554,7 @@ class TestConfigResolver:
                 else:
                     total_tests.append(test_suite)
 
-        # Find and load all of the requested tests.
+        # Find and load all the requested tests.
         for test_name in total_tests:
             name_parts = test_name.split('.')
             if len(name_parts) == 2:
@@ -566,8 +594,7 @@ class TestConfigResolver:
                         # We're loading this in raw mode, because the defaults
                         # will have already been provided.
                         # Each test config will be individually validated later.
-                        test_suite_cfg = test_suite_loader.load_raw(
-                            test_suite_file)
+                        test_suite_cfg = test_suite_loader.load_raw(test_suite_file)
 
                 except (IOError, OSError, ) as err:
                     raise TestConfigError(
@@ -596,7 +623,7 @@ class TestConfigResolver:
                 suite_tests = self.resolve_inheritance(
                     base_config,
                     test_suite_cfg,
-                    test_suite_path
+                    test_suite_path,
                 )
 
                 # Add some basic information to each test config.
@@ -796,7 +823,8 @@ class TestConfigResolver:
 
         return test_cfg
 
-    def resolve_inheritance(self, base_config, suite_cfg, suite_path):
+    def resolve_inheritance(self, base_config, suite_cfg, suite_path) \
+            -> Tuple[Dict[str, dict], Dict[str, List[str]]]:
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
         that.
@@ -838,12 +866,10 @@ class TestConfigResolver:
                     # Tests that depend on nothing are ready to resolve.
                     ready_to_resolve.append(test_cfg_name)
                 else:
-                    depended_on_by[test_cfg['inherits_from']]\
-                        .append(test_cfg_name)
+                    depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
                 try:
-                    suite_tests[test_cfg_name] = TestConfigLoader()\
-                        .normalize(test_cfg)
+                    suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
                         "Test {} in suite {} has an error."
@@ -1157,6 +1183,12 @@ class TestConfigResolver:
         last_cfg = None
         last_key = None
 
+        # Normalize simple variable values.
+        if key[0] == 'variables' and len(key) in (2,3):
+            is_var_value = True
+        else:
+            is_var_value = False
+
         # Validate the key by walking the config according to the key
         while key_copy:
             part = key_copy.pop(0)
@@ -1208,25 +1240,38 @@ class TestConfigResolver:
             raise ValueError("Invalid value ({}) for key '{}' in overrides"
                              .format(value, disp_key), err)
 
-        last_cfg[last_key] = self.normalize_override_value(value)
+        last_cfg[last_key] = self.normalize_override_value(value, is_var_value)
 
-    def normalize_override_value(self, value):
+    def normalize_override_value(self, value, is_var_value=False):
         """Normalize a value to one compatible with Pavilion configs. It can
         be any structure of dicts and lists, as long as the leaf values are
         strings.
 
         :param value: The value to normalize.
+        :param is_var_value: True if the value will be used to set a variable value.
         :returns: A string or a structure of dicts/lists whose leaves are
             strings.
         """
+
+        if isinstance(value, (int, float, bool, bytes)):
+            value = str(value)
+
         if isinstance(value, str):
-            return value
-        elif isinstance(value, (int, float, bool, bytes)):
-            return str(value)
+            if is_var_value:
+                # Normalize a simple value into the standard variable format.
+                return [{None: value}]
+            else:
+                return value
         elif isinstance(value, (list, tuple)):
             return [self.normalize_override_value(v) for v in value]
         elif isinstance(value, dict):
-            return {str(k): self.normalize_override_value(v)
-                    for k, v in value.items()}
+            dict_val =  {str(k): self.normalize_override_value(v)
+                         for k, v in value.items()}
+
+            if is_var_value:
+                # Normalize a single dict item into a list of them for variables.
+                return [dict_val]
+            else:
+                return dict_val
         else:
             raise ValueError("Invalid type in override value: {}".format(value))
