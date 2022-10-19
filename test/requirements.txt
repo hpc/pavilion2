@@ -1,2 +1,2 @@
 pylint
-matplotlib > 3.6.0
+matplotlib > 3
