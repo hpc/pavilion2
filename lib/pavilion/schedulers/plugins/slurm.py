@@ -136,6 +136,7 @@ class SlurmVars(SchedulerVariables):
 
         if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
 
+            # The full node list isn't currently required,
             cmd = ['srun',
                    '-N', str(nodes),
                    '-w', Slurm.compress_node_list(self._nodes.keys()),
@@ -532,10 +533,8 @@ class Slurm(SchedulerPluginAdvanced):
             up_states = up_states + reserved_states
             avail_states = avail_states + reserved_states
 
-
         node_info['up'] = all(state in up_states for state in node_info['states'])
         node_info['available'] = all(state in avail_states for state in node_info['states'])
-
 
         return node_info
 
@@ -583,7 +582,9 @@ class Slurm(SchedulerPluginAdvanced):
 
         return ret == 0
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name: str,
+                 nodes: Union[NodeList, None] = None,
+                 node_range: Union[Tuple[int, int], None] = None) -> JobInfo:
         """Submit the kick off script using sbatch."""
 
         _ = self

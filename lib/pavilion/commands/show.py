@@ -421,16 +421,15 @@ class ShowCommand(Command):
 
         simple_vars = []
         complex_vars = []
-        for var in cfg.get('variables').keys():
-            subvar = cfg['variables'][var]
-            if isinstance(subvar, list) and (len(subvar) > 1
-                                             or isinstance(subvar[0], dict)):
+        for var_key in cfg.get('variables').keys():
+            var = cfg['variables'][var_key]
+            if len(var) == 1 and None in var[0]:
+                simple_vars.append({
+                    'name': var_key,
+                    'value': var[0][None]
+                })
+            else:
                 complex_vars.append(var)
-                continue
-            simple_vars.append({
-                'name':  var,
-                'value': cfg['variables'][var]
-            })
         if simple_vars:
             output.draw_table(
                 self.outfile,

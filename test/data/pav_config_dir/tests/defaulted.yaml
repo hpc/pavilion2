@@ -1,5 +1,36 @@
-test:
+base:
   variables:
-    mode_def?: test
-    host_def?: test
+    mode_def?: base
+    host_def?: base
     test_def: test
+    stack_def?:
+      a: 'base'
+      b: 'base'
+
+stack1a:
+  inherits_from: base
+  variables:
+    stack_def?:
+      a: '1a-a'
+      b: '1a-b'
+
+stack2a:
+  inherits_from: stack1a
+  variables:
+    stack_def?:
+      a: '2a-a'
+      b: '2a-b'
+
+stack1b:
+  inherits_from: base
+  variables:
+    stack_def:
+      a: '1b-a'
+
+stack2b:
+  inherits_from: stack1b
+  variables:
+    stack_def?:
+      b: '2b-b'
+
+

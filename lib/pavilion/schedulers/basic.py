@@ -62,18 +62,23 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
 
             node_range = calc_node_range(sched_config, sched_config['cluster_info']['node_count'])
 
+            job_name = 'pav {}'.format(test.name)
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
-                job_name='pav test {} ({})'.format(test.full_id, test.name),
+                job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                picked_nodes=node_range,
-            )
+                node_range=node_range)
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(pav_cfg, job, sched_config)
+            job.info = self._kickoff(
+                pav_cfg=pav_cfg,
+                job=job,
+                sched_config=sched_config,
+                job_name=job_name,
+                node_range=node_range)
             test.job = job
             test.status.set(STATES.SCHEDULED,
                             "Test kicked off with the {} scheduler".format(self.name))

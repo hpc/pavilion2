@@ -1,0 +1,3 @@
+%YAML 1.1
+---
+!!str "some escape characters are \ncorrect, but this one \?\nis not\n"

@@ -13,21 +13,28 @@ class SchedulerVariables(VarDict):
 class of this that contains all the variable functions it provides.
 
 To add a scheduler variable, create a method and decorate it with
-either ``@sched_var`` or ``@dfr_sched_var()``. The method name will be the
-variable name, and the method will be called to resolve the variable
-value. Methods that start with '_' are ignored.
+either ``@var_method`` or ``@dfr_var_method``. Only methods tagged with
+either of those will be given as variables, so you're free to create any support
+methods as needed.
 
-Naming Conventions:
+Variables should be given lower case names, with words separated with underscores.
+Variables that are prefixed with 'test_*' are specific to a given test (or job). These
+are often deferred. All other variables should not be deferred.
 
-'alloc_*'
-  Variable names should be prefixed with 'alloc\\_' if they are deferred.
+This class is meant to be inherited from - each scheduler can provide its own set of variables
+in addition to these defaults, and may also provide different implementations of
+each variable. Most schedulers can get away with overriding one variable - the 'test_cmd'
+method. See the documentation for that method below for more information.
 
-'test_*'
-  Variable names prefixed with test denote that the variable
-  is specific to a test. These also tend to be deferred.
+Return values of all variables should be the same format as those allowed by regular test
+variables: a string, a list of strings, a dict (with string keys and values), or a list
+of such dicts.
+
+Scheduler variables are requested once per test run by Pavilion when it is created, and again for
+each test right before it runs on an allocation in order to un-defer values.
 """
 
-    # Only deferred vars need examples.
+    # Only deferred vars need examples. The rest will be pulled automatically.
     EXAMPLE = {
         'chunk_ids': ['0', '1', '2', '3'],
         'errors': ['oh no, there was an error.'],
@@ -149,10 +156,21 @@ Naming Conventions:
 
     @var_method
     def test_cmd(self):
-        """The command to prepend to a line to kick it off under the
-        scheduler. This is blank by default, but most schedulers will
-        want to define something that utilizes relevant scheduler
-        parameters."""
+        """The command to prepend to a line to kick it off under the scheduler.
+
+        This should return the command needed to start one or more MPI processes within
+        an existing allocation. This is often `mpirun`, but may be something more specific.
+        This command should be given options, as appropriate, such that the MPI process
+        is started with the options specified in `self._sched_config`. In most cases,
+        these options won't be necessary, as the MPI command while simply inherit what was
+        provided when the job was created.
+
+        Tests may share jobs. While node selection and other high level settings will
+        be identical for each test, Pavilion reserves the option to allow tests to run with
+        modified node-lists within an allocation. This means you should always specify that
+
+
+        """
 
         _ = self
 

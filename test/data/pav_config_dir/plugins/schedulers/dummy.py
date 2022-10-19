@@ -93,7 +93,8 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
     def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
         return NodeInfo(node_data)
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name,
+                 nodes=None, node_range=None) -> JobInfo:
 
         subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)

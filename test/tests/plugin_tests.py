@@ -42,7 +42,7 @@ class PluginTests(PavTestCase):
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
         pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
-                               self.TEST_DATA_ROOT/'pav_config_dir2']
+                               self.TEST_DATA_ROOT/'secondary_plugins']
 
         for path in pav_cfg.config_dirs:
             self.assertTrue(path.exists())
@@ -66,7 +66,7 @@ class PluginTests(PavTestCase):
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2'])
+            self.TEST_DATA_ROOT/'secondary_plugins'])
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -82,8 +82,8 @@ class PluginTests(PavTestCase):
 
         pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2',
-            self.TEST_DATA_ROOT / 'pav_config_dir_conflicts'])
+            self.TEST_DATA_ROOT/'secondary_plugins',
+            self.TEST_DATA_ROOT / 'conflicting_plugins'])
 
         self.assertRaises(pavilion.errors.PluginError,
                           lambda: plugins.initialize_plugins(pav_cfg))
@@ -125,7 +125,7 @@ class PluginTests(PavTestCase):
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2'])
+            self.TEST_DATA_ROOT/'secondary_plugins'])
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
 
