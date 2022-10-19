@@ -352,6 +352,8 @@ class VarCatElem(yc.CategoryElem):
         """Check that every key in 'new' exists in 'old'. Returns the first
          string found that doesn't match or None if everything is fine."""
 
+        _ = self
+
         for key in new:
             if key not in old:
                 return key
