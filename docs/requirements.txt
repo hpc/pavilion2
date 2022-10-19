@@ -1,3 +1,4 @@
 # Requirements for building documentation.
 
 sphinx > 4.0
+sphinx_rtd_theme
