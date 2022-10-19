@@ -7,7 +7,7 @@ import subprocess
 import time
 import uuid
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, Tuple
 
 from pavilion.jobs import JobInfo, Job
 from pavilion.status_file import STATES, TestStatusInfo
@@ -106,7 +106,9 @@ class Raw(SchedulerPluginBasic):
 
         return True
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name: str,
+                 nodes: Union[NodeList, None] = None,
+                 node_range: Union[Tuple[int, int], None] = None) -> JobInfo:
         """Run the kickoff script in a separate process. The job id a
         combination of the hostname and pid.
         """

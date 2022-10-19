@@ -97,16 +97,47 @@ class ResolverTests(PavTestCase):
         """Make sure default variables work as expected."""
 
         tests = self.resolver.load(
-            tests=['defaulted.test'],
+            tests=['defaulted'],
             host='defaulted',
             modes=['defaulted'],
         )
 
-        cfg = tests[0].config
-        self.assertEqual(cfg['variables']['host_def'], ['host'])
-        self.assertEqual(cfg['variables']['mode_def'], ['mode'])
-        self.assertEqual(cfg['variables']['test_def'], ['test'])
-        self.assertNotIn('no_val', cfg['variables'])
+        def find_test(tests, name):
+            """Find a test with the given name in the list of tests and return it."""
+            for test in tests:
+                if name in test.config['name']:
+                    return test
+            raise ValueError("Could not find test {}".format(name))
+
+        test_vars = find_test(tests, 'base').config['variables']
+
+        # These make sure variable defaults with sub-dicts are resolved
+        # properly.
+        stack1a_vars = find_test(tests, 'stack1a').config['variables']
+        stack1b_vars = find_test(tests, 'stack1b').config['variables']
+        stack2a_vars = find_test(tests, 'stack2a').config['variables']
+        stack2b_vars = find_test(tests, 'stack2b').config['variables']
+
+        self.assertEqual(test_vars['host_def'], [{None: 'host'}])
+        self.assertEqual(test_vars['mode_def'], [{None: 'mode'}])
+        self.assertEqual(test_vars['test_def'], [{None: 'test'}])
+        self.assertEqual(test_vars['stack_def'], [{'a': 'base', 'b': 'base'}])
+        self.assertNotIn('no_val', test_vars)
+
+        # stack1 just sets defaults all the way up, so the values
+        # at each level should just be the defaults set at that level.
+        self.assertEqual(stack1a_vars['stack_def'][0]['a'], '1a-a')
+        self.assertEqual(stack1a_vars['stack_def'][0]['b'], '1a-b')
+        self.assertEqual(stack2a_vars['stack_def'][0]['a'], '2a-a')
+        self.assertEqual(stack2a_vars['stack_def'][0]['b'], '2a-b')
+
+        # Stack2 sets 'a' but not 'b', so 'b' should be 'base' except
+        # at stack2b, where the default is changed. 'a' should be '1b-a'
+        # at levels higher than 'base'
+        self.assertEqual(stack1b_vars['stack_def'][0]['a'], '1b-a')
+        self.assertEqual(stack1b_vars['stack_def'][0]['b'], 'base')
+        self.assertEqual(stack2b_vars['stack_def'][0]['a'], '1b-a')
+        self.assertEqual(stack2b_vars['stack_def'][0]['b'], '2b-b')
 
         with self.assertRaises(TestConfigError):
             self.resolver.load(
@@ -114,6 +145,25 @@ class ResolverTests(PavTestCase):
                 host='defaulted',
                 modes=['defaulted'],
             )
+
+    def test_variable_consistency(self):
+        """Make sure the variable consistency checks catch what they're supposed to."""
+
+        bad_tests = [
+            'var_consistency.empty_var_list',
+            'var_consistency.empty_var',
+            'var_consistency.empty_subvar',
+            # TODO: There's some resolver work need to make these functional.
+            #'var_consistency.inconsistent_var1',
+            #'var_consistency.inconsistent_var2',
+            'var_consistency.inconsistent_var3',
+            'var_consistency.inconsistent_var4',
+            'var_consistency.foo',
+        ]
+
+        for bad_test in bad_tests:
+            with self.assertRaises(TestConfigError):
+                self.resolver.load([bad_test])
 
     def test_extended_variables(self):
         """Make sure default variables work as expected."""
@@ -125,18 +175,20 @@ class ResolverTests(PavTestCase):
         )
 
         cfg = tests[0].config
-        self.assertEqual(cfg['variables']['long_base'],
-                         ['what', 'are', 'you', 'up', 'to', 'punk?'])
+        long_answer = ['checking', 'for', 'proper', 'extending', 'including',
+                       'including', 'including', 'duplicates']
+        long_answer = [{None: word} for word in long_answer]
+        self.assertEqual(cfg['variables']['long_base'], long_answer)
         self.assertEqual(cfg['variables']['single_base'],
-                         ['host', 'test', 'mode'])
+                         [{None: key} for key in ['host', 'test', 'mode']])
         self.assertEqual(cfg['variables']['no_base_mode'],
-                         ['mode'])
+                         [{None: 'mode'}])
         self.assertEqual(cfg['variables']['no_base'],
-                         ['test'])
+                         [{None: 'test'}])
         self.assertEqual(cfg['variables']['null_base_mode'],
-                         ['mode'])
+                         [{None: 'mode'}])
         self.assertEqual(cfg['variables']['null_base'],
-                         ['test'])
+                         [{None: 'test'}])
 
     def test_apply_overrides(self):
         """Make sure overrides get applied to test configs correctly."""
@@ -148,6 +200,8 @@ class ResolverTests(PavTestCase):
             'run.cmds.0="echo nope"',
             # An item that doesn't exist (and must be normalized by yaml_config)
             'variables.foo="hello"',
+            # A complex variable value
+            'variables.bar={"hello": "world"}'
         ]
 
         bad_overrides = [

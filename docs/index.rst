@@ -61,6 +61,7 @@ Project goals:
    :caption: API Documentation
 
    source/index.rst
+   yaml_config_docs/index.rst
 
 .. toctree::
    :maxdepth: 2
