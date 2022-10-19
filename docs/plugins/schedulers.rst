@@ -62,12 +62,14 @@ All scheduler plugin require that you extend the base class by providing:
    Pavilion is currently running under.
 5. An ``available()`` method, to tell Pavilion if your scheduler can be used at all.
 
+
 Advanced schedulers must also override the following. They are fully documented
 in the 'pavilion.schedulers.advanced.SchedulerPluginAdvanced' class.
 
 1. ``_get_raw_node_data()`` - Should fetch and return a list of information about each node.
     This is the per-node information mentioned above.
 2. ``_transform_raw_node_data()`` - Converts that data into a '{node: info_dict}' dictionary.
+
    There are several required keys each node's info_dict must contain, see the method
    documentation for info on the required and optional keys.
 
@@ -80,6 +82,7 @@ Scheduler Variables
 Every scheduler should also include a scheduler variables class, assigned to your
 class's 'VAR_CLASS' class variable. This provides information from the scheduler
 for each test to use in it's configuration, such as ``sched.test_nodes`` (the
+for each test to use in it's configuration, such as `sched.test_nodes` (the
 number of nodes in the test's allocation). The base class uses information given
 by the scheduler plugin and the test's configuration to figure out 99% of these
 on its own. You'll only need to override a few.
