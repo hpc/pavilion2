@@ -532,8 +532,8 @@ class ResultParserTests(PavTestCase):
                 'data15': {'col2': None, 'col3': 'data18'}
             },
             'table4': {
-                'row_11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
-                'row_41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
+                '11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
+                '41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
                 'item1': {'colb': 'item2', 'colc': 'item3', 'cold': 'item4'},
                 'item13': {'colb': 'item14', 'colc': 'item15', 'cold':
                            'item16'},
