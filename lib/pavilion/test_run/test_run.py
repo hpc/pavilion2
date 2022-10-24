@@ -275,7 +275,7 @@ class TestRun(TestAttributes):
         self._write_script(
             'build',
             path=self.build_script_path,
-            config=self.config.get('build', {}))
+            config=self.config.get('build', {}),)
 
         self.builder = self._make_builder()
         self.build_name = self.builder.name

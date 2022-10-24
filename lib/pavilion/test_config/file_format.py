@@ -773,6 +773,31 @@ expected to be added to by various plugins.
                       "strings). Other result values (including those "
                       "from result parsers and other evaluations are "
                       "available to reference as variables."),
+        yc.CategoryElem(
+            'module_wrappers',
+            help_text="Whenever the given module[/version] is asked for in the 'build.modules' "
+                      "or 'run.modules' section, perform these module actions instead and "
+                      "export the given environment variables. When this module is requested via "
+                      "a 'swap', do the swap as written but set the given environment variables. "
+                      "Nothing special is done for module unloads of this module. "
+                      "If a version is given, this only applies to that specific version.",
+            sub_elem=yc.KeyedElem(
+                elements=[
+                    yc.ListElem(
+                        'modules', sub_elem=yc.StrElem(),
+                        help_text="Modules to load/remove/swap when the given module"
+                                  "is specified. Loads and swaps into the wrapped module "
+                                  "will automatically be at the requested version if none "
+                                  "is given.  (IE - If the user asks for gcc/5.2, a "
+                                  "listing of just 'gcc' here will load 'gcc/5.2')."),
+                    EnvCatElem(
+                        'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
+                        help_text="Environment variables to set after performing the "
+                                  "given module actions. A '<MODNAME_VERSION>' variable "
+                                  "will also be set with the specified version, if given.")
+                ]
+            )
+        ),
     ]
     """Each YamlConfig instance in this list defines a key for the test config.
 
