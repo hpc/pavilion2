@@ -56,6 +56,26 @@ class StatusCommand(Command):
         series."""
 
         try:
+            ids = []
+            for test_range in args.tests:
+                if '-' in test_range:
+                   test_ids = test_range.split('-')
+                   if test_ids[0].startswith('s') and test_ids[1].startswith('s'):
+                       series_range_start = test_ids[0].replace('s','')
+                       series_range_end = test_ids[1].replace('s','')
+                       series_ids = range(int(series_range_start), int(series_range_end)+1)
+                       for sid in series_ids:
+                           ids.append('s' + str(sid))
+                   else:
+                       test_range_start = int(test_ids[0])
+                       test_range_end = int(test_ids[1])
+                       test_ids = range(test_range_start, test_range_end+1)
+                       for tid in test_ids:
+                           ids.append(str(tid))
+                else:
+                    ids.append(test_range)
+            args.tests = ids
+
             test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
         except ValueError as err:
             output.fprint(self.errfile, err, color=output.RED)
