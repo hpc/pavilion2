@@ -1,6 +1,7 @@
 """Print out the contents of the various log files for a given test run.
 """
 import errno
+import time
 
 from pavilion import errors
 from pavilion import output
@@ -86,8 +87,13 @@ class LogCommand(Command):
         )
 
         parser.add_argument(
-            '--tail', '-n', default=None, required=False,
+            '--tail', '-n', default=None, required=False, type=int,
             help="Output the last N lines."
+        )
+
+        parser.add_argument(
+            '--follow', '-f', action='store_true',
+            help="Prints the log to the terminal as its being written."
         )
 
     LOG_PATHS = {
@@ -129,9 +135,15 @@ class LogCommand(Command):
             file_name = test.path/self.LOG_PATHS[cmd_name]
 
         if not file_name.exists():
-            output.fprint(self.errfile, "Log file does not exist: {}"
-                          .format(file_name), color=output.RED)
-            return 1
+            if args.follow:
+                while not file_name.exists():
+                    output.fprint(self.outfile, cmd_name, 'log doesn\'t exist. Checking again...',
+                    end='\r', flush=True)
+                    time.sleep(.5)
+            else:
+                output.fprint(self.errfile, "Log file does not exist: {}"
+                                .format(file_name), color=output.RED)
+                return 1
 
         try:
             with file_name.open() as file:
@@ -141,6 +153,13 @@ class LogCommand(Command):
                         output.fprint(self.outfile, line)
                 else:
                     output.fprint(self.outfile, file.read(), width=None, end='')
+                if args.follow:
+                    while True:
+                        data = file.read()
+                        if not data:
+                            time.sleep(.5)
+                        else:
+                            output.fprint(self.outfile, data, end='', flush=True)
 
         except (IOError, OSError) as err:
             output.fprint(self.errfile, "Could not read log file '{}'"
