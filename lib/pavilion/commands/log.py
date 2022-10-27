@@ -21,6 +21,8 @@ class LogCommand(Command):
         )
 
         self._parser = None
+        follow_testing = False
+
 
     def _setup_arguments(self, parser):
 
@@ -160,6 +162,8 @@ class LogCommand(Command):
                             time.sleep(.5)
                         else:
                             output.fprint(self.outfile, data, end='', flush=True)
+                            if self.follow_testing:
+                                break
 
         except (IOError, OSError) as err:
             output.fprint(self.errfile, "Could not read log file '{}'"
