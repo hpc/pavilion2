@@ -23,7 +23,6 @@ class LogCommand(Command):
         self._parser = None
         follow_testing = False
 
-
     def _setup_arguments(self, parser):
 
         subparsers = parser.add_subparsers(

@@ -1,8 +1,8 @@
 import argparse
 import io
 import sys
-import time
 import threading
+import time
 
 import pavilion.commands
 import pavilion.schedulers
