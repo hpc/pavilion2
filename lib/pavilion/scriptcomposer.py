@@ -110,15 +110,12 @@ class ScriptComposer:
         module_obj = module_wrapper.get_module_wrapper(name, version, config_wrappers)
 
         if action == 'load':
-            mod_act, mod_env = module_obj.load(sys_vars, version)
+            mod_act, mod_env = module_obj.load(sys_vars, name, version)
 
         elif action == 'unload':
-            mod_act, mod_env = module_obj.unload(sys_vars, version)
+            mod_act, mod_env = module_obj.unload(sys_vars, name, version)
         elif action == 'swap':
-            mod_act, mod_env = module_obj.swap(sys_vars,
-                                               oldname,
-                                               oldver,
-                                               requested_version=version)
+            mod_act, mod_env = module_obj.swap(sys_vars, oldname, oldver, name, version)
         else:
             # This is not an expected error
             raise RuntimeError("Invalid Module action '{}'".format(action))
