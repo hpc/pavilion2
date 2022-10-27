@@ -52,22 +52,24 @@ the 'pavilion.schedulers.scheduler.SchedulerPlugin' class.
 
 All scheduler plugin require that you extend the base class by providing:
 
-1. A 'kickoff' method - a means to acquire an allocation given the scheduler parameters
+1. A ``_kickoff()`` method - a means to acquire an allocation given the scheduler parameters
    and run a script on it. Also needs to return a 'serializable' job id, to uniquely
    identify a scheduler job.
-2. A 'job_status' method, that asks the scheduler whether a given job id is
+2. A ``job_status()`` method, that asks the scheduler whether a given job id is
    scheduled, had a scheduling error, was cancelled, or is running.
-3. A 'cancel' method, to cancel a given job id.
-4. A '_get_alloc_nodes' method, to get the list of nodes in an allocation that
+3. A ``cancel()`` method, to cancel a given job id.
+4. A ``_get_alloc_nodes()`` method, to get the list of nodes in an allocation that
    Pavilion is currently running under.
-5. An 'available' method, to tell Pavilion if your scheduler can be used at all.
+5. An ``available()`` method, to tell Pavilion if your scheduler can be used at all.
+
 
 Advanced schedulers must also override the following. They are fully documented
 in the 'pavilion.schedulers.advanced.SchedulerPluginAdvanced' class.
 
-1. '_get_raw_node_data' - Should fetch and return a list of information about each node.
+1. ``_get_raw_node_data()`` - Should fetch and return a list of information about each node.
     This is the per-node information mentioned above.
-2. '_transform_row_node data' - Converts that data into a '{node: info_dict}' dictionary.
+2. ``_transform_raw_node_data()`` - Converts that data into a '{node: info_dict}' dictionary.
+
    There are several required keys each node's info_dict must contain, see the method
    documentation for info on the required and optional keys.
 
@@ -79,6 +81,7 @@ Scheduler Variables
 
 Every scheduler should also include a scheduler variables class, assigned to your
 class's 'VAR_CLASS' class variable. This provides information from the scheduler
+for each test to use in it's configuration, such as ``sched.test_nodes`` (the
 for each test to use in it's configuration, such as `sched.test_nodes` (the
 number of nodes in the test's allocation). The base class uses information given
 by the scheduler plugin and the test's configuration to figure out 99% of these
@@ -128,7 +131,7 @@ Scheduler plugins initialize much like other Pavilion plugins:
             )
 
 Most customization is through method overrides and a few class variables that
-we'll cover later.  There is also a `SchedulerPluginBasic` which allows for working
+we'll cover later.  There is also a ``SchedulerPluginBasic`` which allows for working
 with schedulers with a much reduced feature set.
 
 
@@ -137,12 +140,12 @@ with schedulers with a much reduced feature set.
 Configuraton
 ~~~~~~~~~~~~
 
-Pavilion has unified scheduler plugin configuration into the `schedule` section. Not all keys from
+Pavilion has unified scheduler plugin configuration into the 'schedule' section. Not all keys from
 this section will apply to your scheduler, and that's ok. Most keys are handled automatically given
 the information gathered on nodes.
 
 You can also, optionally, add a scheduler specific configuration section. To do this, you'll need
-to override the `_get_config_elems()` method. This method returns three items:
+to override the ``_get_config_elems()`` method. This method returns three items:
 
   1. A list of YamlConfig Elements.
   2. A dictionary of validation/normalization functions. These will be called to
@@ -159,7 +162,7 @@ The Slurm scheduler plugin provides a solid example of this, but in general:
     and value formats), and CategoryElem (a dict with mostly unlimited keys, and a shared
     value format).
   - Validators for individual keys are optional, but you should do str to int conversion and value
-    range checking. These can take several forms, see the `SchedulerPlugin._get_config_elems()`
+    range checking. These can take several forms, see the ``SchedulerPlugin._get_config_elems()``
     method documentation.
   - Don't use the built-in validation and default options for the yaml_config objects,
     use the validation callbacks/objects and defaults dictionary returned by the function
@@ -170,24 +173,24 @@ Kicking Off Tests
 
 Pavilion scheduler plugins generate a kickoff script for each job - a script that will
 be handed to the scheduler to be run within the allocation. That script will run Pavilion
-one or more times within that allocation, starting a `run.sh` script for each test. It's
-the responsibility of the `run.sh` script to actually run applications under MPI, either
-with `mpirun`, `srun`, or similar.
+one or more times within that allocation, starting a ``run.sh`` script for each test. It's
+the responsibility of the ``run.sh`` script to actually run applications under MPI, either
+with ``mpirun``, ``srun``, or similar.
 
-Many schedulers rely on a header information in that `kickoff` script to relay to
+Many schedulers rely on a header information in that ``kickoff`` script to relay to
 the scheduler what the settings for the allocation should be. This is header is optional - the
-default header adds nothing to the file except a `#!/bin/bash` line. If you need to
+default header adds nothing to the file except a ``#!/bin/bash`` line. If you need to
 define header lines, you'll need to create a class that inherits from
-`pavilion.schedulers.scheduler.KickoffScriptHeader`, and override the
-`_kickoff_lines` method. This method simply returns a list of header lines
+``pavilion.schedulers.scheduler.KickoffScriptHeader``, and override the
+``_kickoff_lines()`` method. This method simply returns a list of header lines
 to add.
 
-Alternatively, when writing your `_kickoff` method, you can simply pass any relevant
+Alternatively, when writing your ``_kickoff`` method, you can simply pass any relevant
 information about the job to the scheduler directly through the command line
 or API calls.
 
 Either way, there are a set of parameters that must be passed on to the scheduler. These
-are described in the `SchedulerPlugin._kickoff` docstring. You can safely ignore parameters
+are described in the ``SchedulerPlugin._kickoff`` docstring. You can safely ignore parameters
 that aren't supported by your scheduler.
 
 
@@ -251,7 +254,7 @@ need to make sure to include the base environment in most cases.
 Job Id's
 ^^^^^^^^
 
-Regardless of how you kickoff a test, you must capture a 'job id' for it, and return it
+Regardless of how you kickoff a test, you must capture a job id for it, and return it
 as part of a JobInfo object (which is really just a dict). All scheduler commands that act on a
 job, like cancel, will have access to this object either directly or through an attached test.
 
@@ -305,7 +308,7 @@ example in how simple this can be.
 Finding the Allocation Nodes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The `_get_alloc_nodes()` method needs to be overridden to find the list of nodes for
+The ``_get_alloc_nodes()`` method needs to be overridden to find the list of nodes for
 a test's allocation. This will always be called only from within the allocation - typically
 the scheduler sets an environment variable with this information.
 
@@ -328,8 +331,8 @@ Advanced Scheduler Methods
 If you're trying to write an advanced scheduler plugin using the 'SchedulerPluginAdvanced'
 parent class, there are a couple more methods to override.  These are:
 
-- '_get_raw_node_data()' - A method to gather raw information on the cluster's nodes.
-- '_transform_raw_node_data' - A method that translates that same data into a dictionary of
+- ``_get_raw_node_data()`` - A method to gather raw information on the cluster's nodes.
+- ``_transform_raw_node_data`` - A method that translates that same data into a dictionary of
   information about each node.
 
 For information on overriding each of these, refer to the doc strings for each as defined
@@ -353,7 +356,7 @@ Scheduler Variables
 The second part of creating a scheduler plugin is adding a set of variables that
 test configs can use to manipulate their test. The vast majority of these are automatically
 derived from the information you gathered about the nodes for Advanced scheduler plugins or
-via the `schedule.cluster_info` test configuration information for Basic scheduler plugins.
+via the ``schedule.cluster_info`` test configuration information for Basic scheduler plugins.
 
 Pavilion provides a framework for creating these variables, the
 ``pavilion.schedulers.vars.SchedulerVariables`` class. By inheriting from this
@@ -362,9 +365,9 @@ methods to your child class. The decorators do most of the hard work, you
 simply have create and return the value. The class itself provides good documentation
 on how to do this.
 
-The most important variable in all of these is the `test_cmd` variable, which is probably the
+The most important variable in all of these is the ``test_cmd`` variable, which is probably the
 only variable that will need to be customized for your scheduler plugin. It provides
-tests with an mpi startup command, such as `mpirun`, with arguments automatically set
+tests with an mpi startup command, such as ``mpirun``, with arguments automatically set
 according to the test's settings. Pavilion tests generally use this variable to prefix
 their mpi runs when writing their run scripts:
 
@@ -380,7 +383,7 @@ their mpi runs when writing their run scripts:
         cmds:
           - '{{test_cmd}} ./my_mpi_cmd'
 
-How to write a `test_cmd` variable is documented in the `SchedulerVariables.test_cmd()` method's
+How to write a ``test_cmd`` variable is documented in the ``SchedulerVariables.test_cmd()`` method's
 doc string.
 
 
