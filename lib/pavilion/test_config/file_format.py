@@ -12,7 +12,7 @@ from typing import Union
 import yaml_config as yc
 from pavilion.errors import TestConfigError
 
-TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
+TEST_NAME_RE_STR = r'^[a-zA-Z0-9_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
