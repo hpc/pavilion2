@@ -611,8 +611,7 @@ class TestConfigResolver:
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
                         "Test suite '{}' has a YAML Error"
-                        .format(test_suite_path, err)
-                    )
+                        .format(test_suite_path), err)
                 except TypeError as err:
                     # All config elements in test configs must be strings,
                     # and just about everything converts cleanly to a string.
@@ -761,8 +760,7 @@ class TestConfigResolver:
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
                         "Host config '{}' has a YAML Error"
-                        .format(host_cfg_path, err)
-                    )
+                        .format(host_cfg_path), err)
                 except TypeError as err:
                     # All config elements in test configs must be strings,
                     # and just about everything converts cleanly to a string.
@@ -810,8 +808,7 @@ class TestConfigResolver:
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Mode config '{}' has a YAML Error"
-                    .format(mode_cfg_path, err)
-                )
+                    .format(mode_cfg_path), err)
             except TypeError as err:
                 # All config elements in test configs must be strings, and just
                 # about everything converts cleanly to a string.
@@ -935,8 +932,7 @@ class TestConfigResolver:
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a YAML Error"
-                    .format(test_name, suite_path, err)
-                )
+                    .format(test_name, suite_path), err)
             except TypeError as err:
                 # See the same error above when loading host configs.
                 raise RuntimeError(
@@ -1184,7 +1180,7 @@ class TestConfigResolver:
         last_key = None
 
         # Normalize simple variable values.
-        if key[0] == 'variables' and len(key) in (2,3):
+        if key[0] == 'variables' and len(key) in (2, 3):
             is_var_value = True
         else:
             is_var_value = False
@@ -1265,8 +1261,8 @@ class TestConfigResolver:
         elif isinstance(value, (list, tuple)):
             return [self.normalize_override_value(v) for v in value]
         elif isinstance(value, dict):
-            dict_val =  {str(k): self.normalize_override_value(v)
-                         for k, v in value.items()}
+            dict_val = {str(k): self.normalize_override_value(v)
+                        for k, v in value.items()}
 
             if is_var_value:
                 # Normalize a single dict item into a list of them for variables.
