@@ -1124,7 +1124,7 @@ be set by the scheduler plugin as soon as it's known."""
                 script.newline()
                 script.comment('Install spack packages.')
                 for package in install_packages:
-                    script.command('spack install -v --fail-fast {} || exit 1'
+                    script.command('spack install -v --add --fail-fast {} || exit 1'
                                    .format(package))
 
             if load_packages:
