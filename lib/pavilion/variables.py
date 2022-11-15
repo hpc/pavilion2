@@ -22,6 +22,7 @@ provided (sched).
 import collections
 import copy
 import json
+import lark
 from typing import Union, List, Tuple
 
 from pavilion import parsers
@@ -302,8 +303,11 @@ index, sub_var) tuple.
                         self.resolved_user_vars.append(var_tpl)
                         continue
 
-                    tree = parser.parse(val)
-                    tree_vars = var_visitor.visit(tree)
+                    try:
+                        tree = parser.parse(val)
+                        tree_vars = var_visitor.visit(tree)
+                    except (lark.LarkError, lark.LexError) as err:
+                        raise VariableError(var=var, index=idx, sub_var=key, prior_error=err)
 
                     if tree_vars:
                         # Unresolved variable reference that will be resolved
@@ -337,7 +341,8 @@ index, sub_var) tuple.
                         r_var_set, r_var, r_index, r_subvar = ref_key = self.resolve_key(var_str)
                     except KeyError as err:
                         raise VariableError("Key '{}'referenced by user variable '{}' could "
-                                            "not be parsed.".format(var_str, uvar), err)
+                                            "not be parsed.".format(var_str, uvar), 
+                                            prior_error=err)
 
                     if r_var_set != 'var' and r_var_set not in self.variable_sets:
                         # The variable set for this reference hasn't been loaded yet.
