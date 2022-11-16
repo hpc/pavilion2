@@ -1,8 +1,9 @@
 """Print out the contents of the various log files for a given test run.
 """
 import errno
+import os
 import time
-
+from pathlib import Path
 from pavilion import errors
 from pavilion import output
 from pavilion import series, series_config
@@ -21,7 +22,6 @@ class LogCommand(Command):
         )
 
         self._parser = None
-        follow_testing = False
 
     def _setup_arguments(self, parser):
 
@@ -107,6 +107,7 @@ class LogCommand(Command):
 
     def run(self, pav_cfg, args):
         """Figure out which log the user wants and print it."""
+        follow_testing = False
 
         if args.log_cmd is None:
             self._parser.print_help(self.outfile)
@@ -137,6 +138,52 @@ class LogCommand(Command):
 
         if not file_name.exists():
             if args.follow:
+                if 'build' in cmd_name:
+                    file_name = Path(pav_cfg.working_dir, 'test_runs/', args.id,
+                                'build/pav_build_log')
+                    build_hash_log = ''
+                    line_count = 0
+
+                    if not file_name.exists():
+                        status_file = Path(pav_cfg.working_dir, 'test_runs/', args.id, 'status')
+                        with status_file.open() as file:
+                            for line in file:
+                                if 'BUILDING Starting build' in line:
+                                    *_, build_hash = line.split()
+                                    build_hash = build_hash[:-1]
+                                    hash_log = '{}.log'.format(build_hash)
+                                    build_hash_log = Path(pav_cfg.working_dir, 'builds/',
+                                                     hash_log)
+                                    print(build_hash_log)
+                        
+                        while not build_hash_log.exists():
+                            output.fprint(self.outfile, 'hash log doesn\'t exist. Checking again...', 
+                            end='\r', flush=True)
+                            if file_name.exists():
+                                break
+                            time.sleep(.5)
+
+                        with build_hash_log.open() as file:
+                            for line_count, line in enumerate(file):
+                                output.fprint(self.outfile, line, width=None, end='', flush=True)
+                            file.seek(0,2)
+                            while not file_name.exists():
+                                line = file.readline()
+                                if line:
+                                    output.fprint(self.outfile, line, width=None, end='', flush=True)
+                                    line_count += 1
+                                else: 
+                                    time.sleep(.5)
+
+                    with file_name.open() as file:
+                        file.seek(0,2)
+                        while True:
+                            data = file.read()
+                            if not data:
+                                time.sleep(.5)
+                            else:
+                                output.fprint(self.outfile, data, end='', flush=True)
+
                 while not file_name.exists():
                     output.fprint(self.outfile, cmd_name, 'log doesn\'t exist. Checking again...',
                     end='\r', flush=True)
