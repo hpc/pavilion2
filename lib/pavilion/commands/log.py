@@ -142,7 +142,6 @@ class LogCommand(Command):
                     file_name = Path(pav_cfg.working_dir, 'test_runs/', args.id,
                                 'build/pav_build_log')
                     build_hash_log = ''
-                    line_count = 0
 
                     if not file_name.exists():
                         status_file = Path(pav_cfg.working_dir, 'test_runs/', args.id, 'status')
@@ -154,7 +153,6 @@ class LogCommand(Command):
                                     hash_log = '{}.log'.format(build_hash)
                                     build_hash_log = Path(pav_cfg.working_dir, 'builds/',
                                                      hash_log)
-                                    print(build_hash_log)
                         
                         while not build_hash_log.exists():
                             output.fprint(self.outfile, 'hash log doesn\'t exist. Checking again...', 
@@ -164,14 +162,13 @@ class LogCommand(Command):
                             time.sleep(.5)
 
                         with build_hash_log.open() as file:
-                            for line_count, line in enumerate(file):
+                            for line in file:
                                 output.fprint(self.outfile, line, width=None, end='', flush=True)
                             file.seek(0,2)
                             while not file_name.exists():
                                 line = file.readline()
                                 if line:
                                     output.fprint(self.outfile, line, width=None, end='', flush=True)
-                                    line_count += 1
                                 else: 
                                     time.sleep(.5)
 
