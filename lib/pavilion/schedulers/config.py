@@ -11,6 +11,9 @@ class ScheduleConfig(yc.KeyedElem):
     """Scheduling configuration."""
 
     ELEMENTS = [
+        yc.StrElem('core_spec',
+            help_text="The count identifies the number of cores to be reserved"
+                      " for system overhead on each allocated compute node."),
         yc.StrElem(
             'nodes',
             help_text="The number of nodes to acquire to scheduler the job as "
@@ -436,6 +439,7 @@ CONFIG_VALIDATORS = {
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'core_spec':        None,
     'reservation':      None,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
