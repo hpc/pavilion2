@@ -154,7 +154,7 @@ class CondCategoryElem(yc.CategoryElem):
 class EvalCategoryElem(yc.CategoryElem):
     """Allow keys that start with underscore. Lowercase only."""
 
-    _NAME_RE = re.compile(r'[a-z_][a-z0-9_]*')
+    _NAME_RE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
 
 
 class VarKeyCategoryElem(yc.CategoryElem):
