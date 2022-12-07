@@ -59,6 +59,23 @@ class RoundPlugin(CoreFunctionPlugin):
         return round(val)
 
 
+class LogPlugin(CoreFunctionPlugin):
+    """Take the log of the given number to the given base."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="log",
+            arg_specs=(num, num))
+
+    @staticmethod
+    def log(val: num, base: num):
+        """Take the log of the given number to the given base."""
+
+        return math.log(val, base)
+
+
 class FloorPlugin(CoreFunctionPlugin):
     """Get the floor of the given number."""
 
