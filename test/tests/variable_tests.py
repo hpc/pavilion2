@@ -13,13 +13,13 @@ class TestVariables(PavTestCase):
 
         data = {
             'var1': 'val1',
-            'var2': ['0', '1', '2'],
+            'Var2': ['0', '1', '2'],
             'var3': {'subvar1': 'subval1',
-                     'subvar2': 'subval2'},
-            'var4': [{'subvar1': 'subval0_1',
-                      'subvar2': 'subval0_2'},
+                     'Subvar2': 'subval2'},
+            'VAR4': [{'subvar1': 'subval0_1',
+                      'SUBVAR2': 'subval0_2'},
                      {'subvar1': 'subval1_1',
-                      'subvar2': 'subval1_2'}]
+                      'SUBVAR2': 'subval1_2'}]
         }
 
         sys_data = {
@@ -44,27 +44,27 @@ class TestVariables(PavTestCase):
         self.assertEqual(vsetm['var.var1.0'], 'val1')
 
         # Implicit Index
-        self.assertEqual(vsetm['var2'], '0')
+        self.assertEqual(vsetm['Var2'], '0')
         # Explicit Index, set name
-        self.assertEqual(vsetm['var.var2.2'], '2')
+        self.assertEqual(vsetm['var.Var2.2'], '2')
         # Negative Indexes are allowed (this one is at the edge of the range).
-        self.assertEqual(vsetm['var.var2.-3'], '0')
+        self.assertEqual(vsetm['var.Var2.-3'], '0')
         # Check the length of a variable list
-        self.assertEqual(vsetm.len('var', 'var2'), 3)
+        self.assertEqual(vsetm.len('var', 'Var2'), 3)
 
         # Subkeys, when there's just one.
         self.assertEqual(vsetm['var3.subvar1'], 'subval1')
-        self.assertEqual(vsetm['var3.subvar2'], 'subval2')
+        self.assertEqual(vsetm['var3.Subvar2'], 'subval2')
         # Subkey with explicit index
-        self.assertEqual(vsetm['var3.0.subvar2'], 'subval2')
+        self.assertEqual(vsetm['var3.0.Subvar2'], 'subval2')
 
         # Multiple subkeys
-        self.assertEqual(vsetm['var4.0.subvar1'], 'subval0_1')
+        self.assertEqual(vsetm['VAR4.0.subvar1'], 'subval0_1')
         # Implicit index
-        self.assertEqual(vsetm['var4.subvar1'], 'subval0_1')
-        self.assertEqual(vsetm['var4.1.subvar1'], 'subval1_1')
-        self.assertEqual(vsetm['var4.0.subvar2'], 'subval0_2')
-        self.assertEqual(vsetm['var4.1.subvar2'], 'subval1_2')
+        self.assertEqual(vsetm['VAR4.subvar1'], 'subval0_1')
+        self.assertEqual(vsetm['VAR4.1.subvar1'], 'subval1_1')
+        self.assertEqual(vsetm['VAR4.0.SUBVAR2'], 'subval0_2')
+        self.assertEqual(vsetm['VAR4.1.SUBVAR2'], 'subval1_2')
 
         # Explicit access to conflicting variable
         self.assertEqual(vsetm['sys.var1'], 'sys.val1')
