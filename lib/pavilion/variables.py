@@ -1,4 +1,3 @@
-
 """This module contains functions and classes for building variable sets for
 string insertion.
 
@@ -22,9 +21,9 @@ provided (sched).
 import collections
 import copy
 import json
-import lark
 from typing import Union, List, Tuple
 
+import lark
 from pavilion import parsers
 from pavilion.deferred import DeferredVariable
 from pavilion.errors import DeferredError, VariableError, StringParserError, ParserValueError
@@ -341,7 +340,7 @@ index, sub_var) tuple.
                         r_var_set, r_var, r_index, r_subvar = ref_key = self.resolve_key(var_str)
                     except KeyError as err:
                         raise VariableError("Key '{}'referenced by user variable '{}' could "
-                                            "not be parsed.".format(var_str, uvar), 
+                                            "not be parsed.".format(var_str, uvar),
                                             prior_error=err)
 
                     if r_var_set != 'var' and r_var_set not in self.variable_sets:
@@ -358,7 +357,7 @@ index, sub_var) tuple.
                         # If the var references a whole list of items,
                         # make sure all are resolved.
                         if [key for key in unresolved_vars
-                                if (key[:2], key[3]) == (ref_key[:2], ref_key[3])]:
+                            if (key[:2], key[3]) == (ref_key[:2], ref_key[3])]:
                             resolvable_now = False
                             # Check if all were skipped due to 'skip_deps'
                             if not [key for key in skipped_resolve
@@ -521,11 +520,11 @@ index, sub_var) tuple.
         # See set_deferred for the cases...
         return (
             # This is generally deferred
-            (var_set, var, None, None) in self.deferred or
-            # A specific simple value.
-            (var_set, var, idx, None) in self.deferred or
-            # A specific sub-value.
-            (var_set, var, idx, sub_var) in self.deferred)
+                (var_set, var, None, None) in self.deferred or
+                # A specific simple value.
+                (var_set, var, idx, None) in self.deferred or
+                # A specific sub-value.
+                (var_set, var, idx, sub_var) in self.deferred)
 
     def any_deferred(self, key: Union[str, tuple]) -> bool:
         """Return whether any members of the given variable are deferred."""

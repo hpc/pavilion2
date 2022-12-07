@@ -1061,8 +1061,8 @@ class TestConfigResolver:
             # Resolve what references we can in variables, but refuse to resolve any based on
             # permute vars. (Note this does handle any recursive references properly)
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
-            try: 
-                resolved, _ = base_var_man.resolve_references(partial=True, 
+            try:
+                resolved, _ = base_var_man.resolve_references(partial=True,
                                                               skip_deps=basic_per_vars)
             except VariableError as err:
                 raise TestConfigError("Error resolving variable references (progressive).", err)
@@ -1093,7 +1093,7 @@ class TestConfigResolver:
         for var_man in var_men:
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
             try:
-                _, could_resolve = var_man.resolve_references(partial=True, 
+                _, could_resolve = var_man.resolve_references(partial=True,
                                                               skip_deps=basic_per_vars)
             except VariableError as err:
                 raise TestConfigError("Error resolving variable references (post-prog).", err)
@@ -1108,7 +1108,7 @@ class TestConfigResolver:
         # Everything left at this point will require the sched vars to deal with.
         all_var_men = []
         for var_man in var_men:
-            try: 
+            try:
                 var_man.resolve_references(partial=True)
             except VariableError as err:
                 raise TestConfigError("Error resolving variable references (pre-sched).", err)
@@ -1135,7 +1135,7 @@ class TestConfigResolver:
                 var_man.resolve_references()
             except VariableError as err:
                 raise TestConfigError("Error resolving variable references (final).", err)
-                
+
 
             # And do the rest of the permutations.
             all_var_men.extend(var_man.get_permutations(used_per_vars))
