@@ -1,0 +1,16 @@
+bad_var_syntax:
+  
+  variables:
+    var1: '{{ .foo }}'
+
+bad_var_ref:
+  variables:
+    var1: '{{ var2 }}'
+
+bad_ref:
+  run: 
+    cmds: '{{ nope }}'
+
+bad_syntax:
+  run: 
+    cmds: '{{ .nope }}'
