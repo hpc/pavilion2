@@ -19,7 +19,7 @@ jobs:
       with:
         submodules: recursive
       
-    - name: Set up Python 3.6
+    - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
         python-version: "3.10"
@@ -119,7 +119,7 @@ jobs:
       run: ./test/run_tests -o 'doc*' -q
 
   unittests-3_6:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: 
         - style
         - docs

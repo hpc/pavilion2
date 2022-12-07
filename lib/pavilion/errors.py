@@ -60,8 +60,10 @@ class PavilionError(RuntimeError):
                 if not isinstance(next_msg, str):
                     next_msg = str(next_msg)
 
-                lines.extend(textwrap.wrap(next_msg, width, initial_indent=indent,
-                                           subsequent_indent=indent))
+                msg_parts = next_msg.split('\n')
+                for msg_part in msg_parts:
+                    lines.extend(textwrap.wrap(msg_part, width, initial_indent=indent,
+                                               subsequent_indent=indent))
                 if next_exc.data:
                     data = pprint.pformat(next_exc.data, width=width - tab_level * 2)
                     for line in data.split('\n'):
@@ -73,8 +75,11 @@ class PavilionError(RuntimeError):
                     msg = next_exc.args[0]
                 else:
                     msg = str(next_exc)
-                lines.extend(textwrap.wrap(msg, width, initial_indent=indent,
-                                           subsequent_indent=indent))
+
+                msg_parts = msg.split('\n')
+                for msg_part in msg_parts:
+                    lines.extend(textwrap.wrap(msg_part, width, initial_indent=indent,
+                                               subsequent_indent=indent))
                 next_exc = None
 
         return '\n'.join(lines)
@@ -97,7 +102,8 @@ class VariableError(PavilionError):
     """This error should be thrown when processing variable data,
 and something goes wrong."""
 
-    def __init__(self, message='', var_set=None, var=None, index=None, sub_var=None):
+    def __init__(self, message='', var_set=None, var=None, index=None, sub_var=None,
+                 prior_error=None):
 
         self.raw_message = message
         self.var_set = var_set
@@ -120,7 +126,7 @@ and something goes wrong."""
 
         message = "Error processing variable key '{}': {}".format(key, ''.join(message))
 
-        super().__init__(message)
+        super().__init__(message, prior_error=prior_error)
 
     def __reduce__(self):
 
