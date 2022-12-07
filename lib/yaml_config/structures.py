@@ -213,7 +213,7 @@ class _DictElem(ConfigElement):
     def __init__(self, key_case=None, **kwargs):
 
         if key_case is None:
-            key_case = self.KC_LOWER
+            key_case = self.KC_MIXED
 
         if key_case not in (self.KC_LOWER, self.KC_UPPER, self.KC_MIXED):
             raise ValueError(
@@ -283,7 +283,7 @@ class KeyedElem(_DictElem):
     type = ConfigDict
     _type_name = ''
 
-    def __init__(self, name=None, elements=None, key_case=_DictElem.KC_LOWER,
+    def __init__(self, name=None, elements=None, key_case=_DictElem.KC_MIXED,
                  **kwargs):
         """
         :param key_case: Must be one of the <cls>.KC_* values. Determines
@@ -524,7 +524,7 @@ class CategoryElem(_DictElem):
     _type_name = ''
 
     def __init__(self, name=None, sub_elem=None, defaults=None, allow_empty_keys=False,
-                 key_case=_DictElem.KC_LOWER, **kwargs):
+                 key_case=_DictElem.KC_MIXED, **kwargs):
         """Initialize the Config Element.
         :param name: The name of this Config Element
         :param ConfigElement sub_elem: The type all keys in this mapping must
