@@ -63,8 +63,8 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'regex': {
-                    'basic': {'regex': r'.* World'},
-                    'bc': {
+                    'Basic': {'regex': r'.* World'},
+                    'BC': {
                         'regex': r'.: (\d)',
                         'preceded_by': [r'^B:', r'^C:'],
                         'match_select': 'all',
@@ -176,8 +176,8 @@ class ResultParserTests(PavTestCase):
         results = test.gather_results(0)
 
         expected = {
-            'basic': 'Hello World',
-            'bc': [5],
+            'Basic': 'Hello World',
+            'BC': [5],
             'bcd': [5],
             'bees': [2, 3, 6],
             'last_b': 6,
@@ -455,7 +455,7 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'table': {
-                    'table1': {
+                    'Table1': {
                         'delimiter_re': r'\|',
                         'col_names': ['cola', 'soda', 'pop'],
                         'preceded_by': ['table1', '', ''],
@@ -505,7 +505,7 @@ class ResultParserTests(PavTestCase):
         }
 
         expected = {
-            'table1': {
+            'Table1': {
                 'data1': {'cola': 3,    'soda': 'data4', 'pop': None},
                 'data2': {'cola': 8,    'soda': 'data5', 'pop': None},
                 'data3': {'cola': None, 'soda': 'data6', 'pop': None},
@@ -605,8 +605,8 @@ class ResultParserTests(PavTestCase):
     def test_evaluate(self):
 
         ordered = OrderedDict()
-        ordered['val_a'] = '3'
-        ordered['val_b'] = 'val_a + 1'
+        ordered['Val_a'] = '3'
+        ordered['val_b'] = 'Val_a + 1'
 
         base_cfg = self._quick_test_cfg()
         base_cfg['run']['cmds'] = [
@@ -634,10 +634,10 @@ class ResultParserTests(PavTestCase):
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
 
             # Check basic math.
-            ({'val_a': '3',
-              'val_b': 'val_a + val_c',
-              'val_c': 'val_a*2'},
-             {'val_a': 3, 'val_b': 9, 'val_c': 6}),
+            ({'Val_a': '3',
+              'val_b': 'Val_a + val_c',
+              'val_c': 'Val_a*2'},
+             {'Val_a': 3, 'val_b': 9, 'val_c': 6}),
 
             # Check list operations.
             ({'list_ops': '[1, 2, 3] == 2'},
