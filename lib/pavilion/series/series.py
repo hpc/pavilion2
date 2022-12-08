@@ -461,8 +461,7 @@ differentiate it from test ids."""
                                             .format(ktests, kicked_off, test_set.name, self.sid))
                     except TestSetError as err:
                         self.set_complete()
-                        raise TestSeriesError(
-                            "Error in series '{}': {}".format(self.sid, err.args[0]))
+                        raise TestSeriesError("Error in series '{}'".format(self.sid), err)
 
                     # If there's any sort of limit to the number of simultaneous tests
                     # then wait for each test set to complete before starting the
