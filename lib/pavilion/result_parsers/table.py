@@ -169,10 +169,6 @@ class Table(ResultParser):
                 if not row_label:
                     row_label = 'row_{}'.format(row_idx)
 
-                # Row labels can't start with a number.
-                if row_label[0] in '0123456789':
-                    row_label = 'row_{}'.format(row_label)
-
                 if row_label and row_label in table:
                     row_label = '{}_{}'.format(row_label, row_idx)
             else:

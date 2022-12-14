@@ -837,3 +837,21 @@ class ResolverTests(PavTestCase):
             test = 'permute_order.{}'.format(test)
             tests = self.resolver.load([test])
             self.assertEqual(len(tests), count)
+
+    def test_parse_error(self):
+        """Make sure errors in parsing are handled properly."""
+
+
+        for test_name in (
+                'bad_var_syntax',
+                'bad_var_ref',
+                'bad_ref', 
+                'bad_syntax',
+                ):
+            test_name = 'parse_errors.{}'.format(test_name)
+            
+            with self.assertRaises(TestConfigError):
+                self.resolver.load([test_name])
+
+
+
