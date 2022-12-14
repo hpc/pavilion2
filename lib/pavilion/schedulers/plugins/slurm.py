@@ -37,6 +37,9 @@ slurm kickoff script.
         lines.append(
             '#SBATCH --job-name "{}"'.format(job_name))
 
+        core_spec = self._config['core_spec']
+        if core_spec:
+            lines.append('#SBATCH --core-spec {}'.format(core_spec))
         partition = self._config['partition']
         if partition:
             lines.append('#SBATCH -p {}'.format(partition))

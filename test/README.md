@@ -29,7 +29,8 @@ too, and this will make debugging a lot easier.
 python3 -m venv <path to your venv>
 source <path to your venv>/bin/activate
 pip install --upgrade pip
-pip install pylint sphinx
+pip install -r test/requirements.txt
+pip install -r docs/requirements.txt
 ```
 
 Then just activate your virtual environment before running tests.

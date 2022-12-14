@@ -392,9 +392,9 @@ class TestConfigResolver:
 
             except TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}' \
-                    .format(test_cfg['name'], test_cfg['suite_path'], err)
+                    .format(test_cfg['name'], test_cfg['suite_path'])
 
-                raise TestConfigError(msg)
+                raise TestConfigError(msg, err)
         complete = 0
 
         if not permuted_tests:
@@ -611,8 +611,7 @@ class TestConfigResolver:
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
                         "Test suite '{}' has a YAML Error"
-                        .format(test_suite_path, err)
-                    )
+                        .format(test_suite_path), err)
                 except TypeError as err:
                     # All config elements in test configs must be strings,
                     # and just about everything converts cleanly to a string.
@@ -761,8 +760,7 @@ class TestConfigResolver:
                 except yc_yaml.YAMLError as err:
                     raise TestConfigError(
                         "Host config '{}' has a YAML Error"
-                        .format(host_cfg_path, err)
-                    )
+                        .format(host_cfg_path), err)
                 except TypeError as err:
                     # All config elements in test configs must be strings,
                     # and just about everything converts cleanly to a string.
@@ -810,8 +808,7 @@ class TestConfigResolver:
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Mode config '{}' has a YAML Error"
-                    .format(mode_cfg_path, err)
-                )
+                    .format(mode_cfg_path), err)
             except TypeError as err:
                 # All config elements in test configs must be strings, and just
                 # about everything converts cleanly to a string.
@@ -935,8 +932,7 @@ class TestConfigResolver:
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a YAML Error"
-                    .format(test_name, suite_path, err)
-                )
+                    .format(test_name, suite_path), err)
             except TypeError as err:
                 # See the same error above when loading host configs.
                 raise RuntimeError(
@@ -1065,7 +1061,11 @@ class TestConfigResolver:
             # Resolve what references we can in variables, but refuse to resolve any based on
             # permute vars. (Note this does handle any recursive references properly)
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
-            resolved, _ = base_var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
+            try:
+                resolved, _ = base_var_man.resolve_references(partial=True,
+                                                              skip_deps=basic_per_vars)
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (progressive).", err)
 
             # Convert to the same format as our per_vars
             resolved = [('var', var) for var in resolved]
@@ -1092,7 +1092,11 @@ class TestConfigResolver:
         all_var_men = []
         for var_man in var_men:
             basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
-            _, could_resolve = var_man.resolve_references(partial=True, skip_deps=basic_per_vars)
+            try:
+                _, could_resolve = var_man.resolve_references(partial=True,
+                                                              skip_deps=basic_per_vars)
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (post-prog).", err)
 
             # Resolve permutations only for those 'could_resolve' variables that
             # we actually permute over.
@@ -1104,7 +1108,11 @@ class TestConfigResolver:
         # Everything left at this point will require the sched vars to deal with.
         all_var_men = []
         for var_man in var_men:
-            var_man.resolve_references(partial=True)
+            try:
+                var_man.resolve_references(partial=True)
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (pre-sched).", err)
+
             sched_cfg = test_cfg.get('schedule', {})
             try:
                 sched_cfg = resolve.test_config(sched_cfg, var_man)
@@ -1123,7 +1131,11 @@ class TestConfigResolver:
 
             var_man.add_var_set('sched', sched_vars)
             # Now we can really fully resolve all the variables.
-            var_man.resolve_references()
+            try:
+                var_man.resolve_references()
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (final).", err)
+
 
             # And do the rest of the permutations.
             all_var_men.extend(var_man.get_permutations(used_per_vars))
@@ -1184,7 +1196,7 @@ class TestConfigResolver:
         last_key = None
 
         # Normalize simple variable values.
-        if key[0] == 'variables' and len(key) in (2,3):
+        if key[0] == 'variables' and len(key) in (2, 3):
             is_var_value = True
         else:
             is_var_value = False
@@ -1265,8 +1277,8 @@ class TestConfigResolver:
         elif isinstance(value, (list, tuple)):
             return [self.normalize_override_value(v) for v in value]
         elif isinstance(value, dict):
-            dict_val =  {str(k): self.normalize_override_value(v)
-                         for k, v in value.items()}
+            dict_val = {str(k): self.normalize_override_value(v)
+                        for k, v in value.items()}
 
             if is_var_value:
                 # Normalize a single dict item into a list of them for variables.
