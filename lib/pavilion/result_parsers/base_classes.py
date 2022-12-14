@@ -14,7 +14,7 @@ from pavilion.result.options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
                                      PER_NAME_LIST, PER_ALL, PER_ANY, PER_FILES, MATCH_UNIQ,
                                      MATCH_FIRST, MATCH_LAST, MATCH_ALL, MATCH_CHOICES,
                                      ACTION_STORE, ACTION_STORE_STR, ACTION_TRUE,
-                                     ACTION_FALSE, ACTION_COUNT, ACTIONS)
+                                     ACTION_FALSE, ACTION_COUNT, ACTIONS, ACTION_STORE_SUM)
 from pavilion.test_config import file_format
 from yapsy import IPlugin
 
@@ -285,12 +285,14 @@ deferred args. On error, should raise a ResultParserError.
                 "  the value's type(default).\n"
                 "{STORE_STR} - Just store the value, with no type "
                 "conversion.\n"
+                "{STORE_SUM} - Store the sum of all found (numeric) values\n"
                 "{TRUE} - Store True if there was a result.\n"
                 "{FALSE} - Store True for no result.\n"
                 "{COUNT} - Count the number of results.\n"
                 .format(
                     STORE=ACTION_STORE,
                     STORE_STR=ACTION_STORE_STR,
+                    STORE_SUM=ACTION_STORE_SUM,
                     TRUE=ACTION_TRUE,
                     FALSE=ACTION_FALSE,
                     COUNT=ACTION_COUNT))
