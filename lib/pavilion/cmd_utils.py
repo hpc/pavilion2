@@ -68,7 +68,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                 test_range_end = int(id_end)
                 test_ids = range(test_range_start, test_range_end+1)
                 for tid in test_ids:
-                   ids.append(str(tid))
+                    ids.append(str(tid))
         else:
             ids.append(test_range)
     args.tests = ids
