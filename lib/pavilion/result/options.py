@@ -61,6 +61,7 @@ def store_values(stor: dict, keys: str, values: Any) -> List[str]:
 
 ACTION_STORE = 'store'
 ACTION_STORE_STR = 'store_str'
+ACTION_STORE_SUM = 'store_sum'
 ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
 ACTION_COUNT = 'count'
@@ -83,10 +84,27 @@ def action_count(raw_val):
         return None
 
 
+def action_store_sum(raw_val):
+    """Store the sum of the found values."""
+
+    if isinstance(raw_val, list):
+        val_sum = None
+        for val in raw_val:
+            val = auto_type_convert(val)
+            if isinstance(val, (int, float)):
+                if val_sum is None:
+                    val_sum = val
+                else:
+                    val_sum += val
+        return val_sum
+    else:
+        return None
+
 # Action functions should take the raw value and convert it to a final value.
 ACTIONS = {
     ACTION_STORE: action_store,
     ACTION_STORE_STR: lambda raw_val: raw_val,
+    ACTION_STORE_SUM: action_store_sum,
     ACTION_COUNT: action_count,
     ACTION_TRUE: lambda raw_val: raw_val not in NON_MATCH_VALUES,
     ACTION_FALSE: lambda raw_val: raw_val in NON_MATCH_VALUES,

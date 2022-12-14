@@ -105,6 +105,12 @@ class ResultParserTests(PavTestCase):
                         'for_lines_matching': r'nothing',
                         'match_select':       base_classes.MATCH_FIRST,
                     },
+                    'b_sum': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select': 'all',
+                        'action': 'store_sum',
+                    },
                     'mp1, _  ,   mp3': {
                         'regex': r'Multipass (\d), (\d), (\d)'
                     },
@@ -180,6 +186,7 @@ class ResultParserTests(PavTestCase):
             'BC': [5],
             'bcd': [5],
             'bees': [2, 3, 6],
+            'b_sum': 11,
             'last_b': 6,
             'middle_b': 3,
             'other_middle_b': 3,
