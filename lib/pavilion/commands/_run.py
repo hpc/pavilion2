@@ -120,7 +120,7 @@ class _RunCommand(Command):
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "
-                            "run time. See'pav log kickoff {}' for the "
+                            "run time. See 'pav log kickoff {}' for the "
                             "full error.".format(test.id))
             raise
 
