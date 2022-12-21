@@ -61,6 +61,10 @@ def store_values(stor: dict, keys: str, values: Any) -> List[str]:
 
 ACTION_STORE = 'store'
 ACTION_STORE_STR = 'store_str'
+ACTION_STORE_SUM = 'store_sum'
+ACTION_STORE_MIN = 'store_min'
+ACTION_STORE_MED = 'store_med'
+ACTION_STORE_MAX = 'store_max'
 ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
 ACTION_COUNT = 'count'
@@ -83,10 +87,88 @@ def action_count(raw_val):
         return None
 
 
+def action_store_sum(raw_val):
+    """Store the sum of the found values."""
+
+    if isinstance(raw_val, list):
+        val_sum = None
+        for val in raw_val:
+            val = auto_type_convert(val)
+            if isinstance(val, (int, float)):
+                if val_sum is None:
+                    val_sum = val
+                else:
+                    val_sum += val
+        return val_sum
+    else:
+        return None
+
+def action_store_min(raw_val):
+    """Stores the min of the found values."""
+
+    if isinstance(raw_val, list):
+        val_min = None
+        for val in raw_val:
+            val = auto_type_convert(val)
+            if isinstance(val, (int, float)):
+                if val_min is None:
+                    val_min = val
+                else:
+                    if val_min > val:
+                        val_min = val
+        return val_min
+    else:
+        return None
+
+def action_store_med(raw_val):
+    """Stores the medium of the found values."""
+
+    if isinstance(raw_val, list):
+        val_med = None
+        values = []
+        for val in raw_val:
+            val = auto_type_convert(val)
+            if isinstance(val, (int, float)):
+                values.append(val)
+
+        values.sort()
+        values_length = len(values)
+        if not values_length % 2 == 0:
+            val_med = values[(values_length // 2) - 1]
+        else:
+            middle_val = values[(values_length // 2) - 1]
+            middle_val_2  = values[(values_length // 2)]
+            val_med = (middle_val + middle_val_2) / 2
+
+        return val_med
+    else:
+        return None
+
+def action_store_max(raw_val):
+    """Stores the maximum of the found values."""
+
+    if isinstance(raw_val, list):
+        val_max = None
+        for val in raw_val:
+            val = auto_type_convert(val)
+            if isinstance(val, (int, float)):
+                if val_max is None:
+                    val_max = val
+                else:
+                    if val_max < val:
+                        val_max = val
+        return val_max
+    else:
+        return None
+
 # Action functions should take the raw value and convert it to a final value.
 ACTIONS = {
     ACTION_STORE: action_store,
     ACTION_STORE_STR: lambda raw_val: raw_val,
+    ACTION_STORE_SUM: action_store_sum,
+    ACTION_STORE_MIN: action_store_min, 
+    ACTION_STORE_MED: action_store_med,
+    ACTION_STORE_MAX: action_store_max, 
     ACTION_COUNT: action_count,
     ACTION_TRUE: lambda raw_val: raw_val not in NON_MATCH_VALUES,
     ACTION_FALSE: lambda raw_val: raw_val in NON_MATCH_VALUES,

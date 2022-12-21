@@ -46,14 +46,14 @@ class ResultParserTests(PavTestCase):
                     'echo "Hello World."',
                     'echo "Goodbye Cruel World."',
                     'echo "Multipass 1, 2, 3"',
-                    'echo "A: 1"',
-                    'echo "B: 2"',
-                    'echo "B: 3"',
-                    'echo "C: 4"',
-                    'echo "D: 5"',
+                    'echo "A: 5"',
                     'echo "B: 6"',
-                    'echo "D: 7"',
-                    'echo "E: 8"',
+                    'echo "B: 2"',
+                    'echo "C: 4"',
+                    'echo "D: 8"',
+                    'echo "B: 3"',
+                    'echo "D: 1"',
+                    'echo "E: 7"',
                     'echo "In a World where..." >> other.log',
                     'echo "What in the World" >> other.log',
                     'echo "something happens..." >> other2.log',
@@ -63,8 +63,8 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'regex': {
-                    'basic': {'regex': r'.* World'},
-                    'bc': {
+                    'Basic': {'regex': r'.* World'},
+                    'BC': {
                         'regex': r'.: (\d)',
                         'preceded_by': [r'^B:', r'^C:'],
                         'match_select': 'all',
@@ -104,6 +104,30 @@ class ResultParserTests(PavTestCase):
                         'regex':              r'.*',
                         'for_lines_matching': r'nothing',
                         'match_select':       base_classes.MATCH_FIRST,
+                    },
+                    'b_sum': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select': 'all',
+                        'action': 'store_sum',
+                    },
+                    'min': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_min',
+                    },
+                    'med': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_med',
+                    },
+                    'max': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_max',
                     },
                     'mp1, _  ,   mp3': {
                         'regex': r'Multipass (\d), (\d), (\d)'
@@ -176,13 +200,17 @@ class ResultParserTests(PavTestCase):
         results = test.gather_results(0)
 
         expected = {
-            'basic': 'Hello World',
-            'bc': [5],
-            'bcd': [5],
-            'bees': [2, 3, 6],
-            'last_b': 6,
-            'middle_b': 3,
-            'other_middle_b': 3,
+            'Basic': 'Hello World',
+            'BC': [8],
+            'bcd': [8],
+            'bees': [6, 2, 3],
+            'b_sum': 11,
+            'min': 1,
+            'med': 4.5,
+            'max': 8,
+            'last_b': 3,
+            'middle_b': 2,
+            'other_middle_b': 2,
             'no_lines_match': [],
             'no_lines_match_last': None,
             'true': True,
@@ -455,7 +483,7 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'table': {
-                    'table1': {
+                    'Table1': {
                         'delimiter_re': r'\|',
                         'col_names': ['cola', 'soda', 'pop'],
                         'preceded_by': ['table1', '', ''],
@@ -505,7 +533,7 @@ class ResultParserTests(PavTestCase):
         }
 
         expected = {
-            'table1': {
+            'Table1': {
                 'data1': {'cola': 3,    'soda': 'data4', 'pop': None},
                 'data2': {'cola': 8,    'soda': 'data5', 'pop': None},
                 'data3': {'cola': None, 'soda': 'data6', 'pop': None},
@@ -605,8 +633,8 @@ class ResultParserTests(PavTestCase):
     def test_evaluate(self):
 
         ordered = OrderedDict()
-        ordered['val_a'] = '3'
-        ordered['val_b'] = 'val_a + 1'
+        ordered['Val_a'] = '3'
+        ordered['val_b'] = 'Val_a + 1'
 
         base_cfg = self._quick_test_cfg()
         base_cfg['run']['cmds'] = [
@@ -634,10 +662,10 @@ class ResultParserTests(PavTestCase):
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
 
             # Check basic math.
-            ({'val_a': '3',
-              'val_b': 'val_a + val_c',
-              'val_c': 'val_a*2'},
-             {'val_a': 3, 'val_b': 9, 'val_c': 6}),
+            ({'Val_a': '3',
+              'val_b': 'Val_a + val_c',
+              'val_c': 'Val_a*2'},
+             {'Val_a': 3, 'val_b': 9, 'val_c': 6}),
 
             # Check list operations.
             ({'list_ops': '[1, 2, 3] == 2'},
