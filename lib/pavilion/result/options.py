@@ -63,7 +63,8 @@ ACTION_STORE = 'store'
 ACTION_STORE_STR = 'store_str'
 ACTION_STORE_SUM = 'store_sum'
 ACTION_STORE_MIN = 'store_min'
-ACTION_STORE_MED = 'store_med'
+ACTION_STORE_MEDIAN = 'store_median'
+ACTION_STORE_MEAN = 'store_mean'
 ACTION_STORE_MAX = 'store_max'
 ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
@@ -107,21 +108,20 @@ def action_store_min(raw_val):
     """Stores the min of the found values."""
 
     if isinstance(raw_val, list):
-        val_min = None
+        values = []
         for val in raw_val:
             val = auto_type_convert(val)
             if isinstance(val, (int, float)):
-                if val_min is None:
-                    val_min = val
-                else:
-                    if val_min > val:
-                        val_min = val
-        return val_min
+                values.append(val)
+        if len(values) is not None:
+            return min(values)
+        else:
+            return None
     else:
         return None
 
-def action_store_med(raw_val):
-    """Stores the medium of the found values."""
+def action_store_median(raw_val):
+    """Stores the median of the found values."""
 
     if isinstance(raw_val, list):
         val_med = None
@@ -133,14 +133,36 @@ def action_store_med(raw_val):
 
         values.sort()
         values_length = len(values)
-        if not values_length % 2 == 0:
-            val_med = values[(values_length // 2) - 1]
+        if values_length is not None:
+            if not values_length % 2 == 0:
+                val_med = values[(values_length // 2) - 1]
+            else:
+                middle_val = values[(values_length // 2) - 1]
+                middle_val_2  = values[(values_length // 2)]
+                val_med = (middle_val + middle_val_2) / 2
+            return val_med
         else:
-            middle_val = values[(values_length // 2) - 1]
-            middle_val_2  = values[(values_length // 2)]
-            val_med = (middle_val + middle_val_2) / 2
+            return None
+    else:
+        return None
 
-        return val_med
+def action_store_mean(raw_val):
+    """Stores the mean of the found values."""
+
+    if isinstance(raw_val, list):
+        val_med = None
+        values = []
+        for val in raw_val:
+            val = auto_type_convert(val)
+            if isinstance(val, (int, float)):
+                values.append(val)
+
+        values_length = len(values)
+        if values_length is not None:
+            mean = sum(values)/values_length
+            return mean
+        else:
+            return None
     else:
         return None
 
@@ -148,16 +170,15 @@ def action_store_max(raw_val):
     """Stores the maximum of the found values."""
 
     if isinstance(raw_val, list):
-        val_max = None
+        values = []
         for val in raw_val:
             val = auto_type_convert(val)
             if isinstance(val, (int, float)):
-                if val_max is None:
-                    val_max = val
-                else:
-                    if val_max < val:
-                        val_max = val
-        return val_max
+                values.append(val)
+        if len(values) is not None:
+            return max(values)
+        else:
+            return None
     else:
         return None
 
@@ -167,7 +188,8 @@ ACTIONS = {
     ACTION_STORE_STR: lambda raw_val: raw_val,
     ACTION_STORE_SUM: action_store_sum,
     ACTION_STORE_MIN: action_store_min,
-    ACTION_STORE_MED: action_store_med,
+    ACTION_STORE_MEDIAN: action_store_median,
+    ACTION_STORE_MEAN: action_store_mean,
     ACTION_STORE_MAX: action_store_max,
     ACTION_COUNT: action_count,
     ACTION_TRUE: lambda raw_val: raw_val not in NON_MATCH_VALUES,

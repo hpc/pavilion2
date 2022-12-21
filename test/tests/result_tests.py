@@ -121,7 +121,13 @@ class ResultParserTests(PavTestCase):
                         'regex': r'.: (\d)',
                         'for_lines_matching': r'^[A-E]:',
                         'match_select': 'all',
-                        'action': 'store_med',
+                        'action': 'store_median',
+                    },
+                    'mean': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_mean',
                     },
                     'max': {
                         'regex': r'.: (\d)',
@@ -207,6 +213,7 @@ class ResultParserTests(PavTestCase):
             'b_sum': 11,
             'min': 1,
             'med': 4.5,
+            'mean': 4.5,
             'max': 8,
             'last_b': 3,
             'middle_b': 2,
