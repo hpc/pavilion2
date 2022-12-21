@@ -194,8 +194,8 @@ class LogCommand(Command):
                         with file_name.open() as file:
                             position = self.print_log(position, file)
                             time.sleep(self.sleep_timeout)
-                            if self.follow_testing:
-                                break
+                        if self.follow_testing:
+                            break
 
         except (IOError, OSError) as err:
             output.fprint(self.errfile, "Could not read log file '{}'"

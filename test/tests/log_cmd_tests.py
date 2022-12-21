@@ -145,5 +145,5 @@ class LogCmdTest(PavTestCase):
         with (test.path/'run.log').open('a') as runlog:
             runlog.write('output \n')
         thread.join(timeout=5)
-        out, err = log_cmd.clear_output()
-        self.assertIn('output', out)
+        with (test.path/'run.log').open('r') as runlog:
+            self.assertIn('output', runlog.read())
