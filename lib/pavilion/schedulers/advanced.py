@@ -255,6 +255,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         nodes = list(self._node_lists[node_list_id])
 
         chunk_size = sched_config['chunking']['size']
+        if isinstance(chunk_size, float):
+            chunk_size = int(len(nodes) * chunk_size)
         # Chunk size 0/null is all the nodes.
         if chunk_size in (0, None) or chunk_size > len(nodes):
             chunk_size = len(nodes)
@@ -321,6 +323,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             chunk_extra = sched_config['chunking']['extra']
 
             node_list = self._node_lists[node_list_id]
+            if isinstance(chunk_size, float):
+                chunk_size = int(len(node_list) * chunk_size)
             if chunk_size in (None, 0) or chunk_size > len(node_list):
                 chunk_size = len(node_list)
 
@@ -404,9 +408,13 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     indi_tests.append(test)
                 del share_groups[acq_opts]
 
+        test = []
         for acq_opts, tests in share_groups.items():
-            node_range = acq_opts[0]
-            self._schedule_shared_chunk(pav_cfg, tests, node_range, sched_configs, chunk)
+            for x in range(len(tests)):
+                test.append(tests[x])
+                node_range = acq_opts[0]
+                self._schedule_shared_chunk(pav_cfg, test, node_range, sched_configs, chunk)
+                test.clear()
 
         self._schedule_flex_chunk(pav_cfg, flex_tests, sched_configs, chunk)
         self._schedule_indi_chunk(pav_cfg, indi_tests, sched_configs, chunk)
@@ -485,7 +493,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
-                job.save_node_data(self._nodes)
+                job.save_node_data(node_info)
             except JobError as err:
                 raise SchedulerPluginError("Error creating job.", err)
 
