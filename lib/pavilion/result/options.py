@@ -113,7 +113,7 @@ def action_store_min(raw_val):
             val = auto_type_convert(val)
             if isinstance(val, (int, float)):
                 values.append(val)
-        if len(values) is not None:
+        if len(values) != 0:
             return min(values)
         else:
             return None
@@ -133,7 +133,7 @@ def action_store_median(raw_val):
 
         values.sort()
         values_length = len(values)
-        if values_length is not None:
+        if values_length != 0:
             if not values_length % 2 == 0:
                 val_med = values[(values_length // 2) - 1]
             else:
@@ -158,7 +158,7 @@ def action_store_mean(raw_val):
                 values.append(val)
 
         values_length = len(values)
-        if values_length is not None:
+        if values_length != 0:
             mean = sum(values)/values_length
             return mean
         else:
@@ -175,7 +175,7 @@ def action_store_max(raw_val):
             val = auto_type_convert(val)
             if isinstance(val, (int, float)):
                 values.append(val)
-        if len(values) is not None:
+        if len(values) != 0:
             return max(values)
         else:
             return None
