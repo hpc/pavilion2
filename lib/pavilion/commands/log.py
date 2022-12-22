@@ -2,6 +2,7 @@
 """
 import errno
 import os
+import sys
 import time
 
 from pavilion import errors
@@ -115,6 +116,11 @@ class LogCommand(Command):
         if end_position > current_position:
             current_position = end_position
             output.fprint(self.outfile, data, end='\n', flush=True)
+            if self.follow_testing:
+                sys.exit()
+        else:
+            time.sleep(self.sleep_timeout)
+
         return current_position
 
     def run(self, pav_cfg, args):
@@ -165,7 +171,7 @@ class LogCommand(Command):
                                     output.fprint(self.errfile, cmd_name,
                                                   'log doesn\'t exist. Checking again...',
                                                   end='\r', color=output.RED, flush=True)
-                            time.sleep(self.sleep_timeout)
+                                time.sleep(self.sleep_timeout)
                 else:
                     while not file_name.exists():
                         output.fprint(self.errfile, cmd_name,
@@ -193,9 +199,6 @@ class LogCommand(Command):
                     while True:
                         with file_name.open() as file:
                             position = self.print_log(position, file)
-                            time.sleep(self.sleep_timeout)
-                        if self.follow_testing:
-                            break
 
         except (IOError, OSError) as err:
             output.fprint(self.errfile, "Could not read log file '{}'"
