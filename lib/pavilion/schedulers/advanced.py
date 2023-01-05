@@ -431,7 +431,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     bins[i % bin_count].append(test)
                 for test_bin in bins:
                     if test_bin:
-                        self._schedule_shared_chunk(pav_cfg, test_bin, node_range, sched_configs, chunk)
+                        self._schedule_shared_chunk(pav_cfg, test_bin, node_range, sched_configs,
+                                                    chunk)
 
         self._schedule_flex_chunk(pav_cfg, flex_tests, sched_configs, chunk)
         self._schedule_indi_chunk(pav_cfg, indi_tests, sched_configs, chunk)
