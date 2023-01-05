@@ -510,7 +510,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
-                job.save_node_data(node_info)
+                job.save_node_data(self._nodes)
             except JobError as err:
                 raise SchedulerPluginError("Error creating job.", err)
 
