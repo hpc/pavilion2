@@ -15,6 +15,7 @@ from .base_classes import Command
 class LogCommand(Command):
     """Print the contents of log files for test runs."""
 
+    file_found = False
     follow_testing = False
     sleep_timeout = 1
 
@@ -110,6 +111,8 @@ class LogCommand(Command):
     }
 
     def print_log(self, current_position, file):
+        if self.file_found:
+            output.clear_line(self.outfile)
         file.seek(current_position)
         data = file.read()
         end_position = file.tell()
@@ -163,6 +166,7 @@ class LogCommand(Command):
                     while True:
                         for build_log_path in [build_log, tmp_build_log]:
                             if build_log_path.exists():
+                                self.file_found = True
                                 with build_log_path.open() as file:
                                     position = self.print_log(position, file)
                                 break
@@ -193,6 +197,7 @@ class LogCommand(Command):
                 else:
                     output.fprint(self.outfile, file.read(), width=None, end='')
                 if args.follow:
+                    self.file_found = True
                     data = file.read()
                     output.fprint(self.outfile, data, end='', flush=True)
                     position = file.tell()
