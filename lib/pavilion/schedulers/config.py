@@ -429,7 +429,7 @@ CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
-        'size':           min_int('chunk.size', min_val=0),
+        'size':           _validate_nodes,
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
     },
