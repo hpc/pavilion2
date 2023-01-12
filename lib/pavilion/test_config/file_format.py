@@ -376,6 +376,13 @@ class TestCatElem(yc.CategoryElem):
     type = OrderedDict
 
 
+class ModuleWrapperCatElem(yc.CategoryElem):
+    """Allow glob wildcards in key names."""
+
+    _NAME_RE = re.compile(r'^[a-zA-Z*?+][a-zA-Z0-9_*+?-]*$')
+    type=OrderedDict
+
+
 NO_WORKING_DIR = '<no_working_dir>'
 
 
@@ -773,7 +780,7 @@ expected to be added to by various plugins.
                       "strings). Other result values (including those "
                       "from result parsers and other evaluations are "
                       "available to reference as variables."),
-        yc.CategoryElem(
+        ModuleWrapperCatElem(
             'module_wrappers',
             help_text="Whenever the given module[/version] is asked for in the 'build.modules' "
                       "or 'run.modules' section, perform these module actions instead and "
@@ -791,7 +798,7 @@ expected to be added to by various plugins.
                                   "is given.  (IE - If the user asks for gcc/5.2, a "
                                   "listing of just 'gcc' here will load 'gcc/5.2')."),
                     EnvCatElem(
-                        'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
+                        'env', sub_elem=yc.StrElem(),
                         help_text="Environment variables to set after performing the "
                                   "given module actions. A '<MODNAME_VERSION>' variable "
                                   "will also be set with the specified version, if given.")

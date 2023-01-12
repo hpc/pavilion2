@@ -9,6 +9,7 @@ from typing import List, Union, Dict
 from pavilion.module_actions import (
     ModuleLoad, ModuleSwap, ModuleUnload, ModuleAction)
 from pavilion.variables import VariableSetManager
+from pavilion.utils import glob_to_re
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
@@ -383,8 +384,9 @@ class ModuleWrapperViaConfig(ModuleWrapper):
         for load_action in self.modules:
             action, (mod_name, mod_vers), (old_mod_name, old_mod_vers) = parse_module(load_action)
 
-            if mod_name == self.name and not mod_vers:
+            if fnmatch.fnmatch(mod_name, self.name) and not mod_vers:
                 mod_vers = version
+                mod_name = req_name
 
             if action == ACTION_UNLOAD:
                 actions.append(ModuleUnload(mod_name, mod_vers))
@@ -399,11 +401,14 @@ class ModuleWrapperViaConfig(ModuleWrapper):
                 actions.append(ModuleLoad(module_name=mod_name, version=mod_vers))
 
         env_vars = collections.OrderedDict()
+        vers_var_name = '{}_VERSION'.format(self.name.replace('*', 'any'))
         if version:
-            vers_var_name = '{}_VERSION'.format(self.name)
             env_vars[vers_var_name] = version
+        else:
+            name_re = glob_to_re(self.name)
+            env_vars[vers_var_name] = "$(module_loaded_version '{}')".format(name_re)
 
-        for env_var_name, env_var_val in self.env:
+        for env_var_name, env_var_val in self.env.items():
             env_vars[env_var_name] = env_var_val
 
         return actions, env_vars
@@ -416,8 +421,10 @@ class ModuleWrapperViaConfig(ModuleWrapper):
         actions, env_vars = super()._swap(var_man, out_name, out_version, req_name, version)
 
         if version:
-            vers_var_name = '{}_VERSION'.format(self.name)
+            vers_var_name = '{}_VERSION'.format(self.name.replace('*', 'any'))
             env_vars[vers_var_name] = version
 
-        for env_var_name, env_var_val in self.env:
+        for env_var_name, env_var_val in self.env.items():
             env_vars[env_var_name] = env_var_val
+
+        return actions, env_vars
