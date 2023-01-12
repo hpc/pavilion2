@@ -2,6 +2,7 @@
 other commands to print statuses."""
 
 import errno
+import sys
 
 from pavilion import cmd_utils
 from pavilion import filters
@@ -18,7 +19,7 @@ class StatusCommand(Command):
                                    ' or test series. You may also specify "all" as '
                                    'the test id, to get the status of all tests. The '
                                    'default "all" filter gives your recent tests, but setting '
-                                   'any filter argumument overrides that.',
+                                   'any filter argument overrides that.',
                          short_help="Get status of tests.")
 
     def _setup_arguments(self, parser):
@@ -123,6 +124,8 @@ class StatusCommand(Command):
                 color = output.GREEN
             elif key == 'SKIPPED':
                 color = output.YELLOW
+                # happens in series.test_set.make (print to outfile at end of function)
+                # output.fprint(sys.stdout, "test was skipped")
             elif key == 'RUNNING' or key == 'SCHEDULED' \
                     or key == 'PREPPING_RUN' \
                     or key == 'BUILDING' or key == 'BUILD_DONE' \

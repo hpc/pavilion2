@@ -6,6 +6,7 @@ import os
 import math
 import re
 import subprocess
+import sys
 import time
 from collections import defaultdict, UserDict, OrderedDict
 from pathlib import Path
@@ -122,6 +123,8 @@ class TestSeries:
             # Get the series id and path.
             try:
                 self._id, self.path = dir_db.create_id_dir(series_path)
+                # move out, only for pav series run and pav run
+                # output.fprint(sys.stdout, "Creating Series s{}.\n".format(self._id))
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}'"

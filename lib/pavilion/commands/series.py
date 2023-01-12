@@ -123,7 +123,7 @@ class RunSeries(Command):
             output.fprint(self.outfile, "PGID is {pgid}.\nTo kill, use `pav cancel {sid}`."
                           .format(sid=series_obj.sid, pgid=series_obj.pgid))
         else:
-            output.fprint(sys.stdout, "To cancel, use `kill -14 -s{pgid}"
+            output.fprint(self.errfile, "To cancel, use `kill -14 -s{pgid}"
                           .format(pgid=series_obj.pgid))
 
         return 0
