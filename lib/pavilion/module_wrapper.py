@@ -334,6 +334,7 @@ plugin as the plugin system can't handle the arguments
         :param version: The version to swap in.
         :return: A per _load()"""
 
+        _ = self
         _ = var_man
 
         return [ModuleSwap(req_name, version, out_name, out_version)], {}
@@ -360,6 +361,7 @@ plugin as the plugin system can't handle the arguments
         """Override this to change how this module is unloaded.
         """
 
+        _ = self
         _ = var_man
 
         return [ModuleUnload(req_name, version)], {}
