@@ -137,7 +137,7 @@ class TestConfigResolver:
                         if subval is None:
                             raise TestConfigError(
                                 "In test '{}' from suite '{}', test variable '{}' has an empty "
-                                "value. Empty defaults are fine (as long as their "
+                                "value. Empty defaults are fine (as long as they are "
                                 "overridden), but regular variables should always be given "
                                 "a value (even if it's just an empty string)."
                                 .format(test_name, test_suite, full_key))
