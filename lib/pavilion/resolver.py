@@ -762,11 +762,9 @@ class TestConfigResolver:
                         "Host config '{}' has a YAML Error"
                         .format(host_cfg_path), err)
                 except TypeError as err:
-                    # All config elements in test configs must be strings,
-                    # and just about everything converts cleanly to a string.
-                    raise RuntimeError(
-                        "Host config '{}' raised a type error, but that "
-                        "should never happen.".format(host_cfg_path), err)
+                    raise TestConfigError(
+                        "Structural issue with host config '{}'"
+                        .format(host_cfg_path), err)
 
             test_cfg = resolve.cmd_inheritance(test_cfg)
 
@@ -810,18 +808,16 @@ class TestConfigResolver:
                     "Mode config '{}' has a YAML Error"
                     .format(mode_cfg_path), err)
             except TypeError as err:
-                # All config elements in test configs must be strings, and just
-                # about everything converts cleanly to a string.
-                raise RuntimeError(
-                    "Mode config '{}' raised a type error, but that "
-                    "should never happen.".format(mode_cfg_path), err)
+                raise TestConfigError(
+                    "Structural issue with mode config '{}'"
+                    .format(mode_cfg_path), err)
 
             test_cfg = resolve.cmd_inheritance(test_cfg)
 
         return test_cfg
 
     def resolve_inheritance(self, base_config, suite_cfg, suite_path) \
-            -> Tuple[Dict[str, dict], Dict[str, List[str]]]:
+            -> Dict[str, dict]:
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
         that.
@@ -934,10 +930,8 @@ class TestConfigResolver:
                     "Test {} in suite {} has a YAML Error"
                     .format(test_name, suite_path), err)
             except TypeError as err:
-                # See the same error above when loading host configs.
-                raise RuntimeError(
-                    "Loaded test '{}' in suite '{}' raised a type error, "
-                    "but that should never happen."
+                raise TestConfigError(
+                    "Structural issue with test {} in suite {}"
                     .format(test_name, suite_path), err)
 
             try:
@@ -1136,7 +1130,6 @@ class TestConfigResolver:
             except VariableError as err:
                 raise TestConfigError("Error resolving variable references (final).", err)
 
-
             # And do the rest of the permutations.
             all_var_men.extend(var_man.get_permutations(used_per_vars))
 
@@ -1170,8 +1163,7 @@ class TestConfigResolver:
         try:
             config_loader.normalize(test_cfg)
         except TypeError as err:
-            raise TestConfigError("Invalid override"
-                                  .format(err))
+            raise TestConfigError("Invalid override", err)
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.

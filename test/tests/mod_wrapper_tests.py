@@ -257,17 +257,17 @@ class ModWrapperTests(PavTestCase):
             test.save()
             tests_by_name[test.name.split('.')[-1]] = test
 
-        def check_test(test, expected_lines):
+        def check_test(ctest, expected_lines):
             """Make sure all the expected lines ended up in the test's run.tmpl file."""
 
             # Check that all the things we expect are in the run.tmpl file
-            run_tmpl_lines = (test.path / 'run.tmpl').open().readlines()
+            run_tmpl_lines = (ctest.path / 'run.tmpl').open().readlines()
             run_tmpl_lines = [line.strip() for line in run_tmpl_lines]
             for exp_line in expected_lines:
                 self.assertIn(exp_line, run_tmpl_lines,
                               msg="{}\n\nExpected line in test {} not found in the run.tmpl "
                                   "file above.  Line: \n{}"
-                                  .format('\n'.join(run_tmpl_lines), test.name, exp_line))
+                              .format('\n'.join(run_tmpl_lines), ctest.name, exp_line))
 
         # These checks aren't comprehensive - we can't really check if this works without
         # all the relevant module systems in place.
