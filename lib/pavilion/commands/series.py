@@ -97,6 +97,8 @@ class RunSeries(Command):
         if args.re_name is not None:
             series_cfg['name'] = str(args.re_name)
 
+        output.fprint(sys.stdout, "Creating Series {}.\n".format(series_cfg['name']))
+
         # create brand-new series object
         try:
             series_obj = series.TestSeries(pav_cfg, config=series_cfg)

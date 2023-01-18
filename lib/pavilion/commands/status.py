@@ -124,8 +124,6 @@ class StatusCommand(Command):
                 color = output.GREEN
             elif key == 'SKIPPED':
                 color = output.YELLOW
-                # happens in series.test_set.make (print to outfile at end of function)
-                # output.fprint(sys.stdout, "test was skipped")
             elif key == 'RUNNING' or key == 'SCHEDULED' \
                     or key == 'PREPPING_RUN' \
                     or key == 'BUILDING' or key == 'BUILD_DONE' \
