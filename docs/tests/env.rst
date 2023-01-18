@@ -156,6 +156,8 @@ You can also unload and swap modules.
         cmds:
           - $MPICC -o test_code test_code.c
 
+.. _tests.env.module_wrappers:
+
 Module Wrappers
 ---------------
 
@@ -165,7 +167,71 @@ provides support for lmod and tmod, generates the source to load
 modules within run and build scripts, and checks to see if they've been
 successfully loaded (or unloaded).
 
-For more information on writing these, see :ref:`plugins.module_wrappers`.
+Module wrappers are added, typically in :ref:`basics.host_configs`, via the ``module_wrappers``
+sections:
+
+.. code:: yaml
+
+  # This would be in a a 'host' file, typically
+  module_wrappers:
+      gcc:
+        # When gcc is asked for on this system, load these modules instead.
+        modules:
+            # This assumes PrgEnv-cray is the default on this machine.
+            - PrgEnv-cray->PrgEnv-gnu
+            # Swap the default gcc (that comes with the PrgEnv) for the requested one
+            # You shouldn't specify versions (unless you want to force a version), Pavilion
+            # will automatically ask for the version asked for by
+            - gcc->gcc
+        env:
+            # You can also add environment variables to automatically be exported after
+            # the module is loaded.
+            PAV_CC: '$CC'
+            PATH: '$PATH:$(dirname $(which gcc))'
+
+So now, we can write our tests to generically ask for 'gcc':
+
+.. code:: yaml
+
+    mytest:
+        run:
+            modules: 'gcc'
+
+Wildcards
+~~~~~~~~~
+
+The modules specified can be written as file system globs, to match a wider range of modules and
+to support module naming (particularly under lmods) that is less generic.
+
+.. code-block:: yaml
+
+    module_wrappers:
+        # On this system, the modules for MPI layers have the compiler as part of the name.
+        # This will match 'openmpi-gcc', 'openmpi-intel', etc.
+        openmpi-*:
+            modules:
+                # This will be auto-converted into the mpi requested.
+                - 'openmpi-*'
+
+            env:
+                PAV_MPICC: '$(which mpicc)'
+
+Wildcards work on the left side of module swaps (``modA->modB``) as well. Pavilion will look for a
+loaded package that matches the left side, and swap it for the right side.
+
+Version Variable
+~~~~~~~~~~~~~~~~
+
+If you need the version of the loaded module, it's available in the '<mod_name>_VERSION'
+environment variable. If the the mod_name contains wildcards, '*' is replaced with 'any', and
+other characters are replaced with underscores. So ``gcc-[f]-?-*`` gets a 'gcc-_-_-any_VERSION'
+environment variable.
+
+Module Wrapper Plugins
+~~~~~~~~~~~~~~~~~~~~~~
+
+For more complicated use cases, you can also write module wrapper plugins. For more information
+on writing these, see :ref:`plugins.module_wrappers`.
 
 .. _tests.env.spack_packages:
 
