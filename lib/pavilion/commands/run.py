@@ -127,7 +127,8 @@ class RunCommand(Command):
         tests = []
         if args.files:
             files = [os.path.basename(filepath) for filepath in args.files]
-            #TODO: This gets read outside of this function. Maybe we can optimize and only read once?
+            #TODO: This gets read outside of this function.
+            # Maybe we can optimize and only read once?
             file_tests = cmd_utils.read_test_files(args.files)
             tests = list(set(args.tests) - set(file_tests))
         else:
@@ -140,8 +141,8 @@ class RunCommand(Command):
         # NOTE: I don't know why I used a regex here...why did I not split on '.'?
         test_set_dict = defaultdict(list)
         regex = r"([_\-a-zA-Z\d]+\.?)([a-zA-Z\d]*)"
-        for test_name in tests:
-            match = re.match(regex, test_name)
+        for test in tests:
+            match = re.match(regex, test)
             suite_name = match.group(1).rstrip('.')
             test_name = match.group(2)
             if test_name:
@@ -150,8 +151,8 @@ class RunCommand(Command):
                 test_set_dict[suite_name] = None
 
         # Don't forget to add on the files!
-        for file_name in files:
-            test_set_dict[f'file:{file_name}'] = None
+        for file in files:
+            test_set_dict[f'file:{file}'] = None
 
         # Reduce into a list of globs so we get foo.*, bar.*, etc. 
         def get_glob(test_suite_name, test_names):
