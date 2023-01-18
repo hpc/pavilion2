@@ -3,6 +3,7 @@
 import errno
 import sys
 import os
+import re
 from collections import defaultdict
 
 from pavilion import cmd_utils
@@ -115,29 +116,32 @@ class RunCommand(Command):
         # pav run -f some_file          - 'file:some_file'
         # pav run baz.a baz.b foo       - 'baz.*,foo'
         # pav run foo bar baz blarg     - 'foo,baz,bar,...'
-        
+
         # First we get the list of files and a list of tests.
-        # NOTE: If there is an intersection between tests in files and tests specified on command line, we remove the intersection from the list of tests
+        # NOTE: If there is an intersection between tests in files and tests specified on command
+        #       line, we remove the intersection from the list of tests
         #       For example, if some_test contains foo.a and foo.b
-        #       pav run -f some_test foo.a foo.b will generate the test set file:some_test despite foo.a and foo.b being specified in both areas
+        #       pav run -f some_test foo.a foo.b will generate the test set file:some_test despite
+        #       foo.a and foo.b being specified in both areas
         files = []
         tests = []
         if args.files:
             files = [os.path.basename(filepath) for filepath in args.files]
-            file_tests = cmd_utils.read_test_files(args.files) #TODO: This gets read outside of this function. Maybe we can optimize and only read once?
+            #TODO: This gets read outside of this function. Maybe we can optimize and only read once?
+            file_tests = cmd_utils.read_test_files(args.files)
             tests = list(set(args.tests) - set(file_tests))
         else:
             tests = args.tests
 
-        # Here we generate a dictionary mapping tests to the suites they belong to (Also the filenames)
+        # Here we generate a dictionary mapping tests to the suites they belong to
+        # (Also the filenames)
         # This way we can name the test set based on suites rather than listing every test
         # Essentially, this dictionary will be reduced into a list of "globs" for the name
         # NOTE: I don't know why I used a regex here...why did I not split on '.'?
-        import re
         test_set_dict = defaultdict(list)
         regex = r"([_\-a-zA-Z\d]+\.?)([a-zA-Z\d]*)"
-        for t in tests:
-            match = re.match(regex, t)
+        for test_name in tests:
+            match = re.match(regex, test_name)
             suite_name = match.group(1).rstrip('.')
             test_name = match.group(2)
             if test_name:
@@ -146,8 +150,8 @@ class RunCommand(Command):
                 test_set_dict[suite_name] = None
 
         # Don't forget to add on the files!
-        for f in files:
-            test_set_dict[f'file:{f}'] = None
+        for file_name in files:
+            test_set_dict[f'file:{file_name}'] = None
 
         # Reduce into a list of globs so we get foo.*, bar.*, etc. 
         def get_glob(test_suite_name, test_names):
@@ -160,7 +164,6 @@ class RunCommand(Command):
             else:
                 return f'{test_suite_name}.*'
 
-        # globs = [f'{key}.*' if len(value) > 1 else f'{key}.{value[0]}' for key,value in test_set_dict.items()]
         globs = [get_glob(test_suite, tests) for test_suite,tests in test_set_dict.items()]
         globs.sort(key=lambda glob: 0 if "file:" in glob else 1) # Sort the files to the front
 
