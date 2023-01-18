@@ -154,7 +154,7 @@ class RunCommand(Command):
         for file in files:
             test_set_dict[f'file:{file}'] = None
 
-        # Reduce into a list of globs so we get foo.*, bar.*, etc. 
+        # Reduce into a list of globs so we get foo.*, bar.*, etc.
         def get_glob(test_suite_name, test_names):
             if test_names is None:
                 return test_suite_name
@@ -173,7 +173,7 @@ class RunCommand(Command):
             globs = globs[:ntests_cutoff+1]
             globs[ntests_cutoff] = '...'
 
-        testset_name = ','.join(globs).rstrip(',') 
+        testset_name = ','.join(globs).rstrip(',')
         return testset_name
 
     def run(self, pav_cfg, args):
