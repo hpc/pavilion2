@@ -108,13 +108,12 @@ class LogCommand(Command):
     }
 
     def print_log(self, current_position, file):
-        """Prints the contents from a position in the log file to the end of the file.
-        Arguments:
-            current_position: Position of the log file to start printing from.
-            file: Path of the log file being printed.
-        Returns:
-            current_position: Returns the end position of the log file being printed.
         """
+        Prints the contents from a position in the log file to the end of the file.
+        :param int current_position: Position of the file read pointer in the log file.
+        :param Path file: Path of the log file being printed.
+        """
+
         file.seek(current_position)
         data = file.read()
         end_position = file.tell()
@@ -126,10 +125,11 @@ class LogCommand(Command):
         return current_position
 
     def log_error(self, cmd_name):
-        """Prints the log doesn't exist message, then sleeps and then clears the line.
-        Argument:
-            cmd_name: Uses cmd name for the error message.
         """
+        Prints 'log doesn't exist error message,' then sleeps and then clears the line.
+        :param str cmd_name: Name of the command for the error message.
+        """
+
         output.fprint(self.errfile, cmd_name, 'log doesn\'t exist. Checking again...', end='\r',
                       color=output.RED, flush=True)
         time.sleep(self.sleep_timeout)
