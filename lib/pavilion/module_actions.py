@@ -1,6 +1,9 @@
 """Defines the how to perform module loads, swaps and unloads."""
 
 
+from pavilion.utils import glob_to_re
+
+
 class ModuleAction:
     """The base module action class."""
 
@@ -80,7 +83,8 @@ class ModuleRestore(ModuleAction):
 
 
 class ModuleSwap(ModuleAction):
-    """Provides module swapping commands and verification."""
+    """Provides module swapping commands and verification. The 'old_module' can be
+    a glob, like ``PrgEnv-*``."""
 
     def __init__(self, module_name, version, old_module_name, old_version):
         super().__init__(module_name, version)
@@ -96,18 +100,20 @@ class ModuleSwap(ModuleAction):
             return self.old_name
 
     def action(self):
+        old_name_re = glob_to_re(self.old_name)
+
         actions = [
             # Find the currently loaded matching module. Note, some people
             # like to rely on the regex in their module_wrapper plugins.
             'old_module=$(module -t list 2>&1 | '
-            'grep -E \'^{s.old_name}(/|$)\')',
+            'grep -E \'^{old_name_re}(/|$)\')',
             # Check the result of the last command.
             'if [[ $? == 0 ]]; then',
             '    module swap $old_module {s.module}',
             'else',
             '    module load {s.module}',
             'fi']
-        return [a.format(s=self) for a in actions]
+        return [a.format(s=self, old_name_re=old_name_re) for a in actions]
 
     def verify(self):
         lines = ['verify_module_loaded $TEST_ID {s.name} {s.version}',
