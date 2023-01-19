@@ -11,6 +11,7 @@ from .sys_arch import SystemArch
 from .sys_host import SystemHost
 from .sys_name import SystemName
 from .sys_os import SystemOS
+from .sys_processor_count import SystemProcessorCount
 
 _builtin_sys_plugins = [
     HostArch,
@@ -19,7 +20,8 @@ _builtin_sys_plugins = [
     SystemArch,
     SystemName,
     SystemOS,
-    SystemHost
+    SystemHost,
+    SystemProcessorCount
 ]
 
 
