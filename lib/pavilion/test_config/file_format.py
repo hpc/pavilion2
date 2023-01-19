@@ -12,7 +12,7 @@ from typing import Union
 import yaml_config as yc
 from pavilion.errors import TestConfigError
 
-TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
+TEST_NAME_RE_STR = r'^[a-zA-Z0-9_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
@@ -374,6 +374,13 @@ class TestCatElem(yc.CategoryElem):
 
     _NAME_RE = re.compile(r'^.*$')
     type = OrderedDict
+
+
+class ModuleWrapperCatElem(yc.CategoryElem):
+    """Allow glob wildcards in key names."""
+
+    _NAME_RE = re.compile(r'^[a-zA-Z*?+][a-zA-Z0-9_*+?-]*$')
+    type=OrderedDict
 
 
 NO_WORKING_DIR = '<no_working_dir>'
@@ -773,6 +780,31 @@ expected to be added to by various plugins.
                       "strings). Other result values (including those "
                       "from result parsers and other evaluations are "
                       "available to reference as variables."),
+        ModuleWrapperCatElem(
+            'module_wrappers',
+            help_text="Whenever the given module[/version] is asked for in the 'build.modules' "
+                      "or 'run.modules' section, perform these module actions instead and "
+                      "export the given environment variables. When this module is requested via "
+                      "a 'swap', do the swap as written but set the given environment variables. "
+                      "Nothing special is done for module unloads of this module. "
+                      "If a version is given, this only applies to that specific version.",
+            sub_elem=yc.KeyedElem(
+                elements=[
+                    yc.ListElem(
+                        'modules', sub_elem=yc.StrElem(),
+                        help_text="Modules to load/remove/swap when the given module"
+                                  "is specified. Loads and swaps into the wrapped module "
+                                  "will automatically be at the requested version if none "
+                                  "is given.  (IE - If the user asks for gcc/5.2, a "
+                                  "listing of just 'gcc' here will load 'gcc/5.2')."),
+                    EnvCatElem(
+                        'env', sub_elem=yc.StrElem(),
+                        help_text="Environment variables to set after performing the "
+                                  "given module actions. A '<MODNAME_VERSION>' variable "
+                                  "will also be set with the specified version, if given.")
+                ]
+            )
+        ),
     ]
     """Each YamlConfig instance in this list defines a key for the test config.
 

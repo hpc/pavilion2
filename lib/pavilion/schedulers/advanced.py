@@ -255,6 +255,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         nodes = list(self._node_lists[node_list_id])
 
         chunk_size = sched_config['chunking']['size']
+        if isinstance(chunk_size, float):
+            chunk_size = int(len(nodes) * chunk_size)
         # Chunk size 0/null is all the nodes.
         if chunk_size in (0, None) or chunk_size > len(nodes):
             chunk_size = len(nodes)
@@ -321,6 +323,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             chunk_extra = sched_config['chunking']['extra']
 
             node_list = self._node_lists[node_list_id]
+            if isinstance(chunk_size, float):
+                chunk_size = int(len(node_list) * chunk_size)
             if chunk_size in (None, 0) or chunk_size > len(node_list):
                 chunk_size = len(node_list)
 
@@ -361,15 +365,20 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
     def _schedule_chunk(self, pav_cfg, chunk: NodeSet, tests: List[TestRun],
                         sched_configs: Dict[str, dict]):
+        '''Schedule all the tests that belong to a given chunk. Group tests that can be scheduled in
+        a shared allocation together.'''
 
         # There are three types of test launches.
-        # 1. Tests that can share an allocation (
+        # 1. Tests that can share an allocation (whether nodes are explicitly defined are not)
         share_groups = collections.defaultdict(list)
+        # 2. Tests that don't share an allocation and don't have nodes explicitly defined.
         flex_tests: List[TestRun] = []
+        # 3. Tests that don't share an allocation and do have nodes explicitly defined.
         indi_tests: List[TestRun] = []
 
         for test in tests:
             sched_config = sched_configs[test.full_id]
+            # Put all the tests that can't share an allocation in the non-shared categories.
             if not sched_config['share_allocation']:
                 if sched_config['chunking']['size'] in (0, None):
                     flex_tests.append(test)
@@ -383,6 +392,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
                 acq_opts = [(min_nodes, max_nodes)]
 
+                # Check that each of the scheduling options that would change the allocations
+                # configuration are the same.
                 for opt_name in self.ALLOC_ACQUIRE_OPTIONS:
                     opt = sched_config
                     for part in opt_name.split('.'):
@@ -405,8 +416,23 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 del share_groups[acq_opts]
 
         for acq_opts, tests in share_groups.items():
-            node_range = acq_opts[0]
-            self._schedule_shared_chunk(pav_cfg, tests, node_range, sched_configs, chunk)
+            chunking_enabled = sched_configs[tests[0].full_id]['chunking']['size'] not in (0, None)
+            _, max_nodes = node_range = acq_opts[0]
+            # If chunking is used, schedule all the tests together.
+            if chunking_enabled:
+                self._schedule_shared_chunk(pav_cfg, tests, node_range, sched_configs, chunk)
+            # Otherwise, we need to bin the tests so they are spread across the machine.
+            # Tests will still share allocations but will be divided up to maximally use the
+            # machine.
+            else:
+                bin_count = max(len(chunk) // max_nodes, 1)
+                bins = [[] for _ in range(bin_count)]
+                for i, test in enumerate(tests):
+                    bins[i % bin_count].append(test)
+                for test_bin in bins:
+                    if test_bin:
+                        self._schedule_shared_chunk(pav_cfg, test_bin, node_range, sched_configs,
+                                                    chunk)
 
         self._schedule_flex_chunk(pav_cfg, flex_tests, sched_configs, chunk)
         self._schedule_indi_chunk(pav_cfg, indi_tests, sched_configs, chunk)

@@ -302,7 +302,7 @@ class SchedTests(PavTestCase):
             if enable_view:
                 output.fprint(sys.stdout, select, sorted(list(chunks[0])))
 
-    def test_shared_kickoff(self):
+    def test_shared_kickoff_chunking(self):
         """Check that shared kickoffs work as expected."""
 
         base_test_cfg = self._quick_test_cfg()
@@ -315,7 +315,7 @@ class SchedTests(PavTestCase):
             test_cfg['schedule'] = {
                 'nodes': 'all',
                 'share_allocation': 'True',
-                'chunking': {'size': '45' if i % 2 else '0',
+                'chunking': {'size': '45' if i % 2 else '60',
                              'extra': 'discard'}
             }
             test = self._quick_test(test_cfg, finalize=False)
@@ -334,6 +334,54 @@ class SchedTests(PavTestCase):
         for share_group in shared_groups:
             job1 = share_group[0].job
             self.assertTrue(all([test.job == job1 for test in share_group]))
+
+        for test in tests:
+            test.wait(10)
+
+        for test in tests:
+            self.assertEqual(test.results['result'], 'PASS')
+
+    def test_shared_kickoff_no_chunking(self):
+        """Check that shared kickoffs work as expected."""
+
+        base_test_cfg = self._quick_test_cfg()
+        base_test_cfg['scheduler'] = 'dummy'
+
+        tests = []
+        shared_groups = [[], [], [], [], []]
+        # Check that tests are binned across the machine.
+        test_cfg = copy.deepcopy(base_test_cfg)
+        test_cfg['schedule'] = {
+            'nodes': '17',
+            'share_allocation': 'True',
+            'chunking': {'size': '0'}
+        }
+        for i in range(10):
+            test = self._quick_test(test_cfg, finalize=False)
+            tests.append(test)
+            shared_groups[i % 5].append(test)
+
+        # Check that when distributing tests across the whole machine that the tests
+        # are properly distributed even if they don't fill the machine.
+        test_cfg = copy.deepcopy(base_test_cfg)
+        test_cfg['schedule'] = {
+            'nodes': '3',
+            'share_allocation': 'True',
+            'chunking': {'size': '0'}
+        }
+        unfilled_tests = [self._quick_test(test_cfg, finalize=False) for _ in range(10)]
+        tests.extend(unfilled_tests)
+
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, tests)
+
+        # Make sure all the tests share a job.
+        for share_group in shared_groups:
+            job1 = share_group[0].job
+            self.assertTrue(all([test.job == job1 for test in share_group]))
+
+        for test in unfilled_tests:
+            self.assertEqual(len(test.job.get_test_id_pairs()), 1)
 
         for test in tests:
             test.wait(10)
