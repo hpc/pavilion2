@@ -127,7 +127,6 @@ class LogCmdTest(PavTestCase):
     def test_follow(self):
         log_cmd = pavilion.commands.get_command('log')
         log_cmd.silence()
-        log_cmd.follow_testing = True
 
         test_cfg = self._quick_test_cfg()
         test_cfg['run']['cmds'] = ['echo "this"', 'echo "is"', 'echo "some"',
@@ -147,3 +146,4 @@ class LogCmdTest(PavTestCase):
         thread.join(timeout=5)
         out, err = log_cmd.clear_output()
         self.assertIn('output', out)
+        log_cmd.follow_testing = True

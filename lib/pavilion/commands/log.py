@@ -1,8 +1,6 @@
 """Print out the contents of the various log files for a given test run.
 """
 import errno
-import os
-import sys
 import time
 
 from pavilion import errors
@@ -15,7 +13,6 @@ from .base_classes import Command
 class LogCommand(Command):
     """Print the contents of log files for test runs."""
 
-    file_found = False
     follow_testing = False
     sleep_timeout = 1
 
@@ -111,20 +108,32 @@ class LogCommand(Command):
     }
 
     def print_log(self, current_position, file):
-        if self.file_found:
-            output.clear_line(self.outfile)
+        """Prints the contents from a position in the log file to the end of the file.
+        Arguments:
+            current_position: Position of the log file to start printing from.
+            file: Path of the log file being printed.
+        Returns:
+            current_position: Returns the end position of the log file being printed.
+        """
         file.seek(current_position)
         data = file.read()
         end_position = file.tell()
         if end_position > current_position:
             current_position = end_position
             output.fprint(self.outfile, data, end='\n', flush=True)
-            if self.follow_testing:
-                sys.exit()
         else:
             time.sleep(self.sleep_timeout)
-
         return current_position
+
+    def log_error(self, cmd_name):
+        """Prints the log doesn't exist message, then sleeps and then clears the line.
+        Argument:
+            cmd_name: Uses cmd name for the error message.
+        """
+        output.fprint(self.errfile, cmd_name, 'log doesn\'t exist. Checking again...', end='\r',
+                      color=output.RED, flush=True)
+        time.sleep(self.sleep_timeout)
+        output.clear_line(self.outfile)
 
     def run(self, pav_cfg, args):
         """Figure out which log the user wants and print it."""
@@ -156,37 +165,33 @@ class LogCommand(Command):
 
             file_name = test.path/self.LOG_PATHS[cmd_name]
 
-        if not file_name.exists():
-            if args.follow:
+        if args.follow:
+            position = 0
+            while True:
                 if cmd_name == 'build':
                     build_log = test.builder.log_path
                     tmp_build_log = test.builder.tmp_log_path
-                    position = 0
-
-                    while True:
-                        for build_log_path in [build_log, tmp_build_log]:
-                            if build_log_path.exists():
-                                self.file_found = True
-                                with build_log_path.open() as file:
-                                    position = self.print_log(position, file)
-                                break
-                            else:
-                                if build_log_path == tmp_build_log:
-                                    output.fprint(self.errfile, cmd_name,
-                                                  'log doesn\'t exist. Checking again...',
-                                                  end='\r', color=output.RED, flush=True)
-                                time.sleep(self.sleep_timeout)
+                    for build_log_path in [file_name, build_log, tmp_build_log]:
+                        if build_log_path.exists():
+                            with build_log_path.open() as file:
+                                position = self.print_log(position, file)
+                            break
+                        else:
+                            if build_log_path == tmp_build_log:
+                                self.log_error(cmd_name)
                 else:
-                    while not file_name.exists():
-                        output.fprint(self.errfile, cmd_name,
-                                      'log doesn\'t exist. Checking again...',
-                                      end='\r', color=output.RED, flush=True)
-                        time.sleep(self.sleep_timeout)
+                    if file_name.exists():
+                        with file_name.open() as file:
+                            position = self.print_log(position, file)
+                    else:
+                        self.log_error(cmd_name)
+                if self.follow_testing:
+                    break
 
-            else:
-                output.fprint(self.errfile, "Log file does not exist: {}"
-                                .format(file_name), color=output.RED)
-                return 1
+        if not file_name.exists():
+            output.fprint(self.errfile, "Log file does not exist: {}"
+                          .format(file_name), color=output.RED)
+            return 1
 
         try:
             with file_name.open() as file:
@@ -196,14 +201,6 @@ class LogCommand(Command):
                         output.fprint(self.outfile, line)
                 else:
                     output.fprint(self.outfile, file.read(), width=None, end='')
-                if args.follow:
-                    self.file_found = True
-                    data = file.read()
-                    output.fprint(self.outfile, data, end='', flush=True)
-                    position = file.tell()
-                    while True:
-                        with file_name.open() as file:
-                            position = self.print_log(position, file)
 
         except (IOError, OSError) as err:
             output.fprint(self.errfile, "Could not read log file '{}'"
