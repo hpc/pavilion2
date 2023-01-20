@@ -2,11 +2,11 @@ import subprocess
 from .base_classes import SystemPlugin
 
 
-class SystemProcessorCount(SystemPlugin):
+class CPUCount(SystemPlugin):
 
     def __init__(self):
         super().__init__(
-            name='sys_processor_count',
+            name='cpu_count',
             description="The system processor count.",
             priority=self.PRIO_CORE)
 

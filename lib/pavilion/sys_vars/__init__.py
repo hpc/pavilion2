@@ -3,6 +3,7 @@ speed."""
 
 from . import base_classes
 from .base_classes import SystemPlugin, SysVarDict, get_vars
+from .cpu_count import CPUCount
 from ..errors import SystemPluginError
 from .host_arch import HostArch
 from .host_name import HostName
@@ -11,17 +12,16 @@ from .sys_arch import SystemArch
 from .sys_host import SystemHost
 from .sys_name import SystemName
 from .sys_os import SystemOS
-from .sys_processor_count import SystemProcessorCount
 
 _builtin_sys_plugins = [
+    CPUCount,
     HostArch,
     HostName,
     HostOS,
     SystemArch,
     SystemName,
     SystemOS,
-    SystemHost,
-    SystemProcessorCount
+    SystemHost
 ]
 
 
