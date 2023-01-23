@@ -456,7 +456,12 @@ class Slurm(SchedulerPluginAdvanced):
 
         _ = job
 
-        return self.parse_node_list(os.environ['SLURM_JOB_NODELIST'])
+        node_list = os.environ['SLURM_JOB_NODELIST']
+
+        try:
+            return self.parse_node_list(node_list)
+        except ValueError as err:
+            raise SchedulerPluginError("Invalid slurm nodelist: '{}'".format(node_list), err)
 
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
         """Use the `scontrol show node` command to collect data on nodes.
@@ -481,7 +486,11 @@ class Slurm(SchedulerPluginAdvanced):
             res_info = self._scontrol_parse(raw_res)
             name = res_info.get('ReservationName')
             nodes = res_info.get('Nodes')
-            nodes = self.parse_node_list(nodes)
+            try:
+                nodes = self.parse_node_list(nodes)
+            except ValueError as err:
+                raise SchedulerPluginError(
+                    "Invalid node list from slurm: '{}'".format(nodes), err)
             extra['reservations'][name] = nodes
 
         return raw_node_data, extra
