@@ -8,6 +8,7 @@ from .elements import (
     ConfigDict,
 )
 from .scalars import ScalarElem
+from . import utils
 
 
 class ListElem(ConfigElement):
@@ -353,6 +354,38 @@ class KeyedElem(_DictElem):
 
     find.__doc__ = ConfigElement.find.__doc__
 
+    def find_key_matches(self, word, min_score=0.8):
+        """Find similar keys to the one given, using cosine similarity."""
+
+        word_vec = utils.make_word_vector(word)
+
+        key_scores = []
+        for key in self.config_elems.keys():
+            key = str(key)
+            key_vec = utils.make_word_vector(key)
+
+            key_scores.append((utils.cos(word_vec, key_vec), key))
+
+        key_scores.sort(reverse=True)
+        matches = []
+        for score, key in key_scores:
+            if score > min_score:
+                matches.append(key)
+            else:
+                break
+
+        return matches
+
+    def find_sub_key_matches(self, key):
+        """Find potential matches in KeyedElements under this one."""
+        sub_key_matches = []
+        for sub_key, config_elem in self.config_elems.items():
+            if isinstance(config_elem, KeyedElem):
+                similar = config_elem.find_key_matches(key, min_score=0.9)
+                sub_key_matches.append((sub_key, similar))
+
+        return sub_key_matches
+
     def get_sub_comments(self, show_choices, show_name):
         """Add the comment description for each sub element at the top
         of Keyed Elements."""
@@ -379,14 +412,41 @@ class KeyedElem(_DictElem):
 
         return base
 
-    def normalize(self, value):
+    def _make_missing_key_message(self, root_name, key):
+        """Generate a message for when a matching key isn't found. Searches for similar
+        keys in this and child KeyedElements."""
+
+        name = self.name if self.name else root_name
+        msg = ["Invalid config key '{}' given under {} called '{}'."
+                   .format(key, self.__class__.__name__, name)]
+
+        similar = self.find_key_matches(key)
+        if similar:
+            msg.append(
+                "Did you mean any of: {}".format(similar))
+        else:
+            sub_key_matches = self.find_sub_key_matches(key)
+            if sub_key_matches:
+                msg.append("Config elements under this one have similar keys:")
+                msg.append("{}:".format(name))
+                for sub_key, matches in sub_key_matches:
+                    msg.append("  {}:".format(sub_key))
+                    for match in matches:
+                        msg.append("    {}:".format(match))
+
+        return '\n'.join(msg)
+
+    def normalize(self, value, root_name='root'):
         """None remains None. Everything else is recursively normalized
         by their element objects. Unknown keys and non-dict 'values'
         result in an error.
         :param dict value: The dict of values to normalize.
+        :param root_name: What to call this if it is the root element.
         :raises KeyError: For unknown keys.
         :raises TypeError: if values isn't a dict.
         """
+
+        name = self.name if self.name else root_name
 
         if value is None:
             return None
@@ -401,18 +461,25 @@ class KeyedElem(_DictElem):
         for key, val in value.items():
             elem = self.config_elems.get(key, None)
             if elem is None:
-                name = self.name
-                if name is not None:
-                    raise KeyError(
-                        "Invalid config key '{}' given under {} called '{}'."
-                        .format(key, self.__class__.__name__, self.name)
-                    )
-                else:
-                    raise KeyError(
-                        "Invalid config key '{}' given under root "
-                        "element.".format(key))
+                msg = self._make_missing_key_message(root_name, key)
+                raise KeyError(msg, key)
 
-            ndict[key] = elem.normalize(val)
+            try:
+                ndict[key] = elem.normalize(val)
+            except KeyError as err:
+                # Check to see if this level takes the key that was erroneous at the next
+                # level, and suggest a course of action.
+                msg = err.args[0]
+                if len(err.args) > 1:
+                    err_key = err.args[1]
+
+                    if err_key in self.config_elems:
+
+                        addtl_msg = "The parent '{}' to '{}' takes key '{}' - maybe key '{}' "\
+                                    "is over-indented?".format(name, key, err_key, err_key)
+                        msg = '\n'.join([msg, addtl_msg])
+
+                raise KeyError(msg)
 
         return ndict
 
@@ -557,11 +624,9 @@ class CategoryElem(_DictElem):
                                            key_case=key_case,
                                            default=defaults, **kwargs)
 
-    def normalize(self, value):
+    def normalize(self, value: dict, root_name='root'):
         """Make sure values is a dict, and recursively normalize the contained
-        keys. Returns None if values is None.
-        :param dict value:
-        """
+        keys. Returns None if values is None."""
 
         if value is None:
             return None
