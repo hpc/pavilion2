@@ -179,7 +179,7 @@ each test right before it runs on an allocation in order to un-defer values.
     def test_cmd(self):
         """Calls the actual test command and then wraps the result with the wrapper
         provided in the schedule section of the configuration."""
- 
+
         return ''.join([self._test_cmd(), self._sched_config['wrapper']])
 
     @dfr_var_method
