@@ -392,7 +392,10 @@ class Slurm(SchedulerPluginAdvanced):
         # Pull apart the node name into a prefix and number. The prefix
         # is matched minimally to avoid consuming any parts of the
         # node number.
-        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d+)$')
+        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d*)$')
+
+        # These nodes don't have numbers, so just add them to the list.
+        non_numbered_nodes = []
 
         seqs = {}
         nodes = sorted(nodes)
@@ -402,12 +405,15 @@ class Slurm(SchedulerPluginAdvanced):
                 continue
 
             base, raw_number = node_match.groups()
-            number = int(raw_number)
-            if base not in seqs:
-                seqs[base] = (len(raw_number), [])
+            if not raw_number:
+                non_numbered_nodes.append(base)
+            else:
+                number = int(raw_number)
+                if base not in seqs:
+                    seqs[base] = (len(raw_number), [])
 
-            _, node_nums = seqs[base]
-            node_nums.append(number)
+                _, node_nums = seqs[base]
+                node_nums.append(number)
 
         # This compresses the node list into sequences like 'node[0095-0105,0900-1002]'
         node_seqs = []
@@ -448,6 +454,9 @@ class Slurm(SchedulerPluginAdvanced):
             node_seqs.append(
                 seq_format
                 .format(base=base, z='0' * pre_digits, num_list=num_list))
+
+        # Add the non numbered nodes
+        node_seqs.extend(non_numbered_nodes)
 
         return ','.join(node_seqs)
 

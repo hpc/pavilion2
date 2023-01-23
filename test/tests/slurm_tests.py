@@ -141,14 +141,15 @@ class SlurmTests(PavTestCase):
             ['n0de{:04d}'.format(i) for i in range(20, 35)] +
             ['n0de{:04d}'.format(i) for i in range(95, 101)] +
             ['n0de{:04d}'.format(i) for i in range(105, 1235)] +
-            ['baaaad'] +
+            ['t##rible'] +
+            ['not_numbered'] +
             ['another000003'])
 
         snodes = Slurm.compress_node_list(nodes)
 
         self.assertEqual(
             snodes,
-            'another000003,n0de[0020-0034,0047,0049,0095-0100,0105-1234],node00[1-2]'
+            'another000003,n0de[0020-0034,0047,0049,0095-0100,0105-1234],node00[1-2],not_numbered'
         )
 
         nodes = ['node{:03d}'.format(i) for i in range(90, 101)]
