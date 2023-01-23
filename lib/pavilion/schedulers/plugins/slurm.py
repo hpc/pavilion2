@@ -126,8 +126,7 @@ class SlurmVars(SchedulerVariables):
         'test_cmd': 'srun -N 5 -w node[05-10],node23 -n 20',
     })
 
-    @dfr_var_method
-    def test_cmd(self):
+    def _test_cmd(self):
         """Construct a cmd to run a process under this scheduler, with the
         criteria specified by this test.
         """
@@ -166,6 +165,13 @@ class SlurmVars(SchedulerVariables):
             cmd.extend(self._sched_config['slurm']['mpirun_extra'])
 
         return ' '.join(cmd)
+
+    @dfr_var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the return with the wrapper
+        provided in the schedule section of the configuration."""
+
+        return ' '.join([self._test_cmd(), self._sched_config['wrapper']])
 
 
 def slurm_float(val):

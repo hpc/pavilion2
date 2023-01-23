@@ -154,8 +154,7 @@ each test right before it runs on an allocation in order to un-defer values.
 
         return self._sched_config['partition'] or ''
 
-    @var_method
-    def test_cmd(self):
+    def _test_cmd(self):
         """The command to prepend to a line to kick it off under the scheduler.
 
         This should return the command needed to start one or more MPI processes within
@@ -175,6 +174,13 @@ each test right before it runs on an allocation in order to un-defer values.
         _ = self
 
         return ''
+
+    @var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the result with the wrapper
+        provided in the schedule section of the configuration."""
+ 
+        return ''.join([self._test_cmd(), self._sched_config['wrapper']])
 
     @dfr_var_method
     def tasks_per_node(self) -> int:
