@@ -204,8 +204,8 @@ class Slurm(SchedulerPluginAdvanced):
         r'[a-zA-Z_-])?'       # And end with a non-numeric character.
         # The numeric node set
         # 03, 50, 0[3], 10[1-9], 22[33,45,66-99]
-        r'(?:\d+|'             # Just a number or...
-        r'\d*(?:\['             # A 'prefix' number followed by a square bracket
+        r'(?:\d*|'             # Just a number or...
+        r'\d*(?:\['            # A 'prefix' number followed by a square bracket
         r'(?:\d+|\d+-\d+)'     # A number or dash separated pair (ie '09' or '09-25')
         r'(?:,\d+|,\d+-\d+)*'  # We can have more than one number or dash-pair, comma sep.
         r'\]))'                # Closing square bracket, end all matching groups.
@@ -338,7 +338,7 @@ class Slurm(SchedulerPluginAdvanced):
                 if not node_part_re.match(part):
                     raise ValueError(
                         "Invalid Node List: '{}'. Syntax error in item '{}'. "
-                        "Node lists components be a hostname or hostname "
+                        "Node list components be a hostname or hostname "
                         "prefix followed by a range of node numbers. "
                         "Ex: foo003,foo0[10-20],foo[103-104],foo[10,12-14],foo-m11-16"
                         .format(node_list, part)

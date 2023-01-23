@@ -95,7 +95,8 @@ class SlurmTests(PavTestCase):
         examples = (
             (None, []),
             ('', []),
-            ('nid00[012-013,076-77,140-141,160-161]', 
+            ('bob,bob27', ['bob', 'bob27']),
+            ('nid00[012-013,076-77,140-141,160-161]',
              ['nid00012', 'nid00013', 'nid00076', 'nid00077', 'nid00140', 'nid00141',
               'nid00160', 'nid00161']),
             ('ab03', ['ab03']),
@@ -119,7 +120,6 @@ class SlurmTests(PavTestCase):
             self.assertEqual(nodes, answer)
 
         bad_examples = (
-            ('n03d',  "Trailing characters"),
             ('nid03!@#', "Trailing junk (whole string match)."),
             ('n03.n04', "Not comma separated"),
             ('n[03', "No closing bracket"),
