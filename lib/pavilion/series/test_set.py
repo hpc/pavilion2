@@ -200,7 +200,6 @@ class TestSet:
         self.tests = []
 
         skip_count = 0
-        skip_tests = []
 
         for ptest in test_configs:
             progress += 1.0 / tot_tests
@@ -226,7 +225,6 @@ class TestSet:
                     self.tests.append(test_run)
                 else:
                     skip_count += 1
-                    skip_tests.append([test_run.name, self.status.path])
                     self.status.set(
                         S_STATES.SKIPPED,
                         "Test {} skipped because '{}'"
@@ -257,8 +255,10 @@ class TestSet:
         # make sure result parsers are ok
         self.check_result_format(self.tests)
 
-        for test in skip_tests:
-            output.fprint(outfile, test[0] + ": check log at " + test[1])
+        output.fprint(
+            outfile,
+            "Test set '{}' created {} tests, skipped {}: {}"
+            .format(self.name, len(self.tests), skip_count, self.status.path))
 
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1

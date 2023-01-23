@@ -97,8 +97,6 @@ class RunSeries(Command):
         if args.re_name is not None:
             series_cfg['name'] = str(args.re_name)
 
-        output.fprint(sys.stdout, "Creating Series {}.\n".format(series_cfg['name']))
-
         # create brand-new series object
         try:
             series_obj = series.TestSeries(pav_cfg, config=series_cfg)
@@ -106,6 +104,8 @@ class RunSeries(Command):
             output.fprint(self.errfile, "Error creating test series '{}'"
                           .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
+
+        output.fprint(self.errfile, "Creating Series {}.\n".format(series_obj.name))
 
         # pav _series runs in background using subprocess
         try:

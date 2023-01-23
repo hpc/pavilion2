@@ -6,7 +6,6 @@ import os
 import math
 import re
 import subprocess
-import sys
 import time
 from collections import defaultdict, UserDict, OrderedDict
 from pathlib import Path

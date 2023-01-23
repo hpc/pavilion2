@@ -2,7 +2,6 @@
 other commands to print statuses."""
 
 import errno
-import sys
 
 from pavilion import cmd_utils
 from pavilion import filters

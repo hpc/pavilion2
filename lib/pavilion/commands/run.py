@@ -143,10 +143,10 @@ class RunCommand(Command):
         local_builds_only = getattr(args, 'local_builds_only', False)
         report_status = getattr(args, 'status', False)
 
-        output.fprint(sys.stdout, "Creating Test {}.\n".format(series_name))
-
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, config=series_cfg)
+
+        output.fprint(self.errfile, "Creating Test {}.\n".format(series_obj.name))
 
         series_obj.add_test_set_config(
             'cmd_line',
