@@ -171,8 +171,10 @@ class SlurmVars(SchedulerVariables):
         """Calls the actual test command and then wraps the return with the wrapper
         provided in the schedule section of the configuration."""
 
-        return ' '.join([self._test_cmd(), self._sched_config['wrapper']])
-
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ' '.join(filter(lambda item: item is not None, [self._test_cmd(),
+                               self._sched_config['wrapper']]))
 
 def slurm_float(val):
     """Slurm 'float' values might also be 'N/A'."""

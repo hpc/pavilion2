@@ -316,3 +316,40 @@ These are set via the ``schedule.chunking.node_selection`` and ``schedule.chunki
         chunking:
           size: 25%
           node_selection: random
+
+.. _tests.scheduling.wrapper:
+
+Wrapper
+-------
+
+On basic scheduler like raw, the ``{{sched.test_cmd}}`` returns an empty string. It can be
+overwritten using the wrapper feature in the schedule section.
+
+.. code-block:: yaml
+
+    basic:
+        scheduler: raw
+        schedule:
+            wrapper: 'mpirun -np 2'
+        run:
+            cmds:
+                # With the schedule wrapper, this will be `mpirun -np 2 ./supermagic -a`
+                - '{{sched.test_cmd}} ./supermagic -a'
+
+You can use the wrapper feature on any scheduler to wrap the scheduler test command and run the
+wrapper command before actually running the intended command.
+
+.. code-block:: yaml
+
+    advanced:
+        scheduler: slurm
+        schedule:
+            wrapper: valgrind
+            partition: standard
+            nodes: 1
+
+        run:
+            cmds:
+                # The run command will be `srun -N1 -p standard valgrind ./supermagic -a`
+                # It will run `valgrind ./supermagic -a` on the allocation
+                - '{{sched.test_cmd}} ./supermagic -a'

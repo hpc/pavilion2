@@ -180,7 +180,10 @@ each test right before it runs on an allocation in order to un-defer values.
         """Calls the actual test command and then wraps the result with the wrapper
         provided in the schedule section of the configuration."""
 
-        return ''.join([self._test_cmd(), self._sched_config['wrapper']])
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ''.join(filter(lambda item: item is not None, [self._test_cmd(),
+                              self._sched_config['wrapper']]))
 
     @dfr_var_method
     def tasks_per_node(self) -> int:

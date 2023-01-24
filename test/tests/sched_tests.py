@@ -492,6 +492,26 @@ class SchedTests(PavTestCase):
             test.finalize(var_man)
             self.assertEqual(int(test.var_man['sched.tasks_per_node']), exp_tpn)
 
+    def test_wrapper(self):
+        """Tests the wrapper feature in the schedule section"""
 
+        # Scheduler configuration
+        test_cfg = self._quick_test_cfg()
+        test_cfg['scheduler'] = 'dummy'
+        test_cfg['schedule'] = {'node': '1'}
 
+        # The wrapper can by anything a command or even a string
+        test_cfg['schedule'] = {'wrapper': 'echo'}
+        test_cfg['run']['cmds'] = ['{{sched.test_cmd}} "this is the wrapper test"']
 
+        test = self._quick_test(test_cfg, finalize=False)
+
+        # Using the dummy scheduler to test the feature
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, [test])
+        # Wait few seconds for the test to be scheduled to run.
+        test.wait()
+
+        # Check if it actually echoed to log
+        with (test.path/'run.log').open('r') as runlog:
+            self.assertIn("wrapper test", runlog.read())
