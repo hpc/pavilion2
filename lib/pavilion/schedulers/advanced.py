@@ -417,9 +417,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         for acq_opts, tests in share_groups.items():
             chunking_enabled = sched_configs[tests[0].full_id]['chunking']['size'] not in (0, None)
+            # If the user really wants to use the same node even if other nodes are available,
+            # setting share_allocation to max will allow that.
+            use_same_nodes = True if sched_config['share_allocation'] == 'max' else False
             _, max_nodes = node_range = acq_opts[0]
             # If chunking is used, schedule all the tests together.
-            if chunking_enabled:
+            if chunking_enabled or use_same_nodes:
                 self._schedule_shared_chunk(pav_cfg, tests, node_range, sched_configs, chunk)
             # Otherwise, we need to bin the tests so they are spread across the machine.
             # Tests will still share allocations but will be divided up to maximally use the
