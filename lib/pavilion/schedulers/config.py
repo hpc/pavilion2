@@ -409,14 +409,14 @@ def _validate_allocation_str(val) -> Union[str, None]:
     """Validates string and returns true, false or max for the share_allocation feature"""
 
     if isinstance(val, str):
-        if val.lower() == 'true':
-            return True
+        if val.lower() == 'false':
+            return False
         elif val.lower() == 'max':
             return val.lower()
         else:
-            return False
+            return True
     else:
-        return False
+        return True
 
 
 CONTIGUOUS = 'contiguous'
