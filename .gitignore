@@ -6,3 +6,4 @@ PAV/scripts/site
 pav.pstats
 .local/
 __pycache__/
+.vscode

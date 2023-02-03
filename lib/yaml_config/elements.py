@@ -10,7 +10,6 @@ already filled out with the given values.
 """
 
 import copy
-import pathlib
 import re
 from abc import ABCMeta
 
@@ -93,7 +92,7 @@ class ConfigElement:
 
     # We use the representer functions in this to consistently represent
     # certain types
-    _representer = yaml.representer.SafeRepresenter()
+    _representer = representer.SafeRepresenter()
 
     def __init__(self, name=None, default=None, required=False, hidden=False,
                  _sub_elem=None, choices=None, post_validator=None,
@@ -427,10 +426,10 @@ class ConfigElement:
                                      value, err))
 
     # pylint: disable=no-self-use
-    def merge(self, old, new):
+    def merge(self, old, new, **kwargs):
         """Merge the new values of this entry into the existing one. For
         most types, the old values are simply replaced. For complex types (
-        lists, dicts), the behaviour varies."""
+        lists, dicts), the behavior varies."""
 
         return new
 
