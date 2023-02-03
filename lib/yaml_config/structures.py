@@ -262,7 +262,7 @@ class _DictElem(ConfigElement):
             else:
                 key_mod = key
 
-            if key_mod.endswith('+'):
+            if key_mod and key_mod.endswith('+'):
                 key_mod = key_mod[:-1]
     
             keys[key_mod].append(key)
@@ -390,12 +390,17 @@ class KeyedElem(_DictElem):
             return base
 
         for key, value in new.items():
-            if key.endswith('+'):
+            if key and key.endswith('+'):
                 key = key[:-1]
                 base[key] = self._merge_extend(key, self.config_elems[key], 
                                                old[key], value)
             elif value is not None:
-                base[key] = self.config_elems[key].merge(old[key], new[key])
+                try:
+                    base[key] = self.config_elems[key].merge(old[key], new[key])
+                except:
+                    print('key', key, base)
+                    raise
+
 
         return base
 
@@ -419,7 +424,7 @@ class KeyedElem(_DictElem):
         ndict = self.type()
 
         for key, val in value.items():
-            if key.endswith('+'):
+            if key and key.endswith('+'):
                 final_key = key[:-1]
             else:
                 final_key = key
@@ -463,13 +468,26 @@ class KeyedElem(_DictElem):
         self._key_check(value)
 
         # Change the key case.
-        for key in value.keys():
+        for key in list(value.keys()):
             if self._key_case == self.KC_LOWER:
                 new_key = key.lower()
             elif self._key_case == self.KC_UPPER:
                 new_key = key.upper()
             else:
-                continue
+                new_key = key
+
+            # Make sure extended keys are trying to extend lists.
+            if new_key and new_key.endswith('+'):
+                sub_elem = self.config_elems.get(key[:-1], None)
+                if not isinstance(sub_elem, ListElem):
+                    raise KeyError(
+                        "Key '{}' given (which would extend the list of values under key '{}'), "
+                        "but the values under that key aren't a list."
+                        .format(key, new_key[:-1]))
+
+                # When validating, it's ok if we end up with a '+' key. Just
+                # drop the plus.
+                new_key = new_key[:-1]
 
             if key != new_key:
                 value[new_key] = value[key]
@@ -480,8 +498,8 @@ class KeyedElem(_DictElem):
             if key not in self.config_elems:
                 raise KeyError(
                     "Key '{}' under KeyedElem '{}' does not appear in the "
-                    "elements list."
-                    .format(key, self.name)
+                    "elements list: {}."
+                    .format(key, self.name, self.config_elems.keys())
                 )
 
         derived_elements = []
@@ -632,7 +650,14 @@ class CategoryElem(_DictElem):
             elif self._key_case == self.KC_UPPER:
                 new_key = key.upper()
             else:
-                continue
+                new_key = key
+
+            if new_key and new_key.endswith('+'):
+                if not isinstance(self._sub_elem, ListElem):
+                    raise KeyError(
+                        "Key '{}' tried to extend non-list key '{}'."
+                        .format(key, new_key[:-1]))
+                new_key = new_key[:-1]
 
             if key != new_key:
                 value_dict[new_key] = value_dict[key]
@@ -670,12 +695,16 @@ class CategoryElem(_DictElem):
             return base
 
         for key, value in new.items():
-            old_value = old.get(key, [])
-            if key.endswith('+'):
+            if key and key.endswith('+'):
                 key = key[:-1]
+                old_value = old.get(key, [])
                 base[key] = self._merge_extend(key, self._sub_elem, old_value, value)
             else:
-                base[key] = self._sub_elem.merge(old_value, value)
+                old_value = old.get(key)
+                if old_value is None:
+                    base[key] = value
+                else:
+                    base[key] = self._sub_elem.merge(old_value, value)
 
         return base
 
