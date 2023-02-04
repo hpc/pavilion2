@@ -50,6 +50,29 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     limit = args.limit
     verbose = verbose or io.StringIO()
 
+    ids = []
+    for test_range in args.tests:
+        if '-' in test_range:
+            id_start, id_end = test_range.split('-', 1)
+            if id_start.startswith('s'):
+                series_range_start = int(id_start.replace('s',''))
+                if id_end.startswith('s'):
+                    series_range_end = int(id_end.replace('s',''))
+                else:
+                    series_range_end = int(id_end)
+                series_ids = range(series_range_start, series_range_end+1)
+                for sid in series_ids:
+                    ids.append('s' + str(sid))
+            else:
+                test_range_start = int(id_start)
+                test_range_end = int(id_end)
+                test_ids = range(test_range_start, test_range_end+1)
+                for tid in test_ids:
+                    ids.append(str(tid))
+        else:
+            ids.append(test_range)
+    args.tests = ids
+
     if 'all' in args.tests:
         for arg, default in filters.TEST_FILTER_DEFAULTS.items():
             if hasattr(args, arg) and default != getattr(args, arg):

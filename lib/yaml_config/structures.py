@@ -433,12 +433,12 @@ class KeyedElem(_DictElem):
             if elem is None:
                 name = self.name
                 if name is not None:
-                    raise TypeError(
+                    raise KeyError(
                         "Invalid config key '{}' given under {} called '{}'."
                         .format(final_key, self.__class__.__name__, self.name)
                     )
                 else:
-                    raise TypeError(
+                    raise KeyError(
                         "Invalid config key '{}' given under root "
                         "element.".format(key))
 
