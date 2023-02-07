@@ -166,7 +166,7 @@ class TestConfigResolver:
                                 .format(test_name, test_suite, var_key, first_value_keys, i + 1,
                                         value_keys))
 
-    def find_config(self, conf_type, conf_name) -> (str, Path):
+    def find_config(self, conf_type, conf_name) -> tuple(str, Path):
         """Search all of the known configuration directories for a config of the
         given type and name.
 
@@ -426,7 +426,7 @@ class TestConfigResolver:
 
                             complete += 1
                             progress = len(permuted_tests) - complete
-                            progress = (1 - progress/len(permuted_tests))
+                            progress = 1 - progress/len(permuted_tests)
                             output.fprint(outfile,
                                           "Resolving Test Configs: {:.0%}".format(progress),
                                           end='\r')
@@ -1006,7 +1006,7 @@ class TestConfigResolver:
             return subtitle
 
     def resolve_permutations(self, test_cfg: Dict, base_var_man: variables.VariableSetManager)\
-            -> (Dict, List[variables.VariableSetManager]):
+            -> tuple(Dict, List[variables.VariableSetManager]):
         """Resolve permutations for all used permutation variables, returning a
         variable manager for each permuted version of the test config. This requires that
         we iteratively apply permutations - permutation variables may contain references that
