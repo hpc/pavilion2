@@ -408,6 +408,19 @@ def _validate_node_list(items) -> List[str]:
 
     return nodes
 
+def _validate_allocation_str(val) -> Union[str, None]:
+    """Validates string and returns true, false or max for the share_allocation feature"""
+
+    if isinstance(val, str):
+        if val.lower() == 'false':
+            return False
+        elif val.lower() == 'max':
+            return val.lower()
+        else:
+            return True
+    else:
+        return True
+
 
 CONTIGUOUS = 'contiguous'
 RANDOM = 'random'
@@ -447,7 +460,7 @@ CONFIG_VALIDATORS = {
     'reservation':      None,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
-    'share_allocation': utils.str_bool,
+    'share_allocation': _validate_allocation_str,
     'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
         'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
