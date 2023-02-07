@@ -185,7 +185,6 @@ def section_values(component: Union[Dict, List, str],
                         .format(component)
                     )
                 except StringParserError as err:
-
                     raise TestConfigError(
                         "Error resolving value '{}' in config at '{}':\n"
                         "{}\n{}"
