@@ -369,7 +369,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         a shared allocation together.'''
 
         # There are three types of test launches.
-        # 1. Tests that can share an allocation. These may or may not use chunking.
+        # 1. Tests that can share an allocation (whether nodes are explicitly defined are not)
         share_groups = collections.defaultdict(list)
         # 2. Tests that don't share an allocation and don't have nodes explicitly defined.
         flex_tests: List[TestRun] = []
@@ -421,10 +421,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # setting share_allocation to max will allow that.
             use_same_nodes = True if sched_config['share_allocation'] == 'max' else False
             _, max_nodes = node_range = acq_opts[0]
-            # Schedule all these tests in one allocation. Chunked tests are already spread across
-            # chunks, and these non-chunked tests are explicitly set to use one allocation.
+            # If chunking is used, schedule all the tests together.
             if chunking_enabled or use_same_nodes:
-                self._schedule_shared(pav_cfg, tests, node_range, sched_configs, chunk)
+                self._schedule_shared_chunk(pav_cfg, tests, node_range, sched_configs, chunk)
             # Otherwise, we need to bin the tests so they are spread across the machine.
             # Tests will still share allocations but will be divided up to maximally use the
             # machine.
@@ -435,16 +434,15 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     bins[i % bin_count].append(test)
                 for test_bin in bins:
                     if test_bin:
-                        self._schedule_shared(pav_cfg, test_bin, node_range, sched_configs,
-                                              chunk)
+                        self._schedule_shared_chunk(pav_cfg, test_bin, node_range, sched_configs,
+                                                    chunk)
 
-        self._schedule_indi_flex(pav_cfg, flex_tests, sched_configs, chunk)
+        self._schedule_flex_chunk(pav_cfg, flex_tests, sched_configs, chunk)
         self._schedule_indi_chunk(pav_cfg, indi_tests, sched_configs, chunk)
 
-    def _schedule_shared(self, pav_cfg, tests: List[TestRun], node_range: NodeRange,
-                         sched_configs: Dict[str, dict], chunk: NodeSet):
-        """Scheduler tests in a shared allocation. This allocation will use chunking when
-        enabled, or allow the scheduler to pick the nodes otherwise."""
+    def _schedule_shared_chunk(self, pav_cfg, tests: List[TestRun], node_range: NodeRange,
+                               sched_configs: Dict[str, dict], chunk: NodeSet):
+        """Scheduler tests in a shared chunk."""
 
         try:
             job = Job.new(pav_cfg, tests, self.KICKOFF_FN)
@@ -462,20 +460,14 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         node_list = list(chunk)
         node_list.sort()
 
-        # Use the first N nodes if the requested number of nodes is less than the
-        # chunk size.
+        picked_nodes = None
+
         if base_sched_config['chunking']['size'] in (0, None):
-            # We aren't using chunking, so let the scheduler pick.
-            picked_nodes = None
-            # Save the data for all (compatible) nodes, we never know which we will get.
             job.save_node_data({node: self._nodes[node] for node in chunk})
         else:
             picked_nodes = node_list[:node_range[1]]
-            # Save the data for all the nodes we're using.
-            job.save_node_data({node: self._nodes[node] for node in picked_nodes})
-            # Clear the node range - it's only used for flexible scheduling.
             node_range = None
-
+            job.save_node_data({node: self._nodes[node] for node in picked_nodes})
 
         job_name = 'pav_{}'.format(','.join(test.name for test in tests[:4]))
         if len(tests) > 4:
@@ -512,10 +504,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 "Test kicked off by {} scheduler in a shared allocation with {} other "
                 "tests.".format(self.name, len(tests)))
 
-    def _schedule_indi_flex(self, pav_cfg, tests: List[TestRun],
-                       sched_configs: Dict[str, dict], chunk: NodeSet):
-        """Schedule tests individually in 'flexible' allocations, where the scheduler
-        picks the nodes."""
+    def _schedule_flex_chunk(self, pav_cfg, tests: List[TestRun],
+                             sched_configs: Dict[str, dict], chunk: NodeSet):
+        """Schedule tests in an individualized chunk that doesn't actually use
+        chunking, leaving the node picking to the scheduler."""
 
         for test in tests:
             node_info = {node: self._nodes[node] for node in chunk}
