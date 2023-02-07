@@ -34,6 +34,31 @@ class ResolverTests(PavTestCase):
 
         self.resolver.load(['speed'])
 
+    def test_requests(self):
+        """Check request parsing."""
+
+        requests = (
+            ('hello',                   ('hello', None, 1)),
+            ('hello123',                ('hello123', None, 1)),
+            ('123-_hello',              ('123-_hello', None, 1)),
+            ('123hello.world',          ('123hello', 'world', 1)),
+            ('123hello.123world',       ('123hello', '123world', 1)),
+            ('123hello.123-_world-',    ('123hello', '123-_world-', 1)),
+            ('5*123hello.world',        ('123hello', 'world', 5)),
+            ('5*123hello.123world',     ('123hello', '123world', 5)),
+            ('5*123hello.123-_world-',  ('123hello', '123-_world-', 5)),
+            ('123hello.world3*6',       ('123hello', 'world3', 6)),
+            ('123hello.123world3*6',    ('123hello', '123world3', 6)),
+            ('123hello.123-_world-3*6', ('123hello', '123-_world-3', 6)),
+        )
+
+        for req_str, answer in requests:
+            req = resolver.TestRequest(req_str)
+            self.assertEqual((req.suite, req.test, req.count), answer)
+
+        with self.assertRaises(resolver.TestConfigError):
+            resolver.TestRequest('3*hello.world*5')
+
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
@@ -845,11 +870,11 @@ class ResolverTests(PavTestCase):
         for test_name in (
                 'bad_var_syntax',
                 'bad_var_ref',
-                'bad_ref', 
+                'bad_ref',
                 'bad_syntax',
                 ):
             test_name = 'parse_errors.{}'.format(test_name)
-            
+
             with self.assertRaises(TestConfigError):
                 self.resolver.load([test_name])
 

@@ -236,7 +236,7 @@ class ResultsCommand(Command):
                                       test.config['name']))
 
                 configs = reslvr.load_raw_configs(
-                    tests=[test_name],
+                    tests=[resolver.TestRequest(test_name)],
                     host=test.config['host'],
                     modes=test.config['modes'],
                 )
@@ -244,6 +244,9 @@ class ResultsCommand(Command):
                 output.fprint(self.errfile, "Test '{}' could not be found."
                               .format(test.name), err, color=output.RED)
                 return False
+
+            # Dump the request part of the return values
+            configs = [cfg for _, cfg in configs]
 
             # These conditions guard against unexpected results from
             # load_raw_configs. They may not be possible.
