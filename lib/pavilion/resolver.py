@@ -17,7 +17,7 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Dict, Tuple
+from typing import List, IO, Dict, Tuple, NewType, Union, Any
 
 import yc_yaml
 from pavilion import output, variables
@@ -45,14 +45,53 @@ LOGGER = logging.getLogger('pav.' + __name__)
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 
+class TestRequest:
+    """Represents a user request for a test. May end up being multiple tests."""
+
+    REQUEST_RE = re.compile(r'^(?:(\d+)\*)?'       # Leading repeat pattern ('5*', '20*', ...)
+                            r'([a-zA-Z0-9_-]+)'  # The test suite name
+                            r'(?:\.([a-zA-Z0-9_-]+))?'  # The test name.
+                            r'(?:\*(\d+))?$'      # Trailing repeat pattern
+                            )
+
+    def __init__(self, request_str):
+
+        self.count = 1
+        self.request = request_str
+
+        match = self.REQUEST_RE.match(request_str)
+        if not match:
+            raise TestConfigError(
+                "Test requests must be in the form 'suite_name' or 'suite_name.test_name'.\n"
+                "They may be preceeded or followed by a repeat multiplier (e.g. '5*' or '*5').\n"
+                "Got: {}".format(request_str))
+
+        count_pre, self.suite, self.test, count_post = match.groups()
+        if count_pre and count_post:
+            raise TestConfigError("Both a pre- and a post-repeat count are specified. "
+                                  "That's not allowed: {}".format(self.request))
+        elif count_pre:
+            self.count = int(count_pre)
+        elif count_post:
+            self.count = int(count_post)
+        else:
+            self.count = 1
+
+
+    def __str__(self):
+        return "Request: {}.{} * {}".format(self.suite, self.test, self.count)
+
 class ProtoTest:
     """An simple object that holds the pair of a test config and its variable
     manager."""
 
-    def __init__(self, config, var_man):
+    def __init__(self, config: Dict, var_man: variables.VariableSetManager):
         self.config = config  # type: dict
         self.var_man = var_man  # type: variables.VariableSetManager
 
+    def copy(self) -> 'ProtoTest':
+        return ProtoTest(config=copy.deepcopy(self.config),
+                         var_man=copy.deepcopy(self.var_man))
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
@@ -107,18 +146,62 @@ class TestConfigResolver:
         # This won't have a 'sched' variable set unless we're permuting over scheduler vars.
         return var_man
 
-    def check_variable_consistency(self, raw_tests: List[Dict]):
+    def check_variable_consistency(self, config: Dict):
         """Check all the variables defined as defaults with a null value to
         make sure they were actually defined, and that all sub-var dicts have consistent keys."""
 
         _ = self
 
-        for config in raw_tests:
+        test_name = config.get('name', '<unnamed>')
+        test_suite = config.get('suite_path', '<no suite>')
 
-            test_name = config.get('name', '<unnamed>')
-            test_suite = config.get('suite_path', '<no suite>')
+        for var_key, values in config.get('variables', {}).items():
 
-            for var_key, values in config.get('variables', {}).items():
+            if not values:
+                raise TestConfigError(
+                    "In test '{}' from suite '{}', test variable '{}' was defined "
+                    "but wasn't given a value."
+                    .format(test_name, test_suite, var_key))
+
+            first_value_keys = set(values[0].keys())
+            for i, value in enumerate(values):
+                for subkey, subval in value.items():
+                    if subkey is None:
+                        full_key = var_key
+                    else:
+                        full_key = '.'.join([var_key, subkey])
+
+                    if subval is None:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has an empty "
+                            "value. Empty defaults are fine (as long as they are "
+                            "overridden), but regular variables should always be given "
+                            "a value (even if it's just an empty string)."
+                            .format(test_name, test_suite, full_key))
+
+                value_keys = set(value.keys())
+                if value_keys != first_value_keys:
+                    if None in first_value_keys:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has  "
+                            "inconsistent keys. The first value was a simple variable "
+                            "with value '{}', while value {} had keys {}"
+                            .format(test_name, test_suite, var_key, values[0][None], i + 1,
+                                    value_keys))
+                    elif None in value_keys:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has "
+                            "inconsistent keys.The first value had keys {}, while value "
+                            "{} was a simple value '{}'."
+                            .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                    value[None]))
+                    else:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has "
+                            "inconsistent keys. The first value had keys {}, "
+                            "while value {} had keys {}"
+                            .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                    value_keys))
 
                 if not values:
                     raise TestConfigError(
@@ -166,21 +249,30 @@ class TestConfigResolver:
                                 .format(test_name, test_suite, var_key, first_value_keys, i + 1,
                                         value_keys))
 
+
     def find_config(self, conf_type, conf_name) -> Tuple(str, Path):
         """Search all of the known configuration directories for a config of the
         given type and name.
 
-        :param str conf_type: 'host', 'mode', or 'test'
+        :param str conf_type: 'host', 'mode', or 'test/suite'
         :param str conf_name: The name of the config (without a file extension).
         :return: A tuple of the config label under which a matching config was found
             and the path to that config. If nothing was found, returns (None, None).
         """
+
+        if conf_type == 'suite':
+            conf_type = 'tests'
+        elif conf_type == 'host':
+            conf_type = 'hosts'
+        elif conf_type == 'mode':
+            conf_type = 'modes'
+
         for label, config in self.pav_cfg.configs.items():
             path = config['path']/conf_type/'{}.yaml'.format(conf_name)
             if path.exists():
                 return label, path
 
-        return None, None
+        return '', None
 
     def find_all_tests(self):
         """Find all the tests within known config directories.
@@ -354,33 +446,17 @@ class TestConfigResolver:
         if host is None:
             host = self.base_var_man['sys.sys_name']
 
-        raw_tests = self.load_raw_configs(tests, host, modes)
+        requested_tests = [TestRequest(test_req) for test_req in tests]
 
-        # apply series-defined conditions
-        if conditions:
-            for raw_test in raw_tests:
-                raw_test['only_if'] = union_dictionary(
-                    raw_test['only_if'], conditions['only_if']
-                )
-                raw_test['not_if'] = union_dictionary(
-                    raw_test['not_if'], conditions['not_if']
-                )
+        raw_tests = self.load_raw_configs(requested_tests, host, modes, conditions=conditions,
+                                          overrides=overrides)
 
-        resolved_tests = []
-
-        for raw_test in raw_tests:
-            # Apply the overrides to each of the config values.
-            try:
-                self.apply_overrides(raw_test, overrides)
-            except (KeyError, ValueError) as err:
-                msg = 'Error applying overrides to test {} from {}' \
-                    .format(raw_test['name'], raw_test['suite_path'], err)
-                raise TestConfigError(msg)
-
-        self.check_variable_consistency(raw_tests)
+        for _, test_cfg in raw_tests:
+            # Make sure the variables section is properly set up.
+            self.check_variable_consistency(test_cfg)
 
         permuted_tests = []
-        for test_cfg in raw_tests:
+        for request, test_cfg in raw_tests:
             var_man = self.build_variable_manager(test_cfg)
 
             # Resolve all configuration permutations.
@@ -388,7 +464,7 @@ class TestConfigResolver:
                 p_cfg, permutes = self.resolve_permutations(test_cfg, var_man)
                 for p_var_man in permutes:
                     # Get the scheduler from the config.
-                    permuted_tests.append((p_cfg, p_var_man))
+                    permuted_tests.append((request, p_cfg, p_var_man))
 
             except TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}' \
@@ -397,23 +473,24 @@ class TestConfigResolver:
                 raise TestConfigError(msg, err)
         complete = 0
 
+        resolved_tests = []
         if not permuted_tests:
             return []
         elif len(permuted_tests) == 1:
-            test_cfg, var_man = permuted_tests[0]
+            request, test_cfg, var_man = permuted_tests[0]
             resolved_cfg = self.resolve(test_cfg, var_man)
-            return [ProtoTest(resolved_cfg, var_man)]
+            resolved_tests.append((request, ProtoTest(resolved_cfg, var_man)))
         else:
             async_results = []
             proc_count = min(self.pav_cfg['max_cpu'], len(permuted_tests))
             with mp.Pool(processes=proc_count) as pool:
-                for test_cfg, var_man in permuted_tests:
+                for request, test_cfg, var_man in permuted_tests:
                     aresult = pool.apply_async(self.resolve, (test_cfg, var_man))
-                    async_results.append((aresult, var_man))
+                    async_results.append((aresult, request, var_man))
 
                 while async_results:
                     not_ready = []
-                    for aresult, var_man in list(async_results):
+                    for aresult, request, var_man in list(async_results):
                         if aresult.ready():
                             try:
                                 result = aresult.get()
@@ -422,7 +499,7 @@ class TestConfigResolver:
                             except Exception as err:
                                 raise TestConfigError("Unexpected error loading tests", err)
 
-                            resolved_tests.append(ProtoTest(result, var_man))
+                            resolved_tests.append((request, ProtoTest(result, var_man)))
 
                             complete += 1
                             progress = len(permuted_tests) - complete
@@ -431,21 +508,30 @@ class TestConfigResolver:
                                           "Resolving Test Configs: {:.0%}".format(progress),
                                           end='\r')
                         else:
-                            not_ready.append((aresult, var_man))
+                            not_ready.append((aresult, request, var_man))
                     async_results = not_ready
 
-                    try:
-                        aresult.wait(0.5)
-                    except TimeoutError:
-                        pass
+                    if async_results:
+                        try:
+                            async_results[0][0].wait(0.5)
+                        except TimeoutError:
+                            pass
 
         if outfile:
             output.fprint(outfile, '')
 
+        # Now that tests are resolved, multiply them out based on the requested count.
+        all_resolved_tests = []
+        for request, proto_test in resolved_tests:
+            # Add the original, copy the rest.
+            all_resolved_tests.append(proto_test)
+            for i in range(request.count - 1):
+                all_resolved_tests.append(proto_test.copy())
+
         # NOTE: The deferred scheduler errors will be handled when we try to save
         #       the test object. (See build_variable_manager() above)
 
-        return resolved_tests
+        return all_resolved_tests
 
     def resolve(self, test_cfg: dict, var_man: variables.VariableSetManager) -> Dict:
         """Resolve all the strings in one test config. This mostly exists to consolidate
@@ -466,7 +552,66 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Error resolving test {}".format(test_cfg['name']), err)
 
-    def load_raw_configs(self, tests, host, modes):
+
+    def _load_raw_config(self, name: str, config_type: str, optional=False) \
+            -> Tuple[Any, Union[Path, None], Union[str, None]]:
+        """Load the given raw test config file. It can be a host, mode, or suite file.
+        Returns a tuple of the config, path, and config label (name of the config area).
+        """
+
+        if config_type in ('host', 'mode'):
+            loader = TestConfigLoader()
+        elif config_type == 'suite':
+            loader = TestSuiteLoader()
+        else:
+            raise RuntimeError("Unknown config type: '{}'".format(config_type))
+
+        cfg_label, path = self.find_config(config_type, name)
+        if path is None:
+
+            if optional:
+                return None, None, None
+
+            # Give a special message if it looks like they got their commands mixed up.
+            if config_type == 'suite' and name == 'log':
+                raise TestConfigError(
+                    "Could not find test suite 'log'. Were you trying to run `pav log run`?")
+
+            raise TestConfigError(
+                "Could not find {} config file '{}.py' in any of the Pavilion config directories.\n"
+                "See `pav config list` for a list of config directories.".format(config_type, name))
+
+        try:
+            with path.open() as cfg_file:
+                # Load the host test config defaults.
+                raw_cfg = loader.load_raw(cfg_file)
+        except (IOError, OSError) as err:
+            raise TestConfigError("Could not open {} config '{}'"
+                                  .format(config_type, path), err)
+        except ValueError as err:
+            raise TestConfigError(
+                "{} config '{}' has invalid value."
+                .format(config_type.capitalize(), path), err)
+        except KeyError as err:
+            raise TestConfigError(
+                "{} config '{}' has an invalid key."
+                .format(config_type.capitalize(), path), err)
+        except yc_yaml.YAMLError as err:
+            raise TestConfigError(
+                "{} config '{}' has a YAML Error"
+                .format(config_type.capitalize(), path), err)
+        except TypeError as err:
+            raise TestConfigError(
+                "Structural issue with {} config '{}'"
+                .format(config_type, path), err)
+
+        return raw_cfg, path, cfg_label
+
+
+    def load_raw_configs(self, tests: List[TestRequest], host: str, modes: List[str],
+                         conditions: Union[None, Dict] = None,
+                         overrides: Union[None, List[str]] = None) \
+                         -> List[Tuple[TestRequest, Dict]]:
         """Get a list of raw test configs given a host, list of modes,
         and a list of tests. Each of these configs will be lightly modified with
         a few extra variables about their name, suite, and suite_file, as well
@@ -476,201 +621,99 @@ class TestConfigResolver:
             can be either a '<test_suite>.<test_name>', '<test_suite>',
             or '<test_suite>.*'. A test suite by itself (or with a .*) get every
             test in a suite.
-        :param Union(str, None) host: The host the test is running on.
-        :param list modes: A list (possibly empty) of modes to layer onto the
-            test.
-        :rtype: list(dict)
-        :return: A list of raw test_cfg dictionaries.
+        :param host: The host the test is running on.
+        :param modes: A list (possibly empty) of modes to layer onto the test.
+        :param conditions: A list (possibly empty) of conditions to apply to each test config.
+        :param overrides: A list of overrides to apply to each test config.
+        :return: A list of (request, config) tuples.
         """
 
         test_config_loader = TestConfigLoader()
 
+        # Get the base, empty config, then apply the host config on top of it.
         base_config = test_config_loader.load_empty()
-
         base_config = self.apply_host(base_config, host)
 
-        # A dictionary of test suites to a list of subtests to run in that suite.
-        all_tests = defaultdict(dict)
-        picked_tests = []
-        test_suite_loader = TestSuiteLoader()
-
-        total_tests = []
-        # Make sue we get the correct amount of tests
-        for test_name in tests:
-            # Make sure the test name has the right number of parts.
-            # They should look like '<test_suite>.<subtest>', '<test_suite>.*'
-            # or just '<test_suite>'
-
-            name_parts = test_name.split('.')
-            if len(name_parts) == 0 or name_parts[0] == '':
+        # Find all the suite configs.
+        suites = {}
+        for request in tests:
+            # Only load each test suite once.
+            if request.suite in suites:
                 continue
-            elif len(name_parts) > 2:
-                raise TestConfigError(
-                    "Test names can be a general test suite, or a test suite "
-                    "followed by a specific test. Eg: 'supermagic' or "
-                    "'supermagic.fs_tests'")
 
-            # Divide the test name into it's parts.
-            if len(name_parts) == 2:
-                test_suite, requested_test = name_parts
-                if requested_test == '*':
-                    raise TestConfigError(
-                        "Invalid subtest for requested test: '*'\n"
-                        "<suite_name>.* is no longer support, use 'pav "
-                        "run <suite_name>' instead."
+            raw_suite_cfg, suite_path, cfg_label = self._load_raw_config(request.suite, 'suite')
+            suite_tests = self.resolve_inheritance(base_config, raw_suite_cfg, request.suite)
+
+            # Perform essential transformations to each test config.
+            for test_cfg_name, test_cfg in list(suite_tests.items()):
+
+                # Basic information that all test configs should have.
+                test_cfg['name'] = test_cfg_name
+                test_cfg['cfg_label'] = cfg_label
+                working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
+                test_cfg['working_dir'] = working_dir.as_posix()
+                test_cfg['suite'] = request.suite
+                test_cfg['suite_path'] = str(suite_path)
+                test_cfg['host'] = host
+                test_cfg['modes'] = modes
+
+                # Apply any additional conditions.
+                if conditions:
+                    test_cfg['only_if'] = union_dictionary(
+                        test_cfg['only_if'], conditions['only_if']
                     )
-                try:
-                    if '*' in test_suite:
-                        count, test_suite = test_suite.split("*")
-                        total_tests.extend([test_suite+"."+requested_test]*int(count))
-                        continue
+                    test_cfg['not_if'] = union_dictionary(
+                        test_cfg['not_if'], conditions['not_if']
+                    )
 
-                    if '*' in requested_test:
-                        test, count = requested_test.split("*")
-                        total_tests.extend([test_suite+"."+test]*int(count))
-                        continue
-                except ValueError as err:
-                    raise TestConfigError("Invalid repeat notation"
-                                          .format(err))
-                total_tests.append(test_name)
+                # Apply modes.
+                test_cfg = self.apply_modes(test_cfg, modes)
 
-            else:
-                test_suite = name_parts[0]
-                if "*" in test_suite:
-                    left, right = test_suite.split("*")
+                # Apply overrides
+                if overrides:
                     try:
-                        if left.isdigit():
-                            total_tests.extend([right] * int(left))
-                            continue
-                        elif right.isdigit():
-                            total_tests.extend([left] * int(right))
-                            continue
-                        else:
-                            raise ValueError("No digit present in {}"
-                                             .format([left, right]))
-                    except ValueError as err:
-                        raise TestConfigError("Invalid repeat notation"
-                                              .format(err))
-                else:
-                    total_tests.append(test_suite)
-
-        # Find and load all the requested tests.
-        for test_name in total_tests:
-            name_parts = test_name.split('.')
-            if len(name_parts) == 2:
-                test_suite, requested_test = name_parts
-            else:
-                test_suite = name_parts[0]
-                requested_test = "*"
-
-            # Make sure our test suite and subtest names are sane.
-            if KEY_NAME_RE.match(test_suite) is None:
-                raise TestConfigError("Invalid test suite name: '{}'"
-                                      .format(test_suite))
-            if (requested_test != '*' and
-                    TEST_NAME_RE.match(requested_test) is None):
-                raise TestConfigError("Invalid subtest for requested test: '{}'"
-                                      .format(test_name))
-
-            # Only load each test suite's tests once.
-            if test_suite not in all_tests:
-                cfg_label, test_suite_path = self.find_config(CONF_TEST, test_suite)
-
-                if test_suite_path is None:
-                    if test_suite == 'log':
+                        test_cfg = self.apply_overrides(test_cfg, overrides)
+                    except (KeyError, ValueError) as err:
                         raise TestConfigError(
-                            "Could not find test suite 'log'. If you were "
-                            "trying to get the run log, use the 'pav log run "
-                            "<testid>' command.")
+                            'Error applying overrides to test {} from suite {} at:\n{}' \
+                            .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
+                            err)
 
-                    cdirs = [str(cfg['path']) for cfg in self.pav_cfg.configs.values()]
-                    raise TestConfigError(
-                        "Could not find test suite {}. Looked in these "
-                        "locations: {}"
-                        .format(test_suite, cdirs))
+                # Result evaluations can be added to all tests at the root pavilion config level.
+                result_evals = test_cfg['result_evaluate']
+                for key, const in self.pav_cfg.default_results.items():
+                    if key in result_evals:
+                        # Don't override any that are already there.
+                        continue
 
-                try:
-                    with test_suite_path.open() as test_suite_file:
-                        # We're loading this in raw mode, because the defaults
-                        # will have already been provided.
-                        # Each test config will be individually validated later.
-                        test_suite_cfg = test_suite_loader.load_raw(test_suite_file)
+                    test_cfg['result_evaluate'][key] = '"{}"'.format(const)
 
-                except (IOError, OSError, ) as err:
-                    raise TestConfigError(
-                        "Could not open test suite config {}"
-                        .format(test_suite_path), err)
-                except ValueError as err:
-                    raise TestConfigError(
-                        "Test suite '{}' has invalid value."
-                        .format(test_suite_path), err)
-                except KeyError as err:
-                    raise TestConfigError(
-                        "Test suite '{}' has an invalid key."
-                        .format(test_suite_path), err)
-                except yc_yaml.YAMLError as err:
-                    raise TestConfigError(
-                        "Test suite '{}' has a YAML Error"
-                        .format(test_suite_path), err)
-                except TypeError as err:
-                    # All config elements in test configs must be strings,
-                    # and just about everything converts cleanly to a string.
-                    raise RuntimeError(
-                        "Test suite '{}' raised a type error, but that "
-                        "should never happen.".format(test_suite_path), err)
+                # Save our altered test config.
+                suite_tests[test_cfg_name] = test_cfg
 
-                suite_tests = self.resolve_inheritance(
-                    base_config,
-                    test_suite_cfg,
-                    test_suite_path,
-                )
+            suites[request.suite] = suite_tests
 
-                # Add some basic information to each test config.
-                for test_cfg_name, test_cfg in suite_tests.items():
-                    test_cfg['name'] = test_cfg_name
-                    test_cfg['cfg_label'] = cfg_label
-                    working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
-                    test_cfg['working_dir'] = working_dir.as_posix()
-                    test_cfg['suite'] = test_suite
-                    test_cfg['suite_path'] = str(test_suite_path)
-                    test_cfg['host'] = host
-                    test_cfg['modes'] = modes
-
-                all_tests[test_suite] = suite_tests
-
-            # Now that we know we've loaded and resolved a given suite,
-            # get the relevant tests from it.
-            if requested_test == '*':
-                # All tests were requested.
-                for test_cfg_name, test_cfg in all_tests[test_suite].items():
-                    if not test_cfg_name.startswith('_'):
-                        picked_tests.append(test_cfg)
-
+        all_tests: List[Tuple[TestRequest, Dict]] = []
+        # Make sure we get the correct amount of tests
+        for request in tests:
+            if request.test is None:
+                # Add all tests in the suite, except the 'hidden' ones.
+                add_tests = [test_name for test_name in suites[request.suite].keys()
+                             if not test_name.startswith('_')]
             else:
-                # Get the one specified test.
-                if requested_test not in all_tests[test_suite]:
+                # Add a single test, even a 'hidden' one.
+                add_tests = [request.test]
+
+            # Add each of the tests to our list of loaded tests.
+            for test_name in add_tests:
+                if test_name in suites[request.suite]:
+                    all_tests.append((request, suites[request.suite][test_name]))
+                else:
                     raise TestConfigError(
                         "Test suite '{}' does not contain a test '{}'."
-                        .format(test_suite, requested_test))
+                        .format(request.suite, test_name))
 
-                picked_tests.append(all_tests[test_suite][requested_test])
-
-        picked_tests = [
-            self.apply_modes(test_cfg, modes)
-            for test_cfg in picked_tests]
-
-        # Add the pav_cfg default_result configuration items to each test.
-        for test_cfg in picked_tests:
-            result_evals = test_cfg['result_evaluate']
-
-            for key, const in self.pav_cfg.default_results.items():
-                if key in result_evals:
-                    # Don't override any that are already there.
-                    continue
-
-                test_cfg['result_evaluate'][key] = '"{}"'.format(const)
-
-        return picked_tests
+        return all_tests
 
     def verify_version_range(self, comp_versions):
         """Validate a version range value."""
@@ -733,84 +776,38 @@ class TestConfigResolver:
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
 
-        test_config_loader = TestConfigLoader()
+        loader = TestConfigLoader()
 
-        if host is not None:
-            _, host_cfg_path = self.find_config(CONF_HOST, host)
+        raw_host_cfg, _, _ = self._load_raw_config(host, 'host', optional=True)
+        if raw_host_cfg is None:
+            return test_cfg
 
-            if host_cfg_path is not None:
-                try:
-                    with host_cfg_path.open() as host_cfg_file:
-                        # Load the host test config defaults.
-                        test_cfg = test_config_loader.load_merge(
-                            test_cfg,
-                            host_cfg_file,
-                            partial=True)
-                except (IOError, OSError) as err:
-                    raise TestConfigError("Could not open host config '{}'"
-                                          .format(host_cfg_path), err)
-                except ValueError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has invalid value."
-                        .format(host_cfg_path), err)
-                except KeyError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has an invalid key."
-                        .format(host_cfg_path), err)
-                except yc_yaml.YAMLError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has a YAML Error"
-                        .format(host_cfg_path), err)
-                except TypeError as err:
-                    raise TestConfigError(
-                        "Structural issue with host config '{}'"
-                        .format(host_cfg_path), err)
+        host_cfg = loader.normalize(raw_host_cfg)
 
-            test_cfg = resolve.cmd_inheritance(test_cfg)
+        try:
+            return loader.merge(test_cfg, host_cfg)
+        except (KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Error merging host configuration for host '{}'".format(host))
 
-        return test_cfg
-
-    def apply_modes(self, test_cfg, modes):
+    def apply_modes(self, test_cfg, modes: List[str]):
         """Apply each of the mode files to the given test config.
-        :param dict test_cfg: A raw test configuration.
-        :param list modes: A list of mode names.
+
+        :param test_cfg: The raw test configuration.
+        :param modes: A list of mode names.
         """
 
-        test_config_loader = TestConfigLoader()
+        loader = TestConfigLoader()
 
         for mode in modes:
-            _, mode_cfg_path = self.find_config(CONF_MODE, mode)
-
-            if mode_cfg_path is None:
-                raise TestConfigError(
-                    "Could not find {} config file for {}."
-                    .format(CONF_MODE, mode))
+            raw_mode_cfg, mode_cfg_path, _ = self._load_raw_config(mode, 'mode')
+            mode_cfg = loader.normalize(raw_mode_cfg)
 
             try:
-                with mode_cfg_path.open() as mode_cfg_file:
-                    # Load this mode_config and merge it into the base_config.
-                    test_cfg = test_config_loader.load_merge(test_cfg,
-                                                             mode_cfg_file,
-                                                             partial=True)
-            except (IOError, OSError) as err:
-                raise TestConfigError("Could not open mode config '{}'"
-                                      .format(mode_cfg_path), err)
-            except ValueError as err:
+                test_cfg = loader.merge(test_cfg, mode_cfg)
+            except (KeyError, ValueError) as err:
                 raise TestConfigError(
-                    "Mode config '{}' has invalid value."
-                    .format(mode_cfg_path), err)
-            except KeyError as err:
-                raise TestConfigError(
-                    "Mode config '{}' has an invalid key."
-                    .format(mode_cfg_path), err)
-            except yc_yaml.YAMLError as err:
-                raise TestConfigError(
-                    "Mode config '{}' has a YAML Error"
-                    .format(mode_cfg_path), err)
-            except TypeError as err:
-                raise TestConfigError(
-                    "Structural issue with mode config '{}'"
-                    .format(mode_cfg_path), err)
+                    "Error merging host configuration for host '{}'".format(mode))
 
             test_cfg = resolve.cmd_inheritance(test_cfg)
 
@@ -826,7 +823,6 @@ class TestConfigResolver:
         :param suite_cfg: The suite configuration, loaded from a suite file.
         :param suite_path: The path to the suite file.
         :return: A dictionary of test configs.
-        :rtype: dict(str,dict)
         """
 
         test_config_loader = TestConfigLoader()
@@ -1138,7 +1134,7 @@ class TestConfigResolver:
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
                        'base_name', 'host', 'modes']
 
-    def apply_overrides(self, test_cfg, overrides):
+    def apply_overrides(self, test_cfg, overrides) -> Dict:
         """Apply overrides to this test.
 
         :param dict test_cfg: The test configuration.
@@ -1161,7 +1157,7 @@ class TestConfigResolver:
             self._apply_override(test_cfg, key, value)
 
         try:
-            config_loader.normalize(test_cfg)
+            return config_loader.normalize(test_cfg)
         except TypeError as err:
             raise TestConfigError("Invalid override", err)
 
