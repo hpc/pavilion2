@@ -8,7 +8,6 @@ are all handled by the TestConfigResolver
 # pylint: disable=too-many-lines
 
 import copy
-from curses import raw
 import io
 import logging
 import multiprocessing as mp
@@ -63,7 +62,7 @@ class TestRequest:
         match = self.REQUEST_RE.match(request_str)
         if not match:
             raise TestConfigError(
-                "Test requests must be in the form 'suite_name' or 'suite_name test_name'.\n"
+                "Test requests must be in the form 'suite_name' or 'suite_name.test_name'.\n"
                 "They may be preceeded or followed by a repeat multiplier (e.g. '5*' or '*5').\n"
                 "Got: {}".format(request_str))
 
