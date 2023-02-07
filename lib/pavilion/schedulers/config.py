@@ -66,6 +66,9 @@ class ScheduleConfig(yc.KeyedElem):
             'account',
             help_text="The account to use when creating an allocation."),
         yc.StrElem(
+            'wrapper',
+            help_text="Wrapper for the scheduler command."),
+        yc.StrElem(
             'reservation',
             help_text="The reservation to use when creating an allocation. When blank "
                       "nodes in reservations are filtered. Use the keyword 'any' to "
@@ -453,6 +456,7 @@ CONFIG_VALIDATORS = {
     'qos':              None,
     'account':          None,
     'core_spec':        None,
+    'wrapper':          None,
     'reservation':      None,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
@@ -479,6 +483,7 @@ CONFIG_DEFAULTS = {
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
     'include_nodes':    [],
