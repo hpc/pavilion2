@@ -49,26 +49,38 @@ TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 class TestRequest:
     """Represents a user request for a test. May end up being multiple tests."""
 
-    REPEAT_RE=re.compile(r'^\d+\*[a-zA-Z0-9_-]')
+    REQUEST_RE = re.compile(r'^(?:(\d+)\*)?'       # Leading repeat pattern ('5*', '20*', ...)
+                            r'([a-zA-Z0-9_-]+)'  # The test suite name
+                            r'(?:\.([a-zA-Z0-9_-]+))?'  # The test name.
+                            r'(?:\*(\d+))?$'      # Trailing repeat pattern
+                            )
 
-    def __init__(self, request):
+    def __init__(self, request_str):
 
-        self.request = request
         self.count = 1
+        self.request = request_str
 
-        if self.REPEAT_RE.match(self.request) is not None:
-            repeat, self.request = self.request.split('*', 1) 
-            self.count = int(repeat)
+        match = self.REQUEST_RE.match(request_str)
+        if not match:
+            raise TestConfigError(
+                "Test requests must be in the form 'suite_name' or 'suite_name test_name'.\n"
+                "They may be preceeded or followed by a repeat multiplier (e.g. '5*' or '*5').\n"
+                "Got: {}".format(request_str))
 
-        req_parts = self.request.split('.')
-        self.suite = req_parts[0]
-        self.test = None
-        self.permutation = None
-        if len(req_parts) > 1:
-            self.test = req_parts[1]
-        elif len(req_parts) > 2:
-            raise TestConfigError("Tests must be in the form 'suite_name', 'suite_name.test_name'."
-                                  "Got: {}".format(self.request))
+        count_pre, self.suite, self.test, count_post = match.groups()
+        if count_pre and count_post:
+            raise TestConfigError("Both a pre- and a post-repeat count are specified. "
+                                  "That's not allowed: {}".format(self.request))
+        elif count_pre:
+            self.count = int(count_pre)
+        elif count_post:
+            self.count = int(count_post)
+        else:
+            self.count = 1
+
+
+    def __str__(self):
+        return "Request: {}.{} * {}".format(self.suite, self.test, self.count)
 
 class ProtoTest:
     """An simple object that holds the pair of a test config and its variable
@@ -79,8 +91,8 @@ class ProtoTest:
         self.var_man = var_man  # type: variables.VariableSetManager
 
     def copy(self) -> 'ProtoTest':
-        return ProtoTest(config=copy.deepcopy(self.config,
-                         var_man=copy.deepcopy(self.var_man)))
+        return ProtoTest(config=copy.deepcopy(self.config),
+                         var_man=copy.deepcopy(self.var_man))
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
@@ -204,6 +216,10 @@ class TestConfigResolver:
 
         if conf_type == 'suite':
             conf_type = 'tests'
+        elif conf_type == 'host':
+            conf_type = 'hosts'
+        elif conf_type == 'mode':
+            conf_type = 'modes'
 
         for label, config in self.pav_cfg.configs.items():
             path = config['path']/conf_type/'{}.yaml'.format(conf_name)
@@ -386,7 +402,8 @@ class TestConfigResolver:
 
         requested_tests = [TestRequest(test_req) for test_req in tests]
 
-        raw_tests = self.load_raw_configs(requested_tests, host, modes, conditions, overrides)
+        raw_tests = self.load_raw_configs(requested_tests, host, modes, conditions=conditions,
+                                          overrides=overrides)
 
         for _, test_cfg in raw_tests:
             # Make sure the variables section is properly set up.
@@ -416,7 +433,7 @@ class TestConfigResolver:
         elif len(permuted_tests) == 1:
             request, test_cfg, var_man = permuted_tests[0]
             resolved_cfg = self.resolve(test_cfg, var_man)
-            return [ProtoTest(resolved_cfg, var_man)]
+            resolved_tests.append((request, ProtoTest(resolved_cfg, var_man)))
         else:
             async_results = []
             proc_count = min(self.pav_cfg['max_cpu'], len(permuted_tests))
@@ -502,18 +519,18 @@ class TestConfigResolver:
             loader = TestSuiteLoader()
         else:
             raise RuntimeError("Unknown config type: '{}'".format(config_type))
-        
+
         cfg_label, path = self.find_config(config_type, name)
         if path is None:
-        
+
             if optional:
-                return None, None, None 
+                return None, None, None
 
             # Give a special message if it looks like they got their commands mixed up.
             if config_type == 'suite' and name == 'log':
                 raise TestConfigError(
                     "Could not find test suite 'log'. Were you trying to run `pav log run`?")
-            
+
             raise TestConfigError(
                 "Could not find {} config file '{}.py' in any of the Pavilion config directories.\n"
                 "See `pav config list` for a list of config directories.".format(config_type, name))
@@ -541,12 +558,14 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Structural issue with {} config '{}'"
                 .format(config_type, path), err)
-        
+
         return raw_cfg, path, cfg_label
 
 
     def load_raw_configs(self, tests: List[TestRequest], host: str, modes: List[str],
-                         conditions, overrides) -> List[Tuple[TestRequest, Dict]]:
+                         conditions: Union[None, Dict] = None,
+                         overrides: Union[None, List[str]] = None) \
+                         -> List[Tuple[TestRequest, Dict]]:
         """Get a list of raw test configs given a host, list of modes,
         and a list of tests. Each of these configs will be lightly modified with
         a few extra variables about their name, suite, and suite_file, as well
@@ -558,8 +577,10 @@ class TestConfigResolver:
             test in a suite.
         :param host: The host the test is running on.
         :param modes: A list (possibly empty) of modes to layer onto the test.
+        :param conditions: A list (possibly empty) of conditions to apply to each test config.
+        :param overrides: A list of overrides to apply to each test config.
+        :return: A list of (request, config) tuples.
         """
-
 
         test_config_loader = TestConfigLoader()
 
@@ -573,12 +594,12 @@ class TestConfigResolver:
             # Only load each test suite once.
             if request.suite in suites:
                 continue
-                        
+
             raw_suite_cfg, suite_path, cfg_label = self._load_raw_config(request.suite, 'suite')
             suite_tests = self.resolve_inheritance(base_config, raw_suite_cfg, request.suite)
 
             # Perform essential transformations to each test config.
-            for test_cfg_name, test_cfg in suite_tests.items():
+            for test_cfg_name, test_cfg in list(suite_tests.items()):
 
                 # Basic information that all test configs should have.
                 test_cfg['name'] = test_cfg_name
@@ -599,17 +620,18 @@ class TestConfigResolver:
                         test_cfg['not_if'], conditions['not_if']
                     )
 
-                # Apply modes. 
-                self.apply_modes(test_cfg, modes)
+                # Apply modes.
+                test_cfg = self.apply_modes(test_cfg, modes)
 
                 # Apply overrides
-                try:
-                    self.apply_overrides(test_cfg, overrides)
-                except (KeyError, ValueError) as err:
-                    raise TestConfigError(
-                        'Error applying overrides to test {} from suite {} at:\n{}' \
-                        .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']), err)
-
+                if overrides:
+                    try:
+                        test_cfg = self.apply_overrides(test_cfg, overrides)
+                    except (KeyError, ValueError) as err:
+                        raise TestConfigError(
+                            'Error applying overrides to test {} from suite {} at:\n{}' \
+                            .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
+                            err)
 
                 # Result evaluations can be added to all tests at the root pavilion config level.
                 result_evals = test_cfg['result_evaluate']
@@ -618,7 +640,10 @@ class TestConfigResolver:
                         # Don't override any that are already there.
                         continue
 
-                    test_cfg['result_evaluate'][key] = '"{}"'.format(const)                
+                    test_cfg['result_evaluate'][key] = '"{}"'.format(const)
+
+                # Save our altered test config.
+                suite_tests[test_cfg_name] = test_cfg
 
             suites[request.suite] = suite_tests
 
@@ -627,7 +652,8 @@ class TestConfigResolver:
         for request in tests:
             if request.test is None:
                 # Add all tests in the suite, except the 'hidden' ones.
-                add_tests = [test_name for test_name in suites[request.suite].keys() if not test_name.startswith('_')]
+                add_tests = [test_name for test_name in suites[request.suite].keys()
+                             if not test_name.startswith('_')]
             else:
                 # Add a single test, even a 'hidden' one.
                 add_tests = [request.test]
@@ -709,9 +735,11 @@ class TestConfigResolver:
         raw_host_cfg, _, _ = self._load_raw_config(host, 'host', optional=True)
         if raw_host_cfg is None:
             return test_cfg
-        
+
+        host_cfg = loader.normalize(raw_host_cfg)
+
         try:
-            return loader.merge(test_cfg, raw_host_cfg)
+            return loader.merge(test_cfg, host_cfg)
         except (KeyError, ValueError) as err:
             raise TestConfigError(
                 "Error merging host configuration for host '{}'".format(host))
@@ -727,13 +755,14 @@ class TestConfigResolver:
 
         for mode in modes:
             raw_mode_cfg, mode_cfg_path, _ = self._load_raw_config(mode, 'mode')
+            mode_cfg = loader.normalize(raw_mode_cfg)
 
             try:
-                test_cfg = loader.merge(test_cfg, raw_mode_cfg)
+                test_cfg = loader.merge(test_cfg, mode_cfg)
             except (KeyError, ValueError) as err:
                 raise TestConfigError(
                     "Error merging host configuration for host '{}'".format(mode))
-            
+
             test_cfg = resolve.cmd_inheritance(test_cfg)
 
         return test_cfg
@@ -1059,7 +1088,7 @@ class TestConfigResolver:
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
                        'base_name', 'host', 'modes']
 
-    def apply_overrides(self, test_cfg, overrides):
+    def apply_overrides(self, test_cfg, overrides) -> Dict:
         """Apply overrides to this test.
 
         :param dict test_cfg: The test configuration.
@@ -1082,7 +1111,7 @@ class TestConfigResolver:
             self._apply_override(test_cfg, key, value)
 
         try:
-            config_loader.normalize(test_cfg)
+            return config_loader.normalize(test_cfg)
         except TypeError as err:
             raise TestConfigError("Invalid override", err)
 
