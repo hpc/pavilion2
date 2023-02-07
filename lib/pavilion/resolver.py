@@ -456,7 +456,7 @@ class TestConfigResolver:
 
                             complete += 1
                             progress = len(permuted_tests) - complete
-                            progress = (1 - progress/len(permuted_tests))
+                            progress = 1 - progress/len(permuted_tests)
                             output.fprint(outfile,
                                           "Resolving Test Configs: {:.0%}".format(progress),
                                           end='\r')
