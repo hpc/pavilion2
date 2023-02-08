@@ -55,7 +55,7 @@ will warn you immediately. You can use whatever advanced YAML constructs
 you'd like, as long as the end result still conforms to Pavilion's
 expected structure.
 
-All config keys in pavilion are **lowercase**, including test names.
+All config keys in pavilion are **lowercase**, but test and variable names can be mixed case.
 
 .. code:: yaml
 
@@ -273,6 +273,11 @@ Tests within a single test suite file can inherit from each other.
         summary: Run all standard super_magic tests, and the write test too.
         inherits_from: super_magic
         run:
+          # Add megatables to the modules list
+          modules+:
+            - megatables
+
+          # This will overwrite all the commands from the parent test.
           cmds:
             - srun ./supermagic -a -w /mnt/projects/myproject/
 
@@ -281,10 +286,12 @@ Rules of Inheritance
 
 1. Every field in a test config can be inherited (except for
    inherits\_from).
-2. A field that takes a list (modules, cmds, etc.) are always completely
-   overwritten by a new list. (In the above example, the single command
+2. A field that takes a list (modules, cmds, etc.) are completely
+   overwritten by a new list by default. (In the above example, the single command
    in the fs test command list overwrites the entire original command
    list.)
+3. You can add a plus to any 'list' key to extend that list with all The
+   given items instead.
 3. A test can inherit from a test, which inherits from a test, and so
    on.
 4. Inheritance is resolved before permutations or any variables
