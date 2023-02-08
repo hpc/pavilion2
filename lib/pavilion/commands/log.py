@@ -107,34 +107,6 @@ class LogCommand(Command):
         'series': 'series.out'
     }
 
-    def print_log(self, current_position, file):
-        """
-        Prints the contents from a position in the log file to the end of the file.
-        :param int current_position: Position of the file read pointer in the log file.
-        :param Path file: Path of the log file being printed.
-        """
-
-        file.seek(current_position)
-        data = file.read()
-        end_position = file.tell()
-        if end_position > current_position:
-            current_position = end_position
-            output.fprint(self.outfile, data, end='\n', flush=True)
-        else:
-            time.sleep(self.sleep_timeout)
-        return current_position
-
-    def log_error(self, cmd_name):
-        """
-        Prints 'log doesn't exist error message,' then sleeps and then clears the line.
-        :param str cmd_name: Name of the command for the error message.
-        """
-
-        output.fprint(self.errfile, cmd_name, 'log doesn\'t exist. Checking again...', end='\r',
-                      color=output.RED, flush=True)
-        time.sleep(self.sleep_timeout)
-        output.clear_line(self.outfile)
-
     def run(self, pav_cfg, args):
         """Figure out which log the user wants and print it."""
 
@@ -164,47 +136,50 @@ class LogCommand(Command):
                 return 1
 
             file_name = test.path/self.LOG_PATHS[cmd_name]
+            file_paths = [file_name]
+            if cmd_name == 'build':
+                file_paths.append(test.builder.log_path)
+                file_paths.append(test.builder.tmp_log_path)
 
-        if args.follow:
-            position = 0
-            while True:
-                if cmd_name == 'build':
-                    build_log = test.builder.log_path
-                    tmp_build_log = test.builder.tmp_log_path
-                    for build_log_path in [file_name, build_log, tmp_build_log]:
-                        if build_log_path.exists():
-                            with build_log_path.open() as file:
-                                position = self.print_log(position, file)
-                            break
+        first_loop = True
+        current_position = 0
+        while args.follow or first_loop:
+            first_loop = False
+            for file_path in file_paths:
+                if file_path.exists():
+                    try:
+                        with file_path.open() as file:
+                            if args.tail:
+                                tail = file.readlines()[-int(args.tail):]
+                                for line in tail:
+                                    output.fprint(self.outfile, line)
+                            elif args.follow:
+                                file.seek(current_position)
+                                data = file.read()
+                                end_position = file.tell()
+                                if end_position > current_position:
+                                    current_position = end_position
+                                    output.fprint(self.outfile, data, flush=True, end='')
+                                time.sleep(self.sleep_timeout)
+                            else:
+                                output.fprint(self.outfile, file.read(), width=None, end='\n')
+
+                    except (IOError, OSError) as err:
+                        output.fprint(self.errfile, "Could not read log file '{}'"
+                                    .format(file_path), err, color=output.RED, end='')
+                        if args.follow:
+                            output.fprint(self.errfile, "... Checking again", err,
+                                        color=output.RED, end='\r')
+                            output.clear_line(self.errfile)
                         else:
-                            if build_log_path == tmp_build_log:
-                                self.log_error(cmd_name)
-                else:
-                    if file_name.exists():
-                        with file_name.open() as file:
-                            position = self.print_log(position, file)
-                    else:
-                        self.log_error(cmd_name)
-                if self.follow_testing:
+                            return 1
                     break
-
-        if not file_name.exists():
-            output.fprint(self.errfile, "Log file does not exist: {}"
-                          .format(file_name), color=output.RED)
-            return 1
-
-        try:
-            with file_name.open() as file:
-                if args.tail:
-                    tail = file.readlines()[-int(args.tail):]
-                    for line in tail:
-                        output.fprint(self.outfile, line)
                 else:
-                    output.fprint(self.outfile, file.read(), width=None, end='')
-
-        except (IOError, OSError) as err:
-            output.fprint(self.errfile, "Could not read log file '{}'"
-                          .format(file_name), err, color=output.RED)
-            return 1
+                    output.fprint(self.errfile, "Log file does not exist: {}"
+                            .format(file_path), color=output.RED, end='')
+                    if args.follow:
+                        output.fprint(self.errfile, "... Checking again", color=output.RED, end='\r')
+                        time.sleep(self.sleep_timeout)
+                        output.clear_line(self.errfile)
 
         return 0
