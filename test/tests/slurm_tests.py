@@ -95,7 +95,8 @@ class SlurmTests(PavTestCase):
         examples = (
             (None, []),
             ('', []),
-            ('nid00[012-013,076-77,140-141,160-161]', 
+            ('bob,bob27', ['bob', 'bob27']),
+            ('nid00[012-013,076-77,140-141,160-161]',
              ['nid00012', 'nid00013', 'nid00076', 'nid00077', 'nid00140', 'nid00141',
               'nid00160', 'nid00161']),
             ('ab03', ['ab03']),
@@ -119,7 +120,6 @@ class SlurmTests(PavTestCase):
             self.assertEqual(nodes, answer)
 
         bad_examples = (
-            ('n03d',  "Trailing characters"),
             ('nid03!@#', "Trailing junk (whole string match)."),
             ('n03.n04', "Not comma separated"),
             ('n[03', "No closing bracket"),
@@ -141,14 +141,15 @@ class SlurmTests(PavTestCase):
             ['n0de{:04d}'.format(i) for i in range(20, 35)] +
             ['n0de{:04d}'.format(i) for i in range(95, 101)] +
             ['n0de{:04d}'.format(i) for i in range(105, 1235)] +
-            ['baaaad'] +
+            ['t##rible'] +
+            ['not_numbered'] +
             ['another000003'])
 
         snodes = Slurm.compress_node_list(nodes)
 
         self.assertEqual(
             snodes,
-            'another000003,n0de[0020-0034,0047,0049,0095-0100,0105-1234],node00[1-2]'
+            'another000003,n0de[0020-0034,0047,0049,0095-0100,0105-1234],node00[1-2],not_numbered'
         )
 
         nodes = ['node{:03d}'.format(i) for i in range(90, 101)]
