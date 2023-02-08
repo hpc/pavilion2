@@ -3,7 +3,9 @@ PAV/scripts/site
 .idea
 *.swp
 *.swo
+.vscode
 pav.pstats
 .local/
 __pycache__/
 .vscode
+

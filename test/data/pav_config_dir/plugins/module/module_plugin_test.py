@@ -7,7 +7,7 @@ class ModuleWrapperTest(module_wrapper.ModuleWrapper):
     def __init__(self):
         super().__init__('itsa', "")
 
-    def load(self, sys_info, requested_version=None):
+    def load(self, sys_info, name, requested_version=None):
 
         del sys_info
 

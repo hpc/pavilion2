@@ -142,7 +142,7 @@ class PluginTests(PavTestCase):
                           lambda: bar2.get_version('1.3.0'))
 
         vsm = variables.VariableSetManager()
-        bar1.load(vsm)
+        bar1.load(vsm, 'bar')
 
         plugins._reset_plugins()
 

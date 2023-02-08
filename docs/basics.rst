@@ -111,6 +111,8 @@ exits.
   from a normal user's perspective. If you want to test stuff as root, you'll
   have to run pavilion as root.
 
+.. _basics.host_configs:
+
 Host Configs
 ^^^^^^^^^^^^
 

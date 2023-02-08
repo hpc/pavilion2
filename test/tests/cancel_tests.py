@@ -15,6 +15,7 @@ class CancelTests(unittest.PavTestCase):
         test_cfg = self._quick_test_cfg()
         test_cfg['run']['cmds'] = ['sleep 5']
         test_cfg['scheduler'] = 'dummy'
+        test_cfg['schedule'] = {'nodes': 'all'} 
         test1 = self._quick_test(test_cfg, finalize=False)
         test2 = self._quick_test(test_cfg, finalize=False)
 

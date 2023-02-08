@@ -846,7 +846,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
             # Make sure we don't exceed the max width for the column.
             incr_wraps = calc_wraps(field, incr_width)
 
-            diff = (curr_wraps - incr_wraps)
+            diff = curr_wraps - incr_wraps
 
             if diff == 0:
                 if incr_width == max_width:
