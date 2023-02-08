@@ -178,7 +178,8 @@ class LogCommand(Command):
                     output.fprint(self.errfile, "Log file does not exist: {}"
                             .format(file_path), color=output.RED, end='')
                     if args.follow:
-                        output.fprint(self.errfile, "... Checking again", color=output.RED, end='\r')
+                        output.fprint(self.errfile, "... Checking again", color=output.RED,
+                                      end='\r')
                         time.sleep(self.sleep_timeout)
                         output.clear_line(self.errfile)
 
