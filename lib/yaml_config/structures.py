@@ -264,7 +264,7 @@ class _DictElem(ConfigElement):
 
             if key_mod and key_mod.endswith('+'):
                 key_mod = key_mod[:-1]
-    
+
             keys[key_mod].append(key)
 
             if key_mod is not None and self._NAME_RE.match(key_mod) is None:
@@ -289,8 +289,8 @@ class _DictElem(ConfigElement):
             raise KeyError("Key '{}+' given under '{}', but underlying config item "
                            "isn't a list.".format(key, self.name))
 
-        return sub_elem.merge(old_value, value, extend=True)    
-            
+        return sub_elem.merge(old_value, value, extend=True)
+
 class KeyedElem(_DictElem):
     """A dictionary configuration item with predefined keys that may have
     non-uniform types. The valid keys are are given as ConfigItem objects,
@@ -392,13 +392,12 @@ class KeyedElem(_DictElem):
         for key, value in new.items():
             if key and key.endswith('+'):
                 key = key[:-1]
-                base[key] = self._merge_extend(key, self.config_elems[key], 
+                base[key] = self._merge_extend(key, self.config_elems[key],
                                                old[key], value)
             elif value is not None:
                 try:
                     base[key] = self.config_elems[key].merge(old[key], new[key])
                 except:
-                    print('key', key, base)
                     raise
 
 
@@ -784,7 +783,8 @@ class DefaultedCategoryElem(CategoryElem):
                 'wheels': 3}
             })
 
-        print('Should print 4: ', results.jeep.wheels)
+        # Should be 4
+        results.jeep.wheels
     """
 
     def __init__(self, name=None, elements=None, default_key='_', **kwargs):

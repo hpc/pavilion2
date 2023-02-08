@@ -9,9 +9,11 @@ configurations can automatically be generated, as can configurations
 already filled out with the given values.
 """
 
+from ast import Call
 import copy
 import re
 from abc import ABCMeta
+from typing import Any, Callable
 
 import yc_yaml as yaml
 from yc_yaml import representer
@@ -69,6 +71,7 @@ def _post_validator(siblings, value):
     return siblings[value]
 
 
+
 class ConfigElement:
     """The base class for all other element types.
 
@@ -84,7 +87,7 @@ class ConfigElement:
     __metaclass__ = ABCMeta
 
     type = None
-    type_converter = None
+    type_converter: Callable = None
     _type_name = None
 
     # The regular expression that all element names are matched against.
@@ -227,7 +230,7 @@ class ConfigElement:
                 if self.type_converter is not None:
                     converter = self.type_converter
                 value = converter(value)
-            except TypeError:
+            except TypeError as err:
                 raise TypeError("Incorrect type for {} field {}: {}"
                                 .format(self.__class__.__name__, self.name,
                                         value))
