@@ -249,8 +249,8 @@ class TestConfigResolver:
                                 .format(test_name, test_suite, var_key, first_value_keys, i + 1,
                                         value_keys))
 
-    def find_config(self, conf_type, conf_name) -> tuple(str, Union[Path, None]):
 
+    def find_config(self, conf_type, conf_name) -> Tuple(str, Path):
         """Search all of the known configuration directories for a config of the
         given type and name.
 
