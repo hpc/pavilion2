@@ -203,7 +203,54 @@ class TestConfigResolver:
                             .format(test_name, test_suite, var_key, first_value_keys, i + 1,
                                     value_keys))
 
-    def find_config(self, conf_type, conf_name) -> Tuple[str, Union[Path, None]]:
+                if not values:
+                    raise TestConfigError(
+                        "In test '{}' from suite '{}', test variable '{}' was defined "
+                        "but wasn't given a value."
+                        .format(test_name, test_suite, var_key))
+
+                first_value_keys = set(values[0].keys())
+                for i, value in enumerate(values):
+                    for subkey, subval in value.items():
+                        if subkey is None:
+                            full_key = var_key
+                        else:
+                            full_key = '.'.join([var_key, subkey])
+
+                        if subval is None:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has an empty "
+                                "value. Empty defaults are fine (as long as they are "
+                                "overridden), but regular variables should always be given "
+                                "a value (even if it's just an empty string)."
+                                .format(test_name, test_suite, full_key))
+
+                    value_keys = set(value.keys())
+                    if value_keys != first_value_keys:
+                        if None in first_value_keys:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has  "
+                                "inconsistent keys. The first value was a simple variable "
+                                "with value '{}', while value {} had keys {}"
+                                .format(test_name, test_suite, var_key, values[0][None], i + 1,
+                                        value_keys))
+                        elif None in value_keys:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "inconsistent keys.The first value had keys {}, while value "
+                                "{} was a simple value '{}'."
+                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                        value[None]))
+                        else:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "inconsistent keys. The first value had keys {}, "
+                                "while value {} had keys {}"
+                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                        value_keys))
+
+
+    def find_config(self, conf_type, conf_name) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
         given type and name.
 
