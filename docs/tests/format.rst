@@ -292,9 +292,9 @@ Rules of Inheritance
    list.)
 3. You can add a plus to any 'list' key to extend that list with all The
    given items instead.
-3. A test can inherit from a test, which inherits from a test, and so
+4. A test can inherit from a test, which inherits from a test, and so
    on.
-4. Inheritance is resolved before permutations or any variables
+5. Inheritance is resolved before permutations or any variables
    substitutions.
 
 .. _tests.format.mode:
