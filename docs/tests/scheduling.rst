@@ -344,6 +344,7 @@ When using the ``raw`` scheduler, the ``{{sched.test_cmd}}`` normally returns an
 use the wrapper setting to control a different scheduler directly.
 
 .. code-block:: yaml
+
     shoot_yourself_in_the_foot_mode:
         scheduler: raw
         schedule:
