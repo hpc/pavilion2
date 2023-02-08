@@ -1002,7 +1002,7 @@ class TestConfigResolver:
             return subtitle
 
     def resolve_permutations(self, test_cfg: Dict, base_var_man: variables.VariableSetManager)\
-            -> Tuple(Dict, List[variables.VariableSetManager]):
+            -> Tuple[Dict, List[variables.VariableSetManager]]:
         """Resolve permutations for all used permutation variables, returning a
         variable manager for each permuted version of the test config. This requires that
         we iteratively apply permutations - permutation variables may contain references that
