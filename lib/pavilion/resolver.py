@@ -250,7 +250,7 @@ class TestConfigResolver:
                                         value_keys))
 
 
-    def find_config(self, conf_type, conf_name) -> Tuple(str, Path):
+    def find_config(self, conf_type, conf_name) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
         given type and name.
 
