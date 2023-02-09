@@ -138,6 +138,7 @@ class LogCommand(Command):
             file_name = test.path/self.LOG_PATHS[cmd_name]
             file_paths = [file_name]
             if cmd_name == 'build':
+                file_paths.append(test.path/'build/pav_build_log')
                 file_paths.append(test.builder.log_path)
                 file_paths.append(test.builder.tmp_log_path)
 
@@ -167,18 +168,20 @@ class LogCommand(Command):
                     except (IOError, OSError) as err:
                         output.fprint(self.errfile, "Could not read log file '{}'"
                                     .format(file_path), err, color=output.RED, end='')
+                        # There is a possibility the file was deleted mid code-execution
+                        # So we should check again if we are following
                         if args.follow:
-                            output.fprint(self.errfile, "... Checking again", err,
-                                        color=output.RED, end='\r')
+                            output.fprint(self.errfile, "'{}' file does not exist. Checking again..."
+                                          .format(cmd_name), err, color=output.RED, end='\r')
                             output.clear_line(self.errfile)
                         else:
                             return 1
                     break
                 else:
                     output.fprint(self.errfile, "Log file does not exist: {}"
-                            .format(file_path), color=output.RED, end='')
+                            .format(file_path), color=output.RED)
                     if args.follow:
-                        output.fprint(self.errfile, "... Checking again", color=output.RED,
+                        output.fprint(self.errfile, ". Checking again...", color=output.RED,
                                       end='\r')
                         time.sleep(self.sleep_timeout)
                         output.clear_line(self.errfile)
