@@ -8,6 +8,7 @@ are all handled by the TestConfigResolver
 # pylint: disable=too-many-lines
 
 import copy
+import fnmatch
 import io
 import logging
 import multiprocessing as mp
@@ -49,34 +50,34 @@ class TestRequest:
     """Represents a user request for a test. May end up being multiple tests."""
 
     REQUEST_RE = re.compile(r'^(?:(\d+)\*)?'       # Leading repeat pattern ('5*', '20*', ...)
-                            r'([a-zA-Z0-9_-]+)'  # The test suite name
-                            r'(?:\.([a-zA-Z0-9_-]+))?'  # The test name.
-                            r'(?:\*(\d+))?$'      # Trailing repeat pattern
+                            r'([a-zA-Z0-9_-]+)'  # The test suite name.
+                            r'(?:\.([a-zA-Z0-9_*-]+?))?'  # The test name.
+                            r'(?:\.([a-zA-Z0-9_*-]+?))?'  # The permutation name.
+                            r'(?:\*(\d+))?$'  # The post count for error handling
                             )
 
     def __init__(self, request_str):
 
         self.count = 1
         self.request = request_str
+        self.checked = False
 
         match = self.REQUEST_RE.match(request_str)
         if not match:
             raise TestConfigError(
-                "Test requests must be in the form 'suite_name' or 'suite_name.test_name'.\n"
-                "They may be preceeded or followed by a repeat multiplier (e.g. '5*' or '*5').\n"
+                "Test requests must be in the form 'suite_name', 'suite_name.test_name', or\n"
+                "'suite_name.test_name.permutation_name. They may be preceeded by a repeat\n"
+                "multiplier (e.g. '5*').\n"
                 "Got: {}".format(request_str))
 
-        count_pre, self.suite, self.test, count_post = match.groups()
-        if count_pre and count_post:
-            raise TestConfigError("Both a pre- and a post-repeat count are specified. "
-                                  "That's not allowed: {}".format(self.request))
-        elif count_pre:
-            self.count = int(count_pre)
-        elif count_post:
-            self.count = int(count_post)
-        else:
-            self.count = 1
+        count, self.suite, self.test, self.permutation, count_post = match.groups()
 
+        if count_post:
+            raise TestConfigError("A post-repeat count is specified. That's not allowed: {}. "
+                                  "Please specify a pre-repeat count.".format(self.request))
+        
+        if count:
+            self.count = int(count)
 
     def __str__(self):
         return "Request: {}.{} * {}".format(self.suite, self.test, self.count)
@@ -145,6 +146,48 @@ class TestConfigResolver:
 
         # This won't have a 'sched' variable set unless we're permuting over scheduler vars.
         return var_man
+
+    def check_permutations(self, resolved_tests, test_checks, outfile: IO[str] = None) -> List[ProtoTest]:
+        """Check the list of resolved tests and ensure they match the given request.
+
+        :param resolved_tests: An unfiltered list of all resolved tests.
+        :param test_checks: A list of test requests.
+        :param outfile: Where to write status output.
+        :rtype: List[ProtoTest]
+        """
+
+        _ = self
+
+        checked_tests = []
+
+        for test, check in zip(resolved_tests, test_checks):
+            test_name = ''
+            check_name = check.suite
+
+            for item in [check.test, check.permutation]:
+                if item:
+                    check_name += '.' + item
+                else:
+                    check_name += '.*'
+
+            if test.config['subtitle']:
+                test_name = '.'.join([test.config['suite'], test.config['name'], test.config['subtitle']])
+            else:
+                if check.permutation:
+                    output.fprint(outfile, 'Permutation not found: {}.'.format(check_name))
+                    continue
+
+                checked_tests.append(test)
+                continue
+
+            if fnmatch.fnmatch(test_name, check_name):
+                checked_tests.append(test)
+                check.checked = True
+            elif not check.checked:
+                output.fprint(outfile, 'Permutation not found: {}.'.format(check_name))
+
+        return checked_tests
+
 
     def check_variable_consistency(self, config: Dict):
         """Check all the variables defined as defaults with a null value to
@@ -470,19 +513,24 @@ class TestConfigResolver:
                         except TimeoutError:
                             pass
 
-        if outfile:
+        if outfile and len(permuted_tests) > 1:
             output.fprint(outfile, '')
 
         # Now that tests are resolved, multiply them out based on the requested count.
         all_resolved_tests = []
+        permutation_filters = []
         for request, proto_test in resolved_tests:
             # Add the original, copy the rest.
             all_resolved_tests.append(proto_test)
+            permutation_filters.append(request)
             for i in range(request.count - 1):
                 all_resolved_tests.append(proto_test.copy())
+                permutation_filters.append(request)
 
         # NOTE: The deferred scheduler errors will be handled when we try to save
         #       the test object. (See build_variable_manager() above)
+
+        all_resolved_tests = self.check_permutations(all_resolved_tests, permutation_filters, outfile)
 
         return all_resolved_tests
 
@@ -658,13 +706,15 @@ class TestConfigResolver:
                 add_tests = [request.test]
 
             # Add each of the tests to our list of loaded tests.
-            for test_name in add_tests:
-                if test_name in suites[request.suite]:
-                    all_tests.append((request, suites[request.suite][test_name]))
+            for test_check in add_tests:
+                checked_tests = fnmatch.filter(list(suites[request.suite].keys()), test_check)
+                if checked_tests:
+                    for test_name in checked_tests:
+                        all_tests.append((request, suites[request.suite][test_name]))
                 else:
                     raise TestConfigError(
                         "Test suite '{}' does not contain a test '{}'."
-                        .format(request.suite, test_name))
+                        .format(request.suite, test_check))
 
         return all_tests
 
