@@ -146,6 +146,8 @@ class LogCommand(Command):
         current_position = 0
         while args.follow or first_loop:
             first_loop = False
+            if self.follow_testing:
+                break
             for file_path in file_paths:
                 if file_path.exists():
                     try:
@@ -168,11 +170,12 @@ class LogCommand(Command):
                     except (IOError, OSError) as err:
                         output.fprint(self.errfile, "Could not read log file '{}'"
                                     .format(file_path), err, color=output.RED, end='')
+
                         # There is a possibility the file was deleted mid code-execution
-                        # So we should check again if we are following
+                        # so we should check again if we are following
                         if args.follow:
-                            output.fprint(self.errfile, "'{}' file does not exist. Checking again..."
-                                          .format(cmd_name), err, color=output.RED, end='\r')
+                            output.fprint(self.errfile, ". Checking again...", err,
+                                        color=output.RED, end='\r')
                             output.clear_line(self.errfile)
                         else:
                             return 1
@@ -180,6 +183,8 @@ class LogCommand(Command):
                 else:
                     output.fprint(self.errfile, "Log file does not exist: {}"
                             .format(file_path), color=output.RED)
+
+                    # Continuously check for the file since we are following the execution
                     if args.follow:
                         output.fprint(self.errfile, ". Checking again...", color=output.RED,
                                       end='\r')
