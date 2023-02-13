@@ -107,6 +107,21 @@ class LogCommand(Command):
         'series': 'series.out'
     }
 
+    def error_msg(self, err_msg: str, follow: bool):
+        """Prints the error message."""
+
+        output.fprint(self.errfile, err_msg, color=output.RED, end='')
+
+        # If we are following, add 'Checking again...' message to error message, and then sleep.
+        if follow:
+            output.fprint(self.errfile, ". Checking again...", color=output.RED, end='\r')
+            time.sleep(self.sleep_timeout)
+            output.clear_line(self.errfile)
+        else:
+            # This fprint is purely for visual satisfaction.
+            output.fprint(self.errfile)
+            return 1
+
     def run(self, pav_cfg, args):
         """Figure out which log the user wants and print it."""
 
@@ -137,6 +152,9 @@ class LogCommand(Command):
 
             file_name = test.path/self.LOG_PATHS[cmd_name]
             file_paths = [file_name]
+
+            # For build log, there are 4 different paths to check. This adds all the other paths
+            # for the build log to the file_paths to check
             if cmd_name == 'build':
                 file_paths.append(test.path/'build/pav_build_log')
                 file_paths.append(test.builder.log_path)
@@ -146,49 +164,42 @@ class LogCommand(Command):
         current_position = 0
         while args.follow or first_loop:
             first_loop = False
+            if any(_file_path.exists() for _file_path in file_paths):
+                for file_path in file_paths:
+                    if file_path.exists():
+                        try:
+                            with file_path.open() as file:
+
+                                # Prints the last n lines.
+                                if args.tail:
+                                    tail = file.readlines()[-int(args.tail):]
+                                    for line in tail:
+                                        output.fprint(self.outfile, line)
+
+                                # Follows the execution of the code.
+                                elif args.follow:
+                                    file.seek(current_position)
+                                    data = file.read()
+                                    end_position = file.tell()
+                                    if end_position > current_position:
+                                        current_position = end_position
+                                        output.fprint(self.outfile, data, flush=True, end='')
+                                    time.sleep(self.sleep_timeout)
+
+                                # Prints the entire log.
+                                else:
+                                    output.fprint(self.outfile, file.read(), width=None, end='\n')
+
+                        except (IOError, OSError) as err:
+                            # There is a possibility that the log file was moved mid-execution so if
+                            # we are following, we will check again.
+                            self.error_msg("Could not read log file '{}'".format(file_path),
+                                        args.follow)
+                        break
+            else:
+                self.error_msg("Log file does not exist: {}".format(file_paths[0]), args.follow)
+
+            # For unit tests to stop the follow feature
             if self.follow_testing:
                 break
-            for file_path in file_paths:
-                if file_path.exists():
-                    try:
-                        with file_path.open() as file:
-                            if args.tail:
-                                tail = file.readlines()[-int(args.tail):]
-                                for line in tail:
-                                    output.fprint(self.outfile, line)
-                            elif args.follow:
-                                file.seek(current_position)
-                                data = file.read()
-                                end_position = file.tell()
-                                if end_position > current_position:
-                                    current_position = end_position
-                                    output.fprint(self.outfile, data, flush=True, end='')
-                                time.sleep(self.sleep_timeout)
-                            else:
-                                output.fprint(self.outfile, file.read(), width=None, end='\n')
-
-                    except (IOError, OSError) as err:
-                        output.fprint(self.errfile, "Could not read log file '{}'"
-                                    .format(file_path), err, color=output.RED, end='')
-
-                        # There is a possibility the file was deleted mid code-execution
-                        # so we should check again if we are following
-                        if args.follow:
-                            output.fprint(self.errfile, ". Checking again...", err,
-                                        color=output.RED, end='\r')
-                            output.clear_line(self.errfile)
-                        else:
-                            return 1
-                    break
-                else:
-                    output.fprint(self.errfile, "Log file does not exist: {}"
-                            .format(file_path), color=output.RED)
-
-                    # Continuously check for the file since we are following the execution
-                    if args.follow:
-                        output.fprint(self.errfile, ". Checking again...", color=output.RED,
-                                      end='\r')
-                        time.sleep(self.sleep_timeout)
-                        output.clear_line(self.errfile)
-
         return 0
