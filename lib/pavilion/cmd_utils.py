@@ -18,7 +18,7 @@ from pavilion import output
 from pavilion import series
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.errors import TestRunError, CommandError, TestSeriesError
+from pavilion.errors import TestRunError, CommandError, TestSeriesError, PavilionError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
 
@@ -424,12 +424,16 @@ def get_testset_name(tests: List['str'], files: List['str']):
     # Essentially, this dictionary will be reduced into a list of "globs" for the name
     test_set_dict = defaultdict(list)
     for test in tests:
-        s = test.split('.')
-        if len(s) == 2:
-            suite_name, test_name = s
-        else:
+        test_name_split = test.split('.')
+        if len(test_name_split) == 2:
+            suite_name, test_name = test_name_split
+        elif len(test_name_split) == 1:
             suite_name = test
             test_name = None
+        else:
+            # TODO: Look through possible errors to find the proper one to raise here
+            raise PavilionError(f"Test name not in suitename.testname format: {test}")
+
 
         if test_name:
             test_set_dict[suite_name].append(test_name)
