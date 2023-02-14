@@ -107,7 +107,7 @@ class RunCommand(Command):
 
     SLEEP_INTERVAL = 1
 
-    def _get_testset_name(self, args):
+    def _get_testset_name(self, tests, files):
         """Generate the name for the set set based on the test input to the run command.
         """
         # Expected Behavior:
@@ -123,16 +123,10 @@ class RunCommand(Command):
         #       For example, if some_test contains foo.a and foo.b
         #       pav run -f some_test foo.a foo.b will generate the test set file:some_test despite
         #       foo.a and foo.b being specified in both areas
-        files = []
-        tests = []
-        if args.files:
-            files = [os.path.basename(filepath) for filepath in args.files]
-            #TODO: This gets read outside of this function.
-            # Maybe we can optimize and only read once?
-            file_tests = cmd_utils.read_test_files(args.files)
-            tests = list(set(args.tests) - set(file_tests))
-        else:
-            tests = args.tests
+        if files:
+            files = [PurePath(filepath).name for filepath in files]
+            file_tests = cmd_utils.read_test_files(files)
+            tests = list(set(tests) - set(file_tests))
 
         # Here we generate a dictionary mapping tests to the suites they belong to
         # (Also the filenames)
