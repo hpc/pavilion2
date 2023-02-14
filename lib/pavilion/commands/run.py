@@ -2,9 +2,8 @@
 
 import errno
 import sys
-import re
 from collections import defaultdict
-from pathlib import PurePath
+from pathlib import Path
 
 
 from pavilion import cmd_utils
@@ -125,8 +124,8 @@ class RunCommand(Command):
         #       pav run -f some_test foo.a foo.b will generate the test set file:some_test despite
         #       foo.a and foo.b being specified in both areas
         if files:
-            files = [PurePath(filepath).name for filepath in files]
-            file_tests = cmd_utils.read_test_files(files)
+            files = [Path(filepath) for filepath in files]
+            file_tests = cmd_utils.read_test_files([file.absolute() for file in files])
             tests = list(set(tests) - set(file_tests))
 
         # Here we generate a dictionary mapping tests to the suites they belong to
@@ -140,7 +139,8 @@ class RunCommand(Command):
                 suite_name, test_name = s
             else:
                 suite_name = test
-                test_name = ''
+                test_name = None
+
             if test_name:
                 test_set_dict[suite_name].append(test_name)
             else:
@@ -148,7 +148,7 @@ class RunCommand(Command):
 
         # Don't forget to add on the files!
         for file in files:
-            test_set_dict[f'file:{file}'] = None
+            test_set_dict[f'file:{file.name}'] = None
 
         # Reduce into a list of globs so we get foo.*, bar.*, etc.
         def get_glob(test_suite_name, test_names):
