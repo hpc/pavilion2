@@ -81,8 +81,10 @@ class ResultsCommand(Command):
         parser.add_argument(
             "tests",
             nargs="*",
-            help="The tests to show the results for. Use 'last' to get the "
-                 "results of the last test series you ran on this machine."
+            help="The tests to show the results for. Use 'last' to get the results of the last test"
+                 " series you ran on this machine. Use 'all' to get results of all tests. By " 
+                 "default, 'all' will only display tests newer than 1 day ago, but setting any " 
+                 "filter argument will override that."
         )
         filters.add_test_filter_args(parser)
 
