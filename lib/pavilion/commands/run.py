@@ -2,9 +2,10 @@
 
 import errno
 import sys
-import os
 import re
 from collections import defaultdict
+from pathlib import PurePath
+
 
 from pavilion import cmd_utils
 from pavilion import output
@@ -132,13 +133,14 @@ class RunCommand(Command):
         # (Also the filenames)
         # This way we can name the test set based on suites rather than listing every test
         # Essentially, this dictionary will be reduced into a list of "globs" for the name
-        # NOTE: I don't know why I used a regex here...why did I not split on '.'?
         test_set_dict = defaultdict(list)
-        regex = r"([_\-a-zA-Z\d]+\.?)([a-zA-Z\d]*)"
         for test in tests:
-            match = re.match(regex, test)
-            suite_name = match.group(1).rstrip('.')
-            test_name = match.group(2)
+            s = test.split('.')
+            if len(s) == 2:
+                suite_name, test_name = s
+            else:
+                suite_name = test
+                test_name = ''
             if test_name:
                 test_set_dict[suite_name].append(test_name)
             else:
@@ -211,7 +213,7 @@ class RunCommand(Command):
 
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, config=series_cfg)
-        testset_name = self._get_testset_name(args)
+        testset_name = self._get_testset_name(args.tests, args.files)
         series_obj.add_test_set_config(
             testset_name,
             tests,
