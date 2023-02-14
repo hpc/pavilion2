@@ -107,70 +107,6 @@ class RunCommand(Command):
 
     SLEEP_INTERVAL = 1
 
-    def _get_testset_name(self, tests, files):
-        """Generate the name for the set set based on the test input to the run command.
-        """
-        # Expected Behavior:
-        # pav run foo                   - 'foo'
-        # pav run bar.a bar.b bar.c     - 'bar.*'
-        # pav run -f some_file          - 'file:some_file'
-        # pav run baz.a baz.b foo       - 'baz.*,foo'
-        # pav run foo bar baz blarg     - 'foo,baz,bar,...'
-
-        # First we get the list of files and a list of tests.
-        # NOTE: If there is an intersection between tests in files and tests specified on command
-        #       line, we remove the intersection from the list of tests
-        #       For example, if some_test contains foo.a and foo.b
-        #       pav run -f some_test foo.a foo.b will generate the test set file:some_test despite
-        #       foo.a and foo.b being specified in both areas
-        if files:
-            files = [Path(filepath) for filepath in files]
-            file_tests = cmd_utils.read_test_files([file.absolute() for file in files])
-            tests = list(set(tests) - set(file_tests))
-
-        # Here we generate a dictionary mapping tests to the suites they belong to
-        # (Also the filenames)
-        # This way we can name the test set based on suites rather than listing every test
-        # Essentially, this dictionary will be reduced into a list of "globs" for the name
-        test_set_dict = defaultdict(list)
-        for test in tests:
-            s = test.split('.')
-            if len(s) == 2:
-                suite_name, test_name = s
-            else:
-                suite_name = test
-                test_name = None
-
-            if test_name:
-                test_set_dict[suite_name].append(test_name)
-            else:
-                test_set_dict[suite_name] = None
-
-        # Don't forget to add on the files!
-        for file in files:
-            test_set_dict[f'file:{file.name}'] = None
-
-        # Reduce into a list of globs so we get foo.*, bar.*, etc.
-        def get_glob(test_suite_name, test_names):
-            if test_names is None:
-                return test_suite_name
-
-            num_names = len(test_names)
-            if num_names == 1:
-                return f'{test_suite_name}.{test_names[0]}'
-            else:
-                return f'{test_suite_name}.*'
-
-        globs = [get_glob(test_suite, tests) for test_suite,tests in test_set_dict.items()]
-        globs.sort(key=lambda glob: 0 if "file:" in glob else 1) # Sort the files to the front
-
-        ntests_cutoff = 3 # If more than 3 tests in name, truncate and append '...'
-        if len(globs) > ntests_cutoff:
-            globs = globs[:ntests_cutoff+1]
-            globs[ntests_cutoff] = '...'
-
-        testset_name = ','.join(globs).rstrip(',')
-        return testset_name
 
     def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
@@ -213,7 +149,7 @@ class RunCommand(Command):
 
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, config=series_cfg)
-        testset_name = self._get_testset_name(args.tests, args.files)
+        testset_name = cmd_utils.get_testset_name(args.tests, args.files)
         series_obj.add_test_set_config(
             testset_name,
             tests,
