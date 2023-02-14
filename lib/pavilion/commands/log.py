@@ -131,6 +131,7 @@ class LogCommand(Command):
         else:
             cmd_name = args.log_cmd
 
+
         if cmd_name in ['global', 'all_results', 'allresults', 'all-results']:
             if 'results' in cmd_name:
                 file_name = pav_cfg.working_dir/'results.log'
@@ -151,14 +152,14 @@ class LogCommand(Command):
                 return 1
 
             file_name = test.path/self.LOG_PATHS[cmd_name]
-            file_paths = [file_name]
 
-            # For build log, there are 4 different paths to check. This adds all the other paths
-            # for the build log to the file_paths to check
-            if cmd_name == 'build':
-                file_paths.append(test.path/'build/pav_build_log')
-                file_paths.append(test.builder.log_path)
-                file_paths.append(test.builder.tmp_log_path)
+        # For build log, there are 4 different paths to check. This adds all the other paths
+        # for the build log to the file_paths to check
+        file_paths = [file_name]
+        if cmd_name == 'build':
+            file_paths.append(test.path/'build/pav_build_log')
+            file_paths.append(test.builder.log_path)
+            file_paths.append(test.builder.tmp_log_path)
 
         first_loop = True
         current_position = 0
@@ -188,7 +189,7 @@ class LogCommand(Command):
 
                                 # Prints the entire log.
                                 else:
-                                    output.fprint(self.outfile, file.read(), width=None, end='\n')
+                                    output.fprint(self.outfile, file.read(), width=None, end='')
 
                         except (IOError, OSError) as err:
                             # There is a possibility that the log file was moved mid-execution so if
