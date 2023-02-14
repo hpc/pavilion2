@@ -9,10 +9,11 @@ configurations can automatically be generated, as can configurations
 already filled out with the given values.
 """
 
+from ast import Call
 import copy
-import pathlib
 import re
 from abc import ABCMeta
+from typing import Any, Callable
 
 import yc_yaml as yaml
 from yc_yaml import representer
@@ -70,6 +71,7 @@ def _post_validator(siblings, value):
     return siblings[value]
 
 
+
 class ConfigElement:
     """The base class for all other element types.
 
@@ -85,7 +87,7 @@ class ConfigElement:
     __metaclass__ = ABCMeta
 
     type = None
-    type_converter = None
+    type_converter: Callable = None
     _type_name = None
 
     # The regular expression that all element names are matched against.
@@ -93,7 +95,7 @@ class ConfigElement:
 
     # We use the representer functions in this to consistently represent
     # certain types
-    _representer = yaml.representer.SafeRepresenter()
+    _representer = representer.SafeRepresenter()
 
     def __init__(self, name=None, default=None, required=False, hidden=False,
                  _sub_elem=None, choices=None, post_validator=None,
@@ -228,7 +230,7 @@ class ConfigElement:
                 if self.type_converter is not None:
                     converter = self.type_converter
                 value = converter(value)
-            except TypeError:
+            except TypeError as err:
                 raise TypeError("Incorrect type for {} field {}: {}"
                                 .format(self.__class__.__name__, self.name,
                                         value))
@@ -427,10 +429,10 @@ class ConfigElement:
                                      value, err))
 
     # pylint: disable=no-self-use
-    def merge(self, old, new):
+    def merge(self, old, new, **kwargs):
         """Merge the new values of this entry into the existing one. For
         most types, the old values are simply replaced. For complex types (
-        lists, dicts), the behaviour varies."""
+        lists, dicts), the behavior varies."""
 
         return new
 

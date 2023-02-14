@@ -316,3 +316,44 @@ These are set via the ``schedule.chunking.node_selection`` and ``schedule.chunki
         chunking:
           size: 25%
           node_selection: random
+
+.. _tests.scheduling.wrapper:
+
+Wrapper
+-------
+
+You can use the wrapper feature on any scheduler to wrap the scheduler test command and run the
+wrapper command before actually running the intended command.
+
+.. code-block:: yaml
+
+    basic:
+        scheduler: slurm
+        schedule:
+            wrapper: valgrind
+            partition: standard
+            nodes: 1
+
+        run:
+            cmds:
+                # The run command will be `srun -N1 -p standard valgrind ./supermagic -a`
+                # It will run `valgrind ./supermagic -a` on the allocation
+                - '{{sched.test_cmd}} ./supermagic -a'
+
+When using the ``raw`` scheduler, the ``{{sched.test_cmd}}`` normally returns an empty string. You can 
+use the wrapper setting to control a different scheduler directly.
+
+.. code-block:: yaml
+
+    shoot_yourself_in_the_foot_mode:
+        scheduler: raw
+        schedule:
+            # Note that generally it's MUCH better to use the Pavilion's scheduling options,
+            # but this allows you to, for example, test the scheduler itself.
+            # Other note - You can use mpirun under slurm by setting ``schedule.slurm.mpi_cmd=mpirun``.
+            wrapper: 'mpirun -np 2'
+        run:
+            cmds:
+                # With the schedule wrapper, this will be `mpirun -np 2 ./supermagic -a`
+                - '{{sched.test_cmd}} ./supermagic -a'
+

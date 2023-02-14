@@ -14,11 +14,7 @@ class StatusCommand(Command):
     """Prints the status of a set of tests."""
 
     def __init__(self):
-        super().__init__('status', 'Check the status of a test, list of tests,'
-                                   ' or test series. You may also specify "all" as '
-                                   'the test id, to get the status of all tests. The '
-                                   'default "all" filter gives your recent tests, but setting '
-                                   'any filter argument overrides that.',
+        super().__init__('status', 'Check the status of a test, list of tests, or test series.',
                          short_help="Get status of tests.")
 
     def _setup_arguments(self, parser):
@@ -35,9 +31,10 @@ class StatusCommand(Command):
             help='Show the status note.')
         parser.add_argument(
             'tests', nargs='*', action='store',
-            help="The name(s) of the tests to check.  These may be any mix of "
-                 "test IDs and series IDs. Lists tests in the last series you "
-                 "ran by default. Use 'all' to show all tests."
+            help="The name(s) of the tests to check. These may be any mix of test IDs and series "
+                 "IDs. Lists tests in the last series you ran by default. Use 'all' to show all "
+                 "tests. By default, 'all' will only display status of tests newer than 1 day ago, "
+                 " but setting any filter argument will override that."
         )
         output_mode = parser.add_mutually_exclusive_group()
         output_mode.add_argument(
