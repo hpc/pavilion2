@@ -109,12 +109,12 @@ Running, Monitoring, and Cancelling the Series
 Run `pav show series` to show the list of possible series to run.
 
 To run a series file, the user must use the command
-``pav series <series_name>``. To run the series above, we would run
-``pav series sanity_tests``. This will output instructions on how to check the
+``pav series run <series_name>``. To run the series above, we would run
+``pav series run sanity_tests``. This will output instructions on how to check the
 status of and kill the series.
 
 .. code-block:: text
 
-  $ pav series sanity_tests
+  $ pav series run sanity_tests
   Started series s19. Run `pav status s19` to view status. PGID is 9102.
   To kill, use `pav cancel s19` or `kill -15 -9102`.

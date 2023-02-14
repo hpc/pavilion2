@@ -93,49 +93,7 @@ class ScriptComposer:
             else:
                 self._script_lines.append('unset {}'.format(key))
 
-    @staticmethod
-    def parse_module(mod_line):
-        """Parse a module specification into it's components. These can come
-in one of three formats:
-
-1. 'mod-name[/version]' - Load the given module name and version
-2. '-mod-name[/version]' - Unload the given module/version.
-3. 'old_name[/old_vers]->mod-name[/version]' - Swap the given old
-   module for the new one.
-
-:param str mod_line: String provided by the user in the config.
-:rtype: (str, (str, str), (str, str))
-:return: action, (name, vers), (old_name, old_vers)
-"""
-        old_mod = None
-        if '->' in mod_line:
-            old_mod, mod = mod_line.split('->')
-            action = 'swap'
-        elif mod_line.startswith('-'):
-            action = 'unload'
-            mod = mod_line[1:]
-        else:
-            action = 'load'
-            mod = mod_line
-
-        if '/' in mod:
-            mod_name, mod_vers = mod.rsplit('/', 1)
-        else:
-            mod_name = mod
-            mod_vers = None
-
-        if old_mod is not None:
-            if '/' in old_mod:
-                old_mod_name, old_mod_vers = old_mod.rsplit('/', 1)
-            else:
-                old_mod_name = old_mod
-                old_mod_vers = None
-
-            return action, (mod_name, mod_vers), (old_mod_name, old_mod_vers)
-        else:
-            return action, (mod_name, mod_vers), (None, None)
-
-    def module_change(self, module, sys_vars):
+    def module_change(self, module, sys_vars, config_wrappers):
         """Take the module changes specified in the user config and add the
         appropriate lines to the script. This will parse the module name into
         various actions, find the appropriate module_wrapper plugin, and use
@@ -144,22 +102,20 @@ in one of three formats:
         :param str module: Name of a module or a list thereof in the format
             used in the user config.
         :param sys_vars: The pavilion system variable dictionary.
+        :param config_wrappers: Moduler wrappers specified via config.
         """
 
-        action, (name, version), (oldname, oldver) = self.parse_module(module)
+        action, (name, version), (oldname, oldver) = module_wrapper.parse_module(module)
 
-        module_obj = module_wrapper.get_module_wrapper(name, version)
+        module_obj = module_wrapper.get_module_wrapper(name, version, config_wrappers)
 
         if action == 'load':
-            mod_act, mod_env = module_obj.load(sys_vars, version)
+            mod_act, mod_env = module_obj.load(sys_vars, name, version)
 
         elif action == 'unload':
-            mod_act, mod_env = module_obj.unload(sys_vars, version)
+            mod_act, mod_env = module_obj.unload(sys_vars, name, version)
         elif action == 'swap':
-            mod_act, mod_env = module_obj.swap(sys_vars,
-                                               oldname,
-                                               oldver,
-                                               requested_version=version)
+            mod_act, mod_env = module_obj.swap(sys_vars, oldname, oldver, name, version)
         else:
             # This is not an expected error
             raise RuntimeError("Invalid Module action '{}'".format(action))

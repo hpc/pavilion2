@@ -275,7 +275,8 @@ class TestRun(TestAttributes):
         self._write_script(
             'build',
             path=self.build_script_path,
-            config=self.config.get('build', {}))
+            config=self.config.get('build', {}),
+            module_wrappers=self.config.get('module_wrappers', {}))
 
         self.builder = self._make_builder()
         self.build_name = self.builder.name
@@ -283,7 +284,8 @@ class TestRun(TestAttributes):
         self._write_script(
             'run',
             path=self.run_tmpl_path,
-            config=self.config.get('run', {}))
+            config=self.config.get('run', {}),
+            module_wrappers=self.config.get('module_wrappers', {}))
 
         self.save_attributes()
         self.status.set(STATES.CREATED, "Test directory setup complete.")
@@ -457,6 +459,7 @@ class TestRun(TestAttributes):
             'run',
             self.run_script_path,
             self.config['run'],
+            self.config.get('module_wrappers', {})
         )
 
     @staticmethod
@@ -1040,13 +1043,13 @@ be set by the scheduler plugin as soon as it's known."""
                 .format(run_complete_path.as_posix(), err))
             return None
 
-    def _write_script(self, stype, path, config):
+    def _write_script(self, stype: str, path: Path, config: dict, module_wrappers: dict):
         """Write a build or run script or template. The formats for each are
             mostly identical.
-        :param str stype: The type of script (run or build).
-        :param Path path: Path to the template file to write.
-        :param dict config: Configuration dictionary for the script file.
-        :return:
+        :param stype: The type of script (run or build).
+        :param path: Path to the template file to write.
+        :param config: Configuration dictionary for the script file.
+        :param module_wrappers: The module wrappers definition.
         """
 
         script = scriptcomposer.ScriptComposer()
@@ -1086,7 +1089,7 @@ be set by the scheduler plugin as soon as it's known."""
             for module in config.get('modules', []):
                 module = module.strip()
                 if module:
-                    script.module_change(module, self.var_man)
+                    script.module_change(module, self.var_man, module_wrappers)
 
         env = config.get('env', {})
         if env:
@@ -1124,8 +1127,10 @@ be set by the scheduler plugin as soon as it's known."""
                 script.newline()
                 script.comment('Install spack packages.')
                 for package in install_packages:
-                    script.command('spack install -v --fail-fast {} || exit 1'
-                                   .format(package))
+                    script.command('spack add {} || exit 1'.format(package))
+
+                script.command('spack install -v --fail-fast || exit 1'
+                               .format(package))
 
             if load_packages:
                 script.newline()

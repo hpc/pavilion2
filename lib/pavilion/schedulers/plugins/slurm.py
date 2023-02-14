@@ -37,6 +37,9 @@ slurm kickoff script.
         lines.append(
             '#SBATCH --job-name "{}"'.format(job_name))
 
+        core_spec = self._config['core_spec']
+        if core_spec:
+            lines.append('#SBATCH --core-spec {}'.format(core_spec))
         partition = self._config['partition']
         if partition:
             lines.append('#SBATCH -p {}'.format(partition))
@@ -123,8 +126,7 @@ class SlurmVars(SchedulerVariables):
         'test_cmd': 'srun -N 5 -w node[05-10],node23 -n 20',
     })
 
-    @dfr_var_method
-    def test_cmd(self):
+    def _test_cmd(self):
         """Construct a cmd to run a process under this scheduler, with the
         criteria specified by this test.
         """
@@ -164,6 +166,15 @@ class SlurmVars(SchedulerVariables):
 
         return ' '.join(cmd)
 
+    @dfr_var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the return with the wrapper
+        provided in the schedule section of the configuration."""
+
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ' '.join(filter(lambda item: item is not None, [self._test_cmd(),
+                               self._sched_config['wrapper']]))
 
 def slurm_float(val):
     """Slurm 'float' values might also be 'N/A'."""
@@ -201,8 +212,8 @@ class Slurm(SchedulerPluginAdvanced):
         r'[a-zA-Z_-])?'       # And end with a non-numeric character.
         # The numeric node set
         # 03, 50, 0[3], 10[1-9], 22[33,45,66-99]
-        r'(?:\d+|'             # Just a number or...
-        r'\d*(?:\['             # A 'prefix' number followed by a square bracket
+        r'(?:\d*|'             # Just a number or...
+        r'\d*(?:\['            # A 'prefix' number followed by a square bracket
         r'(?:\d+|\d+-\d+)'     # A number or dash separated pair (ie '09' or '09-25')
         r'(?:,\d+|,\d+-\d+)*'  # We can have more than one number or dash-pair, comma sep.
         r'\]))'                # Closing square bracket, end all matching groups.
@@ -335,7 +346,7 @@ class Slurm(SchedulerPluginAdvanced):
                 if not node_part_re.match(part):
                     raise ValueError(
                         "Invalid Node List: '{}'. Syntax error in item '{}'. "
-                        "Node lists components be a hostname or hostname "
+                        "Node list components be a hostname or hostname "
                         "prefix followed by a range of node numbers. "
                         "Ex: foo003,foo0[10-20],foo[103-104],foo[10,12-14],foo-m11-16"
                         .format(node_list, part)
@@ -389,7 +400,10 @@ class Slurm(SchedulerPluginAdvanced):
         # Pull apart the node name into a prefix and number. The prefix
         # is matched minimally to avoid consuming any parts of the
         # node number.
-        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d+)$')
+        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d*)$')
+
+        # These nodes don't have numbers, so just add them to the list.
+        non_numbered_nodes = []
 
         seqs = {}
         nodes = sorted(nodes)
@@ -399,12 +413,15 @@ class Slurm(SchedulerPluginAdvanced):
                 continue
 
             base, raw_number = node_match.groups()
-            number = int(raw_number)
-            if base not in seqs:
-                seqs[base] = (len(raw_number), [])
+            if not raw_number:
+                non_numbered_nodes.append(base)
+            else:
+                number = int(raw_number)
+                if base not in seqs:
+                    seqs[base] = (len(raw_number), [])
 
-            _, node_nums = seqs[base]
-            node_nums.append(number)
+                _, node_nums = seqs[base]
+                node_nums.append(number)
 
         # This compresses the node list into sequences like 'node[0095-0105,0900-1002]'
         node_seqs = []
@@ -446,6 +463,9 @@ class Slurm(SchedulerPluginAdvanced):
                 seq_format
                 .format(base=base, z='0' * pre_digits, num_list=num_list))
 
+        # Add the non numbered nodes
+        node_seqs.extend(non_numbered_nodes)
+
         return ','.join(node_seqs)
 
     def _get_alloc_nodes(self, job) -> NodeList:
@@ -453,7 +473,12 @@ class Slurm(SchedulerPluginAdvanced):
 
         _ = job
 
-        return self.parse_node_list(os.environ['SLURM_JOB_NODELIST'])
+        node_list = os.environ['SLURM_JOB_NODELIST']
+
+        try:
+            return self.parse_node_list(node_list)
+        except ValueError as err:
+            raise SchedulerPluginError("Invalid slurm nodelist: '{}'".format(node_list), err)
 
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
         """Use the `scontrol show node` command to collect data on nodes.
@@ -478,7 +503,11 @@ class Slurm(SchedulerPluginAdvanced):
             res_info = self._scontrol_parse(raw_res)
             name = res_info.get('ReservationName')
             nodes = res_info.get('Nodes')
-            nodes = self.parse_node_list(nodes)
+            try:
+                nodes = self.parse_node_list(nodes)
+            except ValueError as err:
+                raise SchedulerPluginError(
+                    "Invalid node list from slurm: '{}'".format(nodes), err)
             extra['reservations'][name] = nodes
 
         return raw_node_data, extra
