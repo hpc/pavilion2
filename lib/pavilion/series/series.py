@@ -434,7 +434,7 @@ differentiate it from test ids."""
                     self.set_complete()
                     raise TestSeriesError(
                         "Error building tests for series '{}': {}"
-                        .format(self.sid, err.args[0]))
+                        .format(self.sid), err.args[0])
 
                 test_start_count = simultaneous
                 while not test_set.done:
