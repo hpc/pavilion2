@@ -249,7 +249,7 @@ differentiate it from test ids."""
                     config = loader.load(config_file)
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
                     raise TestSeriesError(
-                        "Error loading config for test series '{}': {}"
+                        "Error loading config for test series '{}'"
                         .format(sid), err)
         except OSError as err:
             raise TestSeriesError("Could not load config file for test series '{}': {}"

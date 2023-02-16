@@ -111,7 +111,7 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
                 try:
                     results[key] = transformer.transform(tree)
                 except ParserValueError as err:
-                    log("Error resolving evaluation".format(err.args[0]))
+                    log("Error resolving evaluation: {}".format(err.args[0]))
                     log(err.get_context(expr))
 
                     # Any value errors should be converted to this error type.
