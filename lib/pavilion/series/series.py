@@ -432,7 +432,7 @@ differentiate it from test ids."""
                 except TestSetError as err:
                     self.set_complete()
                     raise TestSeriesError(
-                        "Error building tests for series '{}': {}"
+                        "Error building tests for series '{}'"
                         .format(self.sid), err)
 
                 test_start_count = simultaneous

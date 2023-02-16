@@ -395,22 +395,30 @@ class TestSet:
                 output.fprint(file=outfile, color=output.CYAN)
 
                 msg = [
-                    "Build error while building tests. Cancelling all builds.",
+                    "Build error while building tests. Cancelling all builds.\n",
                     "Failed builds are placed in <working_dir>/test_runs/"
                     "<test_id>/build for the corresponding test run.",
-                    "Errors:"
+                    "Tests with build errors:"
                 ]
 
+                test_id = '<id>'
                 for tracker in self.mb_tracker.failures():
                     test = tests_by_tracker[tracker]
+                    if test.full_id.startswith('main'):
+                        test_id = str(test.id)
+                    else:
+                        test_id = test.full_id
 
                     msg.append(
-                        "Build error for test {test} (#{id}) in "
-                        "test set '{set_name}'."
-                        "See test status file (pav cat {id} status) and/or "
-                        "the test build log (pav log build {id})"
-                        .format(test=test.name, id=test.full_id,
+                        " - {test} ({id} in test set '{set_name}')"
+                        .format(test=test.name, id=test_id,
                                 set_name=self.name))
+
+                msg.append('')
+                msg.append("See test status file (pav cat {id} status) and/or "
+                            "the test build log (pav log build {id})"
+                            .format(id=test_id))
+
                 msg = '\n  '.join(msg)
 
                 raise TestSetError(msg)
