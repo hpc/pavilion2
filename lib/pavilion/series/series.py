@@ -157,7 +157,8 @@ class TestSeries:
                                                stderr=series_out)
 
         except OSError as err:
-            raise TestSeriesError("Could start series in background: {}", err)
+            raise TestSeriesError("Could not start series '{}' in the background."
+                                  .format(self.sid), err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)

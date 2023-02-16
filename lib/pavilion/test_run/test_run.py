@@ -177,7 +177,7 @@ class TestRun(TestAttributes):
             try:
                 self.var_man = VariableSetManager.load(self._variables_path)
             except VariableError as err:
-                raise TestRunError("Error loading variable set for test {}".format(self.full_id),
+                raise TestRunError("Error loading variable set for test {}".format(self.id),
                                    err)
 
         # If the cfg label is actually something that exists, use it in the
