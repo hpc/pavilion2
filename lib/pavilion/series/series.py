@@ -157,8 +157,7 @@ class TestSeries:
                                                stderr=series_out)
 
         except OSError as err:
-            raise TestSeriesError("Could start series in background: {}"
-                                  .format(err.args[0]))
+            raise TestSeriesError("Could start series in background: {}", err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -250,10 +249,10 @@ differentiate it from test ids."""
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
                     raise TestSeriesError(
                         "Error loading config for test series '{}': {}"
-                        .format(sid, err.args[0]))
+                        .format(sid), err)
         except OSError as err:
             raise TestSeriesError("Could not load config file for test series '{}': {}"
-                                  .format(sid, err.args[0]))
+                                  .format(sid), err)
 
         series = cls(pav_cfg, _id=series_id, config=config)
         series.tests.find_tests(series.path)
