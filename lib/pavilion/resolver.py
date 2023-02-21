@@ -51,16 +51,15 @@ class TestRequest:
 
     REQUEST_RE = re.compile(r'^(?:(\d+)\*)?'       # Leading repeat pattern ('5*', '20*', ...)
                             r'([a-zA-Z0-9_-]+)'  # The test suite name.
-                            r'(?:\.([a-zA-Z0-9_*-]+?))?'  # The test name.
-                            r'(?:\.([a-zA-Z0-9_*-]+?))?'  # The permutation name.
-                            r'(?:\*(\d+))?$'  # The post count for error handling
+                            r'(?:\.([a-zA-Z0-9_*-]+))?'  # The test name.
+                            r'(?:\.([a-zA-Z0-9_*-]+))?'  # The permutation name.
                             )
 
     def __init__(self, request_str):
 
         self.count = 1
         self.request = request_str
-        self.checked = False
+        self.request_found = False
 
         match = self.REQUEST_RE.match(request_str)
         if not match:
@@ -70,11 +69,7 @@ class TestRequest:
                 "multiplier (e.g. '5*').\n"
                 "Got: {}".format(request_str))
 
-        count, self.suite, self.test, self.permutation, count_post = match.groups()
-
-        if count_post:
-            raise TestConfigError("A post-repeat count is specified. That's not allowed: {}. "
-                                  "Please specify a pre-repeat count.".format(self.request))
+        count, self.suite, self.test, self.permutation = match.groups()
         
         if count:
             self.count = int(count)
@@ -147,46 +142,87 @@ class TestConfigResolver:
         # This won't have a 'sched' variable set unless we're permuting over scheduler vars.
         return var_man
 
-    def check_permutations(self, resolved_tests, test_checks, outfile: IO[str] = None) -> List[ProtoTest]:
-        """Check the list of resolved tests and ensure they match the given request.
+    def check_test_names(self, resolved_tests, outfile: IO[str] = None):
+        _ = self
 
-        :param resolved_tests: An unfiltered list of all resolved tests.
-        :param test_checks: A list of test requests.
-        :param outfile: Where to write status output.
-        :rtype: List[ProtoTest]
-        """
+        for request, proto_test in resolved_tests:
+            check_name = request.suite + '.' + request.test if request.test else request.suite + '.*'
+            test_name = '.'.join([proto_test.config['suite'], proto_test.config['name']])
 
+            print(test_name)
+
+    def check_permutation_names(self, resolved_tests, outfile: IO[str] = None):
         _ = self
 
         checked_tests = []
 
-        for test, check in zip(resolved_tests, test_checks):
-            test_name = ''
-            check_name = check.suite
+        for request, proto_test in resolved_tests:
+            subtitle_name = ''
+            check_name = request.permutation if request.permutation else '*'
 
-            for item in [check.test, check.permutation]:
-                if item:
-                    check_name += '.' + item
-                else:
-                    check_name += '.*'
-
-            if test.config['subtitle']:
-                test_name = '.'.join([test.config['suite'], test.config['name'], test.config['subtitle']])
+            if proto_test.config['subtitle']:
+                subtitle_name = proto_test.config['subtitle']
             else:
-                if check.permutation:
-                    output.fprint(outfile, 'Permutation not found: {}.'.format(check_name))
+                if request.permutation:
+                    output.fprint(outfile, 'Permutation not found: {}.'
+                        .format(request.suite + '.' + request.test + '.' + request.permutation))
+                else:
+                    checked_tests.append((request, proto_test))
                     continue
 
-                checked_tests.append(test)
-                continue
+            if fnmatch.fnmatch(subtitle_name, check_name):
+                checked_tests.append((request, proto_test))
+                request.request_found = True
 
-            if fnmatch.fnmatch(test_name, check_name):
-                checked_tests.append(test)
-                check.checked = True
-            elif not check.checked:
-                output.fprint(outfile, 'Permutation not found: {}.'.format(check_name))
+        for request, _ in resolved_tests:
+            if not request.request_found and request.permutation:
+                # Only print the 'permutation not found' message once
+                request.request_found = True
+                output.fprint(outfile, "Permutation '{}' not found."
+                    .format(request.suite + '.' + request.test + '.' + request.permutation))
 
         return checked_tests
+
+    # def check_permutations(self, resolved_tests, test_checks, outfile: IO[str] = None) -> List[ProtoTest]:
+    #     """Check the list of resolved tests and ensure they match the given request.
+
+    #     :param resolved_tests: An unfiltered list of all resolved tests.
+    #     :param test_checks: A list of test requests.
+    #     :param outfile: Where to write status output.
+    #     :rtype: List[ProtoTest]
+    #     """
+
+    #     _ = self
+
+    #     checked_tests = []
+
+    #     for test, check in zip(resolved_tests, test_checks):
+    #         test_name = ''
+    #         check_name = check.suite
+
+    #         for item in [check.test, check.permutation]:
+    #             if item:
+    #                 check_name += '.' + item
+    #             else:
+    #                 check_name += '.*'
+
+    #         if test.config['subtitle']:
+    #             test_name = '.'.join([test.config['suite'], test.config['name'], test.config['subtitle']])
+    #         else:
+    #             if check.permutation:
+    #                 output.fprint(outfile, 'Permutation not found: {}.'.format(check_name))
+    #                 continue
+
+    #             checked_tests.append(test)
+    #             continue
+
+    #         if fnmatch.fnmatch(test_name, check_name):
+    #             checked_tests.append(test)
+    #             check.checked = True
+    #         elif not check.checked:
+    #             output.fprint(outfile, 'Permutation not found: {}.'.format(check_name))
+
+    #     return checked_tests
 
 
     def check_variable_consistency(self, config: Dict):
@@ -563,21 +599,21 @@ class TestConfigResolver:
         if outfile and len(permuted_tests) > 1:
             output.fprint(outfile, '')
 
+        # self.check_test_names(resolved_tests, outfile)
+        resolved_tests = self.check_permutation_names(resolved_tests, outfile)
+
         # Now that tests are resolved, multiply them out based on the requested count.
         all_resolved_tests = []
-        permutation_filters = []
         for request, proto_test in resolved_tests:
             # Add the original, copy the rest.
             all_resolved_tests.append(proto_test)
-            permutation_filters.append(request)
             for i in range(request.count - 1):
                 all_resolved_tests.append(proto_test.copy())
-                permutation_filters.append(request)
 
         # NOTE: The deferred scheduler errors will be handled when we try to save
         #       the test object. (See build_variable_manager() above)
 
-        all_resolved_tests = self.check_permutations(all_resolved_tests, permutation_filters, outfile)
+        # all_resolved_tests = self.check_permutations(all_resolved_tests, permutation_filters, outfile)
 
         return all_resolved_tests
 
@@ -749,19 +785,32 @@ class TestConfigResolver:
                 add_tests = [test_name for test_name in suites[request.suite].keys()
                              if not test_name.startswith('_')]
             else:
-                # Add a single test, even a 'hidden' one.
-                add_tests = [request.test]
+                if '*' not in request.test:
+                    add_tests = [request.test]
+                else:
+                    add_tests = []
+                    # Check existing tests against the requested test, including wildcard requests
+                    checked_tests = fnmatch.filter(list(suites[request.suite].keys()), request.test)
+                    print(request.test)
+                    print(checked_tests)
+                    for test_check in checked_tests:
+                        add_tests.append(test_check)
+
+                # move the for loop here
+                # writing unit tests
+                # go into test/data/pav_config_dir/tests and write a test
+                # call pav.load() and pass it a list of test globs
+                # check to see which tests got made
+                # make a yaml in that directory
 
             # Add each of the tests to our list of loaded tests.
-            for test_check in add_tests:
-                checked_tests = fnmatch.filter(list(suites[request.suite].keys()), test_check)
-                if checked_tests:
-                    for test_name in checked_tests:
-                        all_tests.append((request, suites[request.suite][test_name]))
+            for test_name in add_tests:
+                if test_name in suites[request.suite]:
+                    all_tests.append((request, suites[request.suite][test_name]))
                 else:
                     raise TestConfigError(
                         "Test suite '{}' does not contain a test '{}'."
-                        .format(request.suite, test_check))
+                        .format(request.suite, test_name))
 
         return all_tests
 
