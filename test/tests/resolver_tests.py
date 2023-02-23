@@ -190,6 +190,42 @@ class ResolverTests(PavTestCase):
             with self.assertRaises(TestConfigError):
                 self.resolver.load([bad_test])
 
+    def test_wildcards(self):
+        """Make sure wildcarded tests and permutations work"""
+
+        for test_request, result_count, result_unique in (
+                ('wildcard.some[tm]est', 8, 8),
+                ('wildcard.some*', 8, 8),
+                ('wildcard.*', 9, 9),
+                ('2*wildcard.some?est', 16, 8),
+                ('wildcard.**2', 18, 9),
+                ('wildcard', 9, 9),
+                ('wildcard._base', 1, 1)):
+            tests = self.resolver.load(tests=[test_request])
+
+            self.assertEqual(len(tests), result_count)
+            test_names = [(test.config['suite'], test.config['name'], test.config['subtitle']) for test in tests]
+            test_names = set(test_names)
+            self.assertEqual(len(test_names), result_unique)
+
+        for perm_request, result_count in (
+                ('wildcard.*.b-1', 2),
+                ('wildcard.*.*', 8),
+                ('wildcard.sometest.*-1', 2),
+                ('wildcard.sometest.a-**2', 4),
+                ('2 * wildcard.somemest.c-4', 2),
+                ('wildcard.somemest.[cb]-*', 4)):
+            tests = self.resolver.load(tests=[perm_request])
+
+            self.assertEqual(len(tests), result_count)
+
+        for bad_request in (
+                ('wildcard.noperms.*'),
+                ('wildcard.doesnt_exist'),
+                ('wildcard.[invalidfnmatch')):
+            with self.assertRaises(TestConfigError):
+                self.resolver.load([bad_request])
+
     def test_extended_variables(self):
         """Make sure default variables work as expected."""
 
