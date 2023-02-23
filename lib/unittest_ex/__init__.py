@@ -1,11 +1,16 @@
 import fnmatch
 import inspect
+from pathlib import Path
+import sys
 import time
 import types
 import unittest
 import warnings
 from pathlib import Path
 
+THIS_FILE = Path(__file__).resolve()
+LIB_DIR = THIS_FILE.parents[1]
+sys.path.insert(0, str(LIB_DIR))
 
 class TestCaseEx(unittest.TestCase):
     """A unittest.TestCase with added features."""
