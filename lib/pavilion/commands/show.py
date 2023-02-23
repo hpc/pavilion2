@@ -398,22 +398,16 @@ class ShowCommand(Command):
         """List all files found in the collections directories in all config directories."""
 
         collections = []
-
         for config in pav_cfg['configs'].items():
             _, config_path = config
             collection_dir = Path(config_path.path / 'collections')
             if collection_dir.exists() and collection_dir.is_dir():
                 for col_file in os.listdir(collection_dir):
-                    collections.append(
-                        {'collection': col_file, 'path': Path(collection_dir / col_file)}
-                    )
+                    collections.append({'collection': col_file, 
+                                        'path': Path(collection_dir / col_file)})
 
-        output.draw_table(
-            self.outfile,
-            fields=['collection', 'path'],
-            rows=collections,
-            title="Available collections and paths."
-        )
+        output.draw_table(self.outfile, fields=['collection', 'path'], rows=collections,
+                          title="Available collections and paths.")
 
     @sub_cmd('function', 'func')
     def _functions_cmd(self, _, args):
