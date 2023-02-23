@@ -403,7 +403,7 @@ class ShowCommand(Command):
             collection_dir = Path(config_path.path / 'collections')
             if collection_dir.exists() and collection_dir.is_dir():
                 for col_file in os.listdir(collection_dir):
-                    collections.append({'collection': col_file, 
+                    collections.append({'collection': col_file,
                                         'path': Path(collection_dir / col_file)})
 
         output.draw_table(self.outfile, fields=['collection', 'path'], rows=collections,
