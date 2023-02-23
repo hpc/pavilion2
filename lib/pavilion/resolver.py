@@ -68,7 +68,8 @@ class TestRequest:
             raise TestConfigError(
                 "Test requests must be in the form 'suite_name', 'suite_name.test_name', or\n"
                 "'suite_name.test_name.permutation_name. They may be preceeded by a repeat\n"
-                "multiplier (e.g. '5*').\n"
+                "multiplier (e.g. '5*'). test_name and permutation_name can also use globbing\n"
+                "syntax (*, ?, []). For example, 'suite.test*.perm-[abc]."
                 "Got: {}".format(request_str))
 
         pre_count, self.suite, self.test, self.permutation, post_count = match.groups()
