@@ -76,7 +76,7 @@ class ViewCommand(run.RunCommand):
 
         res = resolver.TestConfigResolver(pav_cfg)
 
-        tests.extend(cmd_utils.read_test_files(args.files, pav_cfg))
+        tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
 
         try:
             proto_tests = res.load(

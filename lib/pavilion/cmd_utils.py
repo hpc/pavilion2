@@ -214,7 +214,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         return matching_series
 
 
-def read_test_files(files: List[str], pav_cfg) -> List[str]:
+def read_test_files(pav_cfg, files: List[str]) -> List[str]:
     """Read the given files which contain a list of tests (removing comments)
     and return a list of test names."""
 
