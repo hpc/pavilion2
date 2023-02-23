@@ -3,8 +3,10 @@
 import argparse
 import errno
 import fnmatch
+import os
 import pprint
 import sys
+from pathlib import Path
 from typing import Union
 
 import pavilion.errors
@@ -75,6 +77,12 @@ class ShowCommand(Command):
             in the order given. Tests in higher directories supersede those
             in lower. Plugins, however, are resolved according to internally
             defined priorities."""
+        )
+
+        subparsers.add_parser(
+            'collections',
+            aliases=['collection'],
+            help="List collections found in config dirs."
         )
 
         func_group = subparsers.add_parser(
@@ -383,6 +391,28 @@ class ShowCommand(Command):
             fields=['label', 'path', 'working_dir'],
             rows=pav_cfg.configs.values(),
             title="Config directories by priority."
+        )
+
+    @sub_cmd('collection')
+    def _collections_cmd(self, pav_cfg, _):
+        """List all files found in the collections directories in all config directories."""
+
+        collections = []
+
+        for config in pav_cfg['configs'].items():
+            _, config_path = config
+            collection_dir = Path(config_path.path / 'collections')
+            if collection_dir.exists() and collection_dir.is_dir():
+                for col_file in os.listdir(collection_dir):
+                    collections.append(
+                        {'collection': col_file, 'path': Path(collection_dir / col_file)}
+                    )
+
+        output.draw_table(
+            self.outfile,
+            fields=['collection', 'path'],
+            rows=collections,
+            title="Available collections and paths."
         )
 
     @sub_cmd('function', 'func')

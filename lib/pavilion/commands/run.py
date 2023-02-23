@@ -134,7 +134,7 @@ class RunCommand(Command):
 
         tests = args.tests
         try:
-            tests.extend(cmd_utils.read_test_files(args.files))
+            tests.extend(cmd_utils.read_test_files(args.files, pav_cfg))
         except ValueError as err:
             output.fprint(sys.stdout, "Error reading given test list files.\n{}"
                           .format(err))
