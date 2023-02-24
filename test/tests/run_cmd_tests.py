@@ -1,7 +1,6 @@
 import io
 
 from pavilion import arguments
-from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import plugins
 from pavilion.status_file import STATES
