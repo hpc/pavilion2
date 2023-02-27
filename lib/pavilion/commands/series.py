@@ -105,7 +105,7 @@ class RunSeries(Command):
                           .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
 
-        output.fprint(self.errfile, "Creating Series {}.\n".format(series_obj.name))
+        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
 
         # pav _series runs in background using subprocess
         try:
