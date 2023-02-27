@@ -143,7 +143,7 @@ base class.
             config.PavilionConfigLoader().dump(pav_cfg_file,
                                                raw_pav_cfg)
 
-        pav_cfg = config.find_pavilion_config(target=cfg_path, warn=False)
+        pav_cfg = config.find_pavilion_config(target=cfg_path)
         pav_cfg.pav_vars = pavilion_variables.PavVars()
 
         return pav_cfg

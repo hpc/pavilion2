@@ -42,7 +42,7 @@ def main():
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()
 
-    # Get the config, and
+    # Get the Pavilion config
     try:
         pav_cfg = config.find_pavilion_config()
     except Exception as err:
@@ -85,6 +85,9 @@ def main():
     # parser), we'll reparse the args for real.
     args = parser.parse_args()
 
+    if not args.quiet:
+        show_setup_warnings(pav_cfg)
+
     pav_cfg.pav_vars = pavilion_variables.PavVars()
     run_cmd(pav_cfg, args)
 
@@ -98,6 +101,9 @@ def run_cmd(pav_cfg, args):
         output.fprint(sys.stderr, "Unknown command '{}'."
                       .format(args.command_name), color=output.RED)
         sys.exit(-1)
+
+    if args.quiet:
+        cmd.stderr = open('/dev/null', 'w')
 
     try:
         sys.exit(cmd.run(pav_cfg, args))
@@ -121,6 +127,16 @@ def run_cmd(pav_cfg, args):
         output.fprint(sys.stderr, "Traceback logged to {}".format(pav_cfg.exception_log),
                       color=output.RED)
         sys.exit(-1)
+
+
+def show_setup_warnings(pav_cfg: config.PavConfig):
+    """Print any warnings accumulated during setup."""
+
+    for warning in pav_cfg.warnings:
+        output.fprint(sys.stderr, 'Warning: {}'.format(warning), color=output.YELLOW)
+    if pav_cfg.warnings:
+        output.fprint(sys.stderr, 'Note: You can silence warnings with `pav --quiet`.',
+            color=output.YELLOW)
 
 
 def _get_arg_val(arg_name, default):

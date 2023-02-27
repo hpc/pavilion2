@@ -139,7 +139,7 @@ def record_factory(*fargs, **kwargs):
     return record
 
 
-def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
+def setup_loggers(pav_cfg):
     """Setup the loggers for the Pavilion command. This will include:
 
     - The general log file (as a multi-process/host safe rotating logger).
@@ -147,10 +147,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     - The exception log.
 
     :param pav_cfg: The Pavilion configuration.
-    :param bool verbose: When verbose, setup the root logger to print to stderr
-        as well.
-    :param IO[str] err_out: Where to log errors meant for the terminal. This
-        exists primarily for testing.
     """
 
     root_logger = logging.getLogger()
@@ -171,8 +167,9 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         log_fn.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.fprint(err_out, "Could not write to pavilion log at '{}': {}"
-                      .format(log_fn, err), color=output.YELLOW)
+        pav_cfg.warnings.append(
+            "Could not write to pavilion log at '{}': {}"
+            .format(log_fn, err))
     else:
         file_handler = logging.FileHandler(filename=log_fn.as_posix())
         file_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
@@ -195,9 +192,9 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         result_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.fprint(err_out, "Could not write to result log at '{}': {}"
-                      .format(pav_cfg.result_log, err), color=output.YELLOW)
-        return False
+        pav_cfg.warnings.append(
+            "Could not write to result log at '{}': {}"
+            .format(pav_cfg.result_log, err))
 
     result_logger = logging.getLogger('common_results')
     result_handler = LockFileRotatingFileHandler(
@@ -221,8 +218,9 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         exception_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.fprint(err_out, "Could not write to exception log at '{}': {}"
-                      .format(pav_cfg.exception_log, err), color=output.YELLOW)
+        pav_cfg.warnings.append(
+            "Could not write to exception log at '{}': {}"
+            .format(pav_cfg.exception_log, err))
     else:
         exc_handler = LockFileRotatingFileHandler(
             file_name=exception_log.as_posix(),
@@ -234,6 +232,8 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         ))
         exc_logger.setLevel(logging.ERROR)
         exc_logger.addHandler(exc_handler)
+
+    err_out = io.StringIO()
 
     # Setup the yapsy logger to log to terminal. We need to know immediately
     # when yapsy encounters errors.
@@ -248,11 +248,14 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
 
     # Add a stream to stderr if we're in verbose mode, or if no other handler
     # is defined.
-    if verbose or not root_logger.handlers:
+    if root_logger.handlers:
         verbose_handler = logging.StreamHandler(err_out)
         verbose_handler.setLevel(logging.DEBUG)
         verbose_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
                                                        style='{'))
         root_logger.addHandler(result_handler)
 
-    return True
+    for line in err_out:
+        pav_cfg.warnings.append(line)
+
+    return err_out
