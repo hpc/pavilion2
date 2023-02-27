@@ -11,6 +11,9 @@ class ScheduleConfig(yc.KeyedElem):
     """Scheduling configuration."""
 
     ELEMENTS = [
+        yc.StrElem('core_spec',
+            help_text="The count identifies the number of cores to be reserved"
+                      " for system overhead on each allocated compute node."),
         yc.StrElem(
             'nodes',
             help_text="The number of nodes to acquire to scheduler the job as "
@@ -62,6 +65,9 @@ class ScheduleConfig(yc.KeyedElem):
         yc.StrElem(
             'account',
             help_text="The account to use when creating an allocation."),
+        yc.StrElem(
+            'wrapper',
+            help_text="Wrapper for the scheduler command."),
         yc.StrElem(
             'reservation',
             help_text="The reservation to use when creating an allocation. When blank "
@@ -402,6 +408,19 @@ def _validate_node_list(items) -> List[str]:
 
     return nodes
 
+def _validate_allocation_str(val) -> Union[str, None]:
+    """Validates string and returns true, false or max for the share_allocation feature"""
+
+    if isinstance(val, str):
+        if val.lower() == 'false':
+            return False
+        elif val.lower() == 'max':
+            return val.lower()
+        else:
+            return True
+    else:
+        return True
+
 
 CONTIGUOUS = 'contiguous'
 RANDOM = 'random'
@@ -426,7 +445,7 @@ CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
-        'size':           min_int('chunk.size', min_val=0),
+        'size':           _validate_nodes,
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
     },
@@ -436,10 +455,12 @@ CONFIG_VALIDATORS = {
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'core_spec':        None,
+    'wrapper':          None,
     'reservation':      None,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
-    'share_allocation': utils.str_bool,
+    'share_allocation': _validate_allocation_str,
     'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
         'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
@@ -462,6 +483,7 @@ CONFIG_DEFAULTS = {
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
     'include_nodes':    [],
@@ -514,7 +536,7 @@ def validate_config(config: Dict[str, str],
 
             except ValueError as err:
                 raise SchedConfigError("Config value for key '{}' had a validation "
-                                       "error: {}".format(key, err))
+                                       "error.".format(key), err.args[0])
 
         elif isinstance(validator, (tuple, list)):
             if value not in validator:

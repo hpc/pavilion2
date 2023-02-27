@@ -1,3 +1,3 @@
 variables:
-  long_base: ['what', 'are']
+  long_base: ['checking', 'for']
   single_base: 'host'

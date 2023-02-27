@@ -13,7 +13,7 @@ from typing import List, Union, Dict, Any, TextIO, Pattern, Tuple, NewType
 from pavilion.result_parsers import ResultParser, get_plugin
 from pavilion.utils import IndentedLog
 from .base import RESULT_ERRORS
-from .common import ResultError
+from ..errors import ResultError
 from .options import (PER_FILES, ACTIONS, MATCH_CHOICES, per_first,
                       ACTION_TRUE, ACTION_FALSE, MATCH_ALL, MATCH_UNIQ)
 
@@ -317,12 +317,14 @@ def parse_result(key: str, parser_cfg: Dict, file: TextIO, parser: ResultParser)
             match_idx=match_idx,
         )
 
-        log("Got result '{}' for key '{}'".format(res, key))
-        log.indent(elog)
-
         # Add the key information if there was an error.
         if isinstance(res, ParseErrorMsg):
             res.key = key
+            log(str(res))
+        else:
+            log("Got result '{}' for key '{}'".format(res, key))
+
+        log.indent(elog)
 
         return res, log
     except OSError as err:
@@ -358,11 +360,11 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
         try:
             # Apply to the parser to that file starting on that line.
             res = parser(file, **parser_args)
-        except (ValueError, LookupError, OSError) as exc:
+        except (ValueError, LookupError, OSError) as err:
             log("Error calling result parser {}.".format(parser.name))
             log(traceback.format_exc())
-            return ParseErrorMsg(parser, "Parser error in {} parser: {}."
-                                         .format(parser.name, exc)), log
+            return ParseErrorMsg(parser, "Parser error in {} parser: {}"
+                                         .format(parser.name, err)), log
 
         file.seek(next_pos)
 

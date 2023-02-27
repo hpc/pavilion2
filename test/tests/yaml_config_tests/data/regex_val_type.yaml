@@ -1,0 +1,23 @@
+# PET(required str): The kind of pet.
+# Choices: squirrel, cat, dog
+pet: "squirrel"
+# QUANTITY(required int)
+# Choices: 1, 2, 3
+quantity: 2
+# QUALITY(required float)
+# Valid Range: 0 - 1.0
+quality: 0.5
+# POTENTIAL_NAMES(list): What you could name this pet.
+potential_names:
+# (str): Such as Fido.
+- Tippy Toe
+- "Ralph"
+# PROPERTIES(dict): Pet properties
+properties:
+  # DESCRIPTION(str): General pet description.
+  description: "An evil rodent that likes nuts."
+  # This has had problems with non-string types
+  greeting: 5
+  # LEGS(required int)
+  # Valid Range: > 0
+  legs: 4

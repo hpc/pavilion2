@@ -22,10 +22,13 @@ class TestConfig(PavTestCase):
 
         variables = data['variables']
         self.assertEqual(len(variables), 4)
-        self.assertEqual(variables['fish'], ['halibut'])
-        self.assertEqual(variables['animal'], ['squirrel'])
-        self.assertEqual(variables['bird'], ['eagle', 'mockingbird', 'woodpecker'])
-        self.assertEqual(variables['horse'][0].legs, '4')
+        self.assertEqual(variables['fish'], [{None: 'halibut'}])
+        self.assertEqual(variables['animal'], [{None: 'squirrel'}])
+        self.assertEqual(variables['bird'], [
+            {None: 'eagle'},
+            {None: 'mockingbird'},
+            {None: 'woodpecker'}])
+        self.assertEqual(variables['horse'][0]['legs'], '4')
 
     def test_pav_config_recycle(self):
         """Make sure a config template file is a valid config."""
@@ -69,6 +72,7 @@ class TestConfig(PavTestCase):
                 {'a': 'a_inh', 'b': 'b_def'},
                 {'a': 'a_def', 'b': 'b_inh'}],
             'd_dict': [{'a': 'a_def', 'b': 'b_def'},
+                       {'a': 'a_def', 'b': 'b_def'},
                        {'a': 'a_inh', 'b': 'b_def'},
                        {'a': 'a_def', 'b': 'b_inh'}],
             'd_ldict': [{'c': 'c_def1', 'd': 'd_def1'}],

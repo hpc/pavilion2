@@ -3,9 +3,10 @@
 import json
 import logging
 
+from pavilion import output
 from pavilion import utils, dir_db
 from ..sys_vars import base_classes
-from .errors import TestSeriesError, TestSeriesWarning
+from ..errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo, path_to_sid, mk_series_info_transform
 from .series import TestSeries
 from .test_set import TestSet
@@ -31,8 +32,8 @@ def load_user_series_id(pav_cfg, errfile=None):
             return sys_name_series_dict[sys_name].strip()
     except (IOError, OSError, KeyError) as err:
         if errfile:
-            output.fprint(errfile, "Failed to read series id file '{}': {}"
-                                   .format(last_series_fn, err))
+            output.fprint(errfile, "Failed to read series id file '{}'"
+                                   .format(last_series_fn), err)
         return None
 
 

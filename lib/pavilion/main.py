@@ -6,6 +6,7 @@ import sys
 import traceback
 
 import pavilion.commands
+import pavilion.errors
 from . import arguments
 from . import commands
 from . import config
@@ -46,8 +47,7 @@ def main():
     try:
         pav_cfg = config.find_pavilion_config()
     except Exception as err:
-        output.fprint(sys.stderr, "Error getting config, exiting: {}"
-                      .format(err), color=output.RED)
+        output.fprint(sys.stderr, "Error getting config, exiting.", err, color=output.RED)
         sys.exit(-1)
 
     # Setup all the loggers for Pavilion
@@ -60,9 +60,8 @@ def main():
     # Initialize all the plugins
     try:
         plugins.initialize_plugins(pav_cfg)
-    except plugins.PluginError as err:
-        output.fprint(sys.stderr, "Error initializing plugins: {}"
-                      .format(err), color=output.RED)
+    except pavilion.errors.PluginError as err:
+        output.fprint(sys.stderr, "Error initializing plugins.", err, color=output.RED)
         sys.exit(-1)
 
     # Partially parse the arguments. All we really care about is the subcommand.
@@ -120,8 +119,8 @@ def run_cmd(pav_cfg, args):
         logger = logging.getLogger('exceptions')
         logger.error(json_data)
 
-        output.fprint(sys.stderr, "Unknown error running command {}: {}."
-                      .format(args.command_name, err), color=output.RED)
+        output.fprint(sys.stderr, "Unknown error running command {}."
+                      .format(args.command_name), err, color=output.RED)
         traceback.print_exc(file=sys.stderr)
 
         output.fprint(sys.stderr, "Traceback logged to {}".format(pav_cfg.exception_log),

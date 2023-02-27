@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
-from collections import defaultdict
 import shutil
 import sys
 import unittest
+from collections import defaultdict
 from pathlib import Path
 
 this_file = Path(__file__).resolve()
@@ -13,6 +13,8 @@ tests_dir = this_file.parent/'tests'
 
 # Setup our paths to the pavilion libraries.
 sys.path.insert(0, str(lib_dir))
+
+from pavilion import output
 
 
 def _list_tests(suite):
@@ -26,13 +28,12 @@ def _list_tests(suite):
 
         return tests
 
-    by_suite = {}
-
     suite_name = suite.__class__.__name__
     return [(suite_name, suite._testMethodName)]
 
+
 def list_tests(suite):
-    
+
     tests = _list_tests(suite)
 
     by_suite = defaultdict(list)
@@ -47,7 +48,6 @@ def list_tests(suite):
         for test_name in sorted(by_suite[suite_name]):
             print('  {}'.format(test_name))
 
-from pavilion import output
 
 def msg(*args, color=output.BLUE, **kwargs):
     """Print a message from the test runner."""
@@ -58,7 +58,8 @@ def msg(*args, color=output.BLUE, **kwargs):
 
 def main():
 
-    from pavilion.unittest import PavTestCase, ColorResult, BetterRunner
+    from unittest_ex import ColorResult, BetterRunner, TestCaseEx
+    from pavilion.unittest import PavTestCase
     from pavilion import log_setup
 
     config = PavTestCase.TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
@@ -73,7 +74,7 @@ def main():
         usage="This runs all the tests in the tests/ directory. For a python " 
               "file to be recognized as a test suite, it must end in "
               "'_tests.py'. All other files are ignored")
-    parser.add_argument('-l', '--list', action='store_true', 
+    parser.add_argument('-l', '--list', action='store_true',
                         help="List the tests, but don't run them.")
     parser.add_argument('-s', '--skip', action='append', default=[],
                         help="Skip tests matching the given glob pattern. The "
@@ -93,9 +94,9 @@ def main():
     args = parser.parse_args(sys.argv[1:])
 
     if args.skip:
-        PavTestCase.set_skip(args.skip)
+        TestCaseEx.set_skip(args.skip)
     if args.only:
-        PavTestCase.set_only(args.only)
+        TestCaseEx.set_only(args.only)
 
     working_dir = this_file.parent/'working_dir'
     if not args.list and not args.no_clear and working_dir.exists():
@@ -110,7 +111,8 @@ def main():
     loader = unittest.TestLoader()
 
     msg("Finding all tests.")
-    suite = loader.discover(tests_dir.as_posix(), pattern='*_tests.py')
+    test_pattern = '*_tests.py'
+    suite = loader.discover(tests_dir.as_posix(), pattern=test_pattern)
 
     if args.list:
         list_tests(suite)

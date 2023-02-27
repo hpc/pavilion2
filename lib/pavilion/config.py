@@ -15,6 +15,7 @@ from typing import List, Union, Dict, NewType
 
 import yaml_config as yc
 from pavilion import output
+from pavilion import errors
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -64,6 +65,10 @@ LOG_FORMAT = "{asctime}, {levelname}, {hostname}, {name}: {message}"
 
 # An optional path type.
 OptPath = NewType("OptPath", Union[None, Path])
+
+
+class PavConfigError(errors.PavilionError):
+    """Config specific errors."""
 
 
 class PavConfigDict:
@@ -259,6 +264,7 @@ class ExPathElem(yc.PathElem):
         path = path.expanduser()
         return path
 
+
 def _setup_working_dir(working_dir: Path, group) -> None:
     """Create all the expected subdirectories for a working_dir."""
 
@@ -269,21 +275,21 @@ def _setup_working_dir(working_dir: Path, group) -> None:
             try:
                 group_struct: grp.struct_group = grp.getgrnam(group)
             except KeyError:
-                raise RuntimeError("Group specified ({}) for working_dir '{}' "
-                                   "does not exist.")
+                raise PavConfigError("Group specified ({}) for working_dir '{}' "
+                                     "does not exist.")
 
             try:
                 os.chown(working_dir, -1, group_struct.gr_gid)
                 working_dir.chmod(stat.S_ISGID | 0o770)
             except OSError as err:
-                raise RuntimeError("Could not set group permissions on new working dir '{}': {}"
-                                   .format(working_dir, err))
+                raise PavConfigError("Could not set group permissions on new working dir '{}'"
+                                     .format(working_dir), err)
     else:
         if group is not None and working_dir.group() != group:
-            raise RuntimeError("Working dir should have group '{}', but has group '{}'. This "
-                               "usually means two config directories specify different groups "
-                               "but point to the same working directory. See `pav config list`."
-                               .format(group, working_dir.group()))
+            raise PavConfigError("Working dir should have group '{}', but has group '{}'. This "
+                                 "usually means two config directories specify different groups "
+                                 "but point to the same working directory. See `pav config list`."
+                                 .format(group, working_dir.group()))
 
     for path in [
             working_dir,
@@ -296,7 +302,7 @@ def _setup_working_dir(working_dir: Path, group) -> None:
         try:
             path.mkdir(exist_ok=True)
         except OSError as err:
-            raise RuntimeError("Could not create directory '{}': {}".format(path, err))
+            raise PavConfigError("Could not create directory '{}'".format(path), err)
 
 
 def make_invalidator(msg):
@@ -307,7 +313,7 @@ def make_invalidator(msg):
         """Raise a ValueError with the given message."""
 
         if value:
-            raise ValueError("Invalid Option: {}".format(msg))
+            raise ValueError("Invalid Option".format(msg))
 
     return invalidator
 
@@ -418,7 +424,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.CategoryElem(
             "proxies", sub_elem=yc.StrElem(),
             help_text="Proxies, by protocol, to use when accessing the "
-                      "internet. Eg: http: 'http://myproxy.myorg.org:8000'"),
+                      "internet. Eg: http: 'htt" + "p://myproxy.myorg.org:8000'"),
         yc.ListElem(
             "no_proxy", sub_elem=yc.StrElem(),
             help_text="A list of DNS suffixes to ignore for proxy purposes. "
@@ -462,7 +468,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 class LocalConfig(PavConfigDict):
     """This provides type checkers something to working with. See PavConfig above."""
     def __init__(self, set_attrs: dict = None):
-        self.label: str = None
+        self.label: Union[str, None] = None
         self.working_dir: Union[None, Path] = None
         self.path: OptPath = None
         self.group: Union[str, None] = None
@@ -556,7 +562,6 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             pav_cfg.warnings.append(
                 "Could not read config file {}: {}".format(config_path, err))
             continue
-            
 
         label = config.get('label')
         group = config.get('group')
@@ -662,8 +667,8 @@ found in these directories the default config search paths:
                     pav_cfg.pav_cfg_file = path
                     break
                 except Exception as err:
-                    raise RuntimeError("Error in Pavilion config at {}: {}"
-                                       .format(path, err))
+                    raise PavConfigError("Error in Pavilion config at {}"
+                                         .format(path), err)
 
     if pav_cfg is None:
         pav_cfg = PavilionConfigLoader().load_empty()

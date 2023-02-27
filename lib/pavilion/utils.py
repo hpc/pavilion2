@@ -15,6 +15,21 @@ from typing import Iterator, Union, TextIO
 from typing import List, Dict
 
 
+def glob_to_re(glob):
+    """Translate the given glob to one that is compatible with (extended) grep.
+    Note that the given RE, in order to be completely correct, must be bounded by
+    '^', '$', or other characters."""
+
+    glob = glob.replace('.', '\\.')
+    glob = glob.replace('?', '.')
+    glob = glob.replace('*', '.*')
+    # Glob sequences are the same, except the inversion characters is different.
+    glob = glob.replace('[!', '[^')
+    # TODO: If there's a dash in a glob sequence, that will break
+
+    return glob
+
+
 def str_bool(val):
     """Returns true if the string value is the string 'true' with allowances
     for capitalization."""
@@ -499,6 +514,10 @@ def auto_type_convert(value):
         return {key: auto_type_convert(val) for key, val in value.items()}
 
     if isinstance(value, (int, float, bool)):
+        return value
+
+    if '_' in value:
+        # Don't allow underscores in numeric literals like python does.
         return value
 
     # Probably a string?

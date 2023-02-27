@@ -44,16 +44,16 @@ class Job:
         try:
             job_path.mkdir()
         except OSError as err:
-            raise JobError("Could not create job dir at '{}': {}"
-                           .format(job_path, err))
+            raise JobError("Could not create job dir at '{}'"
+                           .format(job_path), err)
 
         # Create a symlink to each test that's part of this job
         test_link_dir = job_path / cls.TESTS_DIR
         try:
             test_link_dir.mkdir()
         except OSError as err:
-            raise JobError("Could not create job tests dir at '{}': {}"
-                           .format(test_link_dir, err))
+            raise JobError("Could not create job tests dir at '{}'"
+                           .format(test_link_dir), err)
 
         for test in tests:
             (test_link_dir/test.full_id).symlink_to(test.path)
@@ -83,7 +83,7 @@ class Job:
                 with id_path.open() as id_file:
                     self._info = json.load(id_file)
             except OSError as err:
-                raise JobError("Could not load job id: {}".format(err))
+                raise JobError("Could not load job id", err)
 
         return self._info
 
@@ -98,7 +98,7 @@ class Job:
                 json.dump(job_info, info_file)
             info_path_tmp.rename(info_path)
         except OSError as err:
-            raise JobError("Could not save job id: {}".format(err))
+            raise JobError("Could not save job id", err)
 
     def __str__(self):
         parts = []
@@ -114,8 +114,7 @@ class Job:
             with (self.path/self.NODE_INFO_FN).open('wb') as data_file:
                 pickle.dump(nodes, data_file)
         except OSError as err:
-            raise JobError(
-                "Could not save node data: {}".format(err))
+            raise JobError("Could not save node data", err)
 
     def load_sched_data(self) -> Nodes:
         """Load the scheduler data that was saved from the kickoff time."""
@@ -124,8 +123,7 @@ class Job:
             with (self.path/self.NODE_INFO_FN).open('rb') as data_file:
                 return pickle.load(data_file)
         except OSError as err:
-            raise JobError(
-                "Could not load node data: {}".format(err))
+            raise JobError("Could not load node data", err)
 
     def get_test_id_pairs(self) -> List[ID_Pair]:
         """Return the test objects for each test that's part of this job. Only tests
@@ -188,7 +186,7 @@ class Job:
         try:
             shutil.rmtree(self.path.as_posix())
         except OSError as err:
-            raise JobError("Could not delete job at '{}': {}".format(self.path, err))
+            raise JobError("Could not delete job at '{}'".format(self.path), err)
 
     def __eq__(self, other: "Job"):
         """Compare equality between two jobs."""

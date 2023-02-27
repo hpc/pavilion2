@@ -1,10 +1,12 @@
-from pavilion.unittest import PavTestCase
-import unittest
+import io
 import subprocess
+import unittest
 from pathlib import Path
-from pavilion.status_file import STATES
-from pavilion import plugins
 
+from pavilion.status_file import STATES
+from pavilion.unittest import PavTestCase
+from pavilion import resolver
+from pavilion.test_run import TestRun
 
 MODULE_SYSTEM_ROOT_PATHS = [
     Path('/usr/share/Modules'),
@@ -242,4 +244,63 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         test.run()
         self.assertEqual(test.status.current().state, STATES.RUN_DONE)
+
+    def test_config_mod_wrappers(self):
+        """Test config defined wrappers."""
+
+        rslvr = resolver.TestConfigResolver(self.pav_cfg)
+        out = io.StringIO()
+        ptests = rslvr.load(['config_mod_wrappers'], outfile=out)
+        tests = [TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man) for ptest in ptests]
+        tests_by_name = {}
+        for test in tests:
+            test.save()
+            tests_by_name[test.name.split('.')[-1]] = test
+
+        def check_test(ctest, expected_lines):
+            """Make sure all the expected lines ended up in the test's run.tmpl file."""
+
+            # Check that all the things we expect are in the run.tmpl file
+            run_tmpl_lines = (ctest.path / 'run.tmpl').open().readlines()
+            run_tmpl_lines = [line.strip() for line in run_tmpl_lines]
+            for exp_line in expected_lines:
+                self.assertIn(exp_line, run_tmpl_lines,
+                              msg="{}\n\nExpected line in test {} not found in the run.tmpl "
+                                  "file above.  Line: \n{}"
+                              .format('\n'.join(run_tmpl_lines), ctest.name, exp_line))
+
+        # These checks aren't comprehensive - we can't really check if this works without
+        # all the relevant module systems in place.
+        # What they are is strict, such that if what we have works, these ensure they continue
+        # doing the same thing.
+        check_test(tests_by_name['test-load'], [
+            'module load gcc/15.2.3',
+            'module swap $old_module gcc/15.2.3',
+            'export gcc_VERSION=15.2.3',
+            'export CC=BAR',
+            'export CPP=BAZ-${gcc_VERSION}',
+            'module load openmpi-bar/11.10',
+            'export MPICC=mpicc',
+            'export openmpi-any_VERSION=11.10'
+            ])
+
+        check_test(tests_by_name['test-no-vers'], [
+            'module load gcc',
+            'module swap $old_module gcc',
+            'export gcc_VERSION="$(module_loaded_version \'gcc\')"',
+            '''export openmpi-any_VERSION="$(module_loaded_version 'openmpi-.*')"''',
+            'module load openmpi-bar',
+        ])
+
+        check_test(tests_by_name['test-swap'], [
+            'module swap $old_module gcc/1.2.3',
+            'verify_module_removed $TEST_ID bcc 3.2.1',
+            'verify_module_loaded $TEST_ID openmpi-bar',
+            'verify_module_removed $TEST_ID openmpi-foo None',
+            'export MPICC=mpicc',
+            'export gcc_VERSION=1.2.3',
+            'export CC=BAR',
+            '''old_module=$(module -t list 2>&1 | grep -E '^bcc-.*(/|$)')''',
+            'module swap $old_module gcc/1.2.8',
+        ])
 
