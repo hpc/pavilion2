@@ -558,7 +558,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                 with config_path.open() as config_file:
                     config = loader.load(config_file)
 
-        except Exception as err:
+        except OSError as err:
             pav_cfg.warnings.append(
                 "Could not read config file {}: {}".format(config_path, err))
             continue
@@ -581,7 +581,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                 else:
                     label = '_' + DEFAULT_CONFIG_LABEL
             elif DEFAULT_CONFIG_LABEL not in configs:
-                    label = DEFAULT_CONFIG_LABEL
+                label = DEFAULT_CONFIG_LABEL
 
         if label in configs or not label:
             label = '<not_defined>' if label is None else label
