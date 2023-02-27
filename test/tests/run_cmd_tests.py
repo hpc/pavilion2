@@ -181,3 +181,18 @@ class RunCmdTests(PavTestCase):
             'run', 'hello_world.hello*two'
         ])
         self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_run_file(self):
+        """Check that the -f argument for pav run works. """
+
+        arg_parser = arguments.get_parser()
+
+        # pass a collection name to -f (not an absolute path) 
+        args = arg_parser.parse_args([
+            'run',
+            '-f', 'testlist.txt',
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
