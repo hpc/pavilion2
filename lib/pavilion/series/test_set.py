@@ -255,6 +255,13 @@ class TestSet:
         # make sure result parsers are ok
         self.check_result_format(self.tests)
 
+        output.fprint(
+            outfile,
+            "Test set '{}' created {} tests, skipped {}\n"
+            "Reasons for skipping each test are in the series status file here:\n"
+            "{}"
+            .format(self.name, len(self.tests), skip_count, self.status.path))
+
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
 

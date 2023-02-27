@@ -105,6 +105,8 @@ class RunSeries(Command):
                           .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
 
+        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
+
         # pav _series runs in background using subprocess
         try:
             series_obj.run_background()
@@ -123,7 +125,7 @@ class RunSeries(Command):
             output.fprint(self.outfile, "PGID is {pgid}.\nTo kill, use `pav cancel {sid}`."
                           .format(sid=series_obj.sid, pgid=series_obj.pgid))
         else:
-            output.fprint(sys.stdout, "To cancel, use `kill -14 -s{pgid}"
+            output.fprint(self.errfile, "To cancel, use `kill -14 -s{pgid}"
                           .format(pgid=series_obj.pgid))
 
         return 0
