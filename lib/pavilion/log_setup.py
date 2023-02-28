@@ -1,5 +1,6 @@
 """Manages the setup of various logging mechanisms for Pavilion."""
 
+import io
 import logging
 import socket
 import sys
@@ -246,9 +247,8 @@ def setup_loggers(pav_cfg):
     yapsy_logger.setLevel(logging.INFO)
     yapsy_logger.addHandler(yapsy_handler)
 
-    # Add a stream to stderr if we're in verbose mode, or if no other handler
-    # is defined.
-    if root_logger.handlers:
+    # Add a stream to stderr if no other handler is defined.
+    if not root_logger.handlers :
         verbose_handler = logging.StreamHandler(err_out)
         verbose_handler.setLevel(logging.DEBUG)
         verbose_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
