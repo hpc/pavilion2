@@ -536,7 +536,7 @@ def validate_config(config: Dict[str, str],
 
             except ValueError as err:
                 raise SchedConfigError("Config value for key '{}' had a validation "
-                                       "error.".format(key), err.args[0])
+                                       "error.".format(key), err)
 
         elif isinstance(validator, (tuple, list)):
             if value not in validator:
