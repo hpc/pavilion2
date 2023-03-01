@@ -1175,9 +1175,9 @@ class TestConfigResolver:
                 sched_vars = sched.get_initial_vars(sched_cfg)
             except SchedulerPluginError as err:
                 raise TestConfigError(
-                    "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
+                    "Error getting initial variables from scheduler {} for test '{}'.\n\n"
                     "Scheduler Config: \n{}"
-                    .format(sched_name, test_name, err.args[0], pprint.pformat(sched_cfg)))
+                    .format(sched_name, test_name, pprint.pformat(sched_cfg)), err)
 
             var_man.add_var_set('sched', sched_vars)
             # Now we can really fully resolve all the variables.

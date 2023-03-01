@@ -146,6 +146,8 @@ class RunCommand(Command):
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, config=series_cfg)
 
+        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
+
         series_obj.add_test_set_config(
             'cmd_line',
             tests,
