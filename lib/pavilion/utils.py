@@ -256,7 +256,7 @@ def get_login():
             "Could not get the name of the current user.")
 
 def get_user_id():
-    """Get the current user's id, either through os.getid or the id command."""
+    """Get the current user's id, either through os.getuid or the id command."""
 
     try:
         return os.getuid()
