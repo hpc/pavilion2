@@ -255,10 +255,24 @@ def get_login():
         raise RuntimeError(
             "Could not get the name of the current user.")
 
+def get_user_id():
+    """Get the current user's id, either through os.getid or the id command."""
+
+    try:
+        return os.getuid()
+    except OSError:
+        pass
+
+    try:
+        name = subprocess.check_output(['id', '-u'],
+                                       stderr=subprocess.DEVNULL)
+        return name.decode('utf8').strip()
+    except Exception:
+        raise RuntimeError(
+            "Could not get the id of the current user.")
 
 class ZipFileFixed(zipfile.ZipFile):
-    """Overrides the default behavior in ZipFile to preserve execute
-    permissions."""
+    """Overrides the default behavior in ZipFile to preserve execute permissions."""
     def _extract_member(self, member, targetpath, pwd):
 
         ret = super()._extract_member(member, targetpath, pwd)
