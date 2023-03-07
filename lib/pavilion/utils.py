@@ -264,8 +264,7 @@ def get_user_id():
         pass
 
     try:
-        name = subprocess.check_output(['id', '-u'],
-                                       stderr=subprocess.DEVNULL)
+        name = subprocess.check_output(['id', '-u'], stderr=subprocess.DEVNULL)
         return name.decode('utf8').strip()
     except Exception:
         raise RuntimeError(
