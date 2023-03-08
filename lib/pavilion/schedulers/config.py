@@ -168,7 +168,7 @@ class ScheduleConfig(yc.KeyedElem):
                 ),
                 yc.ListElem(
                     name='extra', sub_elem=yc.StrElem(),
-                    help_text="Extra argument sto add to mpirun commands."
+                    help_text="Extra arguments to add to mpirun commands."
                 )
             ]
         )
