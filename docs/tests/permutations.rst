@@ -39,12 +39,11 @@ different message.
 - The subtitle attribute allows for adding a permutation based value to
   the test name. If it is not defined, all permutations of a test will
   have identical names, making it difficult to tell them apart.
-- The subtitle attribute also supports running specific permutations.
-  For example, you can run ``pav run suite.permuted_test.Paul-hello``
-  will only run ``echo "hello Paul - 07/14/19"``. This feature also
-  supports globbing syntax: ``*``, ``[]``, ``?``. For example,
-  ``pav run suite.permuted_test.Paul-*`` will run both
-  ``echo "hello Paul - 07/14/19"`` and ``echo "goodbye Paul - 07/14/19"``
+- The subtitle attribute also allows for running specific permutations.
+  For example, you can run ``pav run suite.permuted_test.Paul-hello``,
+  which will only run the permutation with that subtitle. You 
+  can also use standard filename globs, such as 'suite.permuted_test.Paul-*', 
+  which will run all the 'Paul-' permutations.
 
 Limitations
 -----------
