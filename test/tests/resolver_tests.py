@@ -812,19 +812,20 @@ class ResolverTests(PavTestCase):
 
         for host in ('this', 'layer_host'):
             for modes in ([], ['layer_mode']):
-                for test in ('cmd_inherit_extend.test1',
-                             'cmd_inherit_extend.test2',
-                             'cmd_inherit_extend.test3'):
+                for pav_os in ('that', 'layer_os')
+                    for test in ('cmd_inherit_extend.test1',
+                                 'cmd_inherit_extend.test2',
+                                 'cmd_inherit_extend.test3'):
 
-                    rslvr = resolver.TestConfigResolver(self.pav_cfg, host=host)
-                    tests = rslvr.load([test], modes=modes)
-                    test_cfg = tests[0].config
-                    test_name = test_cfg.get('name')
-                    for sec in ['build', 'run']:
-                        self.assertEqual(test_cfg[sec]['cmds'],
-                                         correct[test_name][sec]['cmds'])
-                    self.assertEqual(test_cfg['host'], host)
-                    self.assertEqual(test_cfg['modes'], modes)
+                        tests = self.resolver.load([test], host=host, modes=modes)
+                        test_cfg = tests[0].config
+                        test_name = test_cfg.get('name')
+                        for sec in ['build', 'run']:
+                            self.assertEqual(test_cfg[sec]['cmds'],
+                                             correct[test_name][sec]['cmds'])
+                        self.assertEqual(test_cfg['host'], host)
+                        self.assertEqual(test_cfg['modes'], modes)
+                        self.assertEqual(test_cfg['os'], pav_os)
 
     def test_version_compatibility(self):
         """Make sure version compatibility checks are working and populate the
