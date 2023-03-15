@@ -101,6 +101,36 @@ class ShowCommand(Command):
             help="Show full documentation on the requested plugin."
         )
 
+        sys_os = subparsers.add_parser(
+            'sys_os',
+            aliases=['os'],
+            help="Show available operating systems and their information.",
+            description="Pavilion can support different default configs "
+                        "depending on the operating system."
+        )
+
+        sys_os_group = sys_os.add_mutually_exclusive_group()
+        sys_os_group.add_argument(
+            '--config', action='store', type=str, metavar='<sys_os>',
+            help="Show full sys_os config for desired operating system."
+        )
+
+        sys_os_group.add_argument(
+            '--err', action='store_true', default=False,
+            help="Display any errors encountered while reading a operating system file."
+        )
+
+        sys_os_group.add_argument(
+            '--vars', action='store', type=str, metavar='<sys_os>',
+            help="Show defined variables for desired operating system config."
+        )
+
+        sys_os_group.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help="Display paths to the operating system files."
+        )
+
         hosts = subparsers.add_parser(
             'hosts',
             aliases=['host'],
@@ -112,7 +142,7 @@ class ShowCommand(Command):
         hosts_group = hosts.add_mutually_exclusive_group()
         hosts_group.add_argument(
             '--config', action='store', type=str, metavar='<host>',
-            help="Show full host config for desired host"
+            help="Show full host config for desired host."
         )
 
         hosts_group.add_argument(
@@ -565,7 +595,7 @@ class ShowCommand(Command):
         )
 
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
-        """Show the full config of a given host/mode."""
+        """Show the full config of a given sys_os/host/mode."""
 
         _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
         config_data = None
@@ -580,6 +610,19 @@ class ShowCommand(Command):
             output.fprint(sys.stdout, "No {} config found for "
                                       "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
+
+    @sub_cmd('sys_os')
+    def _sys_os_cmd(self, pav_cfg, args):
+        """List all known sys_os files."""
+
+        if args.vars:
+            self.show_vars(pav_cfg, args.vars, 'sys_os')
+        elif args.config:
+            self.show_full_config(pav_cfg, args.config, 'sys_os')
+        else:
+            self.show_configs_table(pav_cfg, 'sys_os',
+                                    verbose=args.verbose,
+                                    errors=args.err)
 
     @sub_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):

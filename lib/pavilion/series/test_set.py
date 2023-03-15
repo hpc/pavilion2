@@ -43,6 +43,7 @@ class TestSet:
                  status: SeriesStatusFile = None,
                  modes: List[str] = None,
                  host: str = None,
+                 sys_os: str = None,
                  only_if: Dict[str, List[str]] = None,
                  not_if: Dict[str, List[str]] = None,
                  overrides: List = None,
@@ -86,6 +87,7 @@ class TestSet:
 
         self.modes = modes or []
         self.host = host
+        self.sys_os = sys_os
         self.only_if = only_if or {}
         self.not_if = not_if or {}
         self.pav_cfg = pav_cfg
@@ -156,6 +158,7 @@ class TestSet:
                 status=self.status,
                 modes=self.modes,
                 host=self.host,
+                pav_os=self.sys_os,
                 only_if=self.only_if,
                 not_if=self.not_if,
                 overrides=self.overrides))
@@ -207,6 +210,7 @@ class TestSet:
         for test_batch in cfg_resolver.load_iter(
                 self._test_names,
                 self.modes,
+                self.sys_os,
                 self.overrides,
                 conditions=global_conditions,
                 batch_size=self.batch_size,):

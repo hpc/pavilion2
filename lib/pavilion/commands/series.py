@@ -93,6 +93,11 @@ class RunSeries(Command):
             help="Ignore the series config file name, and rename the series to this."
         )
         run_p.add_argument(
+            '-s', '--os', action='store', default=None,
+            help='The operating system to configure this test for. If not '
+            'specificied, the current operating system as denoted by the '
+            'sys plugin \'sys_os\' is used.')
+        run_p.add_argument(
             '-H', '--host', action='store', default=None,
             help='The host to configure this test for. If not specified, the '
                  'current host as denoted by the sys plugin \'sys_host\' is '
@@ -176,9 +181,10 @@ class RunSeries(Command):
         else:
             # load series and test files
             try:
-                # Pre-verify that all the series, tests, modes, and hosts exist.
+                # Pre-verify that all the series, tests, sys_os, modes, and hosts exist.
                 series_cfg = series_config.verify_configs(pav_cfg,
                                                           args.series_name,
+                                                          sys_os=args.sys_os,
                                                           host=args.host,
                                                           modes=args.modes,
                                                           overrides=args.overrides)

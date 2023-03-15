@@ -96,8 +96,8 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
             raise SeriesConfigError("Error loading series '{}'".format(series_name), err)
 
 
-def verify_configs(pav_cfg, series_name: str, host: str = None,
-                   modes: List[str] = None, overrides: List[str] = None) -> dict:
+def verify_configs(pav_cfg, series_name: str, sys_os: str = None,
+                   host: str = None, modes: List[str] = None) -> dict:
     """Loads series config and checks that all tests can be loaded with all
     modes and host (if any). """
 
@@ -130,6 +130,7 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
 
 def generate_series_config(
         name: str,
+        sys_os: str = None,
         host: str = None,
         modes: List[str] = None,
         ordered: bool = None,
@@ -144,6 +145,7 @@ def generate_series_config(
     series_cfg = SeriesConfigLoader().load_empty()
 
     series_cfg['name'] = name
+    series_cfg['sys_os'] = sys_os
     series_cfg['modes'] = modes or []
     series_cfg['host'] = host
     if ordered is not None:

@@ -231,10 +231,9 @@ class ResultsCommand(Command):
 
         for test in tests:
 
-            # Re-load the raw config using the saved name, host, and modes
-            # of the original test.
+            # Re-load the raw config using the saved name, sys_os, host,
+            # and modes of the original test.
             try:
-
                 ptests = rslvr.load(
                     tests=[test.name],
                     modes=test.config['modes'],
