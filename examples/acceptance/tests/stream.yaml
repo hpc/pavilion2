@@ -3,7 +3,9 @@ base:
     summary: 'Runs STREAM Memory Benchmark'
     doc: |
 
-        S
+        STREAM: Sustainable Memory Bandwidth in High Performance Computers
+        Array size can be calculated with the following forumula:
+        Array size = 4 * (cache size per processor) * processors / 3 arrays / * 8 bytes per element
 
     scheduler: slurm
     schedule:
@@ -14,7 +16,7 @@ base:
     variables:
         # each array must be at least 4x the size of the sum of all the last-level caches or 
         # 1 million, whichever is larger (see doc for calculations). 10 M is the default in the code
-        array_size?: 10000000 
+        array_size?: 10000000
         # how many times to run each kernel. 2 is the minimum
         ntimes?: 2
         # Other compiler options such as --mcmodel=medium may be necessary for large memory runs
