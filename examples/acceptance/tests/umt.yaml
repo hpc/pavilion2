@@ -1,0 +1,100 @@
+# Unstructred Mesh Transport (UMT) base configuration.
+base:
+
+  summary: Unstructred Mesh Transport memory benchmark
+  doc: |
+    "UMT is a proxy application that peforms three-dimensional, non-linear, radiation transport
+    calculations using deterministic methods."
+
+    UMT is primarily developed internally at Lawrance Livermore National Laboratory but it is
+    periodically pushed to the github repo residing at https://github.com/LLNL/UMT.
+
+    While UMT can be used to perform calculations on any MFEM mesh, the included setup of UMT
+    runs it on a Crooked Pipe 2D mesh generated using LLNL's mesh generator code PMesh. More
+    information regarding mesh can be 
+    
+  variables:
+    install_path: ${PWD}/umt_workspace/install
+    umt_build?:
+      - compiler: 'gcc'
+        comp_ver: '10.3.0'
+        mpi: 'mvapich2'
+        mpi_ver: '2.3.6'
+        cc: 'gcc'
+        cxx: 'g++'
+        ftn: 'gfortran'
+        mpicc: 'mpicc'
+        mpicxx: 'mpicxx'
+        mpifort: 'mpifort'
+        cxxflags: ''
+        fflags: '-ffree-line-length-none -fallow-argument-mismatch'
+        openmp: '-fopenmp'
+
+  build:
+    source_url: https://github.com/LLNL/UMT/archive/refs/tags/v4.14.0.tar.gz
+    source_download: "missing"
+    source_path: umt/src
+
+    templates:
+      umt/host_config.tmpl: host-configs/host_config.cmake
+      umt/umt_build.tmpl: umt_build.sh
+    timeout: 300
+
+    modules:
+      - cmake
+      - "{{umt_build.compiler}}/{{umt_build.comp_ver}}"
+      - "{{umt_build.mpi}}/{{umt_build.mpi_ver}}"
+
+    cmds:
+      - bash -e umt_build.sh
+
+  run:
+    modules:
+      - cmake
+      - "{{umt_build.compiler}}/{{umt_build.comp_ver}}"
+      - "{{umt_build.mpi}}/{{umt_build.mpi_ver}}"
+
+    cmds:
+      - "{{sched.test_cmd}} {{install_path}}/bin/test_driver -i ${PWD}/tests/mfem_meshes/crooked_pipe/crooked_pipe_rz.mesh -c 10"
+
+  scheduler: slurm
+  schedule:
+    nodes: 1
+    tasks_per_node: 1
+    qos: standard
+
+intel:
+  inherits_from: base
+  variables:
+    umt_build?:
+      - compiler: 'intel'
+        comp_ver: '2021.2.0'
+        mpi: 'intel-mpi'
+        mpi_ver: '2019.9.304'
+        cc: 'icc'
+        cxx: 'icpc'
+        ftn: 'ifort'
+        mpicc: 'mpiicc'
+        mpicxx: 'mpiicpc'
+        mpifort: 'mpiifort'
+        cxxflags: ''
+        fflags: ''
+        openmp: '-qopenmp'
+
+cray:
+  inherits_from: intel
+  variables:
+    umt_build?:
+      - compiler: 'intel'
+        comp_ver: '2022.0.2'
+        mpi: 'cray-mpich'
+        mpi_ver: '7.7.20'
+        mpicc: 'cc'
+        mpicxx: 'CC'
+        mpifort: 'ftn'
+
+  schedule:
+    nodes: 1
+    tasks_per_node: 1
+    partition: standard
+  

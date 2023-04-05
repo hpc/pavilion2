@@ -1,0 +1,21 @@
+set(TPL_ROOT "{{install_path}}" CACHE PATH "")
+
+set(MPI_C_COMPILER  "{{umt_build.mpicc}}" CACHE PATH "")
+set(MPI_CXX_COMPILER  "{{umt_build.mpicxx}}" CACHE PATH "")
+set(MPI_Fortran_COMPILER "{{umt_build.mpifort}}" CACHE PATH "")
+
+set(CMAKE_CXX_FLAGS "{{umt_build.cxxflags}}" CACHE PATH "")
+set(CMAKE_Fortran_FLAGS "{{umt_build.fflags}}" CACHE PATH "")
+
+set(TETON_OpenMP_Fortran_FLAGS_RELEASE "{{umt_build.openmp}}" CACHE STRING "")
+set(TETON_OpenMP_Fortran_FLAGS_DEBUG "{{umt_build.openmp}}" CACHE STRING "")
+set(TETON_OpenMP_CXX_FLAGS_RELEASE "{{umt_build.openmp}}" CACHE STRING "")
+set(TETON_OpenMP_CXX_FLAGS_DEBUG "{{umt_build.openmp}}" CACHE STRING "")
+
+set(ENABLE_OPENMP ON CACHE BOOL "")
+set(ENABLE_OPENMP_OFFLOAD OFF CACHE BOOL "")
+
+set(CONDUIT_ROOT ${TPL_ROOT} CACHE PATH "")
+set(MFEM_ROOT ${TPL_ROOT} CACHE PATH "")
+set(HYPRE_ROOT ${TPL_ROOT} CACHE PATH "")
+set(METIS_ROOT ${TPL_ROOT} CACHE PATH "")

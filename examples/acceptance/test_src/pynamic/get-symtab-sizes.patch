@@ -1,0 +1,15 @@
+--- get-symtab-sizes	2022-11-07 12:54:37.522166000 -0700
++++ /users/smehta/pynamic-changes/get-symtab-sizes	2022-11-10 13:21:59.384164000 -0700
+@@ -39,9 +39,9 @@
+ 	    ls -l $sh | gawk '{ print "Image size: "$5}' | tee -a 00imagesize 
+ 	    size -f $sh | gawk '{if ($1 ~ /[0-9]+/) print "Text size: "$1}' | tee -a 00textsize
+             size -f $sh | gawk '{if ($2 ~ /[0-9]+/) print "Data size: "$2}' | tee -a 00datasize
+-	    readelf -S -W $sh | gawk '{if ($2 ~ /\.debug/ ) print $6}' | addall "debug section" 16 | tee -a 00debugsectsize
+-	    readelf -S -W $sh | gawk '{if ($2 ~ /\.symtab/ ) print $6}' | addall "symbol table" 16 | tee -a 00symtabsize
+-	    readelf -S -W $sh | gawk '{if ($2 ~ /\.strtab/ ) print $6}' | addall "string table" 16 | tee -a 00strtabsize
++	    readelf -S -W $sh | gawk '{if ($2 ~ /\.debug/ ) print $6}' | ./addall "debug section" 16 | tee -a 00debugsectsize
++	    readelf -S -W $sh | gawk '{if ($2 ~ /\.symtab/ ) print $6}' | ./addall "symbol table" 16 | tee -a 00symtabsize
++	    readelf -S -W $sh | gawk '{if ($2 ~ /\.strtab/ ) print $6}' | ./addall "string table" 16 | tee -a 00strtabsize
+     fi
+ done
+ 
