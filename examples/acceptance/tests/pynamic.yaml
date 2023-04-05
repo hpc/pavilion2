@@ -8,14 +8,14 @@ base:
     https://github.com/LLNL/pynamic
 
     Pynamic generates dummy code that will be linked and loaded into an application called
-    pynamic-mpi4py. It is designed to stress test applications such as parallel debuggers to
-    perform DLL operations. Library generation by Pynamic can be user configured by passing
+    pynamic-mpi4py. It is designed to stress test applications, such as parallel debuggers, by
+    performing DLL operations. Library generation by Pynamic can be user configured by passing
     arguments to the configure script. The user can specify the number of libraries, average number
     of utility functions to generate per library, and randomness allowing for maximum
     hetrogeneity.
     
-    This test configuration is configured to work python3 but it can be
-    tweaked to work with python2.7. Instructions can be found on the github repo.
+    This test configuration is configured to work with python3 but it can be tweaked to work with
+    python2.7. Instructions can be found on the github repo.
 
     Note - Pynamic requires mpi4py enabled python along with a mpi.  
 
