@@ -62,7 +62,7 @@ base:
     # Building a large number of libaries will take a while. Pavilion automatically, timesout a
     # test if there is no output for 30 seconds. Adjust the timeout timer (in seconds) using the
     # timeout option. Build time varies from system to system and based on process availibility. 
-    timeout: 12000
+    timeout: 120
  
     # Build the test on a compute node instead of the front-end. This would allow usage of maximum
     # processes of a compute node instead of limited processes available on the front-end.
@@ -95,7 +95,7 @@ base:
   run:
 
     # Larger applications require longer runtime. Adjust time accordingly.
-    timeout: 12000
+    timeout: 120
 
     # Modules to load before running the pynamic-mpi4py application.
     modules:
