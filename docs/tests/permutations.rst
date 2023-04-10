@@ -42,7 +42,7 @@ different message.
 - The subtitle attribute also allows for running specific permutations.
   For example, you can run ``pav run suite.permuted_test.Paul-hello``,
   which will only run the permutation with that subtitle. You 
-  can also use standard filename globs, such as 'suite.permuted_test.Paul-*', 
+  can also use standard filename globs, such as 'suite.permuted_test.Paul-\*', 
   which will run all the 'Paul-' permutations.
 
 Limitations
