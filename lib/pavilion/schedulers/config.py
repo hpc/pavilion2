@@ -7,6 +7,10 @@ import yaml_config as yc
 from pavilion import utils
 
 
+MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
+                    'socket', 'numa', 'board', 'node')
+
+
 class ScheduleConfig(yc.KeyedElem):
     """Scheduling configuration."""
 
@@ -144,6 +148,28 @@ class ScheduleConfig(yc.KeyedElem):
                 yc.StrElem(
                     'cpus',
                     help_text="CPUS per node."),
+            ]
+        ),
+        yc.KeyedElem(
+            'mpirun_opts',
+            help_text="Config elements for MPI-related options.",
+            elements=[
+                yc.StrElem(
+                    name='bind_to',
+                    help_text="MPIrun --bind-to option. See `man mpirun`"
+                ),
+                yc.StrElem(
+                    name='rank_by',
+                    help_text="MPIrun --rank-by option. See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='mca', sub_elem=yc.StrElem(),
+                    help_text="MPIrun mca module options (--mca). See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='extra', sub_elem=yc.StrElem(),
+                    help_text="Extra arguments to add to mpirun commands."
+                )
             ]
         )
     ]
@@ -466,6 +492,12 @@ CONFIG_VALIDATORS = {
         'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
         'mem':          min_int('cluster_info.mem', min_val=1, required=False),
         'cpus':         min_int('cluster_info.cpus', min_val=1, required=False)
+    },
+    'mpirun_opts':      {
+        'bind_to': MPIRUN_BIND_OPTS,
+        'rank_by': MPIRUN_BIND_OPTS,
+        'mca': validate_list,
+        'extra': validate_list
     }
 }
 
@@ -493,6 +525,10 @@ CONFIG_DEFAULTS = {
         'node_count': '1',
         'mem':        '1000',
         'cpus':       '4',
+    },
+    'mpirun_opts':      {
+        'mca': [],
+        'extra': []
     }
 }
 
