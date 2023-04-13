@@ -274,7 +274,7 @@ differentiate it from test ids."""
                 test_names=set_info['tests'],
                 iteration=iteration,
                 modes=universal_modes + set_info['modes'],
-                sys_os=self.config.get('sys_os')
+                sys_os=self.config.get('sys_os'),
                 host=self.config.get('host'),
                 only_if=set_info['only_if'],
                 not_if=set_info['not_if'],

@@ -29,6 +29,11 @@ class ViewCommand(run.RunCommand):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
+            '--os', action='store',
+            help='The operating system to configure this test for. If not '
+                 'specified, the current operating system as denoted by the '
+                 'sys plugin \'sys_os\' is used.')
+        parser.add_argument(
             '-H', '--host', action='store',
             help='The host to configure this test for. If not specified, the '
                  'current host as denoted by the sys plugin \'sys_host\' is '
@@ -74,7 +79,8 @@ class ViewCommand(run.RunCommand):
 
         self.logger.debug("Finding Configs")
 
-        res = resolver.TestConfigResolver(pav_cfg, host=args.host, outfile=self.outfile)
+        res = resolver.TestConfigResolver(pav_cfg, op_sys=args.os,
+                                          host=args.host, outfile=self.outfile)
 
         tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
 

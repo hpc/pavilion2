@@ -14,6 +14,7 @@ tests_dir = this_file.parent/'tests'
 
 # Setup our paths to the pavilion libraries.
 sys.path.insert(0, str(lib_dir))
+del os.environ["PAV_CONFIG_DIR"]
 
 from pavilion import output
 

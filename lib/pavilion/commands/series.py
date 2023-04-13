@@ -93,7 +93,7 @@ class RunSeries(Command):
             help="Ignore the series config file name, and rename the series to this."
         )
         run_p.add_argument(
-            '-s', '--os', action='store', default=None,
+            '--os', action='store', default=None,
             help='The operating system to configure this test for. If not '
             'specificied, the current operating system as denoted by the '
             'sys plugin \'sys_os\' is used.')

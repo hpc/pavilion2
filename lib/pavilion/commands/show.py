@@ -611,7 +611,7 @@ class ShowCommand(Command):
                                       "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
-    @sub_cmd('sys_os')
+    @sub_cmd('os')
     def _sys_os_cmd(self, pav_cfg, args):
         """List all known sys_os files."""
 

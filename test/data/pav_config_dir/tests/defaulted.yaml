@@ -1,5 +1,6 @@
 base:
   variables:
+    sys_os_def?: base
     mode_def?: base
     host_def?: base
     test_def: test

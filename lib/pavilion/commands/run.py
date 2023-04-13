@@ -58,10 +58,16 @@ class RunCommand(Command):
         """
 
         parser.add_argument(
+            '--os', action='store',
+            help='The operating system to configure this test for. If not '
+            'specified, the current operating system as denoted by the sys'
+            'plugin \'sys_os\' is used.')
+        parser.add_argument(
             '-H', '--host', action='store',
             help='The host to configure this test for. If not specified, the '
                  'current host as denoted by the sys plugin \'sys_host\' is '
-                 'used.')
+                 'used. Host configurations are overlayed on operating system'
+                 'configurations.')
         parser.add_argument(
             '-n', '--name', action='store', default=''
         )
@@ -129,6 +135,7 @@ class RunCommand(Command):
         series_cfg = generate_series_config(
             name=series_name,
             modes=args.modes,
+            sys_os=args.os,
             host=args.host,
             repeat=getattr(args, 'repeat', None),
             overrides=args.overrides,

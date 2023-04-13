@@ -1,4 +1,5 @@
 variables:
+  sys_os_def?: host
   mode_def: host
   host_def?: host
   test_def: host
