@@ -52,7 +52,7 @@ class TestRequest:
     REQUEST_RE = re.compile(r'^(?:(\d+) *\* *)?'       # Leading repeat pattern ('5*', '20*', ...)
                             r'([a-zA-Z0-9_-]+)'  # The test suite name.
                             r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
-                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The permutation name.
+                            r'(?:\.([a-zA-Z0-9_*?\[\].-]+?))?'  # The permutation name.
                             r'(?: *\* *(\d+))?$'
                             )
 
