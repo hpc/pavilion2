@@ -317,3 +317,24 @@ each test right before it runs on an allocation in order to un-defer values.
         """Total tasks to create, based on number of nodes actually acquired."""
 
         return self._sched_config.get('tasks_per_node', 1) * len(self._nodes)
+
+    def mpirun_cmd(self):
+        """Sets up mpirun command with user-defined options."""
+
+        mpirun_opts = []
+
+        rank_by = self._sched_config['mpirun_opts']['rank_by']
+        bind_to = self._sched_config['mpirun_opts']['bind_to']
+        mca = self._sched_config['mpirun_opts']['mca']
+        extra = self._sched_config['mpirun_opts']['extra']
+
+        if rank_by:
+            mpirun_opts.extend(['--rank-by', rank_by])
+        if bind_to:
+            mpirun_opts.extend(['--bind-to', bind_to])
+        if mca:
+            for mca_opt in mca:
+                mpirun_opts.extend(['--mca', mca_opt])
+        mpirun_opts.extend(extra)
+
+        return mpirun_opts

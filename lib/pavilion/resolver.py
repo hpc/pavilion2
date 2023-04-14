@@ -16,6 +16,7 @@ import pprint
 import re
 import uuid
 from collections import defaultdict
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import List, IO, Dict, Tuple, NewType, Union, Any
 
@@ -48,38 +49,73 @@ TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 class TestRequest:
     """Represents a user request for a test. May end up being multiple tests."""
 
-    REQUEST_RE = re.compile(r'^(?:(\d+)\*)?'       # Leading repeat pattern ('5*', '20*', ...)
-                            r'([a-zA-Z0-9_-]+)'  # The test suite name
-                            r'(?:\.([a-zA-Z0-9_-]+))?'  # The test name.
-                            r'(?:\*(\d+))?$'      # Trailing repeat pattern
+    REQUEST_RE = re.compile(r'^(?:(\d+) *\* *)?'       # Leading repeat pattern ('5*', '20*', ...)
+                            r'([a-zA-Z0-9_-]+)'  # The test suite name.
+                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
+                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The permutation name.
+                            r'(?: *\* *(\d+))?$'
                             )
 
     def __init__(self, request_str):
 
         self.count = 1
         self.request = request_str
+        # Track if any permutations match this request
+        self.request_matched = False
 
         match = self.REQUEST_RE.match(request_str)
         if not match:
             raise TestConfigError(
-                "Test requests must be in the form 'suite_name' or 'suite_name.test_name'.\n"
-                "They may be preceeded or followed by a repeat multiplier (e.g. '5*' or '*5').\n"
+                "Test requests must be in the form 'suite_name', 'suite_name.test_name', or\n"
+                "'suite_name.test_name.permutation_name. They may be preceeded by a repeat\n"
+                "multiplier (e.g. '5*'). test_name and permutation_name can also use globbing\n"
+                "syntax (*, ?, []). For example, 'suite.test*.perm-[abc]."
                 "Got: {}".format(request_str))
 
-        count_pre, self.suite, self.test, count_post = match.groups()
-        if count_pre and count_post:
-            raise TestConfigError("Both a pre- and a post-repeat count are specified. "
-                                  "That's not allowed: {}".format(self.request))
-        elif count_pre:
-            self.count = int(count_pre)
-        elif count_post:
-            self.count = int(count_post)
-        else:
-            self.count = 1
+        pre_count, self.suite, self.test, self.permutation, post_count = match.groups()
 
+        if pre_count and post_count:
+            raise TestConfigError(
+                "Test requests cannot have both a pre-count and post-count multiplier.\n"
+                "Got: {}".format(request_str))
+
+        count = pre_count if pre_count else post_count
+
+        if count:
+            self.count = int(count)
 
     def __str__(self):
         return "Request: {}.{} * {}".format(self.suite, self.test, self.count)
+
+    def matches_test_name(self, test_name: Union[str, None]) -> bool:
+        """
+        Match a generated test name against the request. Test names that begin
+        with '_' are only matched if specifically requested.
+        """
+        if test_name.startswith('_') and test_name != self.test:
+            return False
+
+        if self.test is None:
+            return True
+
+        return fnmatch(test_name, self.test)
+
+    def matches_test_permutation(self, subtitle: Union[str, None]) -> bool:
+        """
+        Match a generated permutation against the request.
+        """
+        if self.permutation is None:
+            self.request_matched = True
+            return True
+
+        if subtitle:
+            if fnmatch(subtitle, self.permutation):
+                self.request_matched = True
+                return True
+            else:
+                return False
+        else:
+            return False
 
 class ProtoTest:
     """An simple object that holds the pair of a test config and its variable
@@ -517,16 +553,33 @@ class TestConfigResolver:
                         except TimeoutError:
                             pass
 
-        if outfile:
+        if outfile and len(permuted_tests) > 1:
             output.fprint(outfile, '')
 
         # Now that tests are resolved, multiply them out based on the requested count.
         all_resolved_tests = []
         for request, proto_test in resolved_tests:
-            # Add the original, copy the rest.
-            all_resolved_tests.append(proto_test)
-            for i in range(request.count - 1):
-                all_resolved_tests.append(proto_test.copy())
+            if request.matches_test_permutation(proto_test.config['subtitle']):
+                # Add the original, copy the rest.
+                all_resolved_tests.append(proto_test)
+                for i in range(request.count - 1):
+                    all_resolved_tests.append(proto_test.copy())
+
+        # Checking for requests that did not match any permutations
+        for request, _ in resolved_tests:
+            if not request.request_matched:
+                # Grab all the tests generated by the current request
+                req_tests = [ptest for req, ptest in resolved_tests if req is request]
+                if req_tests:
+                    subtitles = [' - {}'.format(ptest.config['subtitle']) for ptest in req_tests]
+                    subtitles = '\n'.join(subtitles)
+                else:
+                    subtitles = 'No permutations'
+                raise TestConfigError(
+                    "Test request '{}' tried to match permutation '{}', "
+                    "but no matches were found."
+                    "Available permutations: \n{}"
+                    .format(request.request, request.permutation, subtitles))
 
         # NOTE: The deferred scheduler errors will be handled when we try to save
         #       the test object. (See build_variable_manager() above)
@@ -610,7 +663,8 @@ class TestConfigResolver:
 
     def load_raw_configs(self, tests: List[TestRequest], host: str, modes: List[str],
                          conditions: Union[None, Dict] = None,
-                         overrides: Union[None, List[str]] = None) \
+                         overrides: Union[None, List[str]] = None,
+                         outfile: IO[str] = None) \
                          -> List[Tuple[TestRequest, Dict]]:
         """Get a list of raw test configs given a host, list of modes,
         and a list of tests. Each of these configs will be lightly modified with
@@ -696,16 +750,22 @@ class TestConfigResolver:
         all_tests: List[Tuple[TestRequest, Dict]] = []
         # Make sure we get the correct amount of tests
         for request in tests:
-            if request.test is None:
-                # Add all tests in the suite, except the 'hidden' ones.
-                add_tests = [test_name for test_name in suites[request.suite].keys()
-                             if not test_name.startswith('_')]
-            else:
-                # Add a single test, even a 'hidden' one.
-                add_tests = [request.test]
+            added_tests = []
+            for test_name in suites[request.suite]:
+                if request.matches_test_name(test_name):
+                    added_tests.append(test_name)
+
+            if not added_tests:
+                raise TestConfigError(
+                    "Test suite '{}' does not have a test that matches '{}'.\n"
+                    "Suite tests are:\n - {}\n"
+                    .format(
+                        request.suite,
+                        request.test,
+                        "\n - ".join(suites[request.suite].keys())))
 
             # Add each of the tests to our list of loaded tests.
-            for test_name in add_tests:
+            for test_name in added_tests:
                 if test_name in suites[request.suite]:
                     all_tests.append((request, suites[request.suite][test_name]))
                 else:
@@ -1115,9 +1175,9 @@ class TestConfigResolver:
                 sched_vars = sched.get_initial_vars(sched_cfg)
             except SchedulerPluginError as err:
                 raise TestConfigError(
-                    "Error getting initial variables from scheduler {} for test '{}': {} \n\n"
+                    "Error getting initial variables from scheduler {} for test '{}'.\n\n"
                     "Scheduler Config: \n{}"
-                    .format(sched_name, test_name, err.args[0], pprint.pformat(sched_cfg)))
+                    .format(sched_name, test_name, pprint.pformat(sched_cfg)), err)
 
             var_man.add_var_set('sched', sched_vars)
             # Now we can really fully resolve all the variables.

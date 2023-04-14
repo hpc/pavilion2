@@ -177,7 +177,8 @@ class TestRun(TestAttributes):
             try:
                 self.var_man = VariableSetManager.load(self._variables_path)
             except VariableError as err:
-                raise TestRunError(*err.args)
+                raise TestRunError("Error loading variable set for test {}".format(self.id),
+                                   err)
 
         # If the cfg label is actually something that exists, use it in the
         # test full_id. Otherwise give the test path.
@@ -342,8 +343,7 @@ class TestRun(TestAttributes):
                     tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                     create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
                 except TestConfigError as err:
-                    raise TestRunError("Error resolving Build template files"
-                                       .format(err.args[0]))
+                    raise TestRunError("Error resolving Build template files", err)
             tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
 
         return tmpl_paths
@@ -444,14 +444,16 @@ class TestRun(TestAttributes):
             try:
                 create_files.create_file(file, self.build_path, contents)
             except TestConfigError as err:
-                raise TestRunError("Test run '{}'".format(self.full_id, err.args[0]))
+                raise TestRunError("Test run '{}' Could not create build script."
+                                   .format(self.full_id), err)
 
         for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
             try:
                 tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                 create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
             except TestConfigError as err:
-                raise TestRunError("Test run '{}'".format(self.full_id, err.args[0]))
+                raise TestRunError("Test run '{}' could not create run script."
+                                   .format(self.full_id, err))
 
         self.save_attributes()
 
