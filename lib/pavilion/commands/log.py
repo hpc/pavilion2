@@ -2,6 +2,7 @@
 """
 import errno
 import time
+import sys
 
 from pavilion import errors
 from pavilion import output
@@ -171,21 +172,23 @@ class LogCommand(Command):
                         try:
                             with file_path.open() as file:
 
-                                # Prints the last n lines.
-                                if args.tail:
-                                    tail = file.readlines()[-int(args.tail):]
-                                    for line in tail:
-                                        output.fprint(self.outfile, line)
+                                if args.tail or args.follow:
+                                    # Prints the last n lines.
+                                    if args.tail:
+                                        tail = file.readlines()[-int(args.tail):]
+                                        for line in tail:
+                                            output.fprint(self.outfile, line, flush=True)
+                                        current_position = file.tell()
+                                        args.tail = 0
 
-                                # Follows the execution of the code.
-                                elif args.follow:
-                                    file.seek(current_position)
-                                    data = file.read()
-                                    end_position = file.tell()
-                                    if end_position > current_position:
-                                        current_position = end_position
-                                        output.fprint(self.outfile, data, flush=True, end='')
-                                    time.sleep(self.sleep_timeout)
+                                    if args.follow:
+                                        file.seek(current_position)
+                                        data = file.read()
+                                        end_position = file.tell()
+                                        if end_position > current_position:
+                                            current_position = end_position
+                                            output.fprint(self.outfile, data, flush=True)
+                                        time.sleep(self.sleep_timeout)
 
                                 # Prints the entire log.
                                 else:
