@@ -6,6 +6,7 @@ import socket
 import sys
 import traceback
 from pathlib import Path
+from typing import TextIO
 
 from pavilion import output
 from pavilion.lockfile import LockFile
@@ -128,6 +129,23 @@ class LockFileRotatingFileHandler(logging.Handler):
             self.file_name.chmod(0o660)
 
 
+class VerboseFilter(logging.Filter):
+    """Filter out exception and result messages, and non-Pavilion messages."""
+
+    pav_path = Path(__file__).parents[2]
+
+    IGNORED_LOGGERS = [
+        'common_results',
+        'exceptions',
+    ]
+
+    def filter(self, record):
+
+        try:
+            Path(record.pathname).relative_to(self.pav_path)
+        except ValueError:
+            return False
+
 # We don't want to have to look this up every time we log.
 _OLD_FACTORY = logging.getLogRecordFactory()
 _HOSTNAME = socket.gethostname()
@@ -140,12 +158,14 @@ def record_factory(*fargs, **kwargs):
     return record
 
 
-def setup_loggers(pav_cfg):
+def setup_loggers(pav_cfg) -> TextIO:
     """Setup the loggers for the Pavilion command. This will include:
 
     - The general log file (as a multi-process/host safe rotating logger).
     - The result log file (also as a multi-process/host safe rotating logger).
     - The exception log.
+
+    The general log is also written to a returned StringIO() object.
 
     :param pav_cfg: The Pavilion configuration.
     """
@@ -247,13 +267,13 @@ def setup_loggers(pav_cfg):
     yapsy_logger.setLevel(logging.INFO)
     yapsy_logger.addHandler(yapsy_handler)
 
-    # Add a stream to stderr if no other handler is defined.
-    if not root_logger.handlers :
-        verbose_handler = logging.StreamHandler(err_out)
-        verbose_handler.setLevel(logging.DEBUG)
-        verbose_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
-                                                       style='{'))
-        root_logger.addHandler(result_handler)
+
+    verbose_handler = logging.StreamHandler(err_out)
+    verbose_handler.addFilter(VerboseFilter())
+    verbose_handler.setLevel(logging.DEBUG)
+    verbose_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
+                                                   style='{'))
+    root_logger.addHandler(verbose_handler)
 
     for line in err_out:
         pav_cfg.warnings.append(line)
