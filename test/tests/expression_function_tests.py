@@ -14,6 +14,7 @@ class ExprFuncTests(PavTestCase):
         tests = {
             'int': [(("1234", 8), 668)],
             'round': [((1.234,), 1)],
+            'round_dig': [((1.1274, 2), 1.13)],
             'floor': [((1.234,), 1)],
             'ceil': [((1.234,), 2)],
             'log': [((32, 2), 5.0),
