@@ -29,7 +29,7 @@ class ViewCommand(run.RunCommand):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
-            '--os', action='store',
+            '-o', '--os', action='store',
             help='The operating system to configure this test for. If not '
                  'specified, the current operating system as denoted by the '
                  'sys plugin \'sys_os\' is used.')

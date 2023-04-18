@@ -313,11 +313,6 @@ host, mode, and test configuration files will override the defaults defined in t
 Host Files
 ~~~~~~~~~~
 
-Host files, which are placed in the ``<configs>/hosts/`` directory, provide that functionality.
-Each host file is like a single test configuration that forms the defaults for all tests run on
-that system. Values in the test config will override these defaults (see below for a way around
-this).
-
 Host files are placed in the ``<configs>/hosts/`` directory. Similar to OS files, host files
 provide defaults for tests run on a specific host. Defaults defined in the host file will be
 overridden by mode and test configurations.
