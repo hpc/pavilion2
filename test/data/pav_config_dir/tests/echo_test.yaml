@@ -19,7 +19,7 @@ a:
         asdf: 'number - 10'
         result: 'asdf < 3'
 
-b: 
+b:
     inherits_from: a
     permute_on: ['num']
     variables:

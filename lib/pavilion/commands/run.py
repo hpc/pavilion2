@@ -134,7 +134,7 @@ class RunCommand(Command):
 
         tests = args.tests
         try:
-            tests.extend(cmd_utils.read_test_files(args.files))
+            tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
         except ValueError as err:
             output.fprint(sys.stdout, "Error reading given test list files.\n{}"
                           .format(err))
@@ -145,6 +145,8 @@ class RunCommand(Command):
 
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, config=series_cfg)
+
+        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
 
         series_obj.add_test_set_config(
             'cmd_line',

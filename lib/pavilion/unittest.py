@@ -14,6 +14,7 @@ import pavilion.schedulers
 from pavilion import arguments
 from pavilion import config
 from pavilion import dir_db
+from pavilion import log_setup
 from pavilion import pavilion_variables
 from pavilion import plugins
 from pavilion import resolve
@@ -24,6 +25,13 @@ from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
 from unittest_ex import TestCaseEx
+
+TEST_ROOT = Path(__file__).resolve().parents[3]/'test'
+WORKING_DIR = TEST_ROOT/'working_dir'
+VERBOSE = False
+
+
+#log_setup.setup_loggers(PavTestCase()._pav_cfg, verbose=False)
 
 
 class PavTestCase(TestCaseEx):
@@ -127,7 +135,7 @@ base class.
             config.PavilionConfigLoader().dump(pav_cfg_file,
                                                raw_pav_cfg)
 
-        pav_cfg = config.find_pavilion_config(target=cfg_path, warn=False)
+        pav_cfg = config.find_pavilion_config(target=cfg_path)
         pav_cfg.pav_vars = pavilion_variables.PavVars()
 
         return pav_cfg

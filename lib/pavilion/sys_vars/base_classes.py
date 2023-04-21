@@ -16,8 +16,8 @@ from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
-_SYS_VAR_DICT: Union[dict, None] = None
-_LOADED_PLUGINS: Union[dict, None] = None
+_SYS_VAR_DICT: Union[dict, None] = None # pylint: disable=invalid-name
+_LOADED_PLUGINS: Union[dict, None] = None # pylint: disable=invalid-name
 
 
 class SysVarDict(collections.UserDict):
