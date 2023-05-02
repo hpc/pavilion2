@@ -171,7 +171,7 @@ class LogCommand(Command):
                         try:
                             with file_path.open() as file:
                                 if first_loop:
-                                    if args.tail: 
+                                    if args.tail:
                                         tail = file.readlines()[-int(args.tail):]
                                         for line in tail:
                                             output.fprint(self.outfile, line, flush=True)
