@@ -165,34 +165,29 @@ class LogCommand(Command):
         first_loop = True
         current_position = 0
         while args.follow or first_loop:
-            first_loop = False
             if any(_file_path.exists() for _file_path in file_paths):
                 for file_path in file_paths:
                     if file_path.exists():
                         try:
                             with file_path.open() as file:
-
-                                if args.tail or args.follow:
-                                    # Prints the last n lines.
-                                    if args.tail:
+                                if first_loop:
+                                    if args.tail: 
                                         tail = file.readlines()[-int(args.tail):]
                                         for line in tail:
                                             output.fprint(self.outfile, line, flush=True)
                                         current_position = file.tell()
-                                        args.tail = 0
+                                    else:
+                                        output.fprint(self.outfile, file.read(), width=None, end='')
 
-                                    if args.follow:
-                                        file.seek(current_position)
-                                        data = file.read()
-                                        end_position = file.tell()
-                                        if end_position > current_position:
-                                            current_position = end_position
-                                            output.fprint(self.outfile, data, flush=True)
+                                if args.follow:
+                                    file.seek(current_position)
+                                    data = file.read()
+                                    end_position = file.tell()
+                                    if end_position > current_position:
+                                        current_position = end_position
+                                        output.fprint(self.outfile, data, flush=True)
+                                    else:
                                         time.sleep(self.sleep_timeout)
-
-                                # Prints the entire log.
-                                else:
-                                    output.fprint(self.outfile, file.read(), width=None, end='')
 
                         except (IOError, OSError) as err:
                             # There is a possibility that the log file was moved mid-execution so if
@@ -202,6 +197,8 @@ class LogCommand(Command):
                         break
             else:
                 self.error_msg("Log file does not exist: {}".format(file_paths[0]), args.follow)
+
+            first_loop = False
 
             # For unit tests to stop the follow feature
             if self.follow_testing:
