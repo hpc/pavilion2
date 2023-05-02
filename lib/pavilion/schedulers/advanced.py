@@ -191,6 +191,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         partition = sched_config.get('partition')
         reservation = sched_config.get('reservation')
+        across_nodes = sched_config['across_nodes']
         exclude_nodes = sched_config['exclude_nodes']
         node_state = sched_config['node_state']
 
@@ -219,6 +220,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                                  .format(reservation, node['reservations'])
                     filter_reasons[reason_key].append(node_name)
                     continue
+
+            if node_name not in across_nodes:
+                filter_reasons['not_allowed'].append(node_name)
+                continue
 
             if node_name in exclude_nodes:
                 filter_reasons['excluded'].append(node_name)
@@ -360,6 +365,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     # Scheduling options in this list are denoted as those that change the nature
     # of the allocation being acquired. Tests with different values for these
     # should thus run under different allocations.
+    # These allow us to form sharable groups given a specific nodelist - jobs with 
+    # different nodelists will never be shared.
     # This can be modified by subclasses. Separate multipart keys with a '.'.
     ALLOC_ACQUIRE_OPTIONS = ['partition', 'reservation', 'account', 'qos']
 
@@ -378,9 +385,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         for test in tests:
             sched_config = sched_configs[test.full_id]
-            # Put all the tests that can't share an allocation in the non-shared categories.
+
             if not sched_config['share_allocation']:
-                if sched_config['chunking']['size'] in (0, None):
+                if sched_config['flex_scheduling']:
                     flex_tests.append(test)
                 else:
                     indi_tests.append(test)
@@ -462,9 +469,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         node_list = list(chunk)
         node_list.sort()
 
-        # Use the first N nodes if the requested number of nodes is less than the
-        # chunk size.
-        if base_sched_config['chunking']['size'] in (0, None):
+        if base_sched_config['flex_scheduled']:
             # We aren't using chunking, so let the scheduler pick.
             picked_nodes = None
             # Save the data for all (compatible) nodes, we never know which we will get.

@@ -85,6 +85,13 @@ class ScheduleConfig(yc.KeyedElem):
                       "Tests that share an allocation share the largest given time "
                       "limit."),
         yc.ListElem(
+            'across_nodes',
+            sub_elem=yc.StrElem(),
+            help_text="Only nodes in this list are considered when running a test. "
+                      "Each listed node may be a node range as per 'exclude_nodes'. "
+                      "Nodes in this may also be 'included' (in each chunk) or "
+                      "'excluded'."),
+        yc.ListElem(
             'include_nodes',
             sub_elem=yc.StrElem(),
             help_text="Nodes to always include in every allocation on which this test "
@@ -484,6 +491,7 @@ CONFIG_VALIDATORS = {
     'core_spec':        None,
     'wrapper':          None,
     'reservation':      None,
+    'across_nodes':     _validate_node_list,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
     'share_allocation': _validate_allocation_str,
@@ -518,6 +526,7 @@ CONFIG_DEFAULTS = {
     'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
+    'across_nodes':     [],
     'include_nodes':    [],
     'exclude_nodes':    [],
     'time_limit':       None,
@@ -592,6 +601,11 @@ def validate_config(config: Dict[str, str],
 
         else:
             raise RuntimeError("Invalid validator: '{}'".format(validator))
+
+    # Flex scheduling is when the scheduler picks the nodes, which can't happen if we're using
+    # chunking or have a limited set of nodes. 
+    normalized_config['flex_scheduled'] = (normalized_config['chunking']['size'] in (0, None) 
+                                           and not normalized_config['across_nodes'])
 
     return normalized_config
 
