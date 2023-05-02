@@ -542,7 +542,23 @@ CONFIG_DEFAULTS = {
 }
 
 
-def validate_config(config: Dict[str, str],
+def validate_config(config: Dict[str, str]):
+    """Validate the scheduler config using the validator dict.
+
+    :param config: The configuration dict to validate. Expected to be the result
+        of parsing with the above yaml_config parser."""
+    
+    val_config = _validate_config(config)
+
+    # Flex scheduling is when the scheduler picks the nodes, which can't happen if we're using
+    # chunking or have a limited set of nodes. 
+    val_config['flex_scheduled'] = (val_config['chunking']['size'] in (0, None) 
+                                    and not val_config['across_nodes'])
+
+    return val_config
+
+
+def _validate_config(config: Dict[str, str],
                     validators: Dict[str, Any] = None,
                     defaults: Dict[str, Any] = None) -> Dict[str, Any]:
     """Validate the scheduler config using the validator dict.
@@ -592,7 +608,7 @@ def validate_config(config: Dict[str, str],
         elif isinstance(validator, dict):
             if value is None:
                 value = {}
-            normalized_config[key] = validate_config(
+            normalized_config[key] = _validate_config(
                 config=value,
                 validators=validator,
                 defaults=defaults[key])
@@ -601,11 +617,6 @@ def validate_config(config: Dict[str, str],
 
         else:
             raise RuntimeError("Invalid validator: '{}'".format(validator))
-
-    # Flex scheduling is when the scheduler picks the nodes, which can't happen if we're using
-    # chunking or have a limited set of nodes. 
-    normalized_config['flex_scheduled'] = (normalized_config['chunking']['size'] in (0, None) 
-                                           and not normalized_config['across_nodes'])
 
     return normalized_config
 

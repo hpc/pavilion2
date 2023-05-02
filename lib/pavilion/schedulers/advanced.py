@@ -221,8 +221,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     filter_reasons[reason_key].append(node_name)
                     continue
 
-            if node_name not in across_nodes:
-                filter_reasons['not_allowed'].append(node_name)
+            if across_nodes and node_name not in across_nodes:
+                filter_reasons['not in across_nodes list'].append(node_name)
                 continue
 
             if node_name in exclude_nodes:
