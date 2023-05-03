@@ -88,12 +88,25 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         errors = []
 
-        if sched_config['include_nodes']:
-            for node in sched_config['include_nodes']:
+        chunk_size = sched_config['chunking']['size']
+        include_nodes = sched_config['include_nodes']
+        # Note: When chunking isn't used (ie - node selection is left to the scheduler), 
+        # node inclusion is handled by the scheduler plugin.
+        if include_nodes:
+            for node in include_nodes:
                 if node not in filtered_nodes:
                     errors.append(
                         "Requested node (via 'schedule.include_nodes') was filtered "
                         "due to other filtering ")
+
+
+            if chunk_size not in (0, None):
+                if len(include_nodes) >= chunk_size:
+                    errors.append(
+                        "Requested {} 'schedule.include_nodes' to include in every chunk, but "
+                        "set a 'chunking.size' of {}. "
+                        "The chunk size must be more than the number of include_nodes."
+                        .format(len(include_nodes, chunk_size)))
 
         min_nodes, max_nodes = calc_node_range(sched_config, len(filtered_nodes))
         if min_nodes > max_nodes:
@@ -101,6 +114,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 "Requested between {}-{} nodes, but the minimum is more than the maximum "
                 "node count"
                 .format(min_nodes, max_nodes))
+
+        if max_nodes < len(include_nodes):
+            errors.append(
+                "Requested {} 'schedule.include_nodes' to be included in every job, but "
+                "the job size is only {} via 'schedule.nodes'."
+                .format(len(include_nodes), max_nodes))
 
         if len(filtered_nodes) < min_nodes:
             reasons = []
@@ -248,6 +267,25 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         return None
 
+    def _make_chunk_group_id(self, node_list_id, sched_config):
+        """Generate a 'chunk_group_id' - a tuple of values that denote a unique type of chunk."""
+
+        nodes = list(self._node_lists[node_list_id])
+
+        # Nodes to include in every chunk.
+        include_id = ','.join(sorted(sched_config['include_nodes']))
+
+        chunk_size = sched_config['chunking']['size']
+        if isinstance(chunk_size, float):
+            chunk_size = int(len(nodes) * chunk_size)
+        # Chunk size 0/null is all the nodes.
+        if chunk_size in (0, None) or chunk_size > len(nodes):
+            chunk_size = len(nodes)
+        chunk_extra = sched_config['chunking']['extra']
+        node_select = sched_config['chunking']['node_selection']
+
+        return (node_list_id, chunk_size, node_select, chunk_extra, include_id)
+
     def _get_chunks(self, node_list_id, sched_config) -> List[NodeSet]:
         """Chunking is specific to the node list, chunk size, and node selection
         settings of a job. The actual chunk used by a test_run won't be known until
@@ -259,6 +297,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         nodes = list(self._node_lists[node_list_id])
 
+        # Nodes to include in every chunk.
+        include_nodes = sched_config['include_nodes']
+        include_id = ','.join(sorted(include_nodes))
+
         chunk_size = sched_config['chunking']['size']
         if isinstance(chunk_size, float):
             chunk_size = int(len(nodes) * chunk_size)
@@ -268,16 +310,22 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         chunk_extra = sched_config['chunking']['extra']
         node_select = sched_config['chunking']['node_selection']
 
-        chunk_id = (node_list_id, chunk_size, node_select, chunk_extra)
+        chunk_group_id = self._make_chunk_group_id(node_list_id, sched_config)
         # If we already have chunks for our node list and settings, just return what
         # we've got.
-        if chunk_id in self._chunks:
-            return self._chunks[chunk_id]
+        if chunk_group_id in self._chunks:
+            return self._chunks[chunk_group_id]
 
         # We can potentially have no nodes, in which case return an empty chunk.
         if chunk_size == 0:
-            self._chunks[chunk_id] = [NodeSet(frozenset([]))]
-            return self._chunks[chunk_id]
+            self._chunks[chunk_group_id] = [NodeSet(frozenset([]))]
+            return self._chunks[chunk_group_id]
+
+        # Only count nodes that aren't required via 'include_nodes' when calculating chunks.
+        for node in include_nodes:
+            if node in nodes:
+                nodes.remove(node)
+        chunk_size = chunk_size - len(include_nodes)
 
         chunks = []
         for i in range(len(nodes)//chunk_size):
@@ -285,6 +333,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             chunk = self.NODE_SELECTION[node_select](nodes, chunk_size)
             # Filter out any chosen from our node list.
             nodes = [node for node in nodes if node not in chunk]
+
+            # Add the 'include_nodes' to every chunk.
+            chunk = include_nodes + chunk
             chunks.append(chunk)
 
         if nodes and chunk_extra == BACKFILL:
@@ -295,7 +346,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for chunk in chunks:
             chunk_info.append(NodeSet(frozenset(chunk)))
 
-        self._chunks[chunk_id] = chunk_info
+        self._chunks[chunk_group_id] = chunk_info
 
         return chunk_info
 
@@ -323,19 +374,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 # This is validated in test object creation.
                 chunk_spec = int(chunk_spec)
 
-            chunk_size = sched_config['chunking']['size']
-            node_select = sched_config['chunking']['node_selection']
-            chunk_extra = sched_config['chunking']['extra']
+            chunk_group_id = self._make_chunk_group_id(node_list_id, sched_config)
 
-            node_list = self._node_lists[node_list_id]
-            if isinstance(chunk_size, float):
-                chunk_size = int(len(node_list) * chunk_size)
-            if chunk_size in (None, 0) or chunk_size > len(node_list):
-                chunk_size = len(node_list)
-
-            chunks_id = (node_list_id, chunk_size, node_select, chunk_extra)
-
-            chunks = self._chunks[chunks_id]
+            chunks = self._chunks[chunk_group_id]
 
             if chunk_spec == 'any':
                 least_used = None
@@ -387,7 +428,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             sched_config = sched_configs[test.full_id]
 
             if not sched_config['share_allocation']:
-                if sched_config['flex_scheduling']:
+                if sched_config['flex_scheduled']:
                     flex_tests.append(test)
                 else:
                     indi_tests.append(test)

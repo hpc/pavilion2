@@ -547,12 +547,12 @@ def validate_config(config: Dict[str, str]):
 
     :param config: The configuration dict to validate. Expected to be the result
         of parsing with the above yaml_config parser."""
-    
+
     val_config = _validate_config(config)
 
     # Flex scheduling is when the scheduler picks the nodes, which can't happen if we're using
-    # chunking or have a limited set of nodes. 
-    val_config['flex_scheduled'] = (val_config['chunking']['size'] in (0, None) 
+    # chunking or have a limited set of nodes.
+    val_config['flex_scheduled'] = (val_config['chunking']['size'] in (0, None)
                                     and not val_config['across_nodes'])
 
     return val_config
