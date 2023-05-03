@@ -31,9 +31,8 @@ def get_parser():
         add_help=False,
         description="Pavilion is a framework for running tests on "
                     "supercomputers.")
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        default=False,
-                        help='Log all levels of messages to stderr.')
+    parser.add_argument('--quiet', action='store_true',
+                        help='Silence warnings and stderr output.')
     parser.add_argument('--version', action='version',
                         version='Pavilion ' + pavilion.config.get_version(),
                         default=False,

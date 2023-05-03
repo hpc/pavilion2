@@ -81,8 +81,10 @@ class ResultsCommand(Command):
         parser.add_argument(
             "tests",
             nargs="*",
-            help="The tests to show the results for. Use 'last' to get the "
-                 "results of the last test series you ran on this machine."
+            help="The tests to show the results for. Use 'last' to get the results of the last test"
+                 " series you ran on this machine. Use 'all' to get results of all tests. By "
+                 "default, 'all' will only display tests newer than 1 day ago, but setting any "
+                 "filter argument will override that."
         )
         filters.add_test_filter_args(parser)
 
@@ -236,7 +238,7 @@ class ResultsCommand(Command):
                                       test.config['name']))
 
                 configs = reslvr.load_raw_configs(
-                    tests=[test_name],
+                    tests=[resolver.TestRequest(test_name)],
                     host=test.config['host'],
                     modes=test.config['modes'],
                 )
@@ -244,6 +246,9 @@ class ResultsCommand(Command):
                 output.fprint(self.errfile, "Test '{}' could not be found."
                               .format(test.name), err, color=output.RED)
                 return False
+
+            # Dump the request part of the return values
+            configs = [cfg for _, cfg in configs]
 
             # These conditions guard against unexpected results from
             # load_raw_configs. They may not be possible.

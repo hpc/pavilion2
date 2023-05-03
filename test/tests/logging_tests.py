@@ -16,9 +16,7 @@ class LoggingTests(PavTestCase):
 
     def test_setup_logger(self):
 
-        err_out = io.StringIO()
-
-        setup_loggers(self.pav_cfg, err_out=err_out)
+        err_out = setup_loggers(self.pav_cfg)
 
         # Log through each of the logging mechanisms.
 

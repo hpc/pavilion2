@@ -7,6 +7,10 @@ import yaml_config as yc
 from pavilion import utils
 
 
+MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
+                    'socket', 'numa', 'board', 'node')
+
+
 class ScheduleConfig(yc.KeyedElem):
     """Scheduling configuration."""
 
@@ -65,6 +69,9 @@ class ScheduleConfig(yc.KeyedElem):
         yc.StrElem(
             'account',
             help_text="The account to use when creating an allocation."),
+        yc.StrElem(
+            'wrapper',
+            help_text="Wrapper for the scheduler command."),
         yc.StrElem(
             'reservation',
             help_text="The reservation to use when creating an allocation. When blank "
@@ -141,6 +148,28 @@ class ScheduleConfig(yc.KeyedElem):
                 yc.StrElem(
                     'cpus',
                     help_text="CPUS per node."),
+            ]
+        ),
+        yc.KeyedElem(
+            'mpirun_opts',
+            help_text="Config elements for MPI-related options.",
+            elements=[
+                yc.StrElem(
+                    name='bind_to',
+                    help_text="MPIrun --bind-to option. See `man mpirun`"
+                ),
+                yc.StrElem(
+                    name='rank_by',
+                    help_text="MPIrun --rank-by option. See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='mca', sub_elem=yc.StrElem(),
+                    help_text="MPIrun mca module options (--mca). See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='extra', sub_elem=yc.StrElem(),
+                    help_text="Extra arguments to add to mpirun commands."
+                )
             ]
         )
     ]
@@ -405,6 +434,19 @@ def _validate_node_list(items) -> List[str]:
 
     return nodes
 
+def _validate_allocation_str(val) -> Union[str, None]:
+    """Validates string and returns true, false or max for the share_allocation feature"""
+
+    if isinstance(val, str):
+        if val.lower() == 'false':
+            return False
+        elif val.lower() == 'max':
+            return val.lower()
+        else:
+            return True
+    else:
+        return True
+
 
 CONTIGUOUS = 'contiguous'
 RANDOM = 'random'
@@ -429,7 +471,7 @@ CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
-        'size':           min_int('chunk.size', min_val=0),
+        'size':           _validate_nodes,
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
     },
@@ -440,15 +482,22 @@ CONFIG_VALIDATORS = {
     'qos':              None,
     'account':          None,
     'core_spec':        None,
+    'wrapper':          None,
     'reservation':      None,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
-    'share_allocation': utils.str_bool,
+    'share_allocation': _validate_allocation_str,
     'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
         'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
         'mem':          min_int('cluster_info.mem', min_val=1, required=False),
         'cpus':         min_int('cluster_info.cpus', min_val=1, required=False)
+    },
+    'mpirun_opts':      {
+        'bind_to': MPIRUN_BIND_OPTS,
+        'rank_by': MPIRUN_BIND_OPTS,
+        'mca': validate_list,
+        'extra': validate_list
     }
 }
 
@@ -466,6 +515,7 @@ CONFIG_DEFAULTS = {
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
     'include_nodes':    [],
@@ -475,6 +525,10 @@ CONFIG_DEFAULTS = {
         'node_count': '1',
         'mem':        '1000',
         'cpus':       '4',
+    },
+    'mpirun_opts':      {
+        'mca': [],
+        'extra': []
     }
 }
 
@@ -518,7 +572,7 @@ def validate_config(config: Dict[str, str],
 
             except ValueError as err:
                 raise SchedConfigError("Config value for key '{}' had a validation "
-                                       "error.".format(key), err.args[0])
+                                       "error.".format(key), err)
 
         elif isinstance(validator, (tuple, list)):
             if value not in validator:

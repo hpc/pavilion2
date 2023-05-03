@@ -104,7 +104,7 @@ def main():
 
         shutil.rmtree(working_dir.as_posix(), ignore_errors=False)
 
-        log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
+    log_out = log_setup.setup_loggers(PavTestCase().pav_cfg)
 
     verbosity = 0 if args.quiet else 2
 
@@ -122,6 +122,12 @@ def main():
 
         runner = BetterRunner(resultclass=ColorResult, verbosity=verbosity)
         result = runner.run(suite)
+
+        if args.verbose:
+            msg("Log Output")
+            msg("--------------------")
+            msg(log_out.getvalue())
+
         return len(result.errors) + len(result.failures)
 
 

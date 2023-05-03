@@ -4,7 +4,8 @@ import fnmatch
 import inspect
 import logging
 import re
-from typing import List, Union, Dict
+
+from typing import List, Union, Dict, Tuple
 
 from pavilion.module_actions import (
     ModuleLoad, ModuleSwap, ModuleUnload, ModuleAction)
@@ -417,7 +418,7 @@ class ModuleWrapperViaConfig(ModuleWrapper):
 
     def _swap(self, var_man: VariableSetManager, out_name: str,
               out_version: str, req_name: str, version: str) \
-            -> (List[Union[ModuleAction, str]], dict):
+            -> Tuple[List[Union[ModuleAction, str]], Dict]:
         """Do the swap as given, but set the additional environment variables."""
 
         actions, env_vars = super()._swap(var_man, out_name, out_version, req_name, version)

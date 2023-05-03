@@ -157,8 +157,8 @@ class TestSeries:
                                                stderr=series_out)
 
         except OSError as err:
-            raise TestSeriesError("Could start series in background: {}"
-                                  .format(err.args[0]))
+            raise TestSeriesError("Could not start series '{}' in the background."
+                                  .format(self.sid), err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -249,11 +249,11 @@ differentiate it from test ids."""
                     config = loader.load(config_file)
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
                     raise TestSeriesError(
-                        "Error loading config for test series '{}': {}"
-                        .format(sid, err.args[0]))
+                        "Error loading config for test series '{}'"
+                        .format(sid), err)
         except OSError as err:
             raise TestSeriesError("Could not load config file for test series '{}': {}"
-                                  .format(sid, err.args[0]))
+                                  .format(sid), err)
 
         series = cls(pav_cfg, _id=series_id, config=config)
         series.tests.find_tests(series.path)
@@ -433,8 +433,8 @@ differentiate it from test ids."""
                 except TestSetError as err:
                     self.set_complete()
                     raise TestSeriesError(
-                        "Error building tests for series '{}': {}"
-                        .format(self.sid, err.args[0]))
+                        "Error building tests for series '{}'"
+                        .format(self.sid), err)
 
                 test_start_count = simultaneous
                 while not test_set.done:

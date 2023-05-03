@@ -34,6 +34,7 @@ PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 PAV_ROOT = Path(__file__).resolve().parents[2]
 
 PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', None)
+MODULE_LOAD_WARNINGS = []
 
 if PAV_CONFIG_DIR is not None:
     PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR)
@@ -42,8 +43,9 @@ if PAV_CONFIG_DIR is not None:
         PAV_CONFIG_DIR = PAV_CONFIG_DIR.resolve()
         PAV_CONFIG_SEARCH_DIRS.append(PAV_CONFIG_DIR)
     else:
-        output.fprint(sys.stderr, "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
-                      .format(PAV_CONFIG_DIR), color=output.YELLOW)
+        MODULE_LOAD_WARNINGS.append(
+            "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
+            .format(PAV_CONFIG_DIR))
 
 # Use this config file, if it exists.
 PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
@@ -210,7 +212,8 @@ class PavConfig(PavConfigDict):
         self.pav_cfg_file: Path = Path('dummy_path')
         self.pav_root: Path = PAV_ROOT
         self.pav_vars: Dict[str, str] = {}
-        self.configs: Dict[str: LocalConfig] = {}
+        self.configs: Dict[str, LocalConfig] = {}
+        self.warnings: List[str] = []
 
         super().__init__(set_attrs)
 
@@ -260,51 +263,6 @@ class ExPathElem(yc.PathElem):
         path = Path(os.path.expandvars(path.as_posix()))
         path = path.expanduser()
         return path
-
-
-def config_dirs_validator(config, values):
-    """Get all of the configurations directories and convert them
-    into path objects."""
-
-    config_dirs = []
-
-    if config['user_config'] and USER_HOME_PAV and USER_HOME_PAV.exists():
-        config_dirs.append(USER_HOME_PAV.resolve())
-
-    if PAV_CONFIG_DIR is not None and PAV_CONFIG_DIR.exists():
-        config_dirs.append(PAV_CONFIG_DIR.resolve())
-
-    for value in values:
-        path = Path(value)
-        try:
-            if not path.exists():
-                output.fprint(sys.stderr, "Config directory '{}' does not exist. Ignoring."
-                              .format(value), color=output.YELLOW)
-
-                # Attempt to force a permissions error if we can't read this directory.
-                list(path.iterdir())
-
-        except PermissionError:
-            output.fprint(sys.stderr,
-                          "Cannot access config directory '{}'. Ignoring that config dir."
-                          .format(value), color=output.YELLOW)
-            continue
-        except FileNotFoundError:
-            output.fprint(sys.stderr,
-                          "Cannot find config directory '{}'. Ignoring that config dir."
-                          .format(value))
-            continue
-        except OSError as err:
-            output.fprint(sys.stderr,
-                          "Unexpected OS error accessing config dir '{}'. Ignoring that "
-                          "config dir.".format(value), err)
-            continue
-
-        if path not in config_dirs:
-            path = path.resolve()
-            config_dirs.append(path)
-
-    return config_dirs
 
 
 def _setup_working_dir(working_dir: Path, group) -> None:
@@ -374,7 +332,6 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.ListElem(
             "config_dirs",
             sub_elem=ExPathElem(),
-            post_validator=config_dirs_validator,
             help_text="Additional Paths to search for Pavilion config files. "
                       "Pavilion configs (other than this core config) are "
                       "searched for in the given order. In the case of "
@@ -502,6 +459,9 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.KeyedElem(
             'configs', elements=[], hidden=True, default={},
             help_text="The configuration dictionaries for each config dir."),
+        yc.ListElem(
+            'warnings', sub_elem=yc.StrElem(), hidden=True,
+            help_text="Warnings issued during config ingestion."),
     ]
 
 
@@ -559,16 +519,37 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
 
     label_i = 1
 
-    # Move PAV_CONFIG_DIR to last, so that it only gets labeled as 'main' if
-    # something else didn't already take it.
-    if PAV_CONFIG_DIR in config_dirs:
-        config_dirs.remove(PAV_CONFIG_DIR)
-        config_dirs.append(PAV_CONFIG_DIR)
+    if pav_cfg['user_config'] and USER_HOME_PAV and USER_HOME_PAV.exists():
+        config_dirs.append(USER_HOME_PAV.resolve())
 
-    # All config_dirs are existing, fully resolved, PosixPath objects.
-    config_dirs = [d.resolve() for d in config_dirs if d.exists()]
+    if PAV_CONFIG_DIR is not None and PAV_CONFIG_DIR.exists():
+        for config_dir in config_dirs:
+            try:
+                if PAV_CONFIG_DIR.samefile(config_dir):
+                    break
+            except PermissionError:
+                continue
+        else:
+            config_dirs.append(PAV_CONFIG_DIR)
 
     for config_dir in config_dirs:
+        try:
+            config_dir = config_dir.resolve()
+            if not config_dir.exists():
+                pav_cfg.warnings.append(
+                    "Could not add config dir '{}': Directory does not exist."
+                    .format(config_dir))
+                continue
+
+            # Attempt to force a permissions error if we can't read this directory.
+            config_dir.touch()
+            list(config_dir.iterdir())
+
+        except PermissionError:
+            pav_cfg.warnings.append(
+                "Could not add config dir '{}': Access Denied".format(config_dir))
+            continue
+
         config_path = config_dir/CONFIG_NAME
         try:
             if not (config_path.exists() and config_path.is_file()):
@@ -577,15 +558,10 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                 with config_path.open() as config_file:
                     config = loader.load(config_file)
 
-        except PermissionError as err:
-            output.fprint(sys.stderr, "Could not load pavilion config at '{}'. Skipping..."
-                          .format(config_path.as_posix()), err)
-
+        except OSError as err:
+            pav_cfg.warnings.append(
+                "Could not read config file {}: {}".format(config_path, err))
             continue
-
-        except Exception as err:
-            raise PavConfigError("Pavilion.yaml for config path '{}' has error"
-                                 .format(config_dir.as_posix()), err)
 
         label = config.get('label')
         group = config.get('group')
@@ -604,16 +580,16 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                     label = DEFAULT_CONFIG_LABEL
                 else:
                     label = '_' + DEFAULT_CONFIG_LABEL
-            elif config_dir.samefile(Path(__file__).parent):
-                label = '_lib'
+            elif DEFAULT_CONFIG_LABEL not in configs:
+                label = DEFAULT_CONFIG_LABEL
 
         if label in configs or not label:
             label = '<not_defined>' if label is None else label
             new_label = 'lbl{}'.format(label_i)
             label_i += 1
-            output.fprint(sys.stderr, "Missing or duplicate label '{}' for config path '{}'. "
-                                      "Using label '{}'".format(label, config_path.as_posix(),
-                                                                new_label), color=output.YELLOW)
+            pav_cfg.warnings.append(
+                "Missing or duplicate label '{}' for config path '{}'. "
+                "Using label '{}'".format(label, config_path.as_posix(), new_label))
             config['label'] = new_label
 
         working_dir = config.get('working_dir')  # type: Path
@@ -623,16 +599,22 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         if not working_dir.is_absolute():
             working_dir = (config_dir/working_dir).resolve()
 
-        if label != '_lib':
-            try:
-                if setup_working_dirs:
-                    _setup_working_dir(working_dir, group)
-            except PavConfigError as err:
-                output.fprint(sys.stderr,
-                              "Could not configure working directory for config path '{}'. "
-                              "Skipping.".format(config_path.as_posix()), err,
-                              color=output.YELLOW)
-                continue
+        try:
+            if setup_working_dirs:
+                _setup_working_dir(working_dir, group)
+        except RuntimeError as err:
+            pav_cfg.warnings.append(
+                "Could not configure working directory '{}' for config '{}': {}"
+                .format(working_dir, config_dir, err))
+            continue
+
+        try:
+            working_dir.touch()
+        except PermissionError:
+            pav_cfg.warnings.append(
+                "Could not write to working directory '{}' for config '{}'"
+                .format(working_dir, config_dir))
+            continue
 
         config['working_dir'] = working_dir
         config['path'] = config_dir
@@ -642,8 +624,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     return configs
 
 
-def find_pavilion_config(target: Path = None, warn: bool = True,
-                         setup_working_dirs=True) -> PavConfig:
+def find_pavilion_config(target: Path = None, setup_working_dirs=True) -> PavConfig:
     """Search for a pavilion.yaml configuration file. Use the one pointed
 to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
 found in these directories the default config search paths:
@@ -653,7 +634,6 @@ found in these directories the default config search paths:
 - The Pavilion source directory (don't put your config here).
 
     :param target: A known path to a Pavilion config.
-    :param warn: Issue printed warnings.
     :param setup_working_dirs: Set to False when used outside of the `bin/pav` provided
          newgrp/umask environment. Test code generally doesn't care, unless you're
          testing the permissions themselves.
@@ -662,17 +642,19 @@ found in these directories the default config search paths:
     pav_cfg: Union[PavConfig, None] = None
 
     for path in target, PAV_CONFIG_FILE:
-        if path is not None:
-            pav_cfg_file = Path(path)
-            # pylint has a bug that pops up occasionally with pathlib.
-            if pav_cfg_file.is_file():  # pylint: disable=no-member
-                try:
-                    pav_cfg = PavilionConfigLoader().load(
-                        pav_cfg_file.open())  # pylint: disable=no-member
-                    pav_cfg.pav_cfg_file = pav_cfg_file
-                except Exception as err:
-                    raise PavConfigError("Error in Pavilion config at {}"
-                                         .format(pav_cfg_file), err)
+        if path is None:
+            continue
+
+        pav_cfg_file = Path(path)
+        # pylint has a bug that pops up occasionally with pathlib.
+        if pav_cfg_file.is_file():  # pylint: disable=no-member
+            try:
+                pav_cfg = PavilionConfigLoader().load(
+                    pav_cfg_file.open())  # pylint: disable=no-member
+                pav_cfg.pav_cfg_file = pav_cfg_file
+            except Exception as err:
+                raise RuntimeError("Error in Pavilion config at {}: {}"
+                                   .format(pav_cfg_file, err))
 
     if pav_cfg is None:
         for config_dir in PAV_CONFIG_SEARCH_DIRS:
@@ -689,22 +671,22 @@ found in these directories the default config search paths:
                                          .format(path), err)
 
     if pav_cfg is None:
-        if warn:
-            output.fprint(sys.stderr, "Could not find a pavilion config file. Using an "
-                                      "empty/default config.", color=output.YELLOW)
         pav_cfg = PavilionConfigLoader().load_empty()
+        pav_cfg.warnings.append("Could not find a pavilion config file. Using an "
+                                "empty/default config.")
         pav_cfg.pav_cfg_file = Path('pavilion.yaml')
         pav_cfg.config_dirs = [Path('.').resolve()]
+
+    # Add warnings recorded when the module loaded.
+    pav_cfg.warnings = MODULE_LOAD_WARNINGS + pav_cfg.warnings
 
     # Make sure this path is absolute (but keep any symlinks)
     if not pav_cfg.pav_cfg_file.is_absolute():
         pav_cfg.pav_cfg_file = Path(os.getcwd())/pav_cfg.pav_cfg_file
 
     if pav_cfg['working_dir'] is None:
-        if warn:
-            output.fprint(sys.stderr,
-                          "Pavilion working dir was not set, using 'working_dir' in the "
-                          "directory above the config directory.", color=output.YELLOW)
+        pav_cfg.warnings.append("Pavilion working dir was not set, using 'working_dir' in the "
+                                "directory above the config directory.")
         pav_cfg['working_dir'] = Path('working_dir')
 
     # Make sure this path is absolute too.

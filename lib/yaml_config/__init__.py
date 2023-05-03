@@ -54,7 +54,7 @@ just a strictly keyed dictionary ConfigElement with some extras.
         # special dictionary.
         party_data = party.load(config_file)
     except ValueError, KeyError, yc.RequiredError:
-        print("Oh no, it's a bad party.)
+        print("Oh no, it's a bad party.")
 
     # All the returned dictionaries are
     balloons = party_data[balloons]

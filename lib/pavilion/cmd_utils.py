@@ -50,6 +50,29 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     limit = args.limit
     verbose = verbose or io.StringIO()
 
+    ids = []
+    for test_range in args.tests:
+        if '-' in test_range:
+            id_start, id_end = test_range.split('-', 1)
+            if id_start.startswith('s'):
+                series_range_start = int(id_start.replace('s',''))
+                if id_end.startswith('s'):
+                    series_range_end = int(id_end.replace('s',''))
+                else:
+                    series_range_end = int(id_end)
+                series_ids = range(series_range_start, series_range_end+1)
+                for sid in series_ids:
+                    ids.append('s' + str(sid))
+            else:
+                test_range_start = int(id_start)
+                test_range_end = int(id_end)
+                test_ids = range(test_range_start, test_range_end+1)
+                for tid in test_ids:
+                    ids.append(str(tid))
+        else:
+            ids.append(test_range)
+    args.tests = ids
+
     if 'all' in args.tests:
         for arg, default in filters.TEST_FILTER_DEFAULTS.items():
             if hasattr(args, arg) and default != getattr(args, arg):
@@ -191,13 +214,15 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         return matching_series
 
 
-def read_test_files(files: List[str]) -> List[str]:
+def read_test_files(pav_cfg, files: List[str]) -> List[str]:
     """Read the given files which contain a list of tests (removing comments)
     and return a list of test names."""
 
     tests = []
     for path in files:
         path = Path(path)
+        if not path.is_absolute():
+            path = get_collection_path(pav_cfg, path)
         try:
             with path.open() as file:
                 for line in file:
@@ -211,6 +236,27 @@ def read_test_files(files: List[str]) -> List[str]:
                              .format(path, err))
 
     return tests
+
+
+def get_collection_path(pav_cfg, collection) -> Path:
+    """Read the given list of collection files and return full absolute paths."""
+
+    # Check if this collection exists in one of the defined config dirs
+    for config in pav_cfg['configs'].items():
+        _, config_path = config
+        collection_path = config_path.path / 'collections' / collection
+        if collection_path.exists():
+            return collection_path
+
+    # If the previous loop completes, then check the current working directory for the collection
+    cwd_collection = Path.cwd() / collection
+    if cwd_collection.exists():
+        return cwd_collection
+
+    # If it reaches this point, then the collection does not exist in any of the defined config dirs
+    # nor the current working directory
+    raise ValueError("Cannot find collection '{}' in the config dirs nor the current dir."
+                     .format(collection))
 
 
 def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:

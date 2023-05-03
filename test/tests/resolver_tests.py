@@ -34,6 +34,31 @@ class ResolverTests(PavTestCase):
 
         self.resolver.load(['speed'])
 
+    def test_requests(self):
+        """Check request parsing."""
+
+        requests = (
+            ('hello',                   ('hello', None, 1)),
+            ('hello123',                ('hello123', None, 1)),
+            ('123-_hello',              ('123-_hello', None, 1)),
+            ('123hello.world',          ('123hello', 'world', 1)),
+            ('123hello.123world',       ('123hello', '123world', 1)),
+            ('123hello.123-_world-',    ('123hello', '123-_world-', 1)),
+            ('5*123hello.world',        ('123hello', 'world', 5)),
+            ('5*123hello.123world',     ('123hello', '123world', 5)),
+            ('5*123hello.123-_world-',  ('123hello', '123-_world-', 5)),
+            ('123hello.world3*6',       ('123hello', 'world3', 6)),
+            ('123hello.123world3*6',    ('123hello', '123world3', 6)),
+            ('123hello.123-_world-3*6', ('123hello', '123-_world-3', 6)),
+        )
+
+        for req_str, answer in requests:
+            req = resolver.TestRequest(req_str)
+            self.assertEqual((req.suite, req.test, req.count), answer)
+
+        with self.assertRaises(resolver.TestConfigError):
+            resolver.TestRequest('3*hello.world*5')
+
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
@@ -164,6 +189,42 @@ class ResolverTests(PavTestCase):
         for bad_test in bad_tests:
             with self.assertRaises(TestConfigError):
                 self.resolver.load([bad_test])
+
+    def test_wildcards(self):
+        """Make sure wildcarded tests and permutations work"""
+
+        for test_request, result_count, result_unique in (
+                ('wildcard.some[tm]est', 8, 8),
+                ('wildcard.some*', 8, 8),
+                ('wildcard.*', 9, 9),
+                ('2*wildcard.some?est', 16, 8),
+                ('wildcard.**2', 18, 9),
+                ('wildcard', 9, 9),
+                ('wildcard._base', 1, 1)):
+            tests = self.resolver.load(tests=[test_request])
+
+            self.assertEqual(len(tests), result_count)
+            test_names = [(test.config['suite'], test.config['name'], test.config['subtitle']) for test in tests]
+            test_names = set(test_names)
+            self.assertEqual(len(test_names), result_unique)
+
+        for perm_request, result_count in (
+                ('wildcard.*.b-1', 2),
+                ('wildcard.*.*', 8),
+                ('wildcard.sometest.*-1', 2),
+                ('wildcard.sometest.a-**2', 4),
+                ('2 * wildcard.somemest.c-4', 2),
+                ('wildcard.somemest.[cb]-*', 4)):
+            tests = self.resolver.load(tests=[perm_request])
+
+            self.assertEqual(len(tests), result_count)
+
+        for bad_request in (
+                ('wildcard.noperms.*'),
+                ('wildcard.doesnt_exist'),
+                ('wildcard.[invalidfnmatch')):
+            with self.assertRaises(TestConfigError):
+                self.resolver.load([bad_request])
 
     def test_extended_variables(self):
         """Make sure default variables work as expected."""
@@ -845,11 +906,11 @@ class ResolverTests(PavTestCase):
         for test_name in (
                 'bad_var_syntax',
                 'bad_var_ref',
-                'bad_ref', 
+                'bad_ref',
                 'bad_syntax',
                 ):
             test_name = 'parse_errors.{}'.format(test_name)
-            
+
             with self.assertRaises(TestConfigError):
                 self.resolver.load([test_name])
 

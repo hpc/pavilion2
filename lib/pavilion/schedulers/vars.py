@@ -154,8 +154,7 @@ each test right before it runs on an allocation in order to un-defer values.
 
         return self._sched_config['partition'] or ''
 
-    @var_method
-    def test_cmd(self):
+    def _test_cmd(self):
         """The command to prepend to a line to kick it off under the scheduler.
 
         This should return the command needed to start one or more MPI processes within
@@ -175,6 +174,16 @@ each test right before it runs on an allocation in order to un-defer values.
         _ = self
 
         return ''
+
+    @var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the result with the wrapper
+        provided in the schedule section of the configuration."""
+
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ''.join(filter(lambda item: item is not None, [self._test_cmd(),
+                              self._sched_config['wrapper']]))
 
     @dfr_var_method
     def tasks_per_node(self) -> int:
@@ -308,3 +317,24 @@ each test right before it runs on an allocation in order to un-defer values.
         """Total tasks to create, based on number of nodes actually acquired."""
 
         return self._sched_config.get('tasks_per_node', 1) * len(self._nodes)
+
+    def mpirun_cmd(self):
+        """Sets up mpirun command with user-defined options."""
+
+        mpirun_opts = []
+
+        rank_by = self._sched_config['mpirun_opts']['rank_by']
+        bind_to = self._sched_config['mpirun_opts']['bind_to']
+        mca = self._sched_config['mpirun_opts']['mca']
+        extra = self._sched_config['mpirun_opts']['extra']
+
+        if rank_by:
+            mpirun_opts.extend(['--rank-by', rank_by])
+        if bind_to:
+            mpirun_opts.extend(['--bind-to', bind_to])
+        if mca:
+            for mca_opt in mca:
+                mpirun_opts.extend(['--mca', mca_opt])
+        mpirun_opts.extend(extra)
+
+        return mpirun_opts

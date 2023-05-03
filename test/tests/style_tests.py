@@ -102,9 +102,14 @@ class StyleTests(PavTestCase):
         test_matches = self.find_prints(
             self.PAV_ROOT_DIR/'test'/'tests',
             excludes=['style_tests.py', 'blarg.py', 'poof.py'])
+        yaml_config_matches = self.find_prints(
+            self.PAV_ROOT_DIR/'lib'/'yaml_config')
 
         for tmatch, values in test_matches.items():
             matches[tmatch].extend(values)
+
+        for yc_match, values in yaml_config_matches.items():
+            matches[yc_match].extend(values)
 
         if matches:
             msg = io.StringIO()
@@ -143,11 +148,24 @@ class StyleTests(PavTestCase):
                 fn = Path(path)/fn
 
                 line_num = -1
+                in_doc_string = False
                 with fn.open() as file:
                     skip_next = False
 
                     for line in file:
                         line_num += 1
+
+                        if in_doc_string:
+                            if in_doc_string in line:
+                                in_doc_string = False
+                            continue
+
+                        if '"""' in line:
+                            in_doc_string = '"""'
+                            continue
+                        elif "'''" in line:
+                            in_doc_string = "'''"
+                            continue
 
                         if skip_next:
                             skip_next = False

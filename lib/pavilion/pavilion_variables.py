@@ -58,6 +58,12 @@ class PavVars(VarDict):
         return utils.get_login()
 
     @var_method
+    def user_id(self):
+        """The current user's id."""
+
+        return utils.get_user_id()
+
+    @var_method
     def version(self):
         """The current version of Pavilion."""
         return pavilion.config.get_version()
