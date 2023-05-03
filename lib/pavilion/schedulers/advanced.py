@@ -90,7 +90,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         chunk_size = sched_config['chunking']['size']
         include_nodes = sched_config['include_nodes']
-        # Note: When chunking isn't used (ie - node selection is left to the scheduler), 
+        # Note: When chunking isn't used (ie - node selection is left to the scheduler),
         # node inclusion is handled by the scheduler plugin.
         for node in include_nodes:
             if node not in filtered_nodes:
@@ -405,7 +405,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     # Scheduling options in this list are denoted as those that change the nature
     # of the allocation being acquired. Tests with different values for these
     # should thus run under different allocations.
-    # These allow us to form sharable groups given a specific nodelist - jobs with 
+    # These allow us to form sharable groups given a specific nodelist - jobs with
     # different nodelists will never be shared.
     # This can be modified by subclasses. Separate multipart keys with a '.'.
     ALLOC_ACQUIRE_OPTIONS = ['partition', 'reservation', 'account', 'qos']
