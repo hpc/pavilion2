@@ -80,17 +80,22 @@ class ListElem(ConfigElement):
         else:
             return False
 
-    def normalize(self, value):
+    def normalize(self, value, root_name=None):
         """Lists with a value of None remain as None, and empty lists stay
         empty. Single values, however, become a list of that value. All
         contained value are recursively normalized."""
 
+        if root_name is not None:
+            name = root_name
+        else: 
+            name = self.name
+
         if value is None or value == [None]:
             return None
         elif isinstance(value, self.type):
-            return [self._sub_elem.normalize(v) for v in value]
+            return [self._sub_elem.normalize(v, root_name=name) for v in value]
         else:
-            return [self._sub_elem.normalize(value)]
+            return [self._sub_elem.normalize(value, root_name=name)]
 
     def validate(self, value, partial=False):
         """Just like the parent function, except converts None to an empty
@@ -382,7 +387,8 @@ class KeyedElem(_DictElem):
         for sub_key, config_elem in self.config_elems.items():
             if isinstance(config_elem, KeyedElem):
                 similar = config_elem.find_key_matches(key, min_score=0.9)
-                sub_key_matches.append((sub_key, similar))
+                if similar:
+                    sub_key_matches.append((sub_key, similar))
 
         return sub_key_matches
 
@@ -416,14 +422,16 @@ class KeyedElem(_DictElem):
         """Generate a message for when a matching key isn't found. Searches for similar
         keys in this and child KeyedElements."""
 
-        name = self.name if self.name else root_name
-        msg = ["Invalid config key '{}' given under {} called '{}'."
-                   .format(key, self.__class__.__name__, name)]
+        name = root_name if root_name is not None else self.name
+
+        msg = ["Invalid config key '{}' given under '{}'."
+                   .format(key, name)]
 
         similar = self.find_key_matches(key)
-        if similar:
-            msg.append(
-                "Did you mean any of: {}".format(similar))
+        if len(similar) == 1:
+            msg.append("Did you mean: {}".format(similar[0]))
+        elif similar:
+            msg.append("Did you mean one of these?: {}".format(', '.join(similar)))
         else:
             sub_key_matches = self.find_sub_key_matches(key)
             if sub_key_matches:
@@ -465,7 +473,7 @@ class KeyedElem(_DictElem):
                 raise KeyError(msg, key)
 
             try:
-                ndict[key] = elem.normalize(val)
+                ndict[key] = elem.normalize(val, root_name=key)
             except KeyError as err:
                 # Check to see if this level takes the key that was erroneous at the next
                 # level, and suggest a course of action.
@@ -624,7 +632,7 @@ class CategoryElem(_DictElem):
                                            key_case=key_case,
                                            default=defaults, **kwargs)
 
-    def normalize(self, value: dict, root_name='root'):
+    def normalize(self, value: dict, root_name=None):
         """Make sure values is a dict, and recursively normalize the contained
         keys. Returns None if values is None."""
 

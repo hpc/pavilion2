@@ -71,7 +71,7 @@ class PavilionError(RuntimeError):
 
                 next_exc = next_exc.prior_error
             else:
-                if hasattr(next_exc, 'args') and isinstance(next_exc.args, list):
+                if hasattr(next_exc, 'args') and isinstance(next_exc.args, (list, tuple)):
                     msg = next_exc.args[0]
                 else:
                     msg = str(next_exc)

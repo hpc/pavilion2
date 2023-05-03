@@ -839,6 +839,8 @@ class TestConfigResolver:
         # we're done. If there are still unresolved nodes, then a loop must
         # exist.
 
+        test_ldr = TestConfigLoader()
+
         # Organize tests into an inheritance tree.
         depended_on_by = defaultdict(list)
         # All the tests for this suite.
@@ -862,7 +864,8 @@ class TestConfigResolver:
                     depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
                 try:
-                    suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
+                    suite_tests[test_cfg_name] = test_ldr.normalize(test_cfg, 
+                                                                    root_name=test_cfg_name)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
                         "Test {} in suite {} has an error."
@@ -912,7 +915,7 @@ class TestConfigResolver:
 
         for test_name, test_config in suite_tests.items():
             try:
-                suite_tests[test_name] = test_config_loader.validate(test_config)
+                suite_tests[test_name] = test_config_loader.validate(test_config, root_name=test_name)
             except RequiredError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a missing key."
@@ -1161,7 +1164,7 @@ class TestConfigResolver:
             self._apply_override(test_cfg, key, value)
 
         try:
-            config_loader.normalize(test_cfg)
+            config_loader.normalize(test_cfg, root_name='overrides')
         except TypeError as err:
             raise TestConfigError("Invalid override", err)
 
