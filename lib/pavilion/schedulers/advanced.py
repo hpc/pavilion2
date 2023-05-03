@@ -92,21 +92,18 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         include_nodes = sched_config['include_nodes']
         # Note: When chunking isn't used (ie - node selection is left to the scheduler), 
         # node inclusion is handled by the scheduler plugin.
-        if include_nodes:
-            for node in include_nodes:
-                if node not in filtered_nodes:
-                    errors.append(
-                        "Requested node (via 'schedule.include_nodes') was filtered "
-                        "due to other filtering ")
+        for node in include_nodes:
+            if node not in filtered_nodes:
+                errors.append(
+                    "Requested node (via 'schedule.include_nodes') was filtered "
+                    "due to other filtering ")
 
-
-            if chunk_size not in (0, None):
-                if len(include_nodes) >= chunk_size:
-                    errors.append(
-                        "Requested {} 'schedule.include_nodes' to include in every chunk, but "
-                        "set a 'chunking.size' of {}. "
-                        "The chunk size must be more than the number of include_nodes."
-                        .format(len(include_nodes, chunk_size)))
+        if chunk_size not in (0, None) and len(include_nodes) >= chunk_size:
+            errors.append(
+                "Requested {} 'schedule.include_nodes' to include in every chunk, but "
+                "set a 'chunking.size' of {}. "
+                "The chunk size must be more than the number of include_nodes."
+                .format(len(include_nodes, chunk_size)))
 
         min_nodes, max_nodes = calc_node_range(sched_config, len(filtered_nodes))
         if min_nodes > max_nodes:
@@ -215,37 +212,39 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         node_state = sched_config['node_state']
 
         filter_reasons = collections.defaultdict(lambda: [])
+        available_msg = "Nodes not available ('schedule.node_state={}')".format(AVAILABLE)
 
         for node_name, node in nodes.items():
             if not node.get('up'):
-                filter_reasons['not up'].append(node_name)
+                filter_reasons['Nodes not up'].append(node_name)
                 continue
 
             if node_state == AVAILABLE and not node.get('available'):
-                filter_reasons['not available'].append(node_name)
+                filter_reasons[available_msg].append(node_name)
                 continue
 
             if (partition is not None
                     and 'partitions' in node
                     and partition not in node['partitions']):
-                reason_key = "partition '{}' not in {}".format(partition, node['partitions'])
+                reason_key = "Requested 'schedule.partition' '{}' not in {}"\
+                             .format(partition, node['partitions'])
                 filter_reasons[reason_key].append(node_name)
                 continue
 
             if 'reservations' in node:
                 if (reservation is not None
                         and reservation not in node['reservations']):
-                    reason_key = "reservation '{}' not in {}"\
+                    reason_key = "Requested 'schedule.reservation' '{}' not in {}"\
                                  .format(reservation, node['reservations'])
                     filter_reasons[reason_key].append(node_name)
                     continue
 
             if across_nodes and node_name not in across_nodes:
-                filter_reasons['not in across_nodes list'].append(node_name)
+                filter_reasons['Not in "schedule.across_nodes"'].append(node_name)
                 continue
 
             if node_name in exclude_nodes:
-                filter_reasons['excluded'].append(node_name)
+                filter_reasons['Excluded via "schedule.exclude_nodes"'].append(node_name)
                 continue
 
             # Filter according to scheduler plugin specific options.
