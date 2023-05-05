@@ -85,6 +85,13 @@ class ScheduleConfig(yc.KeyedElem):
                       "Tests that share an allocation share the largest given time "
                       "limit."),
         yc.ListElem(
+            'across_nodes',
+            sub_elem=yc.StrElem(),
+            help_text="Only nodes in this list are considered when running a test. "
+                      "Each listed node may be a node range as per 'exclude_nodes'. "
+                      "Nodes in this may also be 'included' (in each chunk) or "
+                      "'excluded'."),
+        yc.ListElem(
             'include_nodes',
             sub_elem=yc.StrElem(),
             help_text="Nodes to always include in every allocation on which this test "
@@ -484,6 +491,7 @@ CONFIG_VALIDATORS = {
     'core_spec':        None,
     'wrapper':          None,
     'reservation':      None,
+    'across_nodes':     _validate_node_list,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
     'share_allocation': _validate_allocation_str,
@@ -518,6 +526,7 @@ CONFIG_DEFAULTS = {
     'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
+    'across_nodes':     [],
     'include_nodes':    [],
     'exclude_nodes':    [],
     'time_limit':       None,
@@ -533,7 +542,23 @@ CONFIG_DEFAULTS = {
 }
 
 
-def validate_config(config: Dict[str, str],
+def validate_config(config: Dict[str, str]):
+    """Validate the scheduler config using the validator dict.
+
+    :param config: The configuration dict to validate. Expected to be the result
+        of parsing with the above yaml_config parser."""
+
+    val_config = _validate_config(config)
+
+    # Flex scheduling is when the scheduler picks the nodes, which can't happen if we're using
+    # chunking or have a limited set of nodes.
+    val_config['flex_scheduled'] = (val_config['chunking']['size'] in (0, None)
+                                    and not val_config['across_nodes'])
+
+    return val_config
+
+
+def _validate_config(config: Dict[str, str],
                     validators: Dict[str, Any] = None,
                     defaults: Dict[str, Any] = None) -> Dict[str, Any]:
     """Validate the scheduler config using the validator dict.
@@ -583,7 +608,7 @@ def validate_config(config: Dict[str, str],
         elif isinstance(validator, dict):
             if value is None:
                 value = {}
-            normalized_config[key] = validate_config(
+            normalized_config[key] = _validate_config(
                 config=value,
                 validators=validator,
                 defaults=defaults[key])
