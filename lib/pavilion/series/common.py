@@ -9,7 +9,7 @@ from pavilion import config
 from pavilion import dir_db
 from pavilion import status_file
 from pavilion.test_run import TestRun
-from .errors import TestSeriesError
+from ..errors import TestSeriesError
 
 COMPLETE_FN = 'SERIES_COMPLETE'
 ALL_STARTED_FN = 'ALL_TESTS_STARTED'
@@ -49,7 +49,7 @@ def set_complete(path, when: float = None):
             with complete_fn_tmp.open('w') as series_complete:
                 json.dump({'complete': when}, series_complete)
         except (OSError, ValueError) as err:
-            raise TestSeriesError("Error saving completion file:\n{}".format(err))
+            raise TestSeriesError("Error saving completion file.", err)
 
         complete_fn_tmp.rename(complete_fn)
 

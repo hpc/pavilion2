@@ -1,15 +1,14 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
 import errno
-from typing import List
+import sys
 
-import pavilion.series.errors
 from pavilion import cmd_utils
 from pavilion import output
+from pavilion.errors import TestSeriesError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
-from pavilion.test_run import TestRun
 from .base_classes import Command
 
 
@@ -28,9 +27,6 @@ class RunCommand(Command):
 
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
-
-        self.last_series = None
-        self.last_tests = []  # type: List[TestRun]
 
     def _setup_arguments(self, parser):
 
@@ -97,7 +93,7 @@ class RunCommand(Command):
                  "under which Pavilion runs has changed."
         )
         parser.add_argument(
-            'tests', nargs='*', action='store',
+            'tests', nargs='*', action='store', metavar='TEST_NAME',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
                  '<suite_name>.<test_name>. Tests can be repeated explicitly '
@@ -127,6 +123,7 @@ class RunCommand(Command):
             series_name = args.name
         else:
             series_name = 'cmdline'
+
         series_cfg = generate_series_config(
             name=series_name,
             modes=args.modes,
@@ -137,9 +134,9 @@ class RunCommand(Command):
 
         tests = args.tests
         try:
-            tests.extend(cmd_utils.read_test_files(args.files))
+            tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
         except ValueError as err:
-            output.fprint("Error reading given test list files.\n{}"
+            output.fprint(sys.stdout, "Error reading given test list files.\n{}"
                           .format(err))
             return errno.EINVAL
 
@@ -148,6 +145,8 @@ class RunCommand(Command):
 
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg)
+
+        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
 
         series_obj.add_test_set_config(
             'cmd_line',
@@ -165,11 +164,9 @@ class RunCommand(Command):
                 verbosity=args.build_verbosity,
                 outfile=self.outfile)
             self.last_tests = list(series_obj.tests.values())
-        except pavilion.series.errors.TestSeriesError as err:
+        except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
-            output.fprint(
-                str(err.args[0]),
-                file=self.errfile, color=output.RED)
+            output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN
 
         if report_status:

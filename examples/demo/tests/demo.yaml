@@ -1,0 +1,38 @@
+hello_world:
+  # Test builds are reused between 'runs' of a test, as long as everything
+  # about the build is the same.
+  build:
+    # Pavilion will automatically create a build script that contains
+    # this list of commands. If any fail, the build fails.
+    cmds:
+      # The '{{user}}' is a built-in pavilion variable. It will be filled out
+      # before the build script is written.
+      - echo "hello {{user}}" > message_file
+
+  run:
+    cmds:
+      # Pavilion automatically writes a 'run.sh' script that runs the test.
+      # The message_file we created in the build script will be present.
+      - cat message_file
+
+remote_source:
+  build:
+    # Pavilion will fetch source for you. Often though, this is used for documentation.
+    source_url: https://mirror.us-midwest-1.nexcess.net/gnu/gzip/gzip-1.10.tar.xz
+    # The fetched source will be saved in demo/test_src under this name
+    # This archive will be auto-extracted and the extracted directory will be the build
+    # directory.
+    source_path: gzip.tar.xz
+
+    # These variables will be exported in the build script.
+    env:
+      CC: gcc
+      CXX: g++
+    cmds:
+      # The build directory is inside the extracted directory from the tarball.
+      - ./configure
+      - make
+
+  run:
+    cmds:
+      - ./gzip -c gzip > gzip.gz

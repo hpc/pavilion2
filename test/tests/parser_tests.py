@@ -1,18 +1,17 @@
 """Tests for the various Pavilion parsers."""
 
 import lark
-
+from pavilion import parsers
 from pavilion import plugins
 from pavilion import unittest
-from pavilion import parsers
-from pavilion.exceptions import DeferredError
+from pavilion.errors import DeferredError, StringParserError, ParserValueError
 from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 
 
 class ParserTests(unittest.PavTestCase):
 
-    def setUp(self) -> None:
+    def set_up(self) -> None:
         plugins.initialize_plugins(self.pav_cfg)
 
         self.var_man = variables.VariableSetManager()
@@ -24,6 +23,7 @@ class ParserTests(unittest.PavTestCase):
             'ints': ['0', '1', '2', '3', '4', '5'],
             'floats': ['0.1', '2.3'],
             'more_ints': ['0', '1'],
+            'note': "3",
             'struct': {
                 'cpus': '200',
                 'flops': '2.1',
@@ -36,9 +36,6 @@ class ParserTests(unittest.PavTestCase):
             ]
         })
         self.var_man.add_var_set('sys', base_classes.get_vars(defer=True))
-
-    def tearDown(self) -> None:
-        plugins._reset_plugins()
 
     def test_visitors(self):
         """Test the visitors used to collect all of the used variables."""
@@ -82,6 +79,8 @@ class ParserTests(unittest.PavTestCase):
         'str1': 'hello',
         'ints.3': 3,
         'ints': 0,
+        # Make sure this isn't parsed as 'not e'
+        'note': 3,
         'struct.cpus * 0': 0,
         'struct.cpus // 7': 28,
         'struct.cpus / 7': 28.571428571428573,
@@ -222,7 +221,7 @@ class ParserTests(unittest.PavTestCase):
             try:
                 tree = expr_parser.parse(expr)
                 result = trans.transform(tree)
-            except (parsers.ParserValueError, lark.UnexpectedInput):
+            except (ParserValueError, lark.UnexpectedInput):
                 pass
             else:
                 self.fail("Failed to fail on {} (got {}):\n{}"
@@ -324,11 +323,14 @@ class ParserTests(unittest.PavTestCase):
         for string, exp_error in bad_syntax.items():
             try:
                 result = parsers.parse_text(string, self.var_man)
-            except parsers.StringParserError as err:
-                self.assertEqual(err.message, exp_error,
-                                 msg="Bad example '{}' produced an error '{}' "
-                                     "that did not match expected error '{}'"
-                                     .format(string, err.message, exp_error))
+            except (StringParserError, ParserValueError) as err:
+                self.assertTrue(str(err).startswith(exp_error),
+                                msg="Bad example '{}' produced an error "
+                                    "that did not match expected error\n"
+                                    "Got:      {}\n"
+                                    "Expected: {}"
+                                    .format(string, err.message, exp_error))
+
             else:
                 self.fail(
                     "Failed to fail on '{}', parsed to: '{}'"

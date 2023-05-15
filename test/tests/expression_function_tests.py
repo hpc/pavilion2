@@ -1,18 +1,9 @@
 from pavilion import expression_functions
-from pavilion import plugins
 from pavilion.unittest import PavTestCase
 
 
 class ExprFuncTests(PavTestCase):
     """Check each of the expression functions."""
-
-    def setUp(self) -> None:
-
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-
-        plugins._reset_plugins()
 
     def test_core_functions(self):
         """Check core expression functions."""
@@ -23,8 +14,11 @@ class ExprFuncTests(PavTestCase):
         tests = {
             'int': [(("1234", 8), 668)],
             'round': [((1.234,), 1)],
+            'round_dig': [((1.1274, 2), 1.13)],
             'floor': [((1.234,), 1)],
             'ceil': [((1.234,), 2)],
+            'log': [((32, 2), 5.0),
+                    ((1, 2), 0.0)],
             'sum': [(([1, 2, 3, 4.5],), 10.5),
                     (([1, 2, 3, 4],), 10)],
             'avg': [(([1, 2, 3, 4.5],), 2.625),

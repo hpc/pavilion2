@@ -1,7 +1,4 @@
-import argparse
-import errno
 import time
-from io import StringIO
 
 from pavilion import arguments
 from pavilion import commands
@@ -13,9 +10,7 @@ class CancelCmdTests(PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
+        commands.load('run', 'clean')
 
     def test_clean(self):
         """Test clean command with no arguments."""

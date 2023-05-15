@@ -13,8 +13,8 @@ from pavilion import lockfile as _lockfile
 from pavilion import utils
 from ..result_parsers import base_classes
 from .base import base_results, BASE_RESULTS, RESULT_ERRORS
-from .common import ResultError
-from .evaluations import check_expression, evaluate_results, StringParserError
+from .evaluations import check_expression, evaluate_results
+from ..errors import StringParserError, ResultError
 from .parse import parse_results, DEFAULT_KEY
 
 
@@ -48,7 +48,7 @@ For evaluations we check for:
         for key_str, rconf in parser_conf[rtype].items():
 
             if ',' in key_str:
-                keys = [k.strip() for k in key_str.split() if k.strip()]
+                keys = [k.strip() for k in key_str.split(',') if k.strip()]
                 if parse.DEFAULT_KEY in keys:
                     raise ResultError(
                         "The default setting key '{}' can't be used in "
@@ -68,7 +68,7 @@ For evaluations we check for:
                         .format(key, rtype)
                     )
 
-                if key in key_names:
+                if key in key_names and key != '_':
                     raise ResultError(
                         "Duplicate result parser key name '{}' under parser "
                         "'{}'".format(key, rtype))
@@ -122,7 +122,7 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
             rewrite_log_path.open('w') as rewrite_log:
 
         for line in result_log:
-            lock.renew()
+            lock.renew(rate_limit=True)
             try:
                 result = json.loads(line)
             except json.JSONDecodeError:

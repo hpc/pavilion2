@@ -14,8 +14,7 @@ class StatusCommand(Command):
     """Prints the status of a set of tests."""
 
     def __init__(self):
-        super().__init__('status', 'Check the status of a test, list of tests,'
-                                   ' or test series.',
+        super().__init__('status', 'Check the status of a test, list of tests, or test series.',
                          short_help="Get status of tests.")
 
     def _setup_arguments(self, parser):
@@ -32,9 +31,10 @@ class StatusCommand(Command):
             help='Show the status note.')
         parser.add_argument(
             'tests', nargs='*', action='store',
-            help="The name(s) of the tests to check.  These may be any mix of "
-                 "test IDs and series IDs. Lists tests in the last series you "
-                 "ran by default. Use 'all' to show all tests."
+            help="The name(s) of the tests to check. These may be any mix of test IDs and series "
+                 "IDs. Lists tests in the last series you ran by default. Use 'all' to show all "
+                 "tests. By default, 'all' will only display status of tests newer than 1 day ago, "
+                 " but setting any filter argument will override that."
         )
         output_mode = parser.add_mutually_exclusive_group()
         output_mode.add_argument(
@@ -53,20 +53,17 @@ class StatusCommand(Command):
         series."""
 
         try:
-            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
-                                                      verbose=self.errfile)
+            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
         except ValueError as err:
-            output.fprint(err.args[0], color=output.RED, file=self.errfile)
+            output.fprint(self.errfile, err, color=output.RED)
             return errno.EINVAL
 
         if args.history:
             tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
             if len(tests) != 1:
-                output.fprint("'--history' flag requires a single test id, "
-                              "got: {}"
-                              .format(len(test_paths)),
-                              file=self.errfile,
-                              color=output.RED)
+                output.fprint(self.errfile, "'--history' flag requires a single test id, "
+                                            "got: {}"
+                              .format(len(test_paths)), color=output.RED)
                 return 1
             return status_utils.print_status_history(tests[-1], self.outfile, args.json)
 
@@ -157,7 +154,7 @@ class StatusCommand(Command):
                 'transform': lambda t: output.ANSIString(t, output.RED),
             }}
 
-        rows.sort(key = lambda status: status['State'])
+        rows.sort(key=lambda status: status['State'])
 
         output.draw_table(outfile=self.outfile,
                           field_info=field_info,

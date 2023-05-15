@@ -1,0 +1,46 @@
+_base:
+  variables:
+    str: 'hello_base'
+    list: ['a_base', 'b_base']
+    dict:
+      a: 'a_base'
+    ldict:
+      - c: 'c_base1'
+        d: 'd_base1'
+      - d: 'd_base2'
+
+def_test:
+  inherits_from: _base
+
+  variables:
+    str?: 'hello_def'
+    list?: ['a_def']
+    dict?:
+      a: 'a_def'
+      b: 'b_def'
+    ldict?:
+      - c: 'c_def'
+    d_str?: 'hello_def'
+    d_list?: ['a_def', 'b_def']
+    d_dict?:
+      a: 'a_def'
+      b: 'b_def'
+    d_ldict?:
+      - c: 'c_def1'
+        d: 'd_def1'
+
+inh_test:
+  inherits_from: def_test
+
+  variables:
+    str: 'hello_inh'
+    d_str+: 'hello_inh'
+    list: ['a_inh']
+    d_list+: ['a_inh', 'b_inh']
+    dict:
+      - a: 'a_inh'
+      - b: 'b_inh'
+    d_dict+:
+      - {}
+      - a: 'a_inh'
+      - b: 'b_inh'

@@ -79,7 +79,7 @@ def delete_unused(pav_cfg, tests_dir: Path, builds_dir: Path, verbose: bool = Fa
     msgs = []
     with lockfile.LockFile(lock_path) as lock:
         for path in dir_db.select(pav_cfg, builds_dir, filter_builds, fn_base=16)[0]:
-            lock.renew()
+            lock.renew(rate_limit=True)
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()

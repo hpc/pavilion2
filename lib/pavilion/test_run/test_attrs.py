@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable, Any
 
 from pavilion import utils
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError
 
 
 # pylint: disable=protected-access
@@ -114,8 +114,8 @@ class TestAttributes:
                 attrs = json.load(attr_file)
             except (json.JSONDecodeError, OSError, ValueError, KeyError) as err:
                 raise TestRunError(
-                    "Could not load attributes file: \n{}"
-                    .format(err.args))
+                    "Could not load attributes file for test at '{}'"
+                    .format(self.path), err)
 
         for key, val in attrs.items():
             deserializer = self.deserializers.get(key)

@@ -8,19 +8,16 @@ from collections import defaultdict
 from io import StringIO
 from typing import List, Dict, TextIO, Union, Set
 
-from pavilion import output, result, schedulers, cancel_utils
+import pavilion.errors
+from pavilion import output, result, schedulers, cancel
 from pavilion.build_tracker import MultiBuildTracker
-from pavilion.exceptions import TestRunError, TestConfigError
+from pavilion.errors import TestRunError, TestConfigError, TestSetError, ResultError
 from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.utils import str_bool
 
 S_STATES = SERIES_STATES
-
-
-class TestSetError(RuntimeError):
-    """For when creating a test set goes wrong."""
 
 
 class TestSet:
@@ -195,10 +192,9 @@ class TestSet:
                 outfile=outfile,
             )
         except TestConfigError as err:
-            msg = ("Error loading test configs for test set '{}': {}"
-                   .format(self.name, err.args[0]))
-            self.status.set(S_STATES.ERROR, msg)
-            raise TestSetError(msg)
+            msg = "Error loading test configs for test set '{}'".format(self.name)
+            self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
+            raise TestSetError(msg, err)
 
         progress = 0
         tot_tests = len(test_configs)
@@ -208,9 +204,7 @@ class TestSet:
 
         for ptest in test_configs:
             progress += 1.0 / tot_tests
-            if not isinstance(outfile, io.StringIO):
-                output.fprint("Creating Test Runs: {:.0%}".format(progress),
-                              file=outfile, end='\r')
+            output.fprint(outfile, "Creating Test Runs: {:.0%}".format(progress), end='\r')
 
             if build_only and local_builds_only:
                 # Don't create test objects for tests that would build remotely.
@@ -245,14 +239,14 @@ class TestSet:
             except (TestRunError, TestConfigError) as err:
                 tcfg = ptest.config
                 test_name = "{}.{}".format(tcfg.get('suite'), tcfg.get('name'))
-                msg = ("Error creating test '{}' in test set '{}': {}"
-                       .format(test_name, self.name, err.args[0]))
-                self.status.set(S_STATES.ERROR, msg)
+                msg = ("Error creating test '{}' in test set '{}'"
+                       .format(test_name, self.name))
+                self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
                 self.cancel("Error creating other tests in test set '{}'"
                             .format(self.name))
-                raise TestSetError(msg)
+                raise TestSetError(msg, err)
 
-        output.fprint('', file=outfile)
+        output.fprint(outfile, '')
 
         # make sure result parsers are ok. This will throw an exception if they are not.
         self.check_result_format(self.tests)
@@ -261,6 +255,16 @@ class TestSet:
             S_STATES.SET_MAKE,
             "Test set '{}' created {} tests, skipped {}"
             .format(self.name, len(self.tests), skip_count))
+
+        # make sure result parsers are ok
+        self.check_result_format(self.tests)
+
+        output.fprint(
+            outfile,
+            "Test set '{}' created {} tests, skipped {}\n"
+            "Reasons for skipping each test are in the series status file here:\n"
+            "{}"
+            .format(self.name, len(self.tests), skip_count, self.status.path))
 
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
@@ -283,8 +287,8 @@ class TestSet:
             raise RuntimeError("You must run TestSet.make() on the test set before"
                                "it can be built.")
 
-        output.fprint("Building {} tests for test set {}."
-                      .format(len(self.tests), self.name), file=outfile)
+        output.fprint(outfile, "Building {} tests for test set {}."
+                      .format(len(self.tests), self.name))
 
         outfile = outfile or StringIO()
 
@@ -339,11 +343,9 @@ class TestSet:
         test_by_threads = {}
 
         if verbosity > 0:
-            output.fprint(
-                self.BUILD_STATUS_PREAMBLE.format(
-                    when='When', test_id='TestID',
-                    state_len=STATES.max_length, state='State'),
-                'Message', file=outfile, width=None)
+            output.fprint(outfile, self.BUILD_STATUS_PREAMBLE.format(
+                when='When', test_id='TestID',
+                state_len=STATES.max_length, state='State'), 'Message', width=None)
 
         builds_running = 0
         # Run and track <max_threads> build threads, giving output according
@@ -383,8 +385,8 @@ class TestSet:
                                         .format(when=when, test_id=test.full_id,
                                                 state_len=STATES.max_length,
                                                 state=state))
-                            output.fprint(preamble, msg, wrap_indent=len(preamble),
-                                          file=outfile, width=None)
+                            output.fprint(outfile, preamble, msg, width=None,
+                                          wrap_indent=len(preamble))
 
             test_threads = [thr for thr in test_threads if thr is not None]
 
@@ -400,28 +402,34 @@ class TestSet:
                             "Run aborted due to failures in other builds.")
                     test.set_run_complete()
 
-                output.fprint(
-                    color=output.RED, file=outfile, clear=True)
-                output.fprint(
-                    color=output.CYAN, file=outfile)
+                output.fprint(file=outfile, color=output.RED, clear=True)
+                output.fprint(file=outfile, color=output.CYAN)
 
                 msg = [
-                    "Build error while building tests. Cancelling all builds.",
+                    "Build error while building tests. Cancelling all builds.\n",
                     "Failed builds are placed in <working_dir>/test_runs/"
                     "<test_id>/build for the corresponding test run.",
-                    "Errors:"
+                    "Tests with build errors:"
                 ]
 
+                test_id = '<id>'
                 for tracker in self.mb_tracker.failures():
                     test = tests_by_tracker[tracker]
+                    if test.full_id.startswith('main'):
+                        test_id = str(test.id)
+                    else:
+                        test_id = test.full_id
 
                     msg.append(
-                        "Build error for test {test} (#{id}) in "
-                        "test set '{set_name}'."
-                        "See test status file (pav cat {id} status) and/or "
-                        "the test build log (pav log build {id})"
-                        .format(test=test.name, id=test.full_id,
+                        " - {test} ({id} in test set '{set_name}')"
+                        .format(test=test.name, id=test_id,
                                 set_name=self.name))
+
+                msg.append('')
+                msg.append("See test status file (pav cat {id} status) and/or "
+                            "the test build log (pav log build {id})"
+                            .format(id=test_id))
+
                 msg = '\n  '.join(msg)
 
                 raise TestSetError(msg)
@@ -434,9 +442,7 @@ class TestSet:
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                if not isinstance(outfile, io.StringIO):
-                    output.fprint(line, end='\r', file=outfile, width=None, clear=True)
-
+                output.fprint(outfile, line, width=None, end='\r', clear=True)
             elif verbosity > 1:
                 for test in local_builds:
                     seen = message_counts[test.full_id]
@@ -448,15 +454,15 @@ class TestSet:
                             when=when, test_id=test.id,
                             state_len=STATES.max_length, state=state)
 
-                        output.fprint(preamble, msg, wrap_indent=len(preamble),
-                                      file=outfile, width=None)
+                        output.fprint(outfile, preamble, msg, width=None,
+                                      wrap_indent=len(preamble))
                     message_counts[test.full_id] += len(msgs)
 
             time.sleep(self.BUILD_SLEEP_TIME)
 
         if verbosity == 0:
             # Print a newline after our last status update.
-            output.fprint(width=None, file=outfile)
+            output.fprint(file=outfile, width=None)
 
         self.built_tests = local_builds
         self.ready_to_start_tests = defaultdict(lambda: [])
@@ -516,13 +522,13 @@ class TestSet:
                                     "Kicking off {} tests under scheduler {}"
                                     .format(len(tests), sched_name))
                     scheduler.schedule_tests(self.pav_cfg, tests)
-                except schedulers.SchedulerPluginError as err:
+                except pavilion.errors.SchedulerPluginError as err:
                     self.cancel(
                         "Error scheduling tests (not necessarily this one): {}"
                         .format(err.args[0]))
                     raise TestSetError(
-                        "Error starting tests in test set '{}': {}"
-                        .format(self.name, err.args[0]))
+                        "Error starting tests in test set '{}'"
+                        .format(self.name), err)
 
                 self.started_tests.extend(tests)
 
@@ -555,7 +561,7 @@ class TestSet:
             try:
                 result.check_config(test.config['result_parse'],
                                     test.config['result_evaluate'])
-            except result.ResultError as err:
+            except ResultError as err:
                 rp_errors.append((test, str(err)))
 
         if rp_errors:
@@ -563,7 +569,7 @@ class TestSet:
             for test, error in rp_errors:
                 msg.append("{} - {}".format(test.name, error))
 
-            raise TestSetError(msg)
+            raise TestSetError('\n'.join(msg))
 
     def force_completion(self):
         """Mark all of the tests as complete. We generally do this after

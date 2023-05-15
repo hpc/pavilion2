@@ -9,11 +9,6 @@ EMPTY_VALUES = (None, [])
 """Result Parser return values that are considered to be empty of value."""
 
 
-class ResultError(RuntimeError):
-    """Error thrown when a failure occurs with any sort of result
-    processing."""
-
-
 def normalize_filename(name: Path) -> str:
     """Remove any characters that aren't allowed in Pavilion
     result variable names."""

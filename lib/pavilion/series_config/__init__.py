@@ -4,7 +4,7 @@ from typing import List
 import yc_yaml
 import yaml_config
 from pavilion.resolver import TestConfigResolver
-from ..exceptions import TestConfigError
+from ..errors import TestConfigError
 from .file_format import SeriesConfigLoader
 
 
@@ -97,7 +97,7 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
             return series_config_loader.load(series_file)
         except (ValueError, KeyError, yc_yaml.YAMLError,
                 yaml_config.RequiredError) as err:
-            raise SeriesConfigError("Error loading series '{}': {}")
+            raise SeriesConfigError("Error loading series '{}'".format(series_name), err)
 
 
 def verify_configs(pav_cfg, series_name: str, host: str = None,
@@ -118,10 +118,10 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
             all_modes = series_cfg['modes'] + set_dict['modes'] + modes
             resolver.load(set_dict['tests'], host, all_modes)
     except AttributeError as err:
-        raise SeriesConfigError("Cannot load series. {}".format(err.args[0]))
+        raise SeriesConfigError("Cannot load series.", err)
     except TestConfigError as err:
-        raise SeriesConfigError("Error loading test for series {}.\n{}"
-                                .format(series_name, err.args[0]))
+        raise SeriesConfigError("Error loading test for series {}."
+                                .format(series_name), err)
 
     return series_cfg
 

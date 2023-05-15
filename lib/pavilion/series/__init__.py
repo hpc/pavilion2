@@ -3,16 +3,17 @@
 import json
 from typing import TextIO
 
+from pavilion import output
 from pavilion import utils, dir_db
 from ..sys_vars import base_classes
-from .errors import TestSeriesError, TestSeriesWarning
+from ..errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo, path_to_sid, mk_series_info_transform
 from .series import TestSeries
 from .test_set import TestSet
 from .common import COMPLETE_FN, STATUS_FN
 
 
-def load_user_series_id(pav_cfg) -> str:
+def load_user_series_id(pav_cfg, errfile=None):
     """Load the last series id used by the current user."""
 
     user = utils.get_login()
@@ -30,8 +31,10 @@ def load_user_series_id(pav_cfg) -> str:
             sys_name_series_dict = json.load(last_series_file)
             return sys_name_series_dict[sys_name].strip()
     except (IOError, OSError, KeyError) as err:
-        raise TestSeriesError("Failed to read series id file '{}': {}"
-                              .format(last_series_fn, err))
+        if errfile:
+            output.fprint(errfile, "Failed to read series id file '{}'"
+                                   .format(last_series_fn), err)
+        return None
 
 
 def list_series_tests(pav_cfg, sid: str):

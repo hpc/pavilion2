@@ -13,11 +13,13 @@ import threading
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Union
+from typing import Union, Dict
 
-from pavilion import extract, lockfile, utils, wget
+import pavilion.config
+import pavilion.errors
+from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
-from pavilion.exceptions import TestBuilderError
+from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
@@ -48,15 +50,17 @@ class TestBuilder:
 
     LOG_NAME = "pav_build_log"
 
-    def __init__(self, pav_cfg, working_dir: Path, config: dict, script: Path,
-                 status: TestStatusFile, download_dest: Path, spack_config: dict = None,
-                 build_name=None):
+    def __init__(self, pav_cfg: pavilion.config.PavConfig, working_dir: Path, config: dict,
+                 script: Path, status: TestStatusFile, download_dest: Path,
+                 templates: Dict[Path, Path] = None,
+                 spack_config: dict = None, build_name=None):
         """Initialize the build object.
 
         :param pav_cfg: The Pavilion config object
         :param working_dir: The working directory where this build should go.
         :param config: The build configuration.
         :param script: Path to the build script
+        :param templates: Paths to template files and their destinations.
         :param spack_config: Give a spack config to enable spack builds.
         :param build_name: The build name, if this is a build that
             already exists.
@@ -68,6 +72,7 @@ class TestBuilder:
         self._spack_config = spack_config
         self._script_path = script
         self._download_dest = download_dest
+        self._templates: Dict[Path, Path] = templates or {}
 
         try:
             self._timeout = parse_timeout(config.get('timeout'))
@@ -96,7 +101,7 @@ class TestBuilder:
         self.tmp_log_path = self.path.with_suffix('.log')
         self.log_path = self.path/self.LOG_NAME
         fail_name = 'fail.{}.{}'.format(self.name, time.time())
-        self.fail_path = pav_cfg.working_dir/'builds'/fail_name
+        self.fail_path = self.path.parent/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
         if self._timeout_file is not None:
@@ -104,15 +109,24 @@ class TestBuilder:
         else:
             self._timeout_file = self.tmp_log_path
 
-        # Don't allow a file to be written outside of the build context dir.
-        files_to_create = self._config.get('create_files')
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                file_path = Path((self.path / file).resolve())
-                if not utils.dir_contains(file_path, self.path.resolve()):
-                    raise TestBuilderError("'create_file: {}': file path"
-                                           " outside build context."
-                                           .format(file_path))
+        # Verify template and file creation destinations
+        for file in self._config.get('create_files', {}).keys():
+            try:
+                create_files.verify_path(file, self.path)
+            except TestConfigError as err:
+                raise TestBuilderError("build.create_file has bad path '{}'".format(file), err)
+
+        for tmpl, dest in self._config.get('templates', {}).items():
+            try:
+                create_files.verify_path(tmpl, self.path)
+            except TestConfigError as err:
+                raise TestBuilderError("build.create_file has bad template path '{}'"
+                                       .format(tmpl), err)
+            try:
+                create_files.verify_path(dest, self.path)
+            except TestConfigError as err:
+                raise TestBuilderError("build.create_file has bad destination path '{}'"
+                                       .format(dest), err)
 
     def exists(self):
         """Return True if the given build exists."""
@@ -187,10 +201,14 @@ class TestBuilder:
                     "Invalid src location {}."
                     .format(src_path))
 
+        # Hash all the given template files.
+        for tmpl_src in sorted(self._templates.keys()):
+            hash_obj.update(self._hash_file(tmpl_src))
+
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
-            full_path = self._find_file(extra_file, Path('test_src'))
+            full_path = self._pav_cfg.find_file(extra_file, Path('test_src'))
 
             if full_path is None:
                 raise TestBuilderError(
@@ -211,15 +229,11 @@ class TestBuilder:
         # hashed before build time. Thus, we include a hash of each file
         # consisting of the filename (including path) and it's contents via
         # IOString object.
-        files_to_create = self._config.get('create_files')
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                io_contents = io.StringIO()
+        for file, contents in self._config.get('create_files', {}).items():
+            with io.StringIO() as io_contents:
                 io_contents.write("{}\n".format(file))
-                for line in contents:
-                    io_contents.write("{}\n".format(line))
+                create_files.write_file(contents, io_contents)
                 hash_obj.update(self._hash_io(io_contents))
-                io_contents.close()
 
         hash_obj.update(self._config.get('specificity', '').encode())
 
@@ -255,7 +269,7 @@ class TestBuilder:
         self.name = self.name_build()
         self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, time.time())
-        self.fail_path = self._pav_cfg.working_dir/'builds'/fail_name
+        self.fail_path = self.path.parent/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
     def deprecate(self):
@@ -281,10 +295,9 @@ class TestBuilder:
         except ValueError as err:
             raise TestBuilderError(
                 "The source path must be a valid unix path, either relative "
-                "or absolute, got '{}':\n{}"
-                .format(src_path, err.args[0]))
+                "or absolute, got '{}'".format(src_path), err)
 
-        found_src_path = self._find_file(src_path, 'test_src')
+        found_src_path = self._pav_cfg.find_file(src_path, 'test_src')
 
         src_url = self._config.get('source_url')
         src_download = self._config.get('source_download')
@@ -321,17 +334,16 @@ class TestBuilder:
                 except OSError as err:
                     raise TestBuilderError(
                         "Could not create parent directory to place "
-                        "downloaded source:\n{}".format(err.args[0]))
+                        "downloaded source:\n{}".format(err))
 
             self.status.set(STATES.BUILDING,
                             "Updating source at '{}'.".format(found_src_path))
 
             try:
                 wget.update(self._pav_cfg, src_url, dwn_dest)
-            except wget.WGetError as err:
+            except pavilion.errors.WGetError as err:
                 raise TestBuilderError(
-                    "Could not retrieve source from the given url '{}':\n{}"
-                    .format(src_url, err.args[0]))
+                    "Could not retrieve source from the given url '{}'".format(src_url), err)
 
             return dwn_dest
 
@@ -379,9 +391,7 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
             lock_path = self.path.with_suffix('.lock')
-            with lockfile.LockFile(lock_path,
-                                   group=self._pav_cfg.shared_group)\
-                    as lock:
+            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group) as lock:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists():
@@ -400,30 +410,36 @@ class TestBuilder:
                         except OSError as err:
                             tracker.error(
                                 "Could not remove unfinished build.\n{}"
-                                .format(err.args[0]))
+                                .format(err))
                             return False
 
-                    # Attempt to perform the actual build, this shouldn't
-                    # raise an exception unless something goes terribly
-                    # wrong.
-                    # This will also set the test status for
-                    # non-catastrophic cases.
-                    if not self._build(self.path, cancel_event, test_id,
-                                       tracker, lock=lock):
+                    with lockfile.LockFilePoker(lock):
+                        # Attempt to perform the actual build, this shouldn't
+                        # raise an exception unless something goes terribly
+                        # wrong.
+                        # This will also set the test status for
+                        # non-catastrophic cases.
+                        if not self._build(self.path, cancel_event, test_id, tracker):
 
-                        try:
-                            self.path.rename(self.fail_path)
-                        except FileNotFoundError as err:
-                            tracker.error(
-                                "Failed to move build {} from {} to "
-                                "failure path {}: {}"
-                                .format(self.name, self.path,
-                                        self.fail_path, err))
-                            self.fail_path.mkdir()
-                        if cancel_event is not None:
-                            cancel_event.set()
+                            try:
+                                self.path.rename(self.fail_path)
+                            except FileNotFoundError as err:
+                                tracker.error(
+                                    "Failed to move build {} from {} to "
+                                    "failure path {}"
+                                    .format(self.name, self.path,
+                                            self.fail_path), err)
+                                try:
+                                    self.fail_path.mkdir()
+                                except OSError as err2:
+                                    tracker.error(
+                                        "Could not create fail directory for "
+                                        "build {} at {}"
+                                        .format(self.name, self.fail_path, err2))
+                            if cancel_event is not None:
+                                cancel_event.set()
 
-                        return False
+                            return False
 
                     try:
                         self.finished_path.touch()
@@ -481,16 +497,13 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, test_id,
-               tracker: BuildTracker, lock: lockfile.LockFile = None):
+    def _build(self, build_dir, cancel_event, test_id, tracker: BuildTracker):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
             should stop.
         :param test_id: The 'full_id' of the test initiating the build.
         :param tracker: Build tracker for this build.
-        :param lock: The lockfile object. This will need to be refreshed to
-            keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
@@ -521,9 +534,8 @@ class TestBuilder:
                 timeout = time.time() + self._timeout
                 while result is None:
                     try:
-                        result = proc.wait(timeout=1)
+                        result = proc.wait(timeout=0.2)
                     except subprocess.TimeoutExpired:
-                        lock.renew()
                         if self._timeout_file.exists():
                             timeout_file = self._timeout_file
                         else:
@@ -570,8 +582,7 @@ class TestBuilder:
                 self.tmp_log_path.rename(build_dir/self.LOG_NAME)
             except OSError as err:
                 tracker.warn(
-                    "Could not move build log from '{}' to final location "
-                    "'{}': {}"
+                    "Could not move build log from '{}' to final location '{}': {}"
                     .format(self.tmp_log_path, build_dir, err))
 
         try:
@@ -617,7 +628,7 @@ class TestBuilder:
         if raw_src_path is None:
             src_path = None
         else:
-            src_path = self._find_file(Path(raw_src_path), 'test_src')
+            src_path = self._pav_cfg.find_file(Path(raw_src_path), 'test_src')
             if src_path is None:
                 raise TestBuilderError("Could not find source file '{}'"
                                        .format(raw_src_path))
@@ -689,39 +700,40 @@ class TestBuilder:
                     shutil.copy(src_path.as_posix(), copy_dest.as_posix())
                 except OSError as err:
                     raise TestBuilderError(
-                        "Could not copy test src '{}' to '{}': {}"
-                        .format(src_path, dest, err))
+                        "Could not copy test src '{}' to '{}'"
+                        .format(src_path, dest), err)
+
+        tracker.update(
+            state=STATES.BUILDING,
+            note="Generating dynamically created files.")
 
         # Create build time file(s).
-        files_to_create = self._config.get('create_files')
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                file_path = (dest / file).resolve()
-                # Do not allow file to clash with existing directory.
-                if file_path.is_dir():
-                    raise TestBuilderError("'create_file: {}' clashes with"
-                                           " existing directory in test source."
-                                           .format(str(file_path)))
-                dirname = file_path.parent
-                (dest / dirname).mkdir(parents=True, exist_ok=True)
-                with file_path.open('w') as file_:
-                    for line in contents:
-                        file_.write("{}\n".format(line))
+        for file, contents in self._config.get('create_files', {}).items():
+            try:
+                create_files.create_file(file, self.path, contents)
+            except TestConfigError as err:
+                raise TestBuilderError(
+                    "Error creating 'create_file' '{}'"
+                    .format(file), err)
 
-        # Now we just need to copy over all of the extra files.
+        # Copy over the template files.
+        for tmpl_src, tmpl_dest in self._templates.items():
+            tmpl_dest = self.path/tmpl_dest
+            try:
+                tmpl_dest.parent.mkdir(exist_ok=True)
+                shutil.copyfile(tmpl_src, tmpl_dest)
+            except OSError as err:
+                raise TestBuilderError(
+                    "Error copying template file from {} to {}"
+                    .format(tmpl_src, tmpl_dest), err)
+
+        # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            path = self._find_file(extra, 'test_src')
+            path = self._pav_cfg.find_file(extra, 'test_src')
             final_dest = dest / path.name
             try:
                 if path.is_dir():
-                    # IF extra_file in extra_files is directory
-                    tracker.update(
-                        state=STATES.CREATED,
-                        note=("Copying EXTRA_FILES directory {} to {} "
-                              "as the build directory."
-                              .format(path, final_dest)))
-
                     utils.copytree(
                         path.as_posix(),
                         final_dest.as_posix(),
@@ -732,8 +744,8 @@ class TestBuilder:
                     shutil.copyfile(path.as_posix(), final_dest.as_posix())
             except OSError as err:
                 raise TestBuilderError(
-                    "Could not copy extra file '{}' to dest '{}': {}"
-                    .format(path, dest, err))
+                    "Could not copy extra file '{}' to dest '{}'"
+                    .format(path, dest), err)
 
     def copy_build(self, dest: Path):
         """Copy the build (using 'symlink' copying to the destination.
@@ -757,7 +769,7 @@ class TestBuilder:
                     "rather than symlinked) could not be found:\n"
                     "base_glob: {}\n"
                     "full_glob: {}\n"
-                    "These files were available in the top glob dir: {}"
+                    "These files were available in the top glob dir"
                     .format(copy_glob, final_glob, avail))
 
             do_copy.update(blob)
@@ -786,7 +798,7 @@ class TestBuilder:
                             copy_function=maybe_symlink_copy)
         except OSError as err:
             raise TestBuilderError(
-                "Could not perform the build directory copy: {}".format(err))
+                "Could not perform the build directory copy".format(err))
 
         # Touch the original build directory, so that we know it was used
         # recently.
@@ -924,35 +936,6 @@ class TestBuilder:
         parsed = urllib.parse.urlparse(url)
         return parsed.scheme != ''
 
-    def _find_file(self, file: Path, sub_dir: Union[str, Path] = None) \
-            -> Union[Path, None]:
-        """Look for the given file and return a full path to it. Relative paths
-        are searched for in all config directories under 'test_src'.
-
-    :param file: The path to the file.
-    :param sub_dir: The subdirectory in each config directory in which to
-        search.
-    :returns: The full path to the found file, or None if no such file
-        could be found."""
-
-        if file.is_absolute():
-            if file.exists():
-                return file
-            else:
-                return None
-
-        # Assemble a potential location from each config dir.
-        for config in self._pav_cfg.configs.values():
-            path = config['path']
-            if sub_dir is not None:
-                path = path/sub_dir
-            path = path/file
-
-            if path.exists():
-                return path
-
-        return None
-
     @staticmethod
     def _date_dir(base_path):
         """Update the mtime of the given directory or path to the the latest
@@ -964,7 +947,12 @@ class TestBuilder:
         latest = src_stat.st_mtime
 
         for path in utils.flat_walk(base_path):
-            dir_stat = path.stat()
+            try:
+                dir_stat = path.stat()
+            except OSError as err:
+                raise TestBuilderError(
+                    "Could not stat file in test source dir '{}'"
+                    .format(base_path), err)
             if dir_stat.st_mtime > latest:
                 latest = dir_stat.st_mtime
 

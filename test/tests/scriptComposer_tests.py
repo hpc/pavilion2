@@ -1,18 +1,22 @@
-import grp, os, pwd, stat, sys, unittest
-from pathlib import Path
-from collections import OrderedDict
+import grp
+import os
+import stat
+
 from pavilion import scriptcomposer
 from pavilion.unittest import PavTestCase
-from pavilion import utils
+
 
 class TestScriptWriter(PavTestCase):
 
     script_path = 'testName.batch'
 
-    def setUp(self):
+    def set_up(self):
         """Set up for the ScriptComposer tests."""
         if os.path.exists(self.script_path):
             os.remove(self.script_path)
+
+    def tear_down(self):
+        pass
 
     def _other_group(self):
         """Find a group other than the user's default group to use when creating files.

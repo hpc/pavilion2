@@ -1,12 +1,12 @@
-from pathlib import Path
 import json
 import logging
 import tempfile
 import unittest
+from pathlib import Path
 
+import pavilion.errors
 from pavilion import wget
 from pavilion.unittest import PavTestCase
-import traceback
 
 PAV_DIR = Path(__file__).resolve().parents[2]
 
@@ -27,7 +27,7 @@ class TestWGet(PavTestCase):
         # Try to get a configuration from the testing pavilion.yaml file.
         try:
             info = wget.head(self.pav_cfg, self.GET_TARGET)
-        except wget.WGetError as err:
+        except pavilion.errors.WGetError as err:
             self.fail("Failed with: {}".format(err.args[0]))
 
         # Make sure we can pull basic info using an HTTP HEAD. The Etag can
@@ -43,7 +43,7 @@ class TestWGet(PavTestCase):
         # Raises an exception on failure.
         try:
             wget.get(self.pav_cfg, self.GET_TARGET, dest_fn)
-        except wget.WGetError as err:
+        except pavilion.errors.WGetError as err:
             self.fail("Failed with: {}".format(err.args[0]))
 
         self.assertEqual(self.TARGET_HASH,
@@ -64,7 +64,7 @@ class TestWGet(PavTestCase):
         # Update should get the file if it doesn't exist.
         try:
             wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
-        except wget.WGetError as err:
+        except pavilion.errors.WGetError as err:
             self.fail("Failed with: {}".format(err.args[0]))
 
         self.assertTrue(dest_fn.exists())
@@ -78,7 +78,7 @@ class TestWGet(PavTestCase):
         info_fn.unlink()
         try:
             wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
-        except wget.WGetError as err:
+        except pavilion.errors.WGetError as err:
             self.fail("Failed with: {}".format(err.args[0]))
         new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)
@@ -93,7 +93,7 @@ class TestWGet(PavTestCase):
             json.dump(db_data, info_file)
         try:
             wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
-        except wget.WGetError as err:
+        except pavilion.errors.WGetError as err:
             self.fail("Failed with: {}".format(err.args[0]))
         new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)

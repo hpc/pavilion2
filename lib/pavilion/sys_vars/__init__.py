@@ -2,8 +2,10 @@
 speed."""
 
 from . import base_classes
-from .base_classes import SystemPlugin, SysVarDict, SystemPluginError, get_vars
+from .base_classes import SystemPlugin, SysVarDict, get_vars
+from ..errors import SystemPluginError
 from .host_arch import HostArch
+from .host_cpus import HostCPUs
 from .host_name import HostName
 from .host_os import HostOS
 from .sys_arch import SystemArch
@@ -13,6 +15,7 @@ from .sys_os import SystemOS
 
 _builtin_sys_plugins = [
     HostArch,
+    HostCPUs,
     HostName,
     HostOS,
     SystemArch,

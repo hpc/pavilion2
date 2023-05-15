@@ -2,7 +2,7 @@
 the list of all known test runs."""
 
 # pylint: disable=too-many-lines
-
+import copy
 import json
 import logging
 import pprint
@@ -13,22 +13,25 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import TextIO, Union
+from typing import TextIO, Union, Dict
+import yc_yaml as yaml
 
-import pavilion.exceptions
 from pavilion.config import PavConfig
 from pavilion import builder
 from pavilion import dir_db
+from pavilion import errors
 from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion import create_files
+from pavilion import resolve
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
-from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError, ResultError, \
+    VariableError
 from pavilion.jobs import Job
 from pavilion.variables import VariableSetManager
-from pavilion.result.common import ResultError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
@@ -90,6 +93,9 @@ class TestRun(TestAttributes):
     JOB_FN = 'job'
     """Link to the test's scheduler job."""
 
+    BUILD_TEMPLATE_DIR = 'templates'
+    """Directory that holds build templates."""
+
     def __init__(self, pav_cfg: PavConfig, config, var_man=None,
                  _id=None, rebuild=False, build_only=False):
         """Create an new TestRun object. If loading an existing test
@@ -127,7 +133,11 @@ class TestRun(TestAttributes):
         # Get an id for the test, if we weren't given one.
         if new_test:
             # These will be set by save() or on load.
-            id_tmp, run_path = dir_db.create_id_dir(tests_path)
+            try:
+                id_tmp, run_path = dir_db.create_id_dir(tests_path)
+            except (OSError, TimeoutError) as err:
+                raise TestRunError("Could not create test id directory at '{}'"
+                                   .format(tests_path), err)
             super().__init__(path=run_path, load=False)
             self._variables_path = self.path / 'variables'
             self.var_man = None
@@ -166,8 +176,9 @@ class TestRun(TestAttributes):
 
             try:
                 self.var_man = VariableSetManager.load(self._variables_path)
-            except RuntimeError as err:
-                raise TestRunError(*err.args)
+            except VariableError as err:
+                raise TestRunError("Error loading variable set for test {}".format(self.id),
+                                   err)
 
         # If the cfg label is actually something that exists, use it in the
         # test full_id. Otherwise give the test path.
@@ -210,7 +221,6 @@ class TestRun(TestAttributes):
 
         if not new_test:
             self.builder = self._make_builder()
-            self.build_name = self.builder.name
 
         # This will be set by the scheduler
         self._job = None
@@ -266,7 +276,8 @@ class TestRun(TestAttributes):
         self._write_script(
             'build',
             path=self.build_script_path,
-            config=self.config.get('build', {}))
+            config=self.config.get('build', {}),
+            module_wrappers=self.config.get('module_wrappers', {}))
 
         self.builder = self._make_builder()
         self.build_name = self.builder.name
@@ -274,7 +285,8 @@ class TestRun(TestAttributes):
         self._write_script(
             'run',
             path=self.run_tmpl_path,
-            config=self.config.get('run', {}))
+            config=self.config.get('run', {}),
+            module_wrappers=self.config.get('module_wrappers', {}))
 
         self.save_attributes()
         self.status.set(STATES.CREATED, "Test directory setup complete.")
@@ -290,6 +302,8 @@ class TestRun(TestAttributes):
         else:
             download_dest = None
 
+        templates = self._create_build_templates()
+
         try:
             test_builder = builder.TestBuilder(
                 pav_cfg=self._pav_cfg,
@@ -299,14 +313,40 @@ class TestRun(TestAttributes):
                 status=self.status,
                 download_dest=download_dest,
                 working_dir=self.working_dir,
+                templates=templates,
+                build_name=self.build_name,
             )
-        except pavilion.exceptions.TestBuilderError as err:
+        except errors.TestBuilderError as err:
             raise TestRunError(
                 "Could not create builder for test {s.name} (run {s.id}): {err}"
                 .format(s=self, err=err)
             )
 
         return test_builder
+
+    def _create_build_templates(self) -> Dict[Path, Path]:
+        """Generate templated files for the builder to use."""
+
+        templates = self.config.get('build', {}).get('templates', {})
+        tmpl_dir = self.path/self.BUILD_TEMPLATE_DIR
+        if templates:
+            if not tmpl_dir.exists():
+                try:
+                    tmpl_dir.mkdir(exist_ok=True)
+                except OSError as err:
+                    raise TestRunError("Could not create build template directory", err)
+
+        tmpl_paths = {}
+        for tmpl_src, tmpl_dest in templates.items():
+            if not (tmpl_dir/tmpl_dest).exists():
+                try:
+                    tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                    create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
+                except TestConfigError as err:
+                    raise TestRunError("Error resolving Build template files", err)
+            tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
+
+        return tmpl_paths
 
     def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
@@ -381,13 +421,16 @@ class TestRun(TestAttributes):
 
         return test_run
 
-    def _finalize(self):
+    def finalize(self, new_vars: VariableSetManager):
         """Resolve any remaining deferred variables, and generate the final
         run script.
 
         DO NOT USE THIS DIRECTLY - Use the resolver finalize method, which
             will call this.
         """
+
+        self.var_man.undefer(new_vars)
+        self.config = resolve.deferred(self.config, self.var_man)
 
         if not self.saved:
             raise RuntimeError("You must call the 'test.save()' method before "
@@ -397,33 +440,20 @@ class TestRun(TestAttributes):
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
 
-        # Create files specified via run config key.
-        files_to_create = self.config['run'].get('create_files', [])
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                file_path = Path(self.build_path / file)
-                # Prevent files from being written outside build directory.
-                if not utils.dir_contains(file_path, self.build_path):
-                    raise TestRunError("'create_file: {}': file path"
-                                       " outside build context."
-                                       .format(file_path))
-                # Prevent files from overwriting existing directories.
-                if file_path.is_dir():
-                    raise TestRunError("'create_file: {}' clashes with"
-                                       " existing directory in build dir."
-                                       .format(file_path))
-                # Create file parent directory(ies).
-                dirname = file_path.parent
-                (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
+        for file, contents in self.config['run'].get('create_files', {}).items():
+            try:
+                create_files.create_file(file, self.build_path, contents)
+            except TestConfigError as err:
+                raise TestRunError("Test run '{}' Could not create build script."
+                                   .format(self.full_id), err)
 
-                # Don't try to overwrite a symlink without removing it first.
-                if file_path.is_symlink():
-                    file_path.unlink()
-
-                # Write file.
-                with file_path.open('w') as file_:
-                    for line in contents:
-                        file_.write("{}\n".format(line))
+        for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
+            try:
+                tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
+            except TestConfigError as err:
+                raise TestRunError("Test run '{}' could not create run script."
+                                   .format(self.full_id, err))
 
         self.save_attributes()
 
@@ -431,6 +461,7 @@ class TestRun(TestAttributes):
             'run',
             self.run_script_path,
             self.config['run'],
+            self.config.get('module_wrappers', {})
         )
 
     @staticmethod
@@ -464,9 +495,25 @@ class TestRun(TestAttributes):
         # make lock
         tmp_path = config_path.with_suffix('.tmp')
 
+        # De-normalize variable values. YAML doesn't support None as a dictionary key.
+        config = copy.deepcopy(self.config)
+        variables = config.get('variables', {})
+        for var_key in variables:
+            new_list = []
+            for item in variables[var_key]:
+                if None in item:
+                    new_list.append(item[None])
+                else:
+                    # Yaml doesn't know what to do with our SubVarDict objects.
+                    # At this point though, they can be fully resolved into normal
+                    # dictionaries.
+                    new_list.append(dict(item))
+            config['variables'][var_key] = new_list
+
         try:
-            with tmp_path.open('w') as json_file:
-                output.json_dump(self.config, json_file)
+            with tmp_path.open('w') as config_file:
+
+                yaml.dump(config, config_file)
                 try:
                     config_path.unlink()
                 except OSError:
@@ -474,12 +521,12 @@ class TestRun(TestAttributes):
                 tmp_path.rename(config_path)
         except (OSError, IOError) as err:
             raise TestRunError(
-                "Could not save TestRun ({}) config at {}: {}"
-                .format(self.name, self.path, err))
+                "Could not save TestRun ({}) config at {}"
+                .format(self.name, self.path), err)
         except TypeError as err:
             raise TestRunError(
-                "Invalid type in config for ({}): {}"
-                .format(self.name, err))
+                "Invalid type in config for ({})"
+                .format(self.name), err)
 
     @classmethod
     def _load_config(cls, test_path):
@@ -494,13 +541,26 @@ class TestRun(TestAttributes):
             with config_path.open('r') as config_file:
                 # Because only string keys are allowed in test configs,
                 # this is a reasonable way to load them.
-                return json.load(config_file)
+                config = yaml.load(config_file)
         except TypeError as err:
-            raise TestRunError("Bad config values for config '{}': {}"
-                               .format(config_path, err))
+            raise TestRunError("Bad config values for config '{}'"
+                               .format(config_path), err)
         except (IOError, OSError) as err:
-            raise TestRunError("Error reading config file '{}': {}"
-                               .format(config_path, err))
+            raise TestRunError("Error reading config file '{}'"
+                               .format(config_path), err)
+
+        # Re-normalize variable values.
+        variables = config.get('variables', {})
+        for var_key in variables:
+            new_list = []
+            for item in variables[var_key]:
+                if isinstance(item, str):
+                    new_list.append({None: item})
+                else:
+                    new_list.append(item)
+            variables[var_key] = new_list
+
+        return config
 
     def spack_enabled(self):
         """Check if spack is being used by this test run."""
@@ -558,15 +618,23 @@ class TestRun(TestAttributes):
 
             try:
                 self.builder.copy_build(self.build_path)
-            except pavilion.exceptions.TestBuilderError as err:
+            except errors.TestBuilderError as err:
                 tracker.fail("Error copying build: {}".format(err.args[0]))
                 cancel_event.set()
             build_result = True
 
         else:
-            self.builder.fail_path.rename(self.build_path)
+            try:
+                self.builder.fail_path.rename(self.build_path)
+            except OSError as err:
+                tracker.error("Could not move failed build: {}".format(err))
+
             for file in utils.flat_walk(self.build_path):
-                file.chmod(file.stat().st_mode | 0o200)
+                try:
+                    file.chmod(file.stat().st_mode | 0o220)
+                except FileNotFoundError:
+                    # Builds can have symlinks that point to non-existent files.
+                    pass
             build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
@@ -977,13 +1045,13 @@ be set by the scheduler plugin as soon as it's known."""
                 .format(run_complete_path.as_posix(), err))
             return None
 
-    def _write_script(self, stype, path, config):
+    def _write_script(self, stype: str, path: Path, config: dict, module_wrappers: dict):
         """Write a build or run script or template. The formats for each are
             mostly identical.
-        :param str stype: The type of script (run or build).
-        :param Path path: Path to the template file to write.
-        :param dict config: Configuration dictionary for the script file.
-        :return:
+        :param stype: The type of script (run or build).
+        :param path: Path to the template file to write.
+        :param config: Configuration dictionary for the script file.
+        :param module_wrappers: The module wrappers definition.
         """
 
         script = scriptcomposer.ScriptComposer()
@@ -1021,7 +1089,9 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Perform module related changes to the environment.')
 
             for module in config.get('modules', []):
-                script.module_change(module, self.var_man)
+                module = module.strip()
+                if module:
+                    script.module_change(module, self.var_man, module_wrappers)
 
         env = config.get('env', {})
         if env:
@@ -1059,8 +1129,10 @@ be set by the scheduler plugin as soon as it's known."""
                 script.newline()
                 script.comment('Install spack packages.')
                 for package in install_packages:
-                    script.command('spack install -v --fail-fast {} || exit 1'
-                                   .format(package))
+                    script.command('spack add {} || exit 1'.format(package))
+
+                script.command('spack install -v --fail-fast || exit 1'
+                               .format(package))
 
             if load_packages:
                 script.newline()
@@ -1073,6 +1145,8 @@ be set by the scheduler plugin as soon as it's known."""
         cmds = config.get('cmds', [])
         if cmds:
             script.comment("Perform the sequence of test commands.")
+            if utils.str_bool(self.config.get(stype, {}).get('autoexit')):
+                script.command("set -e -o pipefail")
             for line in config.get('cmds', []):
                 if line is None:
                     line = ''

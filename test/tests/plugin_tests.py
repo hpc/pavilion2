@@ -1,31 +1,36 @@
 """Test plugin system functionality."""
 
 import argparse
-
-import pavilion.deferred
-from pavilion import arguments
-from pavilion import commands
-from pavilion import config
-from pavilion import module_wrapper
-from pavilion import plugins
-from pavilion import output
-from pavilion import result_parsers
-from pavilion import sys_vars
-from pavilion import expression_functions
-from pavilion.resolver import variables
-from pavilion.unittest import PavTestCase
 import io
 import logging
 import subprocess
+import sys
+
+import pavilion.deferred
+import pavilion.errors
+from pavilion import arguments
+from pavilion import commands
+from pavilion import config
+from pavilion import expression_functions
+from pavilion import module_wrapper
+from pavilion import output
+from pavilion import plugins
+from pavilion import result_parsers
+from pavilion import sys_vars
+from pavilion.resolver import variables
+from pavilion.unittest import PavTestCase
 
 LOGGER = logging.getLogger(__name__)
 
 
 class PluginTests(PavTestCase):
 
-    def setUp(self):
+    def set_up(self):
         # This has to run before any command plugins are loaded.
         arguments.get_parser()
+
+    def tear_down(self):
+        pass
 
     def test_plugin_loading(self):
         """Check to make sure the plugin system initializes correctly. Separate
@@ -37,7 +42,7 @@ class PluginTests(PavTestCase):
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
         pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
-                               self.TEST_DATA_ROOT/'pav_config_dir2']
+                               self.TEST_DATA_ROOT/'secondary_plugins']
 
         for path in pav_cfg.config_dirs:
             self.assertTrue(path.exists())
@@ -61,7 +66,7 @@ class PluginTests(PavTestCase):
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2'])
+            self.TEST_DATA_ROOT/'secondary_plugins'])
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -77,10 +82,10 @@ class PluginTests(PavTestCase):
 
         pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2',
-            self.TEST_DATA_ROOT / 'pav_config_dir_conflicts'])
+            self.TEST_DATA_ROOT/'secondary_plugins',
+            self.TEST_DATA_ROOT / 'conflicting_plugins'])
 
-        self.assertRaises(plugins.PluginError,
+        self.assertRaises(pavilion.errors.PluginError,
                           lambda: plugins.initialize_plugins(pav_cfg))
 
         # Clean up our plugin initializations.
@@ -120,7 +125,7 @@ class PluginTests(PavTestCase):
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'pav_config_dir2'])
+            self.TEST_DATA_ROOT/'secondary_plugins'])
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
 
@@ -137,7 +142,7 @@ class PluginTests(PavTestCase):
                           lambda: bar2.get_version('1.3.0'))
 
         vsm = variables.VariableSetManager()
-        bar1.load(vsm)
+        bar1.load(vsm, 'bar')
 
         plugins._reset_plugins()
 
@@ -251,9 +256,9 @@ class PluginTests(PavTestCase):
 
         # A bunch of plugins should fail to load, but this should be fine
         # anyway.
-        output.fprint("The following error message is expected; We're testing "
-                      "that such errors are caught and printed rather than "
-                      "crashing pavilion.", color=output.BLUE)
+        output.fprint(sys.stdout, "The following error message is expected; We're testing "
+                                  "that such errors are caught and printed rather than "
+                                  "crashing pavilion.", color=output.BLUE)
         plugins.initialize_plugins(pav_cfg)
 
         yapsy_logger.removeHandler(hndlr)

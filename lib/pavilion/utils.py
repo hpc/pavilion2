@@ -5,7 +5,6 @@ plugins.
 """
 
 import datetime as dt
-import errno
 import os
 import re
 import shutil
@@ -14,6 +13,21 @@ import zipfile
 from pathlib import Path
 from typing import Iterator, Union, TextIO
 from typing import List, Dict
+
+
+def glob_to_re(glob):
+    """Translate the given glob to one that is compatible with (extended) grep.
+    Note that the given RE, in order to be completely correct, must be bounded by
+    '^', '$', or other characters."""
+
+    glob = glob.replace('.', '\\.')
+    glob = glob.replace('?', '.')
+    glob = glob.replace('*', '.*')
+    # Glob sequences are the same, except the inversion characters is different.
+    glob = glob.replace('[!', '[^')
+    # TODO: If there's a dash in a glob sequence, that will break
+
+    return glob
 
 
 def str_bool(val):
@@ -28,11 +42,31 @@ def str_bool(val):
         return False
 
 
-def dir_contains(file, directory):
-    """Check if 'file' is or is contained by 'directory'."""
+def dir_contains(file, directory, symlink_ok: bool = False):
+    """Check if 'file' is or is contained by 'directory'. Both file and directory
+    are first resolved to their true path.
+
+    :
+    param file: The file to check.
+    :param directory: The directory the file must be in.
+    :param symlink_ok: Allow the final path component to be a symlink, regardless
+        of where it points.
+    """
 
     file = Path(file)
-    directory = Path(directory)
+    try:
+        if file.is_symlink() and symlink_ok:
+            file = file.parent.resolve() / file.name
+        else:
+            file = file.resolve()
+    except OSError:
+        return False
+
+    try:
+        directory = Path(directory).resolve()
+    except OSError:
+        return False
+
     while file.parent != file:
         if file == directory:
             return True
@@ -121,7 +155,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
         # catch the Error from the recursive copytree so that we can
         # continue with other files
         except shutil.Error as err:
-            errors.extend(err.args[0])
+            errors.extend(str(err))
         except OSError as why:
             errors.append((srcname, dstname, str(why)))
     try:
@@ -221,10 +255,23 @@ def get_login():
         raise RuntimeError(
             "Could not get the name of the current user.")
 
+def get_user_id():
+    """Get the current user's id, either through os.getuid or the id command."""
+
+    try:
+        return os.getuid()
+    except OSError:
+        pass
+
+    try:
+        name = subprocess.check_output(['id', '-u'], stderr=subprocess.DEVNULL)
+        return name.decode('utf8').strip()
+    except Exception:
+        raise RuntimeError(
+            "Could not get the id of the current user.")
 
 class ZipFileFixed(zipfile.ZipFile):
-    """Overrides the default behavior in ZipFile to preserve execute
-    permissions."""
+    """Overrides the default behavior in ZipFile to preserve execute permissions."""
     def _extract_member(self, member, targetpath, pwd):
 
         ret = super()._extract_member(member, targetpath, pwd)
@@ -391,7 +438,7 @@ def hr_cutoff_to_ts(cutoff_time: str,
             return dt.datetime(*parts).timestamp()
         except ValueError as err:
             raise ValueError(
-                "Invalid time '{}':\n{}".format(cutoff_time, err.args[0])
+                "Invalid time '{}':\n{}".format(cutoff_time, err)
             )
 
     raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))
@@ -404,6 +451,7 @@ def union_dictionary(dict1, dict2):
         dict1[key] = dict1.get(key, []) + dict2[key]
 
     return dict1
+
 
 def flatten_nested_dict(dict_in, keycollect='', new_d=None, keysplit='.'):
     """ Takes a nested dictionary and concatenates its nested keys
@@ -479,6 +527,10 @@ def auto_type_convert(value):
         return {key: auto_type_convert(val) for key, val in value.items()}
 
     if isinstance(value, (int, float, bool)):
+        return value
+
+    if '_' in value:
+        # Don't allow underscores in numeric literals like python does.
         return value
 
     # Probably a string?

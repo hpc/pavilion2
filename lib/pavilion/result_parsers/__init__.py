@@ -1,12 +1,14 @@
 """Built in Result Parser plugins live here. While they're plugins, they're added
 manually for speed."""
 
-from .base_classes import (ResultParser, ResultError, get_plugin, list_plugins,
+from .base_classes import (ResultParser, get_plugin, list_plugins,
                            match_pos_validator, match_select_validator)
+from ..errors import ResultError
 
 from .command import Command
 from .constant import Constant
 from .filecheck import Filecheck
+from .json import Json
 from .regex import Regex
 from .split import Split
 from .table import Table
@@ -15,6 +17,7 @@ _builtin_result_parsers = [
     Command,
     Constant,
     Filecheck,
+    Json,
     Regex,
     Split,
     Table,

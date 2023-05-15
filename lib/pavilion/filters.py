@@ -38,19 +38,14 @@ SORT_KEYS = {
 }
 
 
-def sort_func(test, choice, sort_type):
+def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
+    Sort by default key if given key is invalid at this stage.
     :param test: Dict within list to sort on.
     :param choice: Key in dict to sort by.
-    :param sort_type: Type of list of dicts to sort by, check for key.
     """
 
-    if sort_type not in SORT_KEYS.keys():
-        return None
-    elif choice not in SORT_KEYS[sort_type]:
-        return None
-    else:
-        return test[choice]
+    return test[choice]
 
 
 def add_common_filter_args(target: str,
@@ -145,7 +140,6 @@ def add_common_filter_args(target: str,
     if sort_options:
         arg_parser.add_argument(
             '--sort-by', type=str, default=defaults['sort_by'],
-            choices=sort_options,
             help=("How to sort the {}. Ascending by default. Prepend a '-' to "
                   "sort descending. This will also filter any items that "
                   "don't have the sorted attribute. Default: {}"
@@ -379,12 +373,17 @@ def get_sort_opts(
         for sort_name.
     """
 
-    sort_ascending = True
-    if sort_name.startswith('-'):
-        sort_ascending = False
-        sort_name = sort_name[1:]
+    sort_key = TEST_FILTER_DEFAULTS['sort_by']
+    if stype in SORT_KEYS.keys():
+        if sort_name.strip('-') in SORT_KEYS[stype]:
+            sort_key=sort_name
 
-    sortf = partial(sort_func, choice=sort_name, sort_type=stype)
+    sort_ascending = True
+    if sort_key.startswith('-'):
+        sort_ascending = False
+        sort_key = sort_key[1:]
+
+    sortf = partial(sort_func, choice=sort_key)
 
     return sortf, sort_ascending
 
@@ -406,8 +405,8 @@ SERIES_FILTER_DEFAULTS = {
 
 def make_series_filter(complete: bool = False, has_state: str = None,
                        incomplete: bool = False, name: str = None,
-                       newer_than: dt.datetime = None,
-                       older_than: dt.datetime = None, state: str = None,
+                       newer_than: float = None,
+                       older_than: float = None, state: str = None,
                        sys_name: str = None, user: str = None) \
                     -> Callable[[series.SeriesInfo], bool]:
     """Generate a filter for using with dir_db functions to filter series. This

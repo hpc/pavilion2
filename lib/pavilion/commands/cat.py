@@ -6,6 +6,7 @@ import sys
 
 from pavilion import dir_db
 from pavilion import output
+from pavilion import cmd_utils
 from .base_classes import Command
 
 
@@ -21,9 +22,8 @@ class CatCommand(Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'job_id', type=int,
-            help="job id",
-            metavar='JOB_ID'
+            'test_id', help="test id",
+            metavar='TEST_ID'
         )
         parser.add_argument(
             'file',
@@ -35,16 +35,28 @@ class CatCommand(Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        test_dir = pav_cfg.working_dir / 'test_runs'
-        job_dir = dir_db.make_id_path(test_dir, args.job_id)
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
+        if not tests:
+            output.fprint(self.errfile, "Could not find test '{}'".format(args.test_id))
+            return errno.EEXIST
+        elif len(tests) > 1:
+            output.fprint(
+                self.errfile, "Matched multiple tests. Printing file contents for first "
+                              "test only (test {})".format(tests[0].full_id),
+                color=output.YELLOW)
 
-        if os.path.isdir(job_dir.as_posix()) is False:
-            output.fprint("directory '{}' does not exist."
-                          .format(job_dir.as_posix()),
-                          file=sys.stderr, color=output.RED)
+        test = tests[0]
+        if not test.path.is_dir():
+            output.fprint(sys.stderr, "Directory '{}' does not exist."
+                          .format(test.path.as_posix()), color=output.RED)
             return errno.EEXIST
 
-        return self.print_file(job_dir / args.file)
+        if not test.path/args.file:
+            output.fprint(sys.stderr, "File {} does not exist for test {}."
+                                      .format(args.file, test.full_id))
+            return errno.EEXIST
+
+        return self.print_file(test.path / args.file)
 
     def print_file(self, file):
         """Print the file at the given path.
@@ -57,20 +69,18 @@ class CatCommand(Command):
                     block = file.read(4096)
                     if not block:
                         break
-                    output.fprint(block, width=None, file=self.outfile, end="")
-                output.fprint('', file=self.outfile)
+                    output.fprint(self.outfile, block, width=None, end="")
+                output.fprint(self.outfile, '')
 
         except FileNotFoundError:
-            output.fprint("file '{}' does not exist.".format(file),
-                          file=sys.stderr, color=output.RED)
+            output.fprint(sys.stderr, "file '{}' does not exist.".format(file), color=output.RED)
             return errno.EEXIST
 
         except IsADirectoryError:
-            output.fprint("{} is a directory.".format(file),
-                          file=sys.stderr, color=output.RED)
+            output.fprint(sys.stderr, "{} is a directory.".format(file), color=output.RED)
             return errno.EINVAL
 
         except (IOError, OSError, PermissionError) as err:
-            output.fprint("Error opening file '{}': {}".format(file, err),
+            output.fprint(sys.stdout, "Error opening file '{}'".format(file), err,
                           color=output.RED)
             return errno.EIO

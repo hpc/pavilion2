@@ -3,9 +3,9 @@
 import signal
 import sys
 
-import pavilion.series.errors
 from pavilion import output
 from pavilion import series
+from pavilion.errors import TestSeriesError
 from .base_classes import Command
 
 
@@ -32,8 +32,8 @@ class AutoSeries(Command):
         # load series obj
         try:
             series_obj = series.TestSeries.load(pav_cfg, args.series_id)
-        except pavilion.series.errors.TestSeriesError as err:
-            output.fprint("Error in _series cmd: {}".format(err.args[0]))
+        except TestSeriesError as err:
+            output.fprint(sys.stdout, "Error in _series cmd.", err)
             sys.exit(1)
 
         # handles SIGTERM (15) signal
@@ -48,9 +48,8 @@ class AutoSeries(Command):
         try:
             # call function to actually run series
             series_obj.run(outfile=self.outfile)
-        except pavilion.series.errors.TestSeriesError as err:
-            output.fprint("Error while running series '{}'. {}"
-                          .format(args.series_id, err.args[0]),
-                          file=self.errfile)
+        except TestSeriesError as err:
+            output.fprint(self.errfile, "Error while running series '{}'. {}"
+                          .format(args.series, err))
 
         return 0

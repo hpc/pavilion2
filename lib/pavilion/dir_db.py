@@ -43,11 +43,14 @@ def reset_pkey(id_dir: Path) -> None:
     """Reset the the 'next_id' for the given directory by deleting
     the pkey file ('next_id') if present."""
 
-    with lockfile.LockFile(id_dir/'.lockfile', timeout=1):
-        try:
-            (id_dir/PKEY_FN).unlink()
-        except OSError:
-            pass
+    try:
+        with lockfile.LockFile(id_dir/'.lockfile', timeout=1):
+            try:
+                (id_dir/PKEY_FN).unlink()
+            except OSError:
+                pass
+    except TimeoutError:
+        pass
 
 
 def create_id_dir(id_dir: Path) -> (int, Path):
@@ -160,10 +163,9 @@ def index(pav_cfg,
                 idx = pickle.load(idx_file)
         except (OSError, PermissionError, json.JSONDecodeError) as err:
             # In either error case, start from scratch.
-            output.fprint(
-                "Error reading index at '{}'. Regenerating from "
-                "scratch. {}".format(idx_path.as_posix(), err.args[0]),
-                file=verbose, color=output.GRAY)
+            output.fprint(verbose, "Error reading index at '{}'. Regenerating from "
+                                   "scratch.".format(idx_path.as_posix()), err,
+                          color=output.GRAY)
 
     if not id_dir.exists():
         return idx
@@ -195,7 +197,7 @@ def index(pav_cfg,
 
         try:
             return tid, transform(file)
-        except (ValueError, KeyError, TypeError, OSError) as err:
+        except (ValueError, KeyError, TypeError, OSError):
             return tid, None
 
     thread_max = pav_cfg.get('max_threads')
@@ -441,8 +443,7 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
         try:
             ids.append(int(path.name))
         except ValueError:
-            raise ValueError(
-                "Invalid dir_db path '{}'".format(path.as_posix()))
+            raise ValueError("Invalid dir_db path '{}'".format(path.as_posix()))
     return ids
 
 
@@ -464,18 +465,22 @@ def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_
     msgs = []
 
     lock_path = id_dir.with_suffix('.lock')
-    with lockfile.LockFile(lock_path, timeout=1):
-        for path in select(pav_cfg, id_dir=id_dir, filter_func=filter_func,
-                           transform=transform).paths:
-            try:
-                shutil.rmtree(path.as_posix())
-            except OSError as err:
-                msgs.append("Could not remove {} {}: {}"
-                            .format(id_dir.name, path.as_posix(), err))
-                continue
-            count += 1
-            if verbose:
-                msgs.append("Removed {} {}.".format(id_dir.name, path.name))
+    try:
+        with lockfile.LockFile(lock_path, timeout=1):
+            for path in select(pav_cfg, id_dir=id_dir, filter_func=filter_func,
+                               transform=transform).paths:
+                try:
+                    shutil.rmtree(path.as_posix())
+                except OSError as err:
+                    msgs.append("Could not remove {} {}: {}"
+                                .format(id_dir.name, path.as_posix(), err))
+                    continue
+                count += 1
+                if verbose:
+                    msgs.append("Removed {} {}.".format(id_dir.name, path.name))
+    except TimeoutError:
+        msgs.append("Could not delete in dir '{}', lock '{}' could not be acquired"
+                    .format(id_dir, lock_path))
 
     reset_pkey(id_dir)
     return count, msgs

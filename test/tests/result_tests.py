@@ -2,22 +2,23 @@
 
 import copy
 import datetime
+import io
 import json
 import logging
 import pprint
 from collections import OrderedDict
 
+import pavilion.errors
 import pavilion.result
 import pavilion.result.common
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
-from pavilion import plugins
 from pavilion import result
 from pavilion import utils
-from pavilion.commands import run
-from pavilion.result import ResultError, base
+from pavilion.result import base
+from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
@@ -33,15 +34,6 @@ class ResultParserTests(PavTestCase):
         # Don't limit the size of the error diff.
         self.maxDiff = None
 
-    def setUp(self):
-        """This has to run before any command plugins are loaded."""
-        arguments.get_parser()
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        """Reset all plugins."""
-        plugins._reset_plugins()
-
     def test_parse_results(self):
         """Check all the different ways in which we handle parsed results."""
 
@@ -54,14 +46,14 @@ class ResultParserTests(PavTestCase):
                     'echo "Hello World."',
                     'echo "Goodbye Cruel World."',
                     'echo "Multipass 1, 2, 3"',
-                    'echo "A: 1"',
-                    'echo "B: 2"',
-                    'echo "B: 3"',
-                    'echo "C: 4"',
-                    'echo "D: 5"',
+                    'echo "A: 5"',
                     'echo "B: 6"',
-                    'echo "D: 7"',
-                    'echo "E: 8"',
+                    'echo "B: 2"',
+                    'echo "C: 4"',
+                    'echo "D: 8"',
+                    'echo "B: 3"',
+                    'echo "D: 1"',
+                    'echo "E: 7"',
                     'echo "In a World where..." >> other.log',
                     'echo "What in the World" >> other.log',
                     'echo "something happens..." >> other2.log',
@@ -71,8 +63,8 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'regex': {
-                    'basic': {'regex': r'.* World'},
-                    'bc': {
+                    'Basic': {'regex': r'.* World'},
+                    'BC': {
                         'regex': r'.: (\d)',
                         'preceded_by': [r'^B:', r'^C:'],
                         'match_select': 'all',
@@ -112,6 +104,36 @@ class ResultParserTests(PavTestCase):
                         'regex':              r'.*',
                         'for_lines_matching': r'nothing',
                         'match_select':       base_classes.MATCH_FIRST,
+                    },
+                    'b_sum': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select': 'all',
+                        'action': 'store_sum',
+                    },
+                    'min': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_min',
+                    },
+                    'med': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_median',
+                    },
+                    'mean': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_mean',
+                    },
+                    'max': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_max',
                     },
                     'mp1, _  ,   mp3': {
                         'regex': r'Multipass (\d), (\d), (\d)'
@@ -184,13 +206,18 @@ class ResultParserTests(PavTestCase):
         results = test.gather_results(0)
 
         expected = {
-            'basic': 'Hello World',
-            'bc': [5],
-            'bcd': [5],
-            'bees': [2, 3, 6],
-            'last_b': 6,
-            'middle_b': 3,
-            'other_middle_b': 3,
+            'Basic': 'Hello World',
+            'BC': [8],
+            'bcd': [8],
+            'bees': [6, 2, 3],
+            'b_sum': 11,
+            'min': 1,
+            'med': 4.5,
+            'mean': 4.5,
+            'max': 8,
+            'last_b': 3,
+            'middle_b': 2,
+            'other_middle_b': 2,
             'no_lines_match': [],
             'no_lines_match_last': None,
             'true': True,
@@ -325,6 +352,128 @@ class ResultParserTests(PavTestCase):
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
 
+    def test_json_parser(self):
+        """Check that JSON parser returns expected results."""
+
+        cfg = self._quick_test_cfg()
+        cfg['build'] = {'source_path': 'json-blob.txt'}
+        cfg['result_parse'] = {
+            'json': {
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar'],
+                    'exclude': ['foo2'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        expected_json = {'foo': {'bar': [1, 3, 5]}}
+
+        test = self._quick_test(cfg=cfg)
+        test.run()
+
+        results = test.gather_results(0)
+
+        self.assertEqual(results['myjson'], expected_json)
+
+    def test_json_parser_errors(self):
+        """Check that JSON parser raises correct errors for a
+        variety of different inputs."""
+
+        cfg_exclude_key_error = self._quick_test_cfg()
+        cfg_exclude_key_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_exclude_key_error['result_parse'] = {
+            'json': {
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'exclude': ['foo.badkey'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        cfg_exclude_type_error = self._quick_test_cfg()
+        cfg_exclude_type_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_exclude_type_error['result_parse'] = {
+            'json': {
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'exclude': ['foo.bar.badkey'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        cfg_include_key_error = self._quick_test_cfg()
+        cfg_include_key_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_include_key_error['result_parse'] = {
+            'json': {
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.badkey'],
+                    'exclude': ['foo.bar'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        cfg_include_type_error = self._quick_test_cfg()
+        cfg_include_type_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_include_type_error['result_parse'] = {
+            'json': {
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.buzz.badkey'],
+                    'exclude': ['foo.bar'],
+                    'stop_at': 'this is a',
+                }
+            }
+        }
+
+        cfg_stopat_none_error = self._quick_test_cfg()
+        cfg_stopat_none_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_stopat_none_error['result_parse'] = {
+            'json': {
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar'],
+                    'exclude': ['foo.bar'],
+                }
+            }
+        }
+
+        cfg_stopat_bad_error = self._quick_test_cfg()
+        cfg_stopat_bad_error['build'] = {'source_path': 'json-blob.txt'}
+        cfg_stopat_bad_error['result_parse'] = {
+            'json': {
+                'myjson': {
+                    'files': ['json-blob.txt'],
+                    'include_only': ['foo.bar'],
+                    'exclude': ['foo.bar'],
+                    'stop_at': 'this string does not exist',
+                }
+            }
+        }
+
+        cfgs = [
+            # config, expected error
+            (cfg_exclude_key_error,"Excluded key foo.badkey doesn't exist"),
+            (cfg_exclude_type_error, "but foo.bar's value isn't a mapping"),
+            (cfg_include_key_error, "Explicitly included JSON key 'foo.badkey' doesn't exist"),
+            (cfg_include_type_error, "Explicitly included key 'foo.buzz.badkey' doesn't exist "
+                                     "in original JSON."),
+            (cfg_stopat_none_error, "Invalid JSON: Extra data:"),
+            (cfg_stopat_bad_error, "Invalid JSON: Extra data:"),
+        ]
+
+        for cfg, exp_err in cfgs:
+            test = self._quick_test(cfg=cfg)
+            test.run()
+            log = io.StringIO()
+            results = test.gather_results(0, log_file=log)
+            self.assertIn(exp_err, results[result.RESULT_ERRORS][0]) #, msg=log.getvalue())
+
     def test_table_parser(self):
         """Check table result parser operation."""
 
@@ -341,7 +490,7 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'table': {
-                    'table1': {
+                    'Table1': {
                         'delimiter_re': r'\|',
                         'col_names': ['cola', 'soda', 'pop'],
                         'preceded_by': ['table1', '', ''],
@@ -381,12 +530,17 @@ class ResultParserTests(PavTestCase):
                         'delimiter_re': r',',
                         'by_column': 'True',
                     },
+                    'mdtest': {
+                        'preceded_by': '^SUMMARY:',
+                        'delimiter_re': r'[ :]{2,}',
+                        'lstrip': 'True',
+                    }
                 }
             }
         }
 
         expected = {
-            'table1': {
+            'Table1': {
                 'data1': {'cola': 3,    'soda': 'data4', 'pop': None},
                 'data2': {'cola': 8,    'soda': 'data5', 'pop': None},
                 'data3': {'cola': None, 'soda': 'data6', 'pop': None},
@@ -413,8 +567,8 @@ class ResultParserTests(PavTestCase):
                 'data15': {'col2': None, 'col3': 'data18'}
             },
             'table4': {
-                'row_11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
-                'row_41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
+                '11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
+                '41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
                 'item1': {'colb': 'item2', 'colc': 'item3', 'cold': 'item4'},
                 'item13': {'colb': 'item14', 'colc': 'item15', 'cold':
                            'item16'},
@@ -450,6 +604,27 @@ class ResultParserTests(PavTestCase):
                     'overhead': 'N/A', 'runtime': 0.0, 'speedup': 'N/A',
                     'us_loop': 0.0},
             },
+            'mdtest': {
+                'directory_creation': {
+                    'max': 56142.185, 'min': 51275.966, 'mean': 53720.139, 'std_dev': 1507.151},
+                'directory_stat': {
+                    'max': 82058.105, 'min': 73594.508, 'mean': 78318.159, 'std_dev': 2463.194},
+                'directory_removal': {
+                    'max': 60147.14, 'min': 38256.728, 'mean': 54513.053, 'std_dev': 8174.081},
+                'file_creation': {
+                    'max': 34165.337, 'min': 23620.775, 'mean': 31777.61, 'std_dev': 2874.459},
+                'file_stat': {
+                    'max': 35447.875, 'min': 16235.606, 'mean': 30449.403, 'std_dev': 6233.127},
+                'file_read': {
+                    'max': 44255.713, 'min': 40119.544, 'mean': 41821.671, 'std_dev': 1302.742},
+                'file_removal': {
+                    'max': 51791.173, 'min': 48547.479, 'mean': 50687.506, 'std_dev': 1104.267},
+                'tree_creation': {
+                    'max': 3394.929, 'min': 1559.637, 'mean': 2944.616, 'std_dev': 505.474},
+                'tree_removal': {
+                    'max': 1684.514, 'min': 1092.882, 'mean': 1483.38, 'std_dev': 171.119}
+            },
+
         }
 
         test = self._quick_test(cfg, 'table_test')
@@ -465,8 +640,8 @@ class ResultParserTests(PavTestCase):
     def test_evaluate(self):
 
         ordered = OrderedDict()
-        ordered['val_a'] = '3'
-        ordered['val_b'] = 'val_a + 1'
+        ordered['Val_a'] = '3'
+        ordered['val_b'] = 'Val_a + 1'
 
         base_cfg = self._quick_test_cfg()
         base_cfg['run']['cmds'] = [
@@ -494,10 +669,10 @@ class ResultParserTests(PavTestCase):
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
 
             # Check basic math.
-            ({'val_a': '3',
-              'val_b': 'val_a + val_c',
-              'val_c': 'val_a*2'},
-             {'val_a': 3, 'val_b': 9, 'val_c': 6}),
+            ({'Val_a': '3',
+              'val_b': 'Val_a + val_c',
+              'val_c': 'Val_a*2'},
+             {'Val_a': 3, 'val_b': 9, 'val_c': 6}),
 
             # Check list operations.
             ({'list_ops': '[1, 2, 3] == 2'},
@@ -543,7 +718,7 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg)
             test.run()
 
-            with self.assertRaises(pavilion.result.common.ResultError):
+            with self.assertRaises(pavilion.errors.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
 
     def test_result_command(self):
@@ -552,7 +727,7 @@ class ResultParserTests(PavTestCase):
 
         result_cmd = commands.get_command('result')
         result_cmd.silence()
-        run_cmd = commands.get_command('run')  # type: run.RunCommand
+        run_cmd = commands.get_command('run')
         run_cmd.silence()
 
         # We need to alter the config path for these, but those paths need
@@ -689,7 +864,7 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        with self.assertRaises(pavilion.result.common.ResultError):
+        with self.assertRaises(pavilion.errors.ResultError):
             result.check_config(cfg['result_parse'], {})
 
         test = self._quick_test(cfg, 'split_test')

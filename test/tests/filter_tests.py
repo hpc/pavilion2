@@ -7,7 +7,6 @@ from datetime import timedelta
 
 from pavilion import dir_db
 from pavilion import filters
-from pavilion import plugins
 from pavilion.series import TestSeries
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, test_run_attr_transform
@@ -15,12 +14,6 @@ from pavilion.unittest import PavTestCase
 
 
 class FiltersTest(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_run_parser_args(self):
         """Test adding standardized test run filter args."""
@@ -231,8 +224,10 @@ class FiltersTest(PavTestCase):
     def test_filter_series_states(self):
         """Check series filtering."""
 
+        from pavilion import schedulers
         series = TestSeries(self.pav_cfg, None)
         series.add_test_set_config('test', test_names=['hello_world'])
+        dummy = schedulers.get_plugin('dummy')
         series.run()
         series_info = series.info().attr_dict()
 

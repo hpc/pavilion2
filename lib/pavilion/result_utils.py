@@ -6,7 +6,7 @@ from typing import List
 import datetime
 
 from pavilion import output
-from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
+from pavilion.errors import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.test_run import (TestRun)
 
 # I suppose these are all the keys of the TestRun.results dict and the essential ones.
@@ -54,12 +54,12 @@ def make_key_table(flat_keys):
     table_keys=[]
     while any(flat_keys.values()):
         tbl={}
-        for key, val in flat_keys.items():
-            tbl[key] = '' if not val else val.pop()
+        for keyflat, val in flat_keys.items():
+            tbl[keyflat] = '' if not val else val.pop()
 
         table_keys.append(tbl)
 
-    return table_keys
+    return sorted(table_keys, key=lambda d: d[keyflat])
 
 
 def keylist(results):

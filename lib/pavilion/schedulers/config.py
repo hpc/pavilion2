@@ -1,21 +1,29 @@
 """Functions and definitions relating to scheduler configuration in tests."""
 
-from typing import Any, Dict, Union, List
-from pavilion import utils
+from typing import Any, Dict, Union, List, Tuple
+import math
 
 import yaml_config as yc
+from pavilion import utils
+
+
+MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
+                    'socket', 'numa', 'board', 'node')
 
 
 class ScheduleConfig(yc.KeyedElem):
     """Scheduling configuration."""
 
     ELEMENTS = [
+        yc.StrElem('core_spec',
+            help_text="The count identifies the number of cores to be reserved"
+                      " for system overhead on each allocated compute node."),
         yc.StrElem(
             'nodes',
             help_text="The number of nodes to acquire to scheduler the job as "
                       "whole. This may be a number, a percentage, "
                       "or the keyword 'all'. In all cases, this limit is applied "
-                      "after chunking, so 'all' when the chunk_size is 1000 will be "
+                      "after chunking, so 'all' when the chunk.size is 1000 will be "
                       "1000 nodes. A single node is both the default and "
                       "minimum selection."),
         yc.StrElem(
@@ -42,13 +50,16 @@ class ScheduleConfig(yc.KeyedElem):
         yc.StrElem(
             'tasks_per_node',
             help_text="The number of tasks to start per node. This can be"
-                      "an integer, the keyword 'all' or 'min', or a percentage."
-                      "The 'all' keyword will create a "
-                      "number of tasks equal to the number of CPUs across all "
-                      "nodes. Min will create a number of tasks per node equal "
+                      "an integer, the keyword 'all', or a percentage."
+                      "'all' will create a number of tasks per node equal "
                       "to the CPUs for the node with the least CPUs in the "
-                      "selected partition. A percentage will create a task "
-                      "for that percentage of the 'min', rounded down."),
+                      "selected nodes. A percentage will create a task "
+                      "for that percentage of the 'all', rounded down (min 1)."),
+        yc.StrElem(
+            'min_tasks_per_node',
+            help_text="A minimum number of tasks per node. Must be an integer (or undefined),"
+                      "This will take precedence over 'tasks_per_node' if it is larger than that "
+                      "value after it is calculated."),
         yc.StrElem(
             'partition',
             help_text="The partition to run the test on."),
@@ -58,6 +69,9 @@ class ScheduleConfig(yc.KeyedElem):
         yc.StrElem(
             'account',
             help_text="The account to use when creating an allocation."),
+        yc.StrElem(
+            'wrapper',
+            help_text="Wrapper for the scheduler command."),
         yc.StrElem(
             'reservation',
             help_text="The reservation to use when creating an allocation. When blank "
@@ -70,6 +84,13 @@ class ScheduleConfig(yc.KeyedElem):
                       "increase time the time limit beyond the cluster default. "
                       "Tests that share an allocation share the largest given time "
                       "limit."),
+        yc.ListElem(
+            'across_nodes',
+            sub_elem=yc.StrElem(),
+            help_text="Only nodes in this list are considered when running a test. "
+                      "Each listed node may be a node range as per 'exclude_nodes'. "
+                      "Nodes in this may also be 'included' (in each chunk) or "
+                      "'excluded'."),
         yc.ListElem(
             'include_nodes',
             sub_elem=yc.StrElem(),
@@ -134,6 +155,28 @@ class ScheduleConfig(yc.KeyedElem):
                 yc.StrElem(
                     'cpus',
                     help_text="CPUS per node."),
+            ]
+        ),
+        yc.KeyedElem(
+            'mpirun_opts',
+            help_text="Config elements for MPI-related options.",
+            elements=[
+                yc.StrElem(
+                    name='bind_to',
+                    help_text="MPIrun --bind-to option. See `man mpirun`"
+                ),
+                yc.StrElem(
+                    name='rank_by',
+                    help_text="MPIrun --rank-by option. See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='mca', sub_elem=yc.StrElem(),
+                    help_text="MPIrun mca module options (--mca). See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='extra', sub_elem=yc.StrElem(),
+                    help_text="Extra arguments to add to mpirun commands."
+                )
             ]
         )
     ]
@@ -283,14 +326,14 @@ def _validate_nodes(val) -> Union[float, int, None]:
 
 def _validate_tasks_per_node(val) -> Union[int, float]:
     """This accepts a positive integer, a percentage, or the keywords 'all' and
-    'min'. All translates to 100%, and min to an integer 0."""
+    'min'. All translates to 100%, and min to an integer 1."""
 
     val = val.strip()
 
     if val == 'all':
         return 1.0
     if val == 'min':
-        return 0
+        return 1
 
     if val.endswith('%'):
         try:
@@ -398,6 +441,19 @@ def _validate_node_list(items) -> List[str]:
 
     return nodes
 
+def _validate_allocation_str(val) -> Union[str, None]:
+    """Validates string and returns true, false or max for the share_allocation feature"""
+
+    if isinstance(val, str):
+        if val.lower() == 'false':
+            return False
+        elif val.lower() == 'max':
+            return val.lower()
+        else:
+            return True
+    else:
+        return True
+
 
 CONTIGUOUS = 'contiguous'
 RANDOM = 'random'
@@ -422,25 +478,34 @@ CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
-        'size':           min_int('chunk_size', min_val=0),
+        'size':           _validate_nodes,
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
     },
     'tasks_per_node':   _validate_tasks_per_node,
+    'min_tasks_per_node': min_int('min_tasks_per_node', min_val=1, required=False),
     'node_state':       NODE_STATE_OPTIONS,
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'core_spec':        None,
+    'wrapper':          None,
     'reservation':      None,
+    'across_nodes':     _validate_node_list,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
-    'share_allocation': utils.str_bool,
+    'share_allocation': _validate_allocation_str,
     'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
-        'node_count': min_int('cluster_info.node_count',
-                              min_val=1, required=False),
-        'mem':        min_int('cluster_info.mem', min_val=1, required=False),
-        'cpus':       min_int('cluster_info.cpus', min_val=1, required=False)
+        'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
+        'mem':          min_int('cluster_info.mem', min_val=1, required=False),
+        'cpus':         min_int('cluster_info.cpus', min_val=1, required=False)
+    },
+    'mpirun_opts':      {
+        'bind_to': MPIRUN_BIND_OPTS,
+        'rank_by': MPIRUN_BIND_OPTS,
+        'mca': validate_list,
+        'extra': validate_list
     }
 }
 
@@ -453,12 +518,15 @@ CONFIG_DEFAULTS = {
         'extra':          BACKFILL,
     },
     'tasks_per_node':   '1',
+    'min_tasks_per_node': None,
     'node_state':       UP,
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
+    'across_nodes':     [],
     'include_nodes':    [],
     'exclude_nodes':    [],
     'time_limit':       None,
@@ -466,11 +534,31 @@ CONFIG_DEFAULTS = {
         'node_count': '1',
         'mem':        '1000',
         'cpus':       '4',
+    },
+    'mpirun_opts':      {
+        'mca': [],
+        'extra': []
     }
 }
 
 
-def validate_config(config: Dict[str, str],
+def validate_config(config: Dict[str, str]):
+    """Validate the scheduler config using the validator dict.
+
+    :param config: The configuration dict to validate. Expected to be the result
+        of parsing with the above yaml_config parser."""
+
+    val_config = _validate_config(config)
+
+    # Flex scheduling is when the scheduler picks the nodes, which can't happen if we're using
+    # chunking or have a limited set of nodes.
+    val_config['flex_scheduled'] = (val_config['chunking']['size'] in (0, None)
+                                    and not val_config['across_nodes'])
+
+    return val_config
+
+
+def _validate_config(config: Dict[str, str],
                     validators: Dict[str, Any] = None,
                     defaults: Dict[str, Any] = None) -> Dict[str, Any]:
     """Validate the scheduler config using the validator dict.
@@ -509,7 +597,7 @@ def validate_config(config: Dict[str, str],
 
             except ValueError as err:
                 raise SchedConfigError("Config value for key '{}' had a validation "
-                                       "error: {}".format(key, err))
+                                       "error.".format(key), err)
 
         elif isinstance(validator, (tuple, list)):
             if value not in validator:
@@ -520,7 +608,7 @@ def validate_config(config: Dict[str, str],
         elif isinstance(validator, dict):
             if value is None:
                 value = {}
-            normalized_config[key] = validate_config(
+            normalized_config[key] = _validate_config(
                 config=value,
                 validators=validator,
                 defaults=defaults[key])
@@ -531,3 +619,23 @@ def validate_config(config: Dict[str, str],
             raise RuntimeError("Invalid validator: '{}'".format(validator))
 
     return normalized_config
+
+
+def calc_node_range(sched_config, node_count) -> Tuple[int, int]:
+    """Calculate a node range for the job given the min_nodes and nodes, and
+    the number of nodes available (for percentages. Returns the calculated min and max.
+    """
+
+    nodes = sched_config['nodes']
+    if isinstance(nodes, float):
+        nodes = math.ceil(nodes * node_count)
+    nodes = max(nodes, 1)
+
+    min_nodes = sched_config['min_nodes']
+    if min_nodes in (None, 0):
+        min_nodes = nodes
+    elif isinstance(min_nodes, float):
+        min_nodes = math.ceil(min_nodes * node_count)
+        min_nodes = max(min_nodes, 1)
+
+    return min_nodes, nodes

@@ -2,7 +2,6 @@ import unittest
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
 from pavilion.unittest import PavTestCase
 
 
@@ -21,15 +20,11 @@ class ResolverTests(PavTestCase):
         super().__init__(*args, **kwargs)
 
     @unittest.skipIf(not has_matplotlib(), "matplotlib not found.")
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
-
     def test_get_graph_data(self):
         """Make sure data is pulled out of the test results and returned as
         expected."""
+
+        commands.load('graph')
 
         results = {
             'test': 'Test1',
@@ -142,6 +137,7 @@ class ResolverTests(PavTestCase):
 
         self.assertEqual(eval_res, eval_expected)
 
+    @unittest.skipIf(not has_matplotlib(), "matplotlib not found.")
     def test_graph_cmd(self):
         """Test the full graph command."""
 

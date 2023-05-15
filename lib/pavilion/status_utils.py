@@ -8,7 +8,7 @@ from typing import TextIO, List
 
 from pavilion import output
 from pavilion import schedulers
-from pavilion.exceptions import TestRunError, TestRunNotFoundError, DeferredError
+from pavilion.errors import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
 
@@ -37,10 +37,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
 
     status_f = test.status.current()
 
-    if status_f.state in STATES.RUNNING:
-        sched = schedulers.get_plugin(test.scheduler)
-        status_f = sched.job_status(pav_cfg, test)
-    elif status_f.state == STATES.BUILDING:
+    if status_f.state == STATES.BUILDING:
         last_update = test.builder.log_updated()
         status_f.note = ' '.join([
             status_f.note, '\nLast updated: ',
@@ -54,16 +51,21 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
 
         if mtime is None or time.time() - mtime > RUNNING_UPDATE_TIMEOUT:
             sched = schedulers.get_plugin(test.scheduler)
-            status_f = sched.job_status(pav_cfg, test)
+            sched_status_f = sched.job_status(pav_cfg, test)
+            if sched_status_f.state != STATES.SCHED_RUNNING:
+                status_f = sched_status_f
         else:
             last_update = format_mtime(mtime)
             status_f.note = ' '.join([
                 status_f.note, '\nLast updated:', last_update])
 
     try:
+        # Use the actual node count one the test is running.
         nodes = test.var_man.get('sched.test_nodes', '')
     except DeferredError:
-        nodes = ''
+        # Otherwise use the chunk size when requesting all nodes
+        # or the requested size otherwise.
+        nodes = '({})'.format(test.var_man.get('sched.requested_nodes', '?'))
 
     result = test.results.get('result', '') or ''
     series_id = test.series or ''
@@ -73,10 +75,11 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         'name':    test.name,
         'nodes':   nodes,
         'note':    status_f.note,
+        'part':    test.var_man.get('sched.partition'),
         'result':  result,
         'series':  series_id,
         'state':   status_f.state,
-        'test_id': test.id,
+        'test_id': test.id if test.full_id.startswith('main') else test.full_id,
         'time':    status_f.when,
     }
 
@@ -96,6 +99,7 @@ def get_status(test: TestRun, pav_conf):
             'name':    test.name,
             'nodes':   '',
             'note':    "Error getting test status: {}".format(err),
+            'part':    '',
             'result':  '',
             'series':  '',
             'state':   STATES.UNKNOWN,
@@ -137,7 +141,7 @@ def print_status(statuses: List[dict], outfile, note=False, series=False, json=F
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
     else:
-        fields = ['test_id', 'job_id', 'name', 'nodes', 'state', 'result', 'time']
+        fields = ['test_id', 'job_id', 'name', 'nodes', 'part', 'state', 'result', 'time']
         if series:
             fields.insert(0, 'series')
         if note:
@@ -146,7 +150,9 @@ def print_status(statuses: List[dict], outfile, note=False, series=False, json=F
         output.draw_table(
             outfile=outfile,
             field_info={
-                'time': {'transform': output.get_relative_timestamp},
+                'time': {
+                    'transform': output.get_relative_timestamp,
+                    'title': 'Updated'},
                 'test_id': {'title': 'Test'},
             },
             fields=fields,

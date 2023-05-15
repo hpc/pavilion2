@@ -3,19 +3,12 @@ import json
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
-from pavilion.sys_vars import base_classes
 from pavilion import utils
+from pavilion.sys_vars import base_classes
 from pavilion.unittest import PavTestCase
 
 
 class SysNameSeriesTrackerTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_sys_name_tracker(self):
         """Make sure the expected values are stored in the user.json file."""
@@ -25,13 +18,13 @@ class SysNameSeriesTrackerTests(PavTestCase):
         sys_vars = base_classes.get_vars(True)
         sys_name = sys_vars['sys_name']
 
+        run_cmd = commands.get_command('run')
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'run',
             'hello_world'
         ])
 
-        run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
         run_cmd.run(self.pav_cfg, args)
@@ -41,7 +34,7 @@ class SysNameSeriesTrackerTests(PavTestCase):
         json_file = self.pav_cfg.working_dir/'users'
         json_file /= '{}.json'.format(user)
 
-        with json_file.open('r') as json_series_file:
+        with json_file.open() as json_series_file:
             data = json.load(json_series_file)
 
         self.assertEqual(data[sys_name], series.sid)

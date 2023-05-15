@@ -1,18 +1,18 @@
 """Given a pre-existing test run, runs the test in the scheduled
 environment."""
 
+import sys
 import traceback
 from pathlib import Path
 
-from pavilion.output import fprint
 from pavilion import result
 from pavilion import schedulers
+from pavilion.errors import TestRunError, ResultError
+from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
-from pavilion.variables import VariableSetManager
-from pavilion.resolver import TestConfigResolver
 from pavilion.test_run import TestRun
-from pavilion.exceptions import TestRunError
+from pavilion.variables import VariableSetManager
 from .base_classes import Command
 
 
@@ -43,7 +43,7 @@ class _RunCommand(Command):
             test = TestRun.load(pav_cfg, working_dir=args.working_dir,
                                 test_id=args.test_id)
         except TestRunError as err:
-            fprint("Error loading test '{}': {}".format(args.test_id, err))
+            fprint(sys.stdout, "Error loading test '{}'".format(args.test_id), err)
             raise
 
         try:
@@ -55,19 +55,19 @@ class _RunCommand(Command):
                     STATES.RUN_ERROR,
                     "Error resolving scheduler variables at run time. "
                     "See'pav log kickoff {}' for the full error.".format(test.id))
-                fprint("Error resolving scheduler variables at run time. Got "
-                       "the following:")
+                fprint(sys.stdout, "Error resolving scheduler variables at run time. Got "
+                                   "the following:")
                 for error in var_man.get('sched.errors.*'):
-                    fprint(error)
+                    fprint(sys.stdout, error)
 
             try:
-                TestConfigResolver.finalize(test, var_man)
+                test.finalize(var_man)
             except Exception as err:
                 test.status.set(
                     STATES.RUN_ERROR,
                     "Unexpected error finalizing test\n{}\n"
                     "See 'pav log kickoff {}' for the full error."
-                    .format(err.args[0], test.id))
+                    .format(err, test.id))
                 raise
 
             if test.skipped:
@@ -77,7 +77,7 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     if not test.build():
-                        fprint("Test {} failed to build.".format(test.full_id))
+                        fprint(sys.stdout, "Test {} failed to build.".format(test.full_id))
 
             except Exception:
                 test.status.set(
@@ -120,7 +120,7 @@ class _RunCommand(Command):
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "
-                            "run time. See'pav log kickoff {}' for the "
+                            "run time. See 'pav log kickoff {}' for the "
                             "full error.".format(test.id))
             raise
 
@@ -158,24 +158,22 @@ class _RunCommand(Command):
             try:
                 result.check_config(test.config['result_parse'],
                                     test.config['result_evaluate'])
-            except result.ResultError as err:
+            except ResultError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
-                    "Error checking result parser configs: {}"
-                    .format(err.args[0]))
+                    "Error checking result parser configs: {}".format(err))
                 return 1
 
             with test.results_log.open('w') as log_file:
                 results = test.gather_results(run_result, log_file=log_file)
 
         except Exception as err:
-            fprint("Unexpected error gathering results: \n{}",
-                   traceback.format_exc())
+            fprint(sys.stdout, "Unexpected error gathering results.", err)
             test.status.set(STATES.RESULTS_ERROR,
-                            "Unexpected error parsing results: {}. (This is a "
+                            "Unexpected error parsing results: '{}'... (This is a "
                             "bug, you should report it.)"
                             "See 'pav log kickoff {}' for the full error."
-                            .format(err, test.id))
+                            .format(str(err)[:100], test.id))
             raise
 
         try:

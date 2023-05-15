@@ -13,23 +13,27 @@ DISABLE_SCHED_KEYS = [
 RESULT_ERRORS = 'pav_result_errors'
 
 
-def get_sched_keys(test):
-    """Return the sched section keys. Keys whose name ends in 'list' will
-    always be a list, otherwise they'll be single items. Keys in
-    DISABLE_SCHED_KEYS won't be added."""
+def get_top_keys(test, topkey: str) -> dict:
+    """Return the topkey, e.g. sched, var, nested dict from the test object variable manager.
+    Keys whose name ends in 'list' will always be a list, otherwise they'll be single items.
+    Keys in DISABLE_SCHED_KEYS won't be added.
 
-    sched_keys = {}
+    :param test: Test object.
+    :param topkey: Key with dict type value in test object.
+    """
 
-    for key, value in test.var_man.as_dict().get('sched', {}).items():
+    nested_dict = {}
+
+    for key, value in test.var_man.as_dict().get(topkey, {}).items():
         if key in DISABLE_SCHED_KEYS:
             continue
 
         if isinstance(value, list) and len(value) > 1 or key.endswith('_list'):
-            sched_keys[key] = value
+            nested_dict[key] = value
         else:
-            sched_keys[key] = value[0] if value else None
+            nested_dict[key] = value[0] if value else None
 
-    return sched_keys
+    return nested_dict
 
 
 BASE_RESULTS = {
@@ -55,7 +59,7 @@ BASE_RESULTS = {
                  "The scheduler plugin's job info for the test."),
     'permute_on': (lambda test: test.permute_vars,
                    "The permutation variables and values."),
-    'sched': (get_sched_keys,
+    'sched': (lambda test: get_top_keys(test, 'sched'),
               "Most of the scheduler variables."),
     'sys_name': (lambda test: test.var_man['sys.sys_name'],
                  "The system name '{{sys.sys_name}}'"),
@@ -66,7 +70,9 @@ BASE_RESULTS = {
     'return_value': (None,
                      "The return value of run.sh"),
     'uuid': (lambda test: test.uuid,
-             "The test's fully unique identifier.")
+             "The test's fully unique identifier."),
+    'var': (lambda test: get_top_keys(test, 'var'),
+             "The test's variables.")
 }
 '''A dictionary of result key names and a tuple of the function to acquire the
 value and a documentation string.

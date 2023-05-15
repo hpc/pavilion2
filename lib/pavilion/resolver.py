@@ -16,15 +16,18 @@ import pprint
 import re
 import uuid
 from collections import defaultdict
+from fnmatch import fnmatch
 from pathlib import Path
-from typing import List, IO, Union
+from typing import List, IO, Dict, Tuple, NewType, Union, Any
 
 import yc_yaml
-from pavilion import output, parsers, variables
+from pavilion import output, variables
 from pavilion import pavilion_variables
+from pavilion import resolve
 from pavilion import schedulers
 from pavilion import sys_vars
-from pavilion.exceptions import VariableError, DeferredError, TestConfigError
+from pavilion.errors import SystemPluginError
+from pavilion.errors import VariableError, TestConfigError, PavilionError, SchedulerPluginError
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
@@ -43,14 +46,88 @@ LOGGER = logging.getLogger('pav.' + __name__)
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 
+class TestRequest:
+    """Represents a user request for a test. May end up being multiple tests."""
+
+    REQUEST_RE = re.compile(r'^(?:(\d+) *\* *)?'       # Leading repeat pattern ('5*', '20*', ...)
+                            r'([a-zA-Z0-9_-]+)'  # The test suite name.
+                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
+                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The permutation name.
+                            r'(?: *\* *(\d+))?$'
+                            )
+
+    def __init__(self, request_str):
+
+        self.count = 1
+        self.request = request_str
+        # Track if any permutations match this request
+        self.request_matched = False
+
+        match = self.REQUEST_RE.match(request_str)
+        if not match:
+            raise TestConfigError(
+                "Test requests must be in the form 'suite_name', 'suite_name.test_name', or\n"
+                "'suite_name.test_name.permutation_name. They may be preceeded by a repeat\n"
+                "multiplier (e.g. '5*'). test_name and permutation_name can also use globbing\n"
+                "syntax (*, ?, []). For example, 'suite.test*.perm-[abc]."
+                "Got: {}".format(request_str))
+
+        pre_count, self.suite, self.test, self.permutation, post_count = match.groups()
+
+        if pre_count and post_count:
+            raise TestConfigError(
+                "Test requests cannot have both a pre-count and post-count multiplier.\n"
+                "Got: {}".format(request_str))
+
+        count = pre_count if pre_count else post_count
+
+        if count:
+            self.count = int(count)
+
+    def __str__(self):
+        return "Request: {}.{} * {}".format(self.suite, self.test, self.count)
+
+    def matches_test_name(self, test_name: Union[str, None]) -> bool:
+        """
+        Match a generated test name against the request. Test names that begin
+        with '_' are only matched if specifically requested.
+        """
+        if test_name.startswith('_') and test_name != self.test:
+            return False
+
+        if self.test is None:
+            return True
+
+        return fnmatch(test_name, self.test)
+
+    def matches_test_permutation(self, subtitle: Union[str, None]) -> bool:
+        """
+        Match a generated permutation against the request.
+        """
+        if self.permutation is None:
+            self.request_matched = True
+            return True
+
+        if subtitle:
+            if fnmatch(subtitle, self.permutation):
+                self.request_matched = True
+                return True
+            else:
+                return False
+        else:
+            return False
+
 class ProtoTest:
     """An simple object that holds the pair of a test config and its variable
     manager."""
 
-    def __init__(self, config, var_man):
+    def __init__(self, config: Dict, var_man: variables.VariableSetManager):
         self.config = config  # type: dict
         self.var_man = var_man  # type: variables.VariableSetManager
 
+    def copy(self) -> 'ProtoTest':
+        return ProtoTest(config=copy.deepcopy(self.config),
+                         var_man=copy.deepcopy(self.var_man))
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
@@ -65,9 +142,9 @@ class TestConfigResolver:
             self.base_var_man.add_var_set(
                 'sys', sys_vars.get_vars(defer=True)
             )
-        except sys_vars.SystemPluginError as err:
+        except SystemPluginError as err:
             raise TestConfigError(
-                "Error in system variables: {}"
+                "Error in system variables"
                 .format(err)
             )
 
@@ -92,59 +169,146 @@ class TestConfigResolver:
 
         user_vars = raw_test_cfg.get('variables', {})
         var_man = copy.deepcopy(self.base_var_man)
+        test_name = raw_test_cfg.get('name', '<no name>')
 
         # Since per vars are the highest in resolution order, we can make things
         # a bit faster by adding these after we find the used per vars.
         try:
             var_man.add_var_set('var', user_vars)
         except VariableError as err:
-            raise TestConfigError("Error in variables section: {}".format(err))
+            raise TestConfigError("Error in variables section for test '{}'"
+                                  .format(test_name), err)
 
-        scheduler = raw_test_cfg.get('scheduler', '<undefined>')
-        try:
-            sched = schedulers.get_plugin(scheduler)
-        except schedulers.SchedulerPluginError:
-            raise TestConfigError(
-                "Could not find scheduler '{}'"
-                .format(scheduler))
-
-        if not sched.available():
-            raise TestConfigError(
-                "Scheduler '{}' is not available on this system"
-                .format(sched.name)
-            )
-
-        schedule_cfg = raw_test_cfg.get('schedule', {})
-        schedule_cfg = self.resolve_test_vars(schedule_cfg, var_man)
-
-        try:
-            sched_vars = sched.get_initial_vars(schedule_cfg)
-        except schedulers.SchedulerPluginError as err:
-            # Errors should generally be deferred here, but just in case.
-            raise TestConfigError(
-                "Error getting initial variables from scheduler {}: {} \n\n"
-                "Scheduler Config: \n{}"
-                .format(scheduler, err.args[0], pprint.pformat(schedule_cfg)))
-
-        var_man.add_var_set('sched', sched_vars)
-
+        # This won't have a 'sched' variable set unless we're permuting over scheduler vars.
         return var_man
 
-    def find_config(self, conf_type, conf_name) -> (str, Path):
+    def check_variable_consistency(self, config: Dict):
+        """Check all the variables defined as defaults with a null value to
+        make sure they were actually defined, and that all sub-var dicts have consistent keys."""
+
+        _ = self
+
+        test_name = config.get('name', '<unnamed>')
+        test_suite = config.get('suite_path', '<no suite>')
+
+        for var_key, values in config.get('variables', {}).items():
+
+            if not values:
+                raise TestConfigError(
+                    "In test '{}' from suite '{}', test variable '{}' was defined "
+                    "but wasn't given a value."
+                    .format(test_name, test_suite, var_key))
+
+            first_value_keys = set(values[0].keys())
+            for i, value in enumerate(values):
+                for subkey, subval in value.items():
+                    if subkey is None:
+                        full_key = var_key
+                    else:
+                        full_key = '.'.join([var_key, subkey])
+
+                    if subval is None:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has an empty "
+                            "value. Empty defaults are fine (as long as they are "
+                            "overridden), but regular variables should always be given "
+                            "a value (even if it's just an empty string)."
+                            .format(test_name, test_suite, full_key))
+
+                value_keys = set(value.keys())
+                if value_keys != first_value_keys:
+                    if None in first_value_keys:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has  "
+                            "inconsistent keys. The first value was a simple variable "
+                            "with value '{}', while value {} had keys {}"
+                            .format(test_name, test_suite, var_key, values[0][None], i + 1,
+                                    value_keys))
+                    elif None in value_keys:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has "
+                            "inconsistent keys.The first value had keys {}, while value "
+                            "{} was a simple value '{}'."
+                            .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                    value[None]))
+                    else:
+                        raise TestConfigError(
+                            "In test '{}' from suite '{}', test variable '{}' has "
+                            "inconsistent keys. The first value had keys {}, "
+                            "while value {} had keys {}"
+                            .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                    value_keys))
+
+                if not values:
+                    raise TestConfigError(
+                        "In test '{}' from suite '{}', test variable '{}' was defined "
+                        "but wasn't given a value."
+                        .format(test_name, test_suite, var_key))
+
+                first_value_keys = set(values[0].keys())
+                for i, value in enumerate(values):
+                    for subkey, subval in value.items():
+                        if subkey is None:
+                            full_key = var_key
+                        else:
+                            full_key = '.'.join([var_key, subkey])
+
+                        if subval is None:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has an empty "
+                                "value. Empty defaults are fine (as long as they are "
+                                "overridden), but regular variables should always be given "
+                                "a value (even if it's just an empty string)."
+                                .format(test_name, test_suite, full_key))
+
+                    value_keys = set(value.keys())
+                    if value_keys != first_value_keys:
+                        if None in first_value_keys:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has  "
+                                "inconsistent keys. The first value was a simple variable "
+                                "with value '{}', while value {} had keys {}"
+                                .format(test_name, test_suite, var_key, values[0][None], i + 1,
+                                        value_keys))
+                        elif None in value_keys:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "inconsistent keys.The first value had keys {}, while value "
+                                "{} was a simple value '{}'."
+                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                        value[None]))
+                        else:
+                            raise TestConfigError(
+                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "inconsistent keys. The first value had keys {}, "
+                                "while value {} had keys {}"
+                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                        value_keys))
+
+
+    def find_config(self, conf_type, conf_name) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
         given type and name.
 
-        :param str conf_type: 'host', 'mode', or 'test'
+        :param str conf_type: 'host', 'mode', or 'test/suite'
         :param str conf_name: The name of the config (without a file extension).
         :return: A tuple of the config label under which a matching config was found
             and the path to that config. If nothing was found, returns (None, None).
         """
+
+        if conf_type == 'suite':
+            conf_type = 'tests'
+        elif conf_type == 'host':
+            conf_type = 'hosts'
+        elif conf_type == 'mode':
+            conf_type = 'modes'
+
         for label, config in self.pav_cfg.configs.items():
             path = config['path']/conf_type/'{}.yaml'.format(conf_name)
             if path.exists():
                 return label, path
 
-        return None, None
+        return '', None
 
     def find_all_tests(self):
         """Find all the tests within known config directories.
@@ -214,8 +378,7 @@ class TestConfigResolver:
                     suite_cfgs = self.resolve_inheritance(
                         base_config=base,
                         suite_cfg=suite_cfg,
-                        suite_path=file
-                    )
+                        suite_path=file)
                 except Exception as err:  # pylint: disable=W0703
                     suites[suite_name]['err'] = err
                     continue
@@ -319,125 +482,190 @@ class TestConfigResolver:
         if host is None:
             host = self.base_var_man['sys.sys_name']
 
-        raw_tests = self.load_raw_configs(tests, host, modes)
+        requested_tests = [TestRequest(test_req) for test_req in tests]
 
-        # apply series-defined conditions
-        if conditions:
-            for raw_test in raw_tests:
-                raw_test['only_if'] = union_dictionary(
-                    raw_test['only_if'], conditions['only_if']
-                )
-                raw_test['not_if'] = union_dictionary(
-                    raw_test['not_if'], conditions['not_if']
-                )
+        raw_tests = self.load_raw_configs(requested_tests, host, modes, conditions=conditions,
+                                          overrides=overrides)
 
-        resolved_tests = []
+        for _, test_cfg in raw_tests:
+            # Make sure the variables section is properly set up.
+            self.check_variable_consistency(test_cfg)
 
-        for raw_test in raw_tests:
-            # Apply the overrides to each of the config values.
+        permuted_tests = []
+        for request, test_cfg in raw_tests:
+            var_man = self.build_variable_manager(test_cfg)
+
+            # Resolve all configuration permutations.
             try:
-                self.apply_overrides(raw_test, overrides)
-            except (KeyError, ValueError) as err:
-                msg = 'Error applying overrides to test {} from {}: {}' \
-                    .format(raw_test['name'], raw_test['suite_path'], err)
-                raise TestConfigError(msg)
+                p_cfg, permutes = self.resolve_permutations(test_cfg, var_man)
+                for p_var_man in permutes:
+                    # Get the scheduler from the config.
+                    permuted_tests.append((request, p_cfg, p_var_man))
 
+            except TestConfigError as err:
+                msg = 'Error resolving permutations for test {} from {}' \
+                    .format(test_cfg['name'], test_cfg['suite_path'])
+
+                raise TestConfigError(msg, err)
         complete = 0
 
-        if len(raw_tests) == 0:
+        resolved_tests = []
+        if not permuted_tests:
             return []
-        elif len(raw_tests) == 1:
-            base_var_man = self.build_variable_manager(raw_tests[0])
-            return self.resolve(raw_tests[0], base_var_man)
+        elif len(permuted_tests) == 1:
+            request, test_cfg, var_man = permuted_tests[0]
+            resolved_cfg = self.resolve(test_cfg, var_man)
+            resolved_tests.append((request, ProtoTest(resolved_cfg, var_man)))
         else:
             async_results = []
-            proc_count = min(self.pav_cfg['max_cpu'], len(raw_tests))
+            proc_count = min(self.pav_cfg['max_cpu'], len(permuted_tests))
             with mp.Pool(processes=proc_count) as pool:
-                for raw_test in raw_tests:
-                    base_var_man = self.build_variable_manager(raw_test)
-                    async_results.append(
-                        pool.apply_async(self.resolve, (raw_test, base_var_man))
-                    )
+                for request, test_cfg, var_man in permuted_tests:
+                    aresult = pool.apply_async(self.resolve, (test_cfg, var_man))
+                    async_results.append((aresult, request, var_man))
 
                 while async_results:
-                    for aresult in list(async_results):
+                    not_ready = []
+                    for aresult, request, var_man in list(async_results):
                         if aresult.ready():
-                            async_results.remove(aresult)
+                            try:
+                                result = aresult.get()
+                            except PavilionError:
+                                raise
+                            except Exception as err:
+                                raise TestConfigError("Unexpected error loading tests", err)
 
-                            resolved_tests.extend(aresult.get())
+                            resolved_tests.append((request, ProtoTest(result, var_man)))
 
                             complete += 1
-                            progress = len(raw_tests) - complete
-                            progress = (1 - progress/len(raw_tests))
-                            output.fprint(
-                                "Resolving Test Configs: {:.0%}".format(progress),
-                                file=outfile, end='\r')
+                            progress = len(permuted_tests) - complete
+                            progress = 1 - progress/len(permuted_tests)
+                            output.fprint(outfile,
+                                          "Resolving Test Configs: {:.0%}".format(progress),
+                                          end='\r')
+                        else:
+                            not_ready.append((aresult, request, var_man))
+                    async_results = not_ready
 
-                    try:
-                        aresult.wait(0.5)
-                    except TimeoutError:
-                        pass
+                    if async_results:
+                        try:
+                            async_results[0][0].wait(0.5)
+                        except TimeoutError:
+                            pass
 
-        if outfile:
-            output.fprint('', file=outfile)
+        if outfile and len(permuted_tests) > 1:
+            output.fprint(outfile, '')
+
+        # Now that tests are resolved, multiply them out based on the requested count.
+        all_resolved_tests = []
+        for request, proto_test in resolved_tests:
+            if request.matches_test_permutation(proto_test.config['subtitle']):
+                # Add the original, copy the rest.
+                all_resolved_tests.append(proto_test)
+                for i in range(request.count - 1):
+                    all_resolved_tests.append(proto_test.copy())
+
+        # Checking for requests that did not match any permutations
+        for request, _ in resolved_tests:
+            if not request.request_matched:
+                # Grab all the tests generated by the current request
+                req_tests = [ptest for req, ptest in resolved_tests if req is request]
+                if req_tests:
+                    subtitles = [' - {}'.format(ptest.config['subtitle']) for ptest in req_tests]
+                    subtitles = '\n'.join(subtitles)
+                else:
+                    subtitles = 'No permutations'
+                raise TestConfigError(
+                    "Test request '{}' tried to match permutation '{}', "
+                    "but no matches were found."
+                    "Available permutations: \n{}"
+                    .format(request.request, request.permutation, subtitles))
 
         # NOTE: The deferred scheduler errors will be handled when we try to save
         #       the test object. (See build_variable_manager() above)
 
-        return resolved_tests
+        return all_resolved_tests
 
-    def resolve(self, test_cfg: dict, base_var_man: variables.VariableSetManager):
-        """Resolve one test config, and apply the given overrides."""
+    def resolve(self, test_cfg: dict, var_man: variables.VariableSetManager) -> Dict:
+        """Resolve all the strings in one test config. This mostly exists to consolidate
+        error handling (we could call resolve.test_config directly)."""
 
-        resolved_tests = []
+        _ = self
 
-        # A list of tuples of test configs and their permuted var_man
-        permuted_tests = []  # type: (dict, variables.VariableSetManager)
-
-        sched_errors = base_var_man.get('sched.errors')
-
-        # Resolve all configuration permutations.
         try:
-            p_cfg, permutes = self.resolve_permutations(
-                test_cfg,
-                base_var_man=base_var_man
-            )
-            for p_var_man in permutes:
-                # Get the scheduler from the config.
-                permuted_tests.append((p_cfg, p_var_man))
-
+            return resolve.test_config(test_cfg, var_man)
         except TestConfigError as err:
-            msg = 'Error resolving permutations for test {} from {}: {}' \
-                .format(test_cfg['name'], test_cfg['suite_path'], err)
+            if test_cfg.get('permute_on'):
+                permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
 
-            if sched_errors is not None:
-                msg += "\nScheduler errors also happened, which may be the root " \
-                       "cause:\n{}".format(sched_errors)
+                raise TestConfigError(
+                    "Error resolving test {} with permute values:"
+                    .format(test_cfg['name']), err, data=permute_values)
+            else:
+                raise TestConfigError(
+                    "Error resolving test {}".format(test_cfg['name']), err)
 
-            raise TestConfigError(msg)
 
-        # Set the scheduler variables for each test.
-        for ptest_cfg, pvar_man in permuted_tests:
-            # Resolve all variables for the test (that aren't deferred).
-            try:
-                resolved_config = self.resolve_test_vars(
-                    ptest_cfg, pvar_man)
-            except TestConfigError as err:
-                msg = ('In test {} from {}:\n{}'
-                       .format(test_cfg['name'], test_cfg['suite_path'],
-                               err.args[0]))
+    def _load_raw_config(self, name: str, config_type: str, optional=False) \
+            -> Tuple[Any, Union[Path, None], Union[str, None]]:
+        """Load the given raw test config file. It can be a host, mode, or suite file.
+        Returns a tuple of the config, path, and config label (name of the config area).
+        """
 
-                if sched_errors is not None:
-                    msg += "\nScheduler errors also happened, which may be the root " \
-                           "cause:\n{}".format(sched_errors)
+        if config_type in ('host', 'mode'):
+            loader = TestConfigLoader()
+        elif config_type == 'suite':
+            loader = TestSuiteLoader()
+        else:
+            raise RuntimeError("Unknown config type: '{}'".format(config_type))
 
-                raise TestConfigError(msg)
+        cfg_label, path = self.find_config(config_type, name)
+        if path is None:
 
-            resolved_tests.append(ProtoTest(resolved_config, pvar_man))
+            if optional:
+                return None, None, None
 
-        return resolved_tests
+            # Give a special message if it looks like they got their commands mixed up.
+            if config_type == 'suite' and name == 'log':
+                raise TestConfigError(
+                    "Could not find test suite 'log'. Were you trying to run `pav log run`?")
 
-    def load_raw_configs(self, tests, host, modes):
+            raise TestConfigError(
+                "Could not find {} config file '{}.py' in any of the Pavilion config directories.\n"
+                "See `pav config list` for a list of config directories.".format(config_type, name))
+
+        try:
+            with path.open() as cfg_file:
+                # Load the host test config defaults.
+                raw_cfg = loader.load_raw(cfg_file)
+        except (IOError, OSError) as err:
+            raise TestConfigError("Could not open {} config '{}'"
+                                  .format(config_type, path), err)
+        except ValueError as err:
+            raise TestConfigError(
+                "{} config '{}' has invalid value."
+                .format(config_type.capitalize(), path), err)
+        except KeyError as err:
+            raise TestConfigError(
+                "{} config '{}' has an invalid key."
+                .format(config_type.capitalize(), path), err)
+        except yc_yaml.YAMLError as err:
+            raise TestConfigError(
+                "{} config '{}' has a YAML Error"
+                .format(config_type.capitalize(), path), err)
+        except TypeError as err:
+            raise TestConfigError(
+                "Structural issue with {} config '{}'"
+                .format(config_type, path), err)
+
+        return raw_cfg, path, cfg_label
+
+
+    def load_raw_configs(self, tests: List[TestRequest], host: str, modes: List[str],
+                         conditions: Union[None, Dict] = None,
+                         overrides: Union[None, List[str]] = None,
+                         outfile: IO[str] = None) \
+                         -> List[Tuple[TestRequest, Dict]]:
         """Get a list of raw test configs given a host, list of modes,
         and a list of tests. Each of these configs will be lightly modified with
         a few extra variables about their name, suite, and suite_file, as well
@@ -447,204 +675,105 @@ class TestConfigResolver:
             can be either a '<test_suite>.<test_name>', '<test_suite>',
             or '<test_suite>.*'. A test suite by itself (or with a .*) get every
             test in a suite.
-        :param Union(str, None) host: The host the test is running on.
-        :param list modes: A list (possibly empty) of modes to layer onto the
-            test.
-        :rtype: list(dict)
-        :return: A list of raw test_cfg dictionaries.
+        :param host: The host the test is running on.
+        :param modes: A list (possibly empty) of modes to layer onto the test.
+        :param conditions: A list (possibly empty) of conditions to apply to each test config.
+        :param overrides: A list of overrides to apply to each test config.
+        :return: A list of (request, config) tuples.
         """
 
         test_config_loader = TestConfigLoader()
 
+        # Get the base, empty config, then apply the host config on top of it.
         base_config = test_config_loader.load_empty()
-
         base_config = self.apply_host(base_config, host)
 
-        # A dictionary of test suites to a list of subtests to run in that
-        # suite.
-        all_tests = defaultdict(dict)
-        picked_tests = []
-        test_suite_loader = TestSuiteLoader()
-
-        total_tests = []
-        # Make sue we get the correct amount of tests
-        for test_name in tests:
-            # Make sure the test name has the right number of parts.
-            # They should look like '<test_suite>.<subtest>', '<test_suite>.*'
-            # or just '<test_suite>'
-
-            name_parts = test_name.split('.')
-            if len(name_parts) == 0 or name_parts[0] == '':
+        # Find all the suite configs.
+        suites = {}
+        for request in tests:
+            # Only load each test suite once.
+            if request.suite in suites:
                 continue
-            elif len(name_parts) > 2:
-                raise TestConfigError(
-                    "Test names can be a general test suite, or a test suite "
-                    "followed by a specific test. Eg: 'supermagic' or "
-                    "'supermagic.fs_tests'")
 
-            # Divide the test name into it's parts.
-            if len(name_parts) == 2:
-                test_suite, requested_test = name_parts
-                if requested_test == '*':
-                    raise TestConfigError(
-                        "Invalid subtest for requested test: '*'\n"
-                        "<suite_name>.* is no longer support, use 'pav "
-                        "run <suite_name>' instead."
+            raw_suite_cfg, suite_path, cfg_label = self._load_raw_config(request.suite, 'suite')
+            suite_tests = self.resolve_inheritance(base_config, raw_suite_cfg, request.suite)
+
+            # Perform essential transformations to each test config.
+            for test_cfg_name, test_cfg in list(suite_tests.items()):
+
+                # Basic information that all test configs should have.
+                test_cfg['name'] = test_cfg_name
+                test_cfg['cfg_label'] = cfg_label
+                working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
+                test_cfg['working_dir'] = working_dir.as_posix()
+                test_cfg['suite'] = request.suite
+                test_cfg['suite_path'] = str(suite_path)
+                test_cfg['host'] = host
+                test_cfg['modes'] = modes
+
+                # Apply any additional conditions.
+                if conditions:
+                    test_cfg['only_if'] = union_dictionary(
+                        test_cfg['only_if'], conditions['only_if']
                     )
-                try:
-                    if '*' in test_suite:
-                        count, test_suite = test_suite.split("*")
-                        total_tests.extend([test_suite+"."+requested_test]*int(count))
-                        continue
+                    test_cfg['not_if'] = union_dictionary(
+                        test_cfg['not_if'], conditions['not_if']
+                    )
 
-                    if '*' in requested_test:
-                        test, count = requested_test.split("*")
-                        total_tests.extend([test_suite+"."+test]*int(count))
-                        continue
-                except ValueError as err:
-                    raise TestConfigError("Invalid repeat notation: {}"
-                                          .format(err))
-                total_tests.append(test_name)
+                # Apply modes.
+                test_cfg = self.apply_modes(test_cfg, modes)
 
-            else:
-                test_suite = name_parts[0]
-                if "*" in test_suite:
-                    left, right = test_suite.split("*")
+                # Apply overrides
+                if overrides:
                     try:
-                        if left.isdigit():
-                            total_tests.extend([right] * int(left))
-                            continue
-                        elif right.isdigit():
-                            total_tests.extend([left] * int(right))
-                            continue
-                        else:
-                            raise ValueError("No digit present in {}"
-                                             .format([left, right]))
-                    except ValueError as err:
-                        raise TestConfigError("Invalid repeat notation: {}"
-                                              .format(err))
-                else:
-                    total_tests.append(test_suite)
-
-        # Find and load all of the requested tests.
-        for test_name in total_tests:
-            name_parts = test_name.split('.')
-            if len(name_parts) == 2:
-                test_suite, requested_test = name_parts
-            else:
-                test_suite = name_parts[0]
-                requested_test = "*"
-
-            # Make sure our test suite and subtest names are sane.
-            if KEY_NAME_RE.match(test_suite) is None:
-                raise TestConfigError("Invalid test suite name: '{}'"
-                                      .format(test_suite))
-            if (requested_test != '*' and
-                    TEST_NAME_RE.match(requested_test) is None):
-                raise TestConfigError("Invalid subtest for requested test: '{}'"
-                                      .format(test_name))
-
-            # Only load each test suite's tests once.
-            if test_suite not in all_tests:
-                cfg_label, test_suite_path = self.find_config(CONF_TEST, test_suite)
-
-                if test_suite_path is None:
-                    if test_suite == 'log':
+                        test_cfg = self.apply_overrides(test_cfg, overrides)
+                    except (KeyError, ValueError) as err:
                         raise TestConfigError(
-                            "Could not find test suite 'log'. If you were "
-                            "trying to get the run log, use the 'pav log run "
-                            "<testid>' command.")
+                            'Error applying overrides to test {} from suite {} at:\n{}' \
+                            .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
+                            err)
 
-                    cdirs = [str(cfg['path']) for cfg in self.pav_cfg.configs.values()]
-                    raise TestConfigError(
-                        "Could not find test suite {}. Looked in these "
-                        "locations: {}"
-                        .format(test_suite, cdirs))
+                # Result evaluations can be added to all tests at the root pavilion config level.
+                result_evals = test_cfg['result_evaluate']
+                for key, const in self.pav_cfg.default_results.items():
+                    if key in result_evals:
+                        # Don't override any that are already there.
+                        continue
 
-                try:
-                    with test_suite_path.open() as test_suite_file:
-                        # We're loading this in raw mode, because the defaults
-                        # will have already been provided.
-                        # Each test config will be individually validated later.
-                        test_suite_cfg = test_suite_loader.load_raw(
-                            test_suite_file)
+                    test_cfg['result_evaluate'][key] = '"{}"'.format(const)
 
-                except (IOError, OSError, ) as err:
-                    raise TestConfigError(
-                        "Could not open test suite config {}: {}"
-                        .format(test_suite_path, err))
-                except ValueError as err:
-                    raise TestConfigError(
-                        "Test suite '{}' has invalid value. {}"
-                        .format(test_suite_path, err))
-                except KeyError as err:
-                    raise TestConfigError(
-                        "Test suite '{}' has an invalid key. {}"
-                        .format(test_suite_path, err))
-                except yc_yaml.YAMLError as err:
-                    raise TestConfigError(
-                        "Test suite '{}' has a YAML Error: {}"
-                        .format(test_suite_path, err)
-                    )
-                except TypeError as err:
-                    # All config elements in test configs must be strings,
-                    # and just about everything converts cleanly to a string.
-                    raise RuntimeError(
-                        "Test suite '{}' raised a type error, but that "
-                        "should never happen. {}".format(test_suite_path, err))
+                # Save our altered test config.
+                suite_tests[test_cfg_name] = test_cfg
 
-                suite_tests = self.resolve_inheritance(
-                    base_config,
-                    test_suite_cfg,
-                    test_suite_path
-                )
+            suites[request.suite] = suite_tests
 
-                # Add some basic information to each test config.
-                for test_cfg_name, test_cfg in suite_tests.items():
-                    test_cfg['name'] = test_cfg_name
-                    test_cfg['cfg_label'] = cfg_label
-                    working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
-                    test_cfg['working_dir'] = working_dir.as_posix()
-                    test_cfg['suite'] = test_suite
-                    test_cfg['suite_path'] = str(test_suite_path)
-                    test_cfg['host'] = host
-                    test_cfg['modes'] = modes
+        all_tests: List[Tuple[TestRequest, Dict]] = []
+        # Make sure we get the correct amount of tests
+        for request in tests:
+            added_tests = []
+            for test_name in suites[request.suite]:
+                if request.matches_test_name(test_name):
+                    added_tests.append(test_name)
 
-                all_tests[test_suite] = suite_tests
+            if not added_tests:
+                raise TestConfigError(
+                    "Test suite '{}' does not have a test that matches '{}'.\n"
+                    "Suite tests are:\n - {}\n"
+                    .format(
+                        request.suite,
+                        request.test,
+                        "\n - ".join(suites[request.suite].keys())))
 
-            # Now that we know we've loaded and resolved a given suite,
-            # get the relevant tests from it.
-            if requested_test == '*':
-                # All tests were requested.
-                for test_cfg_name, test_cfg in all_tests[test_suite].items():
-                    if not test_cfg_name.startswith('_'):
-                        picked_tests.append(test_cfg)
-
-            else:
-                # Get the one specified test.
-                if requested_test not in all_tests[test_suite]:
+            # Add each of the tests to our list of loaded tests.
+            for test_name in added_tests:
+                if test_name in suites[request.suite]:
+                    all_tests.append((request, suites[request.suite][test_name]))
+                else:
                     raise TestConfigError(
                         "Test suite '{}' does not contain a test '{}'."
-                        .format(test_suite, requested_test))
+                        .format(request.suite, test_name))
 
-                picked_tests.append(all_tests[test_suite][requested_test])
-
-        picked_tests = [
-            self.apply_modes(test_cfg, modes)
-            for test_cfg in picked_tests]
-
-        # Add the pav_cfg default_result configuration items to each test.
-        for test_cfg in picked_tests:
-            result_evals = test_cfg['result_evaluate']
-
-            for key, const in self.pav_cfg.default_results.items():
-                if key in result_evals:
-                    # Don't override any that are already there.
-                    continue
-
-                test_cfg['result_evaluate'][key] = '"{}"'.format(const)
-
-        return picked_tests
+        return all_tests
 
     def verify_version_range(self, comp_versions):
         """Validate a version range value."""
@@ -707,96 +836,45 @@ class TestConfigResolver:
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
 
-        test_config_loader = TestConfigLoader()
+        loader = TestConfigLoader()
 
-        if host is not None:
-            _, host_cfg_path = self.find_config(CONF_HOST, host)
+        raw_host_cfg, _, _ = self._load_raw_config(host, 'host', optional=True)
+        if raw_host_cfg is None:
+            return test_cfg
 
-            if host_cfg_path is not None:
-                try:
-                    with host_cfg_path.open() as host_cfg_file:
-                        # Load the host test config defaults.
-                        test_cfg = test_config_loader.load_merge(
-                            test_cfg,
-                            host_cfg_file,
-                            partial=True)
-                except (IOError, OSError) as err:
-                    raise TestConfigError("Could not open host config '{}': {}"
-                                          .format(host_cfg_path, err))
-                except ValueError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has invalid value. {}"
-                        .format(host_cfg_path, err))
-                except KeyError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has an invalid key. {}"
-                        .format(host_cfg_path, err))
-                except yc_yaml.YAMLError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has a YAML Error: {}"
-                        .format(host_cfg_path, err)
-                    )
-                except TypeError as err:
-                    # All config elements in test configs must be strings,
-                    # and just about everything converts cleanly to a string.
-                    raise RuntimeError(
-                        "Host config '{}' raised a type error, but that "
-                        "should never happen. {}".format(host_cfg_path, err))
+        host_cfg = loader.normalize(raw_host_cfg)
 
-            test_cfg = self.resolve_cmd_inheritance(test_cfg)
+        try:
+            return loader.merge(test_cfg, host_cfg)
+        except (KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Error merging host configuration for host '{}'".format(host))
 
-        return test_cfg
-
-    def apply_modes(self, test_cfg, modes):
+    def apply_modes(self, test_cfg, modes: List[str]):
         """Apply each of the mode files to the given test config.
-        :param dict test_cfg: A raw test configuration.
-        :param list modes: A list of mode names.
+
+        :param test_cfg: The raw test configuration.
+        :param modes: A list of mode names.
         """
 
-        test_config_loader = TestConfigLoader()
+        loader = TestConfigLoader()
 
         for mode in modes:
-            _, mode_cfg_path = self.find_config(CONF_MODE, mode)
-
-            if mode_cfg_path is None:
-                raise TestConfigError(
-                    "Could not find {} config file for {}."
-                    .format(CONF_MODE, mode))
+            raw_mode_cfg, mode_cfg_path, _ = self._load_raw_config(mode, 'mode')
+            mode_cfg = loader.normalize(raw_mode_cfg)
 
             try:
-                with mode_cfg_path.open() as mode_cfg_file:
-                    # Load this mode_config and merge it into the base_config.
-                    test_cfg = test_config_loader.load_merge(test_cfg,
-                                                             mode_cfg_file,
-                                                             partial=True)
-            except (IOError, OSError) as err:
-                raise TestConfigError("Could not open mode config '{}': {}"
-                                      .format(mode_cfg_path, err))
-            except ValueError as err:
+                test_cfg = loader.merge(test_cfg, mode_cfg)
+            except (KeyError, ValueError) as err:
                 raise TestConfigError(
-                    "Mode config '{}' has invalid value. {}"
-                    .format(mode_cfg_path, err))
-            except KeyError as err:
-                raise TestConfigError(
-                    "Mode config '{}' has an invalid key. {}"
-                    .format(mode_cfg_path, err))
-            except yc_yaml.YAMLError as err:
-                raise TestConfigError(
-                    "Mode config '{}' has a YAML Error: {}"
-                    .format(mode_cfg_path, err)
-                )
-            except TypeError as err:
-                # All config elements in test configs must be strings, and just
-                # about everything converts cleanly to a string.
-                raise RuntimeError(
-                    "Mode config '{}' raised a type error, but that "
-                    "should never happen. {}".format(mode_cfg_path, err))
+                    "Error merging host configuration for host '{}'".format(mode))
 
-            test_cfg = self.resolve_cmd_inheritance(test_cfg)
+            test_cfg = resolve.cmd_inheritance(test_cfg)
 
         return test_cfg
 
-    def resolve_inheritance(self, base_config, suite_cfg, suite_path):
+    def resolve_inheritance(self, base_config, suite_cfg, suite_path) \
+            -> Dict[str, dict]:
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
         that.
@@ -805,7 +883,6 @@ class TestConfigResolver:
         :param suite_cfg: The suite configuration, loaded from a suite file.
         :param suite_path: The path to the suite file.
         :return: A dictionary of test configs.
-        :rtype: dict(str,dict)
         """
 
         test_config_loader = TestConfigLoader()
@@ -838,16 +915,14 @@ class TestConfigResolver:
                     # Tests that depend on nothing are ready to resolve.
                     ready_to_resolve.append(test_cfg_name)
                 else:
-                    depended_on_by[test_cfg['inherits_from']]\
-                        .append(test_cfg_name)
+                    depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
                 try:
-                    suite_tests[test_cfg_name] = TestConfigLoader()\
-                        .normalize(test_cfg)
+                    suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error:\n{}"
-                        .format(test_cfg_name, suite_path, err))
+                        "Test {} in suite {} has an error."
+                        .format(test_cfg_name, suite_path), err)
         except AttributeError:
             raise TestConfigError(
                 "Test Suite {} has objects but isn't a dict. Check syntax "
@@ -864,11 +939,14 @@ class TestConfigResolver:
             parent = suite_tests[test_cfg['inherits_from']]
 
             # Merge the parent and test.
-            suite_tests[test_cfg_name] = test_config_loader.merge(parent,
-                                                                  test_cfg)
+            try:
+                suite_tests[test_cfg_name] = test_config_loader.merge(parent,
+                                                                      test_cfg)
+            except TestConfigError as err:
+                raise TestConfigError("Error merging in config '{}' from test suite '{}'."
+                                      .format(test_cfg_name, suite_path), err)
 
-            suite_tests[test_cfg_name] = self.resolve_cmd_inheritance(
-                suite_tests[test_cfg_name])
+            suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
@@ -890,52 +968,113 @@ class TestConfigResolver:
 
         for test_name, test_config in suite_tests.items():
             try:
-                suite_tests[test_name] = test_config_loader\
-                                            .validate(test_config)
+                suite_tests[test_name] = test_config_loader.validate(test_config)
             except RequiredError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has a missing key. {}"
-                    .format(test_name, suite_path, err))
+                    "Test {} in suite {} has a missing key."
+                    .format(test_name, suite_path), err)
             except ValueError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has an invalid value. {}"
-                    .format(test_name, suite_path, err))
+                    "Test {} in suite {} has an invalid value."
+                    .format(test_name, suite_path), err)
             except KeyError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has an invalid key. {}"
-                    .format(test_name, suite_path, err))
+                    "Test {} in suite {} has an invalid key."
+                    .format(test_name, suite_path), err)
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
-                    "Test {} in suite {} has a YAML Error: {}"
-                    .format(test_name, suite_path, err)
-                )
+                    "Test {} in suite {} has a YAML Error"
+                    .format(test_name, suite_path), err)
             except TypeError as err:
-                # See the same error above when loading host configs.
-                raise RuntimeError(
-                    "Loaded test '{}' in suite '{}' raised a type error, "
-                    "but that should never happen. {}"
-                    .format(test_name, suite_path, err))
+                raise TestConfigError(
+                    "Structural issue with test {} in suite {}"
+                    .format(test_name, suite_path), err)
+
             try:
                 self.check_version_compatibility(test_config)
             except TestConfigError as err:
                 raise TestConfigError(
-                    "Test '{}' in suite '{}' has incompatibility issues:\n{}"
-                    .format(test_name, suite_path, err))
+                    "Test '{}' in suite '{}' has incompatibility issues."
+                    .format(test_name, suite_path), err)
 
         return suite_tests
 
-    def resolve_permutations(self, test_cfg, base_var_man):
+    def check_permute_vars(self, permute_on, var_man) -> List[Tuple[str, str]]:
+        """Check the permutation variables and report errors. Returns a set of the
+        (var_set, var) tuples."""
+
+        _ = self
+        per_vars = set()
+        for per_var in permute_on:
+            try:
+                var_set, var, index, subvar = var_man.resolve_key(per_var)
+            except KeyError:
+                # We expect to call this without adding scheduler variables first.
+                if per_var.startswith('sched.') and '.' not in per_var:
+                    per_vars.add(('sched', per_var))
+                    continue
+                else:
+                    raise TestConfigError(
+                        "Permutation variable '{}' is not defined. Note that if you're permuting "
+                        "over a scheduler variable, you must specify the variable type "
+                        "(ie 'sched.node_list')"
+                        .format(per_var))
+            if index is not None or subvar is not None:
+                raise TestConfigError(
+                    "Permutation variable '{}' contains index or subvar. "
+                    "When giving a permutation variable only the variable name "
+                    "and variable set (optional) are allowed. Ex: 'sys.foo' "
+                    " or just 'foo'."
+                    .format(per_var))
+            elif var_man.any_deferred(per_var):
+                raise TestConfigError(
+                    "Permutation variable '{}' references a deferred variable "
+                    "or one with deferred components."
+                    .format(per_var))
+            per_vars.add((var_set, var))
+
+        return sorted(list(per_vars))
+
+    def make_subtitle_template(self, permute_vars, subtitle, var_man) -> str:
+        """Make an appropriate default subtitle given the permutation variables.
+
+        :param permute_vars: The permutation vars, as returned by check_permute_vars.
+        :param subtitle: The raw existing subtitle.
+        :param var_man: The variable manager.
+        """
+
+        _ = self
+
+        parts = []
+        if permute_vars and subtitle is None:
+            var_dict = var_man.as_dict()
+            # These should already be sorted
+            for var_set, var in permute_vars:
+                if var_set == 'sched':
+                    parts.append('{{sched.' + var + '}}')
+                elif isinstance(var_dict[var_set][var][0], dict):
+                    parts.append('_' + var + '_')
+                else:
+                    parts.append('{{' + var + '}}')
+
+            return '-'.join(parts)
+        else:
+            return subtitle
+
+    def resolve_permutations(self, test_cfg: Dict, base_var_man: variables.VariableSetManager)\
+            -> Tuple[Dict, List[variables.VariableSetManager]]:
         """Resolve permutations for all used permutation variables, returning a
-        variable manager for each permuted version of the test config. We use
-        this opportunity to populate the variable manager with most other
-        variable types as well.
+        variable manager for each permuted version of the test config. This requires that
+        we iteratively apply permutations - permutation variables may contain references that
+        refer to each other (or scheduler variables), so we have to resolve non-permuted
+        variables, apply any permutations that are ready, and repeat until all are applied
+        (taking a break to add scheduler variables when we can't proceed without them anymore).
 
         :param dict test_cfg: The raw test configuration dictionary.
         :param variables.VariableSetManager base_var_man: The variables for
             this config (absent the scheduler variables).
         :returns: The modified configuration, and a list of variable set
             managers, one for each permutation.
-        :rtype: (dict, [variables.VariableSetManager])
         :raises TestConfigError: When there are problems with variables or the
             permutations.
         """
@@ -945,58 +1084,117 @@ class TestConfigResolver:
         permute_on = test_cfg['permute_on']
         test_cfg['permute_base'] = uuid.uuid4().hex
 
-        used_per_vars = set()
-        for per_var in permute_on:
+        used_per_vars = self.check_permute_vars(permute_on, base_var_man)
+        test_cfg['subtitle'] = self.make_subtitle_template(
+            used_per_vars, test_cfg.get('subtitle'), base_var_man)
+
+        test_name = test_cfg.get('name', '<no name>')
+
+        sched_name = test_cfg.get('scheduler')
+        if sched_name is None:
+            raise TestConfigError("No scheduler was given. This should only happen "
+                                  "when unit tests fail to define it.")
+        try:
+            sched = schedulers.get_plugin(sched_name)
+        except SchedulerPluginError:
+            raise TestConfigError("Could not find scheduler '{}' for test '{}'"
+                                  .format(sched_name, test_name))
+        if not sched.available():
+            raise TestConfigError("Test {} requested scheduler {}, but it isn't "
+                                  "available on this system.".format(test_name, sched_name))
+
+        var_men = [base_var_man]
+        # Keep trying to resolve variables and create permutations until we're out. This
+        # iteratively takes care of any permutations that aren't self-referential and don't
+        # depend on the scheduler variables.
+        while True:
+            # Resolve what references we can in variables, but refuse to resolve any based on
+            # permute vars. (Note this does handle any recursive references properly)
+            basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
             try:
-                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
-            except KeyError:
-                raise TestConfigError(
-                    "Permutation variable '{}' is not defined."
-                    .format(per_var))
-            if index is not None or subvar is not None:
-                raise TestConfigError(
-                    "Permutation variable '{}' contains index or subvar. "
-                    "When giving a permutation variable only the variable name "
-                    "and variable set (optional) are allowed. Ex: 'sys.foo' "
-                    " or just 'foo'."
-                    .format(per_var))
-            elif base_var_man.any_deferred(per_var):
+                resolved, _ = base_var_man.resolve_references(partial=True,
+                                                              skip_deps=basic_per_vars)
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (progressive).", err)
 
-                raise TestConfigError(
-                    "Permutation variable '{}' references a deferred variable "
-                    "or one with deferred components."
-                    .format(per_var))
-            used_per_vars.add((var_set, var))
+            # Convert to the same format as our per_vars
+            resolved = [('var', var) for var in resolved]
 
-        if permute_on and test_cfg.get('subtitle', None) is None:
-            subtitle = []
-            var_dict = base_var_man.as_dict()
-            for per_var in permute_on:
-                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
-                if isinstance(var_dict[var_set][var][0], dict):
-                    subtitle.append('_' + var + '_')
-                else:
-                    subtitle.append('{{' + per_var + '}}')
+            # Variables to permute on this iteration.
+            permute_now = []
+            for var_set, var in used_per_vars.copy():
+                if var_set not in ('sched', 'var') or (var_set, var) in resolved:
+                    permute_now.append((var_set, var))
+                    used_per_vars.remove((var_set, var))
 
-            subtitle = '-'.join(subtitle)
+            # We've done all we can without resolving scheduler variables.
+            if not permute_now:
+                break
 
-            test_cfg['subtitle'] = subtitle
+            new_var_men = []
+            for var_man in var_men:
+                new_var_men.extend(var_man.get_permutations(permute_now))
+            var_men = new_var_men
 
-        # var_men is a list of variable managers, one for each permutation
-        var_men = base_var_man.get_permutations(list(used_per_vars))
+        # Calculate permutations for variables that we 'could resolve' if not for the fact
+        # that they are permutation variables. These are variables that refer to themselves
+        # (either directly (a.b->a.c) or indirectly (a.b -> d -> a.c).
+        all_var_men = []
+        for var_man in var_men:
+            basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
+            try:
+                _, could_resolve = var_man.resolve_references(partial=True,
+                                                              skip_deps=basic_per_vars)
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (post-prog).", err)
+
+            # Resolve permutations only for those 'could_resolve' variables that
+            # we actually permute over.
+            all_var_men.extend(var_man.get_permutations(
+                [('var', var_name) for var_name in could_resolve
+                 if var_name in could_resolve]))
+        var_men = all_var_men
+
+        # Everything left at this point will require the sched vars to deal with.
+        all_var_men = []
         for var_man in var_men:
             try:
-                var_man.resolve_references()
-            except (KeyError, ValueError) as err:
+                var_man.resolve_references(partial=True)
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (pre-sched).", err)
+
+            sched_cfg = test_cfg.get('schedule', {})
+            try:
+                sched_cfg = resolve.test_config(sched_cfg, var_man)
+            except KeyError as err:
                 raise TestConfigError(
-                    "Error resolving vars in permuted test '{}':\n{}"
-                    .format(test_cfg.get('name', '<no name>'), err))
-        return test_cfg, var_men
+                    "Failed to resolve the scheduler config due to a missing or "
+                    "unresolved variable for test {}".format(test_name), err)
+
+            try:
+                sched_vars = sched.get_initial_vars(sched_cfg)
+            except SchedulerPluginError as err:
+                raise TestConfigError(
+                    "Error getting initial variables from scheduler {} for test '{}'.\n\n"
+                    "Scheduler Config: \n{}"
+                    .format(sched_name, test_name, pprint.pformat(sched_cfg)), err)
+
+            var_man.add_var_set('sched', sched_vars)
+            # Now we can really fully resolve all the variables.
+            try:
+                var_man.resolve_references()
+            except VariableError as err:
+                raise TestConfigError("Error resolving variable references (final).", err)
+
+            # And do the rest of the permutations.
+            all_var_men.extend(var_man.get_permutations(used_per_vars))
+
+        return test_cfg, all_var_men
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
                        'base_name', 'host', 'modes']
 
-    def apply_overrides(self, test_cfg, overrides):
+    def apply_overrides(self, test_cfg, overrides) -> Dict:
         """Apply overrides to this test.
 
         :param dict test_cfg: The test configuration.
@@ -1019,11 +1217,9 @@ class TestConfigResolver:
             self._apply_override(test_cfg, key, value)
 
         try:
-            test_cfg = config_loader.normalize(test_cfg)
+            return config_loader.normalize(test_cfg)
         except TypeError as err:
-            raise TestConfigError("Invalid override: {}"
-                                  .format(err))
-        config_loader.validate(test_cfg)
+            raise TestConfigError("Invalid override", err)
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.
@@ -1046,6 +1242,12 @@ class TestConfigResolver:
         key_copy = list(key)
         last_cfg = None
         last_key = None
+
+        # Normalize simple variable values.
+        if key[0] == 'variables' and len(key) in (2, 3):
+            is_var_value = True
+        else:
+            is_var_value = False
 
         # Validate the key by walking the config according to the key
         while key_copy:
@@ -1095,293 +1297,41 @@ class TestConfigResolver:
             dummy_file = io.StringIO(value)
             value = yc_yaml.safe_load(dummy_file)
         except (yc_yaml.YAMLError, ValueError, KeyError) as err:
-            raise ValueError("Invalid value ({}) for key '{}' in overrides: {}"
-                             .format(value, disp_key, err))
+            raise ValueError("Invalid value ({}) for key '{}' in overrides"
+                             .format(value, disp_key), err)
 
-        last_cfg[last_key] = self.normalize_override_value(value)
+        last_cfg[last_key] = self.normalize_override_value(value, is_var_value)
 
-    def normalize_override_value(self, value):
+    def normalize_override_value(self, value, is_var_value=False):
         """Normalize a value to one compatible with Pavilion configs. It can
         be any structure of dicts and lists, as long as the leaf values are
         strings.
 
         :param value: The value to normalize.
+        :param is_var_value: True if the value will be used to set a variable value.
         :returns: A string or a structure of dicts/lists whose leaves are
             strings.
         """
+
+        if isinstance(value, (int, float, bool, bytes)):
+            value = str(value)
+
         if isinstance(value, str):
-            return value
-        elif isinstance(value, (int, float, bool, bytes)):
-            return str(value)
+            if is_var_value:
+                # Normalize a simple value into the standard variable format.
+                return [{None: value}]
+            else:
+                return value
         elif isinstance(value, (list, tuple)):
             return [self.normalize_override_value(v) for v in value]
         elif isinstance(value, dict):
-            return {str(k): self.normalize_override_value(v)
-                    for k, v in value.items()}
+            dict_val = {str(k): self.normalize_override_value(v)
+                        for k, v in value.items()}
+
+            if is_var_value:
+                # Normalize a single dict item into a list of them for variables.
+                return [dict_val]
+            else:
+                return dict_val
         else:
             raise ValueError("Invalid type in override value: {}".format(value))
-
-    DEFERRED_PREFIX = '!deferred!'
-
-    @classmethod
-    def was_deferred(cls, val):
-        """Return true if config item val was deferred when we tried to resolve
-        the config.
-
-        :param str val: The config value to check.
-        :rtype: bool
-        """
-
-        return val.startswith(cls.DEFERRED_PREFIX)
-
-    @classmethod
-    def resolve_test_vars(cls, config, var_man):
-        """Recursively resolve the variables in the value strings in the given
-        configuration.
-
-        Deferred Variable Handling
-          When a config value references a deferred variable, it is left
-          unresolved and prepended with the DEFERRED_PREFIX. To complete
-          these, use resolve_deferred().
-
-        :param dict config: The config dict to resolve recursively.
-        :param variables.VariableSetManager var_man: A variable manager. (
-            Presumably a permutation of the base var_man)
-        :return: The resolved config,
-        """
-
-        no_deferred_allowed = schedulers.list_plugins()
-        # This can eventually be allowed if the build is non-local.
-        no_deferred_allowed.append('build')
-        no_deferred_allowed.append('scheduler')
-        # This can be allowed, eventually.
-        no_deferred_allowed.append('only_if')
-        no_deferred_allowed.append('not_if')
-
-        resolved_dict = {}
-
-        for section in config:
-            resolved_dict[section] = cls.resolve_section_values(
-                component=config[section],
-                var_man=var_man,
-                allow_deferred=section not in no_deferred_allowed,
-                key_parts=(section,),
-            )
-
-        for section in ('only_if', 'not_if'):
-            if section in config:
-                resolved_dict[section] = cls.resolve_keys(
-                    base_dict=resolved_dict.get(section, {}),
-                    var_man=var_man,
-                    section_name=section)
-
-        return resolved_dict
-
-    @classmethod
-    def resolve_deferred(cls, config, var_man):
-        """Resolve only those values prepended with the DEFERRED_PREFIX. All
-        other values are presumed to be resolved already.
-
-        :param dict config: The configuration
-        :param variables.VariableSetManager var_man: The variable manager. This
-            must not contain any deferred variables.
-        """
-
-        if var_man.deferred:
-            deferred = [
-                ".".join([part for part in var_parts if part is not None])
-                for var_parts in var_man.deferred
-            ]
-
-            raise RuntimeError(
-                "The variable set manager must not contain any deferred "
-                "variables, but contained these: {}"
-                .format(deferred)
-            )
-
-        config = cls.resolve_section_values(config, var_man,
-                                            deferred_only=True)
-        for section in ('only_if', 'not_if'):
-            if section in config:
-                config[section] = cls.resolve_keys(
-                    base_dict=config.get(section, {}),
-                    var_man=var_man,
-                    section_name=section,
-                    deferred_only=True)
-
-        return config
-
-    @classmethod
-    def resolve_keys(cls, base_dict, var_man,
-                     section_name, deferred_only=False) -> dict:
-        """Some sections of the test config can have Pavilion Strings for
-        keys. Resolve the keys of the given dict.
-
-        :param dict[str,str] base_dict: The dict whose keys need to be resolved.
-        :param variables.VariableSetManager var_man: The variable manager to
-            use to resolve the keys.
-        :param str section_name: The name of this config section, for error
-            reporting.
-        :param bool deferred_only: Resolve only deferred keys, otherwise
-            mark deferred keys as deferred.
-        :returns: A new dictionary with the updated keys.
-        """
-
-        new_dict = type(base_dict)()
-        for key, value in base_dict.items():
-            new_key = cls.resolve_section_values(
-                component=key,
-                var_man=var_man,
-                allow_deferred=True,
-                deferred_only=deferred_only,
-                key_parts=[section_name + '[{}]'.format(key)])
-
-            # The value will have already been resolved.
-            new_dict[new_key] = value
-
-        return new_dict
-
-    @classmethod
-    def resolve_section_values(cls, component, var_man, allow_deferred=False,
-                               deferred_only=False, key_parts=None):
-        """Recursively resolve the given config component's value strings
-        using a variable manager.
-
-        :param Union[dict,list,str] component: The config component to resolve.
-        :param var_man: A variable manager. (Presumably a permutation of the
-            base var_man)
-        :param bool allow_deferred: Allow deferred variables in this section.
-        :param bool deferred_only: Only resolve values prepended with
-            the DEFERRED_PREFIX, and throw an error if such values can't be
-            resolved. If this is True deferred values aren't allowed anywhere.
-        :param Union[tuple[str],None] key_parts: A list of the parts of the
-            config key traversed to get to this point.
-        :return: The component, resolved.
-        :raises: RuntimeError, TestConfigError
-        """
-
-        if key_parts is None:
-            key_parts = tuple()
-
-        if isinstance(component, dict):
-            resolved_dict = type(component)()
-            for key in component.keys():
-                resolved_dict[key] = cls.resolve_section_values(
-                    component[key],
-                    var_man,
-                    allow_deferred=allow_deferred,
-                    deferred_only=deferred_only,
-                    key_parts=key_parts + (key,))
-
-            return resolved_dict
-
-        elif isinstance(component, list):
-            resolved_list = type(component)()
-            for i in range(len(component)):
-                resolved_list.append(
-                    cls.resolve_section_values(
-                        component[i], var_man,
-                        allow_deferred=allow_deferred,
-                        deferred_only=deferred_only,
-                        key_parts=key_parts + (i,)
-                    ))
-            return resolved_list
-
-        elif isinstance(component, str):
-
-            if deferred_only:
-                # We're only resolving deferred value strings.
-
-                if component.startswith(cls.DEFERRED_PREFIX):
-                    component = component[len(cls.DEFERRED_PREFIX):]
-
-                    try:
-                        resolved = parsers.parse_text(component, var_man)
-                    except DeferredError:
-                        raise RuntimeError(
-                            "Tried to resolve a deferred config component, "
-                            "but it was still deferred: {}"
-                            .format(component)
-                        )
-                    except parsers.StringParserError as err:
-                        raise TestConfigError(
-                            "Error resolving value '{}' in config at '{}':\n"
-                            "{}\n{}"
-                            .format(component, '.'.join(map(str, key_parts)),
-                                    err.message, err.context))
-                    return resolved
-
-                else:
-                    # This string has already been resolved in the past.
-                    return component
-
-            else:
-                if component.startswith(cls.DEFERRED_PREFIX):
-                    # This should never happen
-                    raise RuntimeError(
-                        "Tried to resolve a pavilion config string, but it was "
-                        "started with the deferred prefix '{}'. This probably "
-                        "happened because Pavilion called setup.resolve_config "
-                        "when it should have called resolve_deferred."
-                        .format(cls.DEFERRED_PREFIX)
-                    )
-
-                try:
-                    resolved = parsers.parse_text(component, var_man)
-                except DeferredError:
-                    if allow_deferred:
-                        return cls.DEFERRED_PREFIX + component
-                    else:
-                        raise TestConfigError(
-                            "Deferred variable in value '{}' under key "
-                            "'{}' where it isn't allowed"
-                            .format(component, '.'.join(map(str, key_parts))))
-                except parsers.StringParserError as err:
-                    raise TestConfigError(
-                        "Error resolving value '{}' in config at '{}':\n"
-                        "{}\n{}"
-                        .format(component,
-                                '.'.join([str(part) for part in key_parts]),
-                                err.message, err.context))
-                else:
-                    return resolved
-        elif component is None:
-            return None
-        else:
-            raise TestConfigError("Invalid value type '{}' for '{}' when "
-                                  "resolving strings. Key parts: {}"
-                                  .format(type(component), component, key_parts))
-
-    def resolve_cmd_inheritance(self, test_cfg):
-        """Extend the command list by adding any prepend or append commands,
-        then clear those sections so they don't get added at additional
-        levels of config merging."""
-
-        _ = self
-
-        for section in ['build', 'run']:
-            config = test_cfg.get(section)
-            if not config:
-                continue
-            new_cmd_list = []
-            if config.get('prepend_cmds', []):
-                new_cmd_list.extend(config.get('prepend_cmds'))
-                config['prepend_cmds'] = []
-            new_cmd_list += test_cfg[section]['cmds']
-            if config.get('append_cmds', []):
-                new_cmd_list.extend(config.get('append_cmds'))
-                config['append_cmds'] = []
-            test_cfg[section]['cmds'] = new_cmd_list
-
-        return test_cfg
-
-    @classmethod
-    def finalize(cls, test_run, new_vars: variables.VariableSetManager):
-        """Finalize the given test run object with the given new variables."""
-
-        test_run.var_man.undefer(new_vars=new_vars)
-
-        test_run.config = cls.resolve_deferred(
-            test_run.config, test_run.var_man)
-
-        test_run._finalize()  # pylint: disable=protected-access

@@ -3,14 +3,16 @@ utilize the YamlConfig library to define the config structure. Because of the
 dynamic nature of test configs, there are a few extra complications this module
 handles that are documented below.
 """
-
+import collections
+import copy
 import re
 from collections import OrderedDict
+from typing import Union
 
 import yaml_config as yc
-from pavilion.exceptions import TestConfigError
+from pavilion.errors import TestConfigError
 
-TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
+TEST_NAME_RE_STR = r'^[a-zA-Z0-9_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
@@ -22,36 +24,124 @@ class PathCategoryElem(yc.CategoryElem):
     _NAME_RE = re.compile(r".+$")
 
 
+class SubVarDict(dict):
+    """Subclass for variable sub-items, mainly to track defaults properly."""
+
+    def __init__(self, *args, defaults=None, **kwargs):
+        """Defaults is a dictionary of default values."""
+
+        self.defaults = defaults or {}
+
+        super().__init__(*args, **kwargs)
+
+    def __copy__(self):
+        """Copy over the default dict too."""
+
+        return self.__class__(self, defaults=self.defaults)
+
+    def __deepcopy__(self, memodict=None):
+        """Copy the defaults too."""
+
+        new = SubVarDict(super().copy())
+        new.defaults = copy.deepcopy(self.defaults)
+
+        return new
+
+    def keys(self):
+        """Return all keys from both ourselves and the defaults as keys."""
+
+        for key in set(super().keys()).union(self.defaults.keys()):
+            yield key
+
+    def items(self):
+        """Return all values from both self and defaults."""
+
+        for key in self.keys():
+            yield key, self[key]
+
+    def values(self):
+        """Return all values across both self and the defaults."""
+
+        for key in self.keys():
+            yield self[key]
+
+
+    def flatten(self) -> dict:
+        """Return as a regular dictionary with all available values set."""
+
+        base = {}
+        for key, value in self.items():
+            base[key] = value
+
+        return base
+
+    def is_defaults_only(self) -> bool:
+        """Returns true if there isn't any regular data, just defaults."""
+        return not list(super().keys())
+
+    def super_keys(self):
+        return list(super().keys())
+
+    def __contains__(self, key):
+
+        return key in list(super().keys()) or key in self.defaults
+
+    def __getitem__(self, key):
+
+        if key not in self:
+            raise KeyError("KeyError: '{}'".format(key))
+
+        if key in super().keys():
+            return super().__getitem__(key)
+        else:
+            return self.defaults[key]
+
+    def __str__(self):
+        parts = []
+        for key in self.keys():
+            if key in super().keys():
+                parts.append('{}: {}'.format(key, self[key]))
+            else:
+                parts.append('{}: ({})'.format(key, self[key]))
+        return '{{ {} }}'.format(', '.join(parts))
+
+    def __repr__(self):
+        return str(self)
+
+
 class VariableElem(yc.CategoryElem):
     """This is for values in the 'variables' section of a test config.
 
     A variable entry can be either a single string value or an
-    arbitrary dictionary of strings. If we get a single value, we'll return it
-    instead of a dict.  Pavilion's variable handling code handles the
-    normalization of these values.
+    arbitrary dictionary of strings. If given a single string value, a dictionary
+    of '{None: value}' will be returned.
     """
 
     _NAME_RE = VAR_KEY_NAME_RE
+    type = SubVarDict
 
     def __init__(self, name=None, **kwargs):
         """Just like a CategoryElem, but the sub_elem must be a StrElem
         and it can't have defaults."""
+
         super(VariableElem, self).__init__(name=name,
                                            sub_elem=yc.StrElem(),
+                                           allow_empty_keys=True,
                                            **kwargs)
 
     def normalize(self, value):
         """Normalize to either a dict of strings or just a string."""
+
         if not isinstance(value, dict):
-            return yc.StrElem().normalize(value)
+            value = {None: value}
 
         return super().normalize(value)
 
     def validate(self, value, partial=False):
         """Check for a single item and return it, otherwise return a dict."""
 
-        if isinstance(value, str):
-            return value
+        if not isinstance(value, dict):
+            value = {None: value}
 
         return super().validate(value, partial=partial)
 
@@ -64,7 +154,7 @@ class CondCategoryElem(yc.CategoryElem):
 class EvalCategoryElem(yc.CategoryElem):
     """Allow keys that start with underscore. Lowercase only."""
 
-    _NAME_RE = re.compile(r'[a-z_][a-z0-9_]*')
+    _NAME_RE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
 
 
 class VarKeyCategoryElem(yc.CategoryElem):
@@ -84,7 +174,7 @@ class ResultParserCatElem(yc.CategoryElem):
 
 
 class VarCatElem(yc.CategoryElem):
-    """For describing how the variables section itself works.
+    """For describing how the variables' section itself works.
 
     Just like a regular category elem (any conforming key, but values must
     be the same type), but with some special magic when merging values.
@@ -92,6 +182,12 @@ class VarCatElem(yc.CategoryElem):
     :cvar _NAME_RE: Unlike normal categoryElem keys, these can have dashes.
     """
     _NAME_RE = VAR_NAME_RE
+
+    def validate(self, value, partial=False):
+        """Make sure default value propagate through validation."""
+        validated = super().validate(value, partial=partial)
+
+        return validated
 
     def merge(self, old, new):
         """Merge, but allow for special keys that change our merge behavior.
@@ -104,42 +200,165 @@ class VarCatElem(yc.CategoryElem):
           levels of the config stack.
         """
 
-        base = old.copy()
-        for key, value in new.items():
+        base = copy.deepcopy(old)
+        new = copy.deepcopy(new)
+        for key, values in new.items():
             # Handle special key properties
+
+            key_suffix = None
             if key[-1] in '?+':
-                bkey = key[:-1]
-                new_vals = new[key]
+                key_suffix = key[-1]
+                key = key[:-1]
 
-                if key.endswith('?'):
-                    if new_vals is None:
-                        raise TestConfigError(
-                            "Key '{key}' in variables section must have a "
-                            "value, either set as the default at this level or "
-                            "provided by an underlying host or mode config."
-                            .format(key=key)
-                        )
-                    # Use the new value only if there isn't an old one.
-                    base[bkey] = base.get(bkey, new[key])
-                elif key.endswith('+'):
-                    if new_vals is None:
-                        raise TestConfigError(
-                            "Key '{key}' in variables section is in extend "
-                            "mode, but provided no values."
-                            .format(key=key))
+            if values is None:
+                values = [SubVarDict({None: None})]
 
-                    # Appending the additional (unique) values
-                    base[bkey] = base.get(bkey, self._sub_elem.type())
-                    for item in new_vals:
-                        if item not in base[bkey]:
-                            base[bkey].append(item)
+            if not isinstance(values, list):
+                values = [values]
 
-            elif key in old:
-                base[key] = self._sub_elem.merge(old[key], new[key])
+            if key_suffix is None:
+                # Completely override existing values, but keep the defaults.
+
+                existing = base.get(key, [])
+                if existing:
+                    # Steal the defaults from the existing items.
+                    old_defaults = existing[0].defaults
+                else:
+                    old_defaults = {}
+
+                base[key] = []
+
+                # If there are no defaults, all items should have the same keys.
+                if not old_defaults and values:
+                    first_val_keys = set(values[0].keys())
+                    for value in values[1:]:
+                        if set(value.keys()) != first_val_keys:
+                            if first_val_keys == {None}:
+                                raise TestConfigError(
+                                    "Key '{}' in the variables section has items of differing "
+                                    "formats.".format(key))
+
+                for value in values:
+                    # Check that the keys being added match the defaults
+                    for subkey in value:
+                        if old_defaults and subkey not in old_defaults:
+                            raise TestConfigError(
+                                "Key '{}' in the variables section has defaults defined, but "
+                                "is trying to add a new sub-key '{}'. Existing subkeys are '{}'."
+                                .format(key, subkey, list(old_defaults.keys())))
+
+                    value.defaults = old_defaults
+                    base[key].append(value)
+
+            elif key_suffix == '?':
+                # If no value is set, that's ok. We'll check for these later.
+
+                def_type = 'subvar'
+                for value in values:
+                    if None in value:
+                        def_type = 'single_val'
+
+                if def_type == 'subvar':
+                    if len(values) > 1:
+                        if len(values[0]) != 1:
+                            raise TestConfigError(
+                                "Key '{}' in variables section is trying to set a list of "
+                                "sub-var defaults, but only one is allowed.".format(key))
+
+                    new_defaults = values[0]
+
+                    # If we don't have any values yet, add an empty dictionary with
+                    # the defaults set.
+                    if key not in base:
+                        base[key] = [SubVarDict(defaults=new_defaults)]
+                    else:
+                        # Update the defaults for all existing items.
+                        for existing in base[key]:
+                            if existing.defaults:
+                                # When there are existing defaults, make sure not to add
+                                # any new keys.
+                                for def_key in new_defaults.keys():
+                                    if def_key not in existing.defaults:
+                                        raise TestConfigError(
+                                            "Key '{}' in variables section trying to add a new "
+                                            "default sub-value key '{}', but the defaults were "
+                                            "already defined with keys: '{}'"
+                                            .format(key, def_key, list(existing.defaults.keys()))
+                                        )
+                                    existing.defaults[def_key] = new_defaults[def_key]
+                            else:
+                                # If there aren't any existing defaults, this defines them.
+                                existing.defaults = new_defaults.copy()
+
+                elif def_type == 'single_val':
+                    for value in values:
+                        if None not in value:
+                            raise TestConfigError(
+                                "Key '{}' in the variables section has been set with defaults "
+                                "of inconsistent type. A single default dict is allowed, or "
+                                "one or more simple string values."
+                                .format(key))
+
+                    if base.get(key, []):
+                        # Values already exist. Don't apply defaults.
+                        pass
+                    else:
+                        # Set each item as an empty dict with a default.
+                        new_values = []
+                        for value in values:
+                            new_values.append(SubVarDict(defaults=value))
+                        base[key] = new_values
+
+            elif key_suffix == '+':
+                # Extend the list of items.
+
+                if not values:
+                    raise TestConfigError(
+                        "Key '{}' in variables section in extend mode (has a '+' suffix) "
+                        "but no values were given.".format(key))
+
+                # Grab the defaults from an existing item, if there is one.
+                existing = base.get(key, [])
+                if existing:
+                    existing_defaults = existing[0].defaults
+                    existing_keys = list(existing[0].keys())
+                else:
+                    existing_defaults = {}
+                    existing_keys = None
+
+                for value in values:
+                    # Check each for key conflicts
+                    for subkey in value.keys():
+                        if existing_keys and subkey not in existing_keys:
+                            raise TestConfigError(
+                                "Key '{}' in variables section trying to add a new subkey '{}', "
+                                "but the subkeys have already been set as: {}"
+                                .format(key, subkey, list(existing_defaults.keys())))
+
+                    # Add each value.
+                    value.defaults = existing_defaults
+                    existing.append(value)
+
+                base[key] = existing
+
             else:
-                base[key] = new[key]
+                # Should never happen
+                raise RuntimeError("Invalid Variable Key Suffix '{}' for key '{}'"
+                                   .format(key_suffix, key))
 
         return base
+
+    def _check_val_merge(self, old: dict, new: dict) -> Union[None, str]:
+        """Check that every key in 'new' exists in 'old'. Returns the first
+         string found that doesn't match or None if everything is fine."""
+
+        _ = self
+
+        for key in new:
+            if key not in old:
+                return key
+
+        return None
 
 
 class EnvCatElem(yc.CategoryElem):
@@ -155,6 +374,13 @@ class TestCatElem(yc.CategoryElem):
 
     _NAME_RE = re.compile(r'^.*$')
     type = OrderedDict
+
+
+class ModuleWrapperCatElem(yc.CategoryElem):
+    """Allow glob wildcards in key names."""
+
+    _NAME_RE = re.compile(r'^[a-zA-Z*?+][a-zA-Z0-9_*+?-]*$')
+    type=OrderedDict
 
 
 NO_WORKING_DIR = '<no_working_dir>'
@@ -347,7 +573,19 @@ expected to be added to by various plugins.
                     key_case=PathCategoryElem.KC_MIXED,
                     sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                     help_text="File(s) to create at path relative to the test's"
-                              "test source directory"),
+                              "build/run directory. The key is the filename, "
+                              "while the contents is a list of lines to include in the "
+                              "file. Pavilion test variables will be resolved in this lines "
+                              "before they are written."),
+                PathCategoryElem(
+                    'templates',
+                    key_case=PathCategoryElem.KC_MIXED,
+                    sub_elem=yc.StrElem(),
+                    help_text="Template files to resolve using Pavilion test variables. The "
+                              "key is the path to the template file (typically with a "
+                              "'.pav' extension), in the 'test_src' directory. The value is the "
+                              "output file location, relative to the test's build/run "
+                              "directory."),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the build "
@@ -442,6 +680,12 @@ expected to be added to by various plugins.
                     'timeout_file', default=None,
                     help_text='Specify a different file to follow for build '
                               'timeouts.'),
+                yc.StrElem(
+                    'autoexit',  choices=['true', 'True', 'False', 'false'],
+                    default='True',
+                    help_text='If True, test will fail if any of its build '
+                              'commands fail, rather than just the last '
+                              'command.'),
             ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
@@ -463,7 +707,23 @@ expected to be added to by various plugins.
                     key_case=PathCategoryElem.KC_MIXED,
                     sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                     help_text="File(s) to create at path relative to the test's"
-                              "test source directory"),
+                              "build/run directory. The key is the filename, "
+                              "while the contents is a list of lines to include in the "
+                              "file. Pavilion test variables will be resolved in this lines "
+                              "before they are written."),
+
+                # Note - Template have to come from the test_src directory (or elsewhere on
+                #        the filesystem, because we have to be able to process them before
+                #        we can create a build hash.
+                PathCategoryElem(
+                    'templates',
+                    key_case=PathCategoryElem.KC_MIXED,
+                    sub_elem=yc.StrElem(),
+                    help_text="Template files to resolve using Pavilion test variables. The "
+                              "key is the path to the template file (typically with a "
+                              "'.pav' extension), in the 'test_src' directory. The value is the "
+                              "output file location, relative to the test's build/run "
+                              "directory."),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the run "
@@ -502,6 +762,11 @@ expected to be added to by various plugins.
                     'timeout_file', default=None,
                     help_text='Specify a different file to follow for run '
                               'timeouts.'),
+                yc.StrElem(
+                    'autoexit', choices=['true', 'True', 'False', 'false'],
+                    default='True',
+                    help_text='If True, test will fail if any of its run commands '
+                              'fail, rather than just the last command.'),
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
@@ -515,6 +780,31 @@ expected to be added to by various plugins.
                       "strings). Other result values (including those "
                       "from result parsers and other evaluations are "
                       "available to reference as variables."),
+        ModuleWrapperCatElem(
+            'module_wrappers',
+            help_text="Whenever the given module[/version] is asked for in the 'build.modules' "
+                      "or 'run.modules' section, perform these module actions instead and "
+                      "export the given environment variables. When this module is requested via "
+                      "a 'swap', do the swap as written but set the given environment variables. "
+                      "Nothing special is done for module unloads of this module. "
+                      "If a version is given, this only applies to that specific version.",
+            sub_elem=yc.KeyedElem(
+                elements=[
+                    yc.ListElem(
+                        'modules', sub_elem=yc.StrElem(),
+                        help_text="Modules to load/remove/swap when the given module"
+                                  "is specified. Loads and swaps into the wrapped module "
+                                  "will automatically be at the requested version if none "
+                                  "is given.  (IE - If the user asks for gcc/5.2, a "
+                                  "listing of just 'gcc' here will load 'gcc/5.2')."),
+                    EnvCatElem(
+                        'env', sub_elem=yc.StrElem(),
+                        help_text="Environment variables to set after performing the "
+                                  "given module actions. A '<MODNAME_VERSION>' variable "
+                                  "will also be set with the specified version, if given.")
+                ]
+            )
+        ),
     ]
     """Each YamlConfig instance in this list defines a key for the test config.
 

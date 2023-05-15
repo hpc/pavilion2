@@ -2,7 +2,7 @@
 """
 import errno
 
-import pavilion.exceptions
+from pavilion import errors
 from pavilion import output
 from pavilion import series, series_config
 from pavilion.test_run import TestRun
@@ -119,24 +119,18 @@ class LogCommand(Command):
                     test = series.TestSeries.load(pav_cfg, args.id)
                 else:
                     test = TestRun.load_from_raw_id(pav_cfg, args.id)
-            except pavilion.exceptions.TestRunError as err:
-                output.fprint("Error loading test: {}".format(err),
-                              color=output.RED,
-                              file=self.errfile)
+            except errors.TestRunError as err:
+                output.fprint(self.errfile, "Error loading test.", err, color=output.RED)
                 return 1
             except series_config.SeriesConfigError as err:
-                output.fprint("Error loading series: {}".format(err),
-                              color=output.RED,
-                              file=self.errfile)
+                output.fprint(self.errfile, "Error loading series.", err, color=output.RED)
                 return 1
 
             file_name = test.path/self.LOG_PATHS[cmd_name]
 
         if not file_name.exists():
-            output.fprint("Log file does not exist: {}"
-                          .format(file_name),
-                          color=output.RED,
-                          file=self.errfile)
+            output.fprint(self.errfile, "Log file does not exist: {}"
+                          .format(file_name), color=output.RED)
             return 1
 
         try:
@@ -144,16 +138,13 @@ class LogCommand(Command):
                 if args.tail:
                     tail = file.readlines()[-int(args.tail):]
                     for line in tail:
-                        output.fprint(line, file=self.outfile)
+                        output.fprint(self.outfile, line)
                 else:
-                    output.fprint(file.read(), file=self.outfile,
-                                  width=None, end='')
+                    output.fprint(self.outfile, file.read(), width=None, end='')
 
         except (IOError, OSError) as err:
-            output.fprint("Could not read log file '{}': {}"
-                          .format(file_name, err),
-                          color=output.RED,
-                          file=self.errfile)
+            output.fprint(self.errfile, "Could not read log file '{}'"
+                          .format(file_name), err, color=output.RED)
             return 1
 
         return 0

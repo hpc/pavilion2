@@ -14,13 +14,21 @@ Project goals:
 
 -  Robust testing in postDST, automated, and acceptance testing (system
    validation) scenarios.
+
 -  End-to-end status tracking for all tests.
+
 -  Simple, powerful test configuration language.
+
 -  System agnostic test configs.
+
 -  Hide common platform and environment idiosyncrasies from tests.
+
 -  System specific defaults.
+
 -  Eliminate unnecessary build repetition.
+
 -  Extreme extensibility (plugins everywhere).
+
 
 .. toctree::
    :maxdepth: 2
@@ -61,6 +69,7 @@ Project goals:
    :caption: API Documentation
 
    source/index.rst
+   yaml_config_docs/index.rst
 
 .. toctree::
    :maxdepth: 2

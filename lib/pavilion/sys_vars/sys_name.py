@@ -19,9 +19,13 @@ class SystemName(SystemPlugin):
         name = subprocess.check_output(['hostname', '-s'])
         name = name.strip().decode('UTF-8')
 
-        name_re = re.compile(r'([a-zA-Z]+[a-zA-Z0-9_-]*[a-zA-Z_-]+)([0-9]*)$')
+        # Strip of any trailing numbers from the hostname.
+        end = -1
+        while name[end:].isdigit():
+            end -= 1
 
-        match = name_re.match(name)
-        name = match.groups()[0]
-
-        return name
+        end += 1
+        if end == 0:
+            return name
+        else:
+            return name[:end+1]

@@ -1,0 +1,4 @@
+Hiya!
+Resolve this val1.
+
+No trailing newline..

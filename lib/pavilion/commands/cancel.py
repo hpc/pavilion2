@@ -4,9 +4,11 @@ from pavilion import cancel_utils
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
-from pavilion import sys_vars
-from pavilion import utils
+from pavilion import series
+from pavilion.errors import TestSeriesError
+from pavilion.test_run import TestRun
 from .base_classes import Command
+from ..errors import TestRunError
 
 
 class CancelCommand(Command):
@@ -38,12 +40,80 @@ class CancelCommand(Command):
     def run(self, pav_cfg, args):
         """Cancel the given tests."""
 
-        args.user = args.user or utils.get_login()
-        args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+        if not args.tests:
+            # Get the last series ran by this user.
+            series_id = series.load_user_series_id(pav_cfg)
+            if series_id is not None:
+                args.tests.append(series_id)
 
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
-        tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
-        output.fprint("Found {} tests to try to cancel.".format(len(tests)),
-                      file=self.outfile)
+        tests = []
+        for test_id in args.tests:
+            if test_id.startswith('s'):
+                try:
+                    test_series = series.TestSeries.load(pav_cfg, test_id)
+                    series_pgid = test_series.pgid
+                    tests.extend(test_series.tests.values())
+                except TestSeriesError as err:
+                    output.fprint(self.errfile, "Series {} could not be found."
+                                  .format(test_id), err, color=output.RED)
+                    return errno.EINVAL
+                except ValueError as err:
+                    output.fprint(self.errfile, "Series {} is not a valid series."
+                                  .format(test_id), err, color=output.RED)
+                    return errno.EINVAL
 
-        return cancel_utils.cancel_tests(pav_cfg, tests, self.outfile)
+                try:
+                    # if there's a series PGID, kill the series PGID
+                    if series_pgid:
+                        os.killpg(series_pgid, signal.SIGTERM)
+                        output.fprint(self.outfile, 'Killed process {}, which is series {}.'
+                                      .format(series_pgid, test_id))
+
+                except ProcessLookupError:
+                    output.fprint(self.errfile, "Unable to kill {}. No such process: {}"
+                                  .format(test_id, series_pgid), color=output.RED)
+            else:
+                try:
+                    tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))
+                except TestRunError as err:
+                    output.fprint(self.errfile,
+                                  "Test {} is not a valid test.".format(test_id), err,
+                                  color=output.RED)
+                    return errno.EINVAL
+
+        output.fprint(self.outfile, "Found {} tests to try to cancel.".format(len(tests)))
+
+        # Cancel each test. Note that this does not cancel test jobs or builds.
+        cancelled_test_info = []
+        for test in tests:
+            # Don't try to cancel complete tests
+            if not test.complete:
+                test.cancel("Cancelled via cmdline.")
+                cancelled_test_info.append(test)
+
+        if cancelled_test_info:
+            output.draw_table(
+                outfile=self.outfile,
+                fields=['name', 'id'],
+                rows=[{'name': test.name, 'id': test.full_id}
+                      for test in cancelled_test_info])
+        else:
+            output.fprint(self.outfile, "No tests needed to be cancelled.")
+            return 0
+
+        output.fprint(self.outfile, "Giving tests a moment to quit.")
+        time.sleep(TestRun.RUN_WAIT_MAX)
+
+        job_cancel_info = cancel.cancel_jobs(pav_cfg, tests, self.errfile)
+
+        if job_cancel_info:
+            output.draw_table(
+                outfile=self.outfile,
+                fields=['scheduler', 'job', 'success', 'msg'],
+                rows=job_cancel_info,
+                title="Cancelled {} jobs.".format(len(job_cancel_info)),
+            )
+        else:
+            output.fprint(self.outfile, "No jobs needed to be cancelled.")
+
+        return 0

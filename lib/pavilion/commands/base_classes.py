@@ -8,6 +8,7 @@ import inspect
 import io
 import logging
 import sys
+from typing import List
 
 from pavilion import arguments
 from pavilion import output
@@ -45,15 +46,11 @@ def add_command(command):
                 .format(c1=_COMMANDS[name], c2=command))
 
 
-def get_command(command_name):
-    """Return the command of the given name.
+def cmd_tracker():
+    """Return the command tracking object."""
 
-    :param str command_name: The name of the command to search for.
-    :rtype: Command
-    """
-    global _COMMANDS
-
-    return _COMMANDS[command_name]
+    # We can't just import this - it gets pointed at different objects over time.
+    return _COMMANDS
 
 
 class Command(IPlugin.IPlugin):
@@ -103,6 +100,10 @@ class Command(IPlugin.IPlugin):
             self._inventory_sub_commands()
 
         self._parser = None
+
+        # This is used primarily by the run command,
+        self.last_series = None
+        self.last_tests = []  # type: List
 
     def _inventory_sub_commands(self):
         """Find all the sub commands and populate the sub_cmds dict."""
@@ -208,9 +209,8 @@ case that includes:
         cmd_name = args.sub_cmd
 
         if cmd_name is None:
-            output.fprint(
-                "You must provide a sub command '{}'.".format(cmd_name),
-                color=output.RED, file=self.errfile)
+            output.fprint(self.errfile, "You must provide a sub command '{}'.".format(cmd_name),
+                          color=output.RED)
             self._parser.print_help(file=self.errfile)
             return errno.EINVAL
 

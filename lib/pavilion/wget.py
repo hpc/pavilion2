@@ -6,6 +6,9 @@ import logging
 import tempfile
 import urllib.parse
 
+import certifi
+from pavilion.errors import WGetError
+
 _MISSING_LIBS = []
 try:
     import ssl  # pylint: disable=W0611
@@ -15,11 +18,11 @@ except ImportError:
 
 try:
     import requests
-except ImportError as err:
-    if hasattr(err, 'name'):
-        _MISSING_LIBS.append(err.name)
+except ImportError as exc:
+    if hasattr(exc, 'name') and exc.name is not None:
+        _MISSING_LIBS.append(exc.name)
     else:
-        _MISSING_LIBS.append(err)
+        _MISSING_LIBS.append(str(exc))
 
     requests = None
 
@@ -35,13 +38,28 @@ def missing_libs():
     return _MISSING_LIBS
 
 
-class WGetError(RuntimeError):
-    pass
-
-
 # How many times to follow redirects in a 'head' call before giving up and
 # returning whatever we last got.
 REDIRECT_LIMIT = 10
+
+
+CA_CERT_PATH = None
+
+
+def ca_cert_path():
+    """Try to get system ca certs, then fall back to certifi."""
+
+    global CA_CERT_PATH
+    if CA_CERT_PATH is None:
+        for ca_path in ('/etc/ssl/certs/ca-bundle.crt',
+                        '/etc/ssl/certs/ca-certificates.crt'):
+            if Path(ca_path).exists():
+                CA_CERT_PATH = ca_path
+                break
+        else:
+            CA_CERT_PATH = certifi.where()
+
+    return CA_CERT_PATH
 
 
 def get(pav_cfg, url, dest):
@@ -60,10 +78,11 @@ def get(pav_cfg, url, dest):
     session = requests.Session()
     session.trust_env = False
 
-    dest_dir = dest.parent.resolve()
+    dest_dir = Path(dest).resolve().parent
 
     try:
         response = session.get(url, proxies=proxies, stream=True,
+                               verify=ca_cert_path(),
                                timeout=pav_cfg.wget_timeout)
         with tempfile.NamedTemporaryFile(dir=str(dest_dir),
                                          delete=False) as tmp:
@@ -73,14 +92,14 @@ def get(pav_cfg, url, dest):
         # The requests package exceptions are pretty descriptive already.
         raise WGetError(err)
     except (IOError, OSError) as err:
-        raise WGetError("Error writing download '{}' to file in '{}': {}"
-                        .format(url, dest_dir, err))
+        raise WGetError("Error writing download '{}' to file in '{}'."
+                        .format(url, dest_dir), err)
 
     try:
         Path(tmp.name).rename(dest)
     except (IOError, OSError) as err:
-        raise WGetError("Error moving file from '{}' to final location '{}': {}"
-                        .format(url, dest, err))
+        raise WGetError("Error moving file from '{}' to final location '{}'."
+                        .format(url, dest), err)
 
 
 def head(pav_cfg, url):
@@ -101,6 +120,7 @@ def head(pav_cfg, url):
     try:
         response = session.head(url,
                                 proxies=proxies,
+                                verify=ca_cert_path(),
                                 timeout=pav_cfg.wget_timeout)
         # The location header is the redirect location. While the requests
         # library resolves these automatically, it still returns the first
@@ -115,6 +135,7 @@ def head(pav_cfg, url):
             proxies = _get_proxies(pav_cfg, redirect_url)
             response = session.head(redirect_url,
                                     proxies=proxies,
+                                    verify=ca_cert_path(),
                                     timeout=pav_cfg.wget_timeout)
 
     except requests.exceptions.RequestException as err:

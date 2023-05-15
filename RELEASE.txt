@@ -4,6 +4,16 @@ RELEASE=2.4
 
 # Release History
 
+## 2.5 Pre-release notes
+ - In the 'modules' section of 'run' or 'build' in test configs, modules specified without a version
+   no longer verify that the default was loaded. 
+ - Added the ability to configure module wrappers in test/host configs.
+   
+   - This breaks backwards compatibility with existing module wrapper plugins. The 'load()' method
+     now takes an addtional, required 'name' argument.
+ 
+ - Added the ability to extend lists via inheritance across all test configs.
+
 ## 2.4 Release Notes
  - Minimum supported python version is now 3.6
  - All IO or Processor intensive parts of Pavilion have been made multi-threaded or multi-process,

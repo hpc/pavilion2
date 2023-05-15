@@ -8,8 +8,9 @@ from pavilion.jobs import Job, JobError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.types import NodeInfo, Nodes
-from .config import validate_config
-from .scheduler import SchedulerPlugin, SchedulerPluginError
+from .config import validate_config, calc_node_range
+from .scheduler import SchedulerPlugin
+from ..errors import SchedulerPluginError
 from .vars import SchedulerVariables
 
 
@@ -55,25 +56,29 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                raise SchedulerPluginError("Error creating Job: \n{}".format(err))
+                raise SchedulerPluginError("Error creating Job.", err)
 
             sched_config = validate_config(test.config['schedule'])
 
-            node_range = self._calc_node_range(sched_config,
-                                               sched_config['cluster_info']['node_count'])
+            node_range = calc_node_range(sched_config, sched_config['cluster_info']['node_count'])
 
+            job_name = 'pav {}'.format(test.name)
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
-                job_name='pav test {} ({})'.format(test.full_id, test.name),
+                job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                picked_nodes=node_range,
-            )
+                node_range=node_range)
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(pav_cfg, job, sched_config)
+            job.info = self._kickoff(
+                pav_cfg=pav_cfg,
+                job=job,
+                sched_config=sched_config,
+                job_name=job_name,
+                node_range=node_range)
             test.job = job
             test.status.set(STATES.SCHEDULED,
                             "Test kicked off with the {} scheduler".format(self.name))

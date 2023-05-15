@@ -1,8 +1,12 @@
 version: 2
 
-sphinx: 
+sphinx:
     configuration: docs/conf.py
 
 submodules:
     include: all
     recursive: true
+
+python:
+    install:
+        - requirements: docs/requirements.txt

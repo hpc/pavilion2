@@ -1,7 +1,6 @@
 import time
 
-from pavilion import cancel_utils
-from pavilion import plugins
+from pavilion import cancel
 from pavilion import schedulers
 from pavilion import unittest
 from pavilion.status_file import STATES
@@ -10,20 +9,13 @@ from pavilion.status_file import STATES
 class CancelTests(unittest.PavTestCase):
     """Tests on job/test cancellation."""
 
-    def setUp(self):
-
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self) -> None:
-
-        plugins._reset_plugins()
-
     def test_cancel_jobs(self):
         """Test job cancellation function."""
 
         test_cfg = self._quick_test_cfg()
         test_cfg['run']['cmds'] = ['sleep 5']
         test_cfg['scheduler'] = 'dummy'
+        test_cfg['schedule'] = {'nodes': 'all'} 
         test1 = self._quick_test(test_cfg, finalize=False)
         test2 = self._quick_test(test_cfg, finalize=False)
 

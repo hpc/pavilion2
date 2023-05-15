@@ -2,12 +2,17 @@
 
 import argparse
 import errno
+import fnmatch
+import os
 import pprint
+import sys
+from pathlib import Path
 from typing import Union
 
-import pavilion.types
+import pavilion.errors
 import yaml_config
 from pavilion import config
+from pavilion.errors import ResultError
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
@@ -21,6 +26,7 @@ from pavilion import sys_vars
 from pavilion.deferred import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion import resolver
+from pavilion.types import Nodes
 from .base_classes import Command, sub_cmd
 
 
@@ -71,6 +77,12 @@ class ShowCommand(Command):
             in the order given. Tests in higher directories supersede those
             in lower. Plugins, however, are resolved according to internally
             defined priorities."""
+        )
+
+        subparsers.add_parser(
+            'collections',
+            aliases=['collection'],
+            help="List collections found in config dirs."
         )
 
         func_group = subparsers.add_parser(
@@ -324,6 +336,10 @@ class ShowCommand(Command):
             description="Test configurations that can be run using Pavilion."
         )
         tests.add_argument(
+            'name_filter', type=str, nargs='?', default='',
+            help="Filter tests."
+        )
+        tests.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
             help='Display the path for each test.'
@@ -377,6 +393,22 @@ class ShowCommand(Command):
             title="Config directories by priority."
         )
 
+    @sub_cmd('collection')
+    def _collections_cmd(self, pav_cfg, _):
+        """List all files found in the collections directories in all config directories."""
+
+        collections = []
+        for config in pav_cfg['configs'].items():
+            _, config_path = config
+            collection_dir = Path(config_path.path / 'collections')
+            if collection_dir.exists() and collection_dir.is_dir():
+                for col_file in os.listdir(collection_dir):
+                    collections.append({'collection': col_file,
+                                        'path': Path(collection_dir / col_file)})
+
+        output.draw_table(self.outfile, fields=['collection', 'path'], rows=collections,
+                          title="Available collections and paths.")
+
     @sub_cmd('function', 'func')
     def _functions_cmd(self, _, args):
         """List all of the known function plugins."""
@@ -384,9 +416,9 @@ class ShowCommand(Command):
         if args.detail:
             func = expression_functions.get_plugin(args.detail)
 
-            output.fprint(func.signature, color=output.CYAN, file=self.outfile)
-            output.fprint('-' * len(func.signature), file=self.outfile)
-            output.fprint(func.long_description, file=self.outfile)
+            output.fprint(self.outfile, func.signature, color=output.CYAN)
+            output.fprint(self.outfile, '-' * len(func.signature))
+            output.fprint(self.outfile, func.long_description)
 
         else:
             rows = []
@@ -413,16 +445,15 @@ class ShowCommand(Command):
 
         simple_vars = []
         complex_vars = []
-        for var in cfg.get('variables').keys():
-            subvar = cfg['variables'][var]
-            if isinstance(subvar, list) and (len(subvar) > 1
-                                             or isinstance(subvar[0], dict)):
+        for var_key in cfg.get('variables').keys():
+            var = cfg['variables'][var_key]
+            if len(var) == 1 and None in var[0]:
+                simple_vars.append({
+                    'name': var_key,
+                    'value': var[0][None]
+                })
+            else:
                 complex_vars.append(var)
-                continue
-            simple_vars.append({
-                'name':  var,
-                'value': cfg['variables'][var]
-            })
         if simple_vars:
             output.draw_table(
                 self.outfile,
@@ -468,12 +499,12 @@ class ShowCommand(Command):
                     title=var
                 )
             else:
-                output.fprint(var, file=self.outfile)
-                output.fprint("(Showing as json due to the insane number of "
-                              "keys)", file=self.outfile)
-                output.fprint(pprint.pformat(cfg['variables'][var],
-                                             compact=True), file=self.outfile)
-            output.fprint("\n", file=self.outfile)
+                output.fprint(self.outfile, var)
+                output.fprint(self.outfile, "(Showing as json due to the insane number of "
+                                            "keys)")
+                output.fprint(self.outfile, pprint.pformat(cfg['variables'][var],
+                                                           compact=True))
+            output.fprint(self.outfile, "\n")
 
     def show_configs_table(self, pav_cfg, conf_type, errors=False,
                            verbose=False):
@@ -518,11 +549,10 @@ class ShowCommand(Command):
                               .load_raw(config_file)
 
         if config_data is not None:
-            output.fprint(pprint.pformat(config_data, compact=True),
-                          file=self.outfile)
+            output.fprint(self.outfile, pprint.pformat(config_data, compact=True))
         else:
-            output.fprint("No {} config found for "
-                          "{}.".format(conf_type.strip('s'), cfg_name))
+            output.fprint(sys.stdout, "No {} config found for "
+                                      "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
     @sub_cmd('host')
@@ -618,14 +648,12 @@ class ShowCommand(Command):
         if args.doc:
             try:
                 res_plugin = result_parsers.get_plugin(args.doc)
-            except result.common.ResultError:
-                output.fprint(
-                    "Invalid result parser '{}'.".format(args.doc),
-                    color=output.RED
-                )
+            except ResultError:
+                output.fprint(sys.stdout, "Invalid result parser '{}'.".format(args.doc),
+                              color=output.RED)
                 return errno.EINVAL
 
-            output.fprint(res_plugin.doc(), file=self.outfile)
+            output.fprint(self.outfile, res_plugin.doc())
 
         else:
 
@@ -663,11 +691,9 @@ class ShowCommand(Command):
 
             try:
                 sched = schedulers.get_plugin(sched_name)
-            except schedulers.SchedulerPluginError:
-                output.fprint(
-                    "Invalid scheduler plugin '{}'.".format(sched_name),
-                    color=output.RED,
-                )
+            except pavilion.errors.SchedulerPluginError:
+                output.fprint(sys.stdout, "Invalid scheduler plugin '{}'.".format(sched_name),
+                              color=output.RED)
                 return errno.EINVAL
 
         if args.vars is not None:
@@ -675,7 +701,7 @@ class ShowCommand(Command):
 
             config = schedulers.validate_config({})
 
-            svars = sched.VAR_CLASS(config, pavilion.types.Nodes({}))
+            svars = sched.VAR_CLASS(config, Nodes({}))
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
@@ -753,7 +779,7 @@ class ShowCommand(Command):
                 deferred = isinstance(value, DeferredVariable)
                 help_str = svars.help(key)
 
-            except sys_vars.SystemPluginError as err:
+            except pavilion.errors.SystemPluginError as err:
                 value = output.ANSIString('error', code=output.RED)
                 deferred = False
                 help_str = output.ANSIString(str(err), code=output.RED)
@@ -840,7 +866,8 @@ class ShowCommand(Command):
 
         for suite_name in sorted(list(suites.keys())):
             suite = suites[suite_name]
-
+            if not fnmatch.fnmatch(suite_name, args.name_filter) and args.name_filter:
+                continue
             if suite['err']:
                 suite_name = output.ANSIString(suite_name + '.*',
                                                output.RED)
@@ -857,11 +884,9 @@ class ShowCommand(Command):
 
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]
-
                 if test_name.startswith('_') and not args.hidden:
                     # Skip any hidden tests.
                     continue
-
                 rows.append({
                     'name':    '{}.{}'.format(suite_name, test_name),
                     'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT],
@@ -935,37 +960,32 @@ class ShowCommand(Command):
 
         parts = args.test_name.split('.')
         if len(parts) != 2:
-            output.fprint(
-                "You must give a test name as '<suite>.<test>'.",
-                file=self.outfile, color=output.RED)
+            output.fprint(self.outfile, "You must give a test name as '<suite>.<test>'.",
+                          color=output.RED)
             return
 
         suite_name, test_name = parts
 
         if suite_name not in suites:
-            output.fprint(
-                "No such suite: '{}'.\n"
-                "Available test suites:\n{}"
-                .format(suite_name, "\n".join(sorted(suites.keys()))),
-                file=self.outfile, color=output.RED)
+            output.fprint(self.outfile, "No such suite: '{}'.\n"
+                                        "Available test suites:\n{}"
+                          .format(suite_name, "\n".join(sorted(suites.keys()))), color=output.RED)
             return
         tests = suites[suite_name]['tests']
         if test_name not in tests:
-            output.fprint(
-                "No such test '{}' in suite '{}'.\n"
-                "Available tests in suite:\n{}"
-                .format(test_name, suite_name,
-                        "\n".join(sorted(tests.keys()))))
+            output.fprint(sys.stdout, "No such test '{}' in suite '{}'.\n"
+                                      "Available tests in suite:\n{}"
+                          .format(test_name, suite_name,
+                                  "\n".join(sorted(tests.keys()))))
             return
 
         test = tests[test_name]
 
         def pvalue(header, *values):
             """An item header."""
-            output.fprint(header, color=output.CYAN,
-                          file=self.outfile, end=' ')
+            output.fprint(self.outfile, header, color=output.CYAN, end=' ')
             for val in values:
-                output.fprint(val, file=self.outfile)
+                output.fprint(self.outfile, val)
 
         pvalue("Name:", args.test_name)
         pvalue("Maintainer:", test['maintainer'])

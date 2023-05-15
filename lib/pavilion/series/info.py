@@ -8,10 +8,9 @@ from pavilion import config
 from pavilion import dir_db
 from pavilion import status_file
 from pavilion import utils
-from pavilion.exceptions import TestRunError
+from pavilion.errors import TestRunError, TestSeriesError
 from pavilion.test_run import TestRun, TestAttributes
 from . import common
-from .errors import TestSeriesError
 
 
 class SeriesInfo:

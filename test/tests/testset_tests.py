@@ -1,17 +1,11 @@
 """Tests for the test_set module."""
 
-from pavilion import plugins
-from pavilion.series.test_set import TestSet, TestSetError
+from pavilion.series.test_set import TestSet
+from pavilion.errors import TestSetError
 from pavilion.unittest import PavTestCase
 
 
 class TestSetTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_init(self):
         """Check the init function."""

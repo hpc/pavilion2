@@ -10,7 +10,8 @@ String LALR Grammar
 
 from typing import List
 import lark
-from .common import ParserValueError, PavTransformer
+from .common import PavTransformer
+from ..errors import ParserValueError
 from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
 
 STRING_GRAMMAR = r'''
@@ -93,6 +94,17 @@ def get_string_parser(debug=False):
         _STRING_PARSER = parser
 
     return parser
+
+
+def should_parse(text):
+    """Returns true if text is a string that needs to be parsed. We err on the side of
+    parsing some string unnecessarily, but this check is much faster than actually calling
+    the parser."""
+
+    if not text:
+        return False
+
+    return '{{' in text or '[~' in text or '\\' in text or '}}' in text or '~' in text
 
 
 class ExprToken(lark.Token):
@@ -363,8 +375,7 @@ class StringTransformer(PavTransformer):
             except ValueError as err:
                 raise ParserValueError(
                     expr,
-                    "Invalid format_spec '{}': {}"
-                    .format(format_spec, err.args[0]))
+                    "Invalid format_spec '{}': {}".format(format_spec, err))
         else:
             value = str(value)
 

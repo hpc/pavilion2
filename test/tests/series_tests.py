@@ -1,20 +1,13 @@
 """Tests for the Series object."""
-import pavilion.series.errors
-from pavilion import plugins
+from collections import OrderedDict
+
 from pavilion import series
 from pavilion import series_config
+from pavilion.errors import TestSeriesError
 from pavilion.unittest import PavTestCase
-
-from collections import OrderedDict
 
 
 class SeriesTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_init(self):
         """Check initialization of the series object."""
@@ -69,7 +62,7 @@ class SeriesTests(PavTestCase):
             }})
 
         series1 = series.TestSeries(self.pav_cfg, config)
-        with self.assertRaises(pavilion.series.errors.TestSeriesError):
+        with self.assertRaises(TestSeriesError):
             series1._create_test_sets()
 
         series_sec_cfg = OrderedDict()
@@ -83,7 +76,7 @@ class SeriesTests(PavTestCase):
             'test_sets': series_sec_cfg,
         })
         series2 = series.TestSeries(self.pav_cfg, config)
-        with self.assertRaises(pavilion.series.errors.TestSeriesError):
+        with self.assertRaises(TestSeriesError):
             series2._create_test_sets()
 
     def test_series_simultaneous(self):
@@ -183,8 +176,8 @@ class SeriesTests(PavTestCase):
             }
         })
 
-        series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
-        with self.assertRaises(series.TestSeriesError):
+        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        with self.assertRaises(TestSeriesError):
             series1.run()
 
         cfg = series_config.make_config({
@@ -195,8 +188,9 @@ class SeriesTests(PavTestCase):
             }
         })
 
-        series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
-        with self.assertRaises(series.TestSeriesError):
+
+        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        with self.assertRaises(TestSeriesError):
             series1.run()
 
     def test_series_conditionals_only_if_ok(self):

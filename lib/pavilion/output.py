@@ -70,8 +70,11 @@ COLORS = {
     'UNDERLINE': UNDERLINE,
 }
 
+
 def format_duration(time_delta: float) -> str:
+    """Format a floating point number as a duration."""
     return str(datetime.timedelta(seconds=round(time_delta)))
+
 
 def get_relative_timestamp(base_time: float,
                            fullstamp: bool = False) -> str:
@@ -147,8 +150,8 @@ def clear_line(outfile):
     outfile.write('\r')
 
 
-def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
-           sep=' ', file=sys.stdout, end='\n', flush=False, clear=False):
+def fprint(file, *args, color=None, bullet='', width=0, wrap_indent=0, sep=' ', end='\n',
+           flush=False, clear=False):
     """Print with automatic wrapping, bullets, and other features. Also accepts
     all print() kwargs.
 
@@ -170,7 +173,15 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
     if clear:
         clear_line(file)
 
-    args = [str(a) for a in args]
+    new_args = []
+    for arg in args:
+        if hasattr(arg, 'pformat'):
+            new_args.append(arg.pformat())
+        else:
+            new_args.append(str(arg))
+
+    args = new_args
+
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 
@@ -835,7 +846,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
             # Make sure we don't exceed the max width for the column.
             incr_wraps = calc_wraps(field, incr_width)
 
-            diff = (curr_wraps - incr_wraps)
+            diff = curr_wraps - incr_wraps
 
             if diff == 0:
                 if incr_width == max_width:

@@ -1,7 +1,8 @@
+import sys
+
 import pavilion.deferred
-import pavilion.exceptions
 from pavilion.resolver import variables
-from pavilion.exceptions import VariableError
+from pavilion.errors import VariableError, DeferredError
 from pavilion.unittest import PavTestCase
 
 
@@ -12,13 +13,13 @@ class TestVariables(PavTestCase):
 
         data = {
             'var1': 'val1',
-            'var2': ['0', '1', '2'],
+            'Var2': ['0', '1', '2'],
             'var3': {'subvar1': 'subval1',
-                     'subvar2': 'subval2'},
-            'var4': [{'subvar1': 'subval0_1',
-                      'subvar2': 'subval0_2'},
+                     'Subvar2': 'subval2'},
+            'VAR4': [{'subvar1': 'subval0_1',
+                      'SUBVAR2': 'subval0_2'},
                      {'subvar1': 'subval1_1',
-                      'subvar2': 'subval1_2'}]
+                      'SUBVAR2': 'subval1_2'}]
         }
 
         sys_data = {
@@ -43,27 +44,27 @@ class TestVariables(PavTestCase):
         self.assertEqual(vsetm['var.var1.0'], 'val1')
 
         # Implicit Index
-        self.assertEqual(vsetm['var2'], '0')
+        self.assertEqual(vsetm['Var2'], '0')
         # Explicit Index, set name
-        self.assertEqual(vsetm['var.var2.2'], '2')
+        self.assertEqual(vsetm['var.Var2.2'], '2')
         # Negative Indexes are allowed (this one is at the edge of the range).
-        self.assertEqual(vsetm['var.var2.-3'], '0')
+        self.assertEqual(vsetm['var.Var2.-3'], '0')
         # Check the length of a variable list
-        self.assertEqual(vsetm.len('var', 'var2'), 3)
+        self.assertEqual(vsetm.len('var', 'Var2'), 3)
 
         # Subkeys, when there's just one.
         self.assertEqual(vsetm['var3.subvar1'], 'subval1')
-        self.assertEqual(vsetm['var3.subvar2'], 'subval2')
+        self.assertEqual(vsetm['var3.Subvar2'], 'subval2')
         # Subkey with explicit index
-        self.assertEqual(vsetm['var3.0.subvar2'], 'subval2')
+        self.assertEqual(vsetm['var3.0.Subvar2'], 'subval2')
 
         # Multiple subkeys
-        self.assertEqual(vsetm['var4.0.subvar1'], 'subval0_1')
+        self.assertEqual(vsetm['VAR4.0.subvar1'], 'subval0_1')
         # Implicit index
-        self.assertEqual(vsetm['var4.subvar1'], 'subval0_1')
-        self.assertEqual(vsetm['var4.1.subvar1'], 'subval1_1')
-        self.assertEqual(vsetm['var4.0.subvar2'], 'subval0_2')
-        self.assertEqual(vsetm['var4.1.subvar2'], 'subval1_2')
+        self.assertEqual(vsetm['VAR4.subvar1'], 'subval0_1')
+        self.assertEqual(vsetm['VAR4.1.subvar1'], 'subval1_1')
+        self.assertEqual(vsetm['VAR4.0.SUBVAR2'], 'subval0_2')
+        self.assertEqual(vsetm['VAR4.1.SUBVAR2'], 'subval1_2')
 
         # Explicit access to conflicting variable
         self.assertEqual(vsetm['sys.var1'], 'sys.val1')
@@ -174,7 +175,7 @@ class TestVariables(PavTestCase):
         var_man.add_var_set('sys', sys_data)
         var_man.add_var_set('sched', slurm_data)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(DeferredError):
             var_man.len('sys', 'var1')
 
         for key in (
@@ -184,7 +185,97 @@ class TestVariables(PavTestCase):
                 'sys.var1.noexist'):
             try:
                 _ = var_man[key]
-            except (KeyError, pavilion.exceptions.DeferredError):
+            except (KeyError, DeferredError):
                 pass
             else:
                 self.fail("Did not raise the appropriate error.")
+
+    def test_resolve_references(self):
+        """Check that references are resolved properly for variables."""
+
+        user_vars = {
+            'a': ['{{b}}1', '{{b}}2'],
+            'b': ['3', '{{d}}'],
+            'c': ['7', '8', '{{sched.nodes}}'],
+            'd': ['1', '2', '10'],
+            'e': ['{{sched.nodes}}'],
+            'f': ['{{c}}']
+        }
+        answer = {
+            'a': ['31', '32'],
+            'b': ['3', '1'],
+            'c': ['7', '8', '{{sched.nodes}}'],
+            'd': ['1', '2', '10'],
+            'e': ['{{sched.nodes}}'],
+            'f': ['{{c}}']
+        }
+
+        var_man = variables.VariableSetManager()
+        var_man.add_var_set('var', user_vars)
+
+        resolved, could_resolve = var_man.resolve_references(partial=True,
+                                                             skip_deps=['a', 'b', 'c'])
+        self.assertEqual(sorted(resolved), ['b', 'd'])
+        self.assertEqual(sorted(could_resolve), ['a', 'f'])
+
+        resolved, could_res = var_man.resolve_references(partial=True, skip_deps=['a', 'c'])
+        self.assertEqual(sorted(resolved), ['a', 'b', 'd'])
+        self.assertEqual(sorted(could_res), ['f'])
+
+        self.assertEqual(var_man.as_dict(), {'var': answer})
+
+    def test_get_permutations(self):
+        """Check that permutation creation works."""
+        user_vars = {
+            'a': ['{{b}}1', '{{b}}2'],
+            'b': ['3', '{{d}}'],
+            'c': ['7', '8', '{{sched.nodes}}'],
+            'd': ['1', '2', '10'],
+            'e': ['{{sched.nodes}}'],
+            'f': ['{{c}}']
+        }
+
+        answers = [
+            ('31', '3', '7'),
+            ('31', '3', '8'),
+            ('31', '3', '37'),
+            ('32', '3', '7'),
+            ('32', '3', '8'),
+            ('32', '3', '37'),
+            ('11', '1', '7'),
+            ('11', '1', '8'),
+            ('11', '1', '37'),
+            ('12', '1', '7'),
+            ('12', '1', '8'),
+            ('12', '1', '37'),
+        ]
+
+        var_man = variables.VariableSetManager()
+        var_man.add_var_set('var', user_vars)
+        var_man.resolve_references(partial=True, skip_deps=['a', 'b', 'c'])
+        var_men = var_man.get_permutations([('var', 'b')])
+
+        self.assertEqual(len(var_men), 2)
+        all_var_men = []
+        for var_man in var_men:
+            var_man.resolve_references(partial=True, skip_deps=['a', 'c'])
+            all_var_men.extend(var_man.get_permutations([('var', 'a')]))
+        var_men = all_var_men
+        self.assertEqual(len(var_men), 4)
+
+        all_var_men = []
+        for var_man in var_men:
+            var_man.add_var_set('sched', {'nodes': '37'})
+            var_man.resolve_references()
+            all_var_men.extend(var_man.get_permutations([('var', 'c')]))
+        var_men = all_var_men
+        self.assertEqual(len(var_men), 12)
+
+        # There are 12 answers and we assert that all permuted sets are unique,
+        # therefore if ever permuted variable set is in answers all answers also exist.
+        simplified = [(v['a'], v['b'], v['c']) for v in var_men]
+        self.assertEqual(len(simplified), len(set(simplified)))
+        for values in simplified:
+            self.assertIn(values, answers)
+
+

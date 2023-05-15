@@ -1,14 +1,13 @@
 """An advanced dummy plugin."""
 
-import pickle
 import subprocess
 from typing import Union, List, Any, Tuple
 
 import yaml_config as yc
 from pavilion import schedulers
 from pavilion.jobs import Job, JobInfo
-from pavilion.types import NodeInfo, NodeList
 from pavilion.status_file import TestStatusInfo, STATES
+from pavilion.types import NodeInfo, NodeList
 
 
 class Dummy(schedulers.SchedulerPluginAdvanced):
@@ -35,7 +34,7 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
 
     def _get_config_elems(self) -> Tuple[List[yc.ConfigElement], dict, dict]:
 
-        return [yc.StrElem('foo'),], {'foo': int}, {'foo': 5}
+        return [yc.StrElem('foo'), ], {'foo': int}, {'foo': 5}
 
     def _job_status(self, pav_cfg, job_info: JobInfo) -> Union[TestStatusInfo, None]:
 
@@ -77,11 +76,12 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
                 features.append('evil')
 
             nodes.append({
-                'name': 'node{:02d}'.format(node_id),
-                'up': (node_id % 10) != 0,
-                'available': (node_id % 10) not in (0, 1),
-                'partitions': partitions,
+                'name':         'node{:02d}'.format(node_id),
+                'up':           (node_id % 10) != 0,
+                'available':    (node_id % 10) not in (0, 1),
+                'partitions':   partitions,
                 'reservations': reservations,
+                'cpus': 13,
                 'features': features,
                 'foo': sched_config['dummy']['foo'],
             })
@@ -93,7 +93,8 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
     def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
         return NodeInfo(node_data)
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name,
+                 nodes=None, node_range=None) -> JobInfo:
 
         subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)

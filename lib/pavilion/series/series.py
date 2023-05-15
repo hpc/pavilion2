@@ -26,10 +26,10 @@ from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
 from yaml_config import YAMLError, RequiredError
-from . import common
-from .errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo
-from .test_set import TestSet, TestSetError
+from .test_set import TestSet
+from ..errors import TestSetError, TestSeriesError, TestSeriesWarning
+from . import common
 
 
 class LazyTestRunDict(UserDict):
@@ -127,8 +127,8 @@ class TestSeries:
                 self._id, self.path = dir_db.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
-                    "Could not get id or series directory in '{}': {}"
-                    .format(series_path, err))
+                    "Could not get id or series directory in '{}'"
+                    .format(series_path), err)
 
             # save series config
             self.save_config()
@@ -172,8 +172,8 @@ class TestSeries:
                                                stderr=series_out)
 
         except OSError as err:
-            raise TestSeriesError("Could not start series in background: {}"
-                                  .format(err.args))
+            raise TestSeriesError("Could not start series '{}' in the background."
+                                  .format(self.sid), err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -262,11 +262,11 @@ differentiate it from test ids."""
                     series_cfg = loader.load(config_file)
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
                     raise TestSeriesError(
-                        "Error loading config for test series '{}': {}"
-                        .format(sid, err.args[0]))
+                        "Error loading config for test series '{}'"
+                        .format(sid), err)
         except OSError as err:
             raise TestSeriesError("Could not load config file for test series '{}': {}"
-                                  .format(sid, err.args[0]))
+                                  .format(sid), err)
 
         series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg)
         series.tests.find_tests(series.path)
@@ -437,17 +437,11 @@ differentiate it from test ids."""
                     sets_to_run.append(test_set)
 
             for test_set in sets_to_run:
-
                 # Make sure it's ok to run this test set based on parent status.
                 if not test_set.should_run:
                     test_set.mark_completed()
-                    output.fprint(
-                        "Skipping test set '{}' due to parents not passing."
-                        .format(test_set.name), file=outfile)
-                    parents = (par.name for par in test_set.parent_sets)
-                    self.status.set(SERIES_STATES.SET_SKIPPED,
-                                    "Skipping test set {}. Parent sets {} did not pass."
-                                    .format(test_set.name, parents))
+                    output.fprint(outfile, "Skipping test set '{}' due to parents not passing."
+                                  .format(test_set.name))
                     continue
 
                 # Create the test objects
@@ -461,8 +455,8 @@ differentiate it from test ids."""
                                     .format(self.sid, err.args[0]))
                     self.set_complete()
                     raise TestSeriesError(
-                        "Error making tests for series '{}':\n {}"
-                        .format(self.sid, err.args[0]))
+                        "Error making tests for series '{}'."
+                        .format(self.sid), err)
 
                 # Add all the tests we created to this test set.
                 self._add_tests(test_set)
@@ -476,24 +470,39 @@ differentiate it from test ids."""
                                     .format(self.sid))
                     self.set_complete()
                     raise TestSeriesError(
-                        "Error building tests for series '{}': {}"
-                        .format(self.sid, err.args[0]))
+                        "Error building tests for series '{}'"
+                        .format(self.sid), err)
 
                 test_start_count = simultaneous
                 while not test_set.done:
                     try:
                         kicked_off = test_set.kickoff(test_start_count)
-                        fprint("Kicked off '{}' tests of test set '{}' in series '{}'."
-                               .format(kicked_off, test_set.name, self.sid),
-                               file=outfile)
+                        ktests = []
+                        # Make a list of the first three started test ids
+                        for ktest in test_set.started_tests[:3]:
+                            # Use the short id name when the config area is the 'main' one.
+                            if ktest.full_id.startswith('main.'):
+                                ktests.append(str(ktest.id))
+                            else:
+                                ktests.append(ktest.full_id)
+                        if len(test_set.started_tests) > 3:
+                            ktests.append('...')
+                        ktests = ', '.join(ktests)
+
+                        if len(test_set.started_tests) == 1:
+                            fprint(outfile, "Kicked off test {} for test set '{}' in series {}."
+                                            .format(ktests, test_set.name, self.sid))
+                        else:
+                            fprint(outfile, "Kicked off tests {} ({} total) for test set {} "
+                                            "in series {}."
+                                            .format(ktests, kicked_off, test_set.name, self.sid))
                     except TestSetError as err:
                         self.status.set(
                             SERIES_STATES.KICKOFF_ERROR,
                             "Error kicking off tests. See the series log `pav log series {}"
                             .format(self.sid))
                         self.set_complete()
-                        raise TestSeriesError(
-                            "Error in series '{}': {}".format(self.sid, err.args[0]))
+                        raise TestSeriesError("Error in series '{}'".format(self.sid), err)
 
                     # If there's any sort of limit to the number of simultaneous tests
                     # then wait for each test set to complete before starting the
@@ -661,8 +670,8 @@ differentiate it from test ids."""
                 link_path.symlink_to(test.path)
             except OSError as err:
                 raise TestSeriesError(
-                    "Could not link test '{}' in series at '{}': {}"
-                    .format(test.path, link_path, err))
+                    "Could not link test '{}' in series at '{}'"
+                    .format(test.path, link_path), err)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user

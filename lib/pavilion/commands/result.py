@@ -8,11 +8,13 @@ import pprint
 import shutil
 from typing import List, IO
 
-import pavilion.exceptions
+from pavilion.errors import TestConfigError, ResultError
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
+from pavilion import series
 from pavilion import resolver
+from pavilion import resolve
 from pavilion import result
 from pavilion import result_utils
 from pavilion import utils
@@ -27,8 +29,8 @@ class ResultsCommand(Command):
     def __init__(self):
 
         super().__init__(
-            name="results",
-            aliases=['result'],
+            name="result",
+            aliases=['results'],
             description="Displays results from the given tests.",
             short_help="Displays results from the given tests."
         )
@@ -79,15 +81,20 @@ class ResultsCommand(Command):
         parser.add_argument(
             "tests",
             nargs="*",
-            help="The tests to show the results for. Use 'last' to get the "
-                 "results of the last test series you ran on this machine."
+            help="The tests to show the results for. Use 'last' to get the results of the last test"
+                 " series you ran on this machine. Use 'all' to get results of all tests. By "
+                 "default, 'all' will only display tests newer than 1 day ago, but setting any "
+                 "filter argument will override that."
         )
         filters.add_test_filter_args(parser)
 
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        fields = self.key_fields(args)
+
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
+                                verbose=self.errfile).paths
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
         log_file = None
@@ -100,10 +107,12 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
         flat_results = []
-        for result in results:
-            flat_results.append(utils.flatten_dictionary(result))
+        for rslt in results:
+            flat_results.append(utils.flatten_dictionary(rslt))
 
         field_info = {}
+        last_s = series.load_user_series_id(pav_cfg, self.errfile)
+        sid = [last_s if s == 'last' else s for s in args.tests]
 
         if args.list_keys:
             flat_keys = result_utils.keylist(flat_results)
@@ -118,19 +127,15 @@ class ResultsCommand(Command):
                               fields=fields,
                               rows=flatter_keys,
                               border=True,
-                              title="AVAILABLE KEYS")
+                              title=f"AVAILABLE KEYS FOR: {', '.join(sid)}")
 
         elif args.json or args.full:
             if not results:
-                output.fprint("Could not find any matching tests.",
-                              color=output.RED, file=self.outfile)
+                output.fprint(self.outfile, "Could not find any matching tests.",
+                              color=output.RED)
                 return errno.EINVAL
 
             width = shutil.get_terminal_size().columns or 80
-
-            for result in results:
-                result['finish_date'] = output.get_relative_timestamp(
-                                        result['finished'], fullstamp=True)
 
             try:
                 if args.json:
@@ -145,19 +150,7 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            argkeys = args.key.replace(',', ' ').split()
-            fields = result_utils.BASE_FIELDS.copy()
-
-            for k in argkeys:
-                if k.startswith('~'):
-                    key = k[1:]
-                    try:
-                        fields.remove(key)
-                    except ValueError:
-                        output.fprint("Warning: Given key,{}, is not in default".format(k),
-                                       color=output.RED, file=self.errfile)
-                else:
-                    fields.append(k)
+            flat_sorted_results = sort_results(args, flat_results)
 
             field_info = {
                 'created': {'transform': output.get_relative_timestamp},
@@ -170,35 +163,54 @@ class ResultsCommand(Command):
                 outfile=self.outfile,
                 field_info=field_info,
                 fields=fields,
-                rows=flat_results,
-                title="Test Results"
+                rows=flat_sorted_results,
+                title=f"Test Results for: {', '.join(sid)}"
             )
 
         if args.show_log:
             if log_file is not None:
-                output.fprint(log_file.getvalue(), file=self.outfile,
-                              color=output.GREY)
+                output.fprint(self.outfile, log_file.getvalue(), color=output.GREY)
             else:
                 if len(results) > 1:
-                    output.fprint("Please give a single test id when requesting the full"
-                                  "result log.",
-                                  file=self.errfile, color=output.YELLOW)
+                    output.fprint(self.errfile,
+                                  "Please give a single test id when requesting the full"
+                                  "result log.", color=output.YELLOW)
                     return 1
 
                 result_set = results[0]
                 log_path = pathlib.Path(result_set['results_log'])
-                output.fprint("\nResult logs for test {}\n"
-                              .format(result_set['name']), file=self.outfile)
+                output.fprint(self.outfile, "\nResult logs for test {}\n"
+                              .format(result_set['name']))
                 if log_path.exists():
                     with log_path.open() as log_file:
-                        output.fprint(
-                            log_file.read(), color=output.GREY,
-                            file=self.outfile)
+                        output.fprint(self.outfile, log_file.read(), color=output.GREY)
                 else:
-                    output.fprint("Log file '{}' missing>".format(log_path),
-                                  file=self.outfile, color=output.YELLOW)
+                    output.fprint(self.outfile, "Log file '{}' missing>".format(log_path),
+                                  color=output.YELLOW)
 
         return 0
+
+    def key_fields(self, args):
+        """Update default fields with keys given as arguments.
+        Returns a list of fields (columns) to be shown as output.
+        """
+
+        argkeys = args.key.replace(',', ' ').split()
+        fields = result_utils.BASE_FIELDS.copy()
+
+        for k in argkeys:
+            if k.startswith('~'):
+                key = k[1:]
+                try:
+                    fields.remove(key)
+                except ValueError:
+                    output.fprint(self.errfile,
+                                    "Warning: Given key,{}, is not in default".format(k),
+                                    color=output.YELLOW)
+            else:
+                fields.append(k)
+
+        return fields
 
     def update_results(self, pav_cfg: dict, tests: List[TestRun],
                        log_file: IO[str], save: bool = False) -> bool:
@@ -226,29 +238,28 @@ class ResultsCommand(Command):
                                       test.config['name']))
 
                 configs = reslvr.load_raw_configs(
-                    tests=[test_name],
+                    tests=[resolver.TestRequest(test_name)],
                     host=test.config['host'],
                     modes=test.config['modes'],
                 )
-            except pavilion.exceptions.TestConfigError as err:
-                output.fprint(
-                    "Test '{}' could not be found: {}"
-                    .format(test.name, err.args[0]),
-                    color=output.RED, file=self.errfile)
+            except TestConfigError as err:
+                output.fprint(self.errfile, "Test '{}' could not be found."
+                              .format(test.name), err, color=output.RED)
                 return False
+
+            # Dump the request part of the return values
+            configs = [cfg for _, cfg in configs]
 
             # These conditions guard against unexpected results from
             # load_raw_configs. They may not be possible.
             if not configs:
-                output.fprint(
-                    "No configs found for test '{}'. Skipping update."
-                    .format(test.name), color=output.YELLOW, file=self.errfile)
+                output.fprint(self.errfile, "No configs found for test '{}'. Skipping update."
+                              .format(test.name), color=output.YELLOW)
                 continue
             elif len(configs) > 1:
-                output.fprint(
-                    "Test '{}' somehow matched multiple configs."
-                    "Skipping update.".format(test.name),
-                    color=output.YELLOW, file=self.errfile)
+                output.fprint(self.errfile, "Test '{}' somehow matched multiple configs."
+                                            "Skipping update.".format(test.name),
+                              color=output.YELLOW)
                 continue
 
             cfg = configs[0]
@@ -258,22 +269,19 @@ class ResultsCommand(Command):
                 # Try to resolve the updated result section of the config using
                 # the original variable values.
                 try:
-                    updates[section] = reslvr.resolve_section_values(
+                    updates[section] = resolve.section_values(
                         component=cfg[section],
                         var_man=test.var_man,
                     )
-                except pavilion.exceptions.TestConfigError as err:
-                    output.fprint(
-                        "Test '{}' had a {} section that could not be "
-                        "resolved with it's original variables: {}"
-                        .format(test.name, section, err.args[0]),
-                        file=self.errfile, color=output.RED)
+                except TestConfigError as err:
+                    output.fprint(self.errfile, "Test '{}' had a {} section that could not be "
+                                                "resolved with it's original variables."
+                                  .format(test.name, section), err, color=output.RED)
                     return False
                 except RuntimeError as err:
-                    output.fprint(
-                        "Unexpected error updating {} section for test "
-                        "'{}': {}".format(section, test.name, err.args[0]),
-                        color=output.RED, file=self.errfile)
+                    output.fprint(self.errfile,
+                                  "Unexpected error updating {} section for test '{}'."
+                                  .format(section, test.name), err, color=output.RED)
                     return False
 
             # Set the test's result section to the newly resolved one.
@@ -285,11 +293,9 @@ class ResultsCommand(Command):
                     test.config['result_parse'],
                     test.config['result_evaluate'])
 
-            except result.ResultError as err:
-                output.fprint(
-                    "Error found in results configuration: {}"
-                    .format(err.args[0]),
-                    color=output.RED, file=self.errfile)
+            except ResultError as err:
+                output.fprint(self.errfile, "Error found in results configuration.", err,
+                              color=output.RED)
                 return False
 
             if save:
@@ -313,3 +319,48 @@ class ResultsCommand(Command):
                                      .format(results["result"]))
 
         return True
+
+
+def sort_results(args, results: List[dict]) -> List[dict]:
+    """Same basic operation as pavilion.filters.get_sort_opts except
+    here the sort operation is performed on the results array rather
+    than stored as a function and called later.
+
+    If the sort-by key is present in the test object, the
+    sort will be performed in dir_db.select or select_from.
+    Otherwise the default sort will be performed in dir_db and here the
+    results dict will be sorted according to the key for output.
+
+    Results dicts without the key will be skipped with dummy value dval.
+    Thus the user may sort the results of incomplete series, by result keys specific to
+    a particular test in a series, or by keys that are not being displayed.
+    If the key is not in any of the results dicts, it simply returns a copy of
+    the results dict.
+
+    :param args: Command line arguments, for sort_by.
+    :param results: A list of flattened result dicts.
+    :returns: The sorted (or copied) list of results dicts.
+    """
+
+    sort_key = args.sort_by
+    dval = None
+
+    sort_ascending = True
+    if sort_key.startswith('-'):
+        sort_ascending = False
+        sort_key = sort_key[1:]
+
+    for rslt in results:
+        if sort_key in rslt.keys():
+            if isinstance(rslt[sort_key], str):
+                dval = " "
+            else:
+                dval = float("-inf")
+            break
+
+    if not dval:
+        return results.copy()
+
+    rslts = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
+
+    return rslts

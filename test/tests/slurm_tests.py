@@ -44,7 +44,7 @@ class SlurmTests(PavTestCase):
         # the pavilion lib path.
         self.pav_config = config.PavilionConfigLoader().load_empty()
 
-    def setUp(self):
+    def set_up(self):
 
         plugins.initialize_plugins(self.pav_config)
 
@@ -54,10 +54,6 @@ class SlurmTests(PavTestCase):
                 self.slurm_mode = yaml.load(path.open())
         else:
             self.slurm_mode = {}
-
-    def tearDown(self):
-
-        plugins._reset_plugins()
 
     def _get_job(self, match, test):
         """Get a job id that from a job that contains match.
@@ -99,13 +95,21 @@ class SlurmTests(PavTestCase):
         examples = (
             (None, []),
             ('', []),
+            ('bob,bob27', ['bob', 'bob27']),
+            ('nid00[012-013,076-77,140-141,160-161]',
+             ['nid00012', 'nid00013', 'nid00076', 'nid00077', 'nid00140', 'nid00141',
+              'nid00160', 'nid00161']),
             ('ab03', ['ab03']),
-            ('ab-bc[3-004]', ['ab-bc3', 'ab-bc4']),
+            ('cpn-m11-16', ['cpn-m11-16']),
+            ('cpn-m11-[16,18]', ['cpn-m11-16', 'cpn-m11-18']),
+            ('ab-bc[3-4]', ['ab-bc3', 'ab-bc4']),
             ('ab_bc[03-10]',
              ['ab_bc{:02d}'.format(d) for d in range(3, 11)]),
             ('n[003-143]', ['n{:03d}'.format(d) for d in range(3, 144)]),
             # Duplicates are accepted
             ('nid03,nid[03-04]', ['nid03', 'nid03', 'nid04']),
+            ('nid03-04,nid03-[05,10],nid03-[21-23]', ['nid03-04', 'nid03-05', 'nid03-10',
+                                                      'nid03-21', 'nid03-22', 'nid03-23']),
             ('nid03,nid[04-06],nid[12-33]',
              ['nid03', 'nid04', 'nid05', 'nid06'] +
              ['nid{:02d}'.format(d) for d in range(12, 34)]),
@@ -116,7 +120,6 @@ class SlurmTests(PavTestCase):
             self.assertEqual(nodes, answer)
 
         bad_examples = (
-            ('n03d',  "Trailing characters"),
             ('nid03!@#', "Trailing junk (whole string match)."),
             ('n03.n04', "Not comma separated"),
             ('n[03', "No closing bracket"),
@@ -136,15 +139,23 @@ class SlurmTests(PavTestCase):
         nodes = (
             ['node001', 'node002', 'n0de047', 'n0de49'] +
             ['n0de{:04d}'.format(i) for i in range(20, 35)] +
-            ['n0de{:04d}'.format(i) for i in range(99, 1235)] +
-            ['baaaad'] +
+            ['n0de{:04d}'.format(i) for i in range(95, 101)] +
+            ['n0de{:04d}'.format(i) for i in range(105, 1235)] +
+            ['t##rible'] +
+            ['not_numbered'] +
             ['another000003'])
 
         snodes = Slurm.compress_node_list(nodes)
 
         self.assertEqual(
             snodes,
-            'another000003,n0de[0020-0034,0047,0049,0099-1234],node00[1-2]'
+            'another000003,n0de[0020-0034,0047,0049,0095-0100,0105-1234],node00[1-2],not_numbered'
+        )
+
+        nodes = ['node{:03d}'.format(i) for i in range(90, 101)]
+        snodes = Slurm.compress_node_list(nodes)
+        self.assertEqual(
+            snodes, 'node[090-100]'
         )
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
@@ -207,11 +218,11 @@ class SlurmTests(PavTestCase):
         # or at least return a DeferredVariable
         var_list = list()
         for k, v in slurm.get_initial_vars(sched_conf).items():
-            if k in skip_keys: 
+            if k in skip_keys:
                 continue
 
             # Make sure everything has a value of some sort.
-            self.assertNotIn(v, ['None', '', []], 
+            self.assertNotIn(v, ['None', '', []],
                 msg="Key {} matched a null or empty value: {}".format(k,v))
             var_list.append(k)
 
@@ -274,7 +285,7 @@ class SlurmTests(PavTestCase):
 
         self.assertEqual(status.state, STATES.SCHEDULED)
         # Pavilion will normally cancel the tests first, but we want to kill
-        # the job hard. 
+        # the job hard.
         self.assertIsNone(slurm.cancel(test.job.info))
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
@@ -403,11 +414,11 @@ class SlurmTests(PavTestCase):
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_mpirun(self):
         """Schedule a test but run it with mpirun.
-        
-        This test requires a working mpirun command. If you need to load one via a module, do so by 
+
+        This test requires a working mpirun command. If you need to load one via a module, do so by
         adding the module to the 'run.modules' list in `pav_config_dir/data/local_slurm.py`.
         """
- 
+
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
@@ -416,7 +427,7 @@ class SlurmTests(PavTestCase):
         cfg['schedule']['slurm'] = {
             'mpi_cmd': 'mpirun',
             'mpirun_bind_to': 'core',
-            'mpirun_rank_by': 'core', 
+            'mpirun_rank_by': 'core',
             }
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg=cfg, name='slurm_test', finalize=False)
@@ -436,7 +447,7 @@ class SlurmTests(PavTestCase):
         cfg['schedule']['nodes'] = '1'
         cfg['schedule']['slurm'] = {
             'mpi_cmd': 'mpirun',
-            'mpirun_mca': ['btl self'], 
+            'mpirun_mca': ['btl self'],
             }
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg=cfg, name='slurm_test', finalize=False)

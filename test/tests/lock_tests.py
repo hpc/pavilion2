@@ -1,22 +1,26 @@
-from pavilion import lockfile
-from pavilion.unittest import PavTestCase
 import grp
 import os
 import pathlib
 import subprocess as sp
-import sys
 import time
+import io
+
+from pavilion import lockfile
+from pavilion.unittest import PavTestCase
 
 
 # NOTE: The lockfile class is designed to work over NFS, but these tests don't
 # actually check for that.
 class TestLocking(PavTestCase):
 
-    def setUp(self):
+    def set_up(self):
         self.lock_path = self.pav_cfg.working_dir/'lock_test.lock'
 
         if self.lock_path.exists():
             self.lock_path.unlink()
+
+    def tear_down(self):
+        pass
 
     def test_locks(self):
 
@@ -28,7 +32,8 @@ class TestLocking(PavTestCase):
         # Make sure the lock is deleted after close.
         self.assertFalse(self.lock_path.exists())
 
-        lockfile.LockFile._create_lockfile(self.lock_path, 100, '1234')
+        dmy_lock = lockfile.LockFile(self.lock_path, expires_after=100)
+        dmy_lock._create_lockfile()
 
         # Remove the lockfile after 1 second of trying.
         sp.call("sleep 1; rm {}".format(self.lock_path), shell=True)
@@ -38,10 +43,10 @@ class TestLocking(PavTestCase):
 
         # Making sure that we can automatically acquire and delete an
         # expired lockfile.
-        lockfile.LockFile._create_lockfile(
-            path=self.lock_path,
-            expires=-100,
-            lock_id='1234')
+        very_expired = lockfile.LockFile(
+            self.lock_path,
+            expires_after=-100)
+        very_expired._create_lockfile()
         with lockfile.LockFile(self.lock_path, timeout=1):
             pass
 
@@ -111,16 +116,23 @@ class TestLocking(PavTestCase):
                 pass
 
         # The lock should time out properly.
-        lockfile.LockFile._create_lockfile(self.lock_path, 100, '1234')
+        timeout_lock = lockfile.LockFile(self.lock_path, expires_after=100)
+        timeout_lock._create_lockfile()
         self.assertRaises(TimeoutError, _acquire_lock, timeout=0.2)
         self.lock_path.unlink()
 
         # This shouldn't cause an error, but should get logged.
-        with lockfile.LockFile(self.lock_path):
+        errfile = io.StringIO()
+        with lockfile.LockFile(self.lock_path, errfile=errfile):
             self.lock_path.unlink()
+        self.assertIn("mysteriously disappeared", errfile.getvalue())
 
-        with lockfile.LockFile(self.lock_path):
+        dmy_lock = lockfile.LockFile(self.lock_path, expires_after=100)
+        dmy_lock._id = 'abcd'
+        errfile = io.StringIO()
+        with lockfile.LockFile(self.lock_path, errfile=errfile):
             self.lock_path.unlink()
-            lockfile.LockFile._create_lockfile(self.lock_path, 100, 'abcd')
+            dmy_lock._create_lockfile()
         # Remove our bad lockfile
         self.lock_path.unlink()
+        self.assertIn("mysteriously replaced", errfile.getvalue())

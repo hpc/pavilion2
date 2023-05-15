@@ -20,11 +20,10 @@ import re
 from typing import List
 
 import lark as _lark
-from lark.parsers.lalr_parser import ParserState
-from .common import ParserValueError
+from ..errors import ParserValueError, StringParserError
 from .expressions import (get_expr_parser, EvaluationExprTransformer,
                           VarRefVisitor)
-from .strings import get_string_parser, StringTransformer
+from .strings import get_string_parser, StringTransformer, should_parse
 
 
 class ErrorCat:
@@ -77,20 +76,6 @@ NO_MATCH_EXAMPLE = ErrorCat(
     'Unknown syntax error. Please report at https://github.com/hpc/pavilion2/issues',
     [])
 
-
-class StringParserError(ValueError):
-    """Common error to raise when parsing problems are encountered."""
-
-    def __init__(self, message, context):
-        self.message = message
-        self.context = context
-
-        super().__init__()
-
-    def __str__(self):
-        return "\n".join([self.message, self.context])
-
-
 _TREE_CACHE = {}
 
 
@@ -104,6 +89,9 @@ def parse_text(text, var_man) -> str:
     :raises variables.DeferredError: When a deferred variable is used.
     :raises StringParserError: For syntax and other errors.
     """
+
+    if not should_parse(text):
+        return text
 
     parser = get_string_parser()
     transformer = StringTransformer(var_man)
@@ -130,7 +118,7 @@ def parse_text(text, var_man) -> str:
     except ParserValueError as err:
         # These errors are already really specific. We don't have to
         # figure them out.
-        raise StringParserError(err.args[0], err.get_context(text))
+        raise StringParserError(str(err), err.get_context(text))
 
     return value
 

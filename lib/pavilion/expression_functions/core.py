@@ -7,7 +7,7 @@ import re
 from typing import List
 
 from .base import FunctionPlugin, num
-from .common import FunctionPluginError, FunctionArgError
+from ..errors import FunctionPluginError, FunctionArgError
 
 
 class CoreFunctionPlugin(FunctionPlugin):
@@ -57,6 +57,40 @@ class RoundPlugin(CoreFunctionPlugin):
         """Round the given number to the nearest int."""
 
         return round(val)
+
+
+class RoundDigPlugin(CoreFunctionPlugin):
+    """Round the number to N decimal places: ``round_dig(12.12341234, 3) -> 12.123``"""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="round_dig",
+            arg_specs=(float, int))
+
+    @staticmethod
+    def round_dig(val: float, places: int):
+        """Round the given number to the nearest int."""
+
+        return round(val, places)
+
+
+class LogPlugin(CoreFunctionPlugin):
+    """Take the log of the given number to the given base."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="log",
+            arg_specs=(num, num))
+
+    @staticmethod
+    def log(val: num, base: num):
+        """Take the log of the given number to the given base."""
+
+        return math.log(val, base)
 
 
 class FloorPlugin(CoreFunctionPlugin):
@@ -110,6 +144,7 @@ class SumPlugin(CoreFunctionPlugin):
 
         return sum(vals)
 
+
 class MaxPlugin(CoreFunctionPlugin):
     """Get the max of the given numbers."""
 
@@ -127,6 +162,7 @@ class MaxPlugin(CoreFunctionPlugin):
 
         return max(vals)
 
+
 class MinPlugin(CoreFunctionPlugin):
     """Get the min of the given numbers."""
 
@@ -143,6 +179,7 @@ class MinPlugin(CoreFunctionPlugin):
         """Get the min of vals."""
 
         return min(vals)
+
 
 class AvgPlugin(CoreFunctionPlugin):
     """Get the average of the given numbers."""
@@ -288,9 +325,7 @@ class RegexSearch(CoreFunctionPlugin):
         try:
             regex = re.compile(regex)
         except re.error as err:
-            raise FunctionArgError(
-                "Could not compile regex:\n{}".format(err.args[0])
-            )
+            raise FunctionArgError("Could not compile regex", err)
 
         match = regex.search(data)
         if match is None:
@@ -346,9 +381,7 @@ class Outliers(CoreFunctionPlugin):
 
         if len(values) != len(names):
             raise FunctionPluginError(
-                "The 'values' and 'names' arguments must be lists of equal"
-                "length."
-            )
+                "The 'values' and 'names' arguments must be lists of equal length.")
 
         mean = sum(values)/len(values)
         stddev = (sum([(val - mean)**2 for val in values])/len(values))**0.5

@@ -62,20 +62,21 @@ object, and which provides all the general python unittest functionality.
 
     from pavilion.unittest import PavTestCase
     from pavilion import plugins
+    from pavilion import commands
 
     class MyTests(PavTestCase):
 
         # This method is run before each test in this class. You can override it
         # to do things that each test requires.
-        def setUp(self):
-            # One typical thing to do here is initialize the Pavilion plugin
-            # system. More on that later.
+        def set_up(self):
+            # The default verson of this initializes plugins
             plugins.initialize_plugins(self.pav_config)
+            # It's also a good place to pre-load commands.
+            commands.load('run')
 
         # This method is run after each test in this class.
-        def tearDown(self):
-            # If you initialize plugins before each test, you must also reset
-            # them afterwards.
+        # By default it resets plugins.
+        def tear_down(self):
             plugins._reset_plugins()
 
         # Each method that starts with 'test_' is a unittest.
@@ -159,32 +160,9 @@ Your tests will probably need plugins, and may even need custom test plugins
 to work with. Any such test needs to initialize the plugin system and
 reset it when you're done.
 
-You can generally do this in the ``setUp()`` and ``tearDown`` methods. This
-isn't done by default, because quite a few tests don't need it or need to do
-this multiple times in a single test.
+By design, the PavTestCase object does both of these things for you in the
+default `set_up()` and `tear_down()` methods.
 
-.. code-block:: python
-
-    from pavilion.unittest import PavTestCase
-    from pavilion import plugins
-
-    class MyTests(PavTestCase):
-
-        # This method is run before each test in this class.
-        def setUp(self):
-            # Given the default Pavilion config, this will find all the plugins
-            # that come with Pavilion, and all the plugins in
-            # test/data/pav_config_dir/plugins
-            plugins.initialize_plugins(self.pav_cfg)
-
-        # This method is run after each test in this class.
-        def tearDown(self):
-            # Unload all of the plugins. Don't worry, the plugins are designed
-            # to be loaded/unloaded multiple times.
-            plugins._reset_plugins()
-
-Our examples below all initialize plugins in the test method itself, but just
-for brevity.
 
 Getting Plugins
 ^^^^^^^^^^^^^^^
@@ -201,8 +179,6 @@ Each plugin type in Pavilion provides a function to find a plugin by name
     class MyTests(PavTestCase):
 
         def test_plugins(self):
-            plugins.initialize_plugins(self.pav_cfg)
-
             run_cmd = pavilion.commands.get_plugin('run')
             slurm = pavilion.schedulers.get_plugin('slurm')
             regex_parser = pavilion.result_parsers.get_plugin('regex')
@@ -212,7 +188,7 @@ Each plugin type in Pavilion provides a function to find a plugin by name
             sys_vars = pavilion.system_variables.get_vars(defer=True)
             sys_vars['sys_name']
 
-            plugins._reset_plugins()
+
 
 Test Run Objects
 ^^^^^^^^^^^^^^^^
@@ -232,8 +208,6 @@ methods.
 
     class MyTests(PavTestCase):
         def test_foo(self):
-            plugins.initialize_plugins(self.pav_cfg)
-
             # This will create a test run object, along with its run directory.
 
             # The default test is essentially a 'hello world'.
@@ -248,8 +222,6 @@ methods.
             # variables.
             test_cfg['run']['cmds'] = ['sleep 5']
             test2 = self._quick_test(cfg=test_cfg, build=False, finalize=False)
-
-            plugins._reset_plugins()
 
 You **must** be cognizant of the
 `test lifecycle <../source/test_run.html#pavilion.test_run.TestRun>`_.
@@ -266,6 +238,10 @@ standard Python
 `argparse.ArgumentParser <https://docs.python.org/3.7/library/argparse.html#argumentparser-objects>`_
 object.
 
+*HOWEVER* - by default the argument parser only knows about commands that have
+already been loaded. A command is loaded when its plugin is found, or (for builtin commands)
+when it has been 'gotten' with `commands.get_plugin` or preloaded with `commands.load`.
+
 .. code-block:: python
 
     from pavilion import unittests
@@ -277,13 +253,12 @@ object.
 
         def test_log_cmd(self):
 
-            plugins.initialize_plugins(self.pav_config)
-
             # To check the logs, we need a test to check the logs of.
             test = self._quick_test()
             test.run()
 
             # Get the command itself.
+            # Now that it's loaded, the argparse will know how to parse its arguments.
             log_cmd = commands.get_plugin('log')
             # Set the command's output streams to memory buffers
             log_cmd.silence()
@@ -309,4 +284,3 @@ object.
                 out, err_out = log_cmd.clear_output()
                 self.assertContains("foo", out)
 
-            plugins._reset_plugins()

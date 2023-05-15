@@ -1,0 +1,60 @@
+complex:
+  variables:
+    foo?:
+      z1: 1
+      z2: 2
+      z: '{{foo.z1 + foo.z2}}'
+    blah:
+      a: 1
+      b: 2
+
+
+  run:
+    cmds:
+      - '{{foo.z}}'
+      - 'hmm'
+
+multi:
+  inherits_from: complex
+  permute_on: foo
+  variables:
+    foo:
+      - z1: 3
+        z2: 4
+      - z1: 5
+        z2: 6
+      - z1: 7
+        z2: 8
+    bar:
+      - '{{foo.z1}}'
+      - '{{foo.z2}}'
+
+indirect:
+  permute_on: foo
+  variables:
+    d: '{{foo.z1}}'
+    foo:
+      - z1: 3
+        z2: 4
+        z: '{{d + foo.z2}}'
+      - z1: 5
+        z2: 6
+        z: '{{d + foo.z2}}'
+
+  run:
+    cmds: '{{foo.z}}'
+
+sched:
+  permute_on: foo
+  variables:
+    foo:
+      - '{{sched.chunk_ids}}'
+      - '{{sched.chunk_ids + 1}}'
+      - '{{bar}}'
+    bar:
+      - '{{sched.nodes}}'
+
+  scheduler: dummy
+
+  run:
+    cmds: '{{foo}}'

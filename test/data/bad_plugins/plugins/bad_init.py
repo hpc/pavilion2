@@ -1,8 +1,6 @@
-import pavilion.result.common
-from pavilion.result_parsers import base_classes
-
-import pavilion.result.base
 import yaml_config as yc
+from pavilion.errors import ResultError
+from pavilion.result_parsers import base_classes
 
 
 class BadInit(base_classes.ResultParser):
@@ -30,9 +28,7 @@ class BadInit(base_classes.ResultParser):
     def _check_args(self, const=None):
 
         if const == "":
-            raise pavilion.result.common.ResultError(
-                "Constant required."
-        )
+            raise ResultError("Constant required.")
 
     def __call__(self, test, file, const=None):
 

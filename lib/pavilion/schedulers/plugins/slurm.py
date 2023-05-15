@@ -1,11 +1,9 @@
 # pylint: disable=too-many-lines
 """The Slurm Scheduler Plugin."""
 
-# This pylint exception is a pylint bug
-import distutils.spawn  # pylint: disable=import-error
-import math
 import os
 import re
+import shutil
 import subprocess
 import time
 from typing import List, Union, Any, Tuple
@@ -18,8 +16,9 @@ from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import dfr_var_method
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
-from ..scheduler import SchedulerPluginError, KickoffScriptHeader
+from ..scheduler import KickoffScriptHeader
 from ..vars import SchedulerVariables
+from ...errors import SchedulerPluginError
 
 
 class SbatchHeader(KickoffScriptHeader):
@@ -38,6 +37,9 @@ slurm kickoff script.
         lines.append(
             '#SBATCH --job-name "{}"'.format(job_name))
 
+        core_spec = self._config['core_spec']
+        if core_spec:
+            lines.append('#SBATCH --core-spec {}'.format(core_spec))
         partition = self._config['partition']
         if partition:
             lines.append('#SBATCH -p {}'.format(partition))
@@ -50,7 +52,10 @@ slurm kickoff script.
             lines.append('#SBATCH --account {}'.format(self._config['account']))
         features = self._config['slurm']['features']
         if features:
-            constraint = '&'.join(features)
+            constraint = []
+            for feat in features:
+                constraint.append('|'.join(feat))
+            constraint = '&'.join(constraint)
             lines.append('#SBATCH --constraint {}'.format(constraint))
 
         time_limit = '{}:0:0'.format(self._config['time_limit'])
@@ -121,8 +126,7 @@ class SlurmVars(SchedulerVariables):
         'test_cmd': 'srun -N 5 -w node[05-10],node23 -n 20',
     })
 
-    @dfr_var_method
-    def test_cmd(self):
+    def _test_cmd(self):
         """Construct a cmd to run a process under this scheduler, with the
         criteria specified by this test.
         """
@@ -133,7 +137,9 @@ class SlurmVars(SchedulerVariables):
         tasks = int(self.tasks_per_node()) * nodes
 
         if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
+            # cmd: srun
 
+            # The full node list isn't currently required,
             cmd = ['srun',
                    '-N', str(nodes),
                    '-w', Slurm.compress_node_list(self._nodes.keys()),
@@ -141,26 +147,26 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(slurm_conf['srun_extra'])
         else:
+            # cmd: mpirun
+
             cmd = ['mpirun']
 
-            rank_by = slurm_conf['mpirun_rank_by']
-            bind_to = slurm_conf['mpirun_bind_to']
-            mca = slurm_conf['mpirun_mca']
-            if rank_by:
-                cmd.extend(['--rank-by', rank_by])
-            if bind_to:
-                cmd.extend(['--bind-to', bind_to])
-            if mca:
-                for mca_opt in mca:
-                    cmd.extend(['--mca', mca_opt])
+            cmd.extend(self.mpirun_cmd())
 
             hostlist = ','.join(self._nodes.keys())
             cmd.extend(['--host', hostlist])
 
-            cmd.extend(self._sched_config['slurm']['mpirun_extra'])
-
         return ' '.join(cmd)
 
+    @dfr_var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the return with the wrapper
+        provided in the schedule section of the configuration."""
+
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ' '.join(filter(lambda item: item is not None, [self._test_cmd(),
+                               self._sched_config['wrapper']]))
 
 def slurm_float(val):
     """Slurm 'float' values might also be 'N/A'."""
@@ -192,10 +198,17 @@ class Slurm(SchedulerPluginAdvanced):
     KICKOFF_SCRIPT_HEADER_CLASS = SbatchHeader
 
     NODE_SEQ_REGEX_STR = (
-        # The characters in a valid hostname.
-        r'[a-zA-Z][a-zA-Z_-]*\d*'
-        # A numeric range of nodes in square brackets.
-        r'(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
+        # A valid hostname: 'n', 'bob', 'host03q', 'foo-bar'
+        r'[a-zA-Z]'           # Hostnames must start with a normal character
+        r'(?:[a-zA-Z0-9_-]*'  # Followed optionally by one or more alphanumeric characters
+        r'[a-zA-Z_-])?'       # And end with a non-numeric character.
+        # The numeric node set
+        # 03, 50, 0[3], 10[1-9], 22[33,45,66-99]
+        r'(?:\d*|'             # Just a number or...
+        r'\d*(?:\['            # A 'prefix' number followed by a square bracket
+        r'(?:\d+|\d+-\d+)'     # A number or dash separated pair (ie '09' or '09-25')
+        r'(?:,\d+|,\d+-\d+)*'  # We can have more than one number or dash-pair, comma sep.
+        r'\]))'                # Closing square bracket, end all matching groups.
     )
     NODE_LIST_RE = re.compile(
         # Match a comma separated list of these things.
@@ -204,8 +217,8 @@ class Slurm(SchedulerPluginAdvanced):
 
     NODE_BRACKET_FORMAT_RE = re.compile(
         # Match hostname followed by square brackets,
-        # group whats in the brackets.
-        r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)]'
+        # group what is in the brackets.
+        r'([a-zA-Z](?:[a-zA-Z0-9_-]*[a-zA-Z_-])?\d*)\[(.*)]'
     )
 
     def __init__(self):
@@ -259,14 +272,6 @@ class Slurm(SchedulerPluginAdvanced):
             yc.StrElem(name='mpi_cmd',
                        help_text="What command to use to start mpi jobs. Options"
                                  "are {}.".format(self.MPI_CMD_OPTIONS)),
-            yc.StrElem(name='mpirun_bind_to',
-                       help_text="MPIrun --bind-to option. See `man mpirun`"),
-            yc.StrElem(name='mpirun_rank_by',
-                       help_text="MPIrun --rank-by option. See `man mpirun`"),
-            yc.ListElem(name='mpirun_mca', sub_elem=yc.StrElem(),
-                        help_text="MPIrun mca module options (--mca). See `man mpirun`"),
-            yc.ListElem(name='mpirun_extra', sub_elem=yc.StrElem(),
-                        help_text="Extra arguments to add to mpirun commands."),
         ]
 
         defaults = {
@@ -282,8 +287,6 @@ class Slurm(SchedulerPluginAdvanced):
             'sbatch_extra': [],
             'srun_extra': [],
             'mpi_cmd': self.MPI_CMD_SRUN,
-            'mpirun_extra': [],
-            'mpirun_mca': [],
         }
 
         validators = {
@@ -294,10 +297,6 @@ class Slurm(SchedulerPluginAdvanced):
             'srun_extra': validate_list,
             'sbatch_extra': validate_list,
             'mpi_cmd': self.MPI_CMD_OPTIONS,
-            'mpirun_bind_to': self.MPIRUN_BIND_OPTS,
-            'mpirun_rank_by': self.MPIRUN_BIND_OPTS,
-            'mpirun_mca': validate_list,
-            'mpirun_extra': validate_list,
         }
 
         return elems, validators, defaults
@@ -325,9 +324,9 @@ class Slurm(SchedulerPluginAdvanced):
                 if not node_part_re.match(part):
                     raise ValueError(
                         "Invalid Node List: '{}'. Syntax error in item '{}'. "
-                        "Node lists components be a hostname or hostname "
+                        "Node list components be a hostname or hostname "
                         "prefix followed by a range of node numbers. "
-                        "Ex: foo003,foo0[10-20],foo[103-104], foo[10,12-14]"
+                        "Ex: foo003,foo0[10-20],foo[103-104],foo[10,12-14],foo-m11-16"
                         .format(node_list, part)
                     )
 
@@ -351,7 +350,7 @@ class Slurm(SchedulerPluginAdvanced):
                 for node in nodelist.split(","):
                     if '-' in node:
                         start, end = node.split('-')
-                        digits = min(len(start), len(end))
+                        digits = max(len(start), len(end))
                         if int(end) < int(start):
                             raise ValueError(
                                 "In node list '{}' part '{}', node range ends "
@@ -379,7 +378,10 @@ class Slurm(SchedulerPluginAdvanced):
         # Pull apart the node name into a prefix and number. The prefix
         # is matched minimally to avoid consuming any parts of the
         # node number.
-        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d+)$')
+        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d*)$')
+
+        # These nodes don't have numbers, so just add them to the list.
+        non_numbered_nodes = []
 
         seqs = {}
         nodes = sorted(nodes)
@@ -389,17 +391,21 @@ class Slurm(SchedulerPluginAdvanced):
                 continue
 
             base, raw_number = node_match.groups()
-            number = int(raw_number)
-            if base not in seqs:
-                seqs[base] = (len(raw_number), [])
+            if not raw_number:
+                non_numbered_nodes.append(base)
+            else:
+                number = int(raw_number)
+                if base not in seqs:
+                    seqs[base] = (len(raw_number), [])
 
-            _, node_nums = seqs[base]
-            node_nums.append(number)
+                _, node_nums = seqs[base]
+                node_nums.append(number)
 
+        # This compresses the node list into sequences like 'node[0095-0105,0900-1002]'
         node_seqs = []
         for base, (digits, nums) in sorted(seqs.items()):
             nums.sort(reverse=True)
-            num_digits = math.ceil(math.log(nums[0], 10))
+            num_digits = len(str(nums[0]))
             pre_digits = digits - num_digits
 
             num_list = []
@@ -435,6 +441,9 @@ class Slurm(SchedulerPluginAdvanced):
                 seq_format
                 .format(base=base, z='0' * pre_digits, num_list=num_list))
 
+        # Add the non numbered nodes
+        node_seqs.extend(non_numbered_nodes)
+
         return ','.join(node_seqs)
 
     def _get_alloc_nodes(self, job) -> NodeList:
@@ -442,7 +451,12 @@ class Slurm(SchedulerPluginAdvanced):
 
         _ = job
 
-        return self.parse_node_list(os.environ['SLURM_JOB_NODELIST'])
+        node_list = os.environ['SLURM_JOB_NODELIST']
+
+        try:
+            return self.parse_node_list(node_list)
+        except ValueError as err:
+            raise SchedulerPluginError("Invalid slurm nodelist: '{}'".format(node_list), err)
 
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
         """Use the `scontrol show node` command to collect data on nodes.
@@ -467,7 +481,11 @@ class Slurm(SchedulerPluginAdvanced):
             res_info = self._scontrol_parse(raw_res)
             name = res_info.get('ReservationName')
             nodes = res_info.get('Nodes')
-            nodes = self.parse_node_list(nodes)
+            try:
+                nodes = self.parse_node_list(nodes)
+            except ValueError as err:
+                raise SchedulerPluginError(
+                    "Invalid node list from slurm: '{}'".format(nodes), err)
             extra['reservations'][name] = nodes
 
         return raw_node_data, extra
@@ -510,7 +528,7 @@ class Slurm(SchedulerPluginAdvanced):
                 node_info['reservations'].append(reservation)
 
         # Convert to an integer in GBytes
-        node_info['mem'] = int(node_info['mem'])/1024**2
+        node_info['mem'] = int(node_info['mem']) * 1024**2
 
         # Convert to an integer
         node_info['cpus'] = int(node_info['cpus'])
@@ -558,7 +576,7 @@ class Slurm(SchedulerPluginAdvanced):
         _ = self
 
         for command in 'scontrol', 'sbatch', 'sinfo':
-            if distutils.spawn.find_executable(command) is None:
+            if shutil.which(command) is None:
                 return False
 
         # Try to get basic system info from sinfo. Should return not-zero
@@ -571,7 +589,9 @@ class Slurm(SchedulerPluginAdvanced):
 
         return ret == 0
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name: str,
+                 nodes: Union[NodeList, None] = None,
+                 node_range: Union[Tuple[int, int], None] = None) -> JobInfo:
         """Submit the kick off script using sbatch."""
 
         _ = self

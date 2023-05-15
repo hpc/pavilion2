@@ -1,22 +1,11 @@
-import errno
-import os
 import io
-import sys
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import plugins
-from pavilion import output
 from pavilion.unittest import PavTestCase
 
 
 class StatusTests(PavTestCase):
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
-
-    def tearDown(self):
-        plugins._reset_plugins()
 
     def test_cat(self):
         """Checking cat command functionality"""
@@ -28,7 +17,7 @@ class StatusTests(PavTestCase):
         cat_cmd.outfile = cat_cmd.errfile = io.StringIO()
 
         arg_parser = arguments.get_parser()
-        arg_sets = (['cat', str(test.id), 'run.tmpl'],)
+        arg_sets = (['cat', test.full_id, 'run.tmpl'],)
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             cat_cmd.run(self.pav_cfg, args)

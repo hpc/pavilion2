@@ -9,10 +9,11 @@ import ast
 from typing import Dict, Callable, Any, List
 
 import lark
-import pavilion.expression_functions.common
+import pavilion.errors
 from pavilion import expression_functions as functions
 from pavilion.utils import auto_type_convert
-from .common import PavTransformer, ParserValueError
+from .common import PavTransformer
+from ..errors import ParserValueError
 
 EXPR_GRAMMAR = r'''
 
@@ -28,8 +29,8 @@ expr: or_expr
 
 // These set order of operations. 
 // See https://en.wikipedia.org/wiki/Operator-precedence_parser
-or_expr: and_expr ( "or" and_expr )*        
-and_expr: not_expr ( "and" not_expr )*
+or_expr: and_expr ( OR and_expr )*        
+and_expr: not_expr ( AND not_expr )*
 not_expr: NOT? compare_expr 
 compare_expr: add_expr ((EQ | NOT_EQ | LT | GT | LT_EQ | GT_EQ ) add_expr)*
 add_expr: mult_expr ((PLUS | MINUS) mult_expr)*
@@ -77,7 +78,9 @@ TIMES: "*"
 DIVIDE: "/"
 INT_DIV: "//"
 MODULUS: "%"
-NOT.2: "not"
+AND: /and(?![a-zA-Z_])/
+OR: /or(?![a-zA-Z_])/
+NOT.2: /not(?![a-zA-Z_])/
 EQ: "=="
 NOT_EQ: "!="
 LT: "<"
@@ -198,7 +201,12 @@ class BaseExprTransformer(PavTransformer):
         :return:
         """
 
-        or_items = items.copy()
+        # Remove 'or' tokens
+        or_items = []
+        for i in range(len(items)):
+            if i%2 == 0:
+                or_items.append(items[i])
+
         or_items.reverse()
         base_tok = or_items.pop()
 
@@ -217,7 +225,11 @@ class BaseExprTransformer(PavTransformer):
         :return:
         """
 
-        and_items = items.copy()
+        # Remove 'and' tokens
+        and_items = []
+        for i in range(len(items)):
+            if i%2 == 0:
+                and_items.append(items[i])
         and_items.reverse()
         base_tok = and_items.pop()
 
@@ -411,18 +423,18 @@ class BaseExprTransformer(PavTransformer):
 
         try:
             func = functions.get_plugin(func_name)
-        except pavilion.expression_functions.common.FunctionPluginError:
+        except pavilion.errors.FunctionPluginError:
             raise ParserValueError(
                 token=items[0],
                 message="No such function '{}'".format(func_name))
 
         try:
             result = func(*args)
-        except pavilion.expression_functions.common.FunctionArgError as err:
+        except pavilion.errors.FunctionArgError as err:
             raise ParserValueError(
                 self._merge_tokens(items, None),
                 "Invalid arguments: {}".format(err))
-        except pavilion.expression_functions.common.FunctionPluginError as err:
+        except pavilion.errors.FunctionPluginError as err:
             # The function plugins give a reasonable message.
             raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 
@@ -638,7 +650,7 @@ class VarRefVisitor(lark.Visitor):
 
         return None
 
-    def visit(self, tree):
+    def visit(self, tree) -> List[str]:
         """Visit the tree bottom up and return all the variable references
         found."""
 

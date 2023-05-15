@@ -48,11 +48,8 @@ class SetStatusCommand(Command):
         tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test], self.errfile)
 
         if not tests:
-            output.fprint(
-                "Test {} could not be opened.".format(args.test),
-                color=output.RED,
-                file=self.errfile,
-            )
+            output.fprint(self.errfile, "Test {} could not be opened.".format(args.test),
+                          color=output.RED)
             return errno.EINVAL
 
         test = tests[0]
