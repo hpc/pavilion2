@@ -58,8 +58,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         ),
         yc.IntElem(
             'repeat', default=1,
-            help_text="Number of times to repeat this series. Use 0 when running "
-                      "a series in the background to repeat forever."
+            help_text="Number of times to repeat this series."
         ),
         yc.StrElem(
             'restart', post_validator=make_invalidator(
