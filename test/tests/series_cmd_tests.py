@@ -21,14 +21,14 @@ class SeriesCmdTests(PavTestCase):
     def test_run_series(self):
         """Test cancel command with no arguments."""
 
+        run_cmd: commands.RunSeries = commands.get_command('series')
         arg_parser = arguments.get_parser()
 
         args = arg_parser.parse_args([
             'series',
             'run',
-            'basic'
+            'basic',
         ])
-        run_cmd: commands.RunSeries = commands.get_command(args.command_name)
         run_cmd.silence()
 
         run_result = run_cmd.run(self.pav_cfg, args)
@@ -41,6 +41,7 @@ class SeriesCmdTests(PavTestCase):
     def test_cancel_series(self):
         """Test cancel command with no arguments."""
 
+        series_cmd: commands.RunSeries = commands.get_command('series')
         arg_parser = arguments.get_parser()
 
         # This series starts two tests. One that ends almost immediately an one
@@ -48,9 +49,7 @@ class SeriesCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'series',
             'run',
-            'sleepy',
-        ])
-        series_cmd: commands.RunSeries = commands.get_command(args.command_name)
+            'sleepy'])
         series_cmd.silence()
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
@@ -66,13 +65,13 @@ class SeriesCmdTests(PavTestCase):
     def test_series_list(self):
         """Test the series list command."""
 
+        series_cmd: commands.RunSeries = commands.get_command('series')
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'series',
             'run',
             'basic',
         ])
-        series_cmd: commands.RunSeries = commands.get_command(args.command_name)
         series_cmd.silence()
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
@@ -91,13 +90,13 @@ class SeriesCmdTests(PavTestCase):
     def test_series_history(self):
         """Test the series list command."""
 
+        series_cmd: commands.RunSeries = commands.get_command('series')
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'series',
             'run',
             'basic',
         ])
-        series_cmd: commands.RunSeries = commands.get_command(args.command_name)
         series_cmd.silence()
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)

@@ -85,12 +85,10 @@ def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
             rows=[{'name': test.name, 'id': test.full_id}
                   for test in cancelled_test_info])
     else:
-        output.fprint("No tests needed to be cancelled.",
-                      file=outfile)
+        output.fprint(outfile, "No tests needed to be cancelled.")
         return 0
 
-    output.fprint("Giving tests a moment to quit.",
-                  file=outfile)
+    output.fprint(outfile, "Giving tests a moment to quit.")
     timeout = time.time() + max_wait
     wait_tests = list(tests)
     while wait_tests and time.time() > timeout:
@@ -111,6 +109,6 @@ def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
             title="Cancelled {} jobs.".format(len(job_cancel_info)),
         )
     else:
-        output.fprint("No jobs needed to be cancelled.", file=outfile)
+        output.fprint(outfile, "No jobs needed to be cancelled.")
 
     return 0

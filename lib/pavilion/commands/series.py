@@ -3,11 +3,15 @@
 import errno
 import sys
 
+from pavilion import cancel_utils
+from pavilion import config
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
 from pavilion import series
 from pavilion import series_config
+from pavilion import sys_vars
+from pavilion import utils
 from pavilion.errors import TestSeriesError, TestSeriesWarning
 from .base_classes import Command, sub_cmd
 
@@ -116,7 +120,7 @@ class RunSeries(Command):
 
         # create brand-new series object
         try:
-            series_obj = series.TestSeries(pav_cfg, config=series_cfg)
+            series_obj = series.TestSeries(pav_cfg, series_cfg=series_cfg)
         except TestSeriesError as err:
             output.fprint(self.errfile, "Error creating test series '{}'"
                           .format(args.series_name), err, color=output.RED)
@@ -205,14 +209,15 @@ class RunSeries(Command):
             try:
                 ser = series.TestSeries.load(pav_cfg, args.series)
             except series.TestSeriesError as err:
-                output.fprint("Could not load given series '{}': {}"
+                output.fprint(self.errfile,
+                              "Could not load given series '{}': {}"
                               .format(args.series, err.args[0]))
                 return errno.EINVAL
 
         if args.text:
             for status in ser.status.history():
-                output.fprint("{} {} {}".format(status.state, status.when, status.note),
-                              file=self.outfile)
+                output.fprint(self.outfile,
+                              "{} {} {}".format(status.state, status.when, status.note))
             return 0
         else:
             output.draw_table(
@@ -234,7 +239,7 @@ class RunSeries(Command):
         args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
         series_info = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
-        output.fprint("Found {} series to cancel.".format(len(series_info)), file=self.outfile)
+        output.fprint(self.outfile, "Found {} series to cancel.".format(len(series_info)))
 
         chosen_series = []
         for ser in series_info:
@@ -242,18 +247,19 @@ class RunSeries(Command):
                 loaded_ser = series.TestSeries.load(pav_cfg, ser.sid)
                 chosen_series.append(loaded_ser)
             except series.TestSeriesError as err:
-                output.fprint("Could not load found series '{}': {}"
+                output.fprint(self.errfile,
+                              "Could not load found series '{}': {}"
                               .format(ser.sid, err.args[0]))
 
         tests_to_cancel = []
         for ser in chosen_series:
             # We'll cancel the tests verbosely.
             ser.cancel(message="By user {}".format(args.user), cancel_tests=False)
-            output.fprint("Series {} cancelled.".format(ser.sid), file=self.outfile)
+            output.fprint(self.outfile, "Series {} cancelled.".format(ser.sid))
 
             if ser.tests:
                 tests_to_cancel.extend(ser.tests.values())
 
-        output.fprint("\nCancelling individual tests in each series.", file=self.outfile)
+        output.fprint(self.outfile, "\nCancelling individual tests in each series.")
 
         return cancel_utils.cancel_tests(pav_cfg, tests_to_cancel, self.outfile)

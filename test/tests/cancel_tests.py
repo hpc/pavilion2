@@ -1,6 +1,6 @@
 import time
 
-from pavilion import cancel
+from pavilion import cancel_utils
 from pavilion import schedulers
 from pavilion import unittest
 from pavilion.status_file import STATES

@@ -176,7 +176,7 @@ class SeriesTests(PavTestCase):
             }
         })
 
-        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         with self.assertRaises(TestSeriesError):
             series1.run()
 
@@ -189,7 +189,7 @@ class SeriesTests(PavTestCase):
         })
 
 
-        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         with self.assertRaises(TestSeriesError):
             series1.run()
 

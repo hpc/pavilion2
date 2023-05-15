@@ -153,20 +153,15 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
     test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
 
-    if not args.disable_filter:
-        return dir_db.select_from(
-            pav_cfg,
-            paths=test_paths,
-            transform=test_run_attr_transform,
-            filter_func=filter_func,
-            order_func=order_func,
-            order_asc=order_asc,
-            limit=limit
-        )
-
-    return dir_db.SelectItems(
-        data=[test_run_attr_transform(path) for path in test_paths],
-        paths=test_paths)
+    return dir_db.select_from(
+        pav_cfg,
+        paths=test_paths,
+        transform=test_run_attr_transform,
+        filter_func=filter_func,
+        order_func=order_func,
+        order_asc=order_asc,
+        limit=limit
+    )
 
 
 def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,

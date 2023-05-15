@@ -1,5 +1,8 @@
 """Cancels tests as prescribed by the user."""
 
+import errno
+import time
+
 from pavilion import cancel_utils
 from pavilion import cmd_utils
 from pavilion import filters
@@ -104,7 +107,7 @@ class CancelCommand(Command):
         output.fprint(self.outfile, "Giving tests a moment to quit.")
         time.sleep(TestRun.RUN_WAIT_MAX)
 
-        job_cancel_info = cancel.cancel_jobs(pav_cfg, tests, self.errfile)
+        job_cancel_info = cancel_utils.cancel_jobs(pav_cfg, tests, self.errfile)
 
         if job_cancel_info:
             output.draw_table(
