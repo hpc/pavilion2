@@ -630,9 +630,13 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Could not find test suite 'log'. Were you trying to run `pav log run`?")
 
+            show_type = 'test' if config_type == 'suite' else config_type
+
             raise TestConfigError(
-                "Could not find {} config file '{}.py' in any of the Pavilion config directories.\n"
-                "See `pav config list` for a list of config directories.".format(config_type, name))
+                "Could not find {type} config file '{name}.yaml' in any of the Pavilion config directories.\n"
+                "See `pav config list` for a list of config directories.\n"
+                "See `pav show {type_alt} -v` for a list of {type} files."
+                .format(type=config_type, name=name, type_alt=show_type))
 
         try:
             with path.open() as cfg_file:

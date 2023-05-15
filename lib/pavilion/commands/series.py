@@ -110,9 +110,8 @@ class RunSeries(Command):
                                                           host=args.host,
                                                           modes=args.modes)
             except series_config.SeriesConfigError as err:
-                output.fprint(self.errfile,
-                              "Load error: {}".format(args.series_name), err,
-                              color=output.RED)
+
+                output.fprint(self.errfile, err.pformat(), color=output.RED)
                 return errno.EINVAL
 
         if args.re_name is not None:

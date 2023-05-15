@@ -215,6 +215,10 @@ class TestSeriesWarning(PavilionError):
     """A non-fatal series error."""
 
 
+class SeriesConfigError(TestConfigError):
+    """For errors handling series configs."""
+
+
 class SystemPluginError(PavilionError):
     """Error thrown when a system plugin encounters an error."""
 

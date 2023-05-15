@@ -4,12 +4,8 @@ from typing import List
 import yc_yaml
 import yaml_config
 from pavilion.resolver import TestConfigResolver
-from ..errors import TestConfigError
+from ..errors import TestConfigError, SeriesConfigError
 from .file_format import SeriesConfigLoader
-
-
-class SeriesConfigError(RuntimeError):
-    """For errors handling series configs."""
 
 
 def find_all_series(pav_cfg):
