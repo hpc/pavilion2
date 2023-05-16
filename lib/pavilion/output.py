@@ -539,8 +539,6 @@ A more complicated example: ::
     # +-------+---------+------------------+
 """
 
-    print(rows)
-
     if field_info is None:
         field_info = {}
 
@@ -557,9 +555,7 @@ A more complicated example: ::
     titles = dt_field_titles(fields, field_info)
 
     # Format the rows according to the field_info format specifications.
-    print(rows)
     rows = dt_format_rows(rows, fields, field_info)
-    print(rows)
     if header:
         rows.insert(0, titles)
 
@@ -688,9 +684,6 @@ def dt_format_rows(rows, fields, field_info):
                 print("Bad format for data. Format: {0}, data: {1}"
                       .format(col_format, repr(data)), file=sys.stderr)
                 raise
-            print()
-            print(type(orig_data), orig_data)
-            print(type(formatted_data), formatted_data)
             # Cast all data as ANSI strings, so we can get accurate lengths
             # and use ANSI friendly text wrapping.
             data = ANSIString(formatted_data, code=ansi_code)

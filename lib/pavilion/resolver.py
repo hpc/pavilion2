@@ -842,7 +842,7 @@ class TestConfigResolver:
         if raw_host_cfg is None:
             return test_cfg
 
-        host_cfg = loader.normalize(raw_host_cfg)
+        host_cfg = loader.normalize(raw_host_cfg, root_name='host file {}'.format(host))
 
         try:
             return loader.merge(test_cfg, host_cfg)
@@ -861,7 +861,7 @@ class TestConfigResolver:
 
         for mode in modes:
             raw_mode_cfg, mode_cfg_path, _ = self._load_raw_config(mode, 'mode')
-            mode_cfg = loader.normalize(raw_mode_cfg)
+            mode_cfg = loader.normalize(raw_mode_cfg, root_name='mode file {}'.format(mode))
 
             try:
                 test_cfg = loader.merge(test_cfg, mode_cfg)
@@ -920,11 +920,12 @@ class TestConfigResolver:
                     depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
                 try:
-                    suite_tests[test_cfg_name] = test_ldr.normalize(test_cfg, 
+                    suite_tests[test_cfg_name] = test_ldr.normalize(test_cfg,
                                                                     root_name=test_cfg_name)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error."
+                        "Test {} in suite {} has an error.\n"
+                        "See 'pav show test_config' for the pavilion test config format."
                         .format(test_cfg_name, suite_path), err)
         except AttributeError:
             raise TestConfigError(
@@ -971,7 +972,7 @@ class TestConfigResolver:
 
         for test_name, test_config in suite_tests.items():
             try:
-                suite_tests[test_name] = test_config_loader.validate(test_config, root_name=test_name)
+                suite_tests[test_name] = test_config_loader.validate(test_config)
             except RequiredError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a missing key."

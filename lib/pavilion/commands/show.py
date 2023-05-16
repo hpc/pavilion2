@@ -993,7 +993,54 @@ class ShowCommand(Command):
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
 
+
+    DOC_KEYS = ['summary', 'doc']
+    PERMUTATION_KEYS = ['permute_on', 'subtitle']
+    INHERITANCE_KEYS = ['inherits_from']
+    SCHEDULING_KEYS = ['schedule', 'chunk']
+    RUN_KEYS = ['run']
+    BUILD_KEYS = ['build']
+    RESULT_KEYS = ['result_parse', 'result_evaluate']
+
     @sub_cmd()
-    def _test_config_cmd(self, *_):
+    def _test_config_cmd(self, pav_cfg, args):
         """Show the basic test config format."""
-        file_format.TestConfigLoader().dump(self.outfile)
+
+        loader = file_format.TestConfigLoader()
+
+        if args.raw:
+            loader.dump(self.outfile)
+            return 0
+
+        if args.key:
+            key = args.key.split('.')
+            key.reverse()
+            used_parts = []
+
+            curr_elem = loader
+            while key:
+                key_part = key.pop()
+                used_parts.append(key_part)
+
+                if isinstance(curr_elem, yc.KeyedElem):
+                    if key_part in curr_elem.config_elems:
+                        curr_elem = curr_elem.config_elems[key]
+                    else:
+                        output.fprint("No such key - '{}'. Options at this level are:"
+                                      .format('.'.join(used_parts), file=self.errfile))
+                        key_base = '.'.join(used_parts[:-1]) + '.'
+                        for subkey in sorted(curr_elem.config_elems):
+                            output.fprint("{}".format(key_base + subkey))
+                        return errno.EINVAL
+
+
+            if args.key in loader.config_elems:
+                self._print_key_doc(args.key)
+                return 0
+            else:
+                output.fpri
+
+        output.fprint("")
+
+
+

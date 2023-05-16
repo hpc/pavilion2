@@ -452,10 +452,15 @@ class KeyedElem(_DictElem):
                    .format(key, name)]
 
         similar = self.find_key_matches(key)
-        if len(similar) == 1:
-            msg.append("Did you mean: {}".format(similar[0]))
-        elif similar:
-            msg.append("Did you mean one of these?: {}".format(', '.join(similar)))
+        if similar:
+            msg.append("Did you mean one of these?")
+            for skey in similar:
+                help_text = self.config_elems[skey].help_text
+                if help_text:
+                    help_text = help_text[:60] + '...'
+                    msg.append('  {} - "{}"'.format(skey, help_text))
+                else:
+                    msg.append('  {}')
         else:
             sub_key_matches = self.find_sub_key_matches(key)
             if sub_key_matches:
@@ -468,7 +473,7 @@ class KeyedElem(_DictElem):
 
         return '\n'.join(msg)
 
-    def normalize(self, value, root_name='root'):
+    def normalize(self, value, root_name=None):
         """None remains None. Everything else is recursively normalized
         by their element objects. Unknown keys and non-dict 'values'
         result in an error.
@@ -478,7 +483,7 @@ class KeyedElem(_DictElem):
         :raises TypeError: if values isn't a dict.
         """
 
-        name = self.name if self.name else root_name
+        name = root_name if root_name is not None else self.name
 
         if value is None:
             return None
@@ -503,6 +508,13 @@ class KeyedElem(_DictElem):
 
             try:
                 ndict[key] = elem.normalize(val, root_name=key)
+            except ValueError as err:
+                if isinstance(val, dict):
+                    msg = [err.args[0]]
+                    msg.append("Key '{}.{}' does not take dictionary values. "
+                               "Perhaps these values belong under a different key?"
+                               .format(name, key))
+                    raise ValueError("\n".join(msg))
             except KeyError as err:
                 # Check to see if this level takes the key that was erroneous at the next
                 # level, and suggest a course of action.
@@ -512,8 +524,8 @@ class KeyedElem(_DictElem):
 
                     if err_key in self.config_elems:
 
-                        addtl_msg = "The parent '{}' to '{}' takes key '{}' - maybe key '{}' "\
-                                    "is over-indented?".format(name, key, err_key, err_key)
+                        addtl_msg = "The level above '{}' takes key '{}' - maybe key '{}' "\
+                                    "is over-indented?".format(key, err_key, err_key)
                         msg = '\n'.join([msg, addtl_msg])
 
                 raise KeyError(msg)
