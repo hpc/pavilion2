@@ -152,7 +152,7 @@ class RunSeries(Command):
 
         return 0
 
-    @sub_cmd('ls', 'status')
+    @sub_cmd('ls', 'status', 'list')
     def _list_cmd(self, pav_cfg, args):
         """List series."""
 
@@ -195,6 +195,28 @@ class RunSeries(Command):
         )
 
         return 0
+
+    @sub_cmd('sets')
+    def _list_sets(self, pav_cfg, args):
+        """Display a series by test set."""
+
+        if args.series == 'last':
+            ser = cmd_utils.load_last_series(pav_cfg, self.errfile)
+            if ser is None:
+                return errno.EINVAL
+        else:
+            try:
+                ser = series.TestSeries.load(pav_cfg, args.series)
+            except series.TestSeriesError as err:
+                output.fprint(self.errfile,
+                              "Could not load given series '{}': {}"
+                              .format(args.series, err.args[0]))
+                return errno.EINVAL
+
+
+
+
+
 
     @sub_cmd()
     def _history_cmd(self, pav_cfg: config.PavConfig, args):

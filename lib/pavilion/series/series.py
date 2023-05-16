@@ -8,7 +8,7 @@ import re
 import signal
 import subprocess
 import time
-from collections import defaultdict, UserDict, OrderedDict
+from collections import defaultdict, OrderedDict
 from pathlib import Path
 from typing import List, Dict, Set, Union, TextIO
 
@@ -30,50 +30,6 @@ from .info import SeriesInfo
 from .test_set import TestSet
 from ..errors import TestSetError, TestSeriesError, TestSeriesWarning
 from . import common
-
-
-class LazyTestRunDict(UserDict):
-    """A lazily evaluated dictionary of tests."""
-
-    def __init__(self, pav_cfg):
-        """Initialize the lazy TestRun dict."""
-
-        self._pav_cfg = pav_cfg
-
-        super().__init__()
-
-    def add_key(self, id_pair: ID_Pair):
-        """Add an ID_Pair key, but don't actually load the test."""
-
-        self.data[id_pair] = None
-
-    def __getitem__(self, id_pair: ID_Pair) -> TestRun:
-        """When the item exists as a key but not a test object, load the test object."""
-
-        if id_pair in self.data and self.data[id_pair] is None:
-            working_dir, test_id = id_pair
-            self.data[id_pair] = TestRun.load(self._pav_cfg, working_dir, test_id)
-
-        return super().__getitem__(id_pair)
-
-    def find_tests(self, series_path: Path):
-        """Find all the tests for the series and add their keys."""
-
-        for path in dir_db.select(self._pav_cfg, series_path, use_index=False).paths:
-            if not path.is_symlink():
-                continue
-
-            try:
-                test_id = int(path.name)
-            except ValueError:
-                continue
-
-            try:
-                working_dir = path.resolve().parents[1]
-            except FileNotFoundError:
-                continue
-
-            self.add_key(ID_Pair((working_dir, test_id)))
 
 
 class TestSeries:
@@ -100,7 +56,7 @@ class TestSeries:
         """
 
         self.pav_cfg: config.PavConfig = pav_cfg
-        self.tests = LazyTestRunDict(pav_cfg)
+        self.tests = common.LazyTestRunDict(pav_cfg)
 
         self.config = series_cfg or SeriesConfigLoader().load_empty()
 
@@ -272,7 +228,7 @@ differentiate it from test ids."""
         series.tests.find_tests(series.path)
         return series
 
-    def _create_test_sets(self):
+    def _create_test_sets(self, iteration=0):
         """Create test sets from the config, and set up their dependency
         relationships. This is meant to be called by 'run()', but may be used
         separately for unit testing."""
@@ -289,6 +245,10 @@ differentiate it from test ids."""
         # create all TestSet objects
         universal_modes = self.config['modes']
         for set_name, set_info in self.config['test_sets'].items():
+
+            if iteration is not None:
+                set_name = '{}.{}'.format(iteration, set_name)
+
             set_obj = TestSet(
                 pav_cfg=self.pav_cfg,
                 name=set_name,
@@ -425,6 +385,8 @@ differentiate it from test ids."""
 
         potential_sets = list(self.test_sets.values())
 
+        repeat_iteration = 0
+
         # run sets in order
         while potential_sets:
 
@@ -520,8 +482,10 @@ differentiate it from test ids."""
             if not potential_sets and repeat:
                 # If we're repeating multiple times, reset the test sets for the series
                 # and recreate them to run again.
+                repeat_iteration += 1
+
                 self.reset_test_sets()
-                self._create_test_sets()
+                self._create_test_sets(repeat_iteration)
                 potential_sets = list(self.test_sets.values())
 
         self.status.set(SERIES_STATES.ALL_STARTED,
@@ -652,13 +616,21 @@ differentiate it from test ids."""
                                "it will have tests to add.")
 
         for test in test_set.tests:
-            self._add_test(test)
+            self._add_test(test_set.name, test)
 
-    def _add_test(self, test: TestRun):
+    def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""
 
+        set_path = self.path/'test_sets'/test_set_name
+        try:
+            set_path.mkdir(exist_ok=True, parents=True)
+        except OSError as err:
+            raise TestSeriesError(
+                "Could not create test set directory {} under series {}."
+                .format(set_path, self.sid), err)
+
         # attempt to make symlink
-        link_path = dir_db.make_id_path(self.path, test.id)
+        link_path = dir_db.make_id_path(set_path, test.id)
 
         self.tests[test.id_pair] = test
 

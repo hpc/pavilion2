@@ -28,8 +28,10 @@ class SeriesInfo:
         self.path = path
 
         self._complete = None
-        self._tests = [tpath for tpath in dir_db.select(pav_cfg, self.path).paths]
-        # Test info objects for
+
+        test_dict = common.LazyTestRunDict(pav_cfg)
+        test_dict.find_tests(self.path)
+        self._tests = list(test_dict.iter_paths())
 
         self._test_info = {}
         self._status: Union[None, status_file.SeriesStatusInfo] = None
@@ -281,6 +283,29 @@ class SeriesInfo:
             return self[item]
         else:
             return default
+
+
+class TestSetInfo(SeriesInfo):
+    """Information about a test series, filtered down by test set."""
+
+    def __init__(self, pav_cfg: config.PavConfig, path: Path, test_set_name: str,
+                 merge_repeats: bool = False):
+
+        self._pav_cfg = pav_cfg
+
+        self._config = None
+
+        self.path = path
+
+        self._complete = None
+
+        self._tests = self._find_tests(path, test_set_name, merge_repeats)
+
+        self._test_info = {}
+        self._status: Union[None, status_file.SeriesStatusInfo] = None
+
+    def _find_tests(path: str, test_set_name: str, merge_repeats: bool):
+        """Find all the tests under the given test set.
 
 
 def mk_series_info_transform(pav_cfg):
