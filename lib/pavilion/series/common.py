@@ -2,6 +2,7 @@
 
 from collections import UserDict
 import json
+import os
 import time
 from pathlib import Path
 from typing import Union
@@ -9,7 +10,7 @@ from typing import Union
 from pavilion import config
 from pavilion import dir_db
 from pavilion import status_file
-from pavilion.test_run import TestRun
+from pavilion.test_run import TestRun, TestAttributes
 from pavilion.types import ID_Pair
 from ..errors import TestSeriesError
 
@@ -49,11 +50,6 @@ class LazyTestRunDict(UserDict):
 
         for working_dir, test_id in self.keys():
             yield working_dir/'test_runs'/str(test_id)
-
-
-    def by_test_set(self, series_path):
-        """Return a dictionary of test paths
-
 
 
     def find_tests(self, series_path: Path):
@@ -103,68 +99,43 @@ def set_all_started(path: Path):
 
 
 # This is needed by both the series object and the series info object.
-def set_complete(path, when: float = None):
+def set_complete(path, when: float = None) -> dict:
     """Write a file in the series directory that indicates that the series
     has finished."""
 
     complete_fn = path/COMPLETE_FN
     status_fn = path/STATUS_FN
 
+    if when is None:
+        when = time.time()
+
+    complete_data = {'complete': when}
+
     series_status = status_file.SeriesStatusFile(status_fn)
     if not complete_fn.exists():
-        if when is None:
-            when = time.time()
 
         series_status.set(status_file.SERIES_STATES.COMPLETE, "Series has completed.")
         complete_fn_tmp = complete_fn.with_suffix('.tmp')
         try:
             with complete_fn_tmp.open('w') as series_complete:
-                json.dump({'complete': when}, series_complete)
+                json.dump(complete_data, series_complete)
         except (OSError, ValueError) as err:
             raise TestSeriesError("Error saving completion file.", err)
 
         complete_fn_tmp.rename(complete_fn)
+
+    # Note that this might be a bit off from reality if something else set the 
+    # complete time, but it will be close enough.
+    return complete_data
 
 
 # If all tests in a series were completed more than this many seconds ago,
 # Call the series complete even if it wasn't marked as such.
 SERIES_COMPLETE_TIMEOUT = 3
 
-
-def check_complete(pav_cfg: config.PavConfig, series_path: Path) -> bool:
-    """Check whether all the the tests in the given series are complete. """
-
-    if (series_path/COMPLETE_FN).exists():
-        return True
-
-    latest = None
-    for test_path in dir_db.select(pav_cfg, series_path).paths:
-        complete_file_path: Path = test_path / TestRun.COMPLETE_FN
-        if not complete_file_path.exists():
-            return False
-
-        file_stat = complete_file_path.stat()
-        if latest is None or latest < file_stat.st_mtime:
-            latest = file_stat.st_mtime
-
-    if (series_path/ALL_STARTED_FN).exists():
-        return True
-
-    if latest is not None and latest - time.time() > SERIES_COMPLETE_TIMEOUT:
-        return True
-    else:
-        return False
-
-
-def get_complete(pav_cfg: config.PavConfig, series_path: Path,
-                 check_tests: bool = False) -> Union[dict, None]:
-    """Get the series completion timestamp. Returns None when not complete.
-
-    :param pav_cfg: Pavilion configuration
-    :param series_path: Path to the series
-    :param check_tests: Check tests for completion and set completion if all
-        tests are complete. Will catch and ignore errors when setting completion.
-    """
+def _read_complete(series_path: Path) -> Union[dict, None]:
+    """Read the series completion file, if it exists, and return the completion data.
+    Returns None if the completion file doesn't exist or can't be read."""
 
     complete_fn = series_path/COMPLETE_FN
     if complete_fn.exists():
@@ -174,12 +145,87 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
         except (OSError, json.decoder.JSONDecodeError):
             return None
 
-    if check_tests:
-        if check_complete(pav_cfg, series_path):
-            now = time.time()
-            try:
-                set_complete(series_path, now)
-            except TestSeriesError:
-                return {'when': now}
 
-    return None
+def get_complete(pav_cfg: config.PavConfig, series_path: Path,
+                 check_tests: bool = False) -> Union[dict, None]:
+    """Check whether all the test sets in a series are complete. 
+    :param check_tests: Check tests for completion and set completion if all
+        tests are complete. Will catch and ignore errors when setting completion."""
+
+    if (series_path/COMPLETE_FN).exists():
+        return _read_complete(series_path)
+
+    # Allow for old series test organization.
+    if not (series_path/'test_sets').exists():
+        # For legacy series assume it's complete and create the completion file.
+        return set_complete(series_path)
+
+    latest = None
+    for test_set_path in (series_path/'test_sets').iterdir():
+        if not test_set_path.is_dir():
+            continue
+
+        ts_complete = get_test_set_complete(pav_cfg, test_set_path, check_tests)
+        if ts_complete is None:
+            return None
+
+        if latest is None or latest < ts_complete:
+            latest = ts_complete
+
+    if latest is None:
+        return None
+
+    # Set the series as complete if the last test set completed a while ago.
+    if latest + SERIES_COMPLETE_TIMEOUT > time.time():
+        set_complete(series_path, latest)
+
+    # This returns None if there were no test sets checked.
+    return latest
+
+
+def set_test_set_complete(test_set_path: Path, when: float):
+    """Create a test set completion file and set it's timestamp."""
+
+    complete_fn = test_set_path/COMPLETE_FN
+    if not complete_fn.exists():
+        try:
+            complete_fn.touch()
+            os.utime(complete_fn.as_posix(), (when, when))
+        except OSError:
+            pass
+
+
+def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path,
+                 check_tests: bool = False) -> Union[float, None]:
+    """Get the series completion timestamp. Returns None when not complete.
+
+    :param pav_cfg: Pavilion configuration
+    :param series_path: Path to the series
+    :param check_tests: Check tests for completion and set completion if all
+        tests are complete. Will catch and ignore errors when setting completion.
+    """
+
+    complete_fn = test_set_path/COMPLETE_FN
+    if complete_fn.exists():
+        try:
+            return complete_fn.stat().st_mtime
+        except OSError:
+            return None
+
+    if check_tests:
+        latest = None
+        for test_path in dir_db.select(pav_cfg, test_set_path).paths:
+            complete_ts = TestAttributes(test_path).complete_time
+
+            if complete_ts is None:
+                return None
+
+            if latest is None or complete_ts > latest:
+                latest = complete_ts
+
+        if latest is not None and latest + SERIES_COMPLETE_TIMEOUT < time.time():
+            set_test_set_complete(test_set_path, latest)
+
+        return latest
+    else:
+        return None

@@ -68,6 +68,8 @@ class TestAttributes:
 
         self._complete = False
 
+        self._status_file = None
+
         # Set a logger more specific to this test.
         if load:
             self.load_attributes()
@@ -260,6 +262,24 @@ class TestAttributes:
                 return True
 
         return self._complete
+
+    @property
+    def complete_time(self) -> float:
+        """Returns the test completion timestamp."""
+
+        complete_path = self.path / self.COMPLETE_FN
+
+        if complete_path.exists():
+            try:
+                return complete_path.stat().st_mtime
+            except OSError:
+                return None
+
+        return None
+
+    @property
+    def state(self) -> str:
+        """Returns the current state of the test."""
 
     build_only = basic_attr(
         name='build_only',

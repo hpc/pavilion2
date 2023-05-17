@@ -2,7 +2,7 @@
 import datetime as dt
 import json
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 
 from pavilion import config
 from pavilion import dir_db
@@ -13,11 +13,8 @@ from pavilion.test_run import TestRun, TestAttributes
 from . import common
 
 
-class SeriesInfo:
-    """This class is a stop-gap. It's not meant to provide the same
-    functionality as test_run.TestAttributes, but a lazily evaluated set
-    of properties for a given series path. It should be replaced with
-    something like TestAttributes in the future."""
+class SeriesInfoBase:
+    """Shared base class for series info and test set info."""
 
     def __init__(self, pav_cfg: config.PavConfig, path: Path):
 
@@ -29,9 +26,8 @@ class SeriesInfo:
 
         self._complete = None
 
-        test_dict = common.LazyTestRunDict(pav_cfg)
-        test_dict.find_tests(self.path)
-        self._tests = list(test_dict.iter_paths())
+        self._tests = self._find_tests()
+        self._test_statuses = None
 
         self._test_info = {}
         self._status: Union[None, status_file.SeriesStatusInfo] = None
@@ -40,10 +36,14 @@ class SeriesInfo:
     def list_attrs(cls):
         """Return a list of available attributes."""
 
-        attrs = [
+        attrs = set([
             key for key, val in cls.__dict__.items()
             if isinstance(val, property)
-        ]
+        ])
+
+        for par_class in cls.__bases__:
+            if hasattr(par_class, 'list_attrs'):
+                attrs.update(par_class.list_attrs())
 
         return attrs
 
@@ -76,24 +76,6 @@ class SeriesInfo:
         return int(self.path.name)
 
     @property
-    def name(self):
-        """Return the series name."""
-
-        try:
-            with open(self.path/common.CONFIG_FN) as config_file:
-                self._config = json.load(config_file)
-        except json.JSONDecodeError:
-            return '<unknown>'
-
-        return self._config.get('name', '<unknown>')
-
-    @property
-    def complete(self):
-        """True if all tests are complete."""
-
-        return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None
-
-    @property
     def user(self):
         """The user who created the suite."""
         try:
@@ -103,7 +85,7 @@ class SeriesInfo:
 
     @property
     def created(self) -> float:
-        """When the test was created."""
+        """When the test series was created."""
 
         return self.path.stat().st_mtime
 
@@ -153,6 +135,141 @@ class SeriesInfo:
         return failed
 
     @property
+    def errors(self) -> int:
+        """Number of tests that are complete but with no result, or
+        with an ERROR result."""
+
+        errors = 0
+        for test_path in self._tests:
+            test_info = self.test_info(test_path)
+            if test_info is None:
+                continue
+
+            if (test_info.complete and
+                    test_info.result not in (TestRun.PASS, TestRun.FAIL)):
+                errors += 1
+
+        return errors
+
+    def _get_test_statuses(self) -> List[str]:
+        """Return a dict of the current status for each test."""
+
+        self._test_statuses = []
+        if self._test_statuses is None:
+            for test_path in self._tests:
+
+                status_fn = test_path/common.STATUS_FN
+                status_obj = status_file.TestStatusFile(status_fn)
+
+                self._test_statuses.append(status_obj.current().state)
+
+        return self._test_statuses
+
+    @property
+    def running(self) -> int:
+        """The number of currently running tests."""
+
+        statuses = self._get_test_statuses()
+
+        total = 0
+        for status in statuses:
+            if status == 'RUNNING':
+                total += 1
+
+        return total
+        
+    @property
+    def scheduled(self) -> int:
+        """The number of currently scheduled tests."""
+
+        statuses = self._get_test_statuses()
+
+        total = 0
+        for status in statuses:
+            if status == 'SCHEDULED':
+                total += 1
+
+        return total
+
+    def test_info(self, test_path) -> Union[TestAttributes, None]:
+        """Return the test info object for the given test path.
+        If the test doesn't exist, return None."""
+
+        if test_path in self._test_info:
+            return self._test_info[test_path]
+
+        try:
+            test_info = TestAttributes(test_path)
+        except TestRunError:
+            test_info = None
+
+        self._test_info[test_path] = test_info
+        return test_info
+
+    def __getitem__(self, item):
+        """Dictionary like access."""
+
+        if not isinstance(item, str) or item.startswith('_'):
+            raise KeyError("Invalid key in SeriesInfo (bad key): {}".format(item))
+
+        if hasattr(self, item):
+            attr = getattr(self, item)
+            if callable(attr):
+                raise KeyError("Invalid key in SeriesInfo (callable): {}".format(item))
+            return attr
+
+        else:
+            raise KeyError("Unknown key in SeriesInfo: {}".format(item))
+
+    def __contains__(self, item) -> bool:
+        """Provide dictionary like 'contains' checks."""
+
+        if isinstance(item, str) and not item.startswith('_'):
+            attr = getattr(self, item)
+            return not callable(attr)
+
+        return False
+
+    def get(self, item, default=None):
+        """Provided dictionary like get access."""
+
+        if item in self:
+            return self[item]
+        else:
+            return default
+
+
+class SeriesInfo(SeriesInfoBase):
+    """This class is a stop-gap. It's not meant to provide the same
+    functionality as test_run.TestAttributes, but a lazily evaluated set
+    of properties for a given series path. It should be replaced with
+    something like TestAttributes in the future."""
+
+    def _find_tests(self):
+        """Find all the tests for this series."""
+        test_dict = common.LazyTestRunDict(self._pav_cfg)
+        test_dict.find_tests(self.path)
+        return list(test_dict.iter_paths())
+
+    @property
+    def name(self):
+        """Return the series name."""
+
+        try:
+            with open(self.path/common.CONFIG_FN) as config_file:
+                self._config = json.load(config_file)
+        except json.JSONDecodeError:
+            return '<unknown>'
+
+        return self._config.get('name', '<unknown>')
+
+    @property
+    def complete(self):
+        """True if all tests are complete."""
+
+        return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None
+
+    @property
     def status(self) -> Union[str, None]:
         """The last status message from the series status file."""
 
@@ -192,23 +309,6 @@ class SeriesInfo:
         return self._status
 
     @property
-    def errors(self) -> int:
-        """Number of tests that are complete but with no result, or
-        with an ERROR result."""
-
-        errors = 0
-        for test_path in self._tests:
-            test_info = self.test_info(test_path)
-            if test_info is None:
-                continue
-
-            if (test_info.complete and
-                    test_info.result not in (TestRun.PASS, TestRun.FAIL)):
-                errors += 1
-
-        return errors
-
-    @property
     def sys_name(self) -> Union[str, None]:
         """The sys_name the series ran on."""
 
@@ -220,21 +320,6 @@ class SeriesInfo:
             return None
 
         return test_info.sys_name
-
-    def test_info(self, test_path) -> Union[TestAttributes, None]:
-        """Return the test info object for the given test path.
-        If the test doesn't exist, return None."""
-
-        if test_path in self._test_info:
-            return self._test_info[test_path]
-
-        try:
-            test_info = TestAttributes(test_path)
-        except TestRunError:
-            test_info = None
-
-        self._test_info[test_path] = test_info
-        return test_info
 
     @classmethod
     def load(cls, pav_cfg: config.PavConfig, sid: str):
@@ -252,60 +337,39 @@ class SeriesInfo:
             raise TestSeriesError("Could not find series '{}'".format(sid))
         return cls(pav_cfg, series_path)
 
-    def __getitem__(self, item):
-        """Dictionary like access."""
+class TestSetInfo(SeriesInfoBase):
+    """Information about a test set in a test series."""
 
-        if not isinstance(item, str) or item.startswith('_'):
-            raise KeyError("Invalid key in SeriesInfo (bad key): {}".format(item))
+    def __init__(self, pav_cfg: config.PavConfig, series_path: Path, 
+                 test_set_name: str):
 
-        if hasattr(self, item):
-            attr = getattr(self, item)
-            if callable(attr):
-                raise KeyError("Invalid key in SeriesInfo (callable): {}".format(item))
-            return attr
+        self.test_set_name = test_set_name
 
-        else:
-            raise KeyError("Unknown key in SeriesInfo: {}".format(item))
-
-    def __contains__(self, item) -> bool:
-        """Provide dictionary like 'contains' checks."""
-
-        if isinstance(item, str) and not item.startswith('_'):
-            attr = getattr(self, item)
-            return not callable(attr)
-
-        return False
-
-    def get(self, item, default=None):
-        """Provided dictionary like get access."""
-
-        if item in self:
-            return self[item]
-        else:
-            return default
+        super().__init__(self, pav_cfg, series_path)
 
 
-class TestSetInfo(SeriesInfo):
-    """Information about a test series, filtered down by test set."""
+    def _find_tests(self):
+        """Find all the tests under the given test set."""
 
-    def __init__(self, pav_cfg: config.PavConfig, path: Path, test_set_name: str,
-                 merge_repeats: bool = False):
+        if not (self.series_path/'test_sets').exists():
+            raise TestSeriesError("Legacy test series does not have saved sets.")
 
-        self._pav_cfg = pav_cfg
+        set_path = self.series_path/'test_sets'/self.test_set_name
+        if not set_path.exists():
+            avail_sets = [path.name for path in (self.series_path/'test_sets').iterdir()]
+            raise TestSeriesError("Test Set '{}' does not exist for this series.\n"
+                                  "Available sets are:\n  {}"
+                                  .format(test_set_name, '  \n'.join(avail_sets)))
 
-        self._config = None
+        for path in dir_db.select(self._pav_cfg, search_dir, use_index=False).paths:
+            if not path.is_symlink():
+                continue
+            try:
+                self._tests[int(path.name)] = path
+            except ValueError:
+                continue
 
-        self.path = path
 
-        self._complete = None
-
-        self._tests = self._find_tests(path, test_set_name, merge_repeats)
-
-        self._test_info = {}
-        self._status: Union[None, status_file.SeriesStatusInfo] = None
-
-    def _find_tests(path: str, test_set_name: str, merge_repeats: bool):
-        """Find all the tests under the given test set.
 
 
 def mk_series_info_transform(pav_cfg):

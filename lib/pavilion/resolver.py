@@ -512,10 +512,10 @@ class TestConfigResolver:
         resolved_tests = []
         if not permuted_tests:
             return []
-        elif len(permuted_tests) == 1:
-            request, test_cfg, var_man = permuted_tests[0]
-            resolved_cfg = self.resolve(test_cfg, var_man)
-            resolved_tests.append((request, ProtoTest(resolved_cfg, var_man)))
+        elif True:
+            for test in permuted_tests:
+                resolved_cfg = self.resolve(test_cfg, var_man)
+                resolved_tests.append((request, ProtoTest(resolved_cfg, var_man)))            
         else:
             async_results = []
             proc_count = min(self.pav_cfg['max_cpu'], len(permuted_tests))
@@ -595,6 +595,8 @@ class TestConfigResolver:
         try:
             return resolve.test_config(test_cfg, var_man)
         except TestConfigError as err:
+            import traceback
+            traceback.print_stack()
             if test_cfg.get('permute_on'):
                 permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
 

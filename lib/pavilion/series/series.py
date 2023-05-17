@@ -6,11 +6,12 @@ import math
 import os
 import re
 import signal
+import sys
 import subprocess
 import time
 from collections import defaultdict, OrderedDict
 from pathlib import Path
-from typing import List, Dict, Set, Union, TextIO
+from typing import List, Dict, Set, Union, TextIO, Iterator
 
 import pavilion
 from pavilion import cancel_utils
@@ -167,6 +168,14 @@ class TestSeries:
         except OSError:
             raise TestSeriesError(
                 "Could not write series config to file. Cancelling.")
+
+    def test_set_dirs(self) -> Iterator[Path]:
+        """Return a list of the test set directories for this series."""
+
+        if (self.path/'test_sets').exists():
+            for dir in (self.path/'test_sets').iterdir():
+                if dir.is_dir():
+                    yield dir
 
     @property
     def sid(self):  # pylint: disable=invalid-name
@@ -331,7 +340,7 @@ differentiate it from test ids."""
         :param cancel_tests: Whether to cancel the attached tests. (Default True)
         """
 
-        if self.pgid:
+        if self.pgid and self.pgid != os.getpid():
             try:
                 os.killpg(self.pgid, signal.SIGTERM)
             except ProcessLookupError:
@@ -538,7 +547,12 @@ differentiate it from test ids."""
 
         if self._pgid is None:
 
-            pgid_path = self.path/self.PGID_FN
+            try:
+                print(self.path, self.PGID_FN)
+                pgid_path = self.path/self.PGID_FN
+            except Exception as err:
+                print(err)
+                sys.exit(1)
 
             if not pgid_path.exists():
                 return None
