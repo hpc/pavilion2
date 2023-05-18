@@ -317,9 +317,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         status = self._job_status(pav_cfg, job_info)
 
-        if status.state == STATES.SCHED_RUNNING:
-            status.state = STATES.SCHED_STARTUP
-
         if status is not None:
             self._job_statuses[test.job.name] = time.time(), status
 
@@ -336,6 +333,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
                     "effectively disappeared).".format(job_info))
             else:
                 return last_status
+
+        if status.state == STATES.SCHED_RUNNING:
+            status.state = STATES.SCHED_STARTUP
 
         # Record error and cancelled states if they haven't been seen before.
         if status.state in (STATES.SCHED_CANCELLED, STATES.SCHED_ERROR):

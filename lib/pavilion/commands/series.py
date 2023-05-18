@@ -2,6 +2,7 @@
 
 import errno
 import sys
+from typing import List
 
 from pavilion import cancel_utils
 from pavilion import config
@@ -95,6 +96,29 @@ class RunSeries(Command):
         filters.add_series_filter_args(cancel_p, sort_keys=[], disable_opts=['sys-name'])
         cancel_p.add_argument('series', nargs='*', help="One or more series to cancel")
 
+        set_status_p = subparsers.add_parser(
+            'sets',
+            help="Show the status of the test sets for a given series.")
+        set_status_p.add_argument('--merge-repeats', '-m', default=False, action='store_true',
+                                  help='Merge data from all repeats of each set.')
+        set_status_p.add_argument('series', default='last', nargs='?',
+                                  help='The series to print the sets for.')
+
+    def _find_series(self, pav_cfg, series_name):
+
+        if series_name == 'last':
+            ser = cmd_utils.load_last_series(pav_cfg, self.errfile)
+        else:
+            try:
+                ser = series.TestSeries.load(pav_cfg, series_name)
+            except series.TestSeriesError as err:
+                output.fprint(self.errfile,
+                              "Could not load given series '{}': {}"
+                              .format(series_name, err.args[0]))
+                return None
+
+        return ser
+
     @sub_cmd()
     def _run_cmd(self, pav_cfg, args):
         """Gets called when `pav series <series_name>` is executed. """
@@ -166,6 +190,8 @@ class RunSeries(Command):
             'name',
             'status',
             'num_tests',
+            'scheduled',
+            'running',
             'passed',
             'failed',
             'errors',
@@ -181,13 +207,16 @@ class RunSeries(Command):
             rows=rows,
             field_info={
                 'num_tests': {'title': 'Tests'},
-                'pfe': {'title': 'P/F/Err'},
                 'sys_name': {'title': 'System'},
-                'passed': {'title': 'P',
+                'scheduled': {'title': 'Sch',
+                              'transform': lambda t: output.ANSIString(t, output.CYAN)},
+                'running': {'title': 'Run',
+                              'transform': lambda t: output.ANSIString(t, output.MAGENTA)},
+                'passed': {'title': 'Pass',
                            'transform': lambda t: output.ANSIString(t, output.GREEN)},
-                'failed': {'title': 'F',
+                'failed': {'title': 'Fail',
                            'transform': lambda t: output.ANSIString(t, output.RED)},
-                'errors': {'title': 'E',
+                'errors': {'title': 'Err',
                            'transform': lambda t: output.ANSIString(t, output.YELLOW)},
                 'status_when': {'title': 'Updated',
                                 'transform': output.get_relative_timestamp},
@@ -196,27 +225,90 @@ class RunSeries(Command):
 
         return 0
 
-    @sub_cmd('sets')
-    def _list_sets(self, pav_cfg, args):
+    @sub_cmd('sets', 'set', 'set_status')
+    def _list_sets_cmd(self, pav_cfg, args):
         """Display a series by test set."""
 
-        if args.series == 'last':
-            ser = cmd_utils.load_last_series(pav_cfg, self.errfile)
-            if ser is None:
-                return errno.EINVAL
+        ser = self._find_series(pav_cfg, args.series)
+        if ser is None:
+            return errno.EINVAL
+
+        rows = []
+
+        if args.merge_repeats:
+            fields = ['name', 'iterations', 'complete', 'created', 'num_tests', 'scheduled',
+                      'running', 'passed', 'failed', 'errors']
         else:
-            try:
-                ser = series.TestSeries.load(pav_cfg, args.series)
-            except series.TestSeriesError as err:
-                output.fprint(self.errfile,
-                              "Could not load given series '{}': {}"
-                              .format(args.series, err.args[0]))
-                return errno.EINVAL
+            fields = ['repeat', 'name', 'complete', 'created', 'num_tests', 'scheduled', 'running', 'passed',
+                      'failed', 'errors']
+
+        sets = {}
+
+        for test_set in ser.test_set_dirs():
+            test_set = test_set.name
+
+            set_info = series.TestSetInfo(pav_cfg, ser.path, test_set)
+
+            if args.merge_repeats:
+                name = set_info.name
+                if name in sets:
+                    sets[name] = self._merge_sets(sets[name], set_info, fields)
+                else:
+                    sets[name] = set_info
+            else:
+                sets[test_set] = set_info
+
+        sets = list(sets.values())
+        sets.sort(key = lambda f: f['created'])
+
+        output.draw_table(
+            outfile=self.outfile,
+            fields=fields,
+            rows=sets,
+            field_info={
+                'repeat': {'title': 'Iter'},
+                'iterations': {'title': 'Sets'},
+                'complete': {'title': 'Done'},
+                'num_tests': {'title': 'Tests'},
+                'scheduled': {'title': 'Sch',
+                              'transform': lambda t: output.ANSIString(t, output.CYAN)},
+                'running': {'title': 'Run',
+                              'transform': lambda t: output.ANSIString(t, output.MAGENTA)},
+                'passed': {'title': 'Pass',
+                           'transform': lambda t: output.ANSIString(t, output.GREEN)},
+                'failed': {'title': 'Fail',
+                           'transform': lambda t: output.ANSIString(t, output.RED)},
+                'errors': {'title': 'Err',
+                           'transform': lambda t: output.ANSIString(t, output.YELLOW)},
+                'created': {'transform': output.get_relative_timestamp}
+            })
 
 
 
+    def _merge_sets(self, set1: dict, set2: dict, keys: List[str]) -> dict:
+        """Merge to test set info dicts together, only looking at the given keys."""
 
+        newdict = {}
+        for key in keys:
+            if key == 'iterations':
+                # Keep track of the total combined iterations.
+                newdict[key] = sum([set1.get(key, 1), set2.get(key, 1)])
+            else:
+                val1 = set1[key]
+                val2 = set2[key]
 
+                if key == 'created':
+                    newdict[key] = min([val1, val2])
+                elif isinstance(val1, (int, float)):
+                    newdict[key] = val1 + val2
+                elif isinstance(val1, bool):
+                    newdict[key] = val1 and val2
+                elif isinstance(val1, str):
+                    newdict[key] = val1
+                else:
+                    newdict[key] = ''
+
+        return newdict
 
     @sub_cmd()
     def _history_cmd(self, pav_cfg: config.PavConfig, args):

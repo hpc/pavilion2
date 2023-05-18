@@ -170,7 +170,7 @@ class TestSeries:
                 "Could not write series config to file. Cancelling.")
 
     def test_set_dirs(self) -> Iterator[Path]:
-        """Return a list of the test set directories for this series."""
+        """Return an iterator over the test set directories for this series."""
 
         if (self.path/'test_sets').exists():
             for dir in (self.path/'test_sets').iterdir():
@@ -251,16 +251,15 @@ differentiate it from test ids."""
         depends_on = {}
         depended_on_by = defaultdict(set)
 
+        print('hmm', self.config['test_sets'])
+
         # create all TestSet objects
         universal_modes = self.config['modes']
         for set_name, set_info in self.config['test_sets'].items():
-
-            if iteration is not None:
-                set_name = '{}.{}'.format(iteration, set_name)
-
             set_obj = TestSet(
                 pav_cfg=self.pav_cfg,
                 name=set_name,
+                iteration=iteration,
                 test_names=set_info['tests'],
                 modes=universal_modes + set_info['modes'],
                 host=self.config.get('host'),
@@ -282,7 +281,7 @@ differentiate it from test ids."""
             for parent in depends_on[set_name]:
                 if parent not in self.test_sets:
                     raise TestSeriesError(
-                        "Test sub-series '{}' depends on '{}', but no such sub-series "
+                        "Test Set '{}' depends on '{}', but no such test set "
                         "exists.".format(set_name, parent))
                 test_set.add_parents(self.test_sets[parent])
 
@@ -378,7 +377,7 @@ differentiate it from test ids."""
         try:
             self._create_test_sets()
         except TestSeriesError as err:
-            fprint("Error creating test sets:\n{}".format(err.args[0]), file=outfile)
+            fprint(outfile, "Error creating test sets:\n{}".format(err.args[0]))
             self.status.set(SERIES_STATES.ERROR,
                             "Error creating test sets: {}".format(err.args[0]))
             raise
@@ -630,7 +629,7 @@ differentiate it from test ids."""
                                "it will have tests to add.")
 
         for test in test_set.tests:
-            self._add_test(test_set.name, test)
+            self._add_test(test_set.iter_name, test)
 
     def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""

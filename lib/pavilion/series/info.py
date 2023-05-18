@@ -154,8 +154,8 @@ class SeriesInfoBase:
     def _get_test_statuses(self) -> List[str]:
         """Return a dict of the current status for each test."""
 
-        self._test_statuses = []
         if self._test_statuses is None:
+            self._test_statuses = []
             for test_path in self._tests:
 
                 status_fn = test_path/common.STATUS_FN
@@ -225,8 +225,8 @@ class SeriesInfoBase:
         """Provide dictionary like 'contains' checks."""
 
         if isinstance(item, str) and not item.startswith('_'):
-            attr = getattr(self, item)
-            return not callable(attr)
+            attr = getattr(self, item, None)
+            return not callable(attr) and attr is not None
 
         return False
 
@@ -344,31 +344,61 @@ class TestSetInfo(SeriesInfoBase):
                  test_set_name: str):
 
         self.test_set_name = test_set_name
+        self.test_set_path = series_path/'test_sets'/test_set_name
 
-        super().__init__(self, pav_cfg, series_path)
+        if test_set_name and test_set_name[0].isdigit() and '.' in test_set_name:
+            self._repeat, self._name = test_set_name.split('.', maxsplit=1)
+        else:
+            self._repeat = 0
+            self._name = test_set_name
 
 
-    def _find_tests(self):
+
+        super().__init__(pav_cfg, series_path)
+
+    def _find_tests(self) -> List[Path]:
         """Find all the tests under the given test set."""
 
-        if not (self.series_path/'test_sets').exists():
+        if not (self.path/'test_sets').exists():
             raise TestSeriesError("Legacy test series does not have saved sets.")
 
-        set_path = self.series_path/'test_sets'/self.test_set_name
+        set_path = self.path/'test_sets'/self.test_set_name
         if not set_path.exists():
             avail_sets = [path.name for path in (self.series_path/'test_sets').iterdir()]
             raise TestSeriesError("Test Set '{}' does not exist for this series.\n"
                                   "Available sets are:\n  {}"
                                   .format(test_set_name, '  \n'.join(avail_sets)))
 
-        for path in dir_db.select(self._pav_cfg, search_dir, use_index=False).paths:
+        set_paths = []
+        for path in dir_db.select(self._pav_cfg, set_path, use_index=False).paths:
             if not path.is_symlink():
                 continue
             try:
-                self._tests[int(path.name)] = path
+                set_paths.append(path)
             except ValueError:
                 continue
 
+        return set_paths
+
+    @property
+    def complete(self):
+        return common.get_test_set_complete(self._pav_cfg, self.test_set_path, check_tests=True) is not None
+
+    @property
+    def name(self):
+        """The name of this test set."""
+        return self._name
+
+    @property
+    def repeat(self):
+        """The repeat iteration of this test set."""
+        return self._repeat
+
+    @property
+    def created(self) -> float:
+        """When the test set was created."""
+
+        return self.test_set_path.stat().st_mtime
 
 
 
