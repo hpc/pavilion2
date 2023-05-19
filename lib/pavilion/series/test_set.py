@@ -35,8 +35,8 @@ class TestSet:
     def __init__(self,
                  pav_cfg,
                  name: str,
-                 iteration: int,
                  test_names: List[str],
+                 iteration: int = 0,
                  status: SeriesStatusFile = None,
                  modes: List[str] = None,
                  host: str = None,
@@ -48,8 +48,8 @@ class TestSet:
 
         :param pav_cfg: The Pavilion configuration.
         :param name: The name of this test set.
-        :param iteration: Which 'repeat' iteration this test set represents.
         :param test_names: A list of test/suite names.
+        :param iteration: Which 'repeat' iteration this test set represents.
         :param modes: Modes to apply to all tests.
         :param host: Host configuration name to run under.
         :param only_if: Global 'only_if' conditions.
@@ -184,7 +184,6 @@ class TestSet:
         }
 
         cfg_resolver = TestConfigResolver(self.pav_cfg)
-        print('test names', self._test_names)
 
         try:
             test_configs = cfg_resolver.load(
@@ -199,8 +198,6 @@ class TestSet:
             msg = "Error loading test configs for test set '{}'".format(self.name)
             self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
             raise TestSetError(msg, err)
-
-        print([t.config['name'] for t in test_configs])
 
         progress = 0
         tot_tests = len(test_configs)

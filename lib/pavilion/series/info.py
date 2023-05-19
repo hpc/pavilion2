@@ -61,7 +61,14 @@ class SeriesInfoBase:
         if attr not in cls.list_attrs():
             raise KeyError("No such series attribute '{}'".format(attr))
 
-        attr_prop = cls.__dict__[attr]
+
+        if attr in cls.__dict__:
+            attr_prop = cls.__dict__[attr]
+        else:
+            for par_class in cls.__bases__:
+                if attr in par_class.__dict__:
+                    attr_prop = par_class.__dict__[attr]
+
         return attr_prop.__doc__
 
     @property

@@ -247,11 +247,12 @@ differentiate it from test ids."""
                                "no test sets for a series, but this series has: {}"
                                .format(self.test_sets))
 
+        sets_path = self.path/'test_sets'
+        sets_path.mkdir(exist_ok=True)
+
         # What each test depends on.
         depends_on = {}
         depended_on_by = defaultdict(set)
-
-        print('hmm', self.config['test_sets'])
 
         # create all TestSet objects
         universal_modes = self.config['modes']
@@ -259,8 +260,8 @@ differentiate it from test ids."""
             set_obj = TestSet(
                 pav_cfg=self.pav_cfg,
                 name=set_name,
-                iteration=iteration,
                 test_names=set_info['tests'],
+                iteration=iteration,
                 modes=universal_modes + set_info['modes'],
                 host=self.config.get('host'),
                 only_if=set_info['only_if'],
@@ -512,7 +513,7 @@ differentiate it from test ids."""
         while time.time() < end:
             if self.complete:
                 return
-            time.sleep(min(0., timeout or 1))
+            time.sleep(2) #min(0., timeout or 1))
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))
@@ -547,10 +548,8 @@ differentiate it from test ids."""
         if self._pgid is None:
 
             try:
-                print(self.path, self.PGID_FN)
                 pgid_path = self.path/self.PGID_FN
             except Exception as err:
-                print(err)
                 sys.exit(1)
 
             if not pgid_path.exists():

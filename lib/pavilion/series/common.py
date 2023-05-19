@@ -68,7 +68,9 @@ class LazyTestRunDict(UserDict):
             if not search_dir.is_dir():
                 continue
 
-            for path in dir_db.select(self._pav_cfg, search_dir, use_index=False).paths:
+            print('searching', search_dir)
+            for path in search_dir.iterdir():
+                print('found', path)
                 if not path.is_symlink():
                     continue
 
@@ -84,7 +86,6 @@ class LazyTestRunDict(UserDict):
 
                 self.add_key(ID_Pair((working_dir, test_id)))
 
-
 def set_all_started(path: Path):
     """Touch the 'all_started' file, indicating that all tests that will be created
     by this series have been created."""
@@ -96,6 +97,12 @@ def set_all_started(path: Path):
             all_started_fn.touch()
     except OSError:
         pass
+
+
+def get_all_started(path: Path) -> Union[float, None]:
+    """Return the timestamp of the 'all_started' file, or None if it doesn't exist."""
+
+    return (path/ALL_STARTED_FN).exists()
 
 
 # This is needed by both the series object and the series info object.
@@ -155,10 +162,8 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
     if (series_path/COMPLETE_FN).exists():
         return _read_complete(series_path)
 
-    # Allow for old series test organization.
     if not (series_path/'test_sets').exists():
-        # For legacy series assume it's complete and create the completion file.
-        return set_complete(series_path)
+        return None
 
     latest = None
     for test_set_path in (series_path/'test_sets').iterdir():
@@ -172,8 +177,16 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
         if latest is None or latest < ts_complete:
             latest = ts_complete
 
+    all_started = get_all_started(series_path)
+    if latest is None and all_started is not None:
+        set_complete(series_path, all_started)
+        return all_started
+
     if latest is None:
-        return None
+        try:
+            latest = series_path.stat().st_mtime
+        except OSError:
+            return None
 
     # Set the series as complete if the last test set completed a while ago.
     if latest + SERIES_COMPLETE_TIMEOUT > time.time():
