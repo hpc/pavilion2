@@ -307,6 +307,8 @@ class RunSeries(Command):
     def _merge_sets(self, set1: dict, set2: dict, keys: List[str]) -> dict:
         """Merge to test set info dicts together, only looking at the given keys."""
 
+        _ = self
+
         newdict = {}
         for key in keys:
             if key == 'iterations':
