@@ -1,5 +1,6 @@
 """Start a series config defined test series."""
 
+import argparse
 import errno
 import sys
 from typing import List
@@ -23,8 +24,11 @@ class RunSeries(Command):
     def __init__(self):
         super().__init__(
             name='series', sub_commands=True,
-            description='Provides commands for running and working with test series.',
+            description='Provides commands for running and working with test series.\n'
+                        '  For information on configuring series, run `pav show series_config`.\n'
+                        '  To see series log output, run `pav log series <series_id>`',
             short_help='Run/work with test series.',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
         )
 
         # Useful for testing this command. Populated by the run sub command.

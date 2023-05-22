@@ -185,8 +185,8 @@ class SeriesCmdTests(PavTestCase):
         self._wait_for_all_start(series_cmd.last_run_series)
 
         list_args = [
-            ['series', 'history', '--text'],
-            ['series', 'history', series_cmd.last_run_series.sid],
+            ['series', 'state_history', '--text'],
+            ['series', 'states', series_cmd.last_run_series.sid],
         ]
         for raw_args in list_args:
             args = arg_parser.parse_args(raw_args)

@@ -138,7 +138,10 @@ def set_complete(path, when: float = None) -> dict:
     series_status = status_file.SeriesStatusFile(status_fn)
     if not complete_fn.exists():
 
-        series_status.set(status_file.SERIES_STATES.COMPLETE, "Series has completed.")
+        state = series_status.current().state
+        if 'ERROR' not in state:
+            series_status.set(status_file.SERIES_STATES.COMPLETE, "Series has completed.")
+
         complete_fn_tmp = complete_fn.with_suffix('.tmp')
         try:
             with complete_fn_tmp.open('w') as series_complete:

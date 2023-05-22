@@ -4,6 +4,7 @@ components to add sub-commands.
 # pylint: disable=W0603
 
 import argparse
+import textwrap
 
 import pavilion.config
 
