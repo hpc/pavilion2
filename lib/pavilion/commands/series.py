@@ -122,6 +122,7 @@ class RunSeries(Command):
                              help="The series to print status history for.")
 
     def _find_series(self, pav_cfg, series_name):
+        """Grab the series based on the series name, if one was given."""
 
         if series_name == 'last':
             ser = cmd_utils.load_last_series(pav_cfg, self.errfile)
@@ -130,8 +131,9 @@ class RunSeries(Command):
                 ser = series.TestSeries.load(pav_cfg, series_name)
             except series.TestSeriesError as err:
                 output.fprint(self.errfile,
-                              "Could not load given series '{}': {}"
-                              .format(series_name, err.args[0]))
+                              "Could not load given series '{}'"
+                              .format(series_name))
+                output.fprint(self.errfile, err.pformat())
                 return None
 
         return ser

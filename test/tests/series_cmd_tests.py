@@ -1,4 +1,4 @@
-"""Test the cancel command."""
+"""Test the various series sub-commands."""
 
 import time
 
