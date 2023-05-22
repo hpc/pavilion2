@@ -148,7 +148,7 @@ class StyleTests(PavTestCase):
                 fn = Path(path)/fn
 
                 line_num = -1
-                in_doc_string = False
+                in_doc_string = None
                 with fn.open() as file:
                     skip_next = False
 
@@ -157,13 +157,13 @@ class StyleTests(PavTestCase):
 
                         if in_doc_string:
                             if in_doc_string in line:
-                                in_doc_string = False
+                                in_doc_string = None
                             continue
 
-                        if '"""' in line:
+                        if '"""' in line and line.count('"""')%2 == 1:
                             in_doc_string = '"""'
                             continue
-                        elif "'''" in line:
+                        elif "'''" in line and line.count("'''")%2 == 1:
                             in_doc_string = "'''"
                             continue
 

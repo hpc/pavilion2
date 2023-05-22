@@ -97,7 +97,7 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
 
 
 def verify_configs(pav_cfg, series_name: str, host: str = None,
-                   modes: List[str] = None) -> dict:
+                   modes: List[str] = None, overrides: List[str] = None) -> dict:
     """Loads series config and checks that all tests can be loaded with all
     modes and host (if any). """
 
@@ -112,7 +112,11 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
     try:
         for set_name, set_dict in series_cfg['test_sets'].items():
             all_modes = series_cfg['modes'] + set_dict['modes'] + modes
-            resolver.load(set_dict['tests'], host, all_modes)
+            resolver.load(
+                tests=set_dict['tests'],
+                host=host,
+                modes=all_modes,
+                overrides=overrides)
     except AttributeError as err:
         raise SeriesConfigError("Cannot load series.", err)
     except TestConfigError as err:

@@ -184,7 +184,7 @@ class SeriesInfoBase:
                 total += 1
 
         return total
-        
+
     @property
     def scheduled(self) -> int:
         """The number of currently scheduled tests."""
@@ -347,7 +347,7 @@ class SeriesInfo(SeriesInfoBase):
 class TestSetInfo(SeriesInfoBase):
     """Information about a test set in a test series."""
 
-    def __init__(self, pav_cfg: config.PavConfig, series_path: Path, 
+    def __init__(self, pav_cfg: config.PavConfig, series_path: Path,
                  test_set_name: str):
 
         self.test_set_name = test_set_name
@@ -389,7 +389,11 @@ class TestSetInfo(SeriesInfoBase):
 
     @property
     def complete(self):
-        return common.get_test_set_complete(self._pav_cfg, self.test_set_path, check_tests=True) is not None
+        complete_ts = common.get_test_set_complete(
+            self._pav_cfg,
+            self.test_set_path,
+            check_tests=True)
+        return complete_ts is not None
 
     @property
     def name(self):

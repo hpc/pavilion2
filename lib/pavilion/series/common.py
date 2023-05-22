@@ -68,9 +68,7 @@ class LazyTestRunDict(UserDict):
             if not search_dir.is_dir():
                 continue
 
-            print('searching', search_dir)
             for path in search_dir.iterdir():
-                print('found', path)
                 if not path.is_symlink():
                     continue
 
@@ -131,7 +129,7 @@ def set_complete(path, when: float = None) -> dict:
 
         complete_fn_tmp.rename(complete_fn)
 
-    # Note that this might be a bit off from reality if something else set the 
+    # Note that this might be a bit off from reality if something else set the
     # complete time, but it will be close enough.
     return complete_data
 
@@ -155,7 +153,7 @@ def _read_complete(series_path: Path) -> Union[dict, None]:
 
 def get_complete(pav_cfg: config.PavConfig, series_path: Path,
                  check_tests: bool = False) -> Union[dict, None]:
-    """Check whether all the test sets in a series are complete. 
+    """Check whether all the test sets in a series are complete.
     :param check_tests: Check tests for completion and set completion if all
         tests are complete. Will catch and ignore errors when setting completion."""
 

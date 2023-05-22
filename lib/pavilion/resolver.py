@@ -530,7 +530,7 @@ class TestConfigResolver:
                         if aresult.ready():
                             try:
                                 result = aresult.get()
-                            except PavilionError:
+                            except PavilionError as err:
                                 raise
                             except Exception as err:
                                 raise TestConfigError("Unexpected error loading tests", err)
@@ -595,8 +595,6 @@ class TestConfigResolver:
         try:
             return resolve.test_config(test_cfg, var_man)
         except TestConfigError as err:
-            import traceback
-            traceback.print_stack()
             if test_cfg.get('permute_on'):
                 permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
 
@@ -606,7 +604,6 @@ class TestConfigResolver:
             else:
                 raise TestConfigError(
                     "Error resolving test {}".format(test_cfg['name']), err)
-
 
     def _load_raw_config(self, name: str, config_type: str, optional=False) \
             -> Tuple[Any, Union[Path, None], Union[str, None]]:
@@ -635,7 +632,8 @@ class TestConfigResolver:
             show_type = 'test' if config_type == 'suite' else config_type
 
             raise TestConfigError(
-                "Could not find {type} config file '{name}.yaml' in any of the Pavilion config directories.\n"
+                "Could not find {type} config file '{name}.yaml' in any of the Pavilion "
+                "config directories.\n"
                 "See `pav config list` for a list of config directories.\n"
                 "See `pav show {type_alt} -v` for a list of {type} files."
                 .format(type=config_type, name=name, type_alt=show_type))

@@ -22,7 +22,7 @@ class CancelCommand(Command):
             'cancel',
             'Cancel a test, tests, or all tests in a test series. To cancel a series '
             'itself, use `pav series cancel`. Tests can only be cancelled on the system '
-            'where the were started.',
+            'where they were started.',
             short_help="Cancel a test, tests, or all tests in a test series."
         )
 
@@ -35,9 +35,8 @@ class CancelCommand(Command):
         parser.add_argument(
             'tests', nargs='*', action='store',
             help='The name(s) of the tests to cancel. These may be any mix of '
-                 'test IDs and series IDs. If no value is provided, the most '
-                 'recent series submitted by the user is cancelled. '
-        )
+                 'test IDs and series IDs. If no value is provided, all test '
+                 'in the most recent series submitted by the user is cancelled.')
         filters.add_test_filter_args(parser, sort_keys=[], disable_opts=['sys-name'])
 
     def run(self, pav_cfg, args):
@@ -48,6 +47,8 @@ class CancelCommand(Command):
             series_id = series.load_user_series_id(pav_cfg)
             if series_id is not None:
                 args.tests.append(series_id)
+
+        cancelled_series = False
 
         tests = []
         for test_id in args.tests:
@@ -65,16 +66,12 @@ class CancelCommand(Command):
                                   .format(test_id), err, color=output.RED)
                     return errno.EINVAL
 
-                try:
-                    # if there's a series PGID, kill the series PGID
-                    if series_pgid:
-                        os.killpg(series_pgid, signal.SIGTERM)
-                        output.fprint(self.outfile, 'Killed process {}, which is series {}.'
-                                      .format(series_pgid, test_id))
+                if series.get_all_started(test_series.path) is None and not cancelled_series:
+                    output.fprint(self.errfile,
+                                  "Warning: `pav cancel` cancels tests, but series may still start "
+                                  "additional tests. Use `pav series cancel <sid>` to cancel the "
+                                  "series AND all of its tests.")
 
-                except ProcessLookupError:
-                    output.fprint(self.errfile, "Unable to kill {}. No such process: {}"
-                                  .format(test_id, series_pgid), color=output.RED)
             else:
                 try:
                     tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))

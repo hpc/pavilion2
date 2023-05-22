@@ -25,7 +25,7 @@ RUNNING_UPDATE_TIMEOUT = 5
 
 def status_from_test_obj(pav_cfg: dict, test: TestRun):
 
-    """Takes a test object and creates the dictionary expected by the 
+    """Takes a test object and creates the dictionary expected by the
     print_status function.
 
 :param pav_cfg: Pavilion base configuration.
@@ -45,7 +45,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
             str(last_update) if last_update is not None else '<unknown>'])
 
     elif status_f.state in STATES.RUNNING:
-        # When running check for recent run log updates, and check the 
+        # When running check for recent run log updates, and check the
         # scheduler if things have gone on too long.
 
         log_path = test.path/'run.log'

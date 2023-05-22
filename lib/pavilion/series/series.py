@@ -547,10 +547,7 @@ differentiate it from test ids."""
 
         if self._pgid is None:
 
-            try:
-                pgid_path = self.path/self.PGID_FN
-            except Exception as err:
-                sys.exit(1)
+            pgid_path = self.path/self.PGID_FN
 
             if not pgid_path.exists():
                 return None

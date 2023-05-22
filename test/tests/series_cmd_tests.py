@@ -111,7 +111,7 @@ class SeriesCmdTests(PavTestCase):
             args = arg_parser.parse_args(raw_args)
             self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
 
-    def _wait_for_all_start(self, ser: series.TestSeries, timeout=30):
+    def _wait_for_all_start(self, ser: series.TestSeries, timeout=10):
         # Wait for the series to start.
         start_time = time.time()
         while not ser.status.has_state(SERIES_STATES.ALL_STARTED):
@@ -119,8 +119,6 @@ class SeriesCmdTests(PavTestCase):
                 stat_lines = ['current time: {}'.format(time.time())]
                 for stat in ser.status.history():
                     stat_lines.append(str(stat))
-                with (ser.path/'series.out').open() as out:
-                    print(out.read())
                 self.fail("Could not detect series start. Series status: \n{}"
                           .format('\n'.join(stat_lines)))
             time.sleep(0.3)

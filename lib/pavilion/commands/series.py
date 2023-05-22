@@ -35,12 +35,34 @@ class RunSeries(Command):
 
         return self._run_sub_command(pav_cfg, args)
 
+    LIST_ALIASES = ['ls', 'status'],
+    SETS_ALIASES =['set_status', 'test_sets', 'set'],
+    STATE_ALIASES = ['state', 'states'],
+
     def _setup_arguments(self, parser):
         """Setup arguments for all sub commands."""
 
         subparsers = parser.add_subparsers(
             dest="sub_cmd",
             help="Series Status sub command.")
+
+        cancel_p = subparsers.add_parser(
+            'cancel',
+            help="Cancel a series or series. Defaults to the your last series on this system.")
+        filters.add_series_filter_args(cancel_p, sort_keys=[], disable_opts=['sys-name'])
+        cancel_p.add_argument('series', nargs='*', help="One or more series to cancel")
+
+        list_p = subparsers.add_parser(
+            'list',
+            aliases=LIST_ALIASES,
+            help="Show a list of recently run series.",
+        )
+
+        list_p.add_argument(
+            'series', nargs='*',
+            help="Specific series to show. Defaults to all your recent series on this cluster."
+        )
+        filters.add_series_filter_args(list_p)
 
         run_p = subparsers.add_parser(
             'run',
@@ -59,50 +81,41 @@ class RunSeries(Command):
             help='The host to configure this test for. If not specified, the '
                  'current host as denoted by the sys plugin \'sys_host\' is '
                  'used.')
+        parser.add_argument(
+            '-c', dest='overrides', action='append', default=[],
+            help='Overrides for specific configuration options. These are '
+                 'gathered used as a final set of overrides before the '
+                 'configs are resolved. They should take the form '
+                 '\'key=value\', where key is the dot separated key name, '
+                 'and value is a json object. Example: `-c schedule.nodes=23`')
         run_p.add_argument(
             '-m', '--mode', action='append', dest='modes', default=[],
             help='Mode configurations to overlay on the host configuration for '
                  'each test. These are overlayed in the order given.')
+
         run_p.add_argument(
             '-V', '--skip-verify', action='store_true', default=False,
             help="By default we load all the relevant configs. This can take some "
                  "time. Use this option to skip that step."
         )
 
-        list_p = subparsers.add_parser(
-            'list',
-            aliases=['ls', 'status'],
-            help="Show a list of recently run series.",
-        )
-
-        list_p.add_argument(
-            'series', nargs='*',
-            help="Specific series to show. Defaults to all your recent series on this cluster."
-        )
-
-        filters.add_series_filter_args(list_p)
-
-        history_p = subparsers.add_parser(
-            'history',
-            help="Give the status history of the given series.")
-        history_p.add_argument('--text', '-t', action='store_true', default=False,
-                               help="Print plaintext, rather than a table.")
-        history_p.add_argument('series', default='last', nargs='?',
-                               help="The series to print status history for.")
-
-        cancel_p = subparsers.add_parser(
-            'cancel',
-            help="Cancel a series or series. Defaults to the your last series on this system.")
-        filters.add_series_filter_args(cancel_p, sort_keys=[], disable_opts=['sys-name'])
-        cancel_p.add_argument('series', nargs='*', help="One or more series to cancel")
-
         set_status_p = subparsers.add_parser(
             'sets',
+            aliases=['set_status', 'test_sets', 'set'],
             help="Show the status of the test sets for a given series.")
         set_status_p.add_argument('--merge-repeats', '-m', default=False, action='store_true',
                                   help='Merge data from all repeats of each set.')
         set_status_p.add_argument('series', default='last', nargs='?',
                                   help='The series to print the sets for.')
+
+        state_p = subparsers.add_parser(
+            'state_history',
+            aliases=self.STATE_ALIASES,
+            help="Give the state history of the given series.")
+        state_p.add_argument('--text', '-t', action='store_true', default=False,
+                             help="Print plaintext, rather than a table.")
+        state_p.add_argument('series', default='last', nargs='?',
+                             help="The series to print status history for.")
 
     def _find_series(self, pav_cfg, series_name):
 
@@ -124,7 +137,12 @@ class RunSeries(Command):
         """Gets called when `pav series <series_name>` is executed. """
 
         if args.skip_verify:
-            series_cfg = series_config.verify_configs(pav_cfg, args.series_name)
+            series_cfg = series_config.load_series_config(pav_cfg, args.series_name)
+
+            # Add the modes and overrides given by the user.
+            series_config['modes'] += args.modes
+            series_config['overrides'] += args.overrides
+
         else:
             # load series and test files
             try:
@@ -132,7 +150,8 @@ class RunSeries(Command):
                 series_cfg = series_config.verify_configs(pav_cfg,
                                                           args.series_name,
                                                           host=args.host,
-                                                          modes=args.modes)
+                                                          modes=args.modes,
+                                                          overrides=args.overrides)
             except series_config.SeriesConfigError as err:
 
                 output.fprint(self.errfile, err.pformat(), color=output.RED)
@@ -161,22 +180,18 @@ class RunSeries(Command):
         except TestSeriesWarning as err:
             output.fprint(self.errfile, err, color=output.YELLOW)
 
-        output.fprint(self.outfile, "Started series {sid}.\n"
-                                    "Run `pav status {sid}` to view status.\n"
+        output.fprint(self.outfile,
+                      "Started series {sid}.\n"
+                      "Run `pav series status {sid}` to view series status.\n"
+                      "Run `pav series cancel {sid}` to cancel the series (and all it's tests).\n"
+                      "Run `pav series sets {sid}` to view status of individual test sets."
                       .format(sid=series_obj.sid))
-
-        if series_obj.pgid is not None:
-            output.fprint(self.outfile, "PGID is {pgid}.\nTo kill, use `pav cancel {sid}`."
-                          .format(sid=series_obj.sid, pgid=series_obj.pgid))
-        else:
-            output.fprint(self.errfile, "To cancel, use `kill -14 -s{pgid}"
-                          .format(pgid=series_obj.pgid))
 
         self.last_run_series = series_obj
 
         return 0
 
-    @sub_cmd('ls', 'status', 'list')
+    @sub_cmd(*LIST_ALIASES)
     def _list_cmd(self, pav_cfg, args):
         """List series."""
 
@@ -225,8 +240,8 @@ class RunSeries(Command):
 
         return 0
 
-    @sub_cmd('sets', 'set', 'set_status')
-    def _list_sets_cmd(self, pav_cfg, args):
+    @sub_cmd(*SETS_ALIASES)
+    def _sets_cmd(self, pav_cfg, args):
         """Display a series by test set."""
 
         ser = self._find_series(pav_cfg, args.series)
@@ -239,8 +254,8 @@ class RunSeries(Command):
             fields = ['name', 'iterations', 'complete', 'created', 'num_tests', 'scheduled',
                       'running', 'passed', 'failed', 'errors']
         else:
-            fields = ['repeat', 'name', 'complete', 'created', 'num_tests', 'scheduled', 'running', 'passed',
-                      'failed', 'errors']
+            fields = ['repeat', 'name', 'complete', 'created', 'num_tests', 'scheduled',
+                      'running', 'passed', 'failed', 'errors']
 
         sets = {}
 
@@ -283,8 +298,6 @@ class RunSeries(Command):
                 'created': {'transform': output.get_relative_timestamp}
             })
 
-
-
     def _merge_sets(self, set1: dict, set2: dict, keys: List[str]) -> dict:
         """Merge to test set info dicts together, only looking at the given keys."""
 
@@ -310,8 +323,8 @@ class RunSeries(Command):
 
         return newdict
 
-    @sub_cmd()
-    def _history_cmd(self, pav_cfg: config.PavConfig, args):
+    @sub_cmd(*STATE_ALIASES)
+    def _state_history_cmd(self, pav_cfg: config.PavConfig, args):
         """Print the full status history for a series."""
 
         if args.series == 'last':

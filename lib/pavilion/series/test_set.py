@@ -186,6 +186,8 @@ class TestSet:
         cfg_resolver = TestConfigResolver(self.pav_cfg)
 
         try:
+            self.status.set(S_STATES.SET_MAKE, "Resolving {} test names."
+                            .format(len(self._test_names)))
             test_configs = cfg_resolver.load(
                 self._test_names,
                 self.host,
@@ -198,6 +200,8 @@ class TestSet:
             msg = "Error loading test configs for test set '{}'".format(self.name)
             self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
             raise TestSetError(msg, err)
+
+        self.status.set(S_STATES.SET_MAKE, "Creating test runs")
 
         progress = 0
         tot_tests = len(test_configs)
