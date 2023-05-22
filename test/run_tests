@@ -50,8 +50,10 @@ def list_tests(suite):
             print('  {}'.format(test_name))
 
 
-
-FAILURE_FN = Path('/tmp/.pavilion_run_test_failures_{}.txt'.format(os.getlogin()))
+try:
+    FAILURE_FN = Path('/tmp/.pavilion_run_test_failures_{}.txt'.format(os.getlogin()))
+except OSError:
+    FAILURE_FN = Path('/tmp/.pavilion_run_test_failures.txt')
 
 
 def save_failures(failures):
