@@ -23,10 +23,11 @@ CONFIG_FN = 'config'
 class LazyTestRunDict(UserDict):
     """A lazily evaluated dictionary of tests."""
 
-    def __init__(self, pav_cfg):
+    def __init__(self, pav_cfg: config.PavConfig, series_path: Path):
         """Initialize the lazy TestRun dict."""
 
         self._pav_cfg = pav_cfg
+        self._path = series_path
 
         super().__init__()
 
@@ -38,31 +39,49 @@ class LazyTestRunDict(UserDict):
     def __getitem__(self, id_pair: ID_Pair) -> TestRun:
         """When the item exists as a key but not a test object, load the test object."""
 
+        if not self.data:
+            self.find_tests()
+
         if id_pair in self.data and self.data[id_pair] is None:
             working_dir, test_id = id_pair
             self.data[id_pair] = TestRun.load(self._pav_cfg, working_dir, test_id)
 
         return super().__getitem__(id_pair)
 
+    def keys(self):
+        """Return an iterator over the keys of this dict."""
+
+        if not self.data:
+            self.find_tests()
+
+        for key in self.data:
+            yield key
+
+    def values(self):
+        """Return an iterator over the values of this dict."""
+
+        for key in self.keys():
+            yield self[key]
 
     def iter_paths(self):
         """An iterator over all test paths. (Run 'find_tests' first if unpopulated)"""
 
+        if not self.data:
+            self.find_tests()
+
         for working_dir, test_id in self.keys():
             yield working_dir/'test_runs'/str(test_id)
 
-
-    def find_tests(self, series_path: Path):
+    def find_tests(self):
         """Find all the tests for the series and add their keys."""
-
 
         # Handle both legacy series directories (all test links in series path)
         # and test_set organized series (all test links in test set dirs under '<series>/test_sets')
-        test_sets_dir = series_path/'test_sets'
+        test_sets_dir = self._path/'test_sets'
         if test_sets_dir.exists():
             search_dirs = test_sets_dir.iterdir()
         else:
-            search_dirs = [series_path]
+            search_dirs = [self._path]
 
         for search_dir in search_dirs:
             if not search_dir.is_dir():

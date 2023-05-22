@@ -35,9 +35,9 @@ class RunSeries(Command):
 
         return self._run_sub_command(pav_cfg, args)
 
-    LIST_ALIASES = ['ls', 'status'],
-    SETS_ALIASES =['set_status', 'test_sets', 'set'],
-    STATE_ALIASES = ['state', 'states'],
+    LIST_ALIASES = ['ls', 'status']
+    SETS_ALIASES = ['set_status', 'test_sets', 'set']
+    STATE_ALIASES = ['state', 'states']
 
     def _setup_arguments(self, parser):
         """Setup arguments for all sub commands."""
@@ -54,7 +54,7 @@ class RunSeries(Command):
 
         list_p = subparsers.add_parser(
             'list',
-            aliases=LIST_ALIASES,
+            aliases=self.LIST_ALIASES,
             help="Show a list of recently run series.",
         )
 
@@ -69,10 +69,6 @@ class RunSeries(Command):
             help="Run a series."
         )
         run_p.add_argument(
-            'series_name', action='store',
-            help="Series name."
-        )
-        run_p.add_argument(
             '--re-name', action='store',
             help="Ignore the series config file name, and rename the series to this."
         )
@@ -81,7 +77,7 @@ class RunSeries(Command):
             help='The host to configure this test for. If not specified, the '
                  'current host as denoted by the sys plugin \'sys_host\' is '
                  'used.')
-        parser.add_argument(
+        run_p.add_argument(
             '-c', dest='overrides', action='append', default=[],
             help='Overrides for specific configuration options. These are '
                  'gathered used as a final set of overrides before the '
@@ -98,10 +94,14 @@ class RunSeries(Command):
             help="By default we load all the relevant configs. This can take some "
                  "time. Use this option to skip that step."
         )
+        run_p.add_argument(
+            'series_name', action='store', nargs="?",
+            help="Series name."
+        )
 
         set_status_p = subparsers.add_parser(
             'sets',
-            aliases=['set_status', 'test_sets', 'set'],
+            aliases=self.SETS_ALIASES,
             help="Show the status of the test sets for a given series.")
         set_status_p.add_argument('--merge-repeats', '-m', default=False, action='store_true',
                                   help='Merge data from all repeats of each set.')
@@ -140,8 +140,8 @@ class RunSeries(Command):
             series_cfg = series_config.load_series_config(pav_cfg, args.series_name)
 
             # Add the modes and overrides given by the user.
-            series_config['modes'] += args.modes
-            series_config['overrides'] += args.overrides
+            series_cfg['modes'] += args.modes
+            series_cfg['overrides'] += args.overrides
 
         else:
             # load series and test files

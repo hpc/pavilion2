@@ -109,9 +109,12 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
     if series_cfg.get('name') is None:
         series_cfg['name'] = series_name
 
+    series_cfg['modes'] += modes
+    series_cfg['overrides'] += overrides
+
     try:
         for set_name, set_dict in series_cfg['test_sets'].items():
-            all_modes = series_cfg['modes'] + set_dict['modes'] + modes
+            all_modes = series_cfg['modes'] + set_dict['modes']
             resolver.load(
                 tests=set_dict['tests'],
                 host=host,

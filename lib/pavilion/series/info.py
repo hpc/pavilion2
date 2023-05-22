@@ -254,8 +254,7 @@ class SeriesInfo(SeriesInfoBase):
 
     def _find_tests(self):
         """Find all the tests for this series."""
-        test_dict = common.LazyTestRunDict(self._pav_cfg)
-        test_dict.find_tests(self.path)
+        test_dict = common.LazyTestRunDict(self._pav_cfg, self.path)
         return list(test_dict.iter_paths())
 
     @property

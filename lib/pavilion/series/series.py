@@ -57,7 +57,6 @@ class TestSeries:
         """
 
         self.pav_cfg: config.PavConfig = pav_cfg
-        self.tests = common.LazyTestRunDict(pav_cfg)
 
         self.config = series_cfg or SeriesConfigLoader().load_empty()
 
@@ -101,6 +100,8 @@ class TestSeries:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
+
+        self.tests = common.LazyTestRunDict(pav_cfg, self.path)
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
@@ -234,7 +235,6 @@ differentiate it from test ids."""
                                   .format(sid), err)
 
         series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg)
-        series.tests.find_tests(series.path)
         return series
 
     def _create_test_sets(self, iteration=0):

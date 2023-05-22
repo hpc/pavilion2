@@ -24,9 +24,60 @@ class SeriesCmdTests(PavTestCase):
         run_cmd: commands.RunSeries = commands.get_command('series')
         arg_parser = arguments.get_parser()
 
+        arg_lists = [
+            ['series', 'run', 'basic'],
+            ['series', 'run', 'basic', '--skip-verify'],
+        ]
+
+        for arg_list in arg_lists:
+            args = arg_parser.parse_args(arg_list)
+            run_cmd.silence()
+
+            run_result = run_cmd.run(self.pav_cfg, args)
+            self.assertEqual(run_result, 0)
+
+            run_cmd.last_run_series.wait()
+            self.assertEqual(run_cmd.last_run_series.complete, True)
+            self.assertEqual(run_cmd.last_run_series.info().passed, 1)
+
+    def test_run_series_modes(self):
+        """Make sure command line modes are applied when running series."""
+
+        run_cmd: commands.RunSeries = commands.get_command('series')
+        arg_parser = arguments.get_parser()
+
         args = arg_parser.parse_args([
             'series',
             'run',
+            'basic',
+            '-m',
+            'smode1',
+        ])
+        run_cmd.silence()
+
+        run_result = run_cmd.run(self.pav_cfg, args)
+        self.assertEqual(run_result, 0)
+
+        series_obj = run_cmd.last_run_series
+        series_obj.wait(5)
+        self.assertEqual(series_obj.complete, True)
+        self.assertEqual(series_obj.info().passed, 1)
+
+        test = list(series_obj.tests.values())[0]
+
+        self.assertEqual(test.var_man['var.asdf'], 'asdf1')
+
+    def test_run_series_overrides(self):
+        """Make sure command line modes are applied when running series."""
+
+        run_cmd: commands.RunSeries = commands.get_command('series')
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'series',
+            'run',
+            '-c',
+            'variables.val="via_overrides"',
             'basic',
         ])
         run_cmd.silence()
@@ -34,9 +85,15 @@ class SeriesCmdTests(PavTestCase):
         run_result = run_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
 
-        run_cmd.last_run_series.wait()
-        self.assertEqual(run_cmd.last_run_series.complete, True)
-        self.assertEqual(run_cmd.last_run_series.info().passed, 1)
+        series_obj = run_cmd.last_run_series
+        series_obj.wait(5)
+        self.assertEqual(series_obj.complete, True)
+        self.assertEqual(series_obj.info().passed, 1)
+
+        test = list(series_obj.tests.values())[0]
+
+        self.assertEqual(test.var_man['var.val'], 'via_overrides')
+
 
     def test_cancel_series(self):
         """Test cancel command with no arguments."""
@@ -61,6 +118,30 @@ class SeriesCmdTests(PavTestCase):
         cancel_result = series_cmd.run(self.pav_cfg, cancel_args)
         self.assertEqual(cancel_result, 0)
         self.assertEqual(ser.status.current().state, SERIES_STATES.CANCELED)
+
+    def test_series_sets(self):
+        """Attempt the 'series sets' command."""
+
+        series_cmd: commands.RunSeries = commands.get_command('series')
+        series_cmd.silence()
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args(['series', 'run', 'multi'])
+        self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
+        series_cmd.last_run_series.wait()
+        sid = series_cmd.last_run_series.sid
+
+        arg_lists = [
+            ['series', 'sets', sid],
+            ['series', 'sets', '--merge-repeats', sid],
+        ]
+
+        series_cmd.clear_output()
+
+        for arg_list in arg_lists:
+            args = arg_parser.parse_args(arg_list)
+
+            self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
 
     def test_series_list(self):
         """Test the series list command."""

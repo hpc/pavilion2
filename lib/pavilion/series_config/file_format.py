@@ -53,7 +53,8 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         ),
         yc.ListElem(
             'overrides', sub_elem=yc.StrElem(),
-            help_text="Overrides to apply to all tests in this series.",
+            help_text="Overrides to apply to all tests in this series."
+        ),
         yc.IntElem(
             'simultaneous', default=0,
             help_text="The maximum number of tests to run simultaneously."

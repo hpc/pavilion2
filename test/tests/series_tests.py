@@ -132,6 +132,26 @@ class SeriesTests(PavTestCase):
             hosty_value = varsets.get('hosty', None, None)
             self.assertEqual(hosty_value, 'this')
 
+    def test_series_overrides(self):
+        """Make sure configured overrides are applied."""
+
+        series_cfg = series_config.make_config({
+            'test_sets': {
+                'only_set': {
+                    'tests':      ['echo_test.a']},
+            },
+            'overrides': 'variables.another_num=17',
+            'host': 'this',
+        })
+
+        test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
+        test_series_obj.run()
+        test_series_obj.wait(5)
+        self.assertNotEqual(test_series_obj.tests, {})
+
+        test = list(test_series_obj.tests.values())[0]
+        self.assertEqual(test.results['other_num'], 17)
+
     def test_series_depends(self):
         """Tests if dependencies work as intended."""
 
