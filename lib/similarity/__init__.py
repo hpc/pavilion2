@@ -1,3 +1,4 @@
+from typing import List
 
 
 VECTOR_LETTER_ORDER = 'abcdefghijklmnopqrstuvwxyz012345789-_'
@@ -21,19 +22,41 @@ def make_word_vector(word):
     return vec
 
 
-def dot(vec1, vec2):
+def vec_dot(vec1, vec2):
     """Take the dot product of two equal length numerical vectors."""
 
     return sum([vec1[i]*vec2[i] for i in range(len(vec1))])
 
 
-def magnitude(vec):
+def vec_magnitude(vec):
     """Return the magnitude of the given vector."""
 
-    return abs(dot(vec, vec))**0.5
+    return abs(vec_dot(vec, vec))**0.5
 
 
-def cos(vec1, vec2):
+def vec_cos(vec1, vec2):
     """Return the cos of the angular difference between the two vectors."""
 
-    return dot(vec1, vec2)/(magnitude(vec1)*magnitude(vec2))
+    return vec_dot(vec1, vec2)/(vec_magnitude(vec1)*vec_magnitude(vec2))
+
+def find_matches(base:str , items:List[str], min_score: float = 0.8) -> List[str]:
+    """Find similar items to the one base word, using cosine similarity."""
+
+    base_vec = make_word_vector(base)
+
+    scores = []
+    for item in items:
+        item = str(item)
+        item_vec = make_word_vector(item)
+
+        scores.append((vec_cos(base_vec, item_vec), item))
+
+    scores.sort(reverse=True)
+    matches = []
+    for score, item in scores:
+        if score > min_score:
+            matches.append(item)
+        else:
+            break
+
+    return matches

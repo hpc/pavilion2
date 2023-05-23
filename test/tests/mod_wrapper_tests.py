@@ -182,7 +182,7 @@ class ModWrapperTests(PavTestCase):
             'test_mod3/5.0->test_mod3/4.0'
         ]
 
-        test_cfg['run']['verbose'] = 'true'
+        #test_cfg['run']['verbose'] = 'true'
 
         test_cfg['run']['cmds'] = [
             self.SORT_FUNC,

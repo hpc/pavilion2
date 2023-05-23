@@ -39,6 +39,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Dict
 
+from pavilion import errors
+
 BLACK = 30
 RED = 31
 GREEN = 32
@@ -667,8 +669,10 @@ def dt_format_rows(rows, fields, field_info):
                 except (ValueError, AttributeError, KeyError):
                     data = '<transform error on {}>'.format(data)
 
+            if isinstance(data, errors.PavilionError):
+                data = err.pformat()
             if isinstance(data, Exception):
-                data = '{} - {}'.format(str(type(data)), data.args[0])
+                data = '{}'.format(data.args[0])
 
             if isinstance(data, ANSIString):
                 ansi_code = data.code

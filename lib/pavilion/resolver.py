@@ -20,6 +20,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import List, IO, Dict, Tuple, NewType, Union, Any
 
+import similarity
 import yc_yaml
 from pavilion import output, variables
 from pavilion import pavilion_variables
@@ -286,6 +287,16 @@ class TestConfigResolver:
                                         value_keys))
 
 
+    CONF_TYPE_DIRNAMES = {
+        'suite': 'tests',
+        'series': 'series',
+        'host': 'hosts',
+        'hosts': 'hosts',
+        'mode': 'modes',
+        'modes': 'modes',
+    }
+
+
     def find_config(self, conf_type, conf_name) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
         given type and name.
@@ -296,12 +307,7 @@ class TestConfigResolver:
             and the path to that config. If nothing was found, returns (None, None).
         """
 
-        if conf_type == 'suite':
-            conf_type = 'tests'
-        elif conf_type == 'host':
-            conf_type = 'hosts'
-        elif conf_type == 'mode':
-            conf_type = 'modes'
+        conf_type = self.CONF_TYPE_DIRNAMES[conf_type]
 
         for label, config in self.pav_cfg.configs.items():
             path = config['path']/conf_type/'{}.yaml'.format(conf_name)
@@ -309,6 +315,23 @@ class TestConfigResolver:
                 return label, path
 
         return '', None
+
+    def find_similar_configs(self, conf_type, conf_name) -> List[str]:
+        """Find configs with a name similar to the one specified."""
+
+        conf_type = self.CONF_TYPE_DIRNAMES[conf_type]
+
+        for label, config in self.pav_cfg.configs.items():
+            type_path = config['path']/conf_type
+
+            names = []
+            if type_path.exists():
+                for file in type_path.iterdir():
+                    if file.name.endswith('.yaml') and not file.is_dir():
+                        names.append(file.name[:-5])
+
+        return similarity.find_matches(conf_name, names)
+
 
     def find_all_tests(self):
         """Find all the tests within known config directories.
@@ -630,9 +653,18 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Could not find test suite 'log'. Were you trying to run `pav log run`?")
 
-            raise TestConfigError(
-                "Could not find {} config file '{}.py' in any of the Pavilion config directories.\n"
-                "See `pav config list` for a list of config directories.".format(config_type, name))
+            similar = self.find_similar_configs(config_type, name)
+            if similar:
+                raise TestConfigError(
+                    "Could not find {} config {}.yaml.\n"
+                    "Did you mean one of these? {}"
+                    .format(config_type, name, ', '.join(similar)))
+            else:
+                raise TestConfigError(
+                    "Could not find {0} config file '{1}.yaml' in any of the "
+                    "Pavilion config directories.\n"
+                    "Run `pav show {0}` to get a list of available {0} files."
+                    .format(config_type, name))
 
         try:
             with path.open() as cfg_file:
@@ -653,6 +685,7 @@ class TestConfigResolver:
             raise TestConfigError(
                 "{} config '{}' has a YAML Error"
                 .format(config_type.capitalize(), path), err)
+
         except TypeError as err:
             raise TestConfigError(
                 "Structural issue with {} config '{}'"
@@ -696,7 +729,7 @@ class TestConfigResolver:
                 continue
 
             raw_suite_cfg, suite_path, cfg_label = self._load_raw_config(request.suite, 'suite')
-            suite_tests = self.resolve_inheritance(base_config, raw_suite_cfg, request.suite)
+            suite_tests = self.resolve_inheritance(base_config, raw_suite_cfg, suite_path)
 
             # Perform essential transformations to each test config.
             for test_cfg_name, test_cfg in list(suite_tests.items()):
@@ -924,13 +957,19 @@ class TestConfigResolver:
                                                                     root_name=test_cfg_name)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error.\n"
+                        "Test '{}' in suite '{}' has an error.\n"
                         "See 'pav show test_config' for the pavilion test config format."
                         .format(test_cfg_name, suite_path), err)
         except AttributeError:
             raise TestConfigError(
-                "Test Suite {} has objects but isn't a dict. Check syntax "
-                " or prepend '-f' if running a list of tests "
+                "Test Suite {} has an invalid structure.\n"
+                "Test suites should be structured as a yaml dict/mapping of tests.\n"
+                "Example:\n"
+                "  test_foo: \n"
+                "    run:\n"
+                "      cmds: \n"
+                "        - echo 'I am a test!'\n"
+                " See `pav show test_config` for more info on the test config format."
                 .format(suite_path))
         # Add this so we can cleanly depend on it.
         suite_tests['__base__'] = base_config

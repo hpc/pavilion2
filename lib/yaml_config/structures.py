@@ -1,4 +1,7 @@
 from collections import defaultdict, OrderedDict
+import io
+
+import similarity
 
 import yc_yaml as yaml
 from .elements import (
@@ -8,7 +11,7 @@ from .elements import (
     ConfigDict,
 )
 from .scalars import ScalarElem
-from . import utils
+
 
 
 class ListElem(ConfigElement):
@@ -376,33 +379,16 @@ class KeyedElem(_DictElem):
     find.__doc__ = ConfigElement.find.__doc__
 
     def find_key_matches(self, word, min_score=0.8):
-        """Find similar keys to the one given, using cosine similarity."""
+        """Find similar keys to the one given."""
 
-        word_vec = utils.make_word_vector(word)
-
-        key_scores = []
-        for key in self.config_elems.keys():
-            key = str(key)
-            key_vec = utils.make_word_vector(key)
-
-            key_scores.append((utils.cos(word_vec, key_vec), key))
-
-        key_scores.sort(reverse=True)
-        matches = []
-        for score, key in key_scores:
-            if score > min_score:
-                matches.append(key)
-            else:
-                break
-
-        return matches
+        return similarity.find_matches(word, self.config_elems.keys(), min_score=min_score)
 
     def find_sub_key_matches(self, key):
         """Find potential matches in KeyedElements under this one."""
         sub_key_matches = []
         for sub_key, config_elem in self.config_elems.items():
             if isinstance(config_elem, KeyedElem):
-                similar = config_elem.find_key_matches(key, min_score=0.9)
+                similar = config_elem.find_key_matches(key, min_score=0.8)
                 if similar:
                     sub_key_matches.append((sub_key, similar))
 
@@ -442,7 +428,7 @@ class KeyedElem(_DictElem):
 
         return base
 
-    def _make_missing_key_message(self, root_name, key):
+    def _make_missing_key_message(self, root_name, key, value):
         """Generate a message for when a matching key isn't found. Searches for similar
         keys in this and child KeyedElements."""
 
@@ -451,9 +437,12 @@ class KeyedElem(_DictElem):
         msg = ["Invalid config key '{}' given under '{}'."
                    .format(key, name)]
 
+        matches_found = False
+
         similar = self.find_key_matches(key)
         if similar:
             msg.append("Did you mean one of these?")
+            matches_found = True
             for skey in similar:
                 help_text = self.config_elems[skey].help_text
                 if help_text:
@@ -461,15 +450,35 @@ class KeyedElem(_DictElem):
                     msg.append('  {} - "{}"'.format(skey, help_text))
                 else:
                     msg.append('  {}')
-        else:
-            sub_key_matches = self.find_sub_key_matches(key)
-            if sub_key_matches:
-                msg.append("Config elements under this one have similar keys:")
-                msg.append("{}:".format(name))
-                for sub_key, matches in sub_key_matches:
-                    msg.append("  {}:".format(sub_key))
-                    for match in matches:
-                        msg.append("    {}:".format(match))
+
+        sub_key_matches = self.find_sub_key_matches(key)
+        if sub_key_matches:
+            matches_found = True
+            msg.append("Config elements under this one have similar keys:")
+            msg.append("{}:".format(name))
+            for sub_key, matches in sub_key_matches:
+                msg.append("  {}:".format(sub_key))
+                for match in matches:
+                    help_text = self.config_elems[sub_key].config_elems[match].help_text
+                    msg.append("    {}:     # {}...".format(match, help_text[:60]))
+
+        if not matches_found:
+            for sub_key, sub_elem in self.config_elems.items():
+                if not isinstance(sub_elem, CategoryElem):
+                    continue
+
+                try:
+                    sub_elem.normalize(value)
+                except (ValueError, KeyError, AttributeError):
+                    continue
+
+                msg.append("Key '{}' not found under '{}', but the value works as a key under '{}':"
+                           .format(key, root_name, sub_key))
+                new_val = {root_name: {sub_key: value}}
+                buffer = io.StringIO()
+                yaml.dump(new_val, buffer)
+                for line in buffer.getvalue().split('\n'):
+                    msg.append('  ' + line)
 
         return '\n'.join(msg)
 
@@ -503,7 +512,7 @@ class KeyedElem(_DictElem):
 
             elem = self.config_elems.get(final_key, None)
             if elem is None:
-                msg = self._make_missing_key_message(root_name, key)
+                msg = self._make_missing_key_message(root_name, key, value)
                 raise KeyError(msg, key)
 
             try:
@@ -515,6 +524,8 @@ class KeyedElem(_DictElem):
                                "Perhaps these values belong under a different key?"
                                .format(name, key))
                     raise ValueError("\n".join(msg))
+                else:
+                    raise
             except KeyError as err:
                 # Check to see if this level takes the key that was erroneous at the next
                 # level, and suggest a course of action.
@@ -700,7 +711,7 @@ class CategoryElem(_DictElem):
                             .format(self.name, value))
 
         for key, val in value.items():
-            out_dict[key] = self._sub_elem.normalize(val)
+            out_dict[key] = self._sub_elem.normalize(val, root_name=key)
 
         return out_dict
 

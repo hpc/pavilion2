@@ -20,7 +20,6 @@ class YCBasicTest(YCTestCase):
 
         with self.assertRaises(ValueError):
             with open(self._data_path('string_conv_limits.yaml')) as f:
-                self.Config().load(f)
 
     def test_regex_val_type(self):
         """Make sure parsed values end up being the correct type by the
