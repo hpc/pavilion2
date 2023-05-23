@@ -392,8 +392,7 @@ class RunSeries(Command):
             output.fprint(self.outfile, "Series {} cancelled.".format(ser.sid))
 
             # This is lazily loaded, so you have to force the load.
-            if ser.tests.keys():
-                tests_to_cancel.extend(ser.tests.values())
+            tests_to_cancel.extend(ser.tests.values())
 
         output.fprint(self.outfile, "\nCancelling individual tests in each series.")
 
