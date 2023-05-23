@@ -48,7 +48,18 @@ def list_series_tests(pav_cfg, sid: str):
             "No such test series '{}'. Looked in {}."
             .format(sid, series_path))
 
-    return dir_db.select(pav_cfg, series_path).paths
+    test_paths = []
+    test_set_path = series_path/'test_sets'
+    if test_set_path.exists():
+        for test_set in test_set_path.iterdir():
+            if not test_set.is_dir():
+                continue
+
+            test_paths.extend(dir_db.select(pav_cfg, test_set).paths)
+    else:
+        test_paths.extend(dir_db.select(pav_cfg, series_path).paths)
+
+    return test_paths
 
 
 def path_from_id(pav_cfg, sid: str):
