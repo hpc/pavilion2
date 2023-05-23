@@ -35,7 +35,6 @@ def cancel_jobs(pav_cfg, tests: List[TestRun], errfile: TextIO = None) -> List[d
         sched = schedulers.get_plugin(sched_name)
 
         for job in jobs:
-
             job_tests = load_tests(pav_cfg, job.get_test_id_pairs(), errfile)
 
             if all([test.cancelled or test.complete for test in job_tests]):
@@ -63,6 +62,7 @@ def cancel_jobs(pav_cfg, tests: List[TestRun], errfile: TextIO = None) -> List[d
 
 
 SLEEP_PERIOD = 0.3
+SERIES_WARN_EXPIRE = 60*60*24  # 24 hours
 
 
 def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
@@ -70,45 +70,70 @@ def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
 
     user = utils.get_login()
 
+    tests = [test for test in tests if not test.complete]
+
     # Cancel each test. Note that this does not cancel test jobs or builds.
     cancelled_test_info = []
     for test in tests:
         # Don't try to cancel complete tests
-        if not test.complete:
-            test.cancel("Cancelled via cmdline by user '{}'".format(user))
-            cancelled_test_info.append(test)
+        test.cancel("Cancelled via cmdline by user '{}'".format(user))
+        cancelled_test_info.append(test)
 
     if cancelled_test_info:
+        test_count = len(tests)
         output.draw_table(
+            title="Cancelling {} test{}".format(test_count, 's' if test_count > 1 else ''),
             outfile=outfile,
-            fields=['name', 'id'],
-            rows=[{'name': test.name, 'id': test.full_id}
+            fields=['name', 'id', 'state'],
+            rows=[{'name': test.name, 'id': test.full_id, 'state': test.status.current().state}
                   for test in cancelled_test_info])
     else:
         output.fprint(outfile, "No tests needed to be cancelled.")
         return 0
 
-    output.fprint(outfile, "Giving tests a moment to quit.")
     timeout = time.time() + max_wait
     wait_tests = list(tests)
+    wait_msg = True
     while wait_tests and time.time() > timeout:
         for test in wait_tests.copy():
             if test.complete:
                 wait_tests.remove(test)
 
         if wait_tests:
+            if wait_msg:
+                output.fprint(outfile, "Giving tests a moment to quit.", end='')
+                wait_msg = False
+            else:
+                output.fprint(outfile, '.', end='')
+
             time.sleep(SLEEP_PERIOD)
+
+    if not wait_msg:
+        output.fprint(outfile, 'Done')
+    output.fprint(outfile, '\n')
 
     job_cancel_info = cancel_jobs(pav_cfg, tests, outfile)
 
     if job_cancel_info:
+        jobs = len(job_cancel_info)
         output.draw_table(
             outfile=outfile,
             fields=['scheduler', 'job', 'success', 'msg'],
             rows=job_cancel_info,
-            title="Cancelled {} jobs.".format(len(job_cancel_info)),
+            title="Cancelling {} job{}.".format(jobs, 's' if jobs > 1 else ''),
         )
     else:
         output.fprint(outfile, "No jobs needed to be cancelled.")
+
+    for test in tests:
+        series_path = test.path/'series'
+        if not series_path.exists():
+            continue
+
+        if not (series_path/'ALL_TESTS_STARTED').exists()  \
+                and (series_path.stat().st_mtime + SERIES_WARN_EXPIRE > time.time()):
+            output.fprint(outfile, "\nTests cancelled, but associated series may still be running.\n"
+                                   "Use `pav series cancel` to cancel the series itself.")
+            break
 
     return 0

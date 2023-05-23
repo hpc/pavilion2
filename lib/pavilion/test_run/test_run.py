@@ -734,7 +734,7 @@ class TestRun(TestAttributes):
                         elif self.cancelled:
                             proc.kill()
                             self.status.set(
-                                STATES.STATES.SCHED_CANCELLED,
+                                STATES.SCHED_CANCELLED,
                                 "Test cancelled mid-run.")
                             self.finished = time.time()
                             self.save_attributes()
@@ -748,8 +748,9 @@ class TestRun(TestAttributes):
         self.save_attributes()
 
         if ret == 0:
-            self.status.set(STATES.RUN_DONE,
-                            "Test run has completed.")
+            if not self.status.has_state(STATES.CANCELLED):
+                self.status.set(STATES.RUN_DONE,
+                                "Test run has completed.")
 
         return ret
 

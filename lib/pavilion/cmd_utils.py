@@ -76,6 +76,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
     limit = getattr(args, 'limit', filters.TEST_FILTER_DEFAULTS['limit'])
     verbose = verbose or io.StringIO()
+    sys_name = getattr(args, 'sys_name', sys_vars.get_vars(defer=True).get('sys_name'))
+    sort_by = getattr(args, 'sort_by', 'created')
 
     ids = []
     for test_range in args.tests:
@@ -109,7 +111,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                                    "newer_than 1 day ago.", color=output.CYAN)
             args.user = utils.get_login()
             args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
-            args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+            sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     filter_func = filters.make_test_run_filter(
         complete=args.complete,
@@ -120,12 +122,12 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         user=args.user,
         state=args.state,
         has_state=args.has_state,
-        sys_name=args.sys_name,
+        sys_name=sys_name,
         older_than=args.older_than,
         newer_than=args.newer_than,
     )
 
-    order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
+    order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
     if 'all' in args.tests:
         tests = dir_db.SelectItems([], [])
