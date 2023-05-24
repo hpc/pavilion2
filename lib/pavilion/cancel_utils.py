@@ -65,7 +65,8 @@ SLEEP_PERIOD = 0.3
 SERIES_WARN_EXPIRE = 60*60*24  # 24 hours
 
 
-def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0, no_series_warning=False):
+def cancel_tests(pav_cfg, tests: List, outfile: TextIO, 
+                 max_wait: float = 3.0, no_series_warning=False):
     """Cancel all of the given tests, printing useful user messages and error information."""
 
     user = utils.get_login()
