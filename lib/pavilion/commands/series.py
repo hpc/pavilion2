@@ -189,7 +189,7 @@ class RunSeries(Command):
         output.fprint(self.outfile,
                       "Started series {sid}.\n"
                       "Run `pav series status {sid}` to view series status.\n"
-                      "Run `pav series cancel {sid}` to cancel the series (and all it's tests).\n"
+                      "Run `pav series cancel {sid}` to cancel the series (and all its tests).\n"
                       "Run `pav series sets {sid}` to view status of individual test sets."
                       .format(sid=series_obj.sid))
 
@@ -391,9 +391,8 @@ class RunSeries(Command):
             ser.cancel(message="By user {}".format(args.user), cancel_tests=False)
             output.fprint(self.outfile, "Series {} cancelled.".format(ser.sid))
 
-            # This is lazily loaded, so you have to force the load.
             tests_to_cancel.extend(ser.tests.values())
 
         output.fprint(self.outfile, "\nCancelling individual tests in each series.")
 
-        return cancel_utils.cancel_tests(pav_cfg, tests_to_cancel, self.outfile)
+        return cancel_utils.cancel_tests(pav_cfg, tests_to_cancel, self.outfile, no_series_warning=True)

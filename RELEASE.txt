@@ -16,6 +16,7 @@ RELEASE=2.4
  - Added `pav series sets` and `pav series cancel` commands. 
    
    - `pav series history` is now `pav series `states`.
+   - Added `-c` 'overrides' to `pav series run`, and an overrides section to the series config.
    - `pav cancel` no longer cancels series, just tests.
 
  - The `SCHED_RUNNING` state is now `SCHED_STARTUP` - existing scheduler plugins that use

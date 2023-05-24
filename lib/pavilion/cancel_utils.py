@@ -65,7 +65,7 @@ SLEEP_PERIOD = 0.3
 SERIES_WARN_EXPIRE = 60*60*24  # 24 hours
 
 
-def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
+def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0, no_series_warning=False):
     """Cancel all of the given tests, printing useful user messages and error information."""
 
     user = utils.get_login()
@@ -84,8 +84,9 @@ def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
         output.draw_table(
             title="Cancelling {} test{}".format(test_count, 's' if test_count > 1 else ''),
             outfile=outfile,
-            fields=['name', 'id', 'state'],
-            rows=[{'name': test.name, 'id': test.full_id, 'state': test.status.current().state}
+            fields=['name', 'id', 'state', 'series'],
+            rows=[{'name': test.name, 'id': test.full_id,
+                   'state': test.status.current().state, 'series': test.series}
                   for test in cancelled_test_info])
     else:
         output.fprint(outfile, "No tests needed to be cancelled.")
@@ -131,8 +132,10 @@ def cancel_tests(pav_cfg, tests: List, outfile: TextIO, max_wait: float = 3.0):
             continue
 
         if not (series_path/'ALL_TESTS_STARTED').exists()  \
-                and (series_path.stat().st_mtime + SERIES_WARN_EXPIRE > time.time()):
-            output.fprint(outfile, "\nTests cancelled, but associated series may still be running.\n"
+                and (series_path.stat().st_mtime + SERIES_WARN_EXPIRE > time.time()
+                and not no_series_warning):
+            output.fprint(outfile, "\nTests cancelled, but associated series "
+                                   "may still be running.\n"
                                    "Use `pav series cancel` to cancel the series itself.")
             break
 
