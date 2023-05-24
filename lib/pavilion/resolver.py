@@ -920,7 +920,7 @@ class TestConfigResolver:
                     depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
                 try:
-                    suite_tests[test_cfg_name] = test_ldr.normalize(test_cfg, 
+                    suite_tests[test_cfg_name] = test_ldr.normalize(test_cfg,
                                                                     root_name=test_cfg_name)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
@@ -971,7 +971,8 @@ class TestConfigResolver:
 
         for test_name, test_config in suite_tests.items():
             try:
-                suite_tests[test_name] = test_config_loader.validate(test_config, root_name=test_name)
+                suite_tests[test_name] = test_config_loader.validate(
+                    test_config, root_name=test_name)
             except RequiredError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a missing key."
