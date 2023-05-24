@@ -182,6 +182,9 @@ def setup_loggers(pav_cfg) -> TextIO:
     else:
         working_dir = pav_cfg['working_dir']
 
+    if not working_dir.exists():
+        working_dir.mkdir(parents=True, exist_ok=True)
+
     log_fn = working_dir/'pav.log'
     # Set up a rotating logfile than rotates when it gets larger
     # than 1 MB.
