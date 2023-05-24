@@ -395,5 +395,5 @@ class RunSeries(Command):
 
         output.fprint(self.outfile, "\nCancelling individual tests in each series.")
 
-        return cancel_utils.cancel_tests(pav_cfg, tests_to_cancel, 
+        return cancel_utils.cancel_tests(pav_cfg, tests_to_cancel,
                                          self.outfile, no_series_warning=True)
