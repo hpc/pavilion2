@@ -55,7 +55,9 @@ class CancelCmdTests(PavTestCase):
         cancel_cmd = commands.get_command(args.command_name)
         cancel_cmd.silence()
 
-        self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 22)
+        self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
+
+        self.assertIn("could not be found", cancel_cmd.clear_output()[1])
 
     def test_cancel_series(self):
         """Test cancel command with combination of series and tests."""

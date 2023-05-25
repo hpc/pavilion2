@@ -50,7 +50,7 @@ class CancelCommand(Command):
 
         cancelled_series = False
 
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args).paths
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
 
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
 

@@ -320,7 +320,12 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
                 output.fprint(errfile, err, color=output.YELLOW)
                 continue
 
-            test_paths.append(test_wd/TestRun.RUN_DIR/str(_id))
+            test_path = test_wd/TestRun.RUN_DIR/str(_id)
+            test_paths.append(test_path)
+            if not test_path.exists():
+                output.fprint(errfile,
+                              "Test run with id '{}' could not be found.".format(raw_id),
+                              color=output.YELLOW)
 
     return test_paths
 
