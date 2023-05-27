@@ -92,7 +92,7 @@ def format_results(result_val, format_spec):
                 formatted_result.append(format_spec.format(res_v))
             else:
                 formatted_result.append(res_v)
-        
+
         return formatted_result
 
 
