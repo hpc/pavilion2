@@ -70,6 +70,31 @@ class KeySet:
 
 ProcessFileArgs = NewType('ProcessFileArgs', Tuple[Path, List[KeySet]])
 
+def format_results(result_val, format_spec):
+    """Format the result value according to the format spec.
+    :param result_val: The value to format.
+    :param format_spec: The format spec.
+    :return: The formatted value.
+    """
+
+    #Check if result_val is a string or bool.
+    if isinstance(result_val, (str, bool)):
+        return result_val
+
+    #Check if result_val is numeric.
+    if isinstance(result_val, (int, float)):
+        return format_spec.format(result_val)
+
+    if isinstance(result_val, (list, set)):
+        formatted_result=[]
+        for res_v in result_val:
+            if isinstance(res_v, (int, float)):
+                formatted_result.append(format_spec.format(res_v))
+            else:
+                formatted_result.append(res_v)
+        
+        return formatted_result
+
 
 def parse_results(pav_cfg, test, results: Dict, base_log: IndentedLog) -> None:
     """Parse the results of the given test using all the result parsers
@@ -107,6 +132,8 @@ configured for that test.
     per_file = {}
     # Action values by key
     actions = {}
+    # Format values by key
+    formats = {}
 
     # A list of encountered error messages.
     errors = []
@@ -120,6 +147,7 @@ configured for that test.
 
             per_file[key] = rconf['per_file']
             actions[key] = rconf['action']
+            formats[key] = rconf['format']
 
             for file_glob in rconf['files']:
                 base_glob = file_glob
@@ -190,7 +218,7 @@ configured for that test.
     for key, per_file_name in per_file.items():
         per_file_func = PER_FILES[per_file_name]  # type: per_first
         action_name = actions[key]
-        presults = ordered_filed_results[key]
+        presults = format_results(ordered_filed_results[key], formats[key])
 
         try:
             log("Applying per-file option '{}' and action '{}' to key '{}'."
