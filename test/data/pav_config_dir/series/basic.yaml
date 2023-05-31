@@ -1,0 +1,4 @@
+test_sets:
+    the_only:
+        tests:
+            - 'hello_world.hello'

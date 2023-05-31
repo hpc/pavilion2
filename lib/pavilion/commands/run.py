@@ -74,7 +74,7 @@ class RunCommand(Command):
                  'gathered used as a final set of overrides before the '
                  'configs are resolved. They should take the form '
                  '\'key=value\', where key is the dot separated key name, '
-                 'and value is a json object.')
+                 'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
             '-b', '--build-verbose', dest='build_verbosity', action='count',
             default=0,
@@ -144,7 +144,7 @@ class RunCommand(Command):
         report_status = getattr(args, 'status', False)
 
         # create brand-new series object
-        series_obj = TestSeries(pav_cfg, config=series_cfg)
+        series_obj = TestSeries(pav_cfg, series_cfg=series_cfg)
 
         output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
 
