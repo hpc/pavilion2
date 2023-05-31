@@ -1,0 +1,9 @@
+# This should throw an error for a missing key with suggestions at a higher level.
+
+higher:
+  schedule: 
+    result_parse:
+      regex:
+        foo:
+          regex: bar
+
