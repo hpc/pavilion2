@@ -25,7 +25,7 @@ class WaitCmdTests(PavTestCase):
         # Make sure this doesn't explode
         series = TestSeries(self.pav_cfg, None)
         for test in tests:
-            series._add_test(test)
+            series._add_test('test_set', test)
         test_str = " ".join([test.full_id for test in series.tests.values()])
 
         wait_cmd = commands.get_command('wait')

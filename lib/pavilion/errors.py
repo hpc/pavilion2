@@ -44,7 +44,7 @@ class PavilionError(RuntimeError):
 
         lines = []
         next_exc = self.prior_error
-        width = shutil.get_terminal_size((100, 100)).columns
+        width = shutil.get_terminal_size((80, 80)).columns
         tab_level = 0
         for line in self.msg.split('\n'):
             lines.extend(textwrap.wrap(line, width=width))
@@ -66,7 +66,7 @@ class PavilionError(RuntimeError):
                 msg_parts = next_msg.split('\n')
                 for msg_part in msg_parts:
                     lines.extend(textwrap.wrap(msg_part, width, initial_indent=indent,
-                                               subsequent_indent=indent))
+                                               subsequent_indent=indent + self.TAB_LEVEL))
                 if next_exc.data:
                     data = pprint.pformat(next_exc.data, width=width - tab_level * 2)
                     for line in data.split('\n'):
@@ -246,6 +246,10 @@ class TestSeriesError(PavilionError):
 
 class TestSeriesWarning(PavilionError):
     """A non-fatal series error."""
+
+
+class SeriesConfigError(TestConfigError):
+    """For errors handling series configs."""
 
 
 class SystemPluginError(PavilionError):

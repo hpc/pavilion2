@@ -553,7 +553,7 @@ class TestConfigResolver:
                         if aresult.ready():
                             try:
                                 result = aresult.get()
-                            except PavilionError:
+                            except PavilionError as err:
                                 raise
                             except Exception as err:
                                 raise TestConfigError("Unexpected error loading tests", err)
@@ -628,7 +628,6 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Error resolving test {}".format(test_cfg['name']), err)
 
-
     def _load_raw_config(self, name: str, config_type: str, optional=False) \
             -> Tuple[Any, Union[Path, None], Union[str, None]]:
         """Load the given raw test config file. It can be a host, mode, or suite file.
@@ -654,6 +653,7 @@ class TestConfigResolver:
                     "Could not find test suite 'log'. Were you trying to run `pav log run`?")
 
             similar = self.find_similar_configs(config_type, name)
+            show_type = 'test' if config_type == 'suite' else config_type
             if similar:
                 raise TestConfigError(
                     "Could not find {} config {}.yaml.\n"
@@ -663,9 +663,9 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Could not find {0} config file '{1}.yaml' in any of the "
                     "Pavilion config directories.\n"
-                    "Run `pav show {0}` to get a list of available {0} files."
-                    .format(config_type, name))
-
+                    "Run `pav show {2}` to get a list of available {0} files."
+                    .format(config_type, name, show_type))
+                
         try:
             with path.open() as cfg_file:
                 # Load the host test config defaults.

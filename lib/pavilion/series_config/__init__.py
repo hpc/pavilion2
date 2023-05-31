@@ -4,12 +4,8 @@ from typing import List
 import yc_yaml
 import yaml_config
 from pavilion.resolver import TestConfigResolver
-from ..errors import TestConfigError
+from ..errors import TestConfigError, SeriesConfigError
 from .file_format import SeriesConfigLoader
-
-
-class SeriesConfigError(RuntimeError):
-    """For errors handling series configs."""
 
 
 def find_all_series(pav_cfg):
@@ -101,7 +97,7 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
 
 
 def verify_configs(pav_cfg, series_name: str, host: str = None,
-                   modes: List[str] = None) -> dict:
+                   modes: List[str] = None, overrides: List[str] = None) -> dict:
     """Loads series config and checks that all tests can be loaded with all
     modes and host (if any). """
 
@@ -113,10 +109,17 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
     if series_cfg.get('name') is None:
         series_cfg['name'] = series_name
 
+    series_cfg['modes'] += modes
+    series_cfg['overrides'] += overrides
+
     try:
         for set_name, set_dict in series_cfg['test_sets'].items():
-            all_modes = series_cfg['modes'] + set_dict['modes'] + modes
-            resolver.load(set_dict['tests'], host, all_modes)
+            all_modes = series_cfg['modes'] + set_dict['modes']
+            resolver.load(
+                tests=set_dict['tests'],
+                host=host,
+                modes=all_modes,
+                overrides=overrides)
     except AttributeError as err:
         raise SeriesConfigError("Cannot load series.", err)
     except TestConfigError as err:

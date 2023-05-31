@@ -84,6 +84,7 @@ class ModWrapperTests(PavTestCase):
     awk '{
         split($0, arr, ":");  # Split the values by :
         asort(arr);           # Sort the values
+
         for (i=1; i<length(arr); i++) {  # Arrays are indexed from 1
             printf "%s:", arr[i]
         }
@@ -189,10 +190,14 @@ class ModWrapperTests(PavTestCase):
             'mods_sorted=$(echo ${TEST_MODULE_NAME} | sort_mods)',
             'vers_sorted=$(echo ${TEST_MODULE_VERSION} | sort_mods)',
             # test_mod1 only gets added once (no dups)
+            'echo "${TEST_MODULE_NAME}"',
+            'echo "${TEST_MODULE_VERSION}"',
+            'echo "${vers_sorted}"',
+            'echo "${mods_sorted}"',
             '[[ "${mods_sorted}" = "test_mod1:test_mod2:test_mod3" ]] || '
             'exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ "${vers_sorted}" = "1.1:4.0:" ]] || exit 1'
+            '[[ "${vers_sorted}" = "1.1:4.0::" ]] || exit 1',
         ]
 
         test = self._quick_test(test_cfg)
