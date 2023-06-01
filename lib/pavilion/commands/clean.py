@@ -42,16 +42,17 @@ class CleanCommand(Command):
         filter_func = None
         if not args.all:
             filter_func = filters.make_test_run_filter(
-                complete=args.complete,
-                failed=args.failed,
-                incomplete=args.incomplete,
-                name=args.name,
-                newer_than=args.newer_than,
-                older_than=args.older_than,
-                passed=args.passed,
-                result_error=args.result_error,
-                sys_name=args.sys_name,
-                user=args.user
+                # complete=args.complete,
+                # failed=args.failed,
+                # incomplete=args.incomplete,
+                # name=args.name,
+                # newer_than=args.newer_than,
+                # older_than=args.older_than,
+                # passed=args.passed,
+                # result_error=args.result_error,
+                # sys_name=args.sys_name,
+                # user=args.user
+                target=args.filter
             )
 
         end = '\n' if args.verbose else '\r'

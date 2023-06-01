@@ -85,17 +85,18 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     filter_func = filters.make_test_run_filter(
-        complete=args.complete,
-        incomplete=args.incomplete,
-        passed=args.passed,
-        failed=args.failed,
-        name=args.name,
-        user=args.user,
-        state=args.state,
-        has_state=args.has_state,
-        sys_name=args.sys_name,
-        older_than=args.older_than,
-        newer_than=args.newer_than,
+        # complete=args.complete,
+        # incomplete=args.incomplete,
+        # passed=args.passed,
+        # failed=args.failed,
+        # name=args.name,
+        # user=args.user,
+        # state=args.state,
+        # has_state=args.has_state,
+        # sys_name=args.sys_name,
+        # older_than=args.older_than,
+        # newer_than=args.newer_than,
+        target=args.filter,
     )
 
     order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
@@ -182,15 +183,16 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             order_func, order_asc = filters.get_sort_opts(args.sort_by, 'SERIES')
 
             filter_func = filters.make_series_filter(
-                complete=args.complete,
-                has_state=args.has_state,
-                incomplete=args.incomplete,
-                name=args.name,
-                newer_than=args.newer_than,
-                older_than=args.older_than,
-                state=args.state,
-                sys_name=args.sys_name,
-                user=args.user,
+                # complete=args.complete,
+                # has_state=args.has_state,
+                # incomplete=args.incomplete,
+                # name=args.name,
+                # newer_than=args.newer_than,
+                # older_than=args.older_than,
+                # state=args.state,
+                # sys_name=args.sys_name,
+                # user=args.user,
+                target=args.filter
             )
             found_series = dir_db.select(
                 pav_cfg=pav_cfg,
