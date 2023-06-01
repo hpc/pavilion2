@@ -474,7 +474,7 @@ Example: ::
     _DEFAULTS = {
         'per_file':           PER_FIRST,
         'action':             ACTION_STORE,
-        'format':             '{.3f}',
+        'format':             '{:.3f}',
         'files':              ['../run.log'],
         'match_select':       MATCH_FIRST,
         'for_lines_matching': '',
