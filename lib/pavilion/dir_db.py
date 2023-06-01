@@ -281,10 +281,15 @@ def select_one(path, ffunc, trans, ofunc, fnb):
         return None
     try:
         int(path.name, fnb)
+        # print(path)
         item = trans(path)
     except ValueError:
         return None
 
+    # try:
+    #     print(ffunc.keywords)
+    # except:
+    #     pass
     if not ffunc(item):
         return None
 

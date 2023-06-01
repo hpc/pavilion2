@@ -117,17 +117,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
             sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     filter_func = filters.make_test_run_filter(
-        complete=args.complete,
-        incomplete=args.incomplete,
-        passed=args.passed,
-        failed=args.failed,
-        name=args.name,
-        user=args.user,
-        state=args.state,
-        has_state=args.has_state,
-        sys_name=sys_name,
-        older_than=args.older_than,
-        newer_than=args.newer_than,
+        target=args.filter,
     )
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
@@ -209,13 +199,19 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             sort_by = getattr(args, 'sort_by', filters.SERIES_FILTER_DEFAULTS['sort_by'])
             order_func, order_asc = filters.get_sort_opts(sort_by, 'SERIES')
 
-            filter_args = {}
-            for arg in ('complete', 'has_state', 'incomplete', 'name', 'newer_than',
-                        'older_than', 'state', 'sys_name', 'user'):
-                filter_args[arg] = getattr(args, arg, filters.SERIES_FILTER_DEFAULTS[arg])
-
-            filter_func = filters.make_series_filter(**filter_args)
-            found_series.extend(dir_db.select(
+            filter_func = filters.make_series_filter(
+                # complete=args.complete,
+                # has_state=args.has_state,
+                # incomplete=args.incomplete,
+                # name=args.name,
+                # newer_than=args.newer_than,
+                # older_than=args.older_than,
+                # state=args.state,
+                # sys_name=args.sys_name,
+                # user=args.user,
+                target=args.filter
+            )
+            found_series = dir_db.select(
                 pav_cfg=pav_cfg,
                 id_dir=pav_cfg.working_dir/'series',
                 filter_func=filter_func,
