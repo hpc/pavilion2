@@ -762,8 +762,6 @@ def user(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
     return attrs.get('user') == val
 
 def sys_name(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
-    _, op, val = parse_target(target)
-
     if op != OP_EQ:
         return False
 
@@ -773,20 +771,20 @@ def sys_name(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
 
     return attrs.get('sys_name') == val
 
-def passed(test_attrs: Dict, op: str, val: str) -> bool:
+def passed(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
     return test_attrs.get('result') == TestRun.PASS
 
-def failed(test_attrs: Dict, op: str, val: str) -> bool:
+def failed(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
     return test_attrs.get('result') == TestRun.FAIL
 
-def result_error(test_attrs: Dict, op: str, val: str) -> bool:
+def result_error(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
     return test_attrs.get('result') == TestRun.ERROR
 
 def older_than(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
     if op != OP_EQ:
         return False
 
-    
+
 
 def newer_than(attrs: Dict | series.SeriesInfo, op: str, val: str) -> bool:
     pass
@@ -859,13 +857,13 @@ def filter_run(test_attrs: Dict, funcs: Dict, target: str) -> bool:
     if target is None:
         return True
 
-    if OP_OR in target:
-        op1, op2 = target.split(OP_OR, 1)
-        return OR(filter_run(test_attrs, funcs, op1), filter_run(test_attrs, funcs, op2))
-
-    elif OP_AND in target:
+    if OP_AND in target:
         op1, op2 = target.split(OP_AND, 1)
         return AND(filter_run(test_attrs, funcs, op1), filter_run(test_attrs, funcs, op2))
+
+    elif OP_OR in target:
+        op1, op2 = target.split(OP_OR, 1)
+        return OR(filter_run(test_attrs, funcs, op1), filter_run(test_attrs, funcs, op2))
 
     else:
         if OP_NOT in target:
@@ -875,6 +873,8 @@ def filter_run(test_attrs: Dict, funcs: Dict, target: str) -> bool:
             key, op, val = parse_target(target)
             if key in funcs:
                 return funcs[key](test_attrs, op, val)
+            else:
+                raise ValueError()
             # raise an exception inside an else here?
             # may be beneficial if someone makes a key typo
 
@@ -894,3 +894,8 @@ def make_series_filter(target: str) -> Callable[[Dict], bool]:
 
     return filter_func
     
+
+# add a str to the FUNC dictionaries to indicate acceptable ops
+# try adding a decorator first though
+# dont have 'state' as a keyword, only different states
+# state list can be found in status_file.py
