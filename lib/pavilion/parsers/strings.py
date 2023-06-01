@@ -15,13 +15,13 @@ from ..errors import ParserValueError
 from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
 
 STRING_GRAMMAR = r'''
-// All strings resolve to this token. 
+// All strings resolve to this token.
 start: string TRAILING_NEWLINE?
 
 TRAILING_NEWLINE: /\n/
 
-// It's important that each of these start with a terminal, rather than 
-// a reference back to the 'string' rule. A 'STRING' terminal (or nothing) 
+// It's important that each of these start with a terminal, rather than
+// a reference back to the 'string' rule. A 'STRING' terminal (or nothing)
 // is definite, but a 'string' would be non-deterministic.
 string: STRING?
       | STRING? iter string
@@ -35,15 +35,15 @@ _CLOSE_BRACKET: "]"
 
 iter_inner: STRING?
           | STRING? expr iter_inner
-    
+
 
 expr: _START_EXPR EXPR? (ESCAPED_STRING EXPR?)* FORMAT? _END_EXPR
 _START_EXPR: "{{"
 _END_EXPR: "}}"
 EXPR: /[^}~{":]+/
-// Match anything enclosed in quotes as long as the last 
+// Match anything enclosed in quotes as long as the last
 // escape doesn't escape the close quote.
-// A minimal match, but the required close quote will force this to 
+// A minimal match, but the required close quote will force this to
 // consume most of the string.
 _STRING_ESC_INNER: /.*?/
 // If the string ends in a backslash, it must end with an even number
@@ -62,7 +62,7 @@ FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 //      we can't match the start of the string in the look-behind.
 //  - Strings can contain anything, but they can't start with an open
 //    expression '{{' or open iteration '[~'.
-//  - Strings cannot end in an odd number of backslashes (that would 
+//  - Strings cannot end in an odd number of backslashes (that would
 //    escape the closing characters).
 //  - Strings must end with the end of string, an open expression '{{',
 //    an open iteration '[~', or a tilde.

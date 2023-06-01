@@ -19,31 +19,31 @@ EXPR_GRAMMAR = r'''
 
 // All expressions will resolve to the start expression.
 start: expr _WS?
-     |          // An empty string is valid 
-     
+     |          // An empty string is valid
+
 // Trailing whitespace is ignored. Whitespace between tokens is
 // ignored below.
 _WS: /\s+/
 
 expr: or_expr
 
-// These set order of operations. 
+// These set order of operations.
 // See https://en.wikipedia.org/wiki/Operator-precedence_parser
-or_expr: and_expr ( OR and_expr )*        
+or_expr: and_expr ( OR and_expr )*
 and_expr: not_expr ( AND not_expr )*
-not_expr: NOT? compare_expr 
+not_expr: NOT? compare_expr
 compare_expr: add_expr ((EQ | NOT_EQ | LT | GT | LT_EQ | GT_EQ ) add_expr)*
 add_expr: mult_expr ((PLUS | MINUS) mult_expr)*
 mult_expr: pow_expr ((TIMES | DIVIDE | INT_DIV | MODULUS) pow_expr)*
 pow_expr: primary ("^" primary)?
-primary: literal 
-       | var_ref 
+primary: literal
+       | var_ref
        | negative
        | "(" expr ")"
        | function_call
        | list_
 
-// A function call can contain zero or more arguments. 
+// A function call can contain zero or more arguments.
 function_call: NAME "(" (expr ("," expr)*)? ")"
 
 negative: (MINUS|PLUS) primary
@@ -53,7 +53,7 @@ literal: INTEGER
        | FLOAT
        | BOOL
        | ESCAPED_STRING
-       
+
 // Allows for trailing commas
 list_: L_BRACKET (expr ("," expr)* ","?)? R_BRACKET
 
@@ -92,11 +92,11 @@ FLOAT: /\d+\.\d+/
 // This will be prioritized over 'NAME' matches
 BOOL.2: "True" | "False"
 
-// Names can be lower-case or capitalized, but must start with a letter or 
+// Names can be lower-case or capitalized, but must start with a letter or
 // underscore
 NAME.1: /[a-zA-Z_][a-zA-Z0-9_]*/
 
-// Ignore all whitespace between tokens. 
+// Ignore all whitespace between tokens.
 %ignore  / +(?=[^.])/
 '''
 

@@ -211,7 +211,7 @@ deferred args. On error, should raise a ResultParserError.
             args[key] = kwargs[key]
         kwargs = args
 
-        base_keys = ('action', 'per_file', 'files', 'match_select',
+        base_keys = ('action', 'per_file', 'files', 'format', 'match_select',
                      'for_lines_matching', 'preceded_by')
 
         for key in base_keys:
@@ -313,6 +313,10 @@ deferred args. On error, should raise a ResultParserError.
             help_text="Path to the file/s that this result parser "
                       "will examine. Each may be a file glob,"
                       "such as '*.log'"),
+        yc.StrElem(
+            "format",
+            help_text="Python string format 'eg. {:.3f}' to store the result."
+        ),
         yc.StrElem(
             "per_file",
             help_text=(
@@ -470,6 +474,7 @@ Example: ::
     _DEFAULTS = {
         'per_file':           PER_FIRST,
         'action':             ACTION_STORE,
+        'format':             '{:.3f}',
         'files':              ['../run.log'],
         'match_select':       MATCH_FIRST,
         'for_lines_matching': '',
