@@ -8,6 +8,8 @@ import shutil
 
 import lark
 
+import yc_yaml
+
 
 class PavilionError(RuntimeError):
     """Base class for all Pavilion errors."""
@@ -42,9 +44,10 @@ class PavilionError(RuntimeError):
 
         lines = []
         next_exc = self.prior_error
-        width = shutil.get_terminal_size((100, 100)).columns
+        width = shutil.get_terminal_size((80, 80)).columns
         tab_level = 0
-        lines.extend(textwrap.wrap(self.msg, width=width))
+        for line in self.msg.split('\n'):
+            lines.extend(textwrap.wrap(line, width=width))
 
         # Add any included data.
         if self.data:
@@ -63,15 +66,45 @@ class PavilionError(RuntimeError):
                 msg_parts = next_msg.split('\n')
                 for msg_part in msg_parts:
                     lines.extend(textwrap.wrap(msg_part, width, initial_indent=indent,
-                                               subsequent_indent=indent))
+                                               subsequent_indent=indent + self.TAB_LEVEL))
                 if next_exc.data:
                     data = pprint.pformat(next_exc.data, width=width - tab_level * 2)
                     for line in data.split('\n'):
-                        lines.append((tab_level * self.TAB_LEVEL) + line)
+                        lines.append(indent + line)
 
                 next_exc = next_exc.prior_error
+            elif isinstance(next_exc, yc_yaml.YAMLError):
+                lines.append(indent + next_exc.context)
+                ctx_mark = next_exc.context_mark
+                prob_mark = next_exc.problem_mark
+
+                # Try to open the yaml file to pinpoint the issue.
+                try:
+                    with open(ctx_mark.name) as yaml_file:
+                        file_lines = yaml_file.readlines()
+                except OSError:
+                    lines.append(indent + str(next_exc.problem))
+                    next_exc = None
+                    continue
+
+                prior = max([ctx_mark.line-2, 0])
+                final = min([prob_mark.line+2, len(file_lines)-1])
+                digits = len(str(final))
+
+                for i in range(prior, final+1):
+                    lines.append('{}{:{digits}}: {}'
+                                 .format(indent, i, file_lines[i].rstrip(), digits=digits))
+                    if i == ctx_mark.line:
+                        lines.append(indent + ' '*(ctx_mark.column + digits + 2) + '^')
+                    elif i == prob_mark.line:
+                        lines.append(indent + ' '*(prob_mark.column + digits + 2) + '^')
+
+                lines.append(indent + str(next_exc.problem))
+                next_exc = None
             else:
-                if hasattr(next_exc, 'args') and isinstance(next_exc.args, list):
+                if hasattr(next_exc, 'args') \
+                       and isinstance(next_exc.args, (list, tuple)) \
+                       and next_exc.args:
                     msg = next_exc.args[0]
                 else:
                     msg = str(next_exc)
@@ -213,6 +246,10 @@ class TestSeriesError(PavilionError):
 
 class TestSeriesWarning(PavilionError):
     """A non-fatal series error."""
+
+
+class SeriesConfigError(TestConfigError):
+    """For errors handling series configs."""
 
 
 class SystemPluginError(PavilionError):

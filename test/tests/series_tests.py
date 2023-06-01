@@ -15,7 +15,7 @@ class SeriesTests(PavTestCase):
         # Initialize from scratch
         series1 = series.TestSeries(
             pav_cfg=self.pav_cfg,
-            config=series_config.generate_series_config('test')
+            series_cfg=series_config.generate_series_config('test')
         )
 
         # Add a basic test set and save.
@@ -91,7 +91,7 @@ class SeriesTests(PavTestCase):
                 'simultaneous': '1',
             })
 
-        test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
+        test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
         test_series_obj.wait(timeout=10)
 
@@ -117,7 +117,7 @@ class SeriesTests(PavTestCase):
             'host': 'this'
         })
 
-        test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
+        test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
         test_series_obj.wait(5)
 
@@ -132,6 +132,26 @@ class SeriesTests(PavTestCase):
             hosty_value = varsets.get('hosty', None, None)
             self.assertEqual(hosty_value, 'this')
 
+    def test_series_overrides(self):
+        """Make sure configured overrides are applied."""
+
+        series_cfg = series_config.make_config({
+            'test_sets': {
+                'only_set': {
+                    'tests':      ['echo_test.a']},
+            },
+            'overrides': 'variables.another_num=17',
+            'host': 'this',
+        })
+
+        test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
+        test_series_obj.run()
+        test_series_obj.wait(5)
+        self.assertNotEqual(test_series_obj.tests, {})
+
+        test = list(test_series_obj.tests.values())[0]
+        self.assertEqual(test.results['other_num'], 17)
+
     def test_series_depends(self):
         """Tests if dependencies work as intended."""
 
@@ -144,7 +164,7 @@ class SeriesTests(PavTestCase):
                     'e': {},
                 }})
 
-        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         series1._create_test_sets()
 
         a = series1.test_sets['a']
@@ -176,7 +196,7 @@ class SeriesTests(PavTestCase):
             }
         })
 
-        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         with self.assertRaises(TestSeriesError):
             series1.run()
 
@@ -188,7 +208,8 @@ class SeriesTests(PavTestCase):
             }
         })
 
-        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+
+        series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         with self.assertRaises(TestSeriesError):
             series1.run()
 
@@ -260,7 +281,7 @@ class SeriesTests(PavTestCase):
             modes=['smode2'],
         )
 
-        series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
+        series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         series_obj.add_test_set_config(
             name='test',
             test_names=['conditional'],

@@ -129,8 +129,9 @@ class VariableElem(yc.CategoryElem):
                                            allow_empty_keys=True,
                                            **kwargs)
 
-    def normalize(self, value):
+    def normalize(self, value, root_name='root'):
         """Normalize to either a dict of strings or just a string."""
+
 
         if not isinstance(value, dict):
             value = {None: value}

@@ -177,10 +177,7 @@ def setup_loggers(pav_cfg) -> TextIO:
 
     # Put the log file in the lowest common pav config directory we can write
     # to.
-    if 'main' in pav_cfg.configs:
-        working_dir = pav_cfg.configs['main'].working_dir
-    else:
-        working_dir = pav_cfg['working_dir']
+    working_dir = pav_cfg['working_dir']
 
     if not working_dir.exists():
         working_dir.mkdir(parents=True, exist_ok=True)
@@ -245,17 +242,17 @@ def setup_loggers(pav_cfg) -> TextIO:
         pav_cfg.warnings.append(
             "Could not write to exception log at '{}': {}"
             .format(pav_cfg.exception_log, err))
-    else:
-        exc_handler = LockFileRotatingFileHandler(
-            file_name=exception_log.as_posix(),
-            max_bytes=20 * 1024 ** 2,
-            backup_count=3)
-        exc_handler.setFormatter(logging.Formatter(
-            "{asctime} {message}",
-            style='{',
-        ))
-        exc_logger.setLevel(logging.ERROR)
-        exc_logger.addHandler(exc_handler)
+
+    exc_handler = LockFileRotatingFileHandler(
+        file_name=exception_log.as_posix(),
+        max_bytes=20 * 1024 ** 2,
+        backup_count=3)
+    exc_handler.setFormatter(logging.Formatter(
+        "{asctime} {message}",
+        style='{',
+    ))
+    exc_logger.setLevel(logging.ERROR)
+    exc_logger.addHandler(exc_handler)
 
     err_out = io.StringIO()
 

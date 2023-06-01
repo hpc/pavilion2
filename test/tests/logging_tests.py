@@ -40,7 +40,7 @@ class LoggingTests(PavTestCase):
         exc_log_path = self.pav_cfg.exception_log
         if exc_log_path is None:
             exc_log_path = self.pav_cfg.working_dir/'exceptions.log'
-        # Check that exceptions get logged too.
+        # Check that exceptions get logged to.
         exc_logger = logging.getLogger('exceptions')
         exc_msg = str(uuid.uuid4())
         exc_logger.error(exc_msg)

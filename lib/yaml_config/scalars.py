@@ -120,6 +120,7 @@ class StrElem(ScalarElem):
         )
 
 
+
 class PathElem(ScalarElem):
     """An element that always expects a filesystem path."""
     type = pathlib.Path

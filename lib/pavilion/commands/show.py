@@ -1,5 +1,8 @@
 """Show a variety of different internal information for Pavilion."""
 
+# pylint: disable=too-many-lines
+
+
 import argparse
 import errno
 import fnmatch
@@ -992,6 +995,15 @@ class ShowCommand(Command):
         pvalue("Email:", test['email'])
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
+
+
+    DOC_KEYS = ['summary', 'doc']
+    PERMUTATION_KEYS = ['permute_on', 'subtitle']
+    INHERITANCE_KEYS = ['inherits_from']
+    SCHEDULING_KEYS = ['schedule', 'chunk']
+    RUN_KEYS = ['run']
+    BUILD_KEYS = ['build']
+    RESULT_KEYS = ['result_parse', 'result_evaluate']
 
     @sub_cmd()
     def _test_config_cmd(self, *_):
