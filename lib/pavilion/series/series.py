@@ -363,8 +363,11 @@ differentiate it from test ids."""
         :param rebuild: Rebuild tests instead of relying on cached builds.
         :param local_builds_only: When building, only build the tests that would build
             locally.
-        :param verbosity: Verbosity level. 0 - rolling summaries,
-            1 - continuous summary, 2 - full verbose
+        :param verbosity: Verbosity level.
+            -1 - No rolling statuses
+            0 - rolling summaries
+            1 - continuous summary
+            2 - full verbose
         :param outfile: The outfile to write status info to.
         :return:
         """

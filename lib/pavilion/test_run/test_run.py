@@ -642,7 +642,7 @@ class TestRun(TestAttributes):
         if build_result:
             self.status.set(STATES.BUILD_DONE, "Build is complete.")
 
-        if self.build_only:
+        if self.build_only or not build_result:
             self.set_run_complete()
 
         return build_result

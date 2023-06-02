@@ -16,6 +16,7 @@ from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.utils import str_bool
+from pavilion.enums import Verbose
 
 S_STATES = SERIES_STATES
 
@@ -43,7 +44,8 @@ class TestSet:
                  only_if: Dict[str, List[str]] = None,
                  not_if: Dict[str, List[str]] = None,
                  overrides: List = None,
-                 parents_must_pass: bool = False):
+                 parents_must_pass: bool = False,
+                 verbosity=Verbose.QUIET):
         """Initialize the tests given these options, creating TestRun objects.
 
         :param pav_cfg: The Pavilion configuration.
@@ -57,6 +59,7 @@ class TestSet:
         :param overrides: Configuration overrides.
         :param parents_must_pass: Parent test sets must pass for this test set to run.
         :param status: A file-like object to log status and error messages to.
+        :param verbosity: The build verbosity, see pavilion.enums.Verbose.
         """
 
         if status is not None:
@@ -66,6 +69,7 @@ class TestSet:
 
         self.name = name
         self.iter_name = '{}.{}'.format(iteration, name)
+        self.verbosity = verbosity
 
         self.modes = modes or []
         self.host = host
@@ -166,7 +170,7 @@ class TestSet:
         return test_sets
 
     def make(self, build_only=False, rebuild=False, local_builds_only=False,
-             outfile: TextIO = StringIO()):
+             ignore_errors: bool = False, outfile: TextIO = StringIO()):
         """Resolve the given tests names and options into actual tests, and print
         the test creation status."""
 
@@ -185,21 +189,34 @@ class TestSet:
 
         cfg_resolver = TestConfigResolver(self.pav_cfg)
 
-        try:
-            self.status.set(S_STATES.SET_MAKE, "Resolving {} test names."
-                            .format(len(self._test_names)))
-            test_configs = cfg_resolver.load(
-                self._test_names,
-                self.host,
-                self.modes,
-                self.overrides,
-                conditions=global_conditions,
-                outfile=outfile,
-            )
-        except TestConfigError as err:
-            msg = "Error loading test configs for test set '{}'".format(self.name)
-            self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
-            raise TestSetError(msg, err)
+        self.status.set(S_STATES.SET_MAKE, "Resolving {} test names."
+                        .format(len(self._test_names)))
+        test_configs, errors = cfg_resolver.load(
+            self._test_names,
+            self.host,
+            self.modes,
+            self.overrides,
+            conditions=global_conditions,
+            verbosity=self.verbosity,
+            outfile=outfile,
+        )
+
+        if errors:
+            output.fprint(
+                outfile,
+                "Error loading test configs for test set '{}'".format(self.name))
+
+            for error in errors:
+                self.status.set(S_STATES.ERROR,
+                                '{} - {}'.format(err.request.request, error.pformat()))
+
+
+                output.fprint(
+                    outfile,
+                    "{} - {}".format(error.request.request, error.pformat()))
+
+            if not ignore_errors:
+                raise TestSetError()
 
         self.status.set(S_STATES.SET_MAKE, "Creating test runs")
 
@@ -210,8 +227,9 @@ class TestSet:
         skip_count = 0
 
         for ptest in test_configs:
-            progress += 1.0 / tot_tests
-            output.fprint(outfile, "Creating Test Runs: {:.0%}".format(progress), end='\r')
+            if self.verbosity == Verbose.DYNAMIC:
+                progress += 1.0 / tot_tests
+                output.fprint(outfile, "Creating Test Runs: {:.0%}".format(progress), end='\r')
 
             if build_only and local_builds_only:
                 # Don't create test objects for tests that would build remotely.
@@ -231,13 +249,18 @@ class TestSet:
                 if not test_run.skipped:
                     test_run.save()
                     self.tests.append(test_run)
+
+                    if self.verbosity in (Verbose.HIGH, Verbose.MAX):
+                        output.fprint(outfile, 'Created and saved test run {} - {}'
+                                               .format(test_run.full_id, test_run.name))
                 else:
                     skip_count += 1
-                    self.status.set(
-                        S_STATES.TESTS_SKIPPED,
-                        "Test {} skipped because '{}'"
-                        .format(test_run.name, test_run.skip_reasons[0])
-                    )
+                    msg = "Test {} skipped because '{}'" \
+                          .format(test_run.name, test_run.skip_reasons[0])
+                    self.status.set(S_STATES.TESTS_SKIPPED, msg)
+                    if self.verbosity in (Verbose.MAX, Verbose.HIGH):
+                        output.fprint(outfile, msg)
+
                     if not test_run.abort_skipped():
                         self.status.set(
                             S_STATES.TESTS_SKIPPED,
@@ -249,11 +272,15 @@ class TestSet:
                 msg = ("Error creating test '{}' in test set '{}'"
                        .format(test_name, self.name))
                 self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
-                self.cancel("Error creating other tests in test set '{}'"
-                            .format(self.name))
-                raise TestSetError(msg, err)
+                if self.ignore_errors and self.verbosity in (Verbose.MAX, Verbose.FULL):
+                    output.fprint(outfile, msg)
+                else:
+                    self.cancel("Error creating other tests in test set '{}'"
+                                .format(self.name))
+                    raise TestSetError(msg, err)
 
-        output.fprint(outfile, '')
+        if self.verbosity == Verbose.DYNAMIC:
+            output.fprint(outfile, '')
 
         # make sure result parsers are ok. This will throw an exception if they are not.
         self.check_result_format(self.tests)
@@ -268,22 +295,18 @@ class TestSet:
 
         output.fprint(
             outfile,
-            "Test set '{}' created {} tests, skipped {}\n"
+            "Test set '{}' created {} tests, skipped {}, {} errors\n"
             "Reasons for skipping each test are in the series status file here:\n"
             "{}"
-            .format(self.name, len(self.tests), skip_count, self.status.path))
+            .format(self.name, len(self.tests), skip_count, len(errors), self.status.path))
 
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
 
-    def build(self, verbosity=0, outfile: TextIO = StringIO()):
+    def build(self, outfile: TextIO = StringIO(), ignore_errors=False):
         """Build all the tests in this Test Set in parallel. This handles user output
         during the build process.
 
-        :param verbosity: The build verbosity.
-            0 - one line summary
-            1 - rolling summary
-            2 - verbose
         :param outfile: Where to forward user output
         :return:
         """
@@ -349,7 +372,7 @@ class TestSet:
         # Used to track which threads are for which tests.
         test_by_threads = {}
 
-        if verbosity > 0:
+        if self.verbosity not in (Verbose.QUIET, Verbose.DYNAMIC):
             output.fprint(outfile, self.BUILD_STATUS_PREAMBLE.format(
                 when='When', test_id='TestID',
                 state_len=STATES.max_length, state='State'), 'Message', width=None)
@@ -382,8 +405,8 @@ class TestSet:
                     test = test_by_threads[thread]
                     del test_by_threads[thread]
 
-                    # Only output test status after joining a thread.
-                    if verbosity == 1:
+                    # Output test status after joining a thread.
+                    if self.verbosity == Verbose.HIGH:
                         notes = self.mb_tracker.get_notes(test.builder)
                         if notes:
                             when, state, msg = notes[-1]
@@ -397,7 +420,7 @@ class TestSet:
 
             test_threads = [thr for thr in test_threads if thr is not None]
 
-            if cancel_event.is_set():
+            if (not ignore_errors) and cancel_event.is_set():
                 for thread in test_threads:
                     thread.join()
 
@@ -409,8 +432,9 @@ class TestSet:
                             "Run aborted due to failures in other builds.")
                     test.set_run_complete()
 
-                output.fprint(file=outfile, color=output.RED, clear=True)
-                output.fprint(file=outfile, color=output.CYAN)
+                if self.verbosity == Verbose.DYNAMIC:
+                    output.fprint(file=outfile, clear=True)
+                    output.fprint(file=outfile)
 
                 msg = [
                     "Build error while building tests. Cancelling all builds.\n",
@@ -442,7 +466,7 @@ class TestSet:
                 raise TestSetError(msg)
 
             state_counts = self.mb_tracker.state_counts()
-            if verbosity == 0:
+            if self.verbosity == Verbose.DYNAMIC:
                 # Print a self-clearing one-liner of the counts of the
                 # build statuses.
                 parts = []
@@ -450,7 +474,7 @@ class TestSet:
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
                 output.fprint(outfile, line, width=None, end='\r', clear=True)
-            elif verbosity > 1:
+            elif self.verbosity == Verbose.MAX:
                 for test in local_builds:
                     seen = message_counts[test.full_id]
                     msgs = self.mb_tracker.get_notes(test.builder)[seen:]
@@ -467,7 +491,7 @@ class TestSet:
 
             time.sleep(self.BUILD_SLEEP_TIME)
 
-        if verbosity == 0:
+        if self.verbosity == Verbose.DYNAMIC:
             # Print a newline after our last status update.
             output.fprint(file=outfile, width=None)
 
@@ -514,6 +538,8 @@ class TestSet:
         while start_max > 0 and ready_tests.keys():
             for sched_name in list(ready_tests.keys()):
                 scheduler = schedulers.get_plugin(sched_name)
+                # Refresh the scheduler's node information before kicking off new tests.
+                scheduler.refresh()
                 tests = []
                 while len(tests) < start_max and ready_tests[sched_name]:
                     tests.append(ready_tests[sched_name].pop(0))
@@ -530,6 +556,10 @@ class TestSet:
                                     .format(len(tests), sched_name))
                     scheduler.schedule_tests(self.pav_cfg, tests)
                 except pavilion.errors.SchedulerPluginError as err:
+                    if self.ignore_errors:
+                        output.fprint(outfile, )
+
+
                     self.cancel(
                         "Error scheduling tests (not necessarily this one): {}"
                         .format(err.args[0]))
@@ -543,7 +573,7 @@ class TestSet:
                         "Kickoff complete for test set {}. Started {} tests."
                         .format(self.name, start_count))
 
-        return start_count
+        return sta
 
     def cancel(self, reason):
         """Cancel all the tests in the test set."""

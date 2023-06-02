@@ -283,6 +283,13 @@ class SchedulerPlugin(IPlugin.IPlugin):
         else:
             return self._available()
 
+    def refresh(self):
+        """Clear gathered scheduler information, generally to force the scheduler to
+        re-gather info and node lists."""
+
+        pass
+
+
     JOB_STATUS_TIMEOUT = 1
 
     def job_status(self, pav_cfg, test) -> TestStatusInfo:

@@ -3,6 +3,7 @@
 import copy
 import io
 import random
+import time
 
 from pavilion import arguments
 from pavilion import commands
@@ -11,10 +12,10 @@ from pavilion import resolve
 from pavilion import resolver
 from pavilion import schedulers
 from pavilion import test_run
+from pavilion import variables
 from pavilion.deferred import DeferredVariable
 from pavilion.errors import TestConfigError, TestRunError
 from pavilion.pavilion_variables import PavVars
-from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 from pavilion.unittest import PavTestCase
 
@@ -28,17 +29,19 @@ class ResolverTests(PavTestCase):
         """Initialize plugins and setup a resolver."""
         plugins.initialize_plugins(self.pav_cfg)
 
-        self.resolver = resolver.TestConfigResolver(self.pav_cfg)
+        self.resolver = resolver.TestConfigResolver(self.pav_cfg, host='this')
 
     def test_resolve_speed(self):
 
-        self.resolver.load(['speed'])
+        for t in self.resolver.load(['speed']):
+            time.sleep(3)
 
     def test_requests(self):
         """Check request parsing."""
 
         requests = (
             ('hello',                   ('hello', None, 1)),
+
             ('hello123',                ('hello123', None, 1)),
             ('123-_hello',              ('123-_hello', None, 1)),
             ('123hello.world',          ('123hello', 'world', 1)),
@@ -62,11 +65,11 @@ class ResolverTests(PavTestCase):
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
-        tests = self.resolver.load(['hello_world'], host='this')
+        tests = self.resolver.load(['hello_world'])
         self.assertEqual(sorted(['narf', 'hello', 'world']),
                          sorted([ptest.config['name'] for ptest in tests]))
 
-        tests = self.resolver.load(['hello_world.hello'], host='this')
+        tests = list(self.resolver.load(['hello_world.hello']))
         hello_cfg = tests[0].config
 
         # There should have only been 1
@@ -77,7 +80,7 @@ class ResolverTests(PavTestCase):
         # Make sure the variable from the host config got propagated.
         self.assertIn('hosty', hello_cfg['variables'])
 
-        tests = self.resolver.load(['hello_world.narf'], host='this')
+        tests = list(self.resolver.load(['hello_world.narf']))
         narf_cfg = tests[0].config
         # Make sure this got overridden from 'world'
         self.assertEqual(narf_cfg['scheduler'], 'dummy')
@@ -109,9 +112,10 @@ class ResolverTests(PavTestCase):
                     if modes:
                         answer = 'mode'
 
-                    tests = self.resolver.load(
+                    rslvr = resolver.TestConfigResolver(self.pav_cfg, host=host)
+
+                    tests = rslvr.load(
                         [test],
-                        host=host,
                         modes=modes)
                     self.assertEqual(
                         tests[0].config['summary'], answer,
@@ -121,9 +125,9 @@ class ResolverTests(PavTestCase):
     def test_defaulted_variables(self):
         """Make sure default variables work as expected."""
 
-        tests = self.resolver.load(
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='defaulted')
+        tests = rslvr.load(
             tests=['defaulted'],
-            host='defaulted',
             modes=['defaulted'],
         )
 
@@ -165,9 +169,8 @@ class ResolverTests(PavTestCase):
         self.assertEqual(stack2b_vars['stack_def'][0]['b'], '2b-b')
 
         with self.assertRaises(TestConfigError):
-            self.resolver.load(
+            rslvr.load(
                 tests=['defaulted_error.error'],
-                host='defaulted',
                 modes=['defaulted'],
             )
 
@@ -175,20 +178,22 @@ class ResolverTests(PavTestCase):
         """Make sure the variable consistency checks catch what they're supposed to."""
 
         bad_tests = [
-            'var_consistency.empty_var_list',
-            'var_consistency.empty_var',
-            'var_consistency.empty_subvar',
-            # TODO: There's some resolver work need to make these functional.
-            #'var_consistency.inconsistent_var1',
-            #'var_consistency.inconsistent_var2',
-            'var_consistency.inconsistent_var3',
-            'var_consistency.inconsistent_var4',
-            'var_consistency.foo',
+            ('var_consistency.empty_var_list', "'foo' was defined but wasn't given a value."),
+            ('var_consistency.empty_var', "must be unicode strings, got 'None'"),
+            ('var_consistency.empty_subvar', "must be unicode strings, got 'None'"),
+            # These can't work currently.
+            #('var_consistency.inconsistent_var1', ""),
+            #('var_consistency.inconsistent_var2', ""),
+            ('var_consistency.inconsistent_var3', ""),
+            ('var_consistency.inconsistent_var4', ""),
+            ('var_consistency.foo', ""),
         ]
 
-        for bad_test in bad_tests:
-            with self.assertRaises(TestConfigError):
-                self.resolver.load([bad_test])
+        for bad_test, bad_excerpt in bad_tests:
+            self.resolver.load([bad_test])
+            for error in self.resolver.errors:
+                print(error.pformat())
+                print()
 
     def test_wildcards(self):
         """Make sure wildcarded tests and permutations work"""

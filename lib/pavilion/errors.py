@@ -157,7 +157,7 @@ and something goes wrong."""
 
         key = '.'.join(key)
 
-        message = "Error processing variable key '{}': {}".format(key, ''.join(message))
+        message = "Error processing variable key '{}': \n{}".format(key, ''.join(message))
 
         super().__init__(message, prior_error=prior_error)
 
@@ -172,6 +172,15 @@ class DeferredError(VariableError):
 
 class TestConfigError(PavilionError):
     """An exception specific to errors in configuration."""
+
+    def __init__(self, *args, request=None, **kwargs):
+        """These specifically take the 'TestRequest' object."""
+
+        self.request = request
+        if request is not None:
+            request.has_error = True
+
+        super().__init__(*args, **kwargs)
 
 
 class TestBuilderError(PavilionError):
@@ -238,6 +247,13 @@ class ResultError(PavilionError):
 
 class SchedulerPluginError(PavilionError):
     """Raised when scheduler plugins encounter an error."""
+
+    def __init__(self, *args, **kwargs):
+        """Keep track of the tests that triggered the error."""
+
+        self.tests = kwargs.get('tests', [])
+
+        super().__init__(*args, **kwargs)
 
 
 class TestSeriesError(PavilionError):

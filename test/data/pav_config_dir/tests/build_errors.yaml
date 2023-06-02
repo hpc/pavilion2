@@ -1,0 +1,14 @@
+
+good:
+  build:
+    cmds:
+      - sleep 2
+
+bad_source:
+  build:
+    source_path: invalid_file.tar.gz
+
+bad_script:
+  build:
+    cmds:
+      - exit 1

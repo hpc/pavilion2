@@ -114,6 +114,21 @@ class TestSetTests(PavTestCase):
             ts.make()
             ts.build(verbosity=i)
 
+    def test_build_ignore_errors(self):
+        """Make sure build errors are handled properly when ignore_errors=True"""
+
+        ts1 = TestSet(self.pav_cfg, "build_errors", ["build_errors"])
+        ts1.make(ignore_errors=True)
+        for test in ts1.tests:
+            print(test.name)
+
+        ts1.build(ignore_errors=True)
+        for test in ts1.tests:
+            if 'bad' in test.name:
+                self.assertTrue(test.complete)
+            else:
+                self.assertFalse(test.complete)
+
     def test_kickoff(self):
         """Check kickoff functionality."""
 
