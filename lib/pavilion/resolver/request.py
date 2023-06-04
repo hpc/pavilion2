@@ -6,6 +6,8 @@ import re
 
 from typing import Union, List, Dict
 
+from pavilion.errors import TestConfigError
+
 
 class TestRequest:
     """Represents a user request for a test. May end up being multiple tests."""
@@ -73,7 +75,8 @@ class TestRequest:
             self.request_matched = True
             return True
 
-        self.seen_subtitles.add(subtitle)
+        if subtitle is not None:
+            self.seen_subtitles.add(subtitle)
 
         if subtitle:
             if fnmatch(subtitle, self.permutation):

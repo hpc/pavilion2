@@ -25,10 +25,17 @@ class PavilionError(RuntimeError):
         :param data: Any relevant data that needs to be passed to the user.
         """
 
-        self.msg = msg
+        self._msg = msg
         self.prior_error = prior_error
         self.data = data
         super().__init__(msg)
+
+    @property
+    def msg(self):
+        """Just return msg. This exists to be overridden in order to allow for
+        dynamically generated messages."""
+
+        return self._msg
 
     def __reduce__(self):
         return type(self), (self.msg, self.prior_error, self.data)
@@ -147,6 +154,10 @@ and something goes wrong."""
             self.index = index
         self.sub_var = sub_var
 
+        super().__init__(message, prior_error=prior_error)
+
+    @property
+    def msg(self):
         key = [str(self.var)]
         if self.var_set is not None:
             key.insert(0, self.var_set)
@@ -157,9 +168,7 @@ and something goes wrong."""
 
         key = '.'.join(key)
 
-        message = "Error processing variable key '{}': \n{}".format(key, ''.join(message))
-
-        super().__init__(message, prior_error=prior_error)
+        return "Error processing variable key '{}': \n{}".format(key, self.raw_message)
 
     def __reduce__(self):
 

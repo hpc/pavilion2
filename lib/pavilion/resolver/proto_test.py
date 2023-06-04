@@ -1,6 +1,7 @@
 """Objects that wrap test configs that haven't been turned into Test Run's yet."""
 
 import copy
+import sys
 from typing import List, Union, Dict, Tuple
 import uuid
 
@@ -9,6 +10,7 @@ from pavilion import resolve
 from pavilion import variables
 from pavilion import schedulers
 from pavilion import parsers
+from pavilion import output
 
 from .request import TestRequest
 
@@ -16,19 +18,25 @@ class ProtoTest:
     """A fully resolved test config and associated information."""
 
     def __init__(self, request: TestRequest, config: Dict,
-                 var_man: variables.VariableSetManager):
+                 var_man: variables.VariableSetManager, count: int = 1):
 
         self.request = request
         self.config = config
         self.var_man = var_man
+        self.count = count
+
+    def update_config(self, new_config):
+        """Replace the existing config with this new (probably completely resolved) version."""
+
+        self.config = new_config
 
     def copy(self) -> 'ProtoTest':
         """Create a copy of this proto test."""
 
         ptest_copy = ProtoTest(request=self.request,
                                config=copy.deepcopy(self.config),
-                               var_man=copy.deepcopy(self.var_man))
-        ptest_copy.count = self._count
+                               var_man=copy.deepcopy(self.var_man),
+                               count=self.count)
         return ptest_copy
 
     def resolve(self) -> Dict:
@@ -36,17 +44,21 @@ class ProtoTest:
         error handling (we could call resolve.test_config directly)."""
 
         try:
-            return resolve.test_config(self.config, self.var_man)
+            new_cfg = resolve.test_config(self.config, self.var_man)
+            self.update_config(new_cfg)
+            return new_cfg
         except TestConfigError as err:
-            if test_cfg.get('permute_on'):
-                permute_values = {key: var_man.get(key) for key in test_cfg['permute_on']}
+            name = self.config['name']
+            permute_on = self.config.get('permute_on')
+            if permute_on:
+                permute_values = {key: var_man.get(key) for key in permute_on}
 
                 raise TestConfigError(
                     "Error resolving test {} with permute values:"
-                    .format(test_cfg['name']), err, data=permute_values, request=self.request)
+                    .format(name), err, data=permute_values, request=self.request)
             else:
                 raise TestConfigError(
-                    "Error resolving test {}".format(test_cfg['name']), err, request=self.request)
+                    "Error resolving test {}".format(name), err, request=self.request)
 
 class RawProtoTest:
     """An simple object that holds the pair of a test config and its variable
@@ -193,6 +205,8 @@ class RawProtoTest:
             permutations.
         """
 
+        debug = False
+
         permute_on = self.config['permute_on']
         self.config['permute_base'] = uuid.uuid4().hex
 
@@ -203,8 +217,8 @@ class RawProtoTest:
 
         sched_name = self.config.get('scheduler')
         if sched_name is None:
-            raise TestConfigError("No scheduler was given. This should only happen "
-                                  "when unit tests fail to define it.", request=self.request)
+            raise RuntimeError("No scheduler was given. This should only happen "
+                               "when unit tests fail to define it.", request=self.request)
         try:
             sched = schedulers.get_plugin(sched_name)
         except SchedulerPluginError:
@@ -244,10 +258,16 @@ class RawProtoTest:
             if not permute_now:
                 break
 
+            # Get permutations for each existing variable manager.
             new_var_men = []
             for var_man in var_men:
                 new_var_men.extend(var_man.get_permutations(permute_now))
             var_men = new_var_men
+
+            if debug:
+                output.fprint(sys.stderr, 'inc permutes, permuted on ', permute_now,
+                              'got ', len(var_men))
+
 
         # Calculate permutations for variables that we 'could resolve' if not for the fact
         # that they are permutation variables. These are variables that refer to themselves
@@ -267,11 +287,18 @@ class RawProtoTest:
             all_var_men.extend(var_man.get_permutations(
                 [('var', var_name) for var_name in could_resolve
                  if var_name in could_resolve]))
+
+            if debug:
+                output.fprint(sys.stderr, 'tangled permutes, permuted on ', could_resolve,
+                              'got ', len(var_men))
         var_men = all_var_men
 
         # Everything left at this point will require the sched vars to deal with.
         all_var_men = []
         for var_man in var_men:
+            # Resolve the variables that don't depend sched, but have complicated relationships
+            # we couldn't solve iteratively. If there's anything left at this point, it will
+            # probably result in undesired behavior, but it's the best we can do.
             try:
                 var_man.resolve_references(partial=True)
             except VariableError as err:
@@ -307,8 +334,12 @@ class RawProtoTest:
             # And do the rest of the permutations.
             all_var_men.extend(var_man.get_permutations(used_per_vars))
 
-        return [ProtoTest(self.request, self.config, var_man)
-                for var_man in var_men]
+            if debug:
+                output.fprint(sys.stderr, 'sched permutes, permuted on ', used_per_vars,
+                              'got', len(all_var_men))
+
+        return [ProtoTest(self.request, self.config, var_man, count=self.count)
+                for var_man in all_var_men]
 
     def _check_permute_vars(self, permute_on) -> List[Tuple[str, str]]:
         """Check the permutation variables and report errors. Returns a set of the

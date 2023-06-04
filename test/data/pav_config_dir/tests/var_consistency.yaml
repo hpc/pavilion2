@@ -12,17 +12,8 @@ empty_subvar:
       bar:
       baz: 3
 
-#inconsistent_var1:
-#  variables:
-#    foo:
-#      - 'a'
-#      - {'a': 'b'}
 
-#inconsistent_var2:
-#  variables:
-#    foo:
-#      - 'a'
-#      - {'a': 'b'}
+# inconsistent_var1 and var2 are in seperate files now.
 
 inconsistent_var3:
   variables:
