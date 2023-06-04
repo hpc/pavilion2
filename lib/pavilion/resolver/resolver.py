@@ -334,13 +334,8 @@ class TestConfigResolver:
         # Test that are ready to resolve.
         ready_to_resolve = []
         while raw_tests:
-            batch_remain = batch_size - resolved_tests_count
-
-            # Clear the scheduler information caches, so we get fresh info for newly resolved tests.
-            self._reset_schedulers()
-
             # Get permutations from raw tests until we've hit our batch limit.
-            while resolved_tests_count < batch_remain and raw_tests:
+            while resolved_tests_count < batch_size and raw_tests:
 
                 raw_test = raw_tests.pop()
 
@@ -352,7 +347,7 @@ class TestConfigResolver:
                     break
 
                 # If the tests are set to repeat, re-insert the raw test with reduced count.
-                perm_repeats = math.ceil(batch_remain/len(permutations))
+                perm_repeats = math.ceil((batch_size - resolved_tests_count)/len(permutations))
                 if raw_test.count > perm_repeats:
                     raw_test.count -= perm_repeats
                     raw_tests.append(raw_test)
@@ -360,7 +355,7 @@ class TestConfigResolver:
                     for ptest in permutations:
                         ptest.count = perm_repeats
 
-                    resolved_tests_count += len(permutations) * new_count
+                    resolved_tests_count += len(permutations) * perm_repeats
                 else:
                     resolved_tests_count += len(permutations) * raw_test.count
 
@@ -371,7 +366,7 @@ class TestConfigResolver:
             ready_to_resolve = []
 
             # Finally, return batches of the resolved tests.
-            while resolved_tests_count > batch_size:
+            while resolved_tests_count >= batch_size:
                 yield resolved_tests[:batch_size]
                 resolved_tests = resolved_tests[batch_size:]
                 resolved_tests_count = sum(map(lambda r: r.count, resolved_tests))
@@ -685,6 +680,11 @@ class TestConfigResolver:
             return self._suites[suite]
 
         raw_suite_cfg, suite_path, cfg_label = self._load_raw_config(suite, 'suite')
+        # Make sure each test has a dict as contents.
+        for test_name, raw_test in raw_suite_cfg.items():
+            if raw_test is None:
+                raw_suite_cfg[test_name] = {}
+
         suite_tests = self.resolve_inheritance(raw_suite_cfg, suite_path)
 
         # Perform essential transformations to each test config.

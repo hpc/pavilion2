@@ -92,10 +92,10 @@ class ResolverTests(PavTestCase):
     def test_loading_hidden(self):
         """Make sure we only get hidden tests when specifically requested."""
 
-        tests = self.resolver.load(['hidden'], 'this', [])
+        tests = self.resolver.load(['hidden'])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['hello', 'narf'])
-        tests = self.resolver.load(['hidden._hidden'], 'this', [])
+        tests = self.resolver.load(['hidden._hidden'])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['_hidden'])
 
@@ -811,7 +811,7 @@ class ResolverTests(PavTestCase):
                              'cmd_inherit_extend.test2',
                              'cmd_inherit_extend.test3'):
 
-                    rslvr = self.TestConfigResolver(self.pav_cfg, host=host)
+                    rslvr = resolver.TestConfigResolver(self.pav_cfg, host=host)
                     tests = rslvr.load([test], modes=modes)
                     test_cfg = tests[0].config
                     test_name = test_cfg.get('name')
@@ -921,4 +921,52 @@ class ResolverTests(PavTestCase):
                 err.pformat()
 
     def test_incremental_load(self):
-        self.fail("Not implemented.")
+        """Check that incremental loading is both incremental and loading."""
+
+        # Incremental loading allows us to break up the resolution of tests
+        # so they get their scheduler information last minute. It's not perfect -
+        # permutations can span multiple load sets.
+        # The dummy scheduler counts the mumber of times we've reset it, and we add
+        # that to the test name to check that the tests actually got new sched info.
+        requests = []
+        answers = []
+        # 14 copies of the same basic test.
+        requests += ['incremental.simple']*14
+        answers.append(['simple.1']*7)
+        answers.append(['simple.2']*7)
+        # A permuted test that's fits exactly in the batch size
+        requests += ['incremental.permuted_exact']
+        answers.append(['permuted_exact.3']*7)
+        # A bunch of separate requests for a permuted test that's smaller than batch size
+        requests += ['incremental.permuted_odd']*6
+        answers.append(['permuted_odd.4']*7)
+        answers.append(['permuted_odd.4']*2 + ['permuted_odd.5']*5)
+        # A permuted test too big for the batch size
+        requests += ['incremental.permuted_big', 'incremental.permuted_odd']
+        answers.append(['permuted_odd.5'] + ['permuted_odd.6']*3 + ['permuted_big.6']*3)
+        answers.append(['permuted_big.6']*7)
+        # A multiplied test, plus testing the remainders.
+        requests += ['5*incremental.permuted_odd']
+        answers.append(['permuted_odd.8']*7)
+        answers.append(['permuted_odd.8']*2 + ['permuted_odd.9']*5)
+        answers.append(['permuted_odd.9'] + ['permuted_odd.10']*3)
+        answers.reverse()
+
+        for tests in self.resolver.load_iter(requests, batch_size=7,
+                                             overrides=['scheduler=dummy']):
+
+            # Reset scheduler plugins
+            # The test set will do this for us, but we have to here.
+            for sched_name in schedulers.list_plugins():
+                sched = schedulers.get_plugin(sched_name)
+                sched.refresh()
+
+            answer = answers.pop()
+
+            result = ['{}.{}'.format(test.config['name'], test.var_man['sched.refresh_count'])
+                      for test in tests]
+            # The actual orders will be random because of multiprocessing
+            answer.sort()
+            result.sort()
+            self.assertEqual(result, answer)
+            self.assertEqual(self.resolver.errors, [])
