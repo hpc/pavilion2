@@ -33,8 +33,7 @@ class ResolverTests(PavTestCase):
 
     def test_resolve_speed(self):
 
-        for t in self.resolver.load(['speed']):
-            time.sleep(3)
+        self.resolver.load(['speed'])
 
     def test_requests(self):
         """Check request parsing."""
@@ -920,3 +919,6 @@ class ResolverTests(PavTestCase):
             except TestConfigError as err:
                 # Make sure the error can be formatted.
                 err.pformat()
+
+    def test_incremental_load(self):
+        self.fail("Not implemented.")
