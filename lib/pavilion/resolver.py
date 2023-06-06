@@ -665,7 +665,7 @@ class TestConfigResolver:
                     "Pavilion config directories.\n"
                     "Run `pav show {2}` to get a list of available {0} files."
                     .format(config_type, name, show_type))
-                
+
         try:
             with path.open() as cfg_file:
                 # Load the host test config defaults.
