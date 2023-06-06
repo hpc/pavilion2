@@ -934,5 +934,4 @@ class ResolverTests(PavTestCase):
                 self.resolver.load([suite_name])
             except TestConfigError as err:
                 # Make sure the error can be formatted.
-                print(err.pformat())
-                print()
+                err.pformat()
