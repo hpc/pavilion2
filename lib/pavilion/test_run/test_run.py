@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TextIO, Union, Dict
 import yc_yaml as yaml
 
-from pavilion.config import PavConfig
+from pavilion.config import PavConfig, DEFAULT_CONFIG_LABEL
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import errors
@@ -182,7 +182,10 @@ class TestRun(TestAttributes):
 
         # If the cfg label is actually something that exists, use it in the
         # test full_id. Otherwise give the test path.
-        self.full_id = '{}.{}'.format(self.cfg_label, self.id)
+        if self.cfg_label == DEFAULT_CONFIG_LABEL:
+            self.full_id = '{}'.format(self.id)
+        else:
+            self.full_id = '{}.{}'.format(self.cfg_label, self.id)
 
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 

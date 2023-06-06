@@ -5,7 +5,7 @@ import sys
 from typing import List, Union, Dict, Tuple
 import uuid
 
-from pavilion.errors import TestConfigError, SchedulerPluginError, VariableError
+from pavilion.errors import TestConfigError, SchedulerPluginError, VariableError, ResultError
 from pavilion import resolve
 from pavilion import variables
 from pavilion import schedulers

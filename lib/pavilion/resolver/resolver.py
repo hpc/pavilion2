@@ -358,7 +358,7 @@ class TestConfigResolver:
                 ready_to_resolve.extend(permutations)
 
             # Now resolve all the string syntax and variables those tests at once.
-            new_resolved_tests []
+            new_resolved_tests = []
             for ptest in self._resolve_escapes(ready_to_resolve):
 
                 # Perform last minute health checks

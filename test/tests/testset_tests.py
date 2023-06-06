@@ -53,9 +53,6 @@ class TestSetTests(PavTestCase):
         ts1 = TestSet(self.pav_cfg, "test_make1", ['pass_fail'])
         ts1.make()
 
-        with self.assertRaises(RuntimeError):
-            ts1.make()
-
         ts1 = TestSet(self.pav_cfg, "test_make2", ['invalid'])
         with self.assertRaises(TestSetError):
             ts1.make()
@@ -64,34 +61,40 @@ class TestSetTests(PavTestCase):
         with self.assertRaises(TestSetError):
             ts3.make()
 
+    def test_make_iter(self):
+        """Check that test creation batching works."""
+
+        import sys
+        ts2 = TestSet(self.pav_cfg, "test_rebuild2", ['build_parallel']*2,
+                      simultaneous=8, outfile=sys.stdout)
+
+        # Make sure we make batches of half the simultanious limit.
+        for batch in ts2.make_iter():
+            print(batch)
+            self.assertEqual(len(batch), 4)
+
+
     def test_build(self):
         """Check that building works as expected."""
 
-        ts0 = TestSet(self.pav_cfg, "test_build0", [])
-        with self.assertRaises(RuntimeError):
-            ts0.build()
-
         ts1 = TestSet(self.pav_cfg, "test_build1", ['build_parallel'])
-        ts1.make()
-        ts1.build()
+        ts1.build(ts1.make())
 
         ts1 = TestSet(self.pav_cfg, "test_build2", ['build_fail'])
-        ts1.make()
-        self.assertEqual(len(ts1.tests), 6)
+        tests = ts1.make()
+        self.assertEqual(len(tests), 6)
         with self.assertRaises(TestSetError):
-            ts1.build()
+            ts1.build(tests)
 
         # Building an empty set should be fine.
         ts3 = TestSet(self.pav_cfg, "test_build3", [])
-        ts3.make()
-        ts3.build()
+        ts3.build(ts3.make())
 
     def test_rebuild(self):
         """Check that rebuilds are handled properly."""
 
         ts1 = TestSet(self.pav_cfg, "test_rebuild1", ['build_parallel'])
-        ts1.make()
-        ts1.build()
+        ts1.build(ts1.make(), deprecated_builds=[])
 
         for test in ts1.tests:
             # Build all the tests that would have been built remotely
@@ -99,10 +102,18 @@ class TestSetTests(PavTestCase):
                 test.build()
 
         build_names = [test.build_name for test in ts1.tests]
+        dep_builds = []
 
-        ts1 = TestSet(self.pav_cfg, "test_rebuild2", ['build_parallel'])
-        ts1.make(rebuild=True)
-        ts1.build()
+        ts2 = TestSet(self.pav_cfg, "test_rebuild2", ['build_parallel']*2,
+                      simultaneous=8)
+        tests = list(ts2.make_iter(rebuild=True))
+        print(tests)
+        tests1, tests2, [] = tests
+        ts2.build(tests1, deprecated_builds=dep_builds)
+
+        print(dep_builds, build_names)
+        self.assertEqual(dep_builds, build_names)
+
         for test in filter(lambda tst: not tst.skipped, ts1.tests):
             self.assertNotIn(test.build_name, build_names)
 

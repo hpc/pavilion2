@@ -6,7 +6,7 @@ import threading
 import time
 from collections import defaultdict
 from io import StringIO
-from typing import List, Dict, TextIO, Union, Set
+from typing import List, Dict, TextIO, Union, Set, Iterator
 
 import pavilion.errors
 from pavilion import output, result, schedulers, cancel_utils
@@ -46,7 +46,7 @@ class TestSet:
                  overrides: List = None,
                  parents_must_pass: bool = False,
                  simultaneous: Union[int, None] = None,
-                 ignore_errors: bool = True,
+                 ignore_errors: bool = False,
                  outfile: TextIO = StringIO(),
                  verbosity=Verbose.QUIET):
         """Initialize the tests given these options, creating TestRun objects.
@@ -93,11 +93,9 @@ class TestSet:
         self.child_sets = set()  # type: Set[TestSet]
         self.parents_must_pass = parents_must_pass
 
-        self.tests = None  # type: Union[List[TestRun], None]
-        self.built_tests = None
-        self.ready_to_start_tests = None  # type: Union[Dict[str, List[TestRun]], None]
-        self.started_tests = None  # type: Union[List[TestRun], None]
-        self.completed_tests = None  # type: Union[List[TestRun], None]
+        self.tests = []  # type: List[TestRun]
+        self.started_tests = []  # type: List[TestRun]
+        self.completed_tests = []  # type: List[TestRun]
 
         # A dictionary of test set info, written to the set info file.
         self._info = {}
@@ -180,20 +178,14 @@ class TestSet:
 
         return test_sets
 
-    def make(self, build_only=False, rebuild=False, local_builds_only=False,
-             ignore_errors: bool = False) -> Iterator[List[TestRun]]:
+    def make_iter(self, build_only=False, rebuild=False, local_builds_only=False) \
+                  -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).
         """
 
         self.status.set(S_STATES.SET_MAKE, "Setting up TestRun creation.")
-
-        if self.tests is not None:
-            msg = "Already created the tests for TestSet '{}'".format(self.name)
-            self.status.set(S_STATES.ERROR, msg)
-            self.cancel("System Error")
-            raise RuntimeError(msg)
 
         global_conditions = {
             'only_if': self.only_if,
@@ -215,34 +207,33 @@ class TestSet:
 
             if cfg_resolver.errors:
                 output.fprint(
-                    outfile,
+                    self.outfile,
                     "Error loading test configs for test set '{}'".format(self.name))
 
                 for error in cfg_resolver.errors:
                     self.status.set(S_STATES.ERROR,
-                                    '{} - {}'.format(err.request.request, error.pformat()))
+                                    '{} - {}'.format(error.request.request, error.pformat()))
 
                     output.fprint(
-                        outfile,
+                        self.outfile,
                         "{} - {}".format(error.request.request, error.pformat()))
 
-                if not ignore_errors:
+                if not self.ignore_errors:
                     raise TestSetError("Error creating tests for test set {}.".format(self.name),
                                        cfg_resolver.errors[0])
 
             self.status.set(S_STATES.SET_MAKE, "Creating {} test runs".format(len(test_batch)))
 
-            progress = 0
-            tot_tests = len(test_configs)
-            self.tests = []
+            print(len(test_batch))
 
+            progress = 0
             skip_count = 0
 
             new_test_runs = []
-            for ptest in test_configs:
+            for ptest in test_batch:
                 if self.verbosity == Verbose.DYNAMIC:
-                    progress += 1.0 / tot_tests
-                    output.fprint(outfile, "Creating Test Runs: {:.0%}".format(progress),
+                    progress += 1.0 / len(test_batch)
+                    output.fprint(self.outfile, "Creating Test Runs: {:.0%}".format(progress),
                                   end='\r')
 
                 if build_only and local_builds_only:
@@ -266,7 +257,7 @@ class TestSet:
                         new_test_runs.append(test_run)
 
                         if self.verbosity in (Verbose.HIGH, Verbose.MAX):
-                            output.fprint(outfile, 'Created and saved test run {} - {}'
+                            output.fprint(self.outfile, 'Created and saved test run {} - {}'
                                                    .format(test_run.full_id, test_run.name))
                     else:
                         skip_count += 1
@@ -274,7 +265,7 @@ class TestSet:
                               .format(test_run.name, test_run.skip_reasons[0])
                         self.status.set(S_STATES.TESTS_SKIPPED, msg)
                         if self.verbosity in (Verbose.MAX, Verbose.HIGH):
-                            output.fprint(outfile, msg)
+                            output.fprint(self.outfile, msg)
 
                         if not test_run.abort_skipped():
                             self.status.set(
@@ -288,14 +279,14 @@ class TestSet:
                            .format(test_name, self.name))
                     self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
                     if self.ignore_errors and self.verbosity in (Verbose.MAX, Verbose.FULL):
-                        output.fprint(outfile, msg)
+                        output.fprint(self.outfile, msg)
                     else:
                         self.cancel("Error creating other tests in test set '{}'"
                                     .format(self.name))
                         raise TestSetError(msg, err)
 
             if self.verbosity == Verbose.DYNAMIC:
-                output.fprint(outfile, '')
+                output.fprint(self.outfile, '')
 
             self.status.set(
                 S_STATES.SET_MAKE,
@@ -303,37 +294,50 @@ class TestSet:
                 .format(self.name, len(new_test_runs), skip_count))
 
             output.fprint(
-                outfile,
+                self.outfile,
                 "Test set '{}' created {} tests, skipped {}, {} errors\n"
                 "Reasons for skipping each test are in the series status file here:\n"
                 "{}"
                 .format(self.name, len(self.tests), skip_count,
                         len(cfg_resolver.errors), self.status.path))
 
-            yield new_test_runs
+            if new_test_runs:
+                yield new_test_runs
+
+
+    def make(self, build_only=False, rebuild=False, local_builds_only=False) -> List[TestRun]:
+        """As per make_iter(), but just return a list of all tests. This doesn't
+        respect batch sizes, etc, and is entirely for simplifying unit testing."""
+
+        all_tests = []
+        for test_batch in self.make_iter(build_only, rebuild, local_builds_only):
+            all_tests.extend(test_batch)
+
+        return all_tests
 
 
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
 
-    def build(self, outfile: TextIO = StringIO(), ignore_errors=False):
-        """Build all the tests in this Test Set in parallel. This handles user output
-        during the build process.
+    def build(self, tests: List[TestRun],
+              deprecated_builds: Union[Set[str], None] = None) -> List[TestRun]:
+        """Build the tests in this Test Set in parallel. This handles user output
+        during the build process. Returns all the successfully built tests.
 
-        :param outfile: Where to forward user output
-        :return:
+        :param tests: The new tests to build.
+        :param deprecated_builds: A list of builds that have been deprecated
+            by the calling series already, so we don't do it again.
         """
 
-        self.status.set(S_STATES.SET_BUILD, "Building test set {}".format(self.name))
+        print(tests)
 
-        if self.tests is None:
-            raise RuntimeError("You must run TestSet.make() on the test set before"
-                               "it can be built.")
+        deprecated_builds = [] if deprecated_builds is None else deprecated_builds
 
-        output.fprint(outfile, "Building {} tests for test set {}."
-                      .format(len(self.tests), self.name))
+        self.status.set(S_STATES.SET_BUILD, "Building {} tests fo test set {}"
+                                            .format(len(tests), self.iter_name))
 
-        outfile = outfile or StringIO()
+        output.fprint(self.outfile, "Building {} tests for test set {}."
+                      .format(len(tests), self.name))
 
         local_builds = list(filter(
             lambda t: t.build_local and not t.skipped, self.tests))
@@ -341,18 +345,27 @@ class TestSet:
             lambda t: not t.build_local and not t.skipped, self.tests))
         test_threads = []  # type: List[Union[threading.Thread, None]]
 
-        cancel_event = threading.Event()
-
         # Generate new build names for each test that is rebuilding.
         # We do this here, even for non_local builds, because otherwise the
         # non-local builds can't tell what was built fresh either on a
         # front-end or by other tests rebuilding on nodes.
         for test in local_builds + remote_builds:
-            if test.rebuild and test.builder.exists():
+            if test.rebuild and test.builder.exists() \
+                    and test.builder.name not in deprecated_builds:
+                deprecated_builds.append(test.builder.name)
                 test.builder.deprecate()
                 test.builder.rename_build()
                 test.build_name = test.builder.name
                 test.save_attributes()
+
+        build_names = set([test.builder.name for test in tests])
+        if self.ignore_errors:
+            # Each unique build name will share a cancel event.
+            cancel_events = {name: threading.Event() for name in build_names}
+        else:
+            # All builds share a cancel event.
+            _cancel_event = threading.Event()
+            cancel_events = {name: _cancel_event for name in build_names}
 
         # We don't want to start threads that are just going to wait on a lock,
         # so we'll rearrange the builds so that the unique build names go first.
@@ -386,7 +399,7 @@ class TestSet:
         test_by_threads = {}
 
         if self.verbosity not in (Verbose.QUIET, Verbose.DYNAMIC):
-            output.fprint(outfile, self.BUILD_STATUS_PREAMBLE.format(
+            output.fprint(self.outfile, self.BUILD_STATUS_PREAMBLE.format(
                 when='When', test_id='TestID',
                 state_len=STATES.max_length, state='State'), 'Message', width=None)
 
@@ -399,6 +412,7 @@ class TestSet:
             # Start a new thread if we haven't hit our limit.
             if build_order and builds_running < self.pav_cfg.build_threads:
                 test = build_order.pop()
+                cancel_event = cancel_events[test.builder.name]
 
                 test_thread = threading.Thread(
                     target=test.build,
@@ -428,12 +442,12 @@ class TestSet:
                                         .format(when=when, test_id=test.full_id,
                                                 state_len=STATES.max_length,
                                                 state=state))
-                            output.fprint(outfile, preamble, msg, width=None,
+                            output.fprint(self.outfile, preamble, msg, width=None,
                                           wrap_indent=len(preamble))
 
             test_threads = [thr for thr in test_threads if thr is not None]
 
-            if (not ignore_errors) and cancel_event.is_set():
+            if (not self.ignore_errors) and cancel_event.is_set():
                 for thread in test_threads:
                     thread.join()
 
@@ -486,7 +500,7 @@ class TestSet:
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                output.fprint(outfile, line, width=None, end='\r', clear=True)
+                output.fprint(self.outfile, line, width=None, end='\r', clear=True)
             elif self.verbosity == Verbose.MAX:
                 for test in local_builds:
                     seen = message_counts[test.full_id]
@@ -498,7 +512,7 @@ class TestSet:
                             when=when, test_id=test.id,
                             state_len=STATES.max_length, state=state)
 
-                        output.fprint(outfile, preamble, msg, width=None,
+                        output.fprint(self.outfile, preamble, msg, width=None,
                                       wrap_indent=len(preamble))
                     message_counts[test.full_id] += len(msgs)
 
@@ -509,84 +523,66 @@ class TestSet:
             output.fprint(file=outfile, width=None)
 
         self.built_tests = local_builds
-        self.ready_to_start_tests = defaultdict(lambda: [])
+        ready_to_start_tests = defaultdict(lambda: [])
         for test in self.tests:
-            if not (test.build_only and test.build_local) and not test.skipped:
-                self.ready_to_start_tests[test.scheduler].append(test)
+            if not (test.build_only and test.build_local):
+                ready_to_start_tests[test.scheduler].append(test)
 
         self.status.set(S_STATES.SET_BUILD,
                         "Completed build step for {} tests in set {}."
                         .format(self.name, len(self.tests)))
 
-    def kickoff(self, start_max: int = None) -> int:
-        """Kickoff the tests in this set.
+        return ready_to_start_tests
 
-    :param start_max: The maximum number of tests to start.
-    :return: The number of tests kicked off.
+    def kickoff(self, tests: List[TestRun]) -> int:
+        """Kickoff all the given tests under this test set.
+
+    :return: The number of jobs kicked off.
     """
 
         self.status.set(S_STATES.SET_KICKOFF,
-                        "Kicking off test set {}".format(self.name))
+                        "Kicking off {} tests in test set {}".format(len(tests), self.name))
 
-        if self.tests is None:
-            self.cancel("System error.")
-            raise RuntimeError("You must run TestRun.make() before kicking off tests.")
-        elif self.built_tests is None:
-            self.cancel("System error.")
-            raise RuntimeError("You must run TestRun.build() before kicking off tests.")
-
-        ready_count = sum(map(len, self.ready_to_start_tests.values()))
-        if not ready_count:
-            return 0
-
-        ready_tests = self.ready_to_start_tests
-
-        self.started_tests = []
-        self.completed_tests = []
-
-        if start_max is None:
-            start_max = ready_count
+        # Group tests by scheduler
+        by_sched = defaultdict(lambda: [])
+        for test in tests:
+            by_sched[test.scheduler].append(test)
 
         start_count = 0
-        while start_max > 0 and ready_tests.keys():
-            for sched_name in list(ready_tests.keys()):
-                scheduler = schedulers.get_plugin(sched_name)
-                # Refresh the scheduler's node information before kicking off new tests.
-                scheduler.refresh()
-                tests = []
-                while len(tests) < start_max and ready_tests[sched_name]:
-                    tests.append(ready_tests[sched_name].pop(0))
+        for sched_name in list(ready_tests.keys()):
+            scheduler = schedulers.get_plugin(sched_name)
+            sched_tests = ready_tests[sched_name]
 
-                if not ready_tests[sched_name]:
-                    del ready_tests[sched_name]
-
-                start_max -= len(tests)
+            try:
+                self.status.set(S_STATES.SET_KICKOFF,
+                                "Kicking off {} tests under scheduler {}"
+                                .format(len(tests), sched_name))
+                scheduler.schedule_tests(self.pav_cfg, sched_tests)
                 start_count += len(tests)
-
-                try:
-                    self.status.set(S_STATES.SET_KICKOFF,
-                                    "Kicking off {} tests under scheduler {}"
-                                    .format(len(tests), sched_name))
-                    scheduler.schedule_tests(self.pav_cfg, tests)
-                except pavilion.errors.SchedulerPluginError as err:
-                    if self.ignore_errors:
-                        output.fprint(outfile, )
-
-
-                    self.cancel(
-                        "Error scheduling tests (not necessarily this one): {}"
-                        .format(err.args[0]))
-                    raise TestSetError(
-                        "Error starting tests in test set '{}'"
-                        .format(self.name), err)
-
                 self.started_tests.extend(tests)
+            except pavilion.errors.SchedulerPluginError as err:
+                new_exc = TestSetError(
+                    "Error starting tests in test set '{}'"
+                    .format(self.name), err)
+                if self.ignore_errors:
+                    output.fprint(self.outfile, new_exc.pformat())
+
+                self.status.set(S_STATES.ERROR, str(new_exc))
+
+                if not self.ignore_errors:
+                    self.cancel("Error scheduling test '{}'".format(tests[0]))
+                    raise new_exc
+
+        jobs = set()
+        for test in tests:
+            if test.job_id is not None:
+                jobs.add(test.job_id)
 
         self.status.set(S_STATES.SET_KICKOFF,
-                        "Kickoff complete for test set {}. Started {} tests."
-                        .format(self.name, start_count))
+                        "Kickoff complete for test set {}. Started {} tests under {} jobs."
+                        .format(self.name, start_count, len(jobs)))
 
-        return sta
+        return len(jobs)
 
     def cancel(self, reason):
         """Cancel all the tests in the test set."""
@@ -613,42 +609,50 @@ class TestSet:
         completed list as appropriate. Returns the number of tests marked as
         complete."""
 
-        marked = 0
-
-        if self.started_tests is None:
-            return 0
+        completed_jobs = set()
 
         for test in list(self.started_tests):
             if test.complete:
                 self.started_tests.remove(test)
                 self.completed_tests.append(test)
-                marked += 1
+                completed_jobs.add(test.job.name)
 
-        return marked
+        # All started tests should have a job - Update their status based on that job.
+        for test in list(self.started_tests):
+            sched = schedulers.get_plugin(test.scheduler)
+            status = sched.job_status(self.pav_cfg, test)
+            if status.state in (STATES.SCHED_CANCELLED, STATES.SCHED_ERROR):
+                # The test will have been marked as complete
+                self.started_tests.remove(test)
+                self.completed_tests.append(test)
+                completed_jobs.add(test.job.name)
+
+        return len(completed_jobs)
 
     TEST_WAIT_PERIOD = 0.5
 
     def wait(self, wait_for_all=False, wait_period: int = TEST_WAIT_PERIOD) -> int:
-        """Wait for tests to complete. Returns the number of tests that completed
-        when one or more tests have completed.
+        """Wait for tests to complete. Returns the number of jobs that completed for this
+        call to wait.
 
         :param wait_for_all: Wait for all started tests to complete before returning.
         :param wait_period: How long to sleep between test status checks.
         :return: The number of tests that completed.
         """
 
-        marked = self.mark_completed()
 
         # No tests to wait for
         if not self.started_tests:
             return 0
 
-        while ((wait_for_all and self.started_tests) or
-               (not wait_for_all and marked)):
-            time.sleep(wait_period)
-            marked += self.mark_completed()
+        completed_jobs = self.mark_completed()
 
-        return marked
+        while ((wait_for_all and self.started_tests) or
+               (not wait_for_all and completed_jobs)):
+            time.sleep(wait_period)
+            completed_jobs += self.mark_completed()
+
+        return completed_jobs
 
     @property
     def should_run(self) -> Union[bool, None]:

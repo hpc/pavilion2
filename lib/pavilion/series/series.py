@@ -445,63 +445,57 @@ differentiate it from test ids."""
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
 
+        # Track which builds we've already marked as deprecated, when doing rebuilds.
+        deprecated_builds = set()
+        jobs_running = 0
+
         for test_batch in test_set.make(build_only, rebuild, local_builds_only):
 
             # Add all the tests we created to this test set.
-            self._add_tests(test_set)
+            self._add_tests(test_batch, test_set.iter_name)
 
-        # Build each test
-        try:
-            test_set.build(verbosity=verbosity, outfile=outfile)
-        except TestSetError as err:
-            self.status.set(SERIES_STATES.BUILD_ERROR,
-                            "Error building tests. See the series log `pav log series {}"
-                            .format(self.sid))
-            self.set_complete()
-            raise TestSeriesError(
-                "Error building tests for series '{}'"
-                .format(self.sid), err)
-
-        test_start_count = simultaneous
-        while not test_set.done:
+            # Build each test
             try:
-                kicked_off = test_set.kickoff(test_start_count)
-                ktests = []
-                # Make a list of the first three started test ids
-                for ktest in test_set.started_tests[:3]:
-                    # Use the short id name when the config area is the 'main' one.
-                    if ktest.full_id.startswith('main.'):
-                        ktests.append(str(ktest.id))
-                    else:
-                        ktests.append(ktest.full_id)
-                if len(test_set.started_tests) > 3:
-                    ktests.append('...')
-                ktests = ', '.join(ktests)
+                built_tests = test_set.build(test_batch, deprecated_builds)
+            except TestSetError as err:
+                self.status.set(SERIES_STATES.BUILD_ERROR,
+                                "Error building tests. See the series log `pav log series {}"
+                                .format(self.sid))
+                self.set_complete()
+                raise TestSeriesError(
+                    "Error building tests for series '{}'"
+                    .format(self.sid), err)
 
-                if len(test_set.started_tests) == 1:
+            if not built_tests:
+                continue
+
+            try:
+                jobs_running += test_set.kickoff(built_tests)
+            except TestSetError as err:
+                self.status.set(SERIES_STATES.KICKOFF_ERROR,
+                                "Error kicking off tests for series '{}'".format(self.sid))
+                raise TestSeriesError(
+                    "Error kicking off tests for series '{}'".format(self.sid))
+
+            if self.verbosity != Verbose.QUIET:
+                if len(built_tests) == 1:
                     fprint(outfile, "Kicked off test {} for test set '{}' in series {}."
                                     .format(ktests, test_set.name, self.sid))
                 else:
+                    ktests = ', '.join([test.full_id for test in built_tests[:3]]
+                                       + ['...'] if len(built_tests) > 3 else [])
+
                     fprint(outfile, "Kicked off tests {} ({} total) for test set {} "
                                     "in series {}."
-                                    .format(ktests, kicked_off, test_set.name, self.sid))
-            except TestSetError as err:
-                self.status.set(
-                    SERIES_STATES.KICKOFF_ERROR,
-                    "Error kicking off tests. See the series log `pav log series {}"
-                    .format(self.sid))
-                self.set_complete()
-                raise TestSeriesError("Error in series '{}'".format(self.sid), err)
+                                    .format(ktests, len(built_tests), test_set.name, self.sid))
 
-            # If there's any sort of limit to the number of simultaneous tests
-            # then wait for each test set to complete before starting the
-            # next.
-            if simultaneous is not None:
-                test_start_count = test_set.wait(simultaneous)
-            else:
-                break
+            # Wait for jobs until enough have finished to start a new batch.
+            while jobs_running + self.batch_size > self.simultaneous:
+                jobs_completed = test_set.wait()
+                jobs_running -= jobs_completed
 
-    WAIT_INTERVAL = 0.3
+
+    WAIT_INTERVAL = 0.5
 
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
@@ -513,7 +507,7 @@ differentiate it from test ids."""
         while time.time() < end:
             if self.complete:
                 return
-            time.sleep(2) #min(0., timeout or 1))
+            time.sleep(2)
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))
