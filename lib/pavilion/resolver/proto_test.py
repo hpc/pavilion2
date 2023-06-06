@@ -10,6 +10,7 @@ from pavilion import resolve
 from pavilion import variables
 from pavilion import schedulers
 from pavilion import parsers
+from pavilion import result
 from pavilion import output
 
 from .request import TestRequest
@@ -59,6 +60,18 @@ class ProtoTest:
             else:
                 raise TestConfigError(
                     "Error resolving test {}".format(name), err, request=self.request)
+
+    def check_result_format(self):
+        """Make sure the result parsers for each test are ok."""
+
+        # Make sure the result parsers have reasonable arguments.
+        try:
+            result.check_config(self.config['result_parse'],
+                                self.config['result_evaluate'])
+        except ResultError as err:
+            raise TestConfigError(
+                "Error in results section for test {}.".format(self.config['name']),
+                err, request=self.request)
 
 class RawProtoTest:
     """An simple object that holds the pair of a test config and its variable

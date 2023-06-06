@@ -355,27 +355,17 @@ differentiate it from test ids."""
         self.status.set(SERIES_STATES.CANCELED, "Series cancelled: {}".format(message))
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False, verbosity: int = 0,
-            outfile: TextIO = None):
+            local_builds_only: bool = False):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
         :param rebuild: Rebuild tests instead of relying on cached builds.
         :param local_builds_only: When building, only build the tests that would build
             locally.
-        :param verbosity: Verbosity level.
-            -1 - No rolling statuses
-            0 - rolling summaries
-            1 - continuous summary
-            2 - full verbose
-        :param outfile: The outfile to write status info to.
         :return:
         """
 
         self.status.set(SERIES_STATES.RUN, "Series running.")
-
-        if outfile is None:
-            outfile = open('/dev/null', 'w')
 
         # create the test sets and link together.
         try:
@@ -418,73 +408,20 @@ differentiate it from test ids."""
                                   .format(test_set.name))
                     continue
 
-                # Create the test objects
                 try:
-                    test_set.make(build_only, rebuild,
-                                  local_builds_only=local_builds_only, outfile=outfile)
+                    self._run_set(test_set, build_only=build_only,
+                                  rebuild=rebuild, local_builds_only=local_builds_only)
                 except TestSetError as err:
-                    self.status.set(SERIES_STATES.CREATION_ERROR,
-                                    "Error creating tests. See the series log "
+                    self.status.set(SERIES_STATES.ERROR,
+                                    "Error running test set {}. See the series log "
                                     "`pav log series {}`.  {}"
-                                    .format(self.sid, err.args[0]))
-                    self.set_complete()
-                    raise TestSeriesError(
-                        "Error making tests for series '{}'."
-                        .format(self.sid), err)
+                                    .format(test_set.name, self.sid, err.args[0]))
 
-                # Add all the tests we created to this test set.
-                self._add_tests(test_set)
+                self.set_complete()
+                raise TestSeriesError(
+                    "Error making tests for series '{}'."
+                    .format(self.sid), err)
 
-                # Build each test
-                try:
-                    test_set.build(verbosity=verbosity, outfile=outfile)
-                except TestSetError as err:
-                    self.status.set(SERIES_STATES.BUILD_ERROR,
-                                    "Error building tests. See the series log `pav log series {}"
-                                    .format(self.sid))
-                    self.set_complete()
-                    raise TestSeriesError(
-                        "Error building tests for series '{}'"
-                        .format(self.sid), err)
-
-                test_start_count = simultaneous
-                while not test_set.done:
-                    try:
-                        kicked_off = test_set.kickoff(test_start_count)
-                        ktests = []
-                        # Make a list of the first three started test ids
-                        for ktest in test_set.started_tests[:3]:
-                            # Use the short id name when the config area is the 'main' one.
-                            if ktest.full_id.startswith('main.'):
-                                ktests.append(str(ktest.id))
-                            else:
-                                ktests.append(ktest.full_id)
-                        if len(test_set.started_tests) > 3:
-                            ktests.append('...')
-                        ktests = ', '.join(ktests)
-
-                        if len(test_set.started_tests) == 1:
-                            fprint(outfile, "Kicked off test {} for test set '{}' in series {}."
-                                            .format(ktests, test_set.name, self.sid))
-                        else:
-                            fprint(outfile, "Kicked off tests {} ({} total) for test set {} "
-                                            "in series {}."
-                                            .format(ktests, kicked_off, test_set.name, self.sid))
-                    except TestSetError as err:
-                        self.status.set(
-                            SERIES_STATES.KICKOFF_ERROR,
-                            "Error kicking off tests. See the series log `pav log series {}"
-                            .format(self.sid))
-                        self.set_complete()
-                        raise TestSeriesError("Error in series '{}'".format(self.sid), err)
-
-                    # If there's any sort of limit to the number of simultaneous tests
-                    # then wait for each test set to complete before starting the
-                    # next.
-                    if simultaneous is not None:
-                        test_start_count = test_set.wait(simultaneous)
-                    else:
-                        break
 
             for test_set in sets_to_run:
                 potential_sets.remove(test_set)
@@ -503,6 +440,66 @@ differentiate it from test ids."""
         self.status.set(SERIES_STATES.ALL_STARTED,
                         "All {} tests have been started.".format(len(self.tests)))
         common.set_all_started(self.path)
+
+
+    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
+        """Run all requested tests in the given test set."""
+
+        for test_batch in test_set.make(build_only, rebuild, local_builds_only):
+
+            # Add all the tests we created to this test set.
+            self._add_tests(test_set)
+
+        # Build each test
+        try:
+            test_set.build(verbosity=verbosity, outfile=outfile)
+        except TestSetError as err:
+            self.status.set(SERIES_STATES.BUILD_ERROR,
+                            "Error building tests. See the series log `pav log series {}"
+                            .format(self.sid))
+            self.set_complete()
+            raise TestSeriesError(
+                "Error building tests for series '{}'"
+                .format(self.sid), err)
+
+        test_start_count = simultaneous
+        while not test_set.done:
+            try:
+                kicked_off = test_set.kickoff(test_start_count)
+                ktests = []
+                # Make a list of the first three started test ids
+                for ktest in test_set.started_tests[:3]:
+                    # Use the short id name when the config area is the 'main' one.
+                    if ktest.full_id.startswith('main.'):
+                        ktests.append(str(ktest.id))
+                    else:
+                        ktests.append(ktest.full_id)
+                if len(test_set.started_tests) > 3:
+                    ktests.append('...')
+                ktests = ', '.join(ktests)
+
+                if len(test_set.started_tests) == 1:
+                    fprint(outfile, "Kicked off test {} for test set '{}' in series {}."
+                                    .format(ktests, test_set.name, self.sid))
+                else:
+                    fprint(outfile, "Kicked off tests {} ({} total) for test set {} "
+                                    "in series {}."
+                                    .format(ktests, kicked_off, test_set.name, self.sid))
+            except TestSetError as err:
+                self.status.set(
+                    SERIES_STATES.KICKOFF_ERROR,
+                    "Error kicking off tests. See the series log `pav log series {}"
+                    .format(self.sid))
+                self.set_complete()
+                raise TestSeriesError("Error in series '{}'".format(self.sid), err)
+
+            # If there's any sort of limit to the number of simultaneous tests
+            # then wait for each test set to complete before starting the
+            # next.
+            if simultaneous is not None:
+                test_start_count = test_set.wait(simultaneous)
+            else:
+                break
 
     WAIT_INTERVAL = 0.3
 
@@ -614,21 +611,14 @@ differentiate it from test ids."""
 
         self.test_sets[test_set.name] = test_set
 
-        if test_set.tests is not None:
-            self._add_tests(test_set)
-
-    def _add_tests(self, test_set: TestSet):
+    def _add_tests(self, tests, test_set_name):
         """Add the tests in the test set to known series tests.
 
         :param test_set: The set of tests to add.
         """
 
-        if test_set.tests is None:
-            raise RuntimeError("You must run TestSet.make() on the test set before"
-                               "it will have tests to add.")
-
-        for test in test_set.tests:
-            self._add_test(test_set.iter_name, test)
+        for test in tests:
+            self._add_test(test_set_name, test)
 
     def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""

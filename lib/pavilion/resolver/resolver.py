@@ -355,14 +355,21 @@ class TestConfigResolver:
                     for ptest in permutations:
                         ptest.count = perm_repeats
 
-                    resolved_tests_count += len(permutations) * perm_repeats
-                else:
-                    resolved_tests_count += len(permutations) * raw_test.count
-
                 ready_to_resolve.extend(permutations)
 
             # Now resolve all the string syntax and variables those tests at once.
-            resolved_tests.extend(self._resolve_escapes(ready_to_resolve))
+            new_resolved_tests []
+            for ptest in self._resolve_escapes(ready_to_resolve):
+
+                # Perform last minute health checks
+                try:
+                    ptest.check_result_format()
+                    new_resolved_tests.append(ptest)
+                except TestConfigError as err:
+                    self.errors.append(err)
+
+            resolved_tests_count += len(new_resolved_tests)
+            resolved_tests.extend(new_resolved_tests)
             ready_to_resolve = []
 
             # Finally, return batches of the resolved tests.
@@ -664,7 +671,6 @@ class TestConfigResolver:
             test_configs.append(rproto_test)
 
         return test_configs
-
 
     def _load_base_config(self, host) -> Dict:
         """Load the base configuration for the given host.  This is done once and saved."""

@@ -45,6 +45,9 @@ class TestSet:
                  not_if: Dict[str, List[str]] = None,
                  overrides: List = None,
                  parents_must_pass: bool = False,
+                 simultaneous: Union[int, None] = None,
+                 ignore_errors: bool = True,
+                 outfile: TextIO = StringIO(),
                  verbosity=Verbose.QUIET):
         """Initialize the tests given these options, creating TestRun objects.
 
@@ -59,6 +62,9 @@ class TestSet:
         :param overrides: Configuration overrides.
         :param parents_must_pass: Parent test sets must pass for this test set to run.
         :param status: A file-like object to log status and error messages to.
+        :param simultaneous: The maximum number of test to start at the same time.
+        :param ignore_errors: Whether to raise encountered errors or just continue.
+        :param outfile: Where to send user output.
         :param verbosity: The build verbosity, see pavilion.enums.Verbose.
         """
 
@@ -70,6 +76,11 @@ class TestSet:
         self.name = name
         self.iter_name = '{}.{}'.format(iteration, name)
         self.verbosity = verbosity
+        self.outfile = outfile
+        self.ignore_errors = ignore_errors
+
+        self.simultaneous = 2**32 if simultaneous is None else simultaneous
+        self.batch_size = max(self.simultaneous//2, 1)
 
         self.modes = modes or []
         self.host = host
@@ -170,11 +181,13 @@ class TestSet:
         return test_sets
 
     def make(self, build_only=False, rebuild=False, local_builds_only=False,
-             ignore_errors: bool = False, outfile: TextIO = StringIO()):
-        """Resolve the given tests names and options into actual tests, and print
-        the test creation status."""
+             ignore_errors: bool = False) -> Iterator[List[TestRun]]:
+        """Resolve the given tests names and options into actual test run objects, and print
+        the test creation status.  This returns an iterator over batches tests, respecting the
+        batch_size (half the simultanious limit).
+        """
 
-        self.status.set(S_STATES.SET_MAKE, "Creating test runs.")
+        self.status.set(S_STATES.SET_MAKE, "Setting up TestRun creation.")
 
         if self.tests is not None:
             msg = "Already created the tests for TestSet '{}'".format(self.name)
@@ -187,118 +200,118 @@ class TestSet:
             'not_if': self.not_if
         }
 
-        cfg_resolver = TestConfigResolver(self.pav_cfg)
+        cfg_resolver = TestConfigResolver(self.pav_cfg, host=self.host, outfile=self.outfile,
+                                          verbosity=self.verbosity)
 
-        self.status.set(S_STATES.SET_MAKE, "Resolving {} test names."
-                        .format(len(self._test_names)))
-        test_configs, errors = cfg_resolver.load(
-            self._test_names,
-            self.host,
-            self.modes,
-            self.overrides,
-            conditions=global_conditions,
-            verbosity=self.verbosity,
-            outfile=outfile,
-        )
+        self.status.set(S_STATES.SET_MAKE, "Resolving {} test requests in sets of {} (half the simultaneous limit)."
+                        .format(len(self._test_names), self.batch_size))
 
-        if errors:
-            output.fprint(
-                outfile,
-                "Error loading test configs for test set '{}'".format(self.name))
+        for test_batch in cfg_resolver.load_iter(
+                self._test_names,
+                self.modes,
+                self.overrides,
+                conditions=global_conditions,
+                batch_size=self.batch_size,):
 
-            for error in errors:
-                self.status.set(S_STATES.ERROR,
-                                '{} - {}'.format(err.request.request, error.pformat()))
-
-
+            if cfg_resolver.errors:
                 output.fprint(
                     outfile,
-                    "{} - {}".format(error.request.request, error.pformat()))
+                    "Error loading test configs for test set '{}'".format(self.name))
 
-            if not ignore_errors:
-                raise TestSetError()
+                for error in cfg_resolver.errors:
+                    self.status.set(S_STATES.ERROR,
+                                    '{} - {}'.format(err.request.request, error.pformat()))
 
-        self.status.set(S_STATES.SET_MAKE, "Creating test runs")
+                    output.fprint(
+                        outfile,
+                        "{} - {}".format(error.request.request, error.pformat()))
 
-        progress = 0
-        tot_tests = len(test_configs)
-        self.tests = []
+                if not ignore_errors:
+                    raise TestSetError("Error creating tests for test set {}.".format(self.name),
+                                       cfg_resolver.errors[0])
 
-        skip_count = 0
+            self.status.set(S_STATES.SET_MAKE, "Creating {} test runs".format(len(test_batch)))
 
-        for ptest in test_configs:
-            if self.verbosity == Verbose.DYNAMIC:
-                progress += 1.0 / tot_tests
-                output.fprint(outfile, "Creating Test Runs: {:.0%}".format(progress), end='\r')
+            progress = 0
+            tot_tests = len(test_configs)
+            self.tests = []
 
-            if build_only and local_builds_only:
-                # Don't create test objects for tests that would build remotely.
-                if str_bool(ptest.config.get('build', {}).get('on_nodes', 'False')):
-                    skip_count += 1
-                    self.status.set(
-                        S_STATES.TESTS_SKIPPED,
-                        "Skipped test named '{}' from series '{}' - We're just "
-                        "building locally, and this test builds only on nodes."
-                        .format(ptest.config.get('name'), ptest.config.get('suite')))
-                    continue
+            skip_count = 0
 
-            try:
-                test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
-                                   var_man=ptest.var_man, rebuild=rebuild,
-                                   build_only=build_only)
-                if not test_run.skipped:
-                    test_run.save()
-                    self.tests.append(test_run)
+            new_test_runs = []
+            for ptest in test_configs:
+                if self.verbosity == Verbose.DYNAMIC:
+                    progress += 1.0 / tot_tests
+                    output.fprint(outfile, "Creating Test Runs: {:.0%}".format(progress),
+                                  end='\r')
 
-                    if self.verbosity in (Verbose.HIGH, Verbose.MAX):
-                        output.fprint(outfile, 'Created and saved test run {} - {}'
-                                               .format(test_run.full_id, test_run.name))
-                else:
-                    skip_count += 1
-                    msg = "Test {} skipped because '{}'" \
-                          .format(test_run.name, test_run.skip_reasons[0])
-                    self.status.set(S_STATES.TESTS_SKIPPED, msg)
-                    if self.verbosity in (Verbose.MAX, Verbose.HIGH):
-                        output.fprint(outfile, msg)
-
-                    if not test_run.abort_skipped():
+                if build_only and local_builds_only:
+                    # Don't create test objects for tests that would build remotely.
+                    if str_bool(ptest.config.get('build', {}).get('on_nodes', 'False')):
+                        skip_count += 1
                         self.status.set(
                             S_STATES.TESTS_SKIPPED,
-                            "Cleanup of skipped test {} was unsuccessful.")
+                            "Skipped test named '{}' from series '{}' - We're just "
+                            "building locally, and this test builds only on nodes."
+                            .format(ptest.config.get('name'), ptest.config.get('suite')))
+                        continue
 
-            except (TestRunError, TestConfigError) as err:
-                tcfg = ptest.config
-                test_name = "{}.{}".format(tcfg.get('suite'), tcfg.get('name'))
-                msg = ("Error creating test '{}' in test set '{}'"
-                       .format(test_name, self.name))
-                self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
-                if self.ignore_errors and self.verbosity in (Verbose.MAX, Verbose.FULL):
-                    output.fprint(outfile, msg)
-                else:
-                    self.cancel("Error creating other tests in test set '{}'"
-                                .format(self.name))
-                    raise TestSetError(msg, err)
+                try:
+                    test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
+                                       var_man=ptest.var_man, rebuild=rebuild,
+                                       build_only=build_only)
+                    if not test_run.skipped:
+                        test_run.save()
+                        self.tests.append(test_run)
+                        new_test_runs.append(test_run)
 
-        if self.verbosity == Verbose.DYNAMIC:
-            output.fprint(outfile, '')
+                        if self.verbosity in (Verbose.HIGH, Verbose.MAX):
+                            output.fprint(outfile, 'Created and saved test run {} - {}'
+                                                   .format(test_run.full_id, test_run.name))
+                    else:
+                        skip_count += 1
+                        msg = "Test {} skipped because '{}'" \
+                              .format(test_run.name, test_run.skip_reasons[0])
+                        self.status.set(S_STATES.TESTS_SKIPPED, msg)
+                        if self.verbosity in (Verbose.MAX, Verbose.HIGH):
+                            output.fprint(outfile, msg)
 
-        # make sure result parsers are ok. This will throw an exception if they are not.
-        self.check_result_format(self.tests)
+                        if not test_run.abort_skipped():
+                            self.status.set(
+                                S_STATES.TESTS_SKIPPED,
+                                "Cleanup of skipped test {} was unsuccessful.")
 
-        self.status.set(
-            S_STATES.SET_MAKE,
-            "Test set '{}' created {} tests, skipped {}"
-            .format(self.name, len(self.tests), skip_count))
+                except (TestRunError, TestConfigError) as err:
+                    tcfg = ptest.config
+                    test_name = "{}.{}".format(tcfg.get('suite'), tcfg.get('name'))
+                    msg = ("Error creating test '{}' in test set '{}'"
+                           .format(test_name, self.name))
+                    self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
+                    if self.ignore_errors and self.verbosity in (Verbose.MAX, Verbose.FULL):
+                        output.fprint(outfile, msg)
+                    else:
+                        self.cancel("Error creating other tests in test set '{}'"
+                                    .format(self.name))
+                        raise TestSetError(msg, err)
 
-        # make sure result parsers are ok
-        self.check_result_format(self.tests)
+            if self.verbosity == Verbose.DYNAMIC:
+                output.fprint(outfile, '')
 
-        output.fprint(
-            outfile,
-            "Test set '{}' created {} tests, skipped {}, {} errors\n"
-            "Reasons for skipping each test are in the series status file here:\n"
-            "{}"
-            .format(self.name, len(self.tests), skip_count, len(errors), self.status.path))
+            self.status.set(
+                S_STATES.SET_MAKE,
+                "Test set '{}' created {} more tests, skipped {}"
+                .format(self.name, len(new_test_runs), skip_count))
+
+            output.fprint(
+                outfile,
+                "Test set '{}' created {} tests, skipped {}, {} errors\n"
+                "Reasons for skipping each test are in the series status file here:\n"
+                "{}"
+                .format(self.name, len(self.tests), skip_count,
+                        len(cfg_resolver.errors), self.status.path))
+
+            yield new_test_runs
+
 
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
@@ -586,27 +599,6 @@ class TestSet:
             test.cancel(reason)
 
         cancel_utils.cancel_jobs(self.pav_cfg, self.tests)
-
-    @staticmethod
-    def check_result_format(tests: List[TestRun]):
-        """Make sure the result parsers for each test are ok."""
-
-        rp_errors = []
-        for test in tests:
-
-            # Make sure the result parsers have reasonable arguments.
-            try:
-                result.check_config(test.config['result_parse'],
-                                    test.config['result_evaluate'])
-            except ResultError as err:
-                rp_errors.append((test, str(err)))
-
-        if rp_errors:
-            msg = ["Result Parser configuration had errors:"]
-            for test, error in rp_errors:
-                msg.append("{} - {}".format(test.name, error))
-
-            raise TestSetError('\n'.join(msg))
 
     def force_completion(self):
         """Mark all of the tests as complete. We generally do this after
