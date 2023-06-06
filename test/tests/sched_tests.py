@@ -221,8 +221,33 @@ class SchedTests(PavTestCase):
         node_list = dummy._node_lists[int(sched_vars.node_list_id())]
         self.assertEqual(len(node_list), 79)
 
+        # Node00 is already filtered, so it can't be included.
         svars = dummy.get_initial_vars({'include_nodes': ['node00']})
         self.assertEqual(len(svars['errors']), 1, msg="There should be an error here.")
+
+        # Verify that 'include_nodes' are in every chunk.
+        svars = dummy.get_initial_vars({'include_nodes': ['node01'], 'chunking': {'size': '10'}})
+        for chunk in svars._chunks:
+            self.assertIn('node01', chunk)
+
+        # Check that 'across_nodes' works, and that it works as expected with include_nodes and exclude_nodes
+        across_nodes = ['node01', 'node02', 'node03', 'node04', 'node05', 'node06', 'node07', 
+                        'node08', 'node09', 'node11', 'node12', 'node13', 'node14', 'node15', 
+                        'node16', 'node17', 'node18', 'node19', 'node21', 'node22', 'node23', 
+                        'node24', 'node25', 'node26', 'node27', 'node28', 'node29']
+        svars = dummy.get_initial_vars({'across_nodes': ['node[01-30]']})
+        self.assertEqual(sorted(svars['node_list']), across_nodes)
+
+        svars = dummy.get_initial_vars({'across_nodes': ['node[01-30]'], 'exclude_nodes': ['node[01-10]']})
+        self.assertEqual(sorted(svars['node_list']), across_nodes[9:])
+
+        svars = dummy.get_initial_vars({'across_nodes': ['node[01-30]'], 'include_nodes': ['node[01-02]'],
+                                        'chunking': {'size': '5'}})
+        self.assertEqual(sorted(svars['node_list']), across_nodes)
+        self.assertEqual(len(svars._chunks), 9)
+        for chunk in svars._chunks:
+            self.assertIn('node01', chunk)
+            self.assertIn('node02', chunk)
 
     def test_chunking_size(self):
         """"""
@@ -251,16 +276,14 @@ class SchedTests(PavTestCase):
                 else:
                     chunk_size = size
 
-                chunk_id = (node_list_id, chunk_size, 'contiguous', extra)
-                chunks = dummy._chunks[chunk_id]
-                for chunk in chunks:
+                for chunk in sched_vars._chunks:
                     self.assertEqual(len(chunk), chunk_size)
 
                 # Make sure we have the right number of chunks too.
                 num_chunks = len(node_list)//chunk_size
                 if extra == sconfig.BACKFILL and len(node_list) % chunk_size:
                     num_chunks += 1
-                self.assertEqual(len(chunks), num_chunks)
+                self.assertEqual(len(sched_vars._chunks), num_chunks)
 
                 test_cfg = self._quick_test_cfg()
                 test_cfg['scheduler'] = 'dummy'
@@ -294,16 +317,15 @@ class SchedTests(PavTestCase):
             # Exercise each node selection method.
             sched_vars = dummy.get_initial_vars(sched_config)
             node_list_id = int(sched_vars['node_list_id'])
-            chunks = dummy._chunks[(node_list_id, chunk_size,
-                                    select, sconfig.BACKFILL)]
+            chunks = sched_vars._chunks
 
             # This is here to debug node selection and visually examine the node
             # selection algorithm results, as they are mostly random.
             if enable_view:
                 output.fprint(sys.stdout, select, sorted(list(chunks[0])))
 
-    def test_shared_kickoff(self):
-        """Check that shared kickoffs work as expected."""
+    def test_shared_kickoff_chunking(self):
+        """Check that shared kickoffs work as expected when chunking is used."""
 
         base_test_cfg = self._quick_test_cfg()
         base_test_cfg['scheduler'] = 'dummy'
@@ -315,6 +337,93 @@ class SchedTests(PavTestCase):
             test_cfg['schedule'] = {
                 'nodes': 'all',
                 'share_allocation': 'True',
+                'chunking': {'size': '45' if i % 2 else '60',
+                             'extra': 'discard'}
+            }
+            test = self._quick_test(test_cfg, finalize=False)
+            tests.append(test)
+            if i in (0, 2, 4, 6, 8):
+                shared_groups[0].append(test)
+            elif i in (1, 5, 9):
+                shared_groups[1].append(test)
+            else:
+                shared_groups[2].append(test)
+
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, tests)
+
+        # Make sure all the tests share a job.
+        for share_group in shared_groups:
+            job1 = share_group[0].job
+            self.assertTrue(all([test.job == job1 for test in share_group]))
+
+        for test in tests:
+            test.wait(10)
+
+        for test in tests:
+            self.assertEqual(test.results['result'], 'PASS')
+
+    def test_shared_kickoff_no_chunking(self):
+        """Check that shared kickoffs work as expected when no chunking is used."""
+
+        base_test_cfg = self._quick_test_cfg()
+        base_test_cfg['scheduler'] = 'dummy'
+
+        tests = []
+        shared_groups = [[], [], [], [], []]
+        # Check that tests are binned across the machine.
+        test_cfg = copy.deepcopy(base_test_cfg)
+        test_cfg['schedule'] = {
+            'nodes': '17',
+            'share_allocation': 'True',
+            'chunking': {'size': '0'}
+        }
+        for i in range(10):
+            test = self._quick_test(test_cfg, finalize=False)
+            tests.append(test)
+            shared_groups[i % 5].append(test)
+
+        # Check that when distributing tests across the whole machine that the tests
+        # are properly distributed even if they don't fill the machine.
+        test_cfg = copy.deepcopy(base_test_cfg)
+        test_cfg['schedule'] = {
+            'nodes': '3',
+            'share_allocation': 'True',
+            'chunking': {'size': '0'}
+        }
+        unfilled_tests = [self._quick_test(test_cfg, finalize=False) for _ in range(10)]
+        tests.extend(unfilled_tests)
+
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, tests)
+
+        # Make sure all the tests share a job.
+        for share_group in shared_groups:
+            job1 = share_group[0].job
+            self.assertTrue(all([test.job == job1 for test in share_group]))
+
+        for test in unfilled_tests:
+            self.assertEqual(len(test.job.get_test_id_pairs()), 1)
+
+        for test in tests:
+            test.wait(10)
+
+        for test in tests:
+            self.assertEqual(test.results['result'], 'PASS')
+
+    def test_shared_kickoff(self):
+        """Check that shared kickoffs work as expected when user asks to use the same nodes."""
+
+        base_test_cfg = self._quick_test_cfg()
+        base_test_cfg['scheduler'] = 'dummy'
+
+        tests = []
+        shared_groups = [[], [], []]
+        for i in range(10):
+            test_cfg = copy.deepcopy(base_test_cfg)
+            test_cfg['schedule'] = {
+                'nodes': 'all',
+                'share_allocation': 'Max',
                 'chunking': {'size': '45' if i % 2 else '0',
                              'extra': 'discard'}
             }
@@ -444,6 +553,26 @@ class SchedTests(PavTestCase):
             test.finalize(var_man)
             self.assertEqual(int(test.var_man['sched.tasks_per_node']), exp_tpn)
 
+    def test_wrapper(self):
+        """Tests the wrapper feature in the schedule section"""
 
+        # Scheduler configuration
+        test_cfg = self._quick_test_cfg()
+        test_cfg['scheduler'] = 'dummy'
+        test_cfg['schedule'] = {'node': '1'}
 
+        # The wrapper can by anything a command or even a string
+        test_cfg['schedule'] = {'wrapper': 'echo'}
+        test_cfg['run']['cmds'] = ['{{sched.test_cmd}} "this is the wrapper test"']
 
+        test = self._quick_test(test_cfg, finalize=False)
+
+        # Using the dummy scheduler to test the feature
+        dummy = pavilion.schedulers.get_plugin('dummy')
+        dummy.schedule_tests(self.pav_cfg, [test])
+        # Wait few seconds for the test to be scheduled to run.
+        test.wait()
+
+        # Check if it actually echoed to log
+        with (test.path/'run.log').open('r') as runlog:
+            self.assertIn("wrapper test", runlog.read())

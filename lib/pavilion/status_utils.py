@@ -25,8 +25,8 @@ RUNNING_UPDATE_TIMEOUT = 5
 
 def status_from_test_obj(pav_cfg: dict, test: TestRun):
 
-    """Takes a test object or list of test objects and creates the dictionary
-    expected by the print_status function.
+    """Takes a test object and creates the dictionary expected by the
+    print_status function.
 
 :param pav_cfg: Pavilion base configuration.
 :param test: Pavilion test object.
@@ -38,11 +38,20 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
     status_f = test.status.current()
 
     if status_f.state == STATES.BUILDING:
+        # When building, the update time comes from the build log
         last_update = test.builder.log_updated()
         status_f.note = ' '.join([
             status_f.note, '\nLast updated: ',
             str(last_update) if last_update is not None else '<unknown>'])
-    elif status_f.state == STATES.RUNNING or test.scheduler == "flux":
+#<<<<<<< HEAD
+#    elif status_f.state == STATES.RUNNING or test.scheduler == "flux":
+#=======
+
+    elif status_f.state in STATES.RUNNING:
+        # When running check for recent run log updates, and check the
+        # scheduler if things have gone on too long.
+
+#>>>>>>> 7508b173df69f703309a73adb20e220788319cac
         log_path = test.path/'run.log'
         if log_path.exists():
             mtime = log_path.stat().st_mtime
@@ -52,12 +61,17 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         if mtime is None or time.time() - mtime > RUNNING_UPDATE_TIMEOUT:
             sched = schedulers.get_plugin(test.scheduler)
             sched_status_f = sched.job_status(pav_cfg, test)
-            if sched_status_f.state != STATES.SCHED_RUNNING:
+            if sched_status_f.state != STATES.SCHED_STARTUP:
                 status_f = sched_status_f
         else:
             last_update = format_mtime(mtime)
             status_f.note = ' '.join([
                 status_f.note, '\nLast updated:', last_update])
+
+    elif status_f.state in STATES.SCHEDULED:
+        # When the state is scheduled, get the real status from the scheduler.
+        sched = schedulers.get_plugin(test.scheduler)
+        status_f = sched.job_status(pav_cfg, test)
 
     try:
         # Use the actual node count one the test is running.

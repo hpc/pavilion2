@@ -1,0 +1,41 @@
+_base:
+
+  module_wrappers:
+    gcc:
+      modules:
+        - 'gcc'
+        - 'foo->gcc'
+      env:
+        CC: 'BAR'
+        CPP: 'BAZ-${gcc_VERSION}'
+
+    'openmpi-*':
+      modules:
+        - 'openmpi-intel->openmpi-*'
+      env:
+        MPICC: 'mpicc'
+
+test-load:
+  inherits_from: _base
+
+  run:
+    modules:
+      - gcc/15.2.3
+      - openmpi-bar/11.10
+
+test-no-vers:
+  inherits_from: _base
+
+  run:
+    modules:
+      - gcc
+      - openmpi-bar
+
+test-swap:
+    inherits_from: _base
+
+    run:
+      modules:
+        - 'bcc/3.2.1->gcc/1.2.3'
+        - 'openmpi-foo->openmpi-bar'
+        - 'bcc-*->gcc/1.2.8'

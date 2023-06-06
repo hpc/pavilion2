@@ -1,0 +1,5 @@
+# Should throw an error for a missing key, but with suggestions at a lower level.
+
+lower:
+  chunking:
+    size: 10

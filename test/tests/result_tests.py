@@ -2,11 +2,13 @@
 
 import copy
 import datetime
+import io
 import json
 import logging
 import pprint
 from collections import OrderedDict
 
+import pavilion.errors
 import pavilion.result
 import pavilion.result.common
 import yaml_config as yc
@@ -15,7 +17,8 @@ from pavilion import commands
 from pavilion import config
 from pavilion import result
 from pavilion import utils
-from pavilion.result import ResultError, base
+from pavilion.result import base
+from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
@@ -43,14 +46,14 @@ class ResultParserTests(PavTestCase):
                     'echo "Hello World."',
                     'echo "Goodbye Cruel World."',
                     'echo "Multipass 1, 2, 3"',
-                    'echo "A: 1"',
-                    'echo "B: 2"',
-                    'echo "B: 3"',
-                    'echo "C: 4"',
-                    'echo "D: 5"',
+                    'echo "A: 5"',
                     'echo "B: 6"',
-                    'echo "D: 7"',
-                    'echo "E: 8"',
+                    'echo "B: 2"',
+                    'echo "C: 4"',
+                    'echo "D: 8"',
+                    'echo "B: 3"',
+                    'echo "D: 1"',
+                    'echo "E: 7"',
                     'echo "In a World where..." >> other.log',
                     'echo "What in the World" >> other.log',
                     'echo "something happens..." >> other2.log',
@@ -60,8 +63,8 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'regex': {
-                    'basic': {'regex': r'.* World'},
-                    'bc': {
+                    'Basic': {'regex': r'.* World'},
+                    'BC': {
                         'regex': r'.: (\d)',
                         'preceded_by': [r'^B:', r'^C:'],
                         'match_select': 'all',
@@ -101,6 +104,36 @@ class ResultParserTests(PavTestCase):
                         'regex':              r'.*',
                         'for_lines_matching': r'nothing',
                         'match_select':       base_classes.MATCH_FIRST,
+                    },
+                    'b_sum': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select': 'all',
+                        'action': 'store_sum',
+                    },
+                    'min': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_min',
+                    },
+                    'med': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_median',
+                    },
+                    'mean': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_mean',
+                    },
+                    'max': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^[A-E]:',
+                        'match_select': 'all',
+                        'action': 'store_max',
                     },
                     'mp1, _  ,   mp3': {
                         'regex': r'Multipass (\d), (\d), (\d)'
@@ -173,13 +206,18 @@ class ResultParserTests(PavTestCase):
         results = test.gather_results(0)
 
         expected = {
-            'basic': 'Hello World',
-            'bc': [5],
-            'bcd': [5],
-            'bees': [2, 3, 6],
-            'last_b': 6,
-            'middle_b': 3,
-            'other_middle_b': 3,
+            'Basic': 'Hello World',
+            'BC': [8],
+            'bcd': [8],
+            'bees': [6, 2, 3],
+            'b_sum': 11,
+            'min': 1,
+            'med': 4.5,
+            'mean': 4.5,
+            'max': 8,
+            'last_b': 3,
+            'middle_b': 2,
+            'other_middle_b': 2,
             'no_lines_match': [],
             'no_lines_match_last': None,
             'true': True,
@@ -418,24 +456,23 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        cfgs = [cfg_exclude_key_error, cfg_exclude_type_error,
-                cfg_include_key_error, cfg_include_type_error,
-                cfg_stopat_none_error, cfg_stopat_bad_error]
+        cfgs = [
+            # config, expected error
+            (cfg_exclude_key_error,"Excluded key foo.badkey doesn't exist"),
+            (cfg_exclude_type_error, "but foo.bar's value isn't a mapping"),
+            (cfg_include_key_error, "Explicitly included JSON key 'foo.badkey' doesn't exist"),
+            (cfg_include_type_error, "Explicitly included key 'foo.buzz.badkey' doesn't exist "
+                                     "in original JSON."),
+            (cfg_stopat_none_error, "Invalid JSON: Extra data:"),
+            (cfg_stopat_bad_error, "Invalid JSON: Extra data:"),
+        ]
 
-        error_texts = ["doesn't exist.",
-                       "isn't a mapping.",
-                       "doesn't exist.",
-                       "doesn't exist.",
-                       "Invalid JSON:",
-                       "Invalid JSON:",
-                       ]
-
-        for i, cfg in enumerate(cfgs):
+        for cfg, exp_err in cfgs:
             test = self._quick_test(cfg=cfg)
             test.run()
-            results = test.gather_results(0)
-            self.assertTrue(
-                error_texts[i] in results[result.RESULT_ERRORS][0])
+            log = io.StringIO()
+            results = test.gather_results(0, log_file=log)
+            self.assertIn(exp_err, results[result.RESULT_ERRORS][0]) #, msg=log.getvalue())
 
     def test_table_parser(self):
         """Check table result parser operation."""
@@ -453,7 +490,7 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'table': {
-                    'table1': {
+                    'Table1': {
                         'delimiter_re': r'\|',
                         'col_names': ['cola', 'soda', 'pop'],
                         'preceded_by': ['table1', '', ''],
@@ -503,7 +540,7 @@ class ResultParserTests(PavTestCase):
         }
 
         expected = {
-            'table1': {
+            'Table1': {
                 'data1': {'cola': 3,    'soda': 'data4', 'pop': None},
                 'data2': {'cola': 8,    'soda': 'data5', 'pop': None},
                 'data3': {'cola': None, 'soda': 'data6', 'pop': None},
@@ -530,8 +567,8 @@ class ResultParserTests(PavTestCase):
                 'data15': {'col2': None, 'col3': 'data18'}
             },
             'table4': {
-                'row_11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
-                'row_41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
+                '11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
+                '41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
                 'item1': {'colb': 'item2', 'colc': 'item3', 'cold': 'item4'},
                 'item13': {'colb': 'item14', 'colc': 'item15', 'cold':
                            'item16'},
@@ -603,8 +640,8 @@ class ResultParserTests(PavTestCase):
     def test_evaluate(self):
 
         ordered = OrderedDict()
-        ordered['val_a'] = '3'
-        ordered['val_b'] = 'val_a + 1'
+        ordered['Val_a'] = '3'
+        ordered['val_b'] = 'Val_a + 1'
 
         base_cfg = self._quick_test_cfg()
         base_cfg['run']['cmds'] = [
@@ -632,10 +669,10 @@ class ResultParserTests(PavTestCase):
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
 
             # Check basic math.
-            ({'val_a': '3',
-              'val_b': 'val_a + val_c',
-              'val_c': 'val_a*2'},
-             {'val_a': 3, 'val_b': 9, 'val_c': 6}),
+            ({'Val_a': '3',
+              'val_b': 'Val_a + val_c',
+              'val_c': 'Val_a*2'},
+             {'Val_a': 3, 'val_b': 9, 'val_c': 6}),
 
             # Check list operations.
             ({'list_ops': '[1, 2, 3] == 2'},
@@ -681,7 +718,7 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg)
             test.run()
 
-            with self.assertRaises(pavilion.result.common.ResultError):
+            with self.assertRaises(pavilion.errors.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
 
     def test_result_command(self):
@@ -827,7 +864,7 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        with self.assertRaises(pavilion.result.common.ResultError):
+        with self.assertRaises(pavilion.errors.ResultError):
             result.check_config(cfg['result_parse'], {})
 
         test = self._quick_test(cfg, 'split_test')

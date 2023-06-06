@@ -1,7 +1,6 @@
 from pavilion import plugins
 from pavilion import unittest
 from pavilion import schedulers
-from pavilion import cancel
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 import time

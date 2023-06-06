@@ -7,10 +7,17 @@ import yaml_config as yc
 from pavilion import utils
 
 
+MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
+                    'socket', 'numa', 'board', 'node')
+
+
 class ScheduleConfig(yc.KeyedElem):
     """Scheduling configuration."""
 
     ELEMENTS = [
+        yc.StrElem('core_spec',
+            help_text="The count identifies the number of cores to be reserved"
+                      " for system overhead on each allocated compute node."),
         yc.StrElem(
             'nodes',
             help_text="The number of nodes to acquire to scheduler the job as "
@@ -63,6 +70,9 @@ class ScheduleConfig(yc.KeyedElem):
             'account',
             help_text="The account to use when creating an allocation."),
         yc.StrElem(
+            'wrapper',
+            help_text="Wrapper for the scheduler command."),
+        yc.StrElem(
             'reservation',
             help_text="The reservation to use when creating an allocation. When blank "
                       "nodes in reservations are filtered. Use the keyword 'any' to "
@@ -74,6 +84,13 @@ class ScheduleConfig(yc.KeyedElem):
                       "increase time the time limit beyond the cluster default. "
                       "Tests that share an allocation share the largest given time "
                       "limit."),
+        yc.ListElem(
+            'across_nodes',
+            sub_elem=yc.StrElem(),
+            help_text="Only nodes in this list are considered when running a test. "
+                      "Each listed node may be a node range as per 'exclude_nodes'. "
+                      "Nodes in this may also be 'included' (in each chunk) or "
+                      "'excluded'."),
         yc.ListElem(
             'include_nodes',
             sub_elem=yc.StrElem(),
@@ -138,6 +155,28 @@ class ScheduleConfig(yc.KeyedElem):
                 yc.StrElem(
                     'cpus',
                     help_text="CPUS per node."),
+            ]
+        ),
+        yc.KeyedElem(
+            'mpirun_opts',
+            help_text="Config elements for MPI-related options.",
+            elements=[
+                yc.StrElem(
+                    name='bind_to',
+                    help_text="MPIrun --bind-to option. See `man mpirun`"
+                ),
+                yc.StrElem(
+                    name='rank_by',
+                    help_text="MPIrun --rank-by option. See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='mca', sub_elem=yc.StrElem(),
+                    help_text="MPIrun mca module options (--mca). See `man mpirun`"
+                ),
+                yc.ListElem(
+                    name='extra', sub_elem=yc.StrElem(),
+                    help_text="Extra arguments to add to mpirun commands."
+                )
             ]
         )
     ]
@@ -402,6 +441,19 @@ def _validate_node_list(items) -> List[str]:
 
     return nodes
 
+def _validate_allocation_str(val) -> Union[str, None]:
+    """Validates string and returns true, false or max for the share_allocation feature"""
+
+    if isinstance(val, str):
+        if val.lower() == 'false':
+            return False
+        elif val.lower() == 'max':
+            return val.lower()
+        else:
+            return True
+    else:
+        return True
+
 
 CONTIGUOUS = 'contiguous'
 RANDOM = 'random'
@@ -426,7 +478,7 @@ CONFIG_VALIDATORS = {
     'nodes':            _validate_nodes,
     'min_nodes':        _validate_nodes,
     'chunking':         {
-        'size':           min_int('chunk.size', min_val=0),
+        'size':           _validate_nodes,
         'node_selection': NODE_SELECT_OPTIONS,
         'extra':          NODE_EXTRA_OPTIONS,
     },
@@ -436,15 +488,24 @@ CONFIG_VALIDATORS = {
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'core_spec':        None,
+    'wrapper':          None,
     'reservation':      None,
+    'across_nodes':     _validate_node_list,
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
-    'share_allocation': utils.str_bool,
+    'share_allocation': _validate_allocation_str,
     'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
         'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
         'mem':          min_int('cluster_info.mem', min_val=1, required=False),
         'cpus':         min_int('cluster_info.cpus', min_val=1, required=False)
+    },
+    'mpirun_opts':      {
+        'bind_to': MPIRUN_BIND_OPTS,
+        'rank_by': MPIRUN_BIND_OPTS,
+        'mca': validate_list,
+        'extra': validate_list
     }
 }
 
@@ -462,8 +523,10 @@ CONFIG_DEFAULTS = {
     'partition':        None,
     'qos':              None,
     'account':          None,
+    'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
+    'across_nodes':     [],
     'include_nodes':    [],
     'exclude_nodes':    [],
     'time_limit':       None,
@@ -471,11 +534,31 @@ CONFIG_DEFAULTS = {
         'node_count': '1',
         'mem':        '1000',
         'cpus':       '4',
+    },
+    'mpirun_opts':      {
+        'mca': [],
+        'extra': []
     }
 }
 
 
-def validate_config(config: Dict[str, str],
+def validate_config(config: Dict[str, str]):
+    """Validate the scheduler config using the validator dict.
+
+    :param config: The configuration dict to validate. Expected to be the result
+        of parsing with the above yaml_config parser."""
+
+    val_config = _validate_config(config)
+
+    # Flex scheduling is when the scheduler picks the nodes, which can't happen if we're using
+    # chunking or have a limited set of nodes.
+    val_config['flex_scheduled'] = (val_config['chunking']['size'] in (0, None)
+                                    and not val_config['across_nodes'])
+
+    return val_config
+
+
+def _validate_config(config: Dict[str, str],
                     validators: Dict[str, Any] = None,
                     defaults: Dict[str, Any] = None) -> Dict[str, Any]:
     """Validate the scheduler config using the validator dict.
@@ -514,7 +597,7 @@ def validate_config(config: Dict[str, str],
 
             except ValueError as err:
                 raise SchedConfigError("Config value for key '{}' had a validation "
-                                       "error: {}".format(key, err))
+                                       "error.".format(key), err)
 
         elif isinstance(validator, (tuple, list)):
             if value not in validator:
@@ -525,7 +608,7 @@ def validate_config(config: Dict[str, str],
         elif isinstance(validator, dict):
             if value is None:
                 value = {}
-            normalized_config[key] = validate_config(
+            normalized_config[key] = _validate_config(
                 config=value,
                 validators=validator,
                 defaults=defaults[key])

@@ -11,7 +11,8 @@ from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.types import NodeInfo, Nodes, NodeList, NodeSet, NodeRange
 from .config import validate_config, AVAILABLE, BACKFILL, calc_node_range
-from .scheduler import SchedulerPlugin, SchedulerPluginError
+from .scheduler import SchedulerPlugin
+from ..errors import SchedulerPluginError
 from .vars import SchedulerVariables
 
 ChunksBySelect = NewType('ChunksBySelect', Dict[str, List[NodeList]])
@@ -87,12 +88,22 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         errors = []
 
-        if sched_config['include_nodes']:
-            for node in sched_config['include_nodes']:
-                if node not in filtered_nodes:
-                    errors.append(
-                        "Requested node (via 'schedule.include_nodes') was filtered "
-                        "due to other filtering ")
+        chunk_size = sched_config['chunking']['size']
+        include_nodes = sched_config['include_nodes']
+        # Note: When chunking isn't used (ie - node selection is left to the scheduler),
+        # node inclusion is handled by the scheduler plugin.
+        for node in include_nodes:
+            if node not in filtered_nodes:
+                errors.append(
+                    "Requested node (via 'schedule.include_nodes') was filtered "
+                    "due to other filtering ")
+
+        if chunk_size not in (0, None) and len(include_nodes) >= chunk_size:
+            errors.append(
+                "Requested {} 'schedule.include_nodes' to include in every chunk, but "
+                "set a 'chunking.size' of {}. "
+                "The chunk size must be more than the number of include_nodes."
+                .format(len(include_nodes, chunk_size)))
 
         min_nodes, max_nodes = calc_node_range(sched_config, len(filtered_nodes))
         if min_nodes > max_nodes:
@@ -100,6 +111,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 "Requested between {}-{} nodes, but the minimum is more than the maximum "
                 "node count"
                 .format(min_nodes, max_nodes))
+
+        if max_nodes < len(include_nodes):
+            errors.append(
+                "Requested {} 'schedule.include_nodes' to be included in every job, but "
+                "the job size is only {} via 'schedule.nodes'."
+                .format(len(include_nodes), max_nodes))
 
         if len(filtered_nodes) < min_nodes:
             reasons = []
@@ -128,7 +145,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         chunks = self._get_chunks(node_list_id, sched_config)
 
-        sched_vars = self.VAR_CLASS(sched_config, nodes=self._nodes, chunks=chunks,
+        nodes = Nodes({node: self._nodes[node] for node in filtered_nodes})
+        sched_vars = self.VAR_CLASS(sched_config, nodes=nodes, chunks=chunks,
                                     node_list_id=node_list_id)
         sched_vars.add_errors(errors)
         return sched_vars
@@ -140,7 +158,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         try:
             nodes = test.job.load_sched_data()
         except JobError as err:
-            raise SchedulerPluginError("Could not load node info: {}".format(err.args[0]))
+            raise SchedulerPluginError("Could not load node info.", err)
 
         # Get the list of allocation nodes
         alloc_nodes = self._get_alloc_nodes(test.job)
@@ -189,37 +207,44 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         partition = sched_config.get('partition')
         reservation = sched_config.get('reservation')
+        across_nodes = sched_config['across_nodes']
         exclude_nodes = sched_config['exclude_nodes']
         node_state = sched_config['node_state']
 
         filter_reasons = collections.defaultdict(lambda: [])
+        available_msg = "Nodes not available ('schedule.node_state={}')".format(AVAILABLE)
 
         for node_name, node in nodes.items():
             if not node.get('up'):
-                filter_reasons['not up'].append(node_name)
+                filter_reasons['Nodes not up'].append(node_name)
                 continue
 
             if node_state == AVAILABLE and not node.get('available'):
-                filter_reasons['not available'].append(node_name)
+                filter_reasons[available_msg].append(node_name)
                 continue
 
             if (partition is not None
                     and 'partitions' in node
                     and partition not in node['partitions']):
-                reason_key = "partition '{}' not in {}".format(partition, node['partitions'])
+                reason_key = "Requested 'schedule.partition' '{}' not in {}"\
+                             .format(partition, node['partitions'])
                 filter_reasons[reason_key].append(node_name)
                 continue
 
             if 'reservations' in node:
                 if (reservation is not None
                         and reservation not in node['reservations']):
-                    reason_key = "reservation '{}' not in {}"\
+                    reason_key = "Requested 'schedule.reservation' '{}' not in {}"\
                                  .format(reservation, node['reservations'])
                     filter_reasons[reason_key].append(node_name)
                     continue
 
+            if across_nodes and node_name not in across_nodes:
+                filter_reasons['Not in "schedule.across_nodes"'].append(node_name)
+                continue
+
             if node_name in exclude_nodes:
-                filter_reasons['excluded'].append(node_name)
+                filter_reasons['Excluded via "schedule.exclude_nodes"'].append(node_name)
                 continue
 
             # Filter according to scheduler plugin specific options.
@@ -241,6 +266,25 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         return None
 
+    def _make_chunk_group_id(self, node_list_id, sched_config):
+        """Generate a 'chunk_group_id' - a tuple of values that denote a unique type of chunk."""
+
+        nodes = list(self._node_lists[node_list_id])
+
+        # Nodes to include in every chunk.
+        include_id = ','.join(sorted(sched_config['include_nodes']))
+
+        chunk_size = sched_config['chunking']['size']
+        if isinstance(chunk_size, float):
+            chunk_size = int(len(nodes) * chunk_size)
+        # Chunk size 0/null is all the nodes.
+        if chunk_size in (0, None) or chunk_size > len(nodes):
+            chunk_size = len(nodes)
+        chunk_extra = sched_config['chunking']['extra']
+        node_select = sched_config['chunking']['node_selection']
+
+        return (node_list_id, chunk_size, node_select, chunk_extra, include_id)
+
     def _get_chunks(self, node_list_id, sched_config) -> List[NodeSet]:
         """Chunking is specific to the node list, chunk size, and node selection
         settings of a job. The actual chunk used by a test_run won't be known until
@@ -252,23 +296,35 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         nodes = list(self._node_lists[node_list_id])
 
+        # Nodes to include in every chunk.
+        include_nodes = sched_config['include_nodes']
+        include_id = ','.join(sorted(include_nodes))
+
         chunk_size = sched_config['chunking']['size']
+        if isinstance(chunk_size, float):
+            chunk_size = int(len(nodes) * chunk_size)
         # Chunk size 0/null is all the nodes.
         if chunk_size in (0, None) or chunk_size > len(nodes):
             chunk_size = len(nodes)
         chunk_extra = sched_config['chunking']['extra']
         node_select = sched_config['chunking']['node_selection']
 
-        chunk_id = (node_list_id, chunk_size, node_select, chunk_extra)
+        chunk_group_id = self._make_chunk_group_id(node_list_id, sched_config)
         # If we already have chunks for our node list and settings, just return what
         # we've got.
-        if chunk_id in self._chunks:
-            return self._chunks[chunk_id]
+        if chunk_group_id in self._chunks:
+            return self._chunks[chunk_group_id]
 
         # We can potentially have no nodes, in which case return an empty chunk.
         if chunk_size == 0:
-            self._chunks[chunk_id] = [NodeSet(frozenset([]))]
-            return self._chunks[chunk_id]
+            self._chunks[chunk_group_id] = [NodeSet(frozenset([]))]
+            return self._chunks[chunk_group_id]
+
+        # Only count nodes that aren't required via 'include_nodes' when calculating chunks.
+        for node in include_nodes:
+            if node in nodes:
+                nodes.remove(node)
+        chunk_size = chunk_size - len(include_nodes)
 
         chunks = []
         for i in range(len(nodes)//chunk_size):
@@ -276,6 +332,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             chunk = self.NODE_SELECTION[node_select](nodes, chunk_size)
             # Filter out any chosen from our node list.
             nodes = [node for node in nodes if node not in chunk]
+
+            # Add the 'include_nodes' to every chunk.
+            chunk = include_nodes + chunk
             chunks.append(chunk)
 
         if nodes and chunk_extra == BACKFILL:
@@ -286,7 +345,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for chunk in chunks:
             chunk_info.append(NodeSet(frozenset(chunk)))
 
-        self._chunks[chunk_id] = chunk_info
+        self._chunks[chunk_group_id] = chunk_info
 
         return chunk_info
 
@@ -314,17 +373,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 # This is validated in test object creation.
                 chunk_spec = int(chunk_spec)
 
-            chunk_size = sched_config['chunking']['size']
-            node_select = sched_config['chunking']['node_selection']
-            chunk_extra = sched_config['chunking']['extra']
+            chunk_group_id = self._make_chunk_group_id(node_list_id, sched_config)
 
-            node_list = self._node_lists[node_list_id]
-            if chunk_size in (None, 0) or chunk_size > len(node_list):
-                chunk_size = len(node_list)
-
-            chunks_id = (node_list_id, chunk_size, node_select, chunk_extra)
-
-            chunks = self._chunks[chunks_id]
+            chunks = self._chunks[chunk_group_id]
 
             if chunk_spec == 'any':
                 least_used = None
@@ -354,22 +405,29 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     # Scheduling options in this list are denoted as those that change the nature
     # of the allocation being acquired. Tests with different values for these
     # should thus run under different allocations.
+    # These allow us to form sharable groups given a specific nodelist - jobs with
+    # different nodelists will never be shared.
     # This can be modified by subclasses. Separate multipart keys with a '.'.
     ALLOC_ACQUIRE_OPTIONS = ['partition', 'reservation', 'account', 'qos']
 
     def _schedule_chunk(self, pav_cfg, chunk: NodeSet, tests: List[TestRun],
                         sched_configs: Dict[str, dict]):
+        '''Schedule all the tests that belong to a given chunk. Group tests that can be scheduled in
+        a shared allocation together.'''
 
         # There are three types of test launches.
-        # 1. Tests that can share an allocation (
+        # 1. Tests that can share an allocation. These may or may not use chunking.
         share_groups = collections.defaultdict(list)
+        # 2. Tests that don't share an allocation and don't have nodes explicitly defined.
         flex_tests: List[TestRun] = []
+        # 3. Tests that don't share an allocation and do have nodes explicitly defined.
         indi_tests: List[TestRun] = []
 
         for test in tests:
             sched_config = sched_configs[test.full_id]
+
             if not sched_config['share_allocation']:
-                if sched_config['chunking']['size'] in (0, None):
+                if sched_config['flex_scheduled']:
                     flex_tests.append(test)
                 else:
                     indi_tests.append(test)
@@ -381,6 +439,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
                 acq_opts = [(min_nodes, max_nodes)]
 
+                # Check that each of the scheduling options that would change the allocations
+                # configuration are the same.
                 for opt_name in self.ALLOC_ACQUIRE_OPTIONS:
                     opt = sched_config
                     for part in opt_name.split('.'):
@@ -403,20 +463,40 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 del share_groups[acq_opts]
 
         for acq_opts, tests in share_groups.items():
-            node_range = acq_opts[0]
-            self._schedule_shared_chunk(pav_cfg, tests, node_range, sched_configs, chunk)
+            chunking_enabled = sched_configs[tests[0].full_id]['chunking']['size'] not in (0, None)
+            # If the user really wants to use the same node even if other nodes are available,
+            # setting share_allocation to max will allow that.
+            use_same_nodes = True if sched_config['share_allocation'] == 'max' else False
+            _, max_nodes = node_range = acq_opts[0]
+            # Schedule all these tests in one allocation. Chunked tests are already spread across
+            # chunks, and these non-chunked tests are explicitly set to use one allocation.
+            if chunking_enabled or use_same_nodes:
+                self._schedule_shared(pav_cfg, tests, node_range, sched_configs, chunk)
+            # Otherwise, we need to bin the tests so they are spread across the machine.
+            # Tests will still share allocations but will be divided up to maximally use the
+            # machine.
+            else:
+                bin_count = max(len(chunk) // max_nodes, 1)
+                bins = [[] for _ in range(bin_count)]
+                for i, test in enumerate(tests):
+                    bins[i % bin_count].append(test)
+                for test_bin in bins:
+                    if test_bin:
+                        self._schedule_shared(pav_cfg, test_bin, node_range, sched_configs,
+                                              chunk)
 
-        self._schedule_flex_chunk(pav_cfg, flex_tests, sched_configs, chunk)
+        self._schedule_indi_flex(pav_cfg, flex_tests, sched_configs, chunk)
         self._schedule_indi_chunk(pav_cfg, indi_tests, sched_configs, chunk)
 
-    def _schedule_shared_chunk(self, pav_cfg, tests: List[TestRun], node_range: NodeRange,
-                               sched_configs: Dict[str, dict], chunk: NodeSet):
-        """Scheduler tests in a shared chunk."""
+    def _schedule_shared(self, pav_cfg, tests: List[TestRun], node_range: NodeRange,
+                         sched_configs: Dict[str, dict], chunk: NodeSet):
+        """Scheduler tests in a shared allocation. This allocation will use chunking when
+        enabled, or allow the scheduler to pick the nodes otherwise."""
 
         try:
             job = Job.new(pav_cfg, tests, self.KICKOFF_FN)
         except JobError as err:
-            raise SchedulerPluginError("Error creating job: \n{}".format(err))
+            raise SchedulerPluginError("Error creating job.", err)
 
         # At this point the scheduler config should be effectively identical
         # for the test being allocated.
@@ -429,18 +509,25 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         node_list = list(chunk)
         node_list.sort()
 
-        if base_sched_config['chunking']['size'] in (0, None):
-            picked_nodes = node_range
+        if base_sched_config['flex_scheduled']:
+            # We aren't using chunking, so let the scheduler pick.
+            picked_nodes = None
+            # Save the data for all (compatible) nodes, we never know which we will get.
             job.save_node_data({node: self._nodes[node] for node in chunk})
         else:
             picked_nodes = node_list[:node_range[1]]
+            # Save the data for all the nodes we're using.
             job.save_node_data({node: self._nodes[node] for node in picked_nodes})
+            # Clear the node range - it's only used for flexible scheduling.
+            node_range = None
+
 
         job_name = 'pav_{}'.format(','.join(test.name for test in tests[:4]))
         if len(tests) > 4:
             job_name += ' ...'
         script = self._create_kickoff_script_stub(pav_cfg, job_name, job.kickoff_log,
-                                                  base_sched_config, picked_nodes)
+                                                  base_sched_config, nodes=picked_nodes,
+                                                  node_range=node_range)
 
         for test in tests:
             # Run each test via pavilion
@@ -456,7 +543,13 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for test in tests:
             test.job = job
 
-        job.info = self._kickoff(pav_cfg, job, base_sched_config)
+        job.info = self._kickoff(
+            pav_cfg=pav_cfg,
+            job=job,
+            sched_config=base_sched_config,
+            job_name=job_name,
+            nodes=picked_nodes,
+            node_range=node_range)
 
         for test in tests:
             test.status.set(
@@ -464,35 +557,42 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 "Test kicked off by {} scheduler in a shared allocation with {} other "
                 "tests.".format(self.name, len(tests)))
 
-    def _schedule_flex_chunk(self, pav_cfg, tests: List[TestRun],
-                             sched_configs: Dict[str, dict], chunk: NodeSet):
-        """Schedule tests in an individualized chunk that doesn't actually use
-        chunking, leaving the node picking to the scheduler."""
+    def _schedule_indi_flex(self, pav_cfg, tests: List[TestRun],
+                       sched_configs: Dict[str, dict], chunk: NodeSet):
+        """Schedule tests individually in 'flexible' allocations, where the scheduler
+        picks the nodes."""
 
         for test in tests:
             node_info = {node: self._nodes[node] for node in chunk}
 
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
-                job.save_node_data(node_info)
+                job.save_node_data(self._nodes)
             except JobError as err:
-                raise SchedulerPluginError("Error creating job: \n{}".format(err))
+                raise SchedulerPluginError("Error creating job.", err)
 
             sched_config = sched_configs[test.full_id]
 
             node_range = calc_node_range(sched_config, len(chunk))
 
+            job_name = 'pav_{}'.format(test.name)
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
-                job_name='pav_{}'.format(test.name),
+                job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                picked_nodes=node_range)
+                node_range=node_range)
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(pav_cfg, job, sched_config)
+            job.info = self._kickoff(
+                pav_cfg=pav_cfg,
+                job=job,
+                sched_config=sched_config,
+                job_name=job_name,
+                node_range=node_range,
+            )
             test.job = job
             test.status.set(
                 STATES.SCHEDULED,
@@ -527,7 +627,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                raise SchedulerPluginError("Error creating job: \n{}".format(err))
+                raise SchedulerPluginError("Error creating job.", err)
 
             sched_config = sched_configs[test.full_id]
             if needed_nodes == 0:
@@ -546,19 +646,25 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job.save_node_data({node: self._nodes[node] for node in picked_nodes})
             except JobError as err:
-                raise SchedulerPluginError("Error saving node info to job.: \n{}".format(err))
+                raise SchedulerPluginError("Error saving node info to job.", err)
 
+            job_name = 'pav_{}'.format(test.name)
             script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
-                job_name='pav_{}'.format(test.name),
+                job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                picked_nodes=picked_nodes)
+                nodes=picked_nodes)
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(pav_cfg, job, sched_config)
+            job.info = self._kickoff(
+                pav_cfg=pav_cfg,
+                job=job,
+                sched_config=sched_config,
+                job_name=job_name,
+                nodes=picked_nodes)
             test.job = job
             test.status.set(
                 STATES.SCHEDULED,

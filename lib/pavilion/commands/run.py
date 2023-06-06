@@ -2,15 +2,13 @@
 
 import errno
 import sys
-from typing import List
 
-import pavilion.series.errors
 from pavilion import cmd_utils
 from pavilion import output
+from pavilion.errors import TestSeriesError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
-from pavilion.test_run import TestRun
 from .base_classes import Command
 
 
@@ -76,7 +74,7 @@ class RunCommand(Command):
                  'gathered used as a final set of overrides before the '
                  'configs are resolved. They should take the form '
                  '\'key=value\', where key is the dot separated key name, '
-                 'and value is a json object.')
+                 'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
             '-b', '--build-verbose', dest='build_verbosity', action='count',
             default=0,
@@ -136,7 +134,7 @@ class RunCommand(Command):
 
         tests = args.tests
         try:
-            tests.extend(cmd_utils.read_test_files(args.files))
+            tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
         except ValueError as err:
             output.fprint(sys.stdout, "Error reading given test list files.\n{}"
                           .format(err))
@@ -146,7 +144,9 @@ class RunCommand(Command):
         report_status = getattr(args, 'status', False)
 
         # create brand-new series object
-        series_obj = TestSeries(pav_cfg, config=series_cfg)
+        series_obj = TestSeries(pav_cfg, series_cfg=series_cfg)
+
+        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
 
         series_obj.add_test_set_config(
             'cmd_line',
@@ -164,7 +164,7 @@ class RunCommand(Command):
                 verbosity=args.build_verbosity,
                 outfile=self.outfile)
             self.last_tests = list(series_obj.tests.values())
-        except pavilion.series.errors.TestSeriesError as err:
+        except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN

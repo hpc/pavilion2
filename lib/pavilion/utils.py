@@ -15,6 +15,21 @@ from typing import Iterator, Union, TextIO
 from typing import List, Dict
 
 
+def glob_to_re(glob):
+    """Translate the given glob to one that is compatible with (extended) grep.
+    Note that the given RE, in order to be completely correct, must be bounded by
+    '^', '$', or other characters."""
+
+    glob = glob.replace('.', '\\.')
+    glob = glob.replace('?', '.')
+    glob = glob.replace('*', '.*')
+    # Glob sequences are the same, except the inversion characters is different.
+    glob = glob.replace('[!', '[^')
+    # TODO: If there's a dash in a glob sequence, that will break
+
+    return glob
+
+
 def str_bool(val):
     """Returns true if the string value is the string 'true' with allowances
     for capitalization."""
@@ -240,10 +255,23 @@ def get_login():
         raise RuntimeError(
             "Could not get the name of the current user.")
 
+def get_user_id():
+    """Get the current user's id, either through os.getuid or the id command."""
+
+    try:
+        return os.getuid()
+    except OSError:
+        pass
+
+    try:
+        name = subprocess.check_output(['id', '-u'], stderr=subprocess.DEVNULL)
+        return name.decode('utf8').strip()
+    except Exception:
+        raise RuntimeError(
+            "Could not get the id of the current user.")
 
 class ZipFileFixed(zipfile.ZipFile):
-    """Overrides the default behavior in ZipFile to preserve execute
-    permissions."""
+    """Overrides the default behavior in ZipFile to preserve execute permissions."""
     def _extract_member(self, member, targetpath, pwd):
 
         ret = super()._extract_member(member, targetpath, pwd)

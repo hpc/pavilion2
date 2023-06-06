@@ -1,4 +1,3 @@
-
 """This module contains functions and classes for building variable sets for
 string insertion.
 
@@ -24,9 +23,10 @@ import copy
 import json
 from typing import Union, List, Tuple
 
+import lark
 from pavilion import parsers
 from pavilion.deferred import DeferredVariable
-from pavilion.errors import DeferredError, VariableError
+from pavilion.errors import DeferredError, VariableError, StringParserError, ParserValueError
 
 
 class VariableSetManager:
@@ -302,8 +302,11 @@ index, sub_var) tuple.
                         self.resolved_user_vars.append(var_tpl)
                         continue
 
-                    tree = parser.parse(val)
-                    tree_vars = var_visitor.visit(tree)
+                    try:
+                        tree = parser.parse(val)
+                        tree_vars = var_visitor.visit(tree)
+                    except (lark.LarkError, lark.LexError) as err:
+                        raise VariableError(var=var, index=idx, sub_var=key, prior_error=err)
 
                     if tree_vars:
                         # Unresolved variable reference that will be resolved
@@ -337,7 +340,8 @@ index, sub_var) tuple.
                         r_var_set, r_var, r_index, r_subvar = ref_key = self.resolve_key(var_str)
                     except KeyError as err:
                         raise VariableError("Key '{}'referenced by user variable '{}' could "
-                                            "not be parsed: {}".format(var_str, uvar, err))
+                                            "not be parsed.".format(var_str, uvar),
+                                            prior_error=err)
 
                     if r_var_set != 'var' and r_var_set not in self.variable_sets:
                         # The variable set for this reference hasn't been loaded yet.
@@ -353,7 +357,7 @@ index, sub_var) tuple.
                         # If the var references a whole list of items,
                         # make sure all are resolved.
                         if [key for key in unresolved_vars
-                                if (key[:2], key[3]) == (ref_key[:2], ref_key[3])]:
+                            if (key[:2], key[3]) == (ref_key[:2], ref_key[3])]:
                             resolvable_now = False
                             # Check if all were skipped due to 'skip_deps'
                             if not [key for key in skipped_resolve
@@ -383,7 +387,7 @@ index, sub_var) tuple.
                         res_val = transformer.transform(tree)
                     except DeferredError:
                         res_val = None
-                    except (parsers.StringParserError, parsers.ParserValueError) as err:
+                    except (StringParserError, ParserValueError) as err:
                         raise VariableError(err, var_set=var_set, var=var_name, index=index,
                                             sub_var=sub_var)
 
@@ -451,11 +455,11 @@ index, sub_var) tuple.
         # If anything else goes wrong, this will throw a KeyError
         try:
             return self.variable_sets[var_set].get(var, index, sub_var)
-        except KeyError as msg:
+        except KeyError as err:
             # Make sure our error message gives the full key.
             raise KeyError(
                 "Could not resolve reference '{}': {}"
-                .format(self.key_as_dotted(key), msg.args[0]))
+                .format(self.key_as_dotted(key), err.args[0]))
 
     def get(self, key: str, default=None) -> str:
         """Get an item, or the provided default, as per dict.get. """
@@ -516,11 +520,11 @@ index, sub_var) tuple.
         # See set_deferred for the cases...
         return (
             # This is generally deferred
-            (var_set, var, None, None) in self.deferred or
-            # A specific simple value.
-            (var_set, var, idx, None) in self.deferred or
-            # A specific sub-value.
-            (var_set, var, idx, sub_var) in self.deferred)
+                (var_set, var, None, None) in self.deferred or
+                # A specific simple value.
+                (var_set, var, idx, None) in self.deferred or
+                # A specific sub-value.
+                (var_set, var, idx, sub_var) in self.deferred)
 
     def any_deferred(self, key: Union[str, tuple]) -> bool:
         """Return whether any members of the given variable are deferred."""
@@ -606,8 +610,8 @@ index, sub_var) tuple.
                 tmp_path.rename(path)
         except (OSError, IOError, FileNotFoundError) as err:
             raise VariableError(
-                "Could not write variable file at '{}': {}"
-                .format(tmp_path, err))
+                "Could not write variable file at '{}'"
+                .format(tmp_path), err)
 
     @classmethod
     def load(cls, path):
@@ -621,9 +625,7 @@ index, sub_var) tuple.
                 data = json.load(stream)
         except (json.decoder.JSONDecodeError, IOError, FileNotFoundError) \
                 as err:
-            raise RuntimeError(
-                    "Could not load variable file '{}': {}"
-                    .format(path, err))
+            raise VariableError("Could not load variable file '{}'".format(path), err)
 
         var_man = cls()
 

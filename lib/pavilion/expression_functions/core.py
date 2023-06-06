@@ -59,6 +59,40 @@ class RoundPlugin(CoreFunctionPlugin):
         return round(val)
 
 
+class RoundDigPlugin(CoreFunctionPlugin):
+    """Round the number to N decimal places: ``round_dig(12.12341234, 3) -> 12.123``"""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="round_dig",
+            arg_specs=(float, int))
+
+    @staticmethod
+    def round_dig(val: float, places: int):
+        """Round the given number to the nearest int."""
+
+        return round(val, places)
+
+
+class LogPlugin(CoreFunctionPlugin):
+    """Take the log of the given number to the given base."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="log",
+            arg_specs=(num, num))
+
+    @staticmethod
+    def log(val: num, base: num):
+        """Take the log of the given number to the given base."""
+
+        return math.log(val, base)
+
+
 class FloorPlugin(CoreFunctionPlugin):
     """Get the floor of the given number."""
 
@@ -291,9 +325,7 @@ class RegexSearch(CoreFunctionPlugin):
         try:
             regex = re.compile(regex)
         except re.error as err:
-            raise FunctionArgError(
-                "Could not compile regex:\n{}".format(err)
-            )
+            raise FunctionArgError("Could not compile regex", err)
 
         match = regex.search(data)
         if match is None:
@@ -349,9 +381,7 @@ class Outliers(CoreFunctionPlugin):
 
         if len(values) != len(names):
             raise FunctionPluginError(
-                "The 'values' and 'names' arguments must be lists of equal"
-                "length."
-            )
+                "The 'values' and 'names' arguments must be lists of equal length.")
 
         mean = sum(values)/len(values)
         stddev = (sum([(val - mean)**2 for val in values])/len(values))**0.5

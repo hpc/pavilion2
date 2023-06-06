@@ -34,6 +34,31 @@ class ResolverTests(PavTestCase):
 
         self.resolver.load(['speed'])
 
+    def test_requests(self):
+        """Check request parsing."""
+
+        requests = (
+            ('hello',                   ('hello', None, 1)),
+            ('hello123',                ('hello123', None, 1)),
+            ('123-_hello',              ('123-_hello', None, 1)),
+            ('123hello.world',          ('123hello', 'world', 1)),
+            ('123hello.123world',       ('123hello', '123world', 1)),
+            ('123hello.123-_world-',    ('123hello', '123-_world-', 1)),
+            ('5*123hello.world',        ('123hello', 'world', 5)),
+            ('5*123hello.123world',     ('123hello', '123world', 5)),
+            ('5*123hello.123-_world-',  ('123hello', '123-_world-', 5)),
+            ('123hello.world3*6',       ('123hello', 'world3', 6)),
+            ('123hello.123world3*6',    ('123hello', '123world3', 6)),
+            ('123hello.123-_world-3*6', ('123hello', '123-_world-3', 6)),
+        )
+
+        for req_str, answer in requests:
+            req = resolver.TestRequest(req_str)
+            self.assertEqual((req.suite, req.test, req.count), answer)
+
+        with self.assertRaises(resolver.TestConfigError):
+            resolver.TestRequest('3*hello.world*5')
+
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
@@ -97,16 +122,47 @@ class ResolverTests(PavTestCase):
         """Make sure default variables work as expected."""
 
         tests = self.resolver.load(
-            tests=['defaulted.test'],
+            tests=['defaulted'],
             host='defaulted',
             modes=['defaulted'],
         )
 
-        cfg = tests[0].config
-        self.assertEqual(cfg['variables']['host_def'], ['host'])
-        self.assertEqual(cfg['variables']['mode_def'], ['mode'])
-        self.assertEqual(cfg['variables']['test_def'], ['test'])
-        self.assertNotIn('no_val', cfg['variables'])
+        def find_test(tests, name):
+            """Find a test with the given name in the list of tests and return it."""
+            for test in tests:
+                if name in test.config['name']:
+                    return test
+            raise ValueError("Could not find test {}".format(name))
+
+        test_vars = find_test(tests, 'base').config['variables']
+
+        # These make sure variable defaults with sub-dicts are resolved
+        # properly.
+        stack1a_vars = find_test(tests, 'stack1a').config['variables']
+        stack1b_vars = find_test(tests, 'stack1b').config['variables']
+        stack2a_vars = find_test(tests, 'stack2a').config['variables']
+        stack2b_vars = find_test(tests, 'stack2b').config['variables']
+
+        self.assertEqual(test_vars['host_def'], [{None: 'host'}])
+        self.assertEqual(test_vars['mode_def'], [{None: 'mode'}])
+        self.assertEqual(test_vars['test_def'], [{None: 'test'}])
+        self.assertEqual(test_vars['stack_def'], [{'a': 'base', 'b': 'base'}])
+        self.assertNotIn('no_val', test_vars)
+
+        # stack1 just sets defaults all the way up, so the values
+        # at each level should just be the defaults set at that level.
+        self.assertEqual(stack1a_vars['stack_def'][0]['a'], '1a-a')
+        self.assertEqual(stack1a_vars['stack_def'][0]['b'], '1a-b')
+        self.assertEqual(stack2a_vars['stack_def'][0]['a'], '2a-a')
+        self.assertEqual(stack2a_vars['stack_def'][0]['b'], '2a-b')
+
+        # Stack2 sets 'a' but not 'b', so 'b' should be 'base' except
+        # at stack2b, where the default is changed. 'a' should be '1b-a'
+        # at levels higher than 'base'
+        self.assertEqual(stack1b_vars['stack_def'][0]['a'], '1b-a')
+        self.assertEqual(stack1b_vars['stack_def'][0]['b'], 'base')
+        self.assertEqual(stack2b_vars['stack_def'][0]['a'], '1b-a')
+        self.assertEqual(stack2b_vars['stack_def'][0]['b'], '2b-b')
 
         with self.assertRaises(TestConfigError):
             self.resolver.load(
@@ -114,6 +170,61 @@ class ResolverTests(PavTestCase):
                 host='defaulted',
                 modes=['defaulted'],
             )
+
+    def test_variable_consistency(self):
+        """Make sure the variable consistency checks catch what they're supposed to."""
+
+        bad_tests = [
+            'var_consistency.empty_var_list',
+            'var_consistency.empty_var',
+            'var_consistency.empty_subvar',
+            # TODO: There's some resolver work need to make these functional.
+            #'var_consistency.inconsistent_var1',
+            #'var_consistency.inconsistent_var2',
+            'var_consistency.inconsistent_var3',
+            'var_consistency.inconsistent_var4',
+            'var_consistency.foo',
+        ]
+
+        for bad_test in bad_tests:
+            with self.assertRaises(TestConfigError):
+                self.resolver.load([bad_test])
+
+    def test_wildcards(self):
+        """Make sure wildcarded tests and permutations work"""
+
+        for test_request, result_count, result_unique in (
+                ('wildcard.some[tm]est', 8, 8),
+                ('wildcard.some*', 8, 8),
+                ('wildcard.*', 9, 9),
+                ('2*wildcard.some?est', 16, 8),
+                ('wildcard.**2', 18, 9),
+                ('wildcard', 9, 9),
+                ('wildcard._base', 1, 1)):
+            tests = self.resolver.load(tests=[test_request])
+
+            self.assertEqual(len(tests), result_count)
+            test_names = [(test.config['suite'], test.config['name'], test.config['subtitle']) for test in tests]
+            test_names = set(test_names)
+            self.assertEqual(len(test_names), result_unique)
+
+        for perm_request, result_count in (
+                ('wildcard.*.b-1', 2),
+                ('wildcard.*.*', 8),
+                ('wildcard.sometest.*-1', 2),
+                ('wildcard.sometest.a-**2', 4),
+                ('2 * wildcard.somemest.c-4', 2),
+                ('wildcard.somemest.[cb]-*', 4)):
+            tests = self.resolver.load(tests=[perm_request])
+
+            self.assertEqual(len(tests), result_count)
+
+        for bad_request in (
+                ('wildcard.noperms.*'),
+                ('wildcard.doesnt_exist'),
+                ('wildcard.[invalidfnmatch')):
+            with self.assertRaises(TestConfigError):
+                self.resolver.load([bad_request])
 
     def test_extended_variables(self):
         """Make sure default variables work as expected."""
@@ -125,18 +236,20 @@ class ResolverTests(PavTestCase):
         )
 
         cfg = tests[0].config
-        self.assertEqual(cfg['variables']['long_base'],
-                         ['what', 'are', 'you', 'up', 'to', 'punk?'])
+        long_answer = ['checking', 'for', 'proper', 'extending', 'including',
+                       'including', 'including', 'duplicates']
+        long_answer = [{None: word} for word in long_answer]
+        self.assertEqual(cfg['variables']['long_base'], long_answer)
         self.assertEqual(cfg['variables']['single_base'],
-                         ['host', 'test', 'mode'])
+                         [{None: key} for key in ['host', 'test', 'mode']])
         self.assertEqual(cfg['variables']['no_base_mode'],
-                         ['mode'])
+                         [{None: 'mode'}])
         self.assertEqual(cfg['variables']['no_base'],
-                         ['test'])
+                         [{None: 'test'}])
         self.assertEqual(cfg['variables']['null_base_mode'],
-                         ['mode'])
+                         [{None: 'mode'}])
         self.assertEqual(cfg['variables']['null_base'],
-                         ['test'])
+                         [{None: 'test'}])
 
     def test_apply_overrides(self):
         """Make sure overrides get applied to test configs correctly."""
@@ -148,6 +261,8 @@ class ResolverTests(PavTestCase):
             'run.cmds.0="echo nope"',
             # An item that doesn't exist (and must be normalized by yaml_config)
             'variables.foo="hello"',
+            # A complex variable value
+            'variables.bar={"hello": "world"}'
         ]
 
         bad_overrides = [
@@ -262,7 +377,7 @@ class ResolverTests(PavTestCase):
         # that was similarly untested for.
         results2 = set()
         ptests2 = self.resolver.load(['permute_on_ref.sched'])
-        expected2 = {'0', '1', '100'}
+        expected2 = {'0', '1', '90'}
         for ptest in ptests2:
             results2.add(ptest.config['run']['cmds'][0])
         self.assertEqual(results2, expected2)
@@ -779,7 +894,45 @@ class ResolverTests(PavTestCase):
     def test_permute_order(self):
         """Check that tests resolve with both variable/permute resolution orders."""
 
-        for test, count in ('sched', 100), ('multi-sched', 5), ('both', 10):
+        for test, count in ('sched', 90), ('multi-sched', 5), ('both', 10):
             test = 'permute_order.{}'.format(test)
             tests = self.resolver.load([test])
             self.assertEqual(len(tests), count)
+
+    def test_parse_error(self):
+        """Make sure errors in parsing are handled properly."""
+
+
+        for test_name in (
+                'bad_var_syntax',
+                'bad_var_ref',
+                'bad_ref',
+                'bad_syntax',
+                ):
+            test_name = 'parse_errors.{}'.format(test_name)
+
+            with self.assertRaises(TestConfigError):
+                try:
+                    self.resolver.load([test_name])
+                except TestConfigError as err:
+                    # Make sure the error can be formatted.
+                    err.pformat()
+                    raise
+
+    def test_yaml_parse_error(self):
+        """Make sure Yaml parse errors are handled reasonably."""
+
+        for suite_name in (
+                'missing_key_same',
+                'missing_key_above',
+                'missing_key_below',
+                'missing_key_collect',
+                'invalid_yaml',
+                ):
+
+            try:
+                self.resolver.load([suite_name])
+            except TestConfigError as err:
+                # Make sure the error can be formatted.
+                print(err.pformat())
+                print()

@@ -13,21 +13,28 @@ class SchedulerVariables(VarDict):
 class of this that contains all the variable functions it provides.
 
 To add a scheduler variable, create a method and decorate it with
-either ``@sched_var`` or ``@dfr_sched_var()``. The method name will be the
-variable name, and the method will be called to resolve the variable
-value. Methods that start with '_' are ignored.
+either ``@var_method`` or ``@dfr_var_method``. Only methods tagged with
+either of those will be given as variables, so you're free to create any support
+methods as needed.
 
-Naming Conventions:
+Variables should be given lower case names, with words separated with underscores.
+Variables that are prefixed with 'test_*' are specific to a given test (or job). These
+are often deferred. All other variables should not be deferred.
 
-'alloc_*'
-  Variable names should be prefixed with 'alloc\\_' if they are deferred.
+This class is meant to be inherited from - each scheduler can provide its own set of variables
+in addition to these defaults, and may also provide different implementations of
+each variable. Most schedulers can get away with overriding one variable - the 'test_cmd'
+method. See the documentation for that method below for more information.
 
-'test_*'
-  Variable names prefixed with test denote that the variable
-  is specific to a test. These also tend to be deferred.
+Return values of all variables should be the same format as those allowed by regular test
+variables: a string, a list of strings, a dict (with string keys and values), or a list
+of such dicts.
+
+Scheduler variables are requested once per test run by Pavilion when it is created, and again for
+each test right before it runs on an allocation in order to un-defer values.
 """
 
-    # Only deferred vars need examples.
+    # Only deferred vars need examples. The rest will be pulled automatically.
     EXAMPLE = {
         'chunk_ids': ['0', '1', '2', '3'],
         'errors': ['oh no, there was an error.'],
@@ -147,16 +154,36 @@ Naming Conventions:
 
         return self._sched_config['partition'] or ''
 
-    @var_method
-    def test_cmd(self):
-        """The command to prepend to a line to kick it off under the
-        scheduler. This is blank by default, but most schedulers will
-        want to define something that utilizes relevant scheduler
-        parameters."""
+    def _test_cmd(self):
+        """The command to prepend to a line to kick it off under the scheduler.
+
+        This should return the command needed to start one or more MPI processes within
+        an existing allocation. This is often `mpirun`, but may be something more specific.
+        This command should be given options, as appropriate, such that the MPI process
+        is started with the options specified in `self._sched_config`. In most cases,
+        these options won't be necessary, as the MPI command while simply inherit what was
+        provided when the job was created.
+
+        Tests may share jobs. While node selection and other high level settings will
+        be identical for each test, Pavilion reserves the option to allow tests to run with
+        modified node-lists within an allocation. This means you should always specify that
+
+
+        """
 
         _ = self
 
         return ''
+
+    @var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the result with the wrapper
+        provided in the schedule section of the configuration."""
+
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ''.join(filter(lambda item: item is not None, [self._test_cmd(),
+                              self._sched_config['wrapper']]))
 
     @dfr_var_method
     def tasks_per_node(self) -> int:
@@ -234,9 +261,9 @@ Naming Conventions:
 
     @var_method
     def nodes(self) -> int:
-        """The number of nodes available on the system. If the scheduler
-        supports auto-detection, this will be the filtered count of nodes. Otherwise,
-        this will be the 'cluster_info.node_count' value, or 1 if that isn't set."""
+        """The number of nodes that a test may run on, after filtering according
+        to the test's 'schedule' section. The actual nodes selected for the test, whether
+        selected by Pavilion or the scheduler itself, will be in 'test_nodes'."""
 
         if self._nodes:
             return len(self._nodes)
@@ -248,8 +275,8 @@ Naming Conventions:
 
     @var_method
     def node_list(self) -> NodeList:
-        """The list of node names on the system. If the scheduler supports
-        auto-detection, will be the filtered list. This list will otherwise be empty."""
+        """The list of node names that the test could run on, after filtering, as per
+        the 'nodes' variable."""
 
         if self._nodes:
             return NodeList(list(self._nodes.keys()))
@@ -290,3 +317,24 @@ Naming Conventions:
         """Total tasks to create, based on number of nodes actually acquired."""
 
         return self._sched_config.get('tasks_per_node', 1) * len(self._nodes)
+
+    def mpirun_cmd(self):
+        """Sets up mpirun command with user-defined options."""
+
+        mpirun_opts = []
+
+        rank_by = self._sched_config['mpirun_opts']['rank_by']
+        bind_to = self._sched_config['mpirun_opts']['bind_to']
+        mca = self._sched_config['mpirun_opts']['mca']
+        extra = self._sched_config['mpirun_opts']['extra']
+
+        if rank_by:
+            mpirun_opts.extend(['--rank-by', rank_by])
+        if bind_to:
+            mpirun_opts.extend(['--bind-to', bind_to])
+        if mca:
+            for mca_opt in mca:
+                mpirun_opts.extend(['--mca', mca_opt])
+        mpirun_opts.extend(extra)
+
+        return mpirun_opts

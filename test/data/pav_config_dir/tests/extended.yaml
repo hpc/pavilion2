@@ -1,6 +1,6 @@
 test:
   variables:
-    long_base+: ['you', 'up', 'to']
+    long_base+: ['proper', 'extending', 'including']
     single_base+: 'test'
     no_base+: 'test'
     null_base+: 'test'

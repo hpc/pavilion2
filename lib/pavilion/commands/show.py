@@ -1,14 +1,21 @@
 """Show a variety of different internal information for Pavilion."""
 
+# pylint: disable=too-many-lines
+
+
 import argparse
 import errno
 import fnmatch
+import os
 import pprint
+import sys
+from pathlib import Path
 from typing import Union
 
-import pavilion.types
+import pavilion.errors
 import yaml_config
 from pavilion import config
+from pavilion.errors import ResultError
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
@@ -22,6 +29,7 @@ from pavilion import sys_vars
 from pavilion.deferred import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion import resolver
+from pavilion.types import Nodes
 from .base_classes import Command, sub_cmd
 
 
@@ -72,6 +80,12 @@ class ShowCommand(Command):
             in the order given. Tests in higher directories supersede those
             in lower. Plugins, however, are resolved according to internally
             defined priorities."""
+        )
+
+        subparsers.add_parser(
+            'collections',
+            aliases=['collection'],
+            help="List collections found in config dirs."
         )
 
         func_group = subparsers.add_parser(
@@ -382,6 +396,22 @@ class ShowCommand(Command):
             title="Config directories by priority."
         )
 
+    @sub_cmd('collection')
+    def _collections_cmd(self, pav_cfg, _):
+        """List all files found in the collections directories in all config directories."""
+
+        collections = []
+        for config in pav_cfg['configs'].items():
+            _, config_path = config
+            collection_dir = Path(config_path.path / 'collections')
+            if collection_dir.exists() and collection_dir.is_dir():
+                for col_file in os.listdir(collection_dir):
+                    collections.append({'collection': col_file,
+                                        'path': Path(collection_dir / col_file)})
+
+        output.draw_table(self.outfile, fields=['collection', 'path'], rows=collections,
+                          title="Available collections and paths.")
+
     @sub_cmd('function', 'func')
     def _functions_cmd(self, _, args):
         """List all of the known function plugins."""
@@ -418,16 +448,15 @@ class ShowCommand(Command):
 
         simple_vars = []
         complex_vars = []
-        for var in cfg.get('variables').keys():
-            subvar = cfg['variables'][var]
-            if isinstance(subvar, list) and (len(subvar) > 1
-                                             or isinstance(subvar[0], dict)):
+        for var_key in cfg.get('variables').keys():
+            var = cfg['variables'][var_key]
+            if len(var) == 1 and None in var[0]:
+                simple_vars.append({
+                    'name': var_key,
+                    'value': var[0][None]
+                })
+            else:
                 complex_vars.append(var)
-                continue
-            simple_vars.append({
-                'name':  var,
-                'value': cfg['variables'][var]
-            })
         if simple_vars:
             output.draw_table(
                 self.outfile,
@@ -622,7 +651,7 @@ class ShowCommand(Command):
         if args.doc:
             try:
                 res_plugin = result_parsers.get_plugin(args.doc)
-            except result.common.ResultError:
+            except ResultError:
                 output.fprint(sys.stdout, "Invalid result parser '{}'.".format(args.doc),
                               color=output.RED)
                 return errno.EINVAL
@@ -664,7 +693,7 @@ class ShowCommand(Command):
 
             try:
                 sched = schedulers.get_plugin(sched_name)
-            except schedulers.SchedulerPluginError:
+            except pavilion.errors.SchedulerPluginError:
                 output.fprint(sys.stdout, "Invalid scheduler plugin '{}'.".format(sched_name),
                               color=output.RED)
                 return errno.EINVAL
@@ -674,7 +703,7 @@ class ShowCommand(Command):
 
             config = schedulers.validate_config({})
 
-            svars = sched.VAR_CLASS(config, pavilion.types.Nodes({}))
+            svars = sched.VAR_CLASS(config, Nodes({}))
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
@@ -752,7 +781,7 @@ class ShowCommand(Command):
                 deferred = isinstance(value, DeferredVariable)
                 help_str = svars.help(key)
 
-            except sys_vars.SystemPluginError as err:
+            except pavilion.errors.SystemPluginError as err:
                 value = output.ANSIString('error', code=output.RED)
                 deferred = False
                 help_str = output.ANSIString(str(err), code=output.RED)
@@ -965,6 +994,15 @@ class ShowCommand(Command):
         pvalue("Email:", test['email'])
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
+
+
+    DOC_KEYS = ['summary', 'doc']
+    PERMUTATION_KEYS = ['permute_on', 'subtitle']
+    INHERITANCE_KEYS = ['inherits_from']
+    SCHEDULING_KEYS = ['schedule', 'chunk']
+    RUN_KEYS = ['run']
+    BUILD_KEYS = ['build']
+    RESULT_KEYS = ['result_parse', 'result_evaluate']
 
     @sub_cmd()
     def _test_config_cmd(self, *_):

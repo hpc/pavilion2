@@ -16,9 +16,6 @@
 [submodule "lib/pavilion/dependencies/sub_repos/idna"]
 	path = lib/sub_repos/idna
 	url = https://github.com/kjd/idna.git
-[submodule "lib/sub_repos/yaml_config"]
-	path = lib/sub_repos/yaml_config
-	url = https://github.com/lanl-preteam/yaml_config.git
 [submodule "lib/sub_repos/lark"]
 	path = lib/sub_repos/lark
 	url = https://github.com/lark-parser/lark.git

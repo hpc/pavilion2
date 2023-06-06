@@ -1,0 +1,12 @@
+This yaml library is based heavily on the pyyaml library (https://github.com/yaml/pyyaml). It has
+been stripped down to include only the essentials:
+ - The python3 based library.
+ - Unit Tests
+
+It has also been modified significantly from the original.
+ - A CommentEvent is now (optionally) expected before each mapping or list item events. 
+   - Comments are wrapped when appropriate.
+ - Other minor formatting tweaks to tabbing to make comments and the yaml more
+   readible. 
+ - Other assorted changes, like returning ordered dictionaries instead of 
+   plain dictionaries to keep behavior consistent across versions of python3.

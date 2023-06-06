@@ -4,7 +4,8 @@ import re
 
 import yaml_config as yc
 from pavilion import utils
-from .base_classes import ResultParser, ResultError
+from .base_classes import ResultParser
+from ..errors import ResultError
 
 
 class Table(ResultParser):
@@ -167,10 +168,6 @@ class Table(ResultParser):
                 # Devise a row label if one isn't given.
                 if not row_label:
                     row_label = 'row_{}'.format(row_idx)
-
-                # Row labels can't start with a number.
-                if row_label[0] in '0123456789':
-                    row_label = 'row_{}'.format(row_label)
 
                 if row_label and row_label in table:
                     row_label = '{}_{}'.format(row_label, row_idx)

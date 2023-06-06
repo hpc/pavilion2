@@ -39,6 +39,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Dict
 
+from pavilion import errors
+
 BLACK = 30
 RED = 31
 GREEN = 32
@@ -70,8 +72,11 @@ COLORS = {
     'UNDERLINE': UNDERLINE,
 }
 
+
 def format_duration(time_delta: float) -> str:
+    """Format a floating point number as a duration."""
     return str(datetime.timedelta(seconds=round(time_delta)))
+
 
 def get_relative_timestamp(base_time: float,
                            fullstamp: bool = False) -> str:
@@ -170,7 +175,15 @@ def fprint(file, *args, color=None, bullet='', width=0, wrap_indent=0, sep=' ', 
     if clear:
         clear_line(file)
 
-    args = [str(a) for a in args]
+    new_args = []
+    for arg in args:
+        if hasattr(arg, 'pformat'):
+            new_args.append(arg.pformat())
+        else:
+            new_args.append(str(arg))
+
+    args = new_args
+
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 
@@ -451,7 +464,7 @@ A simple table: ::
     # The data columns to print (and their default column labels).
     columns = ['color', 'usage']
 
-    utils.draw_table(
+    output.draw_table(
         outfile=sys.stdout,
         field_info={},
 
@@ -499,7 +512,7 @@ A more complicated example: ::
         }
     }
 
-    utils.draw_table(
+    output.draw_table(
         outfile=sys.stdout,
         field_info=field_info,
         fields=columns,
@@ -648,12 +661,18 @@ def dt_format_rows(rows, fields, field_info):
             # Get the data, or it's default if provided.
             info = field_info.get(field, {})
             data = row.get(field, info.get('default', ''))
+            orig_data = data
             # Transform the data, if a transform is given
             if data != '' and data is not None:
                 try:
                     data = info.get('transform', lambda a: a)(data)
                 except (ValueError, AttributeError, KeyError):
                     data = '<transform error on {}>'.format(data)
+
+            if isinstance(data, errors.PavilionError):
+                data = err.pformat()
+            if isinstance(data, Exception):
+                data = '{}'.format(data.args[0])
 
             if isinstance(data, ANSIString):
                 ansi_code = data.code
@@ -669,7 +688,6 @@ def dt_format_rows(rows, fields, field_info):
                 print("Bad format for data. Format: {0}, data: {1}"
                       .format(col_format, repr(data)), file=sys.stderr)
                 raise
-
             # Cast all data as ANSI strings, so we can get accurate lengths
             # and use ANSI friendly text wrapping.
             data = ANSIString(formatted_data, code=ansi_code)
@@ -802,7 +820,8 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
         """Calculate the wraps for a given field at the given width."""
         wtot = 0
         for row in rowbyfield[fld_]:
-            wtot += len(textwrap.wrap(row, width=width_))
+            for line in row.split('\n'):
+                wtot += len(textwrap.wrap(line, width=width_, replace_whitespace=False))
         return wtot
 
     incr = 1
@@ -835,7 +854,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
             # Make sure we don't exceed the max width for the column.
             incr_wraps = calc_wraps(field, incr_width)
 
-            diff = (curr_wraps - incr_wraps)
+            diff = curr_wraps - incr_wraps
 
             if diff == 0:
                 if incr_width == max_width:
