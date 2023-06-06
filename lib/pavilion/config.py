@@ -609,7 +609,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             continue
 
         try:
-            working_dir.touch()
+            if working_dir.is_dir():
+                working_dir.touch()
         except PermissionError:
             pav_cfg.warnings.append(
                 "Could not write to working directory '{}' for config '{}'"
