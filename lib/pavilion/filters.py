@@ -226,7 +226,7 @@ def incomplete(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool
 
     :return: result of the test or series "incomplete" attribute
     """
-    return NOT(complete(attrs, target))
+    return not complete(attrs, op, val)
 
 def name(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     """Return "name" status of a test
@@ -238,8 +238,7 @@ def name(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     :return: result of the test or series "name" attribute
     """
     test_name = attrs.get('name') or ''
-    if not fnmatch.fnmatch(test_name, val):
-        return False
+    return fnmatch.fnmatch(test_name, val)
 
 def user(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     """Return "user" status of a test
@@ -309,7 +308,12 @@ def older_than(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool
 
     :return: result of the test or series "created" attribute being older than a given time
     """
-    return attrs.get('created') > val
+    try:
+        time_val = float(val)
+    except:
+        raise ValueError('Invalid time entry for older_than: {}'.format(val))
+
+    return attrs.get('created') < float(time_val)
 
 def newer_than(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     """Return whether "complete" status of a test is new than a given time
@@ -320,7 +324,12 @@ def newer_than(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool
 
     :return: result of the test or series "complete" attribute being newer than a given time
     """
-    return attrs.get('created') < val
+    try:
+        time_val = float(val)
+    except:
+        raise ValueError('Invalid time entry for newer_than: {}'.format(val))
+
+    return attrs.get('created') > float(time_val)
 
 def state(attrs: Union[Dict, series.SeriesInfo], key: str, status_file) -> bool:
     """Return "state" status of a test
@@ -331,7 +340,7 @@ def state(attrs: Union[Dict, series.SeriesInfo], key: str, status_file) -> bool:
 
     :return: result of the test or series "state"
     """
-    status_path = Path(attrs)
+    status_path = Path(attrs['path'])/TestRun.STATUS_FN
     try:
         status = status_file(status_path)
     except StatusError:
@@ -375,60 +384,114 @@ OP_OR  = '|'
 OP_AND = ' '
 OP_NOT = '!'
 
-def NOT(op: bool) -> bool:
-    return not op
+def NOT(op: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
+    """Perform a not operation
 
-def OR(op1: bool, op2: bool) -> bool:
-    return op1 or op2
+    :param op: target operand
+    :param attrs: attributes of a given test or series
+    :param funcs: respective functions for tests or series
 
-def AND(op1: bool, op2: bool) -> bool:
-    return op1 and op2
+    :return: result of the not evaluation on the operand
+    """
+    if op and op[0] == '!':
+        return not filter_run(attrs, funcs, op.strip(OP_NOT))
+    else:
+        raise SyntaxError("Incorrect '!' operator syntax")
+
+def OR(op1: str, op2: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
+    """Perform an or operation
+
+    :param op1: first target operand
+    :param op2: second target operand
+    :param attrs: attributes of a given test or series
+    :param funcs: respective functions for tests or series
+
+    :return: result of the or evaluation on the operands
+    """
+    if op1 and op2:
+        return filter_run(attrs, funcs, op1) or filter_run(attrs, funcs, op2)
+    else:
+        raise SyntaxError("Incorrect '|' operator syntax")
+
+def AND(op1: str, op2: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
+    """Perform an and operation
+
+    :param op1: first target operand
+    :param op2: second target operand
+    :param attrs: attributes of a given test or series
+    :param funcs: respective functions for tests or series
+
+    :return: result of the and evaluation on the operands
+    """
+    return filter_run(attrs, funcs, op1) and filter_run(attrs, funcs, op2)
 
 def trim(target: str) -> str:
+    """Remove excess spaces from the target
+
+    :param target: filter query string
+
+    :return: the whitespace-trimmed query
+    """
     return re.sub(r' +([|!=<>]) +', r'\1', target).strip(' ')
 
 def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
+    """Parse the key, operand, and value apart. If there is not an
+       operand or value, return the target
+
+    :param target: filter query keyword argument
+
+    :return: the key, operand, and value if applicable, otherwise the target
+    """
     for op in [OP_EQ, OP_LT, OP_GT]:
         if op in target:
             key, val = target.split(op, 1)
             return (key, op, val)
 
-    return (target, None, None)
+    return (target, '', '')
 
 def filter_run(test_attrs: Dict, funcs: Dict, target: str) -> bool:
+    """Main logic of the filter. Evaluate arguments and apply any operations to them.
+
+    :param test_attrs: attributes of a given test or series
+    :param funcs: respective functions for tests or series
+    :param target: filter query string
+
+    :return: whether a particular test passes the filter query requirements
+    """
     if target is None:
         return True
+    else:
+        target = trim(target)
 
     if OP_AND in target:
         op1, op2 = target.split(OP_AND, 1)
-        return AND(filter_run(test_attrs, funcs, op1), filter_run(test_attrs, funcs, op2))
+        return AND(op1, op2, test_attrs, funcs)
 
     elif OP_OR in target:
         op1, op2 = target.split(OP_OR, 1)
-        return OR(filter_run(test_attrs, funcs, op1), filter_run(test_attrs, funcs, op2))
+        return OR(op1, op2, test_attrs, funcs)
 
     else:
         if OP_NOT in target:
-            return NOT(filter_run(test_attrs, funcs, target.strip(OP_NOT)))
+            return NOT(target, test_attrs, funcs)
 
         else:
             key, op, val = parse_target(target)
-            if key in funcs and op in funcs[OPS]:
+            if key in funcs and op in funcs[key][OPS]:
                 return funcs[key][FUNC](test_attrs, op, val)
-            elif key in STATES and funcs == TEST_FUNCS:
+            elif key in STATES.list() and funcs == TEST_FUNCS:
                 return state(test_attrs, key, TestStatusFile)
-            elif key in SERIES_STATES and funcs == SERIES_FUNCS:
+            elif key in SERIES_STATES.list() and funcs == SERIES_FUNCS:
                 return state(test_attrs, key, SeriesStatusFile)
             else:
-                raise ValueError()
-            # raise an exception inside an else here?
-            # may be beneficial if someone makes a key typo
+                raise ValueError(
+                    "Keyword {} not recognized.".format(key))
 
 def make_test_run_filter(target: str) -> Callable[[Dict], bool]:
     filter_func = partial(
         filter_run,
         funcs=TEST_FUNCS,
-        target=trim(target))
+        target=target)
 
     return filter_func
 
@@ -436,10 +499,6 @@ def make_series_filter(target: str) -> Callable[[Dict], bool]:
     filter_func = partial(
         filter_run,
         funcs=SERIES_FUNCS,
-        target=trim(target))
+        target=target)
 
     return filter_func
-    
-
-# dont have 'state' as a keyword, only different states
-# state list can be found in status_file.py

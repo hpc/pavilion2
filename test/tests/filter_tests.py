@@ -74,15 +74,6 @@ class FiltersTest(PavTestCase):
 
         now = time.time()
 
-        base = {
-            'complete': False,
-            'incomplete': False,
-            'user': None,
-            'sys_name': None,
-            'older_than': None,
-            'newer_than': None,
-        }
-
         always_match_series = {
             'complete': True,
             'created': now - 5*60,
@@ -99,44 +90,39 @@ class FiltersTest(PavTestCase):
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
-        opt_set = {
-            'complete': True,
-            'user': 'bob',
-            'sys_name': 'this',
-            'older_than': now - 2*60,
-        }
+        opt_set = [
+            'complete',
+            'user=bob',
+            'sys_name=this',
+            'older_than={}'.format(now - 2*60),
+        ]
 
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
-        inv_opt_set = {
-            'incomplete': True,
-            'newer_than': now - 2*60,
-        }
+        inv_opt_set = [
+            'incomplete',
+            'newer_than={}'.format(now - 2*60),
+        ]
 
-        for opt, val in opt_set.items():
-            opts = base.copy()
-            opts[opt] = val
-
-            series_filter = filters.make_series_filter(**opts)
+        for opt in opt_set:
+            series_filter = filters.make_series_filter(opt)
 
             self.assertTrue(series_filter(always_match_series),
-                            msg="Failed on opt, val ({}, {})"
-                            .format(opt, val))
+                            msg="Failed on opt ({})"
+                            .format(opt))
             self.assertFalse(series_filter(never_match_series),
-                             msg="Failed on opt, val ({}, {})"
-                             .format(opt, val))
+                             msg="Failed on opt ({})"
+                             .format(opt))
 
-        for opt, val in inv_opt_set.items():
-            opts = base.copy()
-            opts[opt] = val
-            series_filter = filters.make_test_run_filter(**opts)
+        for opt in inv_opt_set:
+            series_filter = filters.make_series_filter(opt)
 
             self.assertFalse(series_filter(always_match_series),
-                             msg="Failed on opt, val ({}, {})"
-                             .format(opt, val))
+                            msg="Failed on opt ({})"
+                            .format(opt))
             self.assertTrue(series_filter(never_match_series),
-                            msg="Failed on opt, val ({}, {})"
-                            .format(opt, val))
+                             msg="Failed on opt ({})"
+                             .format(opt))
 
     def test_make_test_run_filter(self):
         """Check that the series filter options all work."""
@@ -163,45 +149,45 @@ class FiltersTest(PavTestCase):
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
-        opt_set = {
-            'complete':     True,
-            'user':         'bob',
-            'sys_name':     'this',
-            'passed':       True,
-            'older_than':   now - timedelta(minutes=2).total_seconds(),
-            'name':         'mytest.*',
-        }
+        opt_set = [
+            'complete',
+            'user=bob',
+            'sys_name=this',
+            'passed',
+            'older_than={}'.format(now - timedelta(minutes=2).total_seconds()),
+            'name=mytest.*'
+        ]
 
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
-        inv_opt_set = {
-            'incomplete':   True,
-            'failed':       True,
-            'result_error': True,
-            'newer_than':   now - timedelta(minutes=2).total_seconds(),
-        }
+        inv_opt_set = [
+            'incomplete',
+            'failed',
+            'result_error',
+            'newer_than={}'.format(now - timedelta(minutes=2).total_seconds())
+        ]
 
-        for opt, val in opt_set.items():
-            tr_filter = filters.make_test_run_filter(**{opt: val})
+        for opt in opt_set:
+            tr_filter = filters.make_test_run_filter(opt)
 
             self.assertTrue(tr_filter(always_match_test),
-                            msg="Failed on opt, val ({}, {})\n{}"
-                            .format(opt, val, always_match_test))
+                            msg="Failed on opt ({})\n{}"
+                            .format(opt, always_match_test))
             self.assertFalse(tr_filter(never_match_test),
-                             msg="Failed on opt, val ({}, {})\n{}"
-                             .format(opt, val, never_match_test))
+                             msg="Failed on opt ({})\n{}"
+                             .format(opt, never_match_test))
 
-        for opt, val in inv_opt_set.items():
-            tr_filter = filters.make_test_run_filter(**{opt: val})
+        for opt in inv_opt_set:
+            tr_filter = filters.make_test_run_filter(opt)
 
             self.assertFalse(tr_filter(always_match_test),
-                             msg="Failed on opt, val ({}, {})\n{}"
-                             .format(opt, val, always_match_test))
+                             msg="Failed on opt ({})\n{}"
+                             .format(opt, always_match_test))
             if opt != 'result_error':  # Fails on this one (expected)
                 self.assertTrue(
                     tr_filter(never_match_test),
-                    msg="Failed on opt, val ({}, {})\n{}"
-                        .format(opt, val, never_match_test))
+                    msg="Failed on opt ({})\n{}"
+                        .format(opt, never_match_test))
 
     def test_filter_states(self):
         """Check filtering by test state. These filters require an actual test to
