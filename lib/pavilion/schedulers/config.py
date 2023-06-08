@@ -562,8 +562,6 @@ def validate_config(config: Dict[str, str]):
     val_config['flex_scheduled'] = (val_config['chunking']['size'] in (0, None)
                                     and not val_config['across_nodes'])
 
-    
-
     return val_config
 
 
