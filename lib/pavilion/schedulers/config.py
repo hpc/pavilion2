@@ -49,7 +49,7 @@ class ScheduleConfig(yc.KeyedElem):
                       "large systems where node setup/cleanup takes a while."),
         yc.StrElem(
             'tasks',
-            help_text="The total number of tasks to run, across all nodes. How this " 
+            help_text="The total number of tasks to run, across all nodes. How this "
                       "interacts with 'tasks_per_node' is scheduler dependent. Under "
                       "slurm, tasks_per_node becomes the maximum tasks per node."),
         yc.StrElem(

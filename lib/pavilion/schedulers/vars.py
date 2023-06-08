@@ -317,7 +317,7 @@ each test right before it runs on an allocation in order to un-defer values.
     def tasks_total(self) -> int:
         """The total number of tasks for the job, either as defined by 'tasks' or
         by the tasks_per_node and number of nodes."""
-    
+
         tasks = self._sched_config.get('tasks')
 
         if tasks is None:

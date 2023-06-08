@@ -68,7 +68,7 @@ slurm kickoff script.
             lines.append('#SBATCH -x {}'
                          .format(Slurm.compress_node_list(self._exclude_nodes)))
 
-        if self._node_max is None: 
+        if self._node_max is None:
             # The job is defined by # of tasks.
             if self._node_min != 1:
                 lines.append('#SBATCH --nodes {}'.format(self._node_min))
