@@ -476,7 +476,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             if chunking_enabled or use_same_nodes or max_nodes is None:
                 self._schedule_shared(pav_cfg, tests, node_range, sched_configs, chunk)
             # Otherwise, we need to bin the tests so they are spread across the machine.
-            # Tests will still llocations but will be divided up to maximally use the
+            # Tests will still share allocations but will be divided up to maximally use the
             # machine.
             else:
                 bin_count = max(len(chunk) // max_nodes, 1)
