@@ -105,18 +105,20 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 "The chunk size must be more than the number of include_nodes."
                 .format(len(include_nodes, chunk_size)))
 
+        # Min nodes is always >= 1, but max_nodes may be None
         min_nodes, max_nodes = calc_node_range(sched_config, len(filtered_nodes))
-        if min_nodes > max_nodes:
-            errors.append(
-                "Requested between {}-{} nodes, but the minimum is more than the maximum "
-                "node count"
-                .format(min_nodes, max_nodes))
+        if max_nodes is not None:
+            if min_nodes > max_nodes:
+                errors.append(
+                    "Requested between {}-{} nodes, but the minimum is more than the maximum "
+                    "node count"
+                    .format(min_nodes, max_nodes))
 
-        if max_nodes < len(include_nodes):
-            errors.append(
-                "Requested {} 'schedule.include_nodes' to be included in every job, but "
-                "the job size is only {} via 'schedule.nodes'."
-                .format(len(include_nodes), max_nodes))
+            if max_nodes < len(include_nodes):
+                errors.append(
+                    "Requested {} 'schedule.include_nodes' to be included in every job, but "
+                    "the job size is only {} via 'schedule.nodes'."
+                    .format(len(include_nodes), max_nodes))
 
         if len(filtered_nodes) < min_nodes:
             reasons = []
@@ -464,13 +466,14 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         for acq_opts, tests in share_groups.items():
             chunking_enabled = sched_configs[tests[0].full_id]['chunking']['size'] not in (0, None)
-            # If the user really wants to use the same node even if other nodes are available,
+            # If the user really wants to use the same nodes even if other nodes are available,
             # setting share_allocation to max will allow that.
             use_same_nodes = True if sched_config['share_allocation'] == 'max' else False
             _, max_nodes = node_range = acq_opts[0]
             # Schedule all these tests in one allocation. Chunked tests are already spread across
             # chunks, and these non-chunked tests are explicitly set to use one allocation.
-            if chunking_enabled or use_same_nodes:
+            # This also happens when we're requesting jobs purely by number of tasks.
+            if chunking_enabled or use_same_nodes or max_nodes is None:
                 self._schedule_shared(pav_cfg, tests, node_range, sched_configs, chunk)
             # Otherwise, we need to bin the tests so they are spread across the machine.
             # Tests will still share allocations but will be divided up to maximally use the
@@ -515,7 +518,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # Save the data for all (compatible) nodes, we never know which we will get.
             job.save_node_data({node: self._nodes[node] for node in chunk})
         else:
-            picked_nodes = node_list[:node_range[1]]
+            if node_range[1] is not None:
+                picked_nodes = node_list[:node_range[1]]
             # Save the data for all the nodes we're using.
             job.save_node_data({node: self._nodes[node] for node in picked_nodes})
             # Clear the node range - it's only used for flexible scheduling.

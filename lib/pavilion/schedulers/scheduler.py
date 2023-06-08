@@ -268,10 +268,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
             raise SchedulerPluginError(
                 "Error validating 'schedule' config section.", err)
 
-        if sched_config['nodes'] is None:
-            raise SchedulerPluginError(
-                "You must specify a value for schedule.nodes")
-
         return self._get_initial_vars(sched_config)
 
     def available(self) -> bool:
