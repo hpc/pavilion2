@@ -84,7 +84,6 @@ class ScheduleConfig(yc.KeyedElem):
                       "select nodes regardless of reservation."),
         yc.StrElem(
             'time_limit',
-            default='1',
             help_text="The job time limit in hours. It is assumed that this is used to "
                       "increase time the time limit beyond the cluster default. "
                       "Tests that share an allocation share the largest given time "
@@ -516,8 +515,8 @@ CONFIG_VALIDATORS = {
 }
 
 CONFIG_DEFAULTS = {
-    'nodes':            '1',
-    'min_nodes':        '0',
+    'nodes':            None,
+    'min_nodes':        None,
     'chunking':         {
         'size':           '0',
         'node_selection': CONTIGUOUS,
@@ -536,7 +535,7 @@ CONFIG_DEFAULTS = {
     'across_nodes':     [],
     'include_nodes':    [],
     'exclude_nodes':    [],
-    'time_limit':       None,
+    'time_limit':       '1',
     'cluster_info':     {
         'node_count': '1',
         'mem':        '1000',

@@ -1343,7 +1343,10 @@ class TestConfigResolver:
             raise ValueError("Invalid value ({}) for key '{}' in overrides"
                              .format(value, disp_key), err)
 
-        last_cfg[last_key] = self.normalize_override_value(value, is_var_value)
+        if value is not None:
+            last_cfg[last_key] = self.normalize_override_value(value, is_var_value)
+        else:
+            del last_cfg[last_key]
 
     def normalize_override_value(self, value, is_var_value=False):
         """Normalize a value to one compatible with Pavilion configs. It can

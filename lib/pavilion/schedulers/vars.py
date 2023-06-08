@@ -40,7 +40,7 @@ each test right before it runs on an allocation in order to un-defer values.
         'errors': ['oh no, there was an error.'],
         'node_list': ['node01', 'node03', 'node04'],
         'status_info': '',
-        'tasks': '35', 
+        'tasks': '35',
         'tasks_per_node': "5",
         'test_nodes':     '45',
         'test_node_list': ['node02', 'node04'],
