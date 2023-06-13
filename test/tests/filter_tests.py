@@ -197,11 +197,12 @@ class FiltersTest(PavTestCase):
         test2 = self._quick_test()
         test2.run()
 
-        t_filter = filters.make_test_run_filter(state=STATES.RUN_DONE)
+        t_filter = filters.make_test_run_filter("RUN_DONE")
         self.assertFalse(t_filter(test.attr_dict()))
         self.assertTrue(t_filter(test2.attr_dict()))
 
-        t_filter2 = filters.make_test_run_filter(has_state=STATES.RUNNING)
+        t_filter2 = filters.make_test_run_filter("has_state=RUNNING")
+        print(test.attr_dict())
         self.assertFalse(t_filter2(test.attr_dict()))
         self.assertTrue(t_filter2(test2.attr_dict()))
 
@@ -219,8 +220,8 @@ class FiltersTest(PavTestCase):
         series2.add_test_set_config('test', test_names=['hello_world'])
         series2_info = series2.info().attr_dict()
 
-        state_filter = filters.make_series_filter(state=SERIES_STATES.ALL_STARTED)
-        has_state_filter = filters.make_series_filter(has_state=SERIES_STATES.SET_MAKE)
+        state_filter = filters.make_series_filter("ALL_STARTED")
+        has_state_filter = filters.make_series_filter("has_state=SET_MAKE")
 
         self.assertTrue(state_filter(series_info))
         self.assertFalse(state_filter(series2_info))

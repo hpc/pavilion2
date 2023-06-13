@@ -20,8 +20,6 @@ LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
     'complete': False,
     'failed': False,
-    'has_state': None,
-    'incomplete': False,
     'name': None,
     'newer_than': None,
     'older_than': None,
@@ -38,8 +36,6 @@ TEST_FILTER_DEFAULTS = {
 
 SERIES_FILTER_DEFAULTS = {
     'complete': False,
-    'has_state': None,
-    'incomplete': False,
     'limit': None,
     'name': None,
     'newer_than': None,
@@ -55,6 +51,19 @@ SORT_KEYS = {
     "TEST": ["created", "finished", "name", "started", "user", "id", ],
     "SERIES": ["created", "id", "status_when"]
 }
+
+FUNC = 0
+OPS  = 1
+
+OP_EQ  = '='
+OP_LT  = '<'
+OP_GT  = '>'
+OP_OR  = '|'
+OP_AND = ' '
+OP_NOT = '!'
+
+STATE = "state"
+HAS_STATE = "has_state"
 
 def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
@@ -88,7 +97,25 @@ def add_common_filter_args(target: str,
     )
     arg_parser.add_argument(
         '--filter', type=str, default=defaults['filter'],
-        help=("placeholder for now...fix"))
+        help=("Filter requirements for tests and series.\n"
+              "List of accepted operators:\n"
+              "AND denoted by a space\n"
+              "OR denoted by a '|'\n\n"
+              "NOT denoted by a '!'\n"
+              "List of accepted arguments:\n"
+              "complete: Include only completed test runs. Default: {}\n"
+              "has_state=STATE: Include only {} who have had the "
+              "given state at some point. Default: {}\n"
+              "name=NAME: Include only tests/series that match this name. "
+              "Globbing wildcards are allowed. Default: {}\n"
+              "older_than=TIME: Include only {} older than (by creation time) the given "
+              "date or a time period given relative to the current date. \n\n"
+              "This can be in the format a partial ISO 8601 timestamp "
+              "(YYYY-MM-DDTHH:MM:SS), such as "
+              "'2018', '1999-03-21', or '2020-05-03 14:32:02'\n\n"
+              "Additionally, you can give an integer time distance into the "
+              "past, such as '1 hour', '3months', or '2years'. "
+              "(Whitespace between the number and unit is optional).\n"))
 
     if sort_options:
         arg_parser.add_argument(
@@ -217,17 +244,6 @@ def complete(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     """
     return attrs.get('complete')
 
-def incomplete(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
-    """Return "incomplete" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param op: the operator of the filter query, if applicable
-    :param val: the value of the filter query, if applicable
-
-    :return: result of the test or series "incomplete" attribute
-    """
-    return not complete(attrs, op, val)
-
 def name(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     """Return "name" status of a test
 
@@ -331,29 +347,34 @@ def newer_than(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool
 
     return attrs.get('created') > float(time_val)
 
-def state(attrs: Union[Dict, series.SeriesInfo], key: str, status_file) -> bool:
+def state(attrs: Union[Dict, series.SeriesInfo], key: str, val: str, status_file) -> bool:
     """Return "state" status of a test
 
     :param attrs: attributes of a given test or series
-    :param key: the state query
+    :param val: the state query
     :param val: status file function of either the series or the test
 
     :return: result of the test or series "state"
     """
-    status_path = Path(attrs['path'])/TestRun.STATUS_FN
+    if status_file is TestStatusFile:
+        status_path = Path(attrs['path'])/TestRun.STATUS_FN
+    else:
+        status_path = Path(attrs['path'])/series.STATUS_FN
+
     try:
         status = status_file(status_path)
     except StatusError:
         return False
 
-    if key.upper() != status.current().state:
+    if key == STATE and val.upper() != status.current().state:
+        return False
+    elif key == HAS_STATE and not status.has_state(val.upper()):
         return False
 
     return True
 
 SERIES_FUNCS = {
     'complete': [complete, ''],
-    'incomplete': [incomplete, ''],
     'name': [name, '='],
     'user': [user, '='],
     'sys_name': [sys_name, '='],
@@ -363,7 +384,6 @@ SERIES_FUNCS = {
 
 TEST_FUNCS = {
     'complete': [complete, ''],
-    'incomplete': [incomplete, ''],
     'name': [name, '='],
     'user': [user, '='],
     'sys_name': [sys_name, '='],
@@ -373,16 +393,6 @@ TEST_FUNCS = {
     'passed': [passed, ''],
     'failed': [failed, ''],
 }
-
-FUNC = 0
-OPS  = 1
-
-OP_EQ  = '='
-OP_LT  = '<'
-OP_GT  = '>'
-OP_OR  = '|'
-OP_AND = ' '
-OP_NOT = '!'
 
 def NOT(op: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
     """Perform a not operation
@@ -449,7 +459,7 @@ def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
 
     return (target, '', '')
 
-def filter_run(test_attrs: Dict, funcs: Dict, target: str) -> bool:
+def filter_run(test_attrs: Union[Dict, series.SeriesInfo], funcs: Dict, target: str) -> bool:
     """Main logic of the filter. Evaluate arguments and apply any operations to them.
 
     :param test_attrs: attributes of a given test or series
@@ -480,14 +490,26 @@ def filter_run(test_attrs: Dict, funcs: Dict, target: str) -> bool:
             if key in funcs and op in funcs[key][OPS]:
                 return funcs[key][FUNC](test_attrs, op, val)
             elif key in STATES.list() and funcs == TEST_FUNCS:
-                return state(test_attrs, key, TestStatusFile)
+                return state(test_attrs, STATE, key, TestStatusFile)
             elif key in SERIES_STATES.list() and funcs == SERIES_FUNCS:
-                return state(test_attrs, key, SeriesStatusFile)
+                return state(test_attrs, STATE, key, SeriesStatusFile)
+            elif key == HAS_STATE and funcs == TEST_FUNCS:
+                return state(test_attrs, HAS_STATE, val, TestStatusFile)
+            elif key == HAS_STATE and funcs == SERIES_FUNCS:
+                return state(test_attrs, HAS_STATE, val, SeriesStatusFile)
             else:
                 raise ValueError(
                     "Keyword {} not recognized.".format(key))
 
 def make_test_run_filter(target: str) -> Callable[[Dict], bool]:
+    """Generate a filter function for use by dir_db.select and similar
+    functions. This operates on TestAttribute objects, so make sure to
+    pass the TestAttribute class as the transform to dir_db functions.
+
+    :param target: Filter query string, contains all filter requirements
+
+    :return: a partial function that takes a set of test attributes
+    """
     filter_func = partial(
         filter_run,
         funcs=TEST_FUNCS,
@@ -496,6 +518,14 @@ def make_test_run_filter(target: str) -> Callable[[Dict], bool]:
     return filter_func
 
 def make_series_filter(target: str) -> Callable[[Dict], bool]:
+    """Generate a filter for using with dir_db functions to filter series. This
+    is expected to operate on series.SeriesInfo objects, so make sure to pass
+    Series info as the dir_db transform function.
+
+    :param target: Filter query string, contains all filter requirements
+
+    :return: a partial function that takes a set of test attributes
+    """
     filter_func = partial(
         filter_run,
         funcs=SERIES_FUNCS,
