@@ -1,13 +1,14 @@
 # pylint: disable=too-many-lines
 """The Flux Framework Scheduler Plugin."""
 
-import os
+import os, sys
 import time
 from typing import List, Union, Any, Tuple
 
 import yaml_config as yc
 from pavilion import sys_vars
 from pavilion.jobs import Job, JobInfo
+from pavilion.output import dbg_print
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
 from ..advanced import SchedulerPluginAdvanced
@@ -21,7 +22,24 @@ try:
     import flux.resource
     from flux.job import JobspecV1
 except ImportError:
-    flux = None
+    minor_version = sys.version_info.minor
+    if minor_version < 6:
+        message = "Python minor version {} is too low.".format(minor_version)
+        raise ImportError(message)
+    flux_path = None
+    for i in range(minor_version, 5, -1):
+        test_flux_path = "/usr/lib64/flux/python3." + str(minor_version)
+        if not os.path.exists(test_flux_path):
+            pass
+        else:
+            flux_path = test_flux_path
+            break
+    sys.path.append(flux_path)
+    import flux
+    import flux.job
+    import flux.resource
+    from flux.job import JobspecV1
+#    flux = None
 
 flux_states = [
     "DEPEND",
@@ -91,27 +109,33 @@ class Flux(SchedulerPluginAdvanced):
         rpc = flux.resource.list.resource_list(flux.Flux())
         listing = rpc.get()
 
-        nodelist = [str(node) for node in listing.free.nodelist]
+        nodelist = listing.up.nodelist.expand()
         extra = {"nodes_listing": listing}
+        dbg_print("_get_raw_node_data found {} nodes: {}".format(len(nodelist), nodelist))
         return nodelist, extra
+
 
     def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
         """
         Translate the gathered data into a NodeInfo dict.
         """
         listing = extra["nodes_listing"]
-        del extra["nodes_listing"]
         node_info = NodeInfo({})
         node_info["name"] = node_data
-        node_info["cpus"] = listing.free.ncores
-        node_info["up"] = node_data in list(listing.up.nodelist)
-        node_info["available"] = node_data in list(listing.free.nodelist)
+        # Assume uniform nodes in the allocation
+        node_info["cpus"] = listing.free.ncores/listing.free.nnodes
+        dbg_print("NODE {} HAS {} CPUS".format(node_data, node_info["cpus"]))
+        node_info["up"] = node_data in listing.up.nodelist
+        node_info["available"] = node_data in listing.free.nodelist
+        dbg_print("Node Info has type {}".format(type(node_info)))
+        dbg_print("Node Info has contents {}".format(node_info.items()))
         return node_info
 
     def _available(self) -> bool:
         """
         Ensure we can import and talk to flux.
         """
+        dbg_print("Determining flux availability.")
         return flux is not None
 
     def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
@@ -161,7 +185,7 @@ class Flux(SchedulerPluginAdvanced):
             }
         )
 
-    def _job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
+    def job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
         """
         Get the current status of the flux job for the given test.
         """
