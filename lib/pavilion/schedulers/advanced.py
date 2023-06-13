@@ -130,11 +130,16 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 reasons.append("({}) {:30s} {}"
                                .format(len(reas_nodes), reason, reas_node_list))
 
-            reasons = "\n".join(reasons)
+            if reasons:
+                reasons = "\n".join(reasons)
+            else:
+                reasons = "No reasons given - this is almost certainly a scheduler plugin bug.\n"\
+                          "There were originally {} nodes, but {} after filtering.\n"\
+                          .format(len(self._nodes), len(filtered_nodes))
 
             errors.append(
                 "Insufficient nodes. Asked for {}-{} nodes, but only {} were "
-                "left after filtering. Nodes for filtered for the following reasons:\n{}\n"
+                "left after filtering. Nodes were filtered for the following reasons:\n{}\n"
                 "Scheduler config:\n{}\n"
                 .format(min_nodes, max_nodes, len(filtered_nodes),
                         reasons, pprint.pformat(sched_config)))
