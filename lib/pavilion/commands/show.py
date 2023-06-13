@@ -662,10 +662,13 @@ class ShowCommand(Command):
                 sched_config = test.config['schedule']
         else:
             loader = file_format.TestConfigLoader()
-            cfg = loader.validate(loader.normalize({}))
+            cfg = loader.load_empty()
+            cfg = loader.validate(loader.normalize(cfg))
             sched_config = cfg['schedule']
+            sched_config = schedulers.validate_config(sched_config)
 
         nodes = sched._get_system_inventory(sched_config)
+        sched._nodes = nodes
         filtered_nodes, filter_reasons = sched._filter_nodes(sched_config)
         for reason, fnodes in filter_reasons.items():
             for fnode in fnodes:
