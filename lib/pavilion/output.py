@@ -86,6 +86,9 @@ def get_relative_timestamp(base_time: float,
     :returns: A formatted time string.
     """
 
+    if isinstance(base_time, datetime.datetime):
+        base_time = base_time.timestamp()
+
     if not isinstance(base_time, float):
         return ''
 

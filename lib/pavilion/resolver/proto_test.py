@@ -56,10 +56,11 @@ class ProtoTest:
 
                 raise TestConfigError(
                     "Error resolving test {} with permute values:"
-                    .format(name), err, data=permute_values, request=self.request)
+                    .format(name),
+                    prior_error=err, data=permute_values, request=self.request)
             else:
                 raise TestConfigError(
-                    "Error resolving test {}".format(name), err, request=self.request)
+                    "Error resolving test {}".format(name), self.request, err)
 
     def check_result_format(self):
         """Make sure the result parsers for each test are ok."""
@@ -71,19 +72,22 @@ class ProtoTest:
         except ResultError as err:
             raise TestConfigError(
                 "Error in results section for test {}.".format(self.config['name']),
-                err, request=self.request)
+                self.request, err)
 
 class RawProtoTest:
     """An simple object that holds the pair of a test config and its variable
     manager."""
 
-    def __init__(self, request: TestRequest, config: Dict, base_var_man: variables.VariableSetManager):
+    def __init__(self, request: TestRequest, config: Dict,
+                 base_var_man: variables.VariableSetManager):
         """A partially initialized pavilion test config."""
 
         self.request: TestRequest = request
         self.config: Dict = config
         self.var_man: variables.VariableSetManager = None
         self.count = request.count
+
+        self._debug = False
 
         user_vars = self.config.get('variables', {})
         base_var_man = copy.deepcopy(base_var_man)
@@ -95,7 +99,7 @@ class RawProtoTest:
             base_var_man.add_var_set('var', user_vars)
         except VariableError as err:
             raise TestConfigError("Error in variables section for test '{}'"
-                                  .format(test_name), err, request=self.request)
+                                  .format(test_name), self.request, err)
 
         self.var_man = base_var_man
 
@@ -117,7 +121,7 @@ class RawProtoTest:
                 raise TestConfigError(
                     "In test '{}' from suite '{}', test variable '{}' was defined "
                     "but wasn't given a value."
-                    .format(test_name, test_suite, var_key), request=self.request)
+                    .format(test_name, test_suite, var_key), self.request)
 
             first_value_keys = set(values[0].keys())
             for i, value in enumerate(values):
@@ -218,8 +222,6 @@ class RawProtoTest:
             permutations.
         """
 
-        debug = False
-
         permute_on = self.config['permute_on']
         self.config['permute_base'] = uuid.uuid4().hex
 
@@ -228,6 +230,8 @@ class RawProtoTest:
 
         test_name = self.config.get('name', '<no name>')
 
+        # We'll do all this (minus the error handling below), but we're mainly checking for problems
+        # so it can just happen once.
         sched_name = self.config.get('scheduler')
         if sched_name is None:
             raise RuntimeError("No scheduler was given. This should only happen "
@@ -242,117 +246,133 @@ class RawProtoTest:
                                   "available on this system.".format(test_name, sched_name),
                                   request=self.request)
 
-        var_men = [self.var_man]
-        # Keep trying to resolve variables and create permutations until we're out. This
-        # iteratively takes care of any permutations that aren't self-referential and don't
-        # depend on the scheduler variables.
-        while True:
-            # Resolve what references we can in variables, but refuse to resolve any based on
-            # permute vars. (Note this does handle any recursive references properly)
-            basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
-            try:
-                resolved, _ = self.var_man.resolve_references(partial=True,
-                                                              skip_deps=basic_per_vars)
-            except VariableError as err:
-                raise TestConfigError("Error resolving variable references (progressive).",
-                                      err, request=self.request)
+        permuted_var_men = self._permute_basic(copy.deepcopy(self.var_man), used_per_vars)
 
-            # Convert to the same format as our per_vars
-            resolved = [('var', var) for var in resolved]
+        # Convert this RawProtoTest into a regular ProtoTest.
+        return [ProtoTest(self.request, self.config, var_man)
+                for var_man in permuted_var_men]
 
-            # Variables to permute on this iteration.
-            permute_now = []
-            for var_set, var in used_per_vars.copy():
-                if var_set not in ('sched', 'var') or (var_set, var) in resolved:
-                    permute_now.append((var_set, var))
-                    used_per_vars.remove((var_set, var))
+    def _permute_basic(self, var_man, used_per_vars) -> List[variables.VariableSetManager]:
+        """Permute over non-self referential variables and variables that don't rely on
+        the scheduler. This will only resolve references whose dependencies are already
+        resolved. It will be called repeatedly until all such references are resolved."""
 
-            # We've done all we can without resolving scheduler variables.
-            if not permute_now:
-                break
+        used_per_vars = list(used_per_vars)
 
-            # Get permutations for each existing variable manager.
-            new_var_men = []
-            for var_man in var_men:
-                new_var_men.extend(var_man.get_permutations(permute_now))
-            var_men = new_var_men
+        basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
+        try:
+            resolved, _ = var_man.resolve_references(partial=True,
+                                                     skip_deps=basic_per_vars)
+        except VariableError as err:
+            raise TestConfigError("Error resolving variable references (basic).",
+                                  self.request, err)
 
-            if debug:
-                output.fprint(sys.stderr, 'inc permutes, permuted on ', permute_now,
-                              'got ', len(var_men))
+        # Convert to the same format as our per_vars
+        resolved = [('var', var) for var in resolved]
+
+        # Variables to permute on this iteration.
+        permute_now = []
+        for var_set, var in used_per_vars.copy():
+            if var_set not in ('sched', 'var') or (var_set, var) in resolved:
+                permute_now.append((var_set, var))
+                used_per_vars.remove((var_set, var))
 
 
-        # Calculate permutations for variables that we 'could resolve' if not for the fact
-        # that they are permutation variables. These are variables that refer to themselves
-        # (either directly (a.b->a.c) or indirectly (a.b -> d -> a.c).
+        if not permute_now:
+            # There are no more basic variables to permute over. Proceed to the next step.
+            return self._permute_delayed(var_man, used_per_vars)
+
+        new_var_men = []
+        for new_var_man in var_man.get_permutations(permute_now):
+            new_var_men.extend(self._permute_basic(new_var_man, used_per_vars))
+        return new_var_men
+
+
+    def _permute_delayed(self, var_man, used_per_vars) -> List[variables.VariableSetManager]:
+        """Calculate permutations for variables that we 'could resolve' if not for the fact
+           that they are permutation variables. These are variables that refer to themselves
+           (either directly (a.b->a.c) or indirectly (a.b -> d -> a.c). We only have to do
+           this once."""
+
+        used_per_vars = list(used_per_vars)
+
+        basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
+        try:
+            _, could_resolve = var_man.resolve_references(partial=True,
+                                                          skip_deps=basic_per_vars)
+        except VariableError as err:
+            raise TestConfigError("Error resolving variable references (delayed vars).",
+                                  self.request, err)
+
+        permute_now = []
+        for var_name in could_resolve:
+            permute_now.append(('var', var_name))
+            used_per_vars.remove(('var', var_name))
+
+        perm_var_men = var_man.get_permutations(permute_now)
+        if self._debug:
+            output.fprint(sys.stderr, 'delayed permutes, permuted on ', could_resolve,
+                          'got ', len(perm_var_men))
+
         all_var_men = []
-        for var_man in var_men:
-            basic_per_vars = [var for var_set, var in used_per_vars if var_set == 'var']
-            try:
-                _, could_resolve = var_man.resolve_references(partial=True,
-                                                              skip_deps=basic_per_vars)
-            except VariableError as err:
-                raise TestConfigError("Error resolving variable references (post-prog).",
-                                      err, request=self.request)
+        for new_var_man in perm_var_men:
+            # Resolve the next step in permutations for each permutation resolved here.
+            all_var_men.extend(self._permute_sched(new_var_man, used_per_vars))
 
-            # Resolve permutations only for those 'could_resolve' variables that
-            # we actually permute over.
-            all_var_men.extend(var_man.get_permutations(
-                [('var', var_name) for var_name in could_resolve
-                 if var_name in could_resolve]))
+        return all_var_men
 
-            if debug:
-                output.fprint(sys.stderr, 'tangled permutes, permuted on ', could_resolve,
-                              'got ', len(var_men))
-        var_men = all_var_men
+    def _permute_sched(self, var_man, used_per_vars) -> List[variables.VariableSetManager]:
+        """Everything that remains unresolved will depend on scheduler variables."""
 
-        # Everything left at this point will require the sched vars to deal with.
-        all_var_men = []
-        for var_man in var_men:
-            # Resolve the variables that don't depend sched, but have complicated relationships
-            # we couldn't solve iteratively. If there's anything left at this point, it will
-            # probably result in undesired behavior, but it's the best we can do.
-            try:
-                var_man.resolve_references(partial=True)
-            except VariableError as err:
-                raise TestConfigError("Error resolving variable references (pre-sched).",
-                                      err, request=self.request)
+        sched_name = self.config['scheduler']
+        sched = schedulers.get_plugin(sched_name)
 
-            sched_cfg = self.config.get('schedule', {})
-            try:
-                sched_cfg = resolve.test_config(sched_cfg, var_man)
-            except KeyError as err:
-                raise TestConfigError(
-                    "Failed to resolve the scheduler config due to a missing or "
-                    "unresolved variable for test {}".format(test_name),
-                    err, request=self.request)
+        # Resolve the variables that don't depend on sched, but have complicated relationships
+        # we couldn't solve iteratively. If there's anything left at this point, it will
+        # probably result in undesired behavior, but it's the best we can do.
+        try:
+            var_man.resolve_references(partial=True)
+        except VariableError as err:
+            raise TestConfigError("Error resolving variable references (pre-sched).",
+                                  self.request, err)
 
-            try:
-                sched_vars = sched.get_initial_vars(sched_cfg)
-            except SchedulerPluginError as err:
-                raise TestConfigError(
-                    "Error getting initial variables from scheduler {} for test '{}'.\n\n"
-                    "Scheduler Config: \n{}"
-                    .format(sched_name, test_name, pprint.pformat(sched_cfg)),
-                    err, request=self.request)
+        sched_cfg = self.config.get('schedule', {})
+        try:
+            sched_cfg = resolve.test_config(sched_cfg, var_man)
+        except KeyError as err:
+            raise TestConfigError(
+                "Failed to resolve the scheduler config due to a missing or "
+                "unresolved variable for test {}".format(test_name),
+                self.request, err)
 
-            var_man.add_var_set('sched', sched_vars)
-            # Now we can really fully resolve all the variables.
-            try:
-                var_man.resolve_references()
-            except VariableError as err:
-                raise TestConfigError("Error resolving variable references (final).",
-                                      err, request=self.request)
+        # NOTE: This step right HERE gets everything the test needs from the scheduler to
+        # get scheduled. It is very time sensitive.
+        try:
+            sched_vars = sched.get_initial_vars(sched_cfg)
+        except SchedulerPluginError as err:
+            raise TestConfigError(
+                "Error getting initial variables from scheduler {} for test '{}'.\n\n"
+                "Scheduler Config: \n{}"
+                .format(sched_name, test_name, pprint.pformat(sched_cfg)),
+                self.request, err)
 
-            # And do the rest of the permutations.
-            all_var_men.extend(var_man.get_permutations(used_per_vars))
+        var_man.add_var_set('sched', sched_vars)
+        # Now we can really fully resolve all the variables.
+        try:
+            var_man.resolve_references()
+        except VariableError as err:
+            raise TestConfigError("Error resolving variable references (final).",
+                                  self.request, err)
 
-            if debug:
-                output.fprint(sys.stderr, 'sched permutes, permuted on ', used_per_vars,
-                              'got', len(all_var_men))
+        # And do the rest of the permutations.
+        all_var_men = var_man.get_permutations(used_per_vars)
 
-        return [ProtoTest(self.request, self.config, var_man, count=self.count)
-                for var_man in all_var_men]
+        if self._debug:
+            output.fprint(sys.stderr, 'sched permutes, permuted on ', used_per_vars,
+                          'got', len(all_var_men))
+
+        return all_var_men
+
 
     def _check_permute_vars(self, permute_on) -> List[Tuple[str, str]]:
         """Check the permutation variables and report errors. Returns a set of the
@@ -372,19 +392,19 @@ class RawProtoTest:
                         "Permutation variable '{}' is not defined. Note that if you're permuting "
                         "over a scheduler variable, you must specify the variable type "
                         "(ie 'sched.node_list')"
-                        .format(per_var))
+                        .format(per_var), request=self.request)
             if index is not None or subvar is not None:
                 raise TestConfigError(
                     "Permutation variable '{}' contains index or subvar. "
                     "When giving a permutation variable only the variable name "
                     "and variable set (optional) are allowed. Ex: 'sys.foo' "
                     " or just 'foo'."
-                    .format(per_var))
+                    .format(per_var), self.request)
             elif self.var_man.any_deferred(per_var):
                 raise TestConfigError(
                     "Permutation variable '{}' references a deferred variable "
                     "or one with deferred components."
-                    .format(per_var))
+                    .format(per_var), self.request)
             per_vars.add((var_set, var))
 
         return sorted(list(per_vars))

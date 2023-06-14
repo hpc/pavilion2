@@ -142,7 +142,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             errors.append(
                 "Insufficient nodes. Asked for {}-{} nodes, but only {} were "
-                "left after filtering. Nodes for filtered for the following reasons:\n{}\n"
+                "left after filtering. Nodes were filtered for the following reasons:\n{}\n"
                 "Scheduler config:\n{}\n"
                 .format(min_nodes, max_nodes, len(filtered_nodes),
                         reasons, pprint.pformat(sched_config)))
@@ -575,8 +575,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 nodes=picked_nodes,
                 node_range=node_range)
         except SchedulerPluginError as err:
-            err.tests = tests
-            return [err]
+            return [self._make_kickoff_error(err, tests)]
         except Exception as err:
             return [SchedulerPluginError(
                 "Unexpected error kicking off tests under '{}' scheduler."
@@ -634,14 +633,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     node_range=node_range,
                 )
             except SchedulerPluginError as err:
-                err.tests = [test]
-                errors.append(err)
+                errors.append(self._make_kickoff_error(err, tests))
                 continue
             except Exception as err:
                 errors.append(SchedulerPluginError(
                     "Unexpected error kicking off test under '{}' scheduler."
-                    .format(self.name),
-                    err, tests=[test]))
+                    .format(self.name), err))
                 continue
 
             test.status.set(
@@ -725,13 +722,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     job_name=job_name,
                     nodes=picked_nodes)
             except SchedulerPluginError as err:
-                err.tests = [test]
-                return [err]
+                return [self._make_kickoff_error(err, [test])]
             except Exception as err:
-                return [SchedulerPluginError(
+                errors.append(SchedulerPluginError(
                     "Unexpected error kicking off test under '{}' scheduler."
-                    .format(self.name),
-                    err, tests=[test])]
+                    .format(self.name), err), tests=[test])
 
             test.status.set(
                 STATES.SCHEDULED,

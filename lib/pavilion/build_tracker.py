@@ -23,20 +23,18 @@ class MultiBuildTracker:
         self.trackers = {}
         self.lock = threading.Lock()
 
-    def register(self, builder, test_status_file) -> "BuildTracker":
+    def register(self, test) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
 
-    :param TestBuilder builder: The builder object to track.
-    :param status_file.StatusFile test_status_file: The status file object
-        for the corresponding test.
+    :param test: The builder object to track.
     :return: A build tracker instance that can be used by builds directly."""
 
-        tracker = BuildTracker(builder, self)
+        tracker = BuildTracker(test, self)
         with self.lock:
-            self.status_files[builder] = test_status_file
-            self.status[builder] = None
-            self.messages[builder] = []
-            self.trackers[builder] = tracker
+            self.status_files[test.builder] = test.status
+            self.status[test.builder] = None
+            self.messages[test.builder] = []
+            self.trackers[test.builder] = tracker
 
         return tracker
 
@@ -87,8 +85,12 @@ class MultiBuildTracker:
 class BuildTracker:
     """Tracks the status updates for a single build."""
 
-    def __init__(self, builder, tracker):
-        self.builder = builder
+    def __init__(self, test, tracker):
+        self.test = test
+        if test is None:
+            self.builder = None
+        else:
+            self.builder = test.builder
         self.tracker = tracker
         self.failed = False
 

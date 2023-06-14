@@ -60,12 +60,14 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                errors.append(SchedulerPluginError("Error creating Job.", err, tests=[test]))
+                errors.append(SchedulerPluginError("Error creating Job.",
+                                                   prior_error=err, tests=[test]))
                 continue
 
             try:
                 sched_config = validate_config(test.config['schedule'])
-                node_range = calc_node_range(sched_config, sched_config['cluster_info']['node_count'])
+                node_range = calc_node_range(sched_config,
+                                             sched_config['cluster_info']['node_count'])
             except SchedulerPluginError as err:
                 err.tests = [test]
                 errors.append(err)
@@ -92,14 +94,16 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                     job_name=job_name,
                     node_range=node_range)
             except SchedulerPluginError as err:
-                err.tests = [test]
-                errors.append(err)
+                errors.append(self._make_kickoff_error(err, [test]))
                 continue
-            except Exception as err:
+            except Exception as err:     # pylint: disable=broad-except
                 errors.append(SchedulerPluginError(
-                    "Unexpected error when starting test under the '{}' scheduler".format(self.name),
-                    err, tests=[test]))
+                    "Unexpected error when starting test under the '{}' scheduler"
+                    .format(self.name),
+                    prior_error=err, tests=[test]))
                 continue
 
             test.status.set(STATES.SCHEDULED,
                             "Test kicked off with the {} scheduler".format(self.name))
+
+        return errors

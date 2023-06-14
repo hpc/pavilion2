@@ -28,7 +28,6 @@ class TestRunTests(PavTestCase):
             'name': 'test',
             'scheduler': 'raw',
             'build': {
-                'modules': ['gcc'],
                 'cmds': ['echo "Hello World"'],
                 'timeout': '30',
             },

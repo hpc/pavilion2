@@ -1,8 +1,8 @@
+from typing import Dict, List, Union, Tuple
+
 from pavilion import parsers
 from pavilion import variables
 from pavilion.errors import TestConfigError, DeferredError, StringParserError, ParserValueError
-
-from typing import Dict, List, Union, Tuple
 
 DEFERRED_PREFIX = '!deferred!'
 NO_DEFERRED_ALLOWED = [

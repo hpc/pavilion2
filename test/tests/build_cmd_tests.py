@@ -11,7 +11,8 @@ class BuildCmdTests(PavTestCase):
 
     def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)
-        commands.get_command('build').silence()
+        build_cmd = commands.get_command('build')
+        build_cmd.silence()
 
     def test_multi_build(self):
         """Make sure we can just build multiple simultaneous builds on

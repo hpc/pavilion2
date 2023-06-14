@@ -587,7 +587,7 @@ class TestRun(TestAttributes):
 
         if tracker is None:
             mb_tracker = MultiBuildTracker()
-            tracker = mb_tracker.register(self.builder, self.status)
+            tracker = mb_tracker.register(self)
 
         if not self.saved:
             raise RuntimeError("The .save() method must be called before you "
@@ -624,7 +624,7 @@ class TestRun(TestAttributes):
             except errors.TestBuilderError as err:
                 tracker.fail("Error copying build: {}".format(err.args[0]))
                 cancel_event.set()
-            build_result = True
+            build_success = True
 
         else:
             try:
@@ -638,17 +638,17 @@ class TestRun(TestAttributes):
                 except FileNotFoundError:
                     # Builds can have symlinks that point to non-existent files.
                     pass
-            build_result = False
+            build_success = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
 
-        if build_result:
+        if build_success:
             self.status.set(STATES.BUILD_DONE, "Build is complete.")
 
-        if self.build_only or not build_result:
+        if self.build_only or not build_success:
             self.set_run_complete()
 
-        return build_result
+        return build_success
 
     RUN_WAIT_MAX = 1
     # The maximum wait time before checking things like test cancellation

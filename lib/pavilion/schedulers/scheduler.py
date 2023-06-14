@@ -287,8 +287,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Clear gathered scheduler information, generally to force the scheduler to
         re-gather info and node lists."""
 
-        pass
-
 
     JOB_STATUS_TIMEOUT = 1
 
@@ -520,6 +518,21 @@ class SchedulerPlugin(IPlugin.IPlugin):
                 del config.CONFIG_VALIDATORS[name]
             if name in config.CONFIG_DEFAULTS:
                 del config.CONFIG_DEFAULTS[name]
+
+    def _make_kickoff_error(self, orig_err, tests):
+        """Convert a generic error to something with more information."""
+
+        test_names = tests[:2]
+        if len(tests) > 2:
+            test_names.append('...')
+        test_names = ', '.join(test.name for test in test_names)
+
+        plural = 's' if len(tests) > 1 else ''
+
+        return SchedulerPluginError(
+            "Error kicking off test{} '{}' under the '{}' scheduler."
+            .format(plural, test_names, self.name),
+            prior_error=orig_err, tests=tests)
 
 
 def __reset():

@@ -20,6 +20,7 @@ from pavilion import dir_db
 from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
+from pavilion.enums import Verbose
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
@@ -47,7 +48,8 @@ class TestSeries:
     PGID_FN = 'series.pgid'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
 
-    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id=None):
+    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id=None,
+                 verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
 
         :param pav_cfg: The pavilion configuration object.
@@ -60,6 +62,9 @@ class TestSeries:
 
         self.config = series_cfg or SeriesConfigLoader().load_empty()
 
+        self.outfile = io.StringIO() if outfile is None else outfile
+        self.verbosity = verbosity
+
         name = self.config.get('name') or 'unnamed'
         if not self.NAME_RE.match(name):
             raise TestSeriesError(
@@ -69,7 +74,11 @@ class TestSeries:
 
         series_path = self.pav_cfg.working_dir/'series'
 
-        self.simultaneous = self.config['simultaneous']
+        self.simultaneous = self.config.get('simultaneous')
+        if self.simultaneous in (0, None):
+            self.simultaneous = 2**32
+        self.batch_size = max(self.simultaneous//2, 1)
+
         self.repeat = self.config['repeat']
 
         self._pgid = None
@@ -203,7 +212,7 @@ differentiate it from test ids."""
                 "Invalid SID '{}'. Must end in an integer.".format(sid))
 
     @classmethod
-    def load(cls, pav_cfg, sid: Union[str, int]):
+    def load(cls, pav_cfg, sid: Union[str, int], outfile=None):
         """Load a series object from the given id, along with all of its
     associated tests.
 
@@ -234,7 +243,7 @@ differentiate it from test ids."""
             raise TestSeriesError("Could not load config file for test series '{}': {}"
                                   .format(sid), err)
 
-        series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg)
+        series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg, outfile=outfile)
         return series
 
     def _create_test_sets(self, iteration=0):
@@ -269,6 +278,9 @@ differentiate it from test ids."""
                 parents_must_pass=set_info['depends_pass'],
                 overrides=self.config.get('overrides', []),
                 status=self.status,
+                simultaneous=self.simultaneous,
+                outfile=self.outfile,
+                verbosity=self.verbosity,
             )
             self._add_test_set(set_obj)
 
@@ -371,7 +383,7 @@ differentiate it from test ids."""
         try:
             self._create_test_sets()
         except TestSeriesError as err:
-            fprint(outfile, "Error creating test sets:\n{}".format(err.args[0]))
+            fprint(self.outfile, "Error creating test sets:\n{}".format(err.args[0]))
             self.status.set(SERIES_STATES.ERROR,
                             "Error creating test sets: {}".format(err.args[0]))
             raise
@@ -404,7 +416,7 @@ differentiate it from test ids."""
                 # Make sure it's ok to run this test set based on parent status.
                 if not test_set.should_run:
                     test_set.mark_completed()
-                    output.fprint(outfile, "Skipping test set '{}' due to parents not passing."
+                    output.fprint(self.outfile, "Skipping test set '{}' due to parents not passing."
                                   .format(test_set.name))
                     continue
 
@@ -417,11 +429,10 @@ differentiate it from test ids."""
                                     "`pav log series {}`.  {}"
                                     .format(test_set.name, self.sid, err.args[0]))
 
-                self.set_complete()
-                raise TestSeriesError(
-                    "Error making tests for series '{}'."
-                    .format(self.sid), err)
-
+                    self.set_complete()
+                    raise TestSeriesError(
+                        "Error making tests for series '{}'."
+                        .format(self.sid), err)
 
             for test_set in sets_to_run:
                 potential_sets.remove(test_set)
@@ -447,16 +458,17 @@ differentiate it from test ids."""
 
         # Track which builds we've already marked as deprecated, when doing rebuilds.
         deprecated_builds = set()
-        jobs_running = 0
+        failed_builds = dict()
+        tests_running = 0
 
-        for test_batch in test_set.make(build_only, rebuild, local_builds_only):
+        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)
 
             # Build each test
             try:
-                built_tests = test_set.build(test_batch, deprecated_builds)
+                test_set.build(deprecated_builds, failed_builds)
             except TestSetError as err:
                 self.status.set(SERIES_STATES.BUILD_ERROR,
                                 "Error building tests. See the series log `pav log series {}"
@@ -466,11 +478,12 @@ differentiate it from test ids."""
                     "Error building tests for series '{}'"
                     .format(self.sid), err)
 
-            if not built_tests:
+            if not test_set.ready_to_start:
                 continue
 
             try:
-                jobs_running += test_set.kickoff(built_tests)
+                started_tests, new_jobs = test_set.kickoff()
+                tests_running += len(started_tests)
             except TestSetError as err:
                 self.status.set(SERIES_STATES.KICKOFF_ERROR,
                                 "Error kicking off tests for series '{}'".format(self.sid))
@@ -478,21 +491,21 @@ differentiate it from test ids."""
                     "Error kicking off tests for series '{}'".format(self.sid))
 
             if self.verbosity != Verbose.QUIET:
-                if len(built_tests) == 1:
-                    fprint(outfile, "Kicked off test {} for test set '{}' in series {}."
-                                    .format(ktests, test_set.name, self.sid))
+                if len(new_jobs) == 1:
+                    fprint(self.outfile, "Kicked off a job for test set '{}' in series {}."
+                                         .format(test_set.name, self.sid))
                 else:
-                    ktests = ', '.join([test.full_id for test in built_tests[:3]]
-                                       + ['...'] if len(built_tests) > 3 else [])
+                    ktests = ', '.join([test.name for test in started_tests]
+                                       + ['...'] if len(started_tests) > 3 else [])
 
-                    fprint(outfile, "Kicked off tests {} ({} total) for test set {} "
-                                    "in series {}."
-                                    .format(ktests, len(built_tests), test_set.name, self.sid))
+                    fprint(self.outfile, "Kicked off tests {} ({} total) for test set {} "
+                                         "in series {}."
+                                         .format(ktests, len(started_tests),
+                                                 test_set.name, self.sid))
 
             # Wait for jobs until enough have finished to start a new batch.
-            while jobs_running + self.batch_size > self.simultaneous:
-                jobs_completed = test_set.wait()
-                jobs_running -= jobs_completed
+            while tests_running + self.batch_size > self.simultaneous:
+                tests_running -= test_set.wait()
 
 
     WAIT_INTERVAL = 0.5

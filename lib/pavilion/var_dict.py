@@ -212,9 +212,12 @@ class VarDict(UserDict):
         func = getattr(self, key)
 
         # Get rid of newlines
-        help_text = func.__doc__.replace('\n', ' ')
-        # Get rid of extra whitespace
-        help_text = ' '.join(help_text.split())
+        if func.__doc__ is not None:
+            help_text = func.__doc__.replace('\n', ' ')
+            # Get rid of extra whitespace
+            help_text = ' '.join(help_text.split())
+        else:
+            help_text = ''
 
         return {
             'name': key,

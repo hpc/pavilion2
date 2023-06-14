@@ -7,6 +7,7 @@ import time
 
 from pavilion import arguments
 from pavilion import commands
+from pavilion import errors
 from pavilion import plugins
 from pavilion import resolve
 from pavilion import resolver
@@ -193,7 +194,12 @@ class ResolverTests(PavTestCase):
 
         for bad_test, bad_excerpt in bad_tests:
             with self.assertRaisesRegex(TestConfigError, bad_excerpt):
-                self.resolver.load([bad_test])
+                try:
+                    self.resolver.load([bad_test])
+                except errors.PavilionError as err:
+                    print(err.pformat())
+                    raise
+
 
     def test_wildcards(self):
         """Make sure wildcarded tests and permutations work"""
@@ -287,7 +293,7 @@ class ResolverTests(PavTestCase):
             # A very empty key.
             ('foo.=empty', "has an empty key part"),
             # Value is an incomplete mapping.
-            ("summary={asdf", "while parsing a flow mapping"),
+            ("summary={asdf", "Invalid value '{asdf'"),
         ]
 
         proto_tests = self.resolver.load(['hello_world'],
@@ -836,12 +842,11 @@ class ResolverTests(PavTestCase):
         }
 
         for ptest in ptests:
-            import pprint
             self.assertEqual(ptest.config['test_version'],
                              expected[ptest.config['name']])
             self.assertEqual(ptest.var_man['pav.version'], pav_version)
 
-        with self.assertRaisesRegex(TestConfigError, 'Incompatible with pavilion version'):
+        with self.assertRaisesRegex(TestConfigError, 'has incompatibility'):
             self.resolver.load(['version_incompatible'])
 
     def test_sched_errors(self):
@@ -955,6 +960,7 @@ class ResolverTests(PavTestCase):
         for tests in self.resolver.load_iter(requests, batch_size=7,
                                              overrides=['scheduler=dummy']):
 
+
             # Reset scheduler plugins
             # The test set will do this for us, but we have to here.
             for sched_name in schedulers.list_plugins():
@@ -968,5 +974,6 @@ class ResolverTests(PavTestCase):
             # The actual orders will be random because of multiprocessing
             answer.sort()
             result.sort()
+            print(result)
             self.assertEqual(result, answer)
             self.assertEqual(self.resolver.errors, [])

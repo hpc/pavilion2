@@ -82,8 +82,12 @@ class RunCmdTests(PavTestCase):
         build_names = set([b.name for b in builds])
         self.assertEqual(len(build_names), 4)
 
+        run_cmd.last_series.wait()
+
         statuses = [test.status.current().state for test in run_cmd.last_tests]
         statuses = set(statuses)
+        for test in run_cmd.last_tests:
+            print(test.full_id, test.name, test.status.current())
         self.assertEqual(statuses, {STATES.ABORTED, STATES.BUILD_FAILED})
 
         self.assertTrue(all([test.complete for test in
@@ -187,7 +191,7 @@ class RunCmdTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
 
-        # pass a collection name to -f (not an absolute path) 
+        # pass a collection name to -f (not an absolute path)
         args = arg_parser.parse_args([
             'run',
             '-f', 'testlist.txt',

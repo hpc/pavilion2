@@ -286,13 +286,6 @@ appends of a size such that those writes should be atomic.
             # Make sure we can open the file, and create it if it doesn't exist.
             self.set(self.states.STATUS_CREATED, 'Created status file.')
 
-        self._cached_current = None
-        self._cached_current_touched = {
-            'state': False,
-            'when': False,
-            'note': False
-        }
-
     def _parse_status_line(self, line) -> TestStatusInfo:
         """Parse a line of the status file. This assumes all sorts of things
 could be wrong with the file format."""

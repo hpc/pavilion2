@@ -144,7 +144,9 @@ class RunCommand(Command):
         report_status = getattr(args, 'status', False)
 
         # create brand-new series object
-        series_obj = TestSeries(pav_cfg, series_cfg=series_cfg)
+        series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
+                                verbosity=args.build_verbosity,
+                                outfile=self.outfile)
 
         output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
 
@@ -160,9 +162,7 @@ class RunCommand(Command):
             series_obj.run(
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
-                local_builds_only=local_builds_only,
-                verbosity=args.build_verbosity,
-                outfile=self.outfile)
+                local_builds_only=local_builds_only)
             self.last_tests = list(series_obj.tests.values())
         except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())

@@ -12,6 +12,8 @@ class SeriesTests(PavTestCase):
     def test_init(self):
         """Check initialization of the series object."""
 
+        ignore_keys = ['outfile']
+
         # Initialize from scratch
         series1 = series.TestSeries(
             pav_cfg=self.pav_cfg,
@@ -25,6 +27,8 @@ class SeriesTests(PavTestCase):
 
         # Make sure a loaded series is the same as the original
         for attr in series1.__dict__.keys():
+            if attr in ignore_keys:
+                continue
             self.assertEqual(series1.__getattribute__(attr),
                              series2.__getattribute__(attr), attr)
 

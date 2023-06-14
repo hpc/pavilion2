@@ -272,12 +272,9 @@ class TestBuilder:
         self.fail_path = self.path.parent/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
-    def deprecate(self, deprecate_id:str):
+    def deprecate(self):
         """Deprecate this build, so that it will be rebuilt if any other
         test run wants to use it.
-
-        :param deprecate_id: A uniq id to identify this deprecation - prevents
-            multiple rebuilds of the same test in the same series.
         """
 
         dep_tmp_path = self.path/'.dep_tmp-{}'.format(time.time())
@@ -285,12 +282,7 @@ class TestBuilder:
         if dep_path.exists():
             return
 
-        with (dep_tmp_path).open('w') as dep_file:
-            dep_file.write(deprecate_id)
-
-
-
-        deprecated_path.touch()
+        dep_path.touch()
 
     def _update_src(self):
         """Retrieve and/or check the existence of the files needed for the

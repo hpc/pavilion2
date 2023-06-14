@@ -47,9 +47,13 @@ class SchedTests(PavTestCase):
 
             for key in sched_vars.keys():
                 module_path = inspect.getmodule(sched).__file__
-                example = sched_vars.info(key)['example']
+                info = sched_vars.info(key)
                 self.assertNotEqual(
-                    example, sched_vars.NO_EXAMPLE,
+                    info['help'], '',
+                    msg="Missing documentation (doc string) for scheduler variable {}"
+                        .format(key))
+                self.assertNotEqual(
+                    info['example'], sched_vars.NO_EXAMPLE,
                     msg="The sched variable examples for scheduler {} at "
                         "({}) are missing key {}."
                         .format(sched_name, module_path, key))
@@ -231,9 +235,9 @@ class SchedTests(PavTestCase):
             self.assertIn('node01', chunk)
 
         # Check that 'across_nodes' works, and that it works as expected with include_nodes and exclude_nodes
-        across_nodes = ['node01', 'node02', 'node03', 'node04', 'node05', 'node06', 'node07', 
-                        'node08', 'node09', 'node11', 'node12', 'node13', 'node14', 'node15', 
-                        'node16', 'node17', 'node18', 'node19', 'node21', 'node22', 'node23', 
+        across_nodes = ['node01', 'node02', 'node03', 'node04', 'node05', 'node06', 'node07',
+                        'node08', 'node09', 'node11', 'node12', 'node13', 'node14', 'node15',
+                        'node16', 'node17', 'node18', 'node19', 'node21', 'node22', 'node23',
                         'node24', 'node25', 'node26', 'node27', 'node28', 'node29']
         svars = dummy.get_initial_vars({'across_nodes': ['node[01-30]']})
         self.assertEqual(sorted(svars['node_list']), across_nodes)

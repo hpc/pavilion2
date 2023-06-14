@@ -104,7 +104,7 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
     modes = modes or []
 
     series_cfg = load_series_config(pav_cfg, series_name)
-    resolver = TestConfigResolver(pav_cfg)
+    resolver = TestConfigResolver(pav_cfg, host=host)
 
     if series_cfg.get('name') is None:
         series_cfg['name'] = series_name
@@ -117,7 +117,6 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
             all_modes = series_cfg['modes'] + set_dict['modes']
             resolver.load(
                 tests=set_dict['tests'],
-                host=host,
                 modes=all_modes,
                 overrides=overrides)
     except AttributeError as err:

@@ -36,11 +36,10 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
+from yaml_config import RequiredError
 
 from .proto_test import RawProtoTest, ProtoTest
 from .request import TestRequest
-
-from yaml_config import RequiredError
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -80,7 +79,7 @@ class TestConfigResolver:
         except SystemPluginError as err:
             raise TestConfigError(
                 "Error in system variables"
-                .format(err)
+                .format(prior_error=err)
             )
 
         self._base_var_man.add_var_set(
@@ -261,8 +260,7 @@ class TestConfigResolver:
                     full_path = file
                     try:
                         with file.open() as config_file:
-                            config = file_format.self._loader.load(
-                                config_file)
+                            config = self._loader.load(config_file)
                         configs[name]['path'] = full_path
                         configs[name]['config'] = config
                         configs[name]['status'] = ''
@@ -322,22 +320,29 @@ class TestConfigResolver:
         raw_tests = []
         for request in requests:
             # Convert each request into a list of RawProtoTest objects.
-            raw_tests.extend(self._load_raw_configs(request, modes, conditions, overrides))
+            try:
+                raw_tests.extend(self._load_raw_configs(request, modes, conditions, overrides))
+            except TestConfigError as err:
+                err.request = request
+                self.errors.append(err)
 
         raw_tests.reverse()
         raw_tests_empty = not raw_tests
 
         # Tests that are resolved and ready to return.
         resolved_tests = []
-        # Resolved test count that takes into account repeated tests
-        resolved_tests_count = 0
-        # Test that are ready to resolve.
+        # Test that are ready to resolve. Note that these may be multiplied out.
         ready_to_resolve = []
         while raw_tests:
+            # Number of tests this will resolve too after repeats
+            ready_count = 0
+
             # Get permutations from raw tests until we've hit our batch limit.
-            while resolved_tests_count < batch_size and raw_tests:
+            while len(resolved_tests) + ready_count < batch_size and raw_tests:
+                print(len(resolved_tests), len(ready_to_resolve), ready_count)
 
                 raw_test = raw_tests.pop()
+                print(raw_test.request, raw_test.count)
 
                 # Resolve all configuration permutations.
                 try:
@@ -346,37 +351,45 @@ class TestConfigResolver:
                     self.errors.append(err)
                     break
 
-                # If the tests are set to repeat, re-insert the raw test with reduced count.
-                perm_repeats = math.ceil((batch_size - resolved_tests_count)/len(permutations))
-                if raw_test.count > perm_repeats:
-                    raw_test.count -= perm_repeats
-                    raw_tests.append(raw_test)
-                    # Update the permutations to only repeat approximately within the limit.
+                if not permutations:
+                    continue
+
+                batch_remain = batch_size - len(resolved_tests) - ready_count - len(permutations)
+                ready_count += len(permutations)
+                raw_test.count -= 1
+                while raw_test.count and batch_remain > 0:
+                    raw_test.count -= 1
+                    batch_remain -= len(permutations)
+                    ready_count += len(permutations)
                     for ptest in permutations:
-                        ptest.count = perm_repeats
+                        ptest.count += 1
+
+                if raw_test.count:
+                    raw_tests.append(raw_test)
 
                 ready_to_resolve.extend(permutations)
+
+            print('rtr', ['{}.{}'.format(ptest.config['name'], ptest.count) for ptest in ready_to_resolve])
 
             # Now resolve all the string syntax and variables those tests at once.
             new_resolved_tests = []
             for ptest in self._resolve_escapes(ready_to_resolve):
-
                 # Perform last minute health checks
                 try:
                     ptest.check_result_format()
                     new_resolved_tests.append(ptest)
                 except TestConfigError as err:
                     self.errors.append(err)
+            print('resolved', [ptest.config['name'] for ptest in new_resolved_tests])
 
-            resolved_tests_count += len(new_resolved_tests)
             resolved_tests.extend(new_resolved_tests)
             ready_to_resolve = []
 
             # Finally, return batches of the resolved tests.
-            while resolved_tests_count >= batch_size:
+            while len(resolved_tests) >= batch_size:
+                print('yielding', [ptest.config['name'] for ptest in resolved_tests[:batch_size]])
                 yield resolved_tests[:batch_size]
                 resolved_tests = resolved_tests[batch_size:]
-                resolved_tests_count = sum(map(lambda r: r.count, resolved_tests))
 
         yield resolved_tests
 
@@ -455,17 +468,17 @@ class TestConfigResolver:
                                 ptest.update_config(aresult.get())
                             except TestConfigError as err:
                                 self.errors.append(err)
-                            except Exception as err:
-                                self.errors.append(TestConfigError("Unexpected error loading tests", err,
-                                                                   request=ptest.request))
-
-                            resolved_tests.append(ptest)
+                                ptests.remove(ptest)
+                            except Exception as err:  # pylint: disable=broad-except
+                                self.errors.append(TestConfigError("Unexpected error loading tests",
+                                                                   ptest.request, err))
+                                ptests.remove(ptest)
 
                             if self._verbosity == Verbose.DYNAMIC:
                                 complete += 1
                                 progress = len(ptests) - complete
                                 progress = 1 - progress/len(ptests)
-                                output.fprint(outfile,
+                                output.fprint(self._outfile,
                                               "Resolving Test Configs: {:.0%}".format(progress),
                                               end='\r')
                         else:
@@ -479,9 +492,9 @@ class TestConfigResolver:
                             pass
 
         if self._verbosity == Verbose.DYNAMIC:
-            output.fprint(outfile, '')
+            output.fprint(self._outfile, '')
         elif self._verbosity != Verbose.QUIET:
-            output.fprint(outfile, 'Resolved {} test configs.'.format(len(resolved_tests)))
+            output.fprint(self._outfile, 'Resolved {} test configs.'.format(len(resolved_tests)))
 
         # Filter out tests whose subtitle wasn't requested.
         resolved_tests = [ptest for ptest in resolved_tests
@@ -489,16 +502,16 @@ class TestConfigResolver:
 
         multiplied_tests = []
         # Multiply out tests according to the requested count.
-        while resolved_tests:
+        while ptests:
             remaining = []
-            for ptest in list(resolved_tests):
+            for ptest in list(ptests):
                 if ptest.count == 1:
                     multiplied_tests.append(ptest)
                 else:
                     multiplied_tests.append(ptest.copy())
                     ptest.count -= 1
                     remaining.append(ptest)
-            resolved_tests = remaining
+            ptests = remaining
 
         return multiplied_tests
 
@@ -545,24 +558,24 @@ class TestConfigResolver:
                 raw_cfg = loader.load_raw(cfg_file)
         except (IOError, OSError) as err:
             raise TestConfigError("Could not open {} config '{}'"
-                                  .format(config_type, path), err)
+                                  .format(config_type, path), prior_error=err)
         except ValueError as err:
             raise TestConfigError(
                 "{} config '{}' has invalid value."
-                .format(config_type.capitalize(), path), err)
+                .format(config_type.capitalize(), path), prior_error=err)
         except KeyError as err:
             raise TestConfigError(
                 "{} config '{}' has an invalid key."
-                .format(config_type.capitalize(), path), err)
+                .format(config_type.capitalize(), path), prior_error=err)
         except yc_yaml.YAMLError as err:
             raise TestConfigError(
                 "{} config '{}' has a YAML Error"
-                .format(config_type.capitalize(), path), err)
+                .format(config_type.capitalize(), path), prior_error=err)
 
         except TypeError as err:
             raise TestConfigError(
                 "Structural issue with {} config '{}'"
-                .format(config_type, path), err)
+                .format(config_type, path), prior_error=err)
 
         return raw_cfg, path, cfg_label
 
@@ -630,6 +643,9 @@ class TestConfigResolver:
                 self.errors.append(err)
                 continue
 
+            # Save the overrides as part of the test config
+            test_cfg['overrides'] = overrides
+
             # Apply overrides
             if overrides:
                 try:
@@ -641,7 +657,7 @@ class TestConfigResolver:
                     self.errors.append(TestConfigError(
                         'Error applying overrides to test {} from suite {} at:\n{}' \
                         .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
-                        err, request=request))
+                        request, err))
                     continue
 
             # Result evaluations can be added to all tests at the root pavilion config level.
@@ -866,7 +882,7 @@ class TestConfigResolver:
                     raise TestConfigError(
                         "Test '{}' in suite '{}' has an error.\n"
                         "See 'pav show test_config' for the pavilion test config format."
-                        .format(test_cfg_name, suite_path), err)
+                        .format(test_cfg_name, suite_path), prior_error=err)
         except AttributeError:
             raise TestConfigError(
                 "Test Suite {} has an invalid structure.\n"
@@ -893,7 +909,7 @@ class TestConfigResolver:
                 suite_tests[test_cfg_name] = self._loader.merge(parent, test_cfg)
             except TestConfigError as err:
                 raise TestConfigError("Error merging in config '{}' from test suite '{}'."
-                                      .format(test_cfg_name, suite_path), err)
+                                      .format(test_cfg_name, suite_path), prior_error=err)
 
             suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
 
@@ -921,30 +937,30 @@ class TestConfigResolver:
             except RequiredError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a missing key."
-                    .format(test_name, suite_path), err)
+                    .format(test_name, suite_path), prior_error=err)
             except ValueError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has an invalid value."
-                    .format(test_name, suite_path), err)
+                    .format(test_name, suite_path), prior_error=err)
             except KeyError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has an invalid key."
-                    .format(test_name, suite_path), err)
+                    .format(test_name, suite_path), prior_error=err)
             except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Test {} in suite {} has a YAML Error"
-                    .format(test_name, suite_path), err)
+                    .format(test_name, suite_path), prior_error=err)
             except TypeError as err:
                 raise TestConfigError(
                     "Structural issue with test {} in suite {}"
-                    .format(test_name, suite_path), err)
+                    .format(test_name, suite_path), prior_error=err)
 
             try:
                 self.check_version_compatibility(test_config)
             except TestConfigError as err:
                 raise TestConfigError(
                     "Test '{}' in suite '{}' has incompatibility issues."
-                    .format(test_name, suite_path), err)
+                    .format(test_name, suite_path), prior_error=err)
 
         return suite_tests
 
@@ -985,7 +1001,7 @@ class TestConfigResolver:
         try:
             return config_loader.normalize(test_cfg, root_name='overrides')
         except TypeError as err:
-            raise TestConfigError("Invalid override", err)
+            raise TestConfigError("Invalid override", prior_error=err)
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.
@@ -1064,7 +1080,7 @@ class TestConfigResolver:
             value = yc_yaml.safe_load(dummy_file)
         except (yc_yaml.YAMLError, ValueError, KeyError) as err:
             raise TestConfigError("Invalid value '{}' for key '{}' in overrides"
-                                  .format(value, disp_key), err)
+                                  .format(value, disp_key), prior_error=err)
 
         last_cfg[last_key] = self.normalize_override_value(value, is_var_value)
 

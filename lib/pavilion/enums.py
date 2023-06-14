@@ -16,4 +16,3 @@ class Verbose(enum.Enum):
 
     # Maximum status updates for each item (but no dynamic)
     MAX = 3
-
