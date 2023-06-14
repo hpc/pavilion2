@@ -14,6 +14,29 @@ _PAV_SUB_PARSER = None
 PROFILE_SORT_DEFAULT = 'cumtime'
 PROFILE_COUNT_DEFAULT = 20
 
+class WrappedFormatter(argparse.HelpFormatter):
+
+    def _split_lines(self, text, width):
+        """Preserve newlines when splitting lines."""
+        all_lines = []
+
+        lines = text.split('\n')
+        for line in lines:
+            line = self._whitespace_matcher.sub(' ', line).strip()
+            all_lines.extend(textwrap.wrap(line, width))
+        return all_lines
+
+    def _fill_text(self, text, width, indent):
+        """Preserve newlines when filling text."""
+
+        all_lines = []
+
+        for line in text.split('\n'):
+            line = self._whitespace_matcher.sub(' ', line).strip()
+            all_lines.extend(textwrap.wrap(line, width,
+                                           initial_indent=indent,
+                                           subsequent_indent=indent))
+        return '\n'.join(all_lines)
 
 class WrappedFormatter(argparse.HelpFormatter):
 
@@ -57,7 +80,8 @@ def get_parser():
         add_help=False,
         formatter_class=WrappedFormatter,
         description="Pavilion is a framework for running tests on "
-                    "supercomputers.")
+                    "supercomputers.",
+        formatter_class=WrappedFormatter)
     parser.add_argument('--quiet', action='store_true',
                         help='Silence warnings and stderr output.')
     parser.add_argument('--version', action='version',

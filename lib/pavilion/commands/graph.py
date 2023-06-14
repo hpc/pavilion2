@@ -5,7 +5,6 @@ import errno
 import pathlib
 import re
 import statistics
-from argparse import RawDescriptionHelpFormatter
 from typing import Dict
 
 from pavilion import cmd_utils
@@ -74,8 +73,7 @@ class GraphCommand(Command):
                 " with per_file/per_node values, you could plot them by node\n"
                 " using '-x per_file.*.some_key' and '-y keys(per_file).'\n"
                 ),
-            short_help="Produce a graph from a set of test results.",
-            formatter_class=RawDescriptionHelpFormatter
+            short_help="Produce a graph from a set of test results."
         )
 
     def _setup_arguments(self, parser):
