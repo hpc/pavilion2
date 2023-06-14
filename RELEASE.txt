@@ -8,11 +8,18 @@ RELEASE=2.4
  - In the 'modules' section of 'run' or 'build' in test configs, modules specified without a version
    no longer verify that the default was loaded. 
  - Added the ability to configure module wrappers in test/host configs.
-   
    - This breaks backwards compatibility with existing module wrapper plugins. The 'load()' method
      now takes an addtional, required 'name' argument.
  
  - Added the ability to extend lists via inheritance across all test configs.
+ - Added `pav series sets` and `pav series cancel` commands. 
+   
+   - `pav series history` is now `pav series `states`.
+   - Added `-c` 'overrides' to `pav series run`, and an overrides section to the series config.
+   - `pav cancel` no longer cancels series, just tests.
+
+ - The `SCHED_RUNNING` state is now `SCHED_STARTUP` - existing scheduler plugins that use
+   `SCHED_RUNNING` should still work.
 
 ## 2.4 Release Notes
  - Minimum supported python version is now 3.6

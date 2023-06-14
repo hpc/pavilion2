@@ -1,0 +1,9 @@
+test_sets:
+    the_first:
+        tests:
+            - 'hello_world.hello'
+            - 'hello_world.hello'
+
+    the_other:
+        tests:
+            - 'hello_world.hello*3'

@@ -1,6 +1,7 @@
 """Test sets translate the specifications of which tests to run (with which options),
 into a set of ready to run tests. They are ephemeral, and are not tracked between
 Pavilion runs."""
+import io
 import threading
 import time
 from collections import defaultdict
@@ -8,7 +9,7 @@ from io import StringIO
 from typing import List, Dict, TextIO, Union, Set
 
 import pavilion.errors
-from pavilion import output, result, schedulers, cancel
+from pavilion import output, result, schedulers, cancel_utils
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.errors import TestRunError, TestConfigError, TestSetError, ResultError
 from pavilion.resolver import TestConfigResolver
@@ -35,6 +36,7 @@ class TestSet:
                  pav_cfg,
                  name: str,
                  test_names: List[str],
+                 iteration: int = 0,
                  status: SeriesStatusFile = None,
                  modes: List[str] = None,
                  host: str = None,
@@ -47,6 +49,7 @@ class TestSet:
         :param pav_cfg: The Pavilion configuration.
         :param name: The name of this test set.
         :param test_names: A list of test/suite names.
+        :param iteration: Which 'repeat' iteration this test set represents.
         :param modes: Modes to apply to all tests.
         :param host: Host configuration name to run under.
         :param only_if: Global 'only_if' conditions.
@@ -62,6 +65,7 @@ class TestSet:
             self.status = SeriesStatusFile(None)
 
         self.name = name
+        self.iter_name = '{}.{}'.format(iteration, name)
 
         self.modes = modes or []
         self.host = host
@@ -182,6 +186,8 @@ class TestSet:
         cfg_resolver = TestConfigResolver(self.pav_cfg)
 
         try:
+            self.status.set(S_STATES.SET_MAKE, "Resolving {} test names."
+                            .format(len(self._test_names)))
             test_configs = cfg_resolver.load(
                 self._test_names,
                 self.host,
@@ -194,6 +200,8 @@ class TestSet:
             msg = "Error loading test configs for test set '{}'".format(self.name)
             self.status.set(S_STATES.ERROR, msg + ': ' + str(err.args[0]))
             raise TestSetError(msg, err)
+
+        self.status.set(S_STATES.SET_MAKE, "Creating test runs")
 
         progress = 0
         tot_tests = len(test_configs)
@@ -210,7 +218,7 @@ class TestSet:
                 if str_bool(ptest.config.get('build', {}).get('on_nodes', 'False')):
                     skip_count += 1
                     self.status.set(
-                        S_STATES.SKIPPED,
+                        S_STATES.TESTS_SKIPPED,
                         "Skipped test named '{}' from series '{}' - We're just "
                         "building locally, and this test builds only on nodes."
                         .format(ptest.config.get('name'), ptest.config.get('suite')))
@@ -226,13 +234,13 @@ class TestSet:
                 else:
                     skip_count += 1
                     self.status.set(
-                        S_STATES.SKIPPED,
+                        S_STATES.TESTS_SKIPPED,
                         "Test {} skipped because '{}'"
                         .format(test_run.name, test_run.skip_reasons[0])
                     )
                     if not test_run.abort_skipped():
                         self.status.set(
-                            S_STATES.SKIPPED,
+                            S_STATES.TESTS_SKIPPED,
                             "Cleanup of skipped test {} was unsuccessful.")
 
             except (TestRunError, TestConfigError) as err:
@@ -246,6 +254,9 @@ class TestSet:
                 raise TestSetError(msg, err)
 
         output.fprint(outfile, '')
+
+        # make sure result parsers are ok. This will throw an exception if they are not.
+        self.check_result_format(self.tests)
 
         self.status.set(
             S_STATES.SET_MAKE,
@@ -466,12 +477,19 @@ class TestSet:
             if not (test.build_only and test.build_local) and not test.skipped:
                 self.ready_to_start_tests[test.scheduler].append(test)
 
+        self.status.set(S_STATES.SET_BUILD,
+                        "Completed build step for {} tests in set {}."
+                        .format(self.name, len(self.tests)))
+
     def kickoff(self, start_max: int = None) -> int:
         """Kickoff the tests in this set.
 
     :param start_max: The maximum number of tests to start.
     :return: The number of tests kicked off.
     """
+
+        self.status.set(S_STATES.SET_KICKOFF,
+                        "Kicking off test set {}".format(self.name))
 
         if self.tests is None:
             self.cancel("System error.")
@@ -521,15 +539,23 @@ class TestSet:
 
                 self.started_tests.extend(tests)
 
+        self.status.set(S_STATES.SET_KICKOFF,
+                        "Kickoff complete for test set {}. Started {} tests."
+                        .format(self.name, start_count))
+
         return start_count
 
     def cancel(self, reason):
         """Cancel all the tests in the test set."""
 
+        self.status.set(S_STATES.SET_CANCELED,
+                        "Test Set {} canceled for this reason: {}"
+                        .format(self.name, reason))
+
         for test in self.tests:
             test.cancel(reason)
 
-        cancel.cancel_jobs(self.pav_cfg, self.tests)
+        cancel_utils.cancel_jobs(self.pav_cfg, self.tests)
 
     @staticmethod
     def check_result_format(tests: List[TestRun]):

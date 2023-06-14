@@ -148,6 +148,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
         - SCHEDULED - The job is still waiting for an allocation.
         - SCHED_ERROR - The job is dead because of some error.
         - SCHED_CANCELLED - The job was cancelled.
+        - SCHED_STARTUP - The job has started, but not the test.
+
+        # The following is deprecated, and will be silently converted into SCHED_STARTUP
         - SCHED_RUNNING - The job is running (but not usually the test yet).
 
         Lastly, this may return None when we can't determine the test state at all.
@@ -285,7 +288,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def job_status(self, pav_cfg, test) -> TestStatusInfo:
         """Get the job state from the scheduler, and map it to one of the
         of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED,
-        SCHED_RUNNING. This should only be called if the current recorded test
+        SCHED_STARTUP. This should only be called if the current recorded test
         state is 'SCHEDULED'.
 
         The first SCHED_ERROR and SCHED_CANCELLED statuses encountered will be saved
@@ -330,6 +333,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
                     "effectively disappeared).".format(job_info))
             else:
                 return last_status
+
+        if status.state == STATES.SCHED_RUNNING:
+            status.state = STATES.SCHED_STARTUP
 
         # Record error and cancelled states if they haven't been seen before.
         if status.state in (STATES.SCHED_CANCELLED, STATES.SCHED_ERROR):

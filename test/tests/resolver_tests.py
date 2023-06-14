@@ -912,7 +912,26 @@ class ResolverTests(PavTestCase):
             test_name = 'parse_errors.{}'.format(test_name)
 
             with self.assertRaises(TestConfigError):
-                self.resolver.load([test_name])
+                try:
+                    self.resolver.load([test_name])
+                except TestConfigError as err:
+                    # Make sure the error can be formatted.
+                    err.pformat()
+                    raise
 
+    def test_yaml_parse_error(self):
+        """Make sure Yaml parse errors are handled reasonably."""
 
+        for suite_name in (
+                'missing_key_same',
+                'missing_key_above',
+                'missing_key_below',
+                'missing_key_collect',
+                'invalid_yaml',
+                ):
 
+            try:
+                self.resolver.load([suite_name])
+            except TestConfigError as err:
+                # Make sure the error can be formatted.
+                err.pformat()

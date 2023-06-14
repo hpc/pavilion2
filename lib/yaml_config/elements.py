@@ -216,8 +216,10 @@ class ConfigElement:
         self.validate(value)
         self._default = value
 
-    def normalize(self, value):
+    def normalize(self, value, root_name='root'):
         """Recursively normalize the given value to the expected type.
+
+        :param root_name: Used by some element types when they aren't automatically named.
         :raises TypeError: If the type conversion fails.
         """
 

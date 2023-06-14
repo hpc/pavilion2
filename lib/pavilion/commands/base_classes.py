@@ -153,7 +153,7 @@ case that includes:
         # Add the arguments for this command to the
         sub_parser = arguments.get_subparser()
 
-        # A add the short help, or not. A quirk of argparse is that if 'help'
+        # Add the short help, or not. A quirk of argparse is that if 'help'
         # is set, the subcommand is listed regardless of whether the
         # help is None. If we don't want that, we have to init without 'help'.
         if self.short_help is not None and self.formatter_class is not None:
@@ -209,7 +209,7 @@ case that includes:
         cmd_name = args.sub_cmd
 
         if cmd_name is None:
-            output.fprint(self.errfile, "You must provide a sub command '{}'.".format(cmd_name),
+            output.fprint(self.errfile, "You must provide a sub command.",
                           color=output.RED)
             self._parser.print_help(file=self.errfile)
             return errno.EINVAL

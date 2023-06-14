@@ -129,8 +129,9 @@ class VariableElem(yc.CategoryElem):
                                            allow_empty_keys=True,
                                            **kwargs)
 
-    def normalize(self, value):
+    def normalize(self, value, root_name='root'):
         """Normalize to either a dict of strings or just a string."""
+
 
         if not isinstance(value, dict):
             value = {None: value}
@@ -257,6 +258,8 @@ class VarCatElem(yc.CategoryElem):
                 for value in values:
                     if None in value:
                         def_type = 'single_val'
+                if not values:
+                    def_type = 'single_val'
 
                 if def_type == 'subvar':
                     if len(values) > 1:
@@ -264,7 +267,6 @@ class VarCatElem(yc.CategoryElem):
                             raise TestConfigError(
                                 "Key '{}' in variables section is trying to set a list of "
                                 "sub-var defaults, but only one is allowed.".format(key))
-
                     new_defaults = values[0]
 
                     # If we don't have any values yet, add an empty dictionary with

@@ -10,7 +10,7 @@ jobs:
   # The debug job is meant for debugging CI related issues.
   debug:
     # Comment out the following line to enable.
-    if: ${{ false }}
+    #if: ${{ false }}
 
     runs-on: ubuntu-latest
 
@@ -154,8 +154,8 @@ jobs:
         
     - name: run_tests
       run: | 
-        coverage run ./test/run_tests 
-        coverage xml
+        ./test/run_tests 
+        #coverage xml
 
     - name: zip_working_dir
       if: failure()

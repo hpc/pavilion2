@@ -78,7 +78,8 @@ def sort_func(test, choice):
 def add_common_filter_args(target: str,
                            arg_parser: argparse.ArgumentParser,
                            defaults: dict,
-                           sort_options: List[str]):
+                           sort_options: List[str],
+                           disable_opts: List[str]):
     """Add common arguments for all filters.
 
     :param target: The name of what is being filtered, to be inserted
@@ -86,6 +87,7 @@ def add_common_filter_args(target: str,
     :param arg_parser: The argparser to add arguments to.
     :param defaults: A dictionary of default values for all arguments.
     :param sort_options: A list of possible sort options.
+    :param disable_opts: Options to disable.
 
     :return:
     """
@@ -95,6 +97,7 @@ def add_common_filter_args(target: str,
               .format(target, defaults['limit']))
 
     )
+
     arg_parser.add_argument(
         '--filter', type=str, default=defaults['filter'],
         help=("Filter requirements for tests and series.\n"
@@ -129,7 +132,8 @@ def add_common_filter_args(target: str,
 
 def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                          default_overrides: Dict[str, Any] = None,
-                         sort_functions: Dict[str, Callable] = None) -> None:
+                         sort_keys: List[str] = None,
+                         disable_opts: List[str] = None) -> None:
     """Add a common set of arguments for filtering tests (those supported by
     make_test_run_filter below).
 
@@ -139,9 +143,11 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
 
     :param arg_parser: The arg parser (or sub-parser) to add arguments to.
     :param default_overrides: A dictionary of defaults to override.
-    :param sort_functions: A dict of sort-by names and sorting functions. The
-        functions don't matter at this point. If empty, sorting is disabled.
+    :param sort_keys: A list of sort-by names, corresponding to keys in the data being sorted.
+    :param disable_opts: Options to disable (not attach to the arg_parser).
     """
+
+    disable_opts = disable_opts or []
 
     defaults = TEST_FILTER_DEFAULTS.copy()
     if default_overrides is not None:
@@ -154,13 +160,13 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                     .format(ovr_key)
                 )
 
-    if sort_functions is None:
-        sort_functions = SORT_KEYS['TEST']
+    if sort_keys is None:
+        sort_keys = SORT_KEYS['TEST']
 
-    sort_options = (sort_functions
-                    + ['-' + key for key in sort_functions])
+    sort_options = (sort_keys
+                    + ['-' + key for key in sort_keys])
 
-    add_common_filter_args("test runs", arg_parser, defaults, sort_options)
+    add_common_filter_args("test runs", arg_parser, defaults, sort_options, disable_opts)
 
     arg_parser.add_argument(
         '--disable-filter', default=False, action='store_true',
@@ -176,7 +182,8 @@ add_test_filter_args.__doc__.format(
 
 def add_series_filter_args(arg_parser: argparse.ArgumentParser,
                            default_overrides: Dict[str, Any] = None,
-                           sort_functions: Dict[str, Callable] = None) -> None:
+                           sort_keys: List[str] = None,
+                           disable_opts: List[str] = None) -> None:
     """Add a common set of arguments for filtering series (those supported by
     make_series_filter below).
 
@@ -186,9 +193,11 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 
     :param arg_parser: The arg parser (or sub-parser) to add arguments to.
     :param default_overrides: A dictionary of defaults to override.
-    :param sort_functions: A dict of sort-by names and sorting functions. The
-        functions don't matter at this point. If empty, sorting is disabled.
+    :param sort_keys: A list of sort-by names.
+    :param disable_opts: Don't include the listed options.
     """
+
+    disable_opts = disable_opts or []
 
     defaults = SERIES_FILTER_DEFAULTS.copy()
     if default_overrides is not None:
@@ -201,13 +210,13 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
                     .format(ovr_key)
                 )
 
-    if sort_functions is None:
-        sort_functions = SORT_KEYS["SERIES"]
+    if sort_keys is None:
+        sort_keys = SORT_KEYS["SERIES"]
 
-    sort_options = (sort_functions
-                    + ['-' + key for key in sort_functions])
+    sort_options = (sort_keys
+                    + ['-' + key for key in sort_keys])
 
-    add_common_filter_args("series", arg_parser, defaults, sort_options)
+    add_common_filter_args("series", arg_parser, defaults, sort_options, disable_opts)
 
 def get_sort_opts(
         sort_name: str,

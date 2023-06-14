@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import shutil
 import sys
 import unittest
@@ -49,6 +50,42 @@ def list_tests(suite):
             print('  {}'.format(test_name))
 
 
+try:
+    FAILURE_FN = Path('/tmp/.pavilion_run_test_failures_{}.txt'.format(os.getlogin()))
+except OSError:
+    FAILURE_FN = Path('/tmp/.pavilion_run_test_failures.txt')
+
+
+def save_failures(failures):
+    """Write a list of failed test names to a temp file that we
+    can use to re-run just those tests."""
+
+
+    test_names = []
+    for failure in failures:
+        test_names.append(failure[0]._testMethodName)
+
+    if test_names:
+        pass
+        try:
+            with FAILURE_FN.open('w') as fail_file:
+                for test_name in test_names:
+                    fail_file.write(test_name)
+                    fail_file.write('\n')
+        except OSError:
+            pass
+
+
+def load_failures():
+    """Load the list of failures from the failure file."""
+
+    try:
+        with FAILURE_FN.open() as fail_file:
+            return [fail.strip() for fail in fail_file.readlines() if fail.strip()]
+    except OSError:
+        return []
+
+
 def msg(*args, color=output.BLUE, **kwargs):
     """Print a message from the test runner."""
 
@@ -84,6 +121,8 @@ def main():
                         help="Only run tests matching the given glob pattern. "
                              "The 'test_' prefix is removed from the name "
                              "for this check.")
+    parser.add_argument('--re-run-failures', action='store_true', default=False,
+                        help="Only run tests that failed last time.")
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help="Print all log output to stderr.")
     parser.add_argument('-q', '--quiet', action='store_true', default=False,
@@ -95,8 +134,16 @@ def main():
 
     if args.skip:
         TestCaseEx.set_skip(args.skip)
-    if args.only:
-        TestCaseEx.set_only(args.only)
+
+    only = args.only
+    if args.re_run_failures:
+        only += load_failures()
+        if not only:
+            msg("Selected re-run-failures, but there were no previous failures to re-run.")
+            return 0
+
+    if only:
+        TestCaseEx.set_only(only)
 
     working_dir = this_file.parent/'working_dir'
     if not args.list and not args.no_clear and working_dir.exists():
@@ -127,6 +174,8 @@ def main():
             msg("Log Output")
             msg("--------------------")
             msg(log_out.getvalue())
+
+        save_failures(result.errors + result.failures)
 
         return len(result.errors) + len(result.failures)
 

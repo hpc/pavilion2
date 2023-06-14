@@ -174,8 +174,8 @@ class Raw(SchedulerPluginBasic):
             return "Job started on different host ({}).".format(hostname)
 
         if not self._pid_running(job_info):
-            # Test was no longer running, just return it's current state.
-            return "PID {} no longer running.".format(job_info['pid'])
+            # Test was no longer running, so nothing to do.
+            return None
 
         try:
             os.kill(int(pid), signal.SIGTERM)
