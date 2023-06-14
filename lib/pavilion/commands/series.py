@@ -5,6 +5,7 @@ import errno
 import sys
 from typing import List
 
+from pavilion import arguments
 from pavilion import cancel_utils
 from pavilion import config
 from pavilion import cmd_utils
@@ -27,8 +28,7 @@ class RunSeries(Command):
             description='Provides commands for running and working with test series.\n'
                         '  For information on configuring series, run `pav show series_config`.\n'
                         '  To see series log output, run `pav log series <series_id>`',
-            short_help='Run/work with test series.',
-            formatter_class=argparse.RawDescriptionHelpFormatter,
+            short_help='Run/work with test series.'
         )
 
         # Useful for testing this command. Populated by the run sub command.
@@ -60,6 +60,7 @@ class RunSeries(Command):
             'list',
             aliases=self.LIST_ALIASES,
             help="Show a list of recently run series.",
+            formatter_class=arguments.WrappedFormatter
         )
 
         list_p.add_argument(

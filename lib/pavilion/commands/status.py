@@ -1,6 +1,7 @@
 """The Status command, along with useful functions that make it easy for
 other commands to print statuses."""
 
+import argparse
 import errno
 
 from pavilion import cmd_utils

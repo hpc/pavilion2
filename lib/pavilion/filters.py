@@ -1,6 +1,8 @@
 """This module contains functions to generate filter functions for handing
 to dir_db commands."""
 
+# pylint: disable=C0103
+
 import argparse
 import datetime as dt
 import fnmatch
@@ -27,6 +29,7 @@ TEST_FILTER_DEFAULTS = {
     'result_error': False,
     'sort_by': '-created',
     'state': None,
+    'has_state': None,
     'sys_name': None,
     'user': None,
     'limit': None,
@@ -42,6 +45,7 @@ SERIES_FILTER_DEFAULTS = {
     'older_than': None,
     'sort_by': '-status_when',
     'state': None,
+    'has_state': None,
     'sys_name': None,
     'user': None,
     'filter': None
@@ -91,6 +95,55 @@ def add_common_filter_args(target: str,
 
     :return:
     """
+    help_text = "Filter requirements for tests and series.\n"\
+                "List of accepted operators:\n"\
+                "AND denoted by a space\n"\
+                "OR denoted by a '|'\n"\
+                "NOT denoted by a '!'\n\n"\
+                "List of accepted arguments:\n"\
+                "complete: Include only completed test runs. Default: {}\n"\
+                "has_state=STATE: Include only {} who have had the "\
+                "given state at some point. Default: {}\n"\
+                "name=NAME: Include only tests/series that match this name. "\
+                "Globbing wildcards are allowed. Default: {}\n"\
+                "older_than=TIME: Include only {} older than (by creation time) the given "\
+                "date or a time period given relative to the current date. \n\n"\
+                "This can be in the format a partial ISO 8601 timestamp "\
+                "(YYYY-MM-DDTHH:MM:SS), such as "\
+                "'2018', '1999-03-21', or '2020-05-03 14:32:02'\n\n"\
+                "Additionally, you can give an integer time distance into the "\
+                "past, such as '1 hour', '3months', or '2years'. "\
+                "(Whitespace between the number and unit is optional). Default: {}\n"\
+                "newer_than=TIME: Include only {} whose most recent state "\
+                "is the one given. Default: {}\n"\
+                "STATE: Include only {} whose most recent state is the one given. "\
+                "Default: {}\n"\
+                "sys_name=SYS_NAME: Include only {} that match the given system name, as "\
+                "presented by the sys.sys_name pavilion variable. Default: {}\n"\
+                "user=USER: Include only {} started by this user. Default: {}\n"\
+
+    if defaults == TEST_FILTER_DEFAULTS:
+        help_text = help_text + \
+                    "passed: Not compatible with series. Include only passed test runs. "\
+                    "Default: {}\n"\
+                    "failed: Not compatible with series. Include only failed test runs. "\
+                    "Default: {}\n"\
+                    "result_error: Not compatible with series. Include only test runs "\
+                    "with a result error. Default: {}"\
+                    .format(defaults['complete'], target, defaults['has_state'],
+                            defaults['name'], target, defaults['older_than'],
+                            target, defaults['newer_than'], target, defaults['state'],
+                            target, defaults['sys_name'], target, defaults['user'],
+                            defaults['passed'], defaults['failed'], defaults['result_error'])
+    else:
+        help_text = help_text\
+                    .format(defaults['complete'], target, defaults['has_state'],
+                            defaults['name'], target, defaults['older_than'],
+                            target, defaults['newer_than'], target, defaults['state'],
+                            target, defaults['sys_name'], target, defaults['user'])
+
+
+
     arg_parser.add_argument(
         '-l', '--limit', type=int, default=defaults['limit'],
         help=("Max number of {} to display.  Default: {}"
@@ -100,25 +153,7 @@ def add_common_filter_args(target: str,
 
     arg_parser.add_argument(
         '--filter', type=str, default=defaults['filter'],
-        help=("Filter requirements for tests and series.\n"
-              "List of accepted operators:\n"
-              "AND denoted by a space\n"
-              "OR denoted by a '|'\n\n"
-              "NOT denoted by a '!'\n"
-              "List of accepted arguments:\n"
-              "complete: Include only completed test runs. Default: {}\n"
-              "has_state=STATE: Include only {} who have had the "
-              "given state at some point. Default: {}\n"
-              "name=NAME: Include only tests/series that match this name. "
-              "Globbing wildcards are allowed. Default: {}\n"
-              "older_than=TIME: Include only {} older than (by creation time) the given "
-              "date or a time period given relative to the current date. \n\n"
-              "This can be in the format a partial ISO 8601 timestamp "
-              "(YYYY-MM-DDTHH:MM:SS), such as "
-              "'2018', '1999-03-21', or '2020-05-03 14:32:02'\n\n"
-              "Additionally, you can give an integer time distance into the "
-              "past, such as '1 hour', '3months', or '2years'. "
-              "(Whitespace between the number and unit is optional).\n"))
+        help=help_text)
 
     if sort_options:
         arg_parser.add_argument(
@@ -262,8 +297,27 @@ def name(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
 
     :return: result of the test or series "name" attribute
     """
+    name_parse = re.compile(r'^([a-zA-Z0-9_-]+)'  # The test suite name.
+                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
+                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?$'  # The permutation name.
+                            )
     test_name = attrs.get('name') or ''
-    return fnmatch.fnmatch(test_name, val)
+    val_match = name_parse.match(val)
+    name_match = name_parse.match(test_name)
+    suite, test, perm = val_match.groups()
+    _, _, test_perm = name_match.groups()
+
+    if not test:
+        test = '*'
+
+    if not perm:
+        perm = '*'
+
+    if not test_perm:
+        test_name = test_name + '.*'
+
+    new_val = '.'.join([suite, test, perm])
+    return fnmatch.fnmatch(test_name, new_val)
 
 def user(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     """Return "user" status of a test
