@@ -102,7 +102,7 @@ class FiltersTest(PavTestCase):
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
         inv_opt_set = [
-            'incomplete',
+            '!complete',
             'newer_than={}'.format(now - 2*60),
         ]
 
@@ -163,7 +163,7 @@ class FiltersTest(PavTestCase):
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
         inv_opt_set = [
-            'incomplete',
+            '!complete',
             'failed',
             'result_error',
             'newer_than={}'.format(now - timedelta(minutes=2).total_seconds())
@@ -204,7 +204,6 @@ class FiltersTest(PavTestCase):
         self.assertTrue(t_filter(test2.attr_dict()))
 
         t_filter2 = filters.make_test_run_filter("has_state=RUNNING")
-        print(test.attr_dict())
         self.assertFalse(t_filter2(test.attr_dict()))
         self.assertTrue(t_filter2(test2.attr_dict()))
 
