@@ -93,8 +93,6 @@ class RawProtoTest:
         base_var_man = copy.deepcopy(base_var_man)
         test_name = self.config.get('name', '<no name>')
 
-        # Since per vars are the highest in resolution order, we can make things
-        # a bit faster by adding these after we find the used per vars.
         try:
             base_var_man.add_var_set('var', user_vars)
         except VariableError as err:

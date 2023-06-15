@@ -89,7 +89,7 @@ class TestConfigResolver:
         self._host = self._base_var_man['sys.sys_name'] if host is None else host
 
         # This may throw an exception. It's expected to be caught by the caller.
-        self._base_config = self._load_base_config(host)
+        self._base_config = self._load_base_config(self._host)
 
         # Raw loaded test suites
         self._suites: Dict[Dict] = {}
