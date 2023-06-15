@@ -138,10 +138,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                           .format(len(self._nodes), len(filtered_nodes))
 
             errors.append(
-                "Insufficient nodes. Asked for {}-{} nodes, but only {} were "
+                "Insufficient nodes. Asked for a minimum of {} nodes, but only {} were "
                 "left after filtering. Nodes were filtered for the following reasons:\n{}\n"
                 "Scheduler config:\n{}\n"
-                .format(min_nodes, max_nodes, len(filtered_nodes),
+                .format(min_nodes, len(filtered_nodes),
                         reasons, pprint.pformat(sched_config)))
 
         try:
