@@ -351,8 +351,6 @@ class TestSet:
         local_builds = list(filter(lambda t: t.build_local, self.ready_to_build))
         # Tests that will build on nodes.
         remote_builds = list(filter(lambda t: not t.build_local, self.ready_to_build))
-        print('ready', self.ready_to_build)
-        print('remote', remote_builds)
 
         self.ready_to_build = []
 
@@ -462,11 +460,9 @@ class TestSet:
                     # Add this test to our list of succesfully built tests
                     # if it successfully built.
                     if not cancel_event.is_set():
-                        print("build for test {} succeeded.".format(test.name))
                         built_tests.append(test)
                     else:
                         failed_builds[test.builder.name] = test.full_id
-                        print("build for test {} failed.".format(test.name))
                         test.set_run_complete()
 
                     # Output test status after joining a thread.
@@ -524,7 +520,6 @@ class TestSet:
             if not test.build_only:
                 self.ready_to_start.append(test)
 
-        print('huh', remote_builds)
         for test in remote_builds:
             # If local builds only is set, remote built tests won't even be created.
             self.ready_to_start.append(test)

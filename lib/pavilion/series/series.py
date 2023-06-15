@@ -85,6 +85,8 @@ class TestSeries:
 
         self.test_sets = OrderedDict()
 
+        self.ignore_errors = self.config['ignore_errors']
+
         # We're creating this series from scratch.
         if _id is None:
             # Get the series id and path.
@@ -281,6 +283,7 @@ differentiate it from test ids."""
                 simultaneous=self.simultaneous,
                 outfile=self.outfile,
                 verbosity=self.verbosity,
+                ignore_errors=self.ignore_errors,
             )
             self._add_test_set(set_obj)
 

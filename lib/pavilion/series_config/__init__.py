@@ -136,6 +136,7 @@ def generate_series_config(
         overrides: List[str] = None,
         repeat: int = None,
         simultaneous: int = None,
+        ignore_errors: bool = False,
     ) -> dict:
     """Generates series config given global series settings. To add test sets,
     create a series with this config and use the add_test_set_config() method."""
@@ -153,5 +154,6 @@ def generate_series_config(
         series_cfg['simultaneous'] = simultaneous
     if overrides is not None:
         series_cfg['overrides'] = overrides
+    series_cfg['ignore_errors'] = ignore_errors
 
     return series_cfg

@@ -65,13 +65,17 @@ class TestSetTests(PavTestCase):
     def test_make_iter(self):
         """Check that test creation batching works."""
 
-        import sys
-        ts2 = TestSet(self.pav_cfg, "test_rebuild2", ['build_parallel']*2,
-                      simultaneous=8, outfile=sys.stdout)
+        ts2 = TestSet(self.pav_cfg, "test_make_iter", ['build_parallel']*2,
+                      simultaneous=8)
+
+        # The second set is small because of a skipped test.
+        sizes = [4, 3, 1]
 
         # Make sure we make batches of half the simultanious limit.
         for batch in ts2.make_iter():
-            self.assertEqual(len(batch), 4)
+            self.assertEqual(len(batch), sizes.pop(0))
+
+        self.assertFalse(sizes)
 
 
     def test_build(self):
@@ -163,20 +167,19 @@ class TestSetTests(PavTestCase):
 
 
         expected = [
-            ['pass_fail.fail', 'pass_fail.fail', 'pass_fail.fail'],
+            ['pass_fail.fail', 'pass_fail.pass', 'pass_fail.pass'],
             ['pass_fail.fail', 'pass_fail.fail', 'pass_fail.pass'],
-            ['pass_fail.pass', 'pass_fail.pass', 'pass_fail.pass'],
-            ['pass_fail.pass'],
+            ['pass_fail.fail', 'pass_fail.pass', 'pass_fail.pass'],
+            ['pass_fail.fail'],
         ]
 
         ts2 = TestSet(self.pav_cfg, "test_kickoff2", ["pass_fail"] * 5,
                       simultaneous=6)
         for _ in ts2.make_iter():
             ts2.build()
-            remain = 10
             exp_names = expected.pop(0)
-            ts2.kickoff()
-            start_names = [test.name for test in ts2.started_tests]
+            started_tests, jobs = ts2.kickoff()
+            start_names = [test.name for test in started_tests]
             start_names.sort()
             exp_names.sort()
             self.assertEqual(start_names, exp_names)

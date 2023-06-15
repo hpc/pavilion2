@@ -197,7 +197,6 @@ class ResolverTests(PavTestCase):
                 try:
                     self.resolver.load([bad_test])
                 except errors.PavilionError as err:
-                    print(err.pformat())
                     raise
 
 
@@ -974,6 +973,5 @@ class ResolverTests(PavTestCase):
             # The actual orders will be random because of multiprocessing
             answer.sort()
             result.sort()
-            print(result)
             self.assertEqual(result, answer)
             self.assertEqual(self.resolver.errors, [])

@@ -339,10 +339,8 @@ class TestConfigResolver:
 
             # Get permutations from raw tests until we've hit our batch limit.
             while len(resolved_tests) + ready_count < batch_size and raw_tests:
-                print(len(resolved_tests), len(ready_to_resolve), ready_count)
 
                 raw_test = raw_tests.pop()
-                print(raw_test.request, raw_test.count)
 
                 # Resolve all configuration permutations.
                 try:
@@ -369,8 +367,6 @@ class TestConfigResolver:
 
                 ready_to_resolve.extend(permutations)
 
-            print('rtr', ['{}.{}'.format(ptest.config['name'], ptest.count) for ptest in ready_to_resolve])
-
             # Now resolve all the string syntax and variables those tests at once.
             new_resolved_tests = []
             for ptest in self._resolve_escapes(ready_to_resolve):
@@ -380,14 +376,12 @@ class TestConfigResolver:
                     new_resolved_tests.append(ptest)
                 except TestConfigError as err:
                     self.errors.append(err)
-            print('resolved', [ptest.config['name'] for ptest in new_resolved_tests])
 
             resolved_tests.extend(new_resolved_tests)
             ready_to_resolve = []
 
             # Finally, return batches of the resolved tests.
             while len(resolved_tests) >= batch_size:
-                print('yielding', [ptest.config['name'] for ptest in resolved_tests[:batch_size]])
                 yield resolved_tests[:batch_size]
                 resolved_tests = resolved_tests[batch_size:]
 
@@ -409,7 +403,8 @@ class TestConfigResolver:
                     self.errors.append(TestConfigError(
                         "Test request '{}' tried to match permutation '{}', "
                         "but that test doesn't have permutations at all.\n"
-                        "Is `permute_on` set for that test?"))
+                        "Is `permute_on` set for that test?"
+                        .format(request.request, request.permutation)))
 
     def load(self, tests: List[str],
              modes: List[str] = None, overrides: List[str] = None,
@@ -440,14 +435,11 @@ class TestConfigResolver:
 
         complete = 0
 
-        resolved_tests = []
         if not ptests:
             return []
         elif len(ptests) == 1:
-            ptest = ptests.pop()
             try:
-                ptest.resolve()
-                resolved_tests.append(ptest)
+                ptests[0].resolve()
             except TestConfigError as err:
                 self.errors.append(err)
         else:
@@ -494,24 +486,24 @@ class TestConfigResolver:
         if self._verbosity == Verbose.DYNAMIC:
             output.fprint(self._outfile, '')
         elif self._verbosity != Verbose.QUIET:
-            output.fprint(self._outfile, 'Resolved {} test configs.'.format(len(resolved_tests)))
+            output.fprint(self._outfile, 'Resolved {} test configs.'.format(len(ptests)))
 
         # Filter out tests whose subtitle wasn't requested.
-        resolved_tests = [ptest for ptest in resolved_tests
+        resolved_tests = [ptest for ptest in ptests
                           if ptest.request.matches_test_permutation(ptest.config.get('subtitle'))]
 
         multiplied_tests = []
         # Multiply out tests according to the requested count.
-        while ptests:
+        while resolved_tests:
             remaining = []
-            for ptest in list(ptests):
+            for ptest in list(resolved_tests):
                 if ptest.count == 1:
                     multiplied_tests.append(ptest)
                 else:
                     multiplied_tests.append(ptest.copy())
                     ptest.count -= 1
                     remaining.append(ptest)
-            ptests = remaining
+            resolved_tests = remaining
 
         return multiplied_tests
 

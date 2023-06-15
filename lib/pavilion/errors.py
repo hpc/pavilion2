@@ -127,7 +127,7 @@ class PavilionError(RuntimeError):
     def __eq__(self, other):
         """Check that all values are the same."""
 
-        if isinstance(other, self.__class__):
+        if not isinstance(other, self.__class__):
             return False
 
         for key, value in self.__dict__.items():

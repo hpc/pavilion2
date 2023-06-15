@@ -67,6 +67,10 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             'repeat', default=1,
             help_text="Number of times to repeat this series."
         ),
+        yc.BoolElem(
+            'ignore_errors', default=True,
+            help_text="Whether the series ignores build and/or scheduling errors."
+        ),
         yc.StrElem(
             'restart', post_validator=make_invalidator(
                 "The series config option 'restart' has been replaced with 'repeat'.")

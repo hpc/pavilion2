@@ -248,6 +248,8 @@ class RawProtoTest:
 
         permuted_var_men = self._permute_basic(copy.deepcopy(self.var_man), used_per_vars)
 
+
+
         # Convert this RawProtoTest into a regular ProtoTest.
         return [ProtoTest(self.request, self.config, var_man)
                 for var_man in permuted_var_men]
@@ -275,7 +277,8 @@ class RawProtoTest:
         for var_set, var in used_per_vars.copy():
             if var_set not in ('sched', 'var') or (var_set, var) in resolved:
                 permute_now.append((var_set, var))
-                used_per_vars.remove((var_set, var))
+                if (var_set, var) in used_per_vars:
+                    used_per_vars.remove((var_set, var))
 
 
         if not permute_now:
@@ -306,8 +309,10 @@ class RawProtoTest:
 
         permute_now = []
         for var_name in could_resolve:
-            permute_now.append(('var', var_name))
-            used_per_vars.remove(('var', var_name))
+            permute_var = ('var', var_name)
+            permute_now.append(permute_var)
+            if permute_var in used_per_vars:
+                used_per_vars.remove(permute_var)
 
         perm_var_men = var_man.get_permutations(permute_now)
         if self._debug:

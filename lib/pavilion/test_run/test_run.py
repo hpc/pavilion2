@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TextIO, Union, Dict
 import yc_yaml as yaml
 
-from pavilion.config import PavConfig, DEFAULT_CONFIG_LABEL
+from pavilion.config import PavConfig
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import errors
@@ -123,8 +123,6 @@ class TestRun(TestAttributes):
         else:
             self.working_dir = Path(config['working_dir'])
 
-        self.cfg_label = config.get('cfg_label', self.NO_LABEL)
-
         tests_path = self.working_dir/self.RUN_DIR
 
         self.config = config
@@ -152,6 +150,7 @@ class TestRun(TestAttributes):
             self.created = time.time()
             self.name = self.make_name(config)
             self.rebuild = rebuild
+            self.cfg_label = config.get('cfg_label', self.NO_LABEL)
             suite_path = config.get('suite_path')
             if suite_path == '<no_suite>' or suite_path is None:
                 self.suite_path = Path('..')
@@ -180,13 +179,6 @@ class TestRun(TestAttributes):
                 raise TestRunError("Error loading variable set for test {}".format(self.id),
                                    err)
 
-        # If the cfg label is actually something that exists, use it in the
-        # test full_id. Otherwise give the test path.
-        if self.cfg_label == DEFAULT_CONFIG_LABEL:
-            self.full_id = '{}'.format(self.id)
-        else:
-            self.full_id = '{}.{}'.format(self.cfg_label, self.id)
-
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
         self.test_version = config.get('test_version')
@@ -205,7 +197,6 @@ class TestRun(TestAttributes):
         self.run_log = self.path/'run.log'
         self.build_log = self.path/'build.log'
         self.results_log = self.path/'results.log'
-        self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
 
         # Use run.log as the default run timeout file
@@ -931,7 +922,7 @@ of result keys.
             pass
         results_tmp_path.rename(self.results_path)
 
-        self.result = results.get('result')
+        self._results = results
         self.save_attributes()
 
         result_logger = logging.getLogger('common_results')
@@ -948,43 +939,6 @@ of result keys.
                 result_logger.info(output.json_dumps(per_result))
         else:
             result_logger.info(output.json_dumps(results))
-
-    def load_results(self):
-        """Load results from the results file.
-
-:returns A dict of results, or None if the results file doesn't exist.
-:rtype: dict
-"""
-
-        if self.results_path.exists():
-            with self.results_path.open() as results_file:
-                return json.load(results_file)
-        else:
-            return None
-
-    PASS = 'PASS'
-    FAIL = 'FAIL'
-    ERROR = 'ERROR'
-
-    @property
-    def results(self):
-        """The test results. Returns a dictionary of basic information
-        if the test has no results."""
-        if self.results_path.exists() and (
-                self._results is None or self._results['result'] is None):
-            with self.results_path.open() as results_file:
-                self._results = json.load(results_file)
-
-        if self._results is None:
-            return {
-                'name': self.name,
-                'sys_name': self.var_man['sys_name'],
-                'created': self.created,
-                'id': self.full_id,
-                'result': None,
-            }
-        else:
-            return self._results
 
     @property
     def is_built(self):

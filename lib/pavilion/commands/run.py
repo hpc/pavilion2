@@ -87,6 +87,10 @@ class RunCommand(Command):
                  "for information on 'on_node' builds."
         )
         parser.add_argument(
+            '-i', '--ignore-errors', action='store_true', default=False,
+            help="Ignore test creation, build and kickoff errors. Tests that "
+                 "don't have errors will still run.")
+        parser.add_argument(
             '-r', '--rebuild', action='store_true', default=False,
             help="Deprecate existing builds of these tests and rebuild. This "
                  "should be necessary only if the system or user environment "
@@ -130,6 +134,7 @@ class RunCommand(Command):
             host=args.host,
             repeat=getattr(args, 'repeat', None),
             overrides=args.overrides,
+            ignore_errors=args.ignore_errors,
         )
 
         tests = args.tests

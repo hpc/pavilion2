@@ -84,10 +84,7 @@ class RunCmdTests(PavTestCase):
 
         run_cmd.last_series.wait()
 
-        statuses = [test.status.current().state for test in run_cmd.last_tests]
-        statuses = set(statuses)
-        for test in run_cmd.last_tests:
-            print(test.full_id, test.name, test.status.current())
+        statuses = set([test.status.current().state for test in run_cmd.last_tests])
         self.assertEqual(statuses, {STATES.ABORTED, STATES.BUILD_FAILED})
 
         self.assertTrue(all([test.complete for test in
