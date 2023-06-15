@@ -12,8 +12,7 @@ class RunCmdTests(PavTestCase):
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
         run_cmd = commands.get_command('run')
-        run_cmd.outfile = io.StringIO()
-        run_cmd.errfile = run_cmd.outfile
+        run_cmd.silence()
 
     def test_run(self):
 
@@ -29,6 +28,22 @@ class RunCmdTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_verbosity(self):
+        """Run at all levels of verbosity, to make better explode."""
+
+        arg_parser = arguments.get_parser()
+        run_cmd = commands.get_command('run')
+
+        for arg_set in [
+            ('run', '-H', 'this', 'hello_world'),
+            ('run', '-v', 'QUIET', '-H', 'this', 'hello_world'),
+            ('run', '-v', 'DYNAMIC', '-H', 'this', 'hello_world'),
+            ('run', '-v', 'HIGH', '-H', 'this', 'hello_world'),
+            ('run', '-v', 'MAX', '-H', 'this', 'hello_world'),]:
+
+            args = arg_parser.parse_args(arg_set)
+            self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
     def test_multi_build(self):
         """Make sure we can build multiple simultanious builds on

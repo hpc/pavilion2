@@ -577,7 +577,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 node_range=node_range)
         except SchedulerPluginError as err:
             return [self._make_kickoff_error(err, tests)]
-        except Exception as err:  # pylint: disable=broad-except            
+        except Exception as err:  # pylint: disable=broad-except
             return [SchedulerPluginError(
                 "Unexpected error kicking off tests under '{}' scheduler."
                 .format(self.name),

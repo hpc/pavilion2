@@ -83,7 +83,7 @@ class RunCommand(Command):
                  " - QUIET   - Minimal output\n"
                  " - DYNAMIC - Dynamic status reporting. (default)\n"
                  " - HIGH    - Non-dynamic, high output.\n"
-                 " - MAX     - Maximized output\n")   
+                 " - MAX     - Maximized output\n")
         parser.add_argument(
             '-i', '--ignore-errors', action='store_true', default=False,
             help="Ignore test creation, build and kickoff errors. Tests that "
