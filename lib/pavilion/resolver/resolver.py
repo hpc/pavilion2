@@ -202,7 +202,6 @@ class TestConfigResolver:
 
                 try:
                     suite_cfgs = self.resolve_inheritance(
-                        base_config=base,
                         suite_cfg=suite_cfg,
                         suite_path=file)
                 except Exception as err:  # pylint: disable=W0703
