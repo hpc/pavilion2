@@ -143,17 +143,17 @@ class SeriesInfoBase:
 
     @property
     def errors(self) -> int:
-        """Number of tests that are complete but with no result, or
-        with an ERROR result."""
+        """Number of errors encountered while running the suite."""
+
+        if self.status is None:
+            self.status = status_file.SeriesStatusFile(self.path/'status')
 
         errors = 0
-        for test_path in self._tests:
-            test_info = self.test_info(test_path)
-            if test_info is None:
-                continue
-
-            if (test_info.complete and
-                    test_info.result not in (TestRun.PASS, TestRun.FAIL)):
+        for status in self.status.history():
+            if status.state in (status_file.SERIES_STATES.ERROR,
+                                status_file.SERIES_STATES.BUILD_ERROR,
+                                status_file.SERIES_STATES.CREATION_ERROR,
+                                status_file.SERIES_STATES.KICKOFF_ERROR):
                 errors += 1
 
         return errors
