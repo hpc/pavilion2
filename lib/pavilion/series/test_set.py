@@ -265,7 +265,7 @@ class TestSet:
                                                    .format(test_run.full_id, test_run.name))
                     else:
                         skip_count += 1
-                        msg = "Test {} skipped because '{}'" \
+                        msg = "{} - {}" \
                               .format(test_run.name, test_run.skip_reasons[0])
                         self.status.set(S_STATES.TESTS_SKIPPED, msg)
                         if self.verbosity in (Verbose.MAX, Verbose.HIGH):
@@ -301,10 +301,10 @@ class TestSet:
             output.fprint(
                 self.outfile,
                 "Test set '{}' created {} tests, skipped {}, {} errors\n"
-                "Reasons for skipping each test are in the series status file here:\n"
-                "{}"
+                "To see why each test was skipped, run:\n"
+                "`pav series states --skipped`"
                 .format(self.name, len(self.tests), skip_count,
-                        len(cfg_resolver.errors), self.status.path))
+                        len(cfg_resolver.errors)))
 
             if new_test_runs:
                 self.ready_to_build.extend(new_test_runs)

@@ -5,6 +5,7 @@ import sys
 
 from pavilion import cmd_utils
 from pavilion import output
+from pavilion.enums import Verbose
 from pavilion.errors import TestSeriesError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
@@ -76,16 +77,13 @@ class RunCommand(Command):
                  '\'key=value\', where key is the dot separated key name, '
                  'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
-            '-b', '--build-verbose', dest='build_verbosity', action='count',
-            default=0,
-            help="Increase the verbosity when building. By default, the "
-                 "count of current states for the builds is printed. If this "
-                 "argument is included once, the final status and note for "
-                 "each build is printed. If this argument is included more"
-                 "than once, every status change for each build is printed. "
-                 "This only applies for local builds; refer to the build log "
-                 "for information on 'on_node' builds."
-        )
+            '-v', '--verbosity', choices=[verb.name for verb in Verbose],
+            default=Verbose.DYNAMIC.name,
+            help="Adjust the verbosity of the run command.\n"
+                 " - QUIET   - Minimal output\n"
+                 " - DYNAMIC - Dynamic status reporting. (default)\n"
+                 " - HIGH    - Non-dynamic, high output.\n"
+                 " - MAX     - Maximized output\n")   
         parser.add_argument(
             '-i', '--ignore-errors', action='store_true', default=False,
             help="Ignore test creation, build and kickoff errors. Tests that "
@@ -150,7 +148,7 @@ class RunCommand(Command):
 
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
-                                verbosity=args.build_verbosity,
+                                verbosity=Verbose[args.verbosity],
                                 outfile=self.outfile)
 
         output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))

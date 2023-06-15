@@ -135,8 +135,13 @@ class RunSeries(Command):
             help="Give the state history of the given series.")
         state_p.add_argument('--text', '-t', action='store_true', default=False,
                              help="Print plaintext, rather than a table.")
-        state_p.add_argument('--errors', action='store_true', default=False,
-                             help="List only encountered errors.")
+        state_p_filter_args = state_p.add_mutually_exclusive_group()
+        state_p_filter_args.add_argument(
+            '--errors', action='store_true', default=False,
+            help="List only encountered errors.")
+        state_p_filter_args.add_argument(
+            '--skipped', action='store_true', default=False,
+            help="List only skipped test reasons.")
         state_p.add_argument('series', default='last', nargs='?',
                              help="The series to print status history for.")
 
@@ -367,25 +372,30 @@ class RunSeries(Command):
                               .format(args.series, err.args[0]))
                 return errno.EINVAL
 
-        states = [status.as_dict() for status in ser.status.history()]
+        states = [status for status in ser.status.history()]
         if args.errors:
             # Filter out any non-errors.
             states = [state for state in states
-                      if 'ERROR' in state['state']]
+                      if 'ERROR' in state.state]
+        elif args.skipped:
+            # Filter to just skipped messages
+            states = [state for state in states
+                      if 'TESTS_SKIPPED' == state.state]
 
         if args.text:
-            for status in ser.status.history():
+            for status in states:
                 output.fprint(self.outfile,
                               "{} {} {}".format(status.state, status.when, status.note))
             return 0
         else:
             output.draw_table(
                 outfile=self.outfile,
-                fields=['state', 'when', 'note'],
-                rows=[status.as_dict() for status in ser.status.history()],
+                fields=['state', 'time', 'note'],
+                rows=[state.as_dict() for state in states],
                 field_info={
-                    'when': {
+                    'time': {
                         'transform': output.get_relative_timestamp,
+                        'title': 'When',
                     }
                 }
             )
