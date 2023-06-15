@@ -156,6 +156,14 @@ class SeriesInfoBase:
                                 status_file.SERIES_STATES.KICKOFF_ERROR):
                 errors += 1
 
+        for test_path in self._tests:
+            test_info = self.test_info(test_path)
+            if test_info is None:
+                continue
+
+            if test_info.result == TestRun.ERROR:
+                errors += 1
+
         return errors
 
     def _get_test_statuses(self) -> List[str]:
