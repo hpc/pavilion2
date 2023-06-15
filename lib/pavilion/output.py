@@ -673,7 +673,7 @@ def dt_format_rows(rows, fields, field_info):
                     data = '<transform error on {}>'.format(data)
 
             if isinstance(data, errors.PavilionError):
-                data = err.pformat()
+                data = data.pformat()
             if isinstance(data, Exception):
                 data = '{}'.format(data.args[0])
 
