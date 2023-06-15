@@ -719,6 +719,8 @@ class TestConfigResolver:
     def _reset_schedulers(self):
         """Reset the cache on all scheduler plugins."""
 
+        _ = self
+
         for sched_name in schedulers.list_plugins():
             sched = schedulers.get_plugin(sched_name)
             sched.refresh()

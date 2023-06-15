@@ -491,7 +491,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # Schedule all these tests in one allocation. Chunked tests are already spread across
             # chunks, and these non-chunked tests are explicitly set to use one allocation.
             if chunking_enabled or use_same_nodes:
-                errors.extend(self._schedule_shared(pav_cfg, tests, node_range, sched_configs, chunk))
+                errors.extend(self._schedule_shared(pav_cfg, tests, node_range,
+                                                    sched_configs, chunk))
             # Otherwise, we need to bin the tests so they are spread across the machine.
             # Tests will still share allocations but will be divided up to maximally use the
             # machine.
@@ -519,7 +520,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         try:
             job = Job.new(pav_cfg, tests, self.KICKOFF_FN)
         except JobError as err:
-            return [SchedulerPluginError("Error creating job.", err, tests=tests)]
+            return [SchedulerPluginError("Error creating job.", prior_error=err, tests=tests)]
 
         # At this point the scheduler config should be effectively identical
         # for the test being allocated.
@@ -576,11 +577,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 node_range=node_range)
         except SchedulerPluginError as err:
             return [self._make_kickoff_error(err, tests)]
-        except Exception as err:
-            return [SchedulerPluginError(
+        except Exception as err:  # pylint: disable=broad-except            return [SchedulerPluginError(
                 "Unexpected error kicking off tests under '{}' scheduler."
                 .format(self.name),
-                err, tests=tests)]
+                prior_error=err, tests=tests)]
 
         for test in tests:
             test.status.set(
@@ -604,7 +604,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
                 job.save_node_data(self._nodes)
             except JobError as err:
-                errors.append(SchedulerPluginError("Error creating job.", err, tests=[test]))
+                errors.append(SchedulerPluginError("Error creating job.",
+                                                   prior_error=err, tests=[test]))
                 continue
 
             sched_config = sched_configs[test.full_id]
@@ -635,10 +636,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             except SchedulerPluginError as err:
                 errors.append(self._make_kickoff_error(err, tests))
                 continue
-            except Exception as err:
+            except Exception as err:  # pylint: disable=broad-except
                 errors.append(SchedulerPluginError(
                     "Unexpected error kicking off test under '{}' scheduler."
-                    .format(self.name), err))
+                    .format(self.name), prior_error=err))
                 continue
 
             test.status.set(
@@ -678,7 +679,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                errors.append(SchedulerPluginError("Error creating job.", err, tests=[test]))
+                errors.append(SchedulerPluginError("Error creating job.",
+                                                   prior_error=err, tests=[test]))
                 continue
 
             sched_config = sched_configs[test.full_id]
@@ -698,7 +700,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job.save_node_data({node: self._nodes[node] for node in picked_nodes})
             except JobError as err:
-                errors.append(SchedulerPluginError("Error saving node info to job.", err, tests=[test]))
+                errors.append(SchedulerPluginError("Error saving node info to job.",
+                              prior_error=err, tests=[test]))
                 continue
 
             job_name = 'pav_{}'.format(test.name)
@@ -723,10 +726,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     nodes=picked_nodes)
             except SchedulerPluginError as err:
                 return [self._make_kickoff_error(err, [test])]
-            except Exception as err:
+            except Exception as err:  # pylint: disable=broad-except
                 errors.append(SchedulerPluginError(
                     "Unexpected error kicking off test under '{}' scheduler."
-                    .format(self.name), err), tests=[test])
+                    .format(self.name), prior_error=err, tests=[test]))
 
             test.status.set(
                 STATES.SCHEDULED,

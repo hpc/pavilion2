@@ -266,7 +266,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
             sched_config = validate_config(raw_sched_config)
         except SchedConfigError as err:
             raise SchedulerPluginError(
-                "Error validating 'schedule' config section.", err)
+                "Error validating 'schedule' config section.", prior_error=err)
 
         if sched_config['nodes'] is None:
             raise SchedulerPluginError(
