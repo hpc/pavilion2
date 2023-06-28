@@ -3,6 +3,7 @@
 from pavilion.series.test_set import TestSet
 from pavilion.errors import TestSetError
 from pavilion.unittest import PavTestCase
+from pavilion.enums import Verbose
 
 
 class TestSetTests(PavTestCase):
@@ -53,9 +54,6 @@ class TestSetTests(PavTestCase):
         ts1 = TestSet(self.pav_cfg, "test_make1", ['pass_fail'])
         ts1.make()
 
-        with self.assertRaises(RuntimeError):
-            ts1.make()
-
         ts1 = TestSet(self.pav_cfg, "test_make2", ['invalid'])
         with self.assertRaises(TestSetError):
             ts1.make()
@@ -64,20 +62,32 @@ class TestSetTests(PavTestCase):
         with self.assertRaises(TestSetError):
             ts3.make()
 
+    def test_make_iter(self):
+        """Check that test creation batching works."""
+
+        ts2 = TestSet(self.pav_cfg, "test_make_iter", ['build_parallel']*2,
+                      simultaneous=8)
+
+        # The second set is small because of a skipped test.
+        sizes = [4, 3, 1]
+
+        # Make sure we make batches of half the simultanious limit.
+        for batch in ts2.make_iter():
+            self.assertEqual(len(batch), sizes.pop(0))
+
+        self.assertFalse(sizes)
+
+
     def test_build(self):
         """Check that building works as expected."""
-
-        ts0 = TestSet(self.pav_cfg, "test_build0", [])
-        with self.assertRaises(RuntimeError):
-            ts0.build()
 
         ts1 = TestSet(self.pav_cfg, "test_build1", ['build_parallel'])
         ts1.make()
         ts1.build()
 
         ts1 = TestSet(self.pav_cfg, "test_build2", ['build_fail'])
-        ts1.make()
-        self.assertEqual(len(ts1.tests), 6)
+        tests1 = ts1.make()
+        self.assertEqual(len(tests1), 6)
         with self.assertRaises(TestSetError):
             ts1.build()
 
@@ -89,30 +99,59 @@ class TestSetTests(PavTestCase):
     def test_rebuild(self):
         """Check that rebuilds are handled properly."""
 
-        ts1 = TestSet(self.pav_cfg, "test_rebuild1", ['build_parallel'])
+        ts1 = TestSet(self.pav_cfg, "test_rebuild1", ['build_rebuild'])
         ts1.make()
         ts1.build()
 
+        # Build the remote builds too.
         for test in ts1.tests:
-            # Build all the tests that would have been built remotely
             if not test.build_local:
                 test.build()
 
-        build_names = [test.build_name for test in ts1.tests]
+        build_names = set([test.build_name for test in ts1.tests])
+        dep_builds = set()
 
-        ts1 = TestSet(self.pav_cfg, "test_rebuild2", ['build_parallel'])
-        ts1.make(rebuild=True)
-        ts1.build()
-        for test in filter(lambda tst: not tst.skipped, ts1.tests):
-            self.assertNotIn(test.build_name, build_names)
+        ts2 = TestSet(self.pav_cfg, "test_rebuild2", ['build_rebuild']*2,
+                      simultaneous=4)
+
+        ts2.make(rebuild=True)
+        ts2.build(deprecated_builds=dep_builds)
+
+        # Ensure that all the builds got deprecated.
+        self.assertEqual(dep_builds, build_names)
+
+        # Check that none of the new builds are in the deprecated builds
+        for test in ts2.tests:
+            self.assertNotIn(test.builder.name, dep_builds)
 
     def test_build_verbosity(self):
         """Check for errors in different verbosity levels."""
 
-        for i in 0, 1, 2:
-            ts = TestSet(self.pav_cfg, "test_build_verbosity", ['build_parallel'])
+        for vbs in Verbose.QUIET, Verbose.MAX, Verbose.HIGH, Verbose.DYNAMIC:
+            ts = TestSet(self.pav_cfg, "test_build_verbosity", ['build_parallel'],
+                         verbosity=vbs)
             ts.make()
-            ts.build(verbosity=i)
+            ts.build()
+
+    def test_ignore_errors(self):
+        """Make sure build errors are handled properly when ignore_errors=True"""
+
+        ts1 = TestSet(self.pav_cfg, "test_set_errors", ["test_set_errors"],
+                      ignore_errors=True, verbosity=Verbose.MAX)
+        ts1.make()
+        self.assertEqual(len(ts1.ready_to_build), 4,
+                         msg=', '.join(t.name for t in ts1.ready_to_build))
+        ts1.build()
+        for test in ts1.tests:
+            if 'bad_build' in test.name:
+                self.assertTrue(test.complete, msg=test.name)
+            else:
+                self.assertFalse(test.complete, msg=test.name)
+
+        ts1.kickoff()
+        self.assertEqual(len(ts1.started_tests), 1)
+        self.assertEqual(ts1.started_tests[0].name, 'test_set_errors.good')
+
 
     def test_kickoff(self):
         """Check kickoff functionality."""
@@ -120,31 +159,39 @@ class TestSetTests(PavTestCase):
         ts1 = TestSet(self.pav_cfg, "test_kickoff1", ["pass_fail"] * 5)
         ts1.make()
         ts1.build()
-        self.assertEqual(ts1.kickoff(), 10)
+        self.assertEqual(len(ts1.kickoff()[0]), 10)
         ts1.wait(wait_for_all=True)
 
         # It shouldn't hurt to kickoff when there aren't any tests.
         ts1.kickoff()
 
-        ts2 = TestSet(self.pav_cfg, "test_kickoff2", ["pass_fail"] * 5)
-        ts2.make()
-        ts2.build()
-        remain = 10
-        for i in range(4):
-            expected = min(remain, 3)
-            self.assertEqual(ts2.kickoff(start_max=3), expected)
-            remain -= 3
+
+        expected = [
+            ['pass_fail.fail', 'pass_fail.pass', 'pass_fail.pass'],
+            ['pass_fail.fail', 'pass_fail.fail', 'pass_fail.pass'],
+            ['pass_fail.fail', 'pass_fail.pass', 'pass_fail.pass'],
+            ['pass_fail.fail'],
+        ]
+
+        ts2 = TestSet(self.pav_cfg, "test_kickoff2", ["pass_fail"] * 5,
+                      simultaneous=6)
+        for _ in ts2.make_iter():
+            ts2.build()
+            exp_names = expected.pop(0)
+            started_tests, jobs = ts2.kickoff()
+            start_names = [test.name for test in started_tests]
+            start_names.sort()
+            exp_names.sort()
+            self.assertEqual(start_names, exp_names)
             ts2.wait(wait_for_all=True)
-            if remain > 0:
-                self.assertFalse(ts2.done)
-            else:
-                self.assertTrue(ts2.done)
+
+        self.assertEqual(expected, [])
 
         # Empty set kickoff is fine.
         ts3 = TestSet(self.pav_cfg, "test_kickoff3", [])
         ts3.make()
         ts3.build()
-        self.assertEqual(ts3.kickoff(), 0)
+        self.assertEqual(len(ts3.kickoff()[0]), 0)
         ts3.wait(wait_for_all=True)
 
     def test_wait(self):
@@ -171,7 +218,7 @@ class TestSetTests(PavTestCase):
         ts2.build()
         ts2.kickoff()
         ts2.wait(wait_for_all=True)
-        self.assertTrue(ts2.all_passed, ts2.tests)
+        self.assertTrue(ts2.all_passed, msg=[test.result for test in ts2.tests])
 
     def test_cancel(self):
         """Check test set cancellation."""

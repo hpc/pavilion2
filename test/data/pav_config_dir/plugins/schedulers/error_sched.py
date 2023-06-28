@@ -1,4 +1,4 @@
-"""An advanced dummy plugin."""
+"""A Scheduler Plugin that always fails when kicking off tests."""
 
 import subprocess
 from typing import Union, List, Any, Tuple
@@ -9,45 +9,25 @@ from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import TestStatusInfo, STATES
 from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import var_method
+from pavilion.errors import SchedulerPluginError
 
 
-class DummyVars(schedulers.SchedulerVariables):
-    def __init__(self, *args, **kwargs):
-        self._refresh_count = 0
-        super().__init__(*args, **kwargs)
-
-    @var_method
-    def refresh_count(self):
-        """Number of times this scheduler has been refreshed."""
-        return self._refresh_count
-
-class Dummy(schedulers.SchedulerPluginAdvanced):
+class Error(schedulers.SchedulerPluginAdvanced):
     """Returns fake info about a fake machine, and creates fake jobs."""
 
-    VAR_CLASS = DummyVars
 
     def __init__(self):
-        self.refresh_count = 0
-
-        super().__init__('dummy', 'I am dumb')
+        super().__init__('error', 'Toss out errors')
 
     def get_initial_vars(self, raw_sched_config: dict):
         config = schedulers.validate_config(raw_sched_config)
 
         sched_vars = super().get_initial_vars(raw_sched_config)
-        sched_vars._refresh_count = self.refresh_count
 
-        if config['nodes'] == 42:
-            sched_vars.add_errors([
-                "You can't ask for 42 nodes in dummy scheduler."
-            ])
+        if config['nodes'] % 2 == 0:
+            sched_vars.add_errors(["You can't ask for an even number of nodes."])
 
         return sched_vars
-
-    def refresh(self):
-        self.refresh_count += 1
-
-        super().refresh()
 
     def _get_alloc_nodes(self, job: Job) -> NodeList:
         nodes = job.load_sched_data()
@@ -117,7 +97,4 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
     def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name,
                  nodes=None, node_range=None) -> JobInfo:
 
-        subprocess.Popen([job.kickoff_path.as_posix()], stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-
-        return JobInfo({'id': '1'})
+        raise SchedulerPluginError("I fail intentionally.")

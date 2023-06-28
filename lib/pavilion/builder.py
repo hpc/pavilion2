@@ -274,10 +274,15 @@ class TestBuilder:
 
     def deprecate(self):
         """Deprecate this build, so that it will be rebuilt if any other
-        test run wants to use it."""
+        test run wants to use it.
+        """
 
-        deprecated_path = self.path/self.DEPRECATED
-        deprecated_path.touch()
+        dep_tmp_path = self.path/'.dep_tmp-{}'.format(time.time())
+        dep_path = self.path/self.DEPRECATED
+        if dep_path.exists():
+            return
+
+        dep_path.touch()
 
     def _update_src(self):
         """Retrieve and/or check the existence of the files needed for the
@@ -638,6 +643,9 @@ class TestBuilder:
 
         umask = int(self._pav_cfg['umask'], 8)
 
+        # All of the file extraction functions return an error message on failure, None on success.
+        extract_error = None
+
         if src_path is None:
             # If there is no source archive or data, just make the build
             # directory.
@@ -668,7 +676,7 @@ class TestBuilder:
                         state=STATES.BUILDING,
                         note=("Extracting tarfile {} for build {}"
                               .format(src_path, dest)))
-                    extract.extract_tarball(src_path, dest, umask)
+                    extract_error = extract.extract_tarball(src_path, dest, umask)
                 else:
                     tracker.update(
                         state=STATES.BUILDING,
@@ -677,14 +685,12 @@ class TestBuilder:
                             "build directory."
                             .format(subtype, src_path, dest)))
                     extract_error = extract.decompress_file(src_path, dest, subtype)
-                    if extract_error is not None:
-                        tracker.fail(extract_error)
             elif category == 'application' and subtype == 'zip':
                 tracker.update(
                     state=STATES.BUILDING,
                     note=("Extracting zip file {} for build {}."
                           .format(src_path, dest)))
-                extract.unzip_file(src_path, dest)
+                extract_error = extract.unzip_file(src_path, dest)
 
             else:
                 # Finally, simply copy any other types of files into the build
@@ -702,6 +708,10 @@ class TestBuilder:
                     raise TestBuilderError(
                         "Could not copy test src '{}' to '{}'"
                         .format(src_path, dest), err)
+
+        if extract_error is not None:
+            raise TestBuilderError("Error extracting file '{}'\n  {}"
+                                   .format(src_path.as_posix(), extract_error))
 
         tracker.update(
             state=STATES.BUILDING,

@@ -48,8 +48,8 @@ class TestConfig(PavTestCase):
         """Make sure variable defaults work as intended."""
 
         self.maxDiff = 1000
-        rslvr = resolver.TestConfigResolver(self.pav_cfg)
-        tests = rslvr.load(['default_vars_test'], host='default_vars_host')
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='default_vars_host')
+        tests = rslvr.load(['default_vars_test'])
         def_test = [test for test in tests if 'def' in test.config['name']][0]
         itest = [test for test in tests if 'inh' in test.config['name']][0]
 

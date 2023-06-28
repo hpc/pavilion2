@@ -1,0 +1,6 @@
+# This has to live in it's own file because it breaks the whole suite
+inconsistent_var1:
+  variables:
+    foo:
+      - 'a'
+      - {'a': 'b'}

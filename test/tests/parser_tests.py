@@ -4,8 +4,8 @@ import lark
 from pavilion import parsers
 from pavilion import plugins
 from pavilion import unittest
+from pavilion import variables
 from pavilion.errors import DeferredError, StringParserError, ParserValueError
-from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 
 

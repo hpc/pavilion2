@@ -1,0 +1,3 @@
+[Core]
+Name = Error
+Module = error_sched

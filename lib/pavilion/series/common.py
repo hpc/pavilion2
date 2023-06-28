@@ -103,6 +103,7 @@ class LazyTestRunDict(UserDict):
 
                 self.add_key(ID_Pair((working_dir, test_id)))
 
+
 def set_all_started(path: Path):
     """Touch the 'all_started' file, indicating that all tests that will be created
     by this series have been created."""

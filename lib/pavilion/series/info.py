@@ -30,7 +30,8 @@ class SeriesInfoBase:
         self._test_statuses = None
 
         self._test_info = {}
-        self._status: Union[None, status_file.SeriesStatusInfo] = None
+        self._status: status_file.SeriesStatusInfo = None
+        self._status_file: status_file.SeriesStatusFile = None
 
     @classmethod
     def list_attrs(cls):
@@ -143,17 +144,24 @@ class SeriesInfoBase:
 
     @property
     def errors(self) -> int:
-        """Number of tests that are complete but with no result, or
-        with an ERROR result."""
+        """Number of errors encountered while running the suite."""
+
+        status_obj = self._get_status_file()
 
         errors = 0
+        for status in status_obj.history():
+            if status.state in (status_file.SERIES_STATES.ERROR,
+                                status_file.SERIES_STATES.BUILD_ERROR,
+                                status_file.SERIES_STATES.CREATION_ERROR,
+                                status_file.SERIES_STATES.KICKOFF_ERROR):
+                errors += 1
+
         for test_path in self._tests:
             test_info = self.test_info(test_path)
             if test_info is None:
                 continue
 
-            if (test_info.complete and
-                    test_info.result not in (TestRun.PASS, TestRun.FAIL)):
+            if test_info.result == TestRun.ERROR:
                 errors += 1
 
         return errors
@@ -302,16 +310,22 @@ class SeriesInfo(SeriesInfoBase):
             return None
         return self._status.when
 
-    def _get_status(self) -> status_file.SeriesStatusInfo:
-        """Get the latest status and note from the series status file."""
+    def _get_status_file(self) -> status_file.SeriesStatusFile:
+        """Get the series status file object."""
 
-        if self._status is None:
+        if self._status_file is None:
             status_fn = self.path/common.STATUS_FN
             if status_fn.exists():
-                series_status = status_file.SeriesStatusFile(status_fn)
-                sstatus = series_status.current()
-                self._status = sstatus
+                self._status_file = status_file.SeriesStatusFile(status_fn)
 
+        return self._status_file
+
+    def _get_status(self) -> status_file.SeriesStatusInfo:
+        """Get the latest test state from the series status file."""
+
+        if self._status is None:
+            status_file = self._get_status_file()
+            self._status = status_file.current()
         return self._status
 
     @property

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable, Any
 
 from pavilion import utils
+from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion.errors import TestRunError
 
 
@@ -69,6 +70,9 @@ class TestAttributes:
         self._complete = False
 
         self._status_file = None
+
+        self.results_path = self.path/'results.json'
+        self._results = None
 
         # Set a logger more specific to this test.
         if load:
@@ -277,6 +281,45 @@ class TestAttributes:
 
         return None
 
+    PASS = 'PASS'
+    FAIL = 'FAIL'
+    ERROR = 'ERROR'
+
+    @property
+    def results(self):
+        """The test results. Returns a dictionary of basic information
+        if the test has no results."""
+        if self.results_path.exists() and (
+                self._results is None or self._results['result'] is None):
+            with self.results_path.open() as results_file:
+                self._results = json.load(results_file)
+
+        if self._results is None:
+            return {
+                'name': self.name,
+                'sys_name': self.sys_name,
+                'created': self.created,
+                'id': self.full_id,
+                'result': None,
+            }
+        else:
+            return self._results
+
+    @property
+    def result(self):
+        """The test result - PASS/FAIL/ERROR, or None if there isn't a result."""
+
+        return self.results.get('result', None)
+
+    @property
+    def full_id(self):
+        # If the cfg label is actually something that exists, use it in the
+        # test full_id. Otherwise give the test path.
+        if self.cfg_label == DEFAULT_CONFIG_LABEL or self.cfg_label is None:
+            return '{}'.format(self.id)
+        else:
+            return '{}.{}'.format(self.cfg_label, self.id)
+
     @property
     def state(self) -> str:
         """Returns the current state of the test."""
@@ -287,6 +330,9 @@ class TestAttributes:
     build_name = basic_attr(
         name='build_name',
         doc="The name of the test run's build.")
+    cfg_label = basic_attr(
+        name='cfg_label',
+        doc='The configuration set from which this test came.')
     created = basic_attr(
         name='created',
         doc="When the test was created.")
@@ -302,10 +348,6 @@ class TestAttributes:
     rebuild = basic_attr(
         name='rebuild',
         doc="Whether or not this test will rebuild it's build.")
-    result = basic_attr(
-        name='result',
-        doc="The PASS/FAIL/ERROR result for this test. This is kept here for"
-            "fast retrieval.")
     skipped = basic_attr(
         name='skipped',
         doc="Did this test's skip conditions evaluate as 'skipped'?")

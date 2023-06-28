@@ -849,7 +849,7 @@ end up as a list (of one)."""
                 sub_vars = set(value_pairs.keys())
             elif set(value_pairs.keys()) != sub_vars:
                 raise VariableError(
-                    "Sub-keys do not match across variable values. "
+                    "Sub-keys do not match across variable values.\n"
                     "Idx {} had keys {}, but expected {}"
                     .format(idx, set(value_pairs.keys()), sub_vars),
                     index=str(idx))
