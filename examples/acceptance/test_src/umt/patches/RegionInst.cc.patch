@@ -1,0 +1,8 @@
+--- RegionInst.cc.orig	2022-09-19 17:27:10.190082000 -0600
++++ RegionInst.cc	2022-09-19 17:26:02.205033000 -0600
+@@ -2,4 +2,4 @@
+ #include "Region.cc"
+ using namespace Geometry;
+ 
+-template class Region< MeshBase >;
++template class Geometry::Region< MeshBase >;

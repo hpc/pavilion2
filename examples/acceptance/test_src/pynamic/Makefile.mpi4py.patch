@@ -1,0 +1,11 @@
+--- Makefile.mpi4py	2022-11-07 12:54:37.427162000 -0700
++++ /users/smehta/pynamic-changes/Makefile.mpi4py	2022-11-10 13:01:46.557237000 -0700
+@@ -27,7 +27,7 @@
+ 
+ UTIL_LIBS := $(shell for s in {1..$(NUM_UTILITIES)}; do echo -lutility$$(($$s - 1)); done)
+ MODULE_LIBS := $(shell for s in {1..$(NUM_MODULES)}; do echo -lmodule$$(($$s - 1)); done)
+-BASE_MODULE_LIBS = -lmodulebegin -lmodulefinal
++BASE_MODULE_LIBS += -lmodulebegin -lmodulefinal
+ 
+ PYNAMICDIR := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))
+ 
