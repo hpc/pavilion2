@@ -1,0 +1,27 @@
+# This is exactly the hello world test, but should only be
+# ever be run by the arg_filtered_tests test.
+
+hello:
+    build:
+        cmds:
+            - echo "Building Hello"
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "raw"
+
+world:
+    build:
+        cmds:
+            - echo "Building World"
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "raw"
+
+narf:
+    inherits_from: world
+
+    scheduler: "dummy"

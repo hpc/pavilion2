@@ -1,4 +1,7 @@
 from collections import defaultdict, OrderedDict
+import io
+
+import similarity
 
 import yc_yaml as yaml
 from .elements import (
@@ -8,6 +11,7 @@ from .elements import (
     ConfigDict,
 )
 from .scalars import ScalarElem
+
 
 
 class ListElem(ConfigElement):
@@ -79,17 +83,22 @@ class ListElem(ConfigElement):
         else:
             return False
 
-    def normalize(self, value):
+    def normalize(self, value, root_name=None):
         """Lists with a value of None remain as None, and empty lists stay
         empty. Single values, however, become a list of that value. All
         contained value are recursively normalized."""
 
+        if root_name is not None:
+            name = root_name
+        else: 
+            name = self.name
+
         if value is None or value == [None]:
             return None
         elif isinstance(value, self.type):
-            return [self._sub_elem.normalize(v) for v in value]
+            return [self._sub_elem.normalize(v, root_name=name) for v in value]
         else:
-            return [self._sub_elem.normalize(value)]
+            return [self._sub_elem.normalize(value, root_name=name)]
 
     def validate(self, value, partial=False):
         """Just like the parent function, except converts None to an empty
@@ -369,6 +378,22 @@ class KeyedElem(_DictElem):
 
     find.__doc__ = ConfigElement.find.__doc__
 
+    def find_key_matches(self, word, min_score=0.8):
+        """Find similar keys to the one given."""
+
+        return similarity.find_matches(word, self.config_elems.keys(), min_score=min_score)
+
+    def find_sub_key_matches(self, key):
+        """Find potential matches in KeyedElements under this one."""
+        sub_key_matches = []
+        for sub_key, config_elem in self.config_elems.items():
+            if isinstance(config_elem, KeyedElem):
+                similar = config_elem.find_key_matches(key, min_score=0.8)
+                if similar:
+                    sub_key_matches.append((sub_key, similar))
+
+        return sub_key_matches
+
     def get_sub_comments(self, show_choices, show_name):
         """Add the comment description for each sub element at the top
         of Keyed Elements."""
@@ -403,20 +428,77 @@ class KeyedElem(_DictElem):
 
         return base
 
-    def normalize(self, value):
+    def _make_missing_key_message(self, root_name, key, value):
+        """Generate a message for when a matching key isn't found. Searches for similar
+        keys in this and child KeyedElements."""
+
+        name = root_name if root_name is not None else self.name
+
+        msg = ["Invalid config key '{}' given under '{}'."
+                   .format(key, name)]
+
+        matches_found = False
+
+        similar = self.find_key_matches(key)
+        if similar:
+            msg.append("Did you mean one of these?")
+            matches_found = True
+            for skey in similar:
+                help_text = self.config_elems[skey].help_text
+                if help_text:
+                    help_text = help_text[:60] + '...'
+                    msg.append('  {} - "{}"'.format(skey, help_text))
+                else:
+                    msg.append('  {}')
+
+        sub_key_matches = self.find_sub_key_matches(key)
+        if sub_key_matches:
+            matches_found = True
+            msg.append("Config elements under this one have similar keys:")
+            msg.append("{}:".format(name))
+            for sub_key, matches in sub_key_matches:
+                msg.append("  {}:".format(sub_key))
+                for match in matches:
+                    help_text = self.config_elems[sub_key].config_elems[match].help_text
+                    msg.append("    {}:     # {}...".format(match, help_text[:60]))
+
+        if not matches_found:
+            for sub_key, sub_elem in self.config_elems.items():
+                if not isinstance(sub_elem, CategoryElem):
+                    continue
+
+                try:
+                    sub_elem.normalize(value)
+                except (ValueError, KeyError, AttributeError):
+                    continue
+
+                msg.append("Key '{}' not found under '{}', but the value works as a key under '{}':"
+                           .format(key, root_name, sub_key))
+                new_val = {root_name: {sub_key: value}}
+                buffer = io.StringIO()
+                yaml.dump(new_val, buffer)
+                for line in buffer.getvalue().split('\n'):
+                    msg.append('  ' + line)
+
+        return '\n'.join(msg)
+
+    def normalize(self, value, root_name=None):
         """None remains None. Everything else is recursively normalized
         by their element objects. Unknown keys and non-dict 'values'
         result in an error.
         :param dict value: The dict of values to normalize.
+        :param root_name: What to call this if it is the root element.
         :raises KeyError: For unknown keys.
         :raises TypeError: if values isn't a dict.
         """
+
+        name = root_name if root_name is not None else self.name
 
         if value is None:
             return None
 
         if not isinstance(value, dict):
-            raise TypeError("Config element '{}' is expected to be"
+            raise TypeError("Config element '{}' is expected to be "
                             "a dict/mapping, but got '{}'"
                             .format(self.name, value))
 
@@ -430,18 +512,34 @@ class KeyedElem(_DictElem):
 
             elem = self.config_elems.get(final_key, None)
             if elem is None:
-                name = self.name
-                if name is not None:
-                    raise KeyError(
-                        "Invalid config key '{}' given under {} called '{}'."
-                        .format(final_key, self.__class__.__name__, self.name)
-                    )
-                else:
-                    raise KeyError(
-                        "Invalid config key '{}' given under root "
-                        "element.".format(key))
+                msg = self._make_missing_key_message(root_name, key, value)
+                raise KeyError(msg, key)
 
-            ndict[key] = elem.normalize(val)
+            try:
+                ndict[key] = elem.normalize(val, root_name=key)
+            except ValueError as err:
+                if isinstance(val, dict):
+                    msg = [err.args[0]]
+                    msg.append("Key '{}.{}' does not take dictionary values. "
+                               "Perhaps these values belong under a different key?"
+                               .format(name, key))
+                    raise ValueError("\n".join(msg))
+                else:
+                    raise
+            except KeyError as err:
+                # Check to see if this level takes the key that was erroneous at the next
+                # level, and suggest a course of action.
+                msg = err.args[0]
+                if len(err.args) > 1:
+                    err_key = err.args[1]
+
+                    if err_key in self.config_elems:
+
+                        addtl_msg = "The level above '{}' takes key '{}' - maybe key '{}' "\
+                                    "is over-indented?".format(key, err_key, err_key)
+                        msg = '\n'.join([msg, addtl_msg])
+
+                raise KeyError(msg)
 
         return ndict
 
@@ -599,11 +697,9 @@ class CategoryElem(_DictElem):
                                            key_case=key_case,
                                            default=defaults, **kwargs)
 
-    def normalize(self, value):
+    def normalize(self, value: dict, root_name=None):
         """Make sure values is a dict, and recursively normalize the contained
-        keys. Returns None if values is None.
-        :param dict value:
-        """
+        keys. Returns None if values is None."""
 
         if value is None:
             return None
@@ -615,7 +711,7 @@ class CategoryElem(_DictElem):
                             .format(self.name, value))
 
         for key, val in value.items():
-            out_dict[key] = self._sub_elem.normalize(val)
+            out_dict[key] = self._sub_elem.normalize(val, root_name=key)
 
         return out_dict
 

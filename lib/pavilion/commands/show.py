@@ -1,10 +1,15 @@
 """Show a variety of different internal information for Pavilion."""
 
+# pylint: disable=too-many-lines
+
+
 import argparse
 import errno
 import fnmatch
+import os
 import pprint
 import sys
+from pathlib import Path
 from typing import Union
 
 import pavilion.errors
@@ -75,6 +80,12 @@ class ShowCommand(Command):
             in the order given. Tests in higher directories supersede those
             in lower. Plugins, however, are resolved according to internally
             defined priorities."""
+        )
+
+        subparsers.add_parser(
+            'collections',
+            aliases=['collection'],
+            help="List collections found in config dirs."
         )
 
         func_group = subparsers.add_parser(
@@ -384,6 +395,22 @@ class ShowCommand(Command):
             rows=pav_cfg.configs.values(),
             title="Config directories by priority."
         )
+
+    @sub_cmd('collection')
+    def _collections_cmd(self, pav_cfg, _):
+        """List all files found in the collections directories in all config directories."""
+
+        collections = []
+        for config in pav_cfg['configs'].items():
+            _, config_path = config
+            collection_dir = Path(config_path.path / 'collections')
+            if collection_dir.exists() and collection_dir.is_dir():
+                for col_file in os.listdir(collection_dir):
+                    collections.append({'collection': col_file,
+                                        'path': Path(collection_dir / col_file)})
+
+        output.draw_table(self.outfile, fields=['collection', 'path'], rows=collections,
+                          title="Available collections and paths.")
 
     @sub_cmd('function', 'func')
     def _functions_cmd(self, _, args):
@@ -968,6 +995,15 @@ class ShowCommand(Command):
         pvalue("Email:", test['email'])
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
+
+
+    DOC_KEYS = ['summary', 'doc']
+    PERMUTATION_KEYS = ['permute_on', 'subtitle']
+    INHERITANCE_KEYS = ['inherits_from']
+    SCHEDULING_KEYS = ['schedule', 'chunk']
+    RUN_KEYS = ['run']
+    BUILD_KEYS = ['build']
+    RESULT_KEYS = ['result_parse', 'result_evaluate']
 
     @sub_cmd()
     def _test_config_cmd(self, *_):

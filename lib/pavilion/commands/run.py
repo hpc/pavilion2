@@ -5,6 +5,7 @@ import sys
 
 from pavilion import cmd_utils
 from pavilion import output
+from pavilion.enums import Verbose
 from pavilion.errors import TestSeriesError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
@@ -74,18 +75,19 @@ class RunCommand(Command):
                  'gathered used as a final set of overrides before the '
                  'configs are resolved. They should take the form '
                  '\'key=value\', where key is the dot separated key name, '
-                 'and value is a json object.')
+                 'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
-            '-b', '--build-verbose', dest='build_verbosity', action='count',
-            default=0,
-            help="Increase the verbosity when building. By default, the "
-                 "count of current states for the builds is printed. If this "
-                 "argument is included once, the final status and note for "
-                 "each build is printed. If this argument is included more"
-                 "than once, every status change for each build is printed. "
-                 "This only applies for local builds; refer to the build log "
-                 "for information on 'on_node' builds."
-        )
+            '-v', '--verbosity', choices=[verb.name for verb in Verbose],
+            default=Verbose.DYNAMIC.name,
+            help="Adjust the verbosity of the run command.\n"
+                 " - QUIET   - Minimal output\n"
+                 " - DYNAMIC - Dynamic status reporting. (default)\n"
+                 " - HIGH    - Non-dynamic, high output.\n"
+                 " - MAX     - Maximized output\n")
+        parser.add_argument(
+            '-i', '--ignore-errors', action='store_true', default=False,
+            help="Ignore test creation, build and kickoff errors. Tests that "
+                 "don't have errors will still run.")
         parser.add_argument(
             '-r', '--rebuild', action='store_true', default=False,
             help="Deprecate existing builds of these tests and rebuild. This "
@@ -130,11 +132,12 @@ class RunCommand(Command):
             host=args.host,
             repeat=getattr(args, 'repeat', None),
             overrides=args.overrides,
+            ignore_errors=args.ignore_errors,
         )
 
         tests = args.tests
         try:
-            tests.extend(cmd_utils.read_test_files(args.files))
+            tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
         except ValueError as err:
             output.fprint(sys.stdout, "Error reading given test list files.\n{}"
                           .format(err))
@@ -144,7 +147,11 @@ class RunCommand(Command):
         report_status = getattr(args, 'status', False)
 
         # create brand-new series object
-        series_obj = TestSeries(pav_cfg, config=series_cfg)
+        series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
+                                verbosity=Verbose[args.verbosity],
+                                outfile=self.outfile)
+
+        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
 
         series_obj.add_test_set_config(
             'cmd_line',
@@ -158,9 +165,7 @@ class RunCommand(Command):
             series_obj.run(
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
-                local_builds_only=local_builds_only,
-                verbosity=args.build_verbosity,
-                outfile=self.outfile)
+                local_builds_only=local_builds_only)
             self.last_tests = list(series_obj.tests.values())
         except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())

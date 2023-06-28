@@ -148,6 +148,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
         - SCHEDULED - The job is still waiting for an allocation.
         - SCHED_ERROR - The job is dead because of some error.
         - SCHED_CANCELLED - The job was cancelled.
+        - SCHED_STARTUP - The job has started, but not the test.
+
+        # The following is deprecated, and will be silently converted into SCHED_STARTUP
         - SCHED_RUNNING - The job is running (but not usually the test yet).
 
         Lastly, this may return None when we can't determine the test state at all.
@@ -263,7 +266,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
             sched_config = validate_config(raw_sched_config)
         except SchedConfigError as err:
             raise SchedulerPluginError(
-                "Error validating 'schedule' config section:\n{}".format(err.args[0]))
+                "Error validating 'schedule' config section.", prior_error=err)
 
         if sched_config['nodes'] is None:
             raise SchedulerPluginError(
@@ -280,12 +283,17 @@ class SchedulerPlugin(IPlugin.IPlugin):
         else:
             return self._available()
 
+    def refresh(self):
+        """Clear gathered scheduler information, generally to force the scheduler to
+        re-gather info and node lists."""
+
+
     JOB_STATUS_TIMEOUT = 1
 
     def job_status(self, pav_cfg, test) -> TestStatusInfo:
         """Get the job state from the scheduler, and map it to one of the
         of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED,
-        SCHED_RUNNING. This should only be called if the current recorded test
+        SCHED_STARTUP. This should only be called if the current recorded test
         state is 'SCHEDULED'.
 
         The first SCHED_ERROR and SCHED_CANCELLED statuses encountered will be saved
@@ -330,6 +338,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
                     "effectively disappeared).".format(job_info))
             else:
                 return last_status
+
+        if status.state == STATES.SCHED_RUNNING:
+            status.state = STATES.SCHED_STARTUP
 
         # Record error and cancelled states if they haven't been seen before.
         if status.state in (STATES.SCHED_CANCELLED, STATES.SCHED_ERROR):
@@ -507,6 +518,21 @@ class SchedulerPlugin(IPlugin.IPlugin):
                 del config.CONFIG_VALIDATORS[name]
             if name in config.CONFIG_DEFAULTS:
                 del config.CONFIG_DEFAULTS[name]
+
+    def _make_kickoff_error(self, orig_err, tests):
+        """Convert a generic error to something with more information."""
+
+        test_names = tests[:2]
+        if len(tests) > 2:
+            test_names.append('...')
+        test_names = ', '.join(test.name for test in test_names)
+
+        plural = 's' if len(tests) > 1 else ''
+
+        return SchedulerPluginError(
+            "Error kicking off test{} '{}' under the '{}' scheduler."
+            .format(plural, test_names, self.name),
+            prior_error=orig_err, tests=tests)
 
 
 def __reset():

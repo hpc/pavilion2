@@ -135,7 +135,7 @@ base class.
             config.PavilionConfigLoader().dump(pav_cfg_file,
                                                raw_pav_cfg)
 
-        pav_cfg = config.find_pavilion_config(target=cfg_path, warn=False)
+        pav_cfg = config.find_pavilion_config(target=cfg_path)
         pav_cfg.pav_vars = pavilion_variables.PavVars()
 
         return pav_cfg
@@ -289,8 +289,8 @@ The default config is: ::
         if modes is None:
             modes = []
 
-        res = TestConfigResolver(self.pav_cfg)
-        test_cfgs = res.load([name], host, modes)
+        res = TestConfigResolver(self.pav_cfg, host=host)
+        test_cfgs = res.load([name], modes=modes)
 
         tests = []
         for ptest in test_cfgs:

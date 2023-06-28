@@ -267,9 +267,8 @@ deferred args. On error, should raise a ResultParserError.
                 except ValueError as err:
                     raise ResultError(
                         "Validation error for option '{}' with "
-                        "value '{}'.\n{}"
-                        .format(key, kwargs[key], err.args[0])
-                    )
+                        "value '{}'."
+                        .format(key, kwargs[key]), err.args[0])
 
         for key in base_keys:
             # The parser plugins don't know about these keys, as they're

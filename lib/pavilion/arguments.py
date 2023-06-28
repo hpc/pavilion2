@@ -4,6 +4,7 @@ components to add sub-commands.
 # pylint: disable=W0603
 
 import argparse
+import textwrap
 
 import pavilion.config
 
@@ -12,6 +13,31 @@ _PAV_SUB_PARSER = None
 
 PROFILE_SORT_DEFAULT = 'cumtime'
 PROFILE_COUNT_DEFAULT = 20
+
+
+class WrappedFormatter(argparse.HelpFormatter):
+
+    def _split_lines(self, text, width):
+        """Preserve newlines when splitting lines."""
+        all_lines = []
+
+        lines = text.split('\n')
+        for line in lines:
+            line = self._whitespace_matcher.sub(' ', line).strip()
+            all_lines.extend(textwrap.wrap(line, width))
+        return all_lines
+
+    def _fill_text(self, text, width, indent):
+        """Preserve newlines when filling text."""
+
+        all_lines = []
+
+        for line in text.split('\n'):
+            line = self._whitespace_matcher.sub(' ', text).strip()
+            all_lines.extend(textwrap.wrap(line, width,
+                                           initial_indent=indent,
+                                           subsequent_indent=indent))
+        return '\n'.join(all_lines)
 
 
 def get_parser():
@@ -29,11 +55,11 @@ def get_parser():
         prog='pav',
         # We'll add our own help option that doesn't auto-exit.
         add_help=False,
+        formatter_class=WrappedFormatter,
         description="Pavilion is a framework for running tests on "
                     "supercomputers.")
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        default=False,
-                        help='Log all levels of messages to stderr.')
+    parser.add_argument('--quiet', action='store_true',
+                        help='Silence warnings and stderr output.')
     parser.add_argument('--version', action='version',
                         version='Pavilion ' + pavilion.config.get_version(),
                         default=False,

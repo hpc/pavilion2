@@ -1,21 +1,26 @@
 """Series are built around a config that specifies a 'series' of tests to run. It
 also tracks the tests that have run under it."""
-
+import io
 import json
-import os
 import math
+import os
 import re
+import signal
+import sys
 import subprocess
 import time
-from collections import defaultdict, UserDict, OrderedDict
+from collections import defaultdict, OrderedDict
 from pathlib import Path
-from typing import List, Dict, Set, Union, TextIO
+from typing import List, Dict, Set, Union, TextIO, Iterator
 
-from pavilion import cancel
+import pavilion
+from pavilion import cancel_utils
+from pavilion import config
 from pavilion import dir_db
 from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
+from pavilion.enums import Verbose
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
@@ -27,50 +32,6 @@ from .info import SeriesInfo
 from .test_set import TestSet
 from ..errors import TestSetError, TestSeriesError, TestSeriesWarning
 from . import common
-
-
-class LazyTestRunDict(UserDict):
-    """A lazily evaluated dictionary of tests."""
-
-    def __init__(self, pav_cfg):
-        """Initialize the lazy TestRun dict."""
-
-        self._pav_cfg = pav_cfg
-
-        super().__init__()
-
-    def add_key(self, id_pair: ID_Pair):
-        """Add an ID_Pair key, but don't actually load the test."""
-
-        self.data[id_pair] = None
-
-    def __getitem__(self, id_pair: ID_Pair) -> TestRun:
-        """When the item exists as a key but not a test object, load the test object."""
-
-        if id_pair in self.data and self.data[id_pair] is None:
-            working_dir, test_id = id_pair
-            self.data[id_pair] = TestRun.load(self._pav_cfg, working_dir, test_id)
-
-        return super().__getitem__(id_pair)
-
-    def find_tests(self, series_path: Path):
-        """Find all the tests for the series and add their keys."""
-
-        for path in dir_db.select(self._pav_cfg, series_path, use_index=False).paths:
-            if not path.is_symlink():
-                continue
-
-            try:
-                test_id = int(path.name)
-            except ValueError:
-                continue
-
-            try:
-                working_dir = path.resolve().parents[1]
-            except FileNotFoundError:
-                continue
-
-            self.add_key(ID_Pair((working_dir, test_id)))
 
 
 class TestSeries:
@@ -87,35 +48,44 @@ class TestSeries:
     PGID_FN = 'series.pgid'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
 
-    def __init__(self, pav_cfg, config, _id=None):
+    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id=None,
+                 verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
 
         :param pav_cfg: The pavilion configuration object.
-        :param config: Series config, if generated from a series file.
+        :param series_cfg: Series config, if generated from a series file.
         :param _id: The test id number. If this is given, it implies that
             we're regenerating this series from saved files.
         """
 
-        self.pav_cfg = pav_cfg
-        self.tests = LazyTestRunDict(pav_cfg)
+        self.pav_cfg: config.PavConfig = pav_cfg
 
-        self.config = config or SeriesConfigLoader().load_empty()
+        self.config = series_cfg or SeriesConfigLoader().load_empty()
+
+        self.outfile = io.StringIO() if outfile is None else outfile
+        self.verbosity = verbosity
 
         name = self.config.get('name') or 'unnamed'
         if not self.NAME_RE.match(name):
             raise TestSeriesError(
                 "Invalid Series name: {}. Series names must start with a letter, and can "
-                "contain numbers, dashes and underscores.".format(config['name']))
+                "contain numbers, dashes and underscores.".format(series_cfg['name']))
         self.name = name
 
         series_path = self.pav_cfg.working_dir/'series'
 
-        self.simultaneous = self.config['simultaneous']
+        self.simultaneous = self.config.get('simultaneous')
+        if self.simultaneous in (0, None):
+            self.simultaneous = 2**32
+        self.batch_size = max(self.simultaneous//2, 1)
+
         self.repeat = self.config['repeat']
 
         self._pgid = None
 
         self.test_sets = OrderedDict()
+
+        self.ignore_errors = self.config['ignore_errors']
 
         # We're creating this series from scratch.
         if _id is None:
@@ -142,23 +112,37 @@ class TestSeries:
             self.path = dir_db.make_id_path(series_path, self._id)
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
+        self.tests = common.LazyTestRunDict(pav_cfg, self.path)
+
     def run_background(self):
         """Run pav _series in background using subprocess module."""
 
-        self.status.set(SERIES_STATES.RUN, "Running in background.")
+        self.status.set(SERIES_STATES.RUN, "Managing series in the background.")
+
+        # This is normally, but not necessarily, in the users PATH
+        pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
+
+        # Similarly, we need to tell Pavilion where to find it's config.
+        env = os.environ.copy()
+        env['PAV_CONFIG_FILE'] = self.pav_cfg.pav_cfg_file.resolve().as_posix()
 
         # start subprocess
-        temp_args = ['pav', '_series', self.sid]
+        temp_args = [pav_exe, '_series', self.sid]
         try:
             series_out_path = self.path/self.OUT_FN
             with series_out_path.open('w') as series_out:
                 series_proc = subprocess.Popen(temp_args,
+                                               # Detach from this process. This will prevent
+                                               # killing the child from bubbling up to the
+                                               # parent, particularly in unit tests.
+                                               start_new_session=True,
+                                               env=env,
                                                stdout=series_out,
                                                stderr=series_out)
 
         except OSError as err:
-            raise TestSeriesError("Could start series in background: {}"
-                                  .format(err.args[0]))
+            raise TestSeriesError("Could not start series '{}' in the background."
+                                  .format(self.sid), err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -197,7 +181,13 @@ class TestSeries:
             raise TestSeriesError(
                 "Could not write series config to file. Cancelling.")
 
-    WAIT_INTERVAL = 1
+    def test_set_dirs(self) -> Iterator[Path]:
+        """Return an iterator over the test set directories for this series."""
+
+        if (self.path/'test_sets').exists():
+            for dir in (self.path/'test_sets').iterdir():
+                if dir.is_dir():
+                    yield dir
 
     @property
     def sid(self):  # pylint: disable=invalid-name
@@ -224,7 +214,7 @@ differentiate it from test ids."""
                 "Invalid SID '{}'. Must end in an integer.".format(sid))
 
     @classmethod
-    def load(cls, pav_cfg, sid: Union[str, int]):
+    def load(cls, pav_cfg, sid: Union[str, int], outfile=None):
         """Load a series object from the given id, along with all of its
     associated tests.
 
@@ -246,20 +236,19 @@ differentiate it from test ids."""
         try:
             with (series_path/common.CONFIG_FN).open() as config_file:
                 try:
-                    config = loader.load(config_file)
+                    series_cfg = loader.load(config_file)
                 except (IOError, YAMLError, KeyError, ValueError, RequiredError) as err:
                     raise TestSeriesError(
-                        "Error loading config for test series '{}': {}"
-                        .format(sid, err.args[0]))
+                        "Error loading config for test series '{}'"
+                        .format(sid), err)
         except OSError as err:
             raise TestSeriesError("Could not load config file for test series '{}': {}"
-                                  .format(sid, err.args[0]))
+                                  .format(sid), err)
 
-        series = cls(pav_cfg, _id=series_id, config=config)
-        series.tests.find_tests(series.path)
+        series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg, outfile=outfile)
         return series
 
-    def _create_test_sets(self):
+    def _create_test_sets(self, iteration=0):
         """Create test sets from the config, and set up their dependency
         relationships. This is meant to be called by 'run()', but may be used
         separately for unit testing."""
@@ -268,6 +257,9 @@ differentiate it from test ids."""
             raise RuntimeError("_create_test_sets should only run when there are"
                                "no test sets for a series, but this series has: {}"
                                .format(self.test_sets))
+
+        sets_path = self.path/'test_sets'
+        sets_path.mkdir(exist_ok=True)
 
         # What each test depends on.
         depends_on = {}
@@ -280,6 +272,7 @@ differentiate it from test ids."""
                 pav_cfg=self.pav_cfg,
                 name=set_name,
                 test_names=set_info['tests'],
+                iteration=iteration,
                 modes=universal_modes + set_info['modes'],
                 host=self.config.get('host'),
                 only_if=set_info['only_if'],
@@ -287,6 +280,10 @@ differentiate it from test ids."""
                 parents_must_pass=set_info['depends_pass'],
                 overrides=self.config.get('overrides', []),
                 status=self.status,
+                simultaneous=self.simultaneous,
+                outfile=self.outfile,
+                verbosity=self.verbosity,
+                ignore_errors=self.ignore_errors,
             )
             self._add_test_set(set_obj)
 
@@ -300,7 +297,7 @@ differentiate it from test ids."""
             for parent in depends_on[set_name]:
                 if parent not in self.test_sets:
                     raise TestSeriesError(
-                        "Test sub-series '{}' depends on '{}', but no such sub-series "
+                        "Test Set '{}' depends on '{}', but no such test set "
                         "exists.".format(set_name, parent))
                 test_set.add_parents(self.test_sets[parent])
 
@@ -350,39 +347,49 @@ differentiate it from test ids."""
 
         self.test_sets = {}
 
-    def cancel(self, message=None):
+    def cancel(self, message=None, cancel_tests=True):
         """Goes through all test objects assigned to series and cancels tests
-        that haven't been completed. """
+        that haven't been completed.
 
-        self.status.set(SERIES_STATES.ABORTED, "Series cancelled: {}".format(message))
+        :param message: Reason to give for cancellation.
+        :param cancel_tests: Whether to cancel the attached tests. (Default True)
+        """
 
-        for test in self.tests.values():
-            test.cancel(message or "Cancelled via series. Reason not given.")
+        if self.pgid and self.pgid != os.getpid():
+            try:
+                os.killpg(self.pgid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
 
-        cancel.cancel_jobs(self.pav_cfg, List[self.tests.values()])
+        if cancel_tests:
+            for test in self.tests.values():
+                test.cancel(message or "Cancelled via series. Reason not given.")
+
+            cancel_utils.cancel_jobs(self.pav_cfg, List[self.tests.values()])
+
+        self.status.set(SERIES_STATES.CANCELED, "Series cancelled: {}".format(message))
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False, verbosity: int = 0,
-            outfile: TextIO = None):
+            local_builds_only: bool = False):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
         :param rebuild: Rebuild tests instead of relying on cached builds.
         :param local_builds_only: When building, only build the tests that would build
             locally.
-        :param verbosity: Verbosity level. 0 - rolling summaries,
-            1 - continuous summary, 2 - full verbose
-        :param outfile: The outfile to write status info to.
         :return:
         """
 
         self.status.set(SERIES_STATES.RUN, "Series running.")
 
-        if outfile is None:
-            outfile = open('/dev/null', 'w')
-
         # create the test sets and link together.
-        self._create_test_sets()
+        try:
+            self._create_test_sets()
+        except TestSeriesError as err:
+            fprint(self.outfile, "Error creating test sets:\n{}".format(err.args[0]))
+            self.status.set(SERIES_STATES.ERROR,
+                            "Error creating test sets: {}".format(err.args[0]))
+            raise
 
         # The names of all test sets that have completed.
         complete = set()  # type: Set[str]
@@ -394,6 +401,8 @@ differentiate it from test ids."""
             simultaneous = None
 
         potential_sets = list(self.test_sets.values())
+
+        repeat_iteration = 0
 
         # run sets in order
         while potential_sets:
@@ -410,66 +419,23 @@ differentiate it from test ids."""
                 # Make sure it's ok to run this test set based on parent status.
                 if not test_set.should_run:
                     test_set.mark_completed()
-                    output.fprint(outfile, "Skipping test set '{}' due to parents not passing."
+                    output.fprint(self.outfile, "Skipping test set '{}' due to parents not passing."
                                   .format(test_set.name))
                     continue
 
-                # Create the test objects
                 try:
-                    test_set.make(build_only, rebuild,
-                                  local_builds_only=local_builds_only, outfile=outfile)
+                    self._run_set(test_set, build_only=build_only,
+                                  rebuild=rebuild, local_builds_only=local_builds_only)
                 except TestSetError as err:
+                    self.status.set(SERIES_STATES.ERROR,
+                                    "Error running test set {}. See the series log "
+                                    "`pav log series {}`.  {}"
+                                    .format(test_set.name, self.sid, err.args[0]))
+
                     self.set_complete()
                     raise TestSeriesError(
                         "Error making tests for series '{}'."
                         .format(self.sid), err)
-
-                # Add all the tests we created to this test set.
-                self._add_tests(test_set)
-
-                # Build each test
-                try:
-                    test_set.build(verbosity=verbosity, outfile=outfile)
-                except TestSetError as err:
-                    self.set_complete()
-                    raise TestSeriesError(
-                        "Error building tests for series '{}': {}"
-                        .format(self.sid, err.args[0]))
-
-                test_start_count = simultaneous
-                while not test_set.done:
-                    try:
-                        kicked_off = test_set.kickoff(test_start_count)
-                        ktests = []
-                        # Make a list of the first three started test ids
-                        for ktest in test_set.started_tests[:3]:
-                            # Use the short id name when the config area is the 'main' one.
-                            if ktest.full_id.startswith('main.'):
-                                ktests.append(str(ktest.id))
-                            else:
-                                ktests.append(ktest.full_id)
-                        if len(test_set.started_tests) > 3:
-                            ktests.append('...')
-                        ktests = ', '.join(ktests)
-
-                        if len(test_set.started_tests) == 1:
-                            fprint(outfile, "Kicked off test {} for test set '{}' in series {}."
-                                            .format(ktests, test_set.name, self.sid))
-                        else:
-                            fprint(outfile, "Kicked off tests {} ({} total) for test set {} "
-                                            "in series {}."
-                                            .format(ktests, kicked_off, test_set.name, self.sid))
-                    except TestSetError as err:
-                        self.set_complete()
-                        raise TestSeriesError("Error in series '{}'".format(self.sid), err)
-
-                    # If there's any sort of limit to the number of simultaneous tests
-                    # then wait for each test set to complete before starting the
-                    # next.
-                    if simultaneous is not None:
-                        test_start_count = test_set.wait(simultaneous)
-                    else:
-                        break
 
             for test_set in sets_to_run:
                 potential_sets.remove(test_set)
@@ -479,13 +445,73 @@ differentiate it from test ids."""
             if not potential_sets and repeat:
                 # If we're repeating multiple times, reset the test sets for the series
                 # and recreate them to run again.
+                repeat_iteration += 1
+
                 self.reset_test_sets()
-                self._create_test_sets()
+                self._create_test_sets(repeat_iteration)
                 potential_sets = list(self.test_sets.values())
 
         self.status.set(SERIES_STATES.ALL_STARTED,
                         "All {} tests have been started.".format(len(self.tests)))
         common.set_all_started(self.path)
+
+
+    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
+        """Run all requested tests in the given test set."""
+
+        # Track which builds we've already marked as deprecated, when doing rebuilds.
+        deprecated_builds = set()
+        failed_builds = dict()
+        tests_running = 0
+
+        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only):
+
+            # Add all the tests we created to this test set.
+            self._add_tests(test_batch, test_set.iter_name)
+
+            # Build each test
+            try:
+                test_set.build(deprecated_builds, failed_builds)
+            except TestSetError as err:
+                self.status.set(SERIES_STATES.BUILD_ERROR,
+                                "Error building tests. See the series log `pav log series {}"
+                                .format(self.sid))
+                self.set_complete()
+                raise TestSeriesError(
+                    "Error building tests for series '{}'"
+                    .format(self.sid), err)
+
+            if not test_set.ready_to_start:
+                continue
+
+            try:
+                started_tests, new_jobs = test_set.kickoff()
+                tests_running += len(started_tests)
+            except TestSetError as err:
+                self.status.set(SERIES_STATES.KICKOFF_ERROR,
+                                "Error kicking off tests for series '{}'".format(self.sid))
+                raise TestSeriesError(
+                    "Error kicking off tests for series '{}'".format(self.sid))
+
+            if self.verbosity != Verbose.QUIET:
+                if len(new_jobs) == 1:
+                    fprint(self.outfile, "Kicked off a job for test set '{}' in series {}."
+                                         .format(test_set.name, self.sid))
+                else:
+                    ktests = ', '.join([test.name for test in started_tests]
+                                       + ['...'] if len(started_tests) > 3 else [])
+
+                    fprint(self.outfile, "Kicked off tests {} ({} total) for test set {} "
+                                         "in series {}."
+                                         .format(ktests, len(started_tests),
+                                                 test_set.name, self.sid))
+
+            # Wait for jobs until enough have finished to start a new batch.
+            while tests_running + self.batch_size > self.simultaneous:
+                tests_running -= test_set.wait()
+
+
+    WAIT_INTERVAL = 0.5
 
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
@@ -497,7 +523,7 @@ differentiate it from test ids."""
         while time.time() < end:
             if self.complete:
                 return
-            time.sleep(min(1, timeout or 1))
+            time.sleep(2)
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))
@@ -595,27 +621,28 @@ differentiate it from test ids."""
 
         self.test_sets[test_set.name] = test_set
 
-        if test_set.tests is not None:
-            self._add_tests(test_set)
-
-    def _add_tests(self, test_set: TestSet):
+    def _add_tests(self, tests, test_set_name):
         """Add the tests in the test set to known series tests.
 
         :param test_set: The set of tests to add.
         """
 
-        if test_set.tests is None:
-            raise RuntimeError("You must run TestSet.make() on the test set before"
-                               "it will have tests to add.")
+        for test in tests:
+            self._add_test(test_set_name, test)
 
-        for test in test_set.tests:
-            self._add_test(test)
-
-    def _add_test(self, test: TestRun):
+    def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""
 
+        set_path = self.path/'test_sets'/test_set_name
+        try:
+            set_path.mkdir(exist_ok=True, parents=True)
+        except OSError as err:
+            raise TestSeriesError(
+                "Could not create test set directory {} under series {}."
+                .format(set_path, self.sid), err)
+
         # attempt to make symlink
-        link_path = dir_db.make_id_path(self.path, test.id)
+        link_path = dir_db.make_id_path(set_path, test.id)
 
         self.tests[test.id_pair] = test
 
@@ -645,7 +672,7 @@ differentiate it from test ids."""
         with LockFile(lockfile_path):
             data = {}
             try:
-                with json_file.open('r') as json_series_file:
+                with json_file.open() as json_series_file:
                     try:
                         data = json.load(json_series_file)
                     except json.decoder.JSONDecodeError:

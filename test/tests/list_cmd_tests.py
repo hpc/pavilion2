@@ -26,7 +26,7 @@ class ListCmdTest(PavTestCase):
             test.created = (now - dt.timedelta(hours=i)).timestamp()
             test.uuid = i
             if i % 2 == 0:
-                test.result = test.PASS
+                test.results['result'] = test.PASS
             if i % 3 == 0:
                 test.set_run_complete()
             test.save_attributes()
@@ -36,7 +36,7 @@ class ListCmdTest(PavTestCase):
         series = []
         for i in range(0, 30, 5):
             time.sleep(0.01)
-            series.append(TestSeries(pav_cfg=self.pav_cfg, config={}))
+            series.append(TestSeries(pav_cfg=self.pav_cfg, series_cfg={}))
 
         parser = arguments.get_parser()
 

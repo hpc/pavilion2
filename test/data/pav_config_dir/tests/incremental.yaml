@@ -1,0 +1,16 @@
+simple:
+
+permuted_exact:
+  permute_on: pvar
+  variables:
+    pvar: [1,2,3,4,5,6,7]
+
+permuted_odd:
+  permute_on: pvar
+  variables:
+    pvar: [1,2,3]
+
+permuted_big:
+  permute_on: pvar
+  variables:
+    pvar: [1,2,3,4,5,6,7,8,9,10]

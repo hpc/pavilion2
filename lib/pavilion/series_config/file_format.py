@@ -48,18 +48,28 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                       "used when ad-hoc series are created from the command line."
         ),
         yc.ListElem(
-            'modes', sub_elem=yc.StrElem()
+            'modes', sub_elem=yc.StrElem(),
+            help_text="Modes to run all tests in this series under."
+        ),
+        yc.ListElem(
+            'overrides', sub_elem=yc.StrElem(),
+            help_text="Overrides to apply to all tests in this series."
         ),
         yc.IntElem(
             'simultaneous', default=0,
+            help_text="The maximum number of tests to run simultaneously."
         ),
         yc.BoolElem(
             'ordered', default=False,
+            help_text="Run test sets in the order listed."
         ),
         yc.IntElem(
             'repeat', default=1,
-            help_text="Number of times to repeat this series. Use 0 when running "
-                      "a series in the background to repeat forever."
+            help_text="Number of times to repeat this series."
+        ),
+        yc.BoolElem(
+            'ignore_errors', default=True,
+            help_text="Whether the series ignores build and/or scheduling errors."
         ),
         yc.StrElem(
             'restart', post_validator=make_invalidator(

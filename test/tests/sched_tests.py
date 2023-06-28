@@ -47,9 +47,13 @@ class SchedTests(PavTestCase):
 
             for key in sched_vars.keys():
                 module_path = inspect.getmodule(sched).__file__
-                example = sched_vars.info(key)['example']
+                info = sched_vars.info(key)
                 self.assertNotEqual(
-                    example, sched_vars.NO_EXAMPLE,
+                    info['help'], '',
+                    msg="Missing documentation (doc string) for scheduler variable {}"
+                        .format(key))
+                self.assertNotEqual(
+                    info['example'], sched_vars.NO_EXAMPLE,
                     msg="The sched variable examples for scheduler {} at "
                         "({}) are missing key {}."
                         .format(sched_name, module_path, key))
@@ -221,8 +225,33 @@ class SchedTests(PavTestCase):
         node_list = dummy._node_lists[int(sched_vars.node_list_id())]
         self.assertEqual(len(node_list), 79)
 
+        # Node00 is already filtered, so it can't be included.
         svars = dummy.get_initial_vars({'include_nodes': ['node00']})
         self.assertEqual(len(svars['errors']), 1, msg="There should be an error here.")
+
+        # Verify that 'include_nodes' are in every chunk.
+        svars = dummy.get_initial_vars({'include_nodes': ['node01'], 'chunking': {'size': '10'}})
+        for chunk in svars._chunks:
+            self.assertIn('node01', chunk)
+
+        # Check that 'across_nodes' works, and that it works as expected with include_nodes and exclude_nodes
+        across_nodes = ['node01', 'node02', 'node03', 'node04', 'node05', 'node06', 'node07',
+                        'node08', 'node09', 'node11', 'node12', 'node13', 'node14', 'node15',
+                        'node16', 'node17', 'node18', 'node19', 'node21', 'node22', 'node23',
+                        'node24', 'node25', 'node26', 'node27', 'node28', 'node29']
+        svars = dummy.get_initial_vars({'across_nodes': ['node[01-30]']})
+        self.assertEqual(sorted(svars['node_list']), across_nodes)
+
+        svars = dummy.get_initial_vars({'across_nodes': ['node[01-30]'], 'exclude_nodes': ['node[01-10]']})
+        self.assertEqual(sorted(svars['node_list']), across_nodes[9:])
+
+        svars = dummy.get_initial_vars({'across_nodes': ['node[01-30]'], 'include_nodes': ['node[01-02]'],
+                                        'chunking': {'size': '5'}})
+        self.assertEqual(sorted(svars['node_list']), across_nodes)
+        self.assertEqual(len(svars._chunks), 9)
+        for chunk in svars._chunks:
+            self.assertIn('node01', chunk)
+            self.assertIn('node02', chunk)
 
     def test_chunking_size(self):
         """"""
@@ -251,16 +280,14 @@ class SchedTests(PavTestCase):
                 else:
                     chunk_size = size
 
-                chunk_id = (node_list_id, chunk_size, 'contiguous', extra)
-                chunks = dummy._chunks[chunk_id]
-                for chunk in chunks:
+                for chunk in sched_vars._chunks:
                     self.assertEqual(len(chunk), chunk_size)
 
                 # Make sure we have the right number of chunks too.
                 num_chunks = len(node_list)//chunk_size
                 if extra == sconfig.BACKFILL and len(node_list) % chunk_size:
                     num_chunks += 1
-                self.assertEqual(len(chunks), num_chunks)
+                self.assertEqual(len(sched_vars._chunks), num_chunks)
 
                 test_cfg = self._quick_test_cfg()
                 test_cfg['scheduler'] = 'dummy'
@@ -294,8 +321,7 @@ class SchedTests(PavTestCase):
             # Exercise each node selection method.
             sched_vars = dummy.get_initial_vars(sched_config)
             node_list_id = int(sched_vars['node_list_id'])
-            chunks = dummy._chunks[(node_list_id, chunk_size,
-                                    select, sconfig.BACKFILL)]
+            chunks = sched_vars._chunks
 
             # This is here to debug node selection and visually examine the node
             # selection algorithm results, as they are mostly random.

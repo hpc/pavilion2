@@ -27,7 +27,7 @@ Pavilion comes with two scheduler plugins:
 Scheduler Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The configuration options for each scheduler are documented in their config
+The configuration options for schedulers are documented in their config
 file format. This is viewable by using the ``pav show sched --conf`` command.
 
 .. code-block:: bash
