@@ -50,8 +50,8 @@ class TestGroup:
         try:
             self.path.mkdir(parents=True, exist_ok=True)
         except OSError as err:
-            TestGroupError("Could not create group dir at '{}'"
-                           .format(self.path), prior_error=err)
+            raise TestGroupError("Could not create group dir at '{}'"
+                                 .format(self.path), prior_error=err)
 
         for category in self.TESTS_DIR, self.SERIES_DIR, self.GROUPS_DIR:
             cat_dir = self.path/category
