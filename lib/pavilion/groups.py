@@ -543,3 +543,4 @@ class TestGroup:
                 return self.GROUP_ITYPE, self.path/self.GROUPS_DIR/item
         else:
             raise TestGroupError("Invalid group item '{}' given for removal.".format(item))
+
