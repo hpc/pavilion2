@@ -1,0 +1,87 @@
+CWD             = {{umt_build.pwd}}
+
+USE_FAKE_CMG    = {{umt_build.use_fake_cmg}}
+OPT             = {{umt_build.opt}}
+DEBUG           = {{umt_build.debug}}
+USE_HPM         = {{umt_build.use_hpm}}
+USE_GPROF       = {{umt_build.use_gprof}}
+USE_TAU         = {{umt_build.use_tau}}
+USE_TAU_PDT     = {{umt_build.use_tau_pdt}}
+USE_OPENMP      = {{umt_build.use_openmp}}
+STATIC_LINK     = {{umt_build.static_link}}
+CFLAGS_CMG      = {{umt_build.cflags_cmg}}
+
+ifeq ($(USE_FAKE_CMG),on)
+  CFLAGS_CMG    += -DCMG_FAKE
+else
+  LIBS 		+=
+endif
+
+CFLAGS_CMG     +=
+
+OPENMP_FLAGS    = {{umt_build.openmp_flags}}
+FLIBS           = {{umt_build.flibs}}
+
+CPPFLAGS += {{umt_build.cppflags}}
+CPPFFLAGS = {{umt_build.cppfflags}}
+
+MPI_INC_PATH    = {{umt_build.mpi_inc_path}}
+
+MPI_LIB_PATH    = {{umt_build.mpi_lib_path}}
+MPI_LIBS        = {{umt_build.mpi_libs}}
+
+LIBS 	       += {{umt_build.libs}}
+LIBPATH 	= {{umt_build.libpath}}
+INCPATH 	= {{umt_build.incpath}}
+
+CXX		= {{umt_build.cxx}}
+CC		= {{umt_build.cc}}
+F90             = {{umt_build.f90}}
+FPP             = {{umt_build.fpp}}
+
+F90FLAGS_OPT    =  {{umt_build.f90flags_opt}}
+CXXFLAGS_OPT	=  {{umt_build.cxxflags_opt}}
+CFLAGS_OPT	=  {{umt_build.cflags_opt}}
+
+LD              = {{umt_build.ld}}
+LIB_EXT         = {{umt_build.lib_ext}}
+LDFLAGS         = {{umt_build.ldflags}}
+
+LINK            = {{umt_build.link}}
+LINKFLAGS       = {{umt_build.linkflags}}
+
+PLATFORM_LIBPATH_EXTRAS = {{umt_build.platform_libpath_extras}}
+PLATFORM_Infrastructure_EXTRAS = {{umt_build.platform_infrastructure_extras}}
+PLATFORM_TetonUtils_EXTRAS = {{umt_build.platform_tetonutils_extras}}
+PLATFORM_EXE_EXTRAS = {{umt_build.platform_exe_extras}}
+PLATFORM_TetonTest_EXTRAS = {{umt_build.platform_tetontest_extras}}
+
+%.o: %.F90
+	$(FPP) $(CPPFFLAGS) $(INCPATH) $< > $*.f90
+	$(F90) $(F90FLAGS) -c $*.f90 -o $@
+
+CXXFLAGS = $(CFLAGS_CMG) $(INCPATH)
+CFLAGS = $(CFLAGS_CMG) $(INCPATH)
+F90FLAGS = $(INCPATH)
+
+ifeq ($(OPT),on)
+  CXXFLAGS += $(CXXFLAGS_OPT)
+  CFLAGS += $(CFLAGS_OPT)
+  F90FLAGS += $(F90FLAGS_OPT)
+endif
+
+ifeq ($(DEBUG),on)
+  CXXFLAGS += $(CXXFLAGS_DEBUG)
+  CFLAGS += $(CFLAGS_DEBUG)
+  F90FLAGS += $(F90FLAGS_DEBUG)
+endif
+
+F90FLAGS +=  $(CPPFFLAGS)
+
+%.o : %.cc
+	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $< -o $@
+
+%.d: %.cc
+	$(CXX) -c $(CFLAGS_CMG) $(CPPFLAGS) $(INCPATH) $< -MM -MF $@
+
+
