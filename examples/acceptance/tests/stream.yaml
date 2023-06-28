@@ -1,0 +1,96 @@
+base:
+    subtitle: '{{compilers}}} {{mpis}} OMP_NUM_THREADS={{omp_num_threads}} GOMP_CPU_AFFINITY=0-{{omp_num_threads-1}}'
+    summary: 'Runs STREAM Memory Benchmark'
+    doc: |
+
+        STREAM: Sustainable Memory Bandwidth in High Performance Computers
+        Array size can be calculated with the following forumula:
+        Array size = 4 * (cache size per processor) * processors / 3 arrays / * 8 bytes per element
+
+    scheduler: slurm
+    schedule:
+        nodes: all
+        tasks_per_node: 1
+        share_allocation: false
+
+    variables:
+        # each array must be at least 4x the size of the sum of all the last-level caches or 
+        # 1 million, whichever is larger (see doc for calculations). 10 M is the default in the code
+        array_size?: 10000000
+        # how many times to run each kernel. 2 is the minimum
+        ntimes?: 2
+        # Other compiler options such as --mcmodel=medium may be necessary for large memory runs
+        other_compile_opts?: '--mcmodel=medium'
+        omp_num_threads?: 2
+
+    permute_on: 
+        - compilers
+        - mpis
+        - omp_num_threads
+
+    build:
+        source_path: stream
+        source_url: https://www.cs.virginia.edu/stream/FTP/Code/stream.c
+        on_nodes: true
+        modules:
+            - '{{compilers}}'
+            - '{{mpis}}'
+        cmds:
+            - '$PAV_MPI_CC -ffreestanding -qopenmp -DSTREAM_ARRAY_SIZE={{array_size}} -DNTIMES={{NTIMES}} {{other_compile_opts}} stream.c -o stream'
+
+    run:
+        env:
+            OMP_NUM_THREADS: '{{omp_num_threads}}'
+        modules:
+            - '{{compilers}}'
+            - '{{mpis}}'
+        cmds:
+            - 'for node in $(scontrol show hostname)'
+            - 'do'
+            - '    srun -w $node -N1 -n{{sched.tasks_per_node}} ./stream &>${node}_stream &'
+            - 'done'
+            - 'wait'
+
+    result_parse:
+        regex:
+            result:
+                regex: 'Solution Validates:'
+                action: store_true
+                files: '*stream'
+                per_file: all
+            ARRAY_SIZE:
+                regex: 'N=(.*)'
+                action: store
+            NTIMES:
+                regex: 'NTIMES=(.*)'
+                action: store
+            units:
+                regex: '(.B/s)'
+                action: store
+                match_select: last
+                files: '*stream'
+                per_file: name
+            copy:
+                regex: '^Copy: *([0-9\.]*) '
+                action: store
+                match_select: last
+                files: '*stream'
+                per_file: name
+            scale:
+                regex: '^Scale: *([0-9\.]*) '
+                action: store
+                match_select: last
+                files: '*stream'
+                per_file: name
+            add:
+                regex: '^Add: *([0-9\.]*) '
+                action: store
+                match_select: last
+                files: '*stream'
+                per_file: name
+            triad:
+                regex: '^Triad: *([0-9\.]*) '
+                action: store
+                match_select: last
+                files: '*stream'
+                per_file: name
