@@ -1,0 +1,346 @@
+_base:
+  summary: Unstructured Mesh Transport Test
+  subtitle: "{{umt_compiler.name}}_{{umt_mpi.name}}"
+
+  doc: |
+    "Unstructured Mesh Transport (UMT) is a proxy application that performs three-dimensional,
+    non-linear, radiation transport calculations using deterministic (Sn) methods. To perform the
+    solution, UMT takes advantage of spatial decomposition using MPI between nodes and a threading
+    algorithm in angle within a node to achieve extreme scalability.
+
+    Esentially, UMT maps out each grid cell to a MPI process and then continuously passes the
+    information to other MPI processes until the radiation transfer problem is solved.
+
+    The UMT test is intended to represent simulations that use large amounts of memory. Systems
+    with efficient MPI and OpenMP are better suited for UMT, especially at scale. It is advised
+    that a minimum of 1 GB (recommended 2GB) of DRAM per core is available on the compute nodes for
+    moderate size problems. You may need to reduce the number of MPI processes per node per node to
+    avoid any 'Out of Memory' failures.
+
+    UMT is one of the proxy applications chosen to procure the Crossroads supercomputer at Los
+    Alamos National Laboratory. UMT was initially used for the CORAL supercomputers procurement at
+    Lawrance Livermore, Oak Ridge and Argonne National Laboratories.
+
+    Albeit, there is a newer version of UMT available (v5.0.0 as of this writing), the newer
+    version requires a lot of dependencies and is optimized, hence, not as memory intensive as the
+    older version (v2.0) used in this test configuration"
+
+  variables:
+    # Compiler information
+    umt_compiler?:
+      - name: 'intel'
+        openmp: '-qopenmp'
+        flibs: '-lifcore -lm -lc -lsvml'
+        ftn_opt: ''
+        fpp: 'fpp'
+        f90flags_opt: '-g -O3 -fPIC $(OPENMP_FLAGS)'
+        cxxflags_opt: '-g -O3 -w -fPIC $(OPENMP_FLAGS)'
+        cflags_opt: '-g -Wno-implicit-function-declaration -w -fPIC $(OPENMP_FLAGS)'
+
+    # MPI information
+    umt_mpi?:
+      - name: "cray-mpich"
+        mpicxx: "CC"
+        mpicc: "cc"
+        mpifc: "ftn {{umt_compiler.ftn_opt}}"
+        mpifpp: "{{umt_compiler.fpp}}"
+
+    # Build options. This specific configuration was run on multiple systems with modifications to
+    # only the `mpi_inc_path` and `mpi_lib_path` variables. Sometimes, UMT is not able to find MPI
+    # libraries and a path needs to be given to those libraries. Generally, the paths do not need to
+    # be provided on the cray systems. The umt_build section is used to fill out the make.defs file
+    # that will be used by UMT during the build process.
+    umt_build?:
+      pwd: '$(shell pwd)'
+      use_fake_cmg: 'off'
+      opt: 'on'
+      debug: 'off'
+      use_hpm: 'off'
+      use_gprof: 'off'
+      use_tau: 'off'
+      use_tau_pdt: 'off'
+      use_openmp: 'on'
+      static_link: 'off'
+      cflags_cmg: ''
+      openmp_flags: '{{umt_compiler.openmp}}'
+      flibs: '{{umt_compiler.flibs}}'
+      cppflags: '-DLINUX -DLinux -DUSE_MPI $(GPROF_FLAGS)'
+      cppfflags: '-DLINUX -DLinux -Dmpi -DMPI -DUSE_MPI $(GPROF_FLAGS)'
+      mpi_inc_path: ''  # May need to provide a full path to the include directory of the MPI.
+      mpi_lib_path: ''  # May need to provide a full path to the library directory of the MPI.
+      mpi_libs: '-lmpichf90 -lmpich'
+      libs: '$(MPI_LIBS)'
+      libpath: ''
+      incpath: '{{umt_build.mpi_inc_path}}'
+      cxx: '{{umt_mpi.mpicxx}}'
+      cc: '{{umt_mpi.mpicc}}'
+      f90: '{{umt_mpi.mpifc}}'
+      fpp: '{{umt_mpi.mpifpp}}'
+      f90flags_opt: '{{umt_compiler.f90flags_opt}}'
+      cxxflags_opt: '{{umt_compiler.cxxflags_opt}}'
+      cflags_opt: '{{umt_compiler.cflags_opt}}'
+      ld: '$(CXX)'
+      lib_ext: 'so'
+      ldflags: '-shared -fPIC'
+      link: '$(CXX)'
+      linkflags: '-dynamic $(CXXFLAGS)'
+      platform_libpath_extras: ''
+      platform_infrastructure_extras: '$(OPENMP_FLAGS) $(MPI_LIB_PATH) $(MPI_LIBS)'
+      platform_tetonutils_extras: ''
+      platform_exe_extras: '$(OPENMP_FLAGS) -L../CMG_CLEAN/src -Wl,-rpath,$(CWD)/../CMG_CLEAN/src
+      -L../cmg2Kull/sources -Wl,-rpath,$(CWD)/../cmg2Kull/sources -L../Teton
+      -Wl,-rpath,$(CWD)/../Teton $(MPI_LIB_PATH) $(MPI_LIBS) -ldl'
+      platform_tetontest_extras: '$(OPENMP_FLAGS) -L$(CWD)/../CMG_CLEAN/src
+      -Wl,-rpath,$(CWD)/../CMG_CLEAN/src -L$(CWD)/../cmg2Kull/sources
+      -Wl,-rpath,$(CWD)/../cmg2Kull/sources -L$(CWD)/../Teton -Wl,-rpath,$(CWD)/../Teton
+      -L$(CWD)/../Install/lib -Wl,-rpath,$(CWD)/../Install/lib -lm -lpthread -lutil -ldl $(FLIBS)'
+
+
+    ### The following few sections needs to be adjusted for the scaling studies.
+
+    # umt_input section is used to create the grid file that the Su0lsonTest executable uses to map
+    # out the domains and then distributes each domain to a mpi process.
+    # For weak scaling, rougly equal number of processes (domains) are preferred in each direction.
+    umt_input?:
+      blk_x: 4                  # Number of domains in the x direction
+      blk_y: 4                  # Number of domains in the y direction
+      blk_z: 4                  # Number of domains in the z direction
+      zone_x: 3                 # Number of zone per domain in the x direction
+      zone_y: 3                 # Number of zone per domain in the y direction
+      zone_z: 4                 # Number of zone per domain in the z direction
+      seed: 10
+
+    # These options should not be changed for weak scaling runs.
+    umt_run?:
+      gridfilename: 'grid.cmg'  # Name of the grid file
+      order: '16'               # The order
+      groups: '200'             # Number of energy groups
+      quadtype: '2'             # Set the Quadrature type
+                                # 1 = level symmetric quadrature, the order = # of angles
+                                # 2 = product quadrature, uses polar * azimuthal angles
+      polar: '9'                # Number of polar angles in an octant
+      azim: '10'                # Number of azimuthal angles in an octant
+
+    # It is possible to strong scale a system by setting the number of threads to >1 without
+    # changing anything else.
+    threads?: 1     # Number of OMP Threads.
+
+    # The memory used to store the radiation field for each domain for the values defined above
+    # would be: (3x3x4 zones) * (200 groups) * (9 polar x 10 azimuthal x 8 octants) * (8 corners of
+    # the hexahedral zones) * (2 copies of the radiation filed) * (8 bytes/value) = 664 MB
+    # In addition, there are 264 corners on the boundary for a 3x3x4 zone domain. Each corner
+    # requires 200 groups * 9 polar * 10 azimuthal * 8 octants which would rougly add 304 MB to the
+    # memory required to store the radiation field totaling the memory per process to be 968 MB.
+    # Actual memory usage is approximately 2 GB. 968 MB of memory per process + memory usage due to
+    # the executable, the operating system, temporary buffers and MPI buffers. Efficient MPI, OpenMP
+    # and processor speed can reduce the actual memory usage. 2 GB per domain for 3x3x4 zone should
+    # be kept in mind when distributing processes across nodes.
+
+    nodes?: 6       # Number of nodes to run the test on.
+    ppn?: 6         # Number of processes per node.
+
+  # UMT will fail if the number of process do not equal to the number of domains.
+  # This will prevent UMT from running at all if the number of process is not equal to the number of
+  # domains. Pavilion will skip the test if the condition is not met and saves the reason in the
+  # status file of the pavilion test run.
+  only_if:
+    '{{nodes * ppn}}': '{{umt_input.blk_x * umt_input.blk_y * umt_input.blk_z}}'
+
+  # UMT build section
+  build:
+    # URL for UMT source
+    source_url: https://www.lanl.gov/projects/crossroads/_assets/docs/ssi/umt-xroads-v1.0.0.tgz
+    source_path: 'umt/src'      # Path to the source. Pavilion will download the source here.
+    source_download: 'missing'  # Only download the source if its missing.
+
+    # The source UMT has a C++ namespace problems hence the patches. The extra files will be placed
+    # in the build directory that will be later applied before building the application.
+    extra_files:
+      - umt/patches/RegionInst.cc.patch
+      - umt/patches/DomainNeighborMapInst.cc.patch
+
+    # Uses the make.tmpl template file to make the make.defs file using the umt_input variables
+    # section to fill in the configurations. It will then save the file as make.defs.
+    templates:
+      umt/make.tmpl: umt2015-crossroads/make.defs
+
+    # Modules to load. Generally, only the compiler and the mpi is needed to build and run UMT.
+    modules:
+      - '{{umt_compiler.name}}'
+      - '{{umt_mpi.name}}'
+
+    # Build commands. Patch the source first then build the application.
+    cmds:
+      - 'patch -i RegionInst.cc.patch umt2015-crossroads/Teton/geom/Region/RegionInst.cc'
+      - 'patch -i DomainNeighborMapInst.cc.patch umt2015-crossroads/Teton/communication/DomainNeighborMapInst.cc'
+      - 'cd ./umt2015-crossroads/'
+      - 'gmake veryclean'
+      - 'gmake'
+      - 'cd ./Teton/'
+      - 'gmake SuOlsonTest'
+  
+  run:
+    # By default, pavilion will timeout a test after 30 seconds if there is no run output. UMT can
+    # sometimes take a while to generate a mesh and then run. During which there will be no output.
+    # Setting it 5 minutes (300s) is a little over-the-top, however, this ensures that the test will
+    # be run.
+    timeout: 300
+
+    # Use the umt_input section to fill out the grid.tmpl and then save it as grid.cmg.
+    templates:
+      umt/grid.tmpl: grid.cmg
+
+    # Set the environment variables. This will export the variables and set it to the number defined
+    # above in the variables section.
+    env:
+      OMP_NUM_THREADS: '{{threads}}'
+
+    # Modules to load to run UMT.
+    modules:
+      - '{{umt_compiler.name}}'
+      - '{{umt_mpi.name}}'
+
+    # Only the first command is required to run the application, however, UMT does not calculate its
+    # memory usage by itself and needs a seperate application to do it. There are several ways to
+    # calculate the usage. Running Valgrind with the srun command would give an acurate reading, but
+    # that would take a long time to run even for just one process run. Another way is to gather
+    # data from the slurm job efficency report (seff). The slurm job efficency report takes a few
+    # seconds to update all the information. Sleeping for a few seconds allows for the seff command
+    # to report the data accurately.
+    cmds:
+      - "{{sched.test_cmd}} ./umt2015-crossroads/Teton/SuOlsonTest {{umt_run.gridfilename}}
+         {{umt_run.groups}} {{umt_run.quadtype}} {{umt_run.order}} {{umt_run.polar}}
+         {{umt_run.azim}} ; job_id=${SLURM_JOB_ID}"
+      - "sleep 10s"
+      - "seff ${job_id}"
+  
+  # Result parse section to extract the important information.
+  result_parse:
+    # Different compilers/mpis have different memory usage and capturing the compiler name and mpi
+    # name would be very useful for comparisons.
+    constant:
+      compiler:
+        const: '{{umt_compiler.name}}'
+      mpi:
+        const: '{{umt_mpi.name}}'
+
+    # Gather data from the run log
+    regex:
+      # Total number of unknowns
+      NumberOfUnknowns:
+        regex: 'numUnknowns = (\d+\.\d+e[+-]\d+)'
+      # Number of Cumulative Iterations
+      CumulativeIterationCount:
+        regex: 'cumulativeIterationCount= (\d+)'
+      # Work time
+      CumulativeWorkTime:
+        regex: 'cumulativeWorkTime=(\d+\.\d+ s)'
+      FigureOfMerit:
+        regex: 'merit = (\d+\.\d+e[+-]\d+)'
+      # Total memory utilized.
+      MemoryUtilized:
+        regex: 'Memory Utilized: (\d+.\d+\s\w+)'
+      # Percentage of total memory used.
+      MemoryEfficiency:
+        regex: 'Memory Efficiency: (\d+.\d+%\sof\s\d+.\d+\s\w+)'
+  
+  # Scheduler options
+  scheduler: slurm
+  schedule:
+    nodes: '{{nodes}}'
+    tasks_per_node: '{{ppn}}'
+    partition: ''   # CHANGE ME
+    qos: ''         # CHANGE ME
+
+# Matrix example
+_matrix:
+  # Inherit everything from the base suite.
+  inherits_from: _base
+
+  # Permute over the nodes and processes per node list.
+  permute_on: [nodes, ppn]
+
+  # Override the nodes and ppn variables with these lists. Pavilion will only run the combination
+  # if (nodes * ppn) = (domains in x * domains in y * domains in z)
+  variables:
+    nodes: [1, 2, 4, 8, 16, 32, 64]
+    ppn: [1, 2, 4, 8, 16, 32, 64]
+
+# Modulo example
+_modulo:
+  inherits_from: _base
+  permute_on: nodes
+ 
+  # Similar to the matrix example, the modulo will override the node variable with a list but
+  # instead it will calculate the process per node using pavilion math capabilities.
+  variables:
+    nodes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    ppn: '{{(umt_input.blk_x * umt_input.blk_y * umt_input.blk_z) // nodes}}'
+    remainder: '{{(umt_input.blk_x * umt_input.blk_y * umt_input.blk_z) % nodes}}'
+
+  # Will only run when the remainder of the above calculation is equal to 0. Any decimal point would
+  # mean there are extra MPI processes that did not get mapped.
+  only_if:
+    "{{remainder}}": 0
+
+# GCC and openmpi configuration example
+_gcc:
+  inherits_from: _base
+
+  # Some of these options may need to be changed based on the gcc and openmpi versions
+  variables:
+    umt_compiler:
+      - name: 'gcc'
+        openmp: '-fopenmp'
+        flibs: '-lm -lc'
+        ftn_opt: '-fallow-argument-mismatch'
+        fpp: 'gfortran -cpp -E'
+        f90flags_opt: '-g -O3 -fPIC $(OPENMP_FLAGS)'
+        cxxflags_opt: '-g -O3 -w -fPIC $(OPENMP_FLAGS)'
+        cflags_opt: '-g -O3 -w -fPIC $(OPENMP_FLAGS)'
+
+    umt_mpi:
+      - name: "openmpi"
+        mpicxx: "mpicxx"
+        mpicc: "mpicc"
+        mpifc: "mpifort {{umt_compiler.ftn_opt}}"
+        mpifpp: "{{umt_compiler.fpp}}"
+
+    umt_build:
+      mpi_inc_path: '-I/PATH/TO/OPENMPI/DIR/include/'   # CHANGE ME
+      mpi_lib_path: '-L/PATH/TO/OPENMPI/DIR/lib/'       # CHANGE ME
+
+# Small baseline case on 1 node, 1 mpi rank and 32 threads/rank
+small:
+  # Note this baseline case inherits from gcc instead of base. Base test suite contains the cray
+  # configurations. Adjust it for your system.
+  inherits_from: _gcc
+  
+  variables:
+    umt_input:
+      blk_x: 1
+      blk_y: 1
+      blk_z: 1
+      zone_x: 4
+      zone_y: 4
+      zone_z: 4
+
+    nodes: 1
+    ppn: 1
+    threads: 32
+
+# Medium baseline case on 64 nodes, 2048 mpi ranks and 1 thread/rank
+medium:
+  inherits_from: _gcc
+
+  variables:
+    umt_input:
+      blk_x: 16
+      blk_y: 16
+      blk_z: 8
+      zone_x: 4
+      zone_y: 4
+      zone_z: 4
+    nodes: 64
+    ppn: 32
+    threads: 32
