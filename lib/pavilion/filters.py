@@ -20,34 +20,15 @@ from pavilion.test_run import TestRun
 
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
-    'complete': False,
-    'failed': False,
-    'name': None,
-    'newer_than': None,
-    'older_than': None,
-    'passed': False,
-    'result_error': False,
     'sort_by': '-created',
-    'state': None,
-    'has_state': None,
-    'sys_name': None,
-    'user': None,
     'limit': None,
     'disable_filter': False,
     'filter': None
 }
 
 SERIES_FILTER_DEFAULTS = {
-    'complete': False,
     'limit': None,
-    'name': None,
-    'newer_than': None,
-    'older_than': None,
     'sort_by': '-status_when',
-    'state': None,
-    'has_state': None,
-    'sys_name': None,
-    'user': None,
     'filter': None
 }
 
@@ -96,51 +77,44 @@ def add_common_filter_args(target: str,
     :return:
     """
     help_text = "Filter requirements for tests and series.\n"\
-                "List of accepted operators:\n"\
-                "AND denoted by a space\n"\
-                "OR denoted by a '|'\n"\
-                "NOT denoted by a '!'\n\n"\
-                "List of accepted arguments:\n"\
-                "complete: Include only completed test runs. Default: {}\n"\
+                "Default filter: {} \n"\
+                "List of accepted operators: \n"\
+                "AND denoted by a space. \n"\
+                "OR denoted by a '|'. \n"\
+                "NOT denoted by a '!'. \n\n"\
+                "List of accepted arguments: \n"\
+                "complete: Include only completed test runs. \n"\
                 "has_state=STATE: Include only {} who have had the "\
-                "given state at some point. Default: {}\n"\
+                "given state at some point. \n"\
                 "name=NAME: Include only tests/series that match this name. "\
-                "Globbing wildcards are allowed. Default: {}\n"\
+                "Globbing wildcards are allowed. \n"\
                 "older_than=TIME: Include only {} older than (by creation time) the given "\
                 "date or a time period given relative to the current date. \n\n"\
                 "This can be in the format a partial ISO 8601 timestamp "\
                 "(YYYY-MM-DDTHH:MM:SS), such as "\
-                "'2018', '1999-03-21', or '2020-05-03 14:32:02'\n\n"\
+                "'2018', '1999-03-21', or '2020-05-03 14:32:02' \n\n"\
                 "Additionally, you can give an integer time distance into the "\
                 "past, such as '1 hour', '3months', or '2years'. "\
-                "(Whitespace between the number and unit is optional). Default: {}\n"\
+                "(Whitespace between the number and unit is optional). \n"\
                 "newer_than=TIME: Include only {} whose most recent state "\
-                "is the one given. Default: {}\n"\
+                "is the one given. \n"\
                 "STATE: Include only {} whose most recent state is the one given. "\
-                "Default: {}\n"\
                 "sys_name=SYS_NAME: Include only {} that match the given system name, as "\
-                "presented by the sys.sys_name pavilion variable. Default: {}\n"\
-                "user=USER: Include only {} started by this user. Default: {}\n"\
+                "presented by the sys.sys_name pavilion variable. \n"\
+                "user=USER: Include only {} started by this user. \n"\
 
     if defaults == TEST_FILTER_DEFAULTS:
         help_text = help_text + \
-                    "passed: Not compatible with series. Include only passed test runs. "\
-                    "Default: {}\n"\
-                    "failed: Not compatible with series. Include only failed test runs. "\
-                    "Default: {}\n"\
-                    "result_error: Not compatible with series. Include only test runs "\
-                    "with a result error. Default: {}"\
-                    .format(defaults['complete'], target, defaults['has_state'],
-                            defaults['name'], target, defaults['older_than'],
-                            target, defaults['newer_than'], target, defaults['state'],
-                            target, defaults['sys_name'], target, defaults['user'],
-                            defaults['passed'], defaults['failed'], defaults['result_error'])
+                    "passed: Not compatible with series. Include only passed test runs. \n"\
+                    "failed: Not compatible with series. Include only failed test runs. \n"\
+                    "result_error: Not compatible with series. Include only test runs \n"\
+                    "with a result error. \n"\
+                    .format(defaults['filter'], target, target,
+                            target, target, target, target)
     else:
         help_text = help_text\
-                    .format(defaults['complete'], target, defaults['has_state'],
-                            defaults['name'], target, defaults['older_than'],
-                            target, defaults['newer_than'], target, defaults['state'],
-                            target, defaults['sys_name'], target, defaults['user'])
+                    .format(defaults['filter'], target, target,
+                            target, target, target, target)
 
 
 
@@ -297,15 +271,23 @@ def name(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
 
     :return: result of the test or series "name" attribute
     """
-    name_parse = re.compile(r'^([a-zA-Z0-9_-]+)'  # The test suite name.
+    name_parse = re.compile(r'^([a-zA-Z0-9_*?\[\]-]+)'  # The test suite name.
                             r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
                             r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?$'  # The permutation name.
                             )
     test_name = attrs.get('name') or ''
     val_match = name_parse.match(val)
     name_match = name_parse.match(test_name)
-    suite, test, perm = val_match.groups()
-    _, _, test_perm = name_match.groups()
+
+    suite = '*'
+    test = '*'
+    perm = '*'
+
+    if val_match is None:
+        suite, test, perm = val_match.groups()
+    
+    if name_match is None:
+        _, _, test_perm = name_match.groups()
 
     if not test:
         test = '*'
@@ -550,6 +532,7 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], funcs: Dict, target: 
 
         else:
             key, op, val = parse_target(target)
+
             if key in funcs and op in funcs[key][OPS]:
                 return funcs[key][FUNC](test_attrs, op, val)
             elif key in STATES.list() and funcs == TEST_FUNCS:

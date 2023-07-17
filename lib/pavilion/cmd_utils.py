@@ -109,9 +109,10 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
                                    "newer_than 1 day ago.", color=output.CYAN)
-            args.user = utils.get_login()
-            args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
-            sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+            args.filter = 'user={} newer_than={} sys_name={}'.format(
+                           utils.get_login(),
+                           (dt.datetime.now() - dt.timedelta(days=1)).timestamp(),
+                           sys_vars.get_vars(defer=True).get('sys_name'))
 
     filter_func = filters.make_test_run_filter(
         target=args.filter,
@@ -176,9 +177,10 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
                                    "newer_than 1 day ago.", color=output.CYAN)
-            args.user = utils.get_login()
-            args.newer_than = (dt.datetime.now() - dt.timedelta(days=1)).timestamp()
-            args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+            args.filter = 'user={} newer_than={} sys_name={}'.format(
+                           utils.get_login(),
+                           (dt.datetime.now() - dt.timedelta(days=1)).timestamp(),
+                           sys_vars.get_vars(defer=True).get('sys_name'))
 
     matching_series = []
     seen_sids = []

@@ -370,9 +370,6 @@ class RunSeries(Command):
     def _cancel_cmd(self, pav_cfg, args):
         """Cancel all series found given the arguments."""
 
-        args.user = args.user or utils.get_login()
-        args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
-
         series_info = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
         output.fprint(self.outfile, "Found {} series to cancel.".format(len(series_info)))
 
@@ -389,7 +386,7 @@ class RunSeries(Command):
         tests_to_cancel = []
         for ser in chosen_series:
             # We'll cancel the tests verbosely.
-            ser.cancel(message="By user {}".format(args.user), cancel_tests=False)
+            ser.cancel(message="By user {}".format(utils.get_login()), cancel_tests=False)
             output.fprint(self.outfile, "Series {} cancelled.".format(ser.sid))
 
             tests_to_cancel.extend(ser.tests.values())
