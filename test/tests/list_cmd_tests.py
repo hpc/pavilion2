@@ -41,7 +41,7 @@ class ListCmdTest(PavTestCase):
         parser = arguments.get_parser()
 
         args = parser.parse_args(['list', 'test_runs', '--limit=15',
-                                  '--name=*.list_cmd_tests_*'])
+                                  '--filter', 'name=*.list_cmd_tests_*'])
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         self.assertEqual(err, '')
@@ -50,7 +50,7 @@ class ListCmdTest(PavTestCase):
 
         args = parser.parse_args(
             ['list', '--multi-line', 'test_runs', '--sort-by=created',
-             '--limit=15', '--name=*.list_cmd_tests_*'])
+             '--limit=15', '--filter', 'name=*.list_cmd_tests_*'])
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         # 26-30 are filtered due to the default newer-than time.
@@ -60,7 +60,7 @@ class ListCmdTest(PavTestCase):
         all_out_fields = ','.join(TestAttributes.list_attrs())
         args = parser.parse_args(
             ['list', '--out-fields={}'.format(all_out_fields),
-             'test_runs', '--complete', '--name=*.list_cmd_tests_*'])
+             'test_runs', '--filter', 'complete name=*.list_cmd_tests_*'])
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         lines = out.strip().splitlines()
@@ -76,7 +76,7 @@ class ListCmdTest(PavTestCase):
 
         args = parser.parse_args(
             ['list', '--csv', '--out-fields={}'.format(all_out_fields),
-             'test_runs', '--passed', '--name=*.list_cmd_tests_*'])
+             'test_runs', '--filter', 'passed name=*.list_cmd_tests_*'])
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         rows = [line.split(",") for line in out.strip().splitlines()]
