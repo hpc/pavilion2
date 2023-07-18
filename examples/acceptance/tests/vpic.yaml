@@ -1,0 +1,433 @@
+
+# The VPIC base configuration.
+_base:
+
+  summary: Vector Particle in Cell benchmark
+  documentation:  
+    The Vector Particle in Cell code, a "3D3V, fully relativistic, kinetic" code for 
+    solving coupled Maxwell-Boltzmann systems of equations".
+
+    This performance benchmark is based on the legacy VPIC code at https://github.com/lanl/vpic
+
+    Tuning VPIC
+    -----------
+
+    While VPIC can be used to perform a variety of simulations, the setup of VPIC included
+    in Pavilion performs a simple no-collision, no-injection simulation of three particles
+    (He, H, and electrons). The figure of merit is the number of particle
+    calculations per second (pps) performed - so optimizing VPIC becomes a matter of:
+      - Building according to your CPU optimizations
+      - Maximizing the number of particles simulated per node.
+      - Finding the best cell division per node.
+      - Maximizing the number of nodes used.
+
+    For the first, set the AVX and other build settings according to your processor. 
+
+    For the second, create a node and cell that maximizes memory usage on each node. 
+    This is fairly easy for VPIC, as the memory footprint is a linear function of the number of 
+    particles. At 1024 particles per cell (the vpic_input.nppc variable), each cell is 
+    approximately 8MB (with 'vpic_input.grid_scale' set to 2). For a system with 128 GB of 
+    memory, that would be about 16,000 cells, or a cubic grid of 25x25x25 cells 
+    (the 'vpic_input.n*_sn' variables). With the default sort methods, VPIC shouldn't use
+    a stable amount of memory. 
+
+    Given a number of cells, we still need to divide the work across processors on a node.
+    The number of ranks in each dimension must divide evenly into the cells in that dimension
+    (IE 'nx_sn % nranks_x = 0', etc). This is easiest if we choose cell dimensions that 
+    contain factors of the number of processors on each node. So for a system with 152 
+    cores (19 * 2^3), we might cell dimensions such as (19*32*24) instead of (25*25*25), and 
+    set our 'vpic_input.nranks_[xyz]' to values such as (19*4*2). 
+
+    Using every core in this rank might not be optimal for your system, as VPIC also supports
+    thread-level parallelism via pthreads or openmp. It's recommended that you experiment with
+    single node jobs with different layouts until you find the one the provides the best 
+    performance for your system.
+
+    Expanding VPIC to a larger number of nodes is simple, as the problem size is already 
+    scaled on a per-node basis. So using 18 nodes will have the same per-node memory footprint
+    as using a single node job. The figure of merit should scale fairly linearly with the 
+    number of nodes as well.
+
+    Sorting methods were mentioned earlier, but deserve a bit more attention. VPIC periodically
+    (initially, and every 'sort_interval' steps), sorts the particles as an optimization step. 
+    VPIC effectively  has 3 sorting methods - legacy in-place, legacy out-of-place, 
+    and pipelined (parallel) sort. Legacy-in-place does a slow bubble sort, but requires 
+    no significant extra memory. The other methods are faster, but at the cost of leaving
+    less room in memory for actual particles. Depending on your system, using a faster sort 
+    method (or slower/faster sort intervals) may improve performance.  (Note - VPIC can and 
+    will run your system out of memory and trigger the OOM killer when allocating memory for 
+    sorting).
+
+  variables:
+    # These variables are used to control the build of VPIC
+    vpic_build?:
+      build_type: Release
+      integrated_tests: OFF
+      unit_tests: OFF
+      openssl: OFF
+      dynamic_resizing: OFF
+      min_num_particles: 128
+      # Legacy sort is an in-place, fixed sized sort. 
+      legacy_sort: ON
+
+      # CPU optimization flags
+      v4_portable: OFF  # Enable 4 wide (128-bit) portable implementation
+      v4_sse: OFF       # Enable 4 wide (128-bit) SSE
+      v4_avx: OFF       # Enable 4 wide (128-bit) AVX
+      v4_avx2: OFF      # Enable 4 wide (128-bit) AVX2
+      v8_portable: OFF  # Enable 8 wide (256-bit) portable implementations
+      v8_avx: OFF       # Enable 8 wide (256-bit) AVX
+      v8_avx2: OFF      # Enable 8 wide (256-bit) AVX
+      v16_portable: OFF # Enable 16 wide (512-bit) portable implementation
+      v16_avx512: OFF   # Enable 16 wide (512-bit) AVX512
+
+      more_digits: OFF
+      # Use OpenMP for thread level parallelism
+      openmp: OFF
+      # Use Pthreads for thread level parallelism
+      pthreads: ON
+
+      # Build as shared libraries
+      shared: OFF
+
+      # The MPI compilers to use. 
+      cc: mpicc
+      cxx: mpicxx
+      c_flags: ""
+      cxx_flags: ""
+
+      # Make jobs and verbosity.
+      make_jobs: 8
+      make_verbose: 8
+
+    # VPIC compilation happens in two steps. The first step is generic, 
+    # the second step builds the executable against a specific problem. 
+    # Pavilion does the first step in the 'build' process, so it can be reused.
+    # The second step produces a unique executable for the problem, and is
+    # done in the run step. 
+    # This sets the name of that executable to the input deck name with the 
+    # extension replaced with '.Linux': 'lpi-input.cxx -> lpi-input.Linux'
+    vpic_exe_name: '{{ re_search("([^/]*)$", vpic_input_deck) }}.Linux'
+    vpic_input_deck: lpi-input.cxx
+
+    # VPIC can be used to perform a fairly wide variety of three dimensional 
+    # particle simulations, with anywhere from one to dozens of particle types. 
+    # This section uses a basic input deck (found in test_src/vpic/lpi-input.cxx.template
+    # that simulates just three particles (H, He, and electrons) with no particle 
+    # injections or collisions. 
+    # This default template file takes the following variables. 
+    vpic_input?:
+
+      # Average number of particles/cell in each species
+      nppc: 1024 
+
+      # Number of simulation steps to perform. 
+      nstep: 1 
+
+      # Overall size for a single simulation nod in cells. Each cell, at
+      # three particle types and nppc=1024 uses about 1 MB of memory. 
+      # The total cells per node is the multiple of all three dimensions.
+      # '20 * 20 * 20 == 8000 cells', requiring about 8 GB of memory. (or 64 GB of memory 
+      # at grid_scale=2).
+      nx_sn: 20
+      ny_sn: 20
+      nz_sn: 20
+
+      # Scale grid size for single node to adjust single node memory footprint.
+      # For ddr systems use 2, otherwise use 1.
+      # When grid_scale is 2, this effectively multiplies the overall scale 
+      # (and memory footprint) by 8.
+      grid_scale: 2
+      ssize_x: '{{vpic_input.grid_scale}}'
+      ssize_y: '{{vpic_input.grid_scale}}'
+      ssize_z: '{{vpic_input.grid_scale}}'
+
+      # The cells for each node are divided across the ranks for each node in
+      # each dimension. For any given dimension, the number of ranks in that dimension must
+      # divide evenly into the number of cells for that dimension: 'nx_sn % nranks_x == 0' 
+      # The total ranks is the multiple of all three dimensions.
+      nranks_x: 5
+      nranks_y: 5
+      nranks_z: 5
+
+      # The single node topology is repeated for each node, effectively multiplying
+      # the overall problem size by these dimensions. So a problem with nx_sn=20 and
+      # snodes_x=5 would have 100 cells in the x dimension.
+      # The total nodes required is the multiple of all three.
+      snodes_x: 1
+      snodes_y: 1
+      snodes_z: 1
+
+      # This enables both H and He ions, giving a total of three
+      # particle species. If 0, only electrons are used.
+      mobile_ions: 1 
+
+      # Number of steps before performing a sort on the electron particles
+      eon_sort_interval: 25
+      # Legacy sort method to use. 
+      #   0 - In place sort (Slower, minimal additional memory required) 
+      #   1 - Out of place sort (Faster, signficant memory required)
+      # If using non-legacy sort, a parallelized, out-of-place sort is always used. 
+      eon_sort_method: 0
+      # Number of steps beforming a sort on the ion (H, He) particles
+      ion_sort_interval: 100
+      # As per eon_sort_method
+      ion_sort_method: 0
+      # Steps between status updated
+      status_interval: 50000
+      # Steps between syncronization and cleanup.
+      sync_shared_interval: 10000
+      clean_div_e_interval: 10000
+      clean_div_b_interval: 10000
+
+
+      # Whether to use Maxwellian Reflux to determine which domains are on edge.
+      # 0 - Off, 1 - On
+      maxwellian_reflux_bc: 0
+
+      # The max number of particles that can exist in a local cell, relative to the 
+      # total number of particles. 
+      max_local_np_scale: 1.5
+
+    vpic_run?:
+      numa: 'numactl --preferred=0'
+
+      # VM overcommit.
+      vm_oc: '--vm-overcommit=enable'
+
+      # CPU Binding mode
+      cpu_binding: '-c 1 --cpu-bind=threads'
+
+      # Time the run directly (duration includes the input file build step)
+      time_cmd: '/usr/bin/time -f"duration: %e"'
+
+
+    # Nodes needed to run this topology.
+    nnodes: '{{vpic_input.snodes_x * vpic_input.snodes_y * vpic_input.snodes_z}}'
+    # Ranks per node needed for this topology.
+    nranks: '{{vpic_input.nranks_x * vpic_input.nranks_y * vpic_input.nranks_z}}'
+
+    # Block size:
+    box_size: '{{vpic_input.nx_sn * vpic_input.ny_sn * vpic_input.nz_sn}}'
+
+    # Total particles
+    particles: '{{nnodes * nranks * box_size * vpic_input.nppc}}'
+
+  build:
+    source_url: https://github.com/lanl/vpic/archive/refs/heads/master.zip
+    source_path: vpic/src
+    source_download: never
+    # This template file is used to specify the vpic test data.
+
+    modules:
+      - cmake
+
+    cmds:
+      - mkdir build
+      - cd build
+      - >
+        cmake 
+        -LAH
+        -DCMAKE_BUILD_TYPE={{vpic_build.build_type}}
+        -DENABLE_INTEGRATED_TESTS={{vpic_build.integrated_tests}} 
+        -DENABLE_UNIT_TESTS={{vpic_build.unit_tests}}
+        -DENABLE_OPENSSL={{vpic_build.openssl}}
+        -DDISABLE_DYNAMIC_RESIZING={{vpic_build.dynamic_resizing}}
+        -DSET_MIN_NUM_PARTICLES={{vpic_build.min_num_particles}}
+        -DUSE_LEGACY_SORT={{vpic_build.legacy_sort}}
+        -DUSE_V4_PORTABLE={{vpic_build.v4_portable}}
+        -DUSE_V4_SSE={{vpic_build.v4_sse}}
+        -DUSE_V4_AVX={{vpic_build.v4_avx}}
+        -DUSE_V4_AVX2={{vpic_build.v4_avx2}}
+        -DUSE_V8_PORTABLE={{vpic_build.v4_portable}}
+        -DUSE_V8_AVX={{vpic_build.v8_avx}}
+        -DUSE_V8_AVX2={{vpic_build.v8_avx2}}
+        -DUSE_V16_PORTABLE={{vpic_build.v16_portable}}
+        -DUSE_V16_AVX512={{vpic_build.v16_avx512}}
+        -DVPIC_PRINT_MORE_DIGITS={{vpic_build.more_digits}}
+        -DUSE_OPENMP={{vpic_build.openmp}}
+        -DUSE_PTHREADS={{vpic_build.pthreads}}
+        -DBUILD_SHARED_LIBS={{vpic_build.shared}}
+        -DCMAKE_C_COMPILER=$(which {{vpic_build.cc}})
+        -DCMAKE_CXX_COMPILER=$(which {{vpic_build.cxx}})
+        -DCMAKE_C_FLAGS="{{vpic_build.c_flags}}"
+        -DCMAKE_CXX_FLAGS="{{vpic_build.cxx_flags}}" 
+        ..
+      - "make -j {{vpic_build.make_jobs}} VERBOSE={{vpic_build.make_verbose}}"
+
+  run:
+    templates: 
+      # Templates are grabbed directly from the test_src directory.
+      'vpic/lpi-input.tmpl.cxx': 'lpi-input.cxx'
+
+    timeout: '{{60 * 60 * 2}}'
+
+    cmds:
+      - ./build/bin/vpic {{vpic_input_deck}}
+      - 'top -b -u {{user}} > top_out.txt 2>&1 &'
+      - '{{vpic_run.time_cmd}} {{sched.test_cmd}} {{vpic_run.numa}} ./lpi-input.Linux --tpp 1'
+
+  schedule:
+    nodes: '{{nnodes}}'
+    tasks_per_node: '{{nranks}}'
+    time_limit: '10'
+    slurm:
+      srun_extra: '{{vpic_run.cpu_binding}} {{vpic_run.vm_oc}}'
+
+  result_parse:
+    regex: 
+      result: 
+        action: store_true
+        regex: '^normal exit'
+      true_duration: 
+        regex: '^duration: (\d+\.\d+)'
+
+  result_evaluate:
+    pps: '{{particles * vpic_input.nstep}} / true_duration'
+    fom: pps
+
+# These setup vpic to be built using specific compilers
+# Pick one, and inherit from it instead of _base when writing your
+# customized configuration. 
+intel:
+  inherits_from: _base
+  variables:
+    vpic_build:
+      flags_common: >-
+        -g -O3 
+        -inline-forceinline 
+        -qoverride-limits 
+        -no-ansi-alias 
+        -Winline
+        -qopt-report=5
+        -qopt-report-phase=all
+        -diag-disable 10397
+        -Wl,--export-dynamic
+        -dynamic
+      c_flags: "{{vpic_build.flags_common}}"
+      cxx_flags: "{{vpic_build.flags_common}}"
+
+gnu:
+  inherits_from: _base
+  variables:
+    vpic_build:
+      flags_common: >-
+        -g -O2
+        -ffast-math
+        -fno-unsafe-math-optimizations
+        -fomit-frame-pointer
+        -fno-strict-aliasing
+        -Winline
+        -rdynamic
+        -dynamic
+      c_flags: "{{vpic_build.flags_common}}"
+      cxx_flags: "{{vpic_build.flags_common}}" 
+
+# Inherit from this when using a cray/HPC system
+cray-wrappers:
+  inherits_from: intel
+
+  variables: 
+    # Use the cray compiler wrappers
+    vpic_build:
+      cc: cc
+      cxx: CC
+
+  run:
+    # Unload hugepages - this almost universally causes problems.
+    modules: ['-craype-hugepages2M']
+
+# A single node, 8x4x2 run for 1000 steps
+small:
+  inherits_from: cray-wrappers
+  variables:
+    vpic_input:
+    # The target system has about 512 GB of memory and 256 CPUs (2^8)
+    # That means we need about (512 * 1024 / 8) cells, mostly in dimensions
+    # with powers of 2.
+    vpic_input?:
+      nx_sn: 64
+      ny_sn: 32
+      nz_sn: 30    # 64*32*32 is exactly our memory size, which is too much.
+
+      nstep: 1000
+
+      nranks_x: 8
+      nranks_y: 4
+      nranks_z: 2
+
+# A 64 node, 1000 step run. 
+medium:
+  inherits_from: cray-wrappers
+  variables:
+    # total size 1088x256x256
+    vpic_input:
+      nx_sn: 64
+      ny_sn: 32
+      nz_sn: 30
+      nstep: 1000
+
+      nranks_x: 4
+      nranks_y: 4
+      nranks_z: 4
+
+      snodes_x: 4
+      snodes_y: 4
+      snodes_z: 4
+
+# A 4096 node, 1000 step run.
+large:
+  inherits_from: cray-wrappers
+  variables:
+    vpic_input:
+      nx_sn: 64
+      ny_sn: 32
+      nz_sn: 30
+      nstep: 1000
+
+      nranks_x: 4
+      nranks_y: 4
+      nranks_z: 4
+
+      snodes_x: 64
+      snodes_y: 8
+      snodes_z: 8
+
+# This is the base test for performing a scalling study on a single node. 
+_cases_136_30_28:
+
+  # Change inheritance accoring to the compiler/or wrappers needed.
+  inherits_from: cray-wrappers
+  variables:
+    
+    # The target system has about 512 GB of memory and 256 CPUs (2^8)
+    # That means we need about (512 * 1024 / 8) cells, mostly in dimensions
+    # with powers of 2.
+    vpic_input?:
+      nx_sn: 64
+      ny_sn: 32
+      nz_sn: 30    # 64*32*32 is exactly our memory size, which is too much.
+
+# Now we divide the problem across a variety of configurations, to find the optimal one. 
+cases_136_30_28:
+  inherits_from: _cases_136_30_28
+  permute_on: vpic_input
+  subtitle: '{{vpic_input.nranks_x}}-{{vpic_input.nranks_y}}-{{vpic_input.nranks_z}}'
+  variables:
+    vpic_input:
+      - {nranks_x: 1,   nranks_y: 1,    nranks_z: 1}
+      - {nranks_x: 2,   nranks_y: 2,    nranks_z: 1}
+      - {nranks_x: 2,   nranks_y: 2,    nranks_z: 2}
+      - {nranks_x: 4,   nranks_y: 1,    nranks_z: 1}
+      - {nranks_x: 4,   nranks_y: 2,    nranks_z: 1}
+      - {nranks_x: 4,   nranks_y: 2,    nranks_z: 2}
+      - {nranks_x: 4,   nranks_y: 4,    nranks_z: 1}
+      - {nranks_x: 4,   nranks_y: 4,    nranks_z: 2}
+      - {nranks_x: 8,   nranks_y: 1,    nranks_z: 1}
+      - {nranks_x: 8,   nranks_y: 2,    nranks_z: 1}
+      - {nranks_x: 8,   nranks_y: 2,    nranks_z: 2}
+      - {nranks_x: 8,   nranks_y: 4,    nranks_z: 1}
+      - {nranks_x: 8,   nranks_y: 4,    nranks_z: 2}
+      - {nranks_x: 8,   nranks_y: 8,    nranks_z: 1}
+      - {nranks_x: 8,   nranks_y: 8,    nranks_z: 2}
+      # We can't exceed 8*8*4, or 2 in the z dimension 

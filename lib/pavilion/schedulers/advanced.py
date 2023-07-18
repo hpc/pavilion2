@@ -29,9 +29,19 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         super().__init__(name, description, priority=priority)
 
-        self._nodes = None  # type: Union[Nodes, None]
-        self._node_lists = []  # type: List[NodeList]
-        self._chunks = ChunksByNodeListId({})  # type: ChunksByNodeListId
+        self._nodes: Union[Nodes, None] = None
+        self._node_lists: List[NodeList] = []  # type: List[NodeList]
+        self._chunks: ChunksByNodeListId = ChunksByNodeListId({})
+
+        # Refresh here, to ensure that a new object and a refreshed object have the same state.
+        self.refresh()
+
+    def refresh(self):
+        """Clear all internal state variables."""
+
+        self._nodes = None
+        self._node_lists = []
+        self._chunks = ChunksByNodeListId({})
 
     # These additional methods need to be defined for advanced schedulers.
 
@@ -132,7 +142,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             errors.append(
                 "Insufficient nodes. Asked for {}-{} nodes, but only {} were "
-                "left after filtering. Nodes for filtered for the following reasons:\n{}\n"
+                "left after filtering. Nodes were filtered for the following reasons:\n{}\n"
                 "Scheduler config:\n{}\n"
                 .format(min_nodes, max_nodes, len(filtered_nodes),
                         reasons, pprint.pformat(sched_config)))
@@ -349,19 +359,22 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         return chunk_info
 
-    def schedule_tests(self, pav_cfg, tests: List[TestRun]):
+    def schedule_tests(self, pav_cfg, tests: List[TestRun]) -> List[SchedulerPluginError]:
         """Schedule each of the given tests using this scheduler using a
         separate allocation (if applicable) for each.
 
         :param pav_cfg: The pavilion config
         :param [pavilion.test_run.TestRun] tests: A list of pavilion tests
             to schedule.
+        :returns: A list of Scheduler errors encountered when starting tests.
         """
 
         # type: Dict[FrozenSet[str], List[TestRun]]
         by_chunk = collections.defaultdict(lambda: [])
         usage = collections.defaultdict(lambda: 0)  # type: Dict[FrozenSet[str], int]
         sched_configs = {}  # type: Dict[str, dict]
+
+        errors = []
 
         for test in tests:
             node_list_id = int(test.var_man.get('sched.node_list_id'))
@@ -393,14 +406,16 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 by_chunk[least_used_chunk].append(test)
             else:
                 if chunk_spec > len(chunks):
-                    raise SchedulerPluginError(
+                    errors.append(SchedulerPluginError(
                         "Test selected chunk '{}', but there are only {} chunks "
-                        "available.".format(chunk_spec, len(chunks)))
+                        "available.".format(chunk_spec, len(chunks)), tests=[test]))
                 chunk = chunks[chunk_spec]
                 by_chunk[chunk].append(test)
 
         for chunk, tests in by_chunk.items():
-            self._schedule_chunk(pav_cfg, chunk, tests, sched_configs)
+            errors.extend(self._schedule_chunk(pav_cfg, chunk, tests, sched_configs))
+
+        return errors
 
     # Scheduling options in this list are denoted as those that change the nature
     # of the allocation being acquired. Tests with different values for these
@@ -411,9 +426,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     ALLOC_ACQUIRE_OPTIONS = ['partition', 'reservation', 'account', 'qos']
 
     def _schedule_chunk(self, pav_cfg, chunk: NodeSet, tests: List[TestRun],
-                        sched_configs: Dict[str, dict]):
+                        sched_configs: Dict[str, dict]) -> List[SchedulerPluginError]:
         '''Schedule all the tests that belong to a given chunk. Group tests that can be scheduled in
-        a shared allocation together.'''
+        a shared allocation together.
+
+        :returns: A list of encountered errors.
+        '''
 
         # There are three types of test launches.
         # 1. Tests that can share an allocation. These may or may not use chunking.
@@ -422,6 +440,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         flex_tests: List[TestRun] = []
         # 3. Tests that don't share an allocation and do have nodes explicitly defined.
         indi_tests: List[TestRun] = []
+
+        errors = []
 
         for test in tests:
             sched_config = sched_configs[test.full_id]
@@ -471,7 +491,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # Schedule all these tests in one allocation. Chunked tests are already spread across
             # chunks, and these non-chunked tests are explicitly set to use one allocation.
             if chunking_enabled or use_same_nodes:
-                self._schedule_shared(pav_cfg, tests, node_range, sched_configs, chunk)
+                errors.extend(self._schedule_shared(pav_cfg, tests, node_range,
+                                                    sched_configs, chunk))
             # Otherwise, we need to bin the tests so they are spread across the machine.
             # Tests will still share allocations but will be divided up to maximally use the
             # machine.
@@ -482,21 +503,24 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     bins[i % bin_count].append(test)
                 for test_bin in bins:
                     if test_bin:
-                        self._schedule_shared(pav_cfg, test_bin, node_range, sched_configs,
-                                              chunk)
+                        errors.extend(self._schedule_shared(pav_cfg, test_bin, node_range,
+                                                            sched_configs, chunk))
 
-        self._schedule_indi_flex(pav_cfg, flex_tests, sched_configs, chunk)
-        self._schedule_indi_chunk(pav_cfg, indi_tests, sched_configs, chunk)
+        errors.extend(self._schedule_indi_flex(pav_cfg, flex_tests, sched_configs, chunk))
+        errors.extend(self._schedule_indi_chunk(pav_cfg, indi_tests, sched_configs, chunk))
+
+        return errors
 
     def _schedule_shared(self, pav_cfg, tests: List[TestRun], node_range: NodeRange,
-                         sched_configs: Dict[str, dict], chunk: NodeSet):
+                         sched_configs: Dict[str, dict], chunk: NodeSet) \
+                         -> List[SchedulerPluginError]:
         """Scheduler tests in a shared allocation. This allocation will use chunking when
         enabled, or allow the scheduler to pick the nodes otherwise."""
 
         try:
             job = Job.new(pav_cfg, tests, self.KICKOFF_FN)
         except JobError as err:
-            raise SchedulerPluginError("Error creating job.", err)
+            return [SchedulerPluginError("Error creating job.", prior_error=err, tests=tests)]
 
         # At this point the scheduler config should be effectively identical
         # for the test being allocated.
@@ -543,13 +567,21 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for test in tests:
             test.job = job
 
-        job.info = self._kickoff(
-            pav_cfg=pav_cfg,
-            job=job,
-            sched_config=base_sched_config,
-            job_name=job_name,
-            nodes=picked_nodes,
-            node_range=node_range)
+        try:
+            job.info = self._kickoff(
+                pav_cfg=pav_cfg,
+                job=job,
+                sched_config=base_sched_config,
+                job_name=job_name,
+                nodes=picked_nodes,
+                node_range=node_range)
+        except SchedulerPluginError as err:
+            return [self._make_kickoff_error(err, tests)]
+        except Exception as err:  # pylint: disable=broad-except
+            return [SchedulerPluginError(
+                "Unexpected error kicking off tests under '{}' scheduler."
+                .format(self.name),
+                prior_error=err, tests=tests)]
 
         for test in tests:
             test.status.set(
@@ -557,11 +589,15 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 "Test kicked off by {} scheduler in a shared allocation with {} other "
                 "tests.".format(self.name, len(tests)))
 
+        return []
+
     def _schedule_indi_flex(self, pav_cfg, tests: List[TestRun],
-                       sched_configs: Dict[str, dict], chunk: NodeSet):
+                            sched_configs: Dict[str, dict], chunk: NodeSet) \
+                            -> List[SchedulerPluginError]:
         """Schedule tests individually in 'flexible' allocations, where the scheduler
         picks the nodes."""
 
+        errors = []
         for test in tests:
             node_info = {node: self._nodes[node] for node in chunk}
 
@@ -569,7 +605,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
                 job.save_node_data(self._nodes)
             except JobError as err:
-                raise SchedulerPluginError("Error creating job.", err)
+                errors.append(SchedulerPluginError("Error creating job.",
+                                                   prior_error=err, tests=[test]))
+                continue
 
             sched_config = sched_configs[test.full_id]
 
@@ -586,18 +624,31 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(
-                pav_cfg=pav_cfg,
-                job=job,
-                sched_config=sched_config,
-                job_name=job_name,
-                node_range=node_range,
-            )
             test.job = job
+
+            try:
+                job.info = self._kickoff(
+                    pav_cfg=pav_cfg,
+                    job=job,
+                    sched_config=sched_config,
+                    job_name=job_name,
+                    node_range=node_range,
+                )
+            except SchedulerPluginError as err:
+                errors.append(self._make_kickoff_error(err, tests))
+                continue
+            except Exception as err:  # pylint: disable=broad-except
+                errors.append(SchedulerPluginError(
+                    "Unexpected error kicking off test under '{}' scheduler."
+                    .format(self.name), prior_error=err))
+                continue
+
             test.status.set(
                 STATES.SCHEDULED,
                 "Test kicked off (individually (flex)) under {} scheduler."
                 .format(self.name))
+
+        return errors
 
     def _schedule_indi_chunk(self, pav_cfg, tests: List[TestRun],
                              sched_configs: Dict[str, dict], chunk: NodeSet):
@@ -613,6 +664,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         by_need = []
 
+        errors = []
+
         # Figure out how many nodes each test needs and sort them least
         for test in tests:
             sched_config = sched_configs[test.full_id]
@@ -627,7 +680,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                raise SchedulerPluginError("Error creating job.", err)
+                errors.append(SchedulerPluginError("Error creating job.",
+                                                   prior_error=err, tests=[test]))
+                continue
 
             sched_config = sched_configs[test.full_id]
             if needed_nodes == 0:
@@ -646,7 +701,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             try:
                 job.save_node_data({node: self._nodes[node] for node in picked_nodes})
             except JobError as err:
-                raise SchedulerPluginError("Error saving node info to job.", err)
+                errors.append(SchedulerPluginError("Error saving node info to job.",
+                              prior_error=err, tests=[test]))
+                continue
 
             job_name = 'pav_{}'.format(test.name)
             script = self._create_kickoff_script_stub(
@@ -659,17 +716,28 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(
-                pav_cfg=pav_cfg,
-                job=job,
-                sched_config=sched_config,
-                job_name=job_name,
-                nodes=picked_nodes)
             test.job = job
+
+            try:
+                job.info = self._kickoff(
+                    pav_cfg=pav_cfg,
+                    job=job,
+                    sched_config=sched_config,
+                    job_name=job_name,
+                    nodes=picked_nodes)
+            except SchedulerPluginError as err:
+                return [self._make_kickoff_error(err, [test])]
+            except Exception as err:  # pylint: disable=broad-except
+                errors.append(SchedulerPluginError(
+                    "Unexpected error kicking off test under '{}' scheduler."
+                    .format(self.name), prior_error=err, tests=[test]))
+
             test.status.set(
                 STATES.SCHEDULED,
                 "Test kicked off (individually) under {} scheduler with {} nodes."
                 .format(self.name, len(test_chunk)))
+
+        return errors
 
 
 def convert_lists_to_tuples(obj):

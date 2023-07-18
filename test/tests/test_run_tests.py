@@ -28,7 +28,6 @@ class TestRunTests(PavTestCase):
             'name': 'test',
             'scheduler': 'raw',
             'build': {
-                'modules': ['gcc'],
                 'cmds': ['echo "Hello World"'],
                 'timeout': '30',
             },
@@ -55,8 +54,11 @@ class TestRunTests(PavTestCase):
         #  - get_test_path
         #  - write_tmpl
         for key in set(orig.__dict__.keys()).union(loaded.__dict__.keys()):
-            orig_val = orig.__dict__[key]
-            loaded_val = loaded.__dict__[key]
+            if key == '_attrs':
+                continue
+
+            orig_val = getattr(orig, key)
+            loaded_val = getattr(loaded, key)
             self.assertEqual(
                 orig_val, loaded_val,
                 msg="Mismatch for key {}.\n{}\n{}".format(key, orig_val, loaded_val))

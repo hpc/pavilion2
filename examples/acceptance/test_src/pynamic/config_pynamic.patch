@@ -1,0 +1,61 @@
+--- config_pynamic.py	2022-11-07 12:54:37.464163000 -0700
++++ /users/smehta/pynamic-changes/config_pynamic.py	2022-11-10 13:01:46.552248000 -0700
+@@ -13,6 +13,7 @@
+ #
+ 
+ from so_generator import print_error, parse_and_run, run_command, print_usage
++import sysconfig
+ import sys
+ import os
+ 
+@@ -55,14 +56,43 @@
+     command = 'make -j ' + str(processes)
+     run_command(command)
+ else:
+-    command = 'make -f Makefile.mpi4py clean'
+-    run_command(command)
+-    
+-    target = 'pynamic-mpi4py'
++    python = sys.executable
++
++    cfg_vars = sysconfig.get_config_vars()
++    cflags = cfg_vars.get('CFLAGS')
++    ldflags = '{} -L{}'.format(cfg_vars.get('LDFLAGS', ''), cfg_vars.get('LIBDIR'))
++    embed = cfg_vars.get('EMBED')
++    libs = '-lpython{} {}'.format(cfg_vars.get('LDVERSION'), cfg_vars.get('LIBS', ''))
++
++    cc = None
++    for arg in configure_args:
++        if 'with-cc' in arg and '=' in arg:
++            _, cc = arg.split('=', 1)
++        if 'with-python' in arg:
++            print("Run this with intended python")
++            sys.exit(1)
++        if 'with-includes' in arg:
++            if '=' in arg:
++                cflags = '{} {}'.format(cflags, arg.split('=',1)[1])
++
++    command = ['make', '-f', 'Makefile.mpi4py', 'clean']
++    run_command(' '.join(command))
++
++    command = ['make', '-f', 'Makefile.mpi4py', '-j', str(processes)]
++    for flag_name, flag_val in (
++            ('CC', cc),
++            ('PYTHON_CFLAGS', cflags),
++            ('PYTHON_LDFLAGS', ldflags),
++            ('PYTHON_EMBED', embed),
++            ('PYTHON_EXE', python)):
++        if flag_val is not None:
++            command.append('{}="{}"'.format(flag_name, flag_val))
++    command.append('BASE_MODULE_LIBS="{}"'.format(libs))
++    targets = ['pynamic-mpi4py']
+     if bigexe:
+-        target += ' pynamic-bigexe-mpi4py'
+-    command = 'make -j ' + str(processes) + ' -f Makefile.mpi4py ' + target
+-    run_command(command)
++        targets.append(' pynamic-bigexe-mpi4py')
++    command.extend(targets)
++    run_command(' '.join(command))
+     
+ if bigexe == False:
+     command = 'rm -f pynamic-bigexe-pyMPI pynamic-bigexe-sdb-pyMPI pynamic-bigexe-mpi4py'

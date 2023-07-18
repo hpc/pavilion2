@@ -104,7 +104,7 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
     modes = modes or []
 
     series_cfg = load_series_config(pav_cfg, series_name)
-    resolver = TestConfigResolver(pav_cfg)
+    resolver = TestConfigResolver(pav_cfg, host=host)
 
     if series_cfg.get('name') is None:
         series_cfg['name'] = series_name
@@ -117,7 +117,6 @@ def verify_configs(pav_cfg, series_name: str, host: str = None,
             all_modes = series_cfg['modes'] + set_dict['modes']
             resolver.load(
                 tests=set_dict['tests'],
-                host=host,
                 modes=all_modes,
                 overrides=overrides)
     except AttributeError as err:
@@ -137,6 +136,7 @@ def generate_series_config(
         overrides: List[str] = None,
         repeat: int = None,
         simultaneous: int = None,
+        ignore_errors: bool = False,
     ) -> dict:
     """Generates series config given global series settings. To add test sets,
     create a series with this config and use the add_test_set_config() method."""
@@ -154,5 +154,6 @@ def generate_series_config(
         series_cfg['simultaneous'] = simultaneous
     if overrides is not None:
         series_cfg['overrides'] = overrides
+    series_cfg['ignore_errors'] = ignore_errors
 
     return series_cfg

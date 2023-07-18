@@ -1,0 +1,80 @@
+
+# CONFIG_DIRS(opt [Path]): Additional Paths to search for Pavilion config files.
+#   Pavilion configs (other than this core config) are searched for in the given
+#   order. In the case of identically named files, directories listed earlier
+#   take precedence.
+config_dirs:
+  - /home/pflarr/repos/pavilion/examples/acceptance
+# USER_CONFIG(opt bool): Whether to automatically add the user's config
+#   directory at ~/.pavilion to the config_dirs. Configs in this directory
+#   always take precedence.
+user_config: false
+# WORKING_DIR(opt Path): Set the default working directory. Each config dir can
+#   set itsown working_dir.
+working_dir: ../examples/working_dir
+# SPACK_PATH(opt Path): Where pavilion looks for a spack install.
+spack_path:
+# DISABLE_PLUGINS(opt [str]): Allows you to disable plugins by '<type>.<name>'.
+#   For example, 'module.gcc' would disable the gcc module wrapper.
+disable_plugins: []
+# SHARED_GROUP(opt str): Pavilion runs under a `newgrp` shell with this group,
+#   ensuring all created files are owned by this group by default. If you have
+#   tests that must run under a different group, separate them into their own
+#   config directory with it's own working_dir setting. Then set the group and
+#   group sticky bit for those directories.
+shared_group:
+# UMASK(opt str): The umask to apply to all files created by pavilion. This
+#   should be in the format needed by the umask shell command.
+umask: 2
+# BUILD_THREADS(opt int): Maximum simultaneous builds. Note that each build may
+#   itself spawn off threads/processes, so it's probably reasonable to keep this
+#   at just a few.
+#   Valid Range: > 1
+build_threads: 4
+# MAX_THREADS(opt int): Maximum threads for general multi-threading usage.
+#   Valid Range: > 1
+max_threads: 8
+# MAX_CPU(opt int): Maximum number of cpus to use when spawning multiple
+#   processes.The number used may be less depending on the task.
+#   Valid Range: > 1
+max_cpu: 8
+# LOG_FORMAT(opt str): The log format to use for the pavilion logger. Uses the
+#   modern '{' format style. See:
+#   https://docs.python.org/3/library/logging.html#logrecord-attributes
+log_format: '{asctime}, {levelname}, {hostname}, {name}: {message}'
+# LOG_LEVEL(opt str): The minimum log level for messages sent to the pavilion
+#   logfile.
+#   Choices: debug, info, warning, error, critical
+log_level: info
+# RESULT_LOG(opt Path): Results are put in both the general log and a specific
+#   results log. This defaults to 'results.log' in the default working
+#   directory.
+result_log:
+# FLATTEN_RESULTS(opt bool): Flatten results with multiple 'per_file' values
+#   into multiple result log lines, one for each 'per_file' value. Each
+#   flattened result will have a 'file' key, and the contents of its 'per_file'
+#   data will be added to the base results mapping.
+flatten_results: true
+# EXCEPTION_LOG(opt Path): Full exception tracebacks and related debugging
+#   information is logged here.
+exception_log:
+# WGET_TIMEOUT(opt int): How long to wait on web requests before timing out. On
+#   networks without internet access, zero will allow you to spot issues faster.
+wget_timeout: 5
+# PROXIES(opt): Proxies, by protocol, to use when accessing the internet. Eg:
+#   http: 'http://myproxy.myorg.org:8000'
+proxies: {
+  # (opt str)
+}
+# NO_PROXY(opt [str]): A list of DNS suffixes to ignore for proxy purposes. For
+#   example: 'blah.com' would match 'www.blah.com', but not 'myblah.com'.
+no_proxy: []
+# ENV_SETUP(opt [str]): A list of commands to be executed at the beginning of
+#   every kickoff script.
+env_setup: []
+# DEFAULT_RESULTS(opt): Each of these will be added as a constant result parser
+#   with the corresponding key and constant value. Generally, the values should
+#   contain a pavilion variable of some sort to resolve.
+default_results: {
+  # (opt str)
+}

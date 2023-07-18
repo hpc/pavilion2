@@ -498,7 +498,7 @@ class KeyedElem(_DictElem):
             return None
 
         if not isinstance(value, dict):
-            raise TypeError("Config element '{}' is expected to be"
+            raise TypeError("Config element '{}' is expected to be "
                             "a dict/mapping, but got '{}'"
                             .format(self.name, value))
 

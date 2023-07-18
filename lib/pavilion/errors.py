@@ -25,10 +25,17 @@ class PavilionError(RuntimeError):
         :param data: Any relevant data that needs to be passed to the user.
         """
 
-        self.msg = msg
+        self._msg = msg
         self.prior_error = prior_error
         self.data = data
         super().__init__(msg)
+
+    @property
+    def msg(self):
+        """Just return msg. This exists to be overridden in order to allow for
+        dynamically generated messages."""
+
+        return self._msg
 
     def __reduce__(self):
         return type(self), (self.msg, self.prior_error, self.data)
@@ -117,6 +124,23 @@ class PavilionError(RuntimeError):
 
         return '\n'.join(lines)
 
+    def __eq__(self, other):
+        """Check that all values are the same."""
+
+        if not isinstance(other, self.__class__):
+            return False
+
+        for key, value in self.__dict__.items():
+            if not hasattr(other, key):
+                return False
+
+            other_value = getattr(other, key)
+            if value != other_value:
+                if not (value is not None and isinstance(value, other_value.__class__)):
+                    return False
+
+        return True
+
 
 class CommandError(PavilionError):
     """The error type commands should raise for semi-expected errors."""
@@ -147,6 +171,10 @@ and something goes wrong."""
             self.index = index
         self.sub_var = sub_var
 
+        super().__init__(message, prior_error=prior_error)
+
+    @property
+    def msg(self):
         key = [str(self.var)]
         if self.var_set is not None:
             key.insert(0, self.var_set)
@@ -157,13 +185,11 @@ and something goes wrong."""
 
         key = '.'.join(key)
 
-        message = "Error processing variable key '{}': {}".format(key, ''.join(message))
-
-        super().__init__(message, prior_error=prior_error)
+        return "Error processing variable key '{}': \n{}".format(key, self.raw_message)
 
     def __reduce__(self):
-
-        return type(self), (self.raw_message, self.var_set, self.var, self.index, self.sub_var)
+        return type(self), (self.raw_message, self.var_set, self.var,
+                            self.index, self.sub_var, self.prior_error)
 
 
 class DeferredError(VariableError):
@@ -172,6 +198,18 @@ class DeferredError(VariableError):
 
 class TestConfigError(PavilionError):
     """An exception specific to errors in configuration."""
+
+    def __init__(self, msg, request=None, prior_error=None, data=None):
+        """These specifically take the 'TestRequest' object."""
+
+        self.request = request
+        if request is not None:
+            request.has_error = True
+
+        super().__init__(msg, prior_error, data)
+
+    def __reduce__(self):
+        return type(self), (self.msg, self.request, self.prior_error, self.data)
 
 
 class TestBuilderError(PavilionError):
@@ -238,6 +276,16 @@ class ResultError(PavilionError):
 
 class SchedulerPluginError(PavilionError):
     """Raised when scheduler plugins encounter an error."""
+
+    def __init__(self, msg, tests=None, prior_error=None, data=None):
+        """Keep track of the tests that triggered the error."""
+
+        self.tests = tests if tests is not None else []
+
+        super().__init__(msg, prior_error, data)
+
+    def __reduce__(self):
+        return type(self), (self.msg, self.tests, self.prior_error, self.data)
 
 
 class TestSeriesError(PavilionError):

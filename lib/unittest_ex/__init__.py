@@ -52,13 +52,16 @@ class TestCaseEx(unittest.TestCase):
             rname = attr.__name__.lower()
             name = rname[len('test_'):]
 
+            full_name = '{}.{}'.format(cls.__name__.lower(), rname)
+
             if self.SKIP:
                 for skip_glob in self.SKIP:
                     skip_glob = skip_glob.lower()
                     if (fnmatch.fnmatch(name, skip_glob) or
                             fnmatch.fnmatch(rname, skip_glob) or
                             fnmatch.fnmatch(cname, skip_glob) or
-                            fnmatch.fnmatch(fname, skip_glob)):
+                            fnmatch.fnmatch(fname, skip_glob) or
+                            skip_glob == full_name):
                         return unittest.skip("via cmdline")(attr)
                 return attr
 
@@ -68,7 +71,8 @@ class TestCaseEx(unittest.TestCase):
                     if (fnmatch.fnmatch(name, only_glob) or
                             fnmatch.fnmatch(rname, only_glob) or
                             fnmatch.fnmatch(cname, only_glob) or
-                            fnmatch.fnmatch(fname, only_glob)):
+                            fnmatch.fnmatch(fname, only_glob) or
+                            only_glob == full_name):
                         return attr
                 return unittest.skip("via cmdline")(attr)
 

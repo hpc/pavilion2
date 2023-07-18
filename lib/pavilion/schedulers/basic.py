@@ -49,18 +49,31 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
 
         return NodeInfo({})
 
-    def schedule_tests(self, pav_cfg, tests: List[TestRun]):
-        """Schedule each test independently."""
+    def schedule_tests(self, pav_cfg, tests: List[TestRun]) -> List[SchedulerPluginError]:
+        """Schedule each test independently.
 
+        :returns: A list of the encountered errors.
+        """
+
+        errors = []
         for test in tests:
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
-                raise SchedulerPluginError("Error creating Job.", err)
+                errors.append(SchedulerPluginError("Error creating Job.",
+                                                   prior_error=err, tests=[test]))
+                continue
 
-            sched_config = validate_config(test.config['schedule'])
+            try:
+                sched_config = validate_config(test.config['schedule'])
+                node_range = calc_node_range(sched_config,
+                                             sched_config['cluster_info']['node_count'])
+            except SchedulerPluginError as err:
+                err.tests = [test]
+                errors.append(err)
+                continue
 
-            node_range = calc_node_range(sched_config, sched_config['cluster_info']['node_count'])
+            test.job = job
 
             job_name = 'pav {}'.format(test.name)
             script = self._create_kickoff_script_stub(
@@ -73,12 +86,24 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)
 
-            job.info = self._kickoff(
-                pav_cfg=pav_cfg,
-                job=job,
-                sched_config=sched_config,
-                job_name=job_name,
-                node_range=node_range)
-            test.job = job
+            try:
+                job.info = self._kickoff(
+                    pav_cfg=pav_cfg,
+                    job=job,
+                    sched_config=sched_config,
+                    job_name=job_name,
+                    node_range=node_range)
+            except SchedulerPluginError as err:
+                errors.append(self._make_kickoff_error(err, [test]))
+                continue
+            except Exception as err:     # pylint: disable=broad-except
+                errors.append(SchedulerPluginError(
+                    "Unexpected error when starting test under the '{}' scheduler"
+                    .format(self.name),
+                    prior_error=err, tests=[test]))
+                continue
+
             test.status.set(STATES.SCHEDULED,
                             "Test kicked off with the {} scheduler".format(self.name))
+
+        return errors

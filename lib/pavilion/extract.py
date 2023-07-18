@@ -129,7 +129,7 @@ def extract_tarball(src: pathlib.Path, dest: pathlib.Path, umask: int):
                 # extracted contents of the archive.
                 dest.mkdir()
                 tar.extractall(dest.as_posix())
-    except (OSError, IOError,
+    except (OSError, IOError, EOFError,
             tarfile.CompressionError, tarfile.TarError) as err:
         return ("Could not extract tarfile '{}' into '{}': {}"
                 .format(src, dest, err))
@@ -169,7 +169,7 @@ def decompress_file(src: pathlib.Path, dest: pathlib.Path, subtype: str) \
         with comp_lib.open(src.as_posix()) as infile, \
                 decomp_fn.open('wb') as outfile:
             shutil.copyfileobj(infile, outfile)
-    except (OSError, IOError, lzma.LZMAError) as err:
+    except (OSError, IOError, lzma.LZMAError, EOFError) as err:
         return ("Error decompressing compressed file '{}' into '{}':\n {}"
                 .format(src, decomp_fn, err))
 
@@ -195,7 +195,7 @@ def unzip_file(src, dest):
                 # The overall contents of the zip are the build dir.
                 tmpdir.rename(dest)
 
-    except (OSError, IOError, zipfile.BadZipFile) as err:
+    except (OSError, IOError, EOFError, zipfile.BadZipFile) as err:
         return ("Could not extract zipfile '{}' into destination '{}': \n{}"
                 .format(src, dest, err))
     finally:
