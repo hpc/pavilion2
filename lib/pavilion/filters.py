@@ -126,7 +126,7 @@ def add_common_filter_args(target: str,
     )
 
     arg_parser.add_argument(
-        '--filter', type=str, default=defaults['filter'],
+        '-F', '--filter', type=str, default=defaults['filter'],
         help=help_text)
 
     if sort_options:
@@ -279,24 +279,23 @@ def name(attrs: Union[Dict, series.SeriesInfo], op: str, val: str) -> bool:
     val_match = name_parse.match(val)
     name_match = name_parse.match(test_name)
 
-    suite = '*'
-    test = '*'
-    perm = '*'
-
-    if val_match is None:
+    if val_match is not None:
         suite, test, perm = val_match.groups()
-    
-    if name_match is None:
+
+    if name_match is not None:
         _, _, test_perm = name_match.groups()
 
-    if not test:
+        if not test_perm:
+            test_name = test_name + '.*'
+
+    if suite is None:
+        suite = '*'
+
+    if test is None:
         test = '*'
 
-    if not perm:
+    if perm is None:
         perm = '*'
-
-    if not test_perm:
-        test_name = test_name + '.*'
 
     new_val = '.'.join([suite, test, perm])
     return fnmatch.fnmatch(test_name, new_val)
@@ -513,10 +512,13 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], funcs: Dict, target: 
 
     :return: whether a particular test passes the filter query requirements
     """
+
     if target is None:
         return True
     else:
         target = trim(target)
+        if target == '':
+            return True
 
     if OP_AND in target:
         op1, op2 = target.split(OP_AND, 1)
