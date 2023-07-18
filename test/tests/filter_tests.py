@@ -71,6 +71,68 @@ class FiltersTest(PavTestCase):
                 "they've diverged, add tests to check the untested "
                 "values (the common ones are tested via the test_run args).")
 
+    def test_series_filter_name(self):
+        """Check the series name filter option"""
+
+        match_sets = [
+            [{'name': 'this.test'}, 'name=this'],
+            [{'name': 'this.test.perm'}, 'name=*'],
+            [{'name': 'this.test'}, 'name=*.*.*'],
+            [{'name': 'this.test'}, 'name=*.?est'],
+            [{'name': 'this'}, '']
+        ]
+
+        never_match_sets = [
+            [{'name': 'this'}, 'name=that'],
+            [{'name': 'not.this.test'}, 'name=not.this.again'],
+            [{'name': 'this.that'}, 'name=that']
+        ]
+
+        for opt in match_sets:
+            series_filter = filters.make_series_filter(opt[1])
+
+            self.assertTrue(series_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
+        for opt in never_match_sets:
+            series_filter = filters.make_series_filter(opt[1])
+
+            self.assertFalse(series_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
+    def test_test_run_filter_name(self):
+        """Check the test run name filter option"""
+
+        match_sets = [
+            [{'name': 'this.test'}, 'name=this'],
+            [{'name': 'this.test.perm'}, 'name=*'],
+            [{'name': 'this.test'}, 'name=*.*.*'],
+            [{'name': 'this.test'}, 'name=*.?est'],
+            [{'name': 'this'}, '']
+        ]
+
+        never_match_sets = [
+            [{'name': 'this'}, 'name=that'],
+            [{'name': 'not.this.test'}, 'name=not.this.again'],
+            [{'name': 'this.that'}, 'name=that']
+        ]
+
+        for opt in match_sets:
+            test_run_filter = filters.make_test_run_filter(opt[1])
+
+            self.assertTrue(test_run_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
+        for opt in never_match_sets:
+            test_run_filter = filters.make_test_run_filter(opt[1])
+
+            self.assertFalse(test_run_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
     def test_make_series_filter(self):
         """Check the filter maker function."""
 
