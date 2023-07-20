@@ -114,12 +114,10 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                                    "newer_than 1 day ago.", color=output.CYAN)
             args.filter = 'user={} newer_than={} sys_name={}'.format(
                            utils.get_login(),
-                           (dt.datetime.now() - dt.timedelta(days=1)).timestamp(),
+                           dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
 
-    filter_func = filters.make_test_run_filter(
-        target=args.filter,
-    )
+    filter_func = filters.make_test_run_filter(target=args.filter)
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
@@ -182,7 +180,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                                    "newer_than 1 day ago.", color=output.CYAN)
             args.filter = 'user={} newer_than={} sys_name={}'.format(
                            utils.get_login(),
-                           (dt.datetime.now() - dt.timedelta(days=1)).timestamp(),
+                           dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
 
     seen_sids = []
@@ -201,18 +199,8 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             sort_by = getattr(args, 'sort_by', filters.SERIES_FILTER_DEFAULTS['sort_by'])
             order_func, order_asc = filters.get_sort_opts(sort_by, 'SERIES')
 
-            filter_func = filters.make_series_filter(
-                # complete=args.complete,
-                # has_state=args.has_state,
-                # incomplete=args.incomplete,
-                # name=args.name,
-                # newer_than=args.newer_than,
-                # older_than=args.older_than,
-                # state=args.state,
-                # sys_name=args.sys_name,
-                # user=args.user,
-                target=args.filter
-            )
+            filter_func = filters.make_series_filter(target=args.filter)
+
             found_series = dir_db.select(
                 pav_cfg=pav_cfg,
                 id_dir=pav_cfg.working_dir/'series',
