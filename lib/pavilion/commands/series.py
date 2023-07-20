@@ -28,7 +28,7 @@ class RunSeries(Command):
             description='Provides commands for running and working with test series.\n'
                         '  For information on configuring series, run `pav show series_config`.\n'
                         '  To see series log output, run `pav log series <series_id>`',
-            short_help='Run/work with test series.'
+            short_help='Run/work with test series.',
         )
 
         # Useful for testing this command. Populated by the run sub command.
@@ -59,7 +59,6 @@ class RunSeries(Command):
         list_p = subparsers.add_parser(
             'list',
             aliases=self.LIST_ALIASES,
-            formatter_class=arguments.WrappedFormatter
             help="Show a list of recently run series.\n\n"
                  "Fields: \n"
                  "  - Sid       - The series id\n"
@@ -77,11 +76,12 @@ class RunSeries(Command):
                  "  - System    - The system the series ran on.\n"
                  "  - Complete  - Whether the series itself is complete.\n"
                  "                  (All tests created and complete).\n"
-                 "  - Updated   - Last series status update.\n")
+                 "  - Updated   - Last series status update.\n",
+            formatter_class=arguments.WrappedFormatter)
 
         list_p.add_argument(
             'series', nargs='*',
-            help="Specific series to show. Defaults to all your recent series on this cluster."
+            help="Specific series to show. Defaults to all your recent series on this cluster.",
         )
         filters.add_series_filter_args(list_p)
 

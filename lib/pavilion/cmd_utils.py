@@ -111,12 +111,10 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                                    "newer_than 1 day ago.", color=output.CYAN)
             args.filter = 'user={} newer_than={} sys_name={}'.format(
                            utils.get_login(),
-                           (dt.datetime.now() - dt.timedelta(days=1)).timestamp(),
+                           dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
 
-    filter_func = filters.make_test_run_filter(
-        target=args.filter,
-    )
+    filter_func = filters.make_test_run_filter(target=args.filter)
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
@@ -179,7 +177,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                                    "newer_than 1 day ago.", color=output.CYAN)
             args.filter = 'user={} newer_than={} sys_name={}'.format(
                            utils.get_login(),
-                           (dt.datetime.now() - dt.timedelta(days=1)).timestamp(),
+                           dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
 
     matching_series = []
@@ -197,9 +195,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         elif sid == 'all':
             order_func, order_asc = filters.get_sort_opts(args.sort_by, 'SERIES')
 
-            filter_func = filters.make_series_filter(
-                target=args.filter
-            )
+            filter_func = filters.make_series_filter(target=args.filter)
 
             found_series = dir_db.select(
                 pav_cfg=pav_cfg,
