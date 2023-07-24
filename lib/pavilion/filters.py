@@ -15,7 +15,7 @@ from pavilion import series
 from pavilion import utils
 from pavilion.status_file import TestStatusFile, SeriesStatusFile, StatusError, \
     STATES, SERIES_STATES
-from pavilion.sys_vars import base_classes
+from pavilion import sys_vars
 from pavilion.test_run import TestRun
 
 LOCAL_SYS_NAME = '<local_sys_name>'
@@ -269,7 +269,7 @@ def name(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
                             r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
                             r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?$'  # The permutation name.
                             )
-    test_name = attrs.get('name', '')
+    test_name = attrs.get('name') or ''
     filter_match = name_parse.match(val)
     name_match = name_parse.match(test_name)
 
@@ -318,9 +318,6 @@ def sys_name(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
 
     :return: result of the test or series "sys_name" attribute
     """
-    if val == LOCAL_SYS_NAME:
-        sys_vars = base_classes.get_vars(defer=True)
-        val = sys_vars['sys_name']
 
     return attrs.get('sys_name', False) == val
 
@@ -422,16 +419,16 @@ def state(attrs: Union[Dict, series.SeriesInfo], key: str, val: str, status_file
 
 SERIES_FUNCS = {
     'complete': [complete, ''],
-    'name': [name, '='],
-    'user': [user, '='],
-    'sys_name': [sys_name, '='],
+    'name': [name, ('=', '!=')],
+    'user': [user, ('=', '!=')],
+    'sys_name': [sys_name, ('=', '!=')],
 }
 
 TEST_FUNCS = {
     'complete': [complete, ''],
-    'name': [name, '='],
-    'user': [user, '='],
-    'sys_name': [sys_name, '='],
+    'name': [name, ('=', '!=')],
+    'user': [user, ('=', '!=')],
+    'sys_name': [sys_name, ('=', '!=')],
     'result_error': [result_error, ''],
     'passed': [passed, ''],
     'failed': [failed, ''],
@@ -446,6 +443,7 @@ def NOT(op: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
 
     :return: result of the not evaluation on the operand
     """
+    print("hi")
     return not filter_run(attrs, funcs, op.strip(OP_NOT))
 
 def OR(op1: str, op2: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
@@ -482,7 +480,7 @@ def remove_extra_spaces(target: str) -> str:
 
     :return: the whitespace-trimmed query
     """
-    return re.sub(r' +([|!=<>]) +', r'\1', target).strip(' ')
+    return re.sub(r' *([|!=<>]) *', r'\1', target).strip(' ')
 
 def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
     """Parse the key, operand, and value apart. If there is not an
@@ -492,7 +490,7 @@ def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
 
     :return: the key, operand, and value if applicable, otherwise the target
     """
-    for operator in [OP_EQ, OP_LT, OP_GT]:
+    for operator in [OP_NEQ, OP_EQ, OP_LT, OP_GT]:
         if operator in target:
             key, val = target.split(operator, 1)
             return (key, operator, val)
@@ -525,7 +523,7 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
         return OR(op1, op2, test_attrs, filter_funcs)
 
     else:
-        if OP_NOT in target:
+        if OP_NOT in target and OP_NEQ not in target:
             return NOT(target, test_attrs, filter_funcs)
 
         else:
@@ -533,7 +531,10 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
 
             if key in filter_funcs:
                 if operator in filter_funcs[key][OPS]:
-                    return filter_funcs[key][FUNC](test_attrs, val)
+                    if operator == OP_NEQ:
+                        return not filter_funcs[key][FUNC](test_attrs, val)
+                    else:
+                        return filter_funcs[key][FUNC](test_attrs, val)
                 else:
                     raise ValueError(
                         "Operator {} not recognized.".format(operator))
