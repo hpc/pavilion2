@@ -540,6 +540,9 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
             elif key == CREATED:
                 return created(test_attrs, operator, val)
 
+            elif key == FINISHED:
+                return finished(test_attrs, operator, val)
+
             elif key in STATES.list() and filter_funcs == TEST_FUNCS:
                 return state(test_attrs, STATE, key, TestStatusFile)
 
@@ -567,7 +570,7 @@ def make_test_run_filter(target: str) -> Callable[[Dict], bool]:
     """
     filter_func = partial(
         filter_run,
-        funcs=TEST_FUNCS,
+        filter_funcs=TEST_FUNCS,
         target=target)
 
     return filter_func
@@ -583,7 +586,7 @@ def make_series_filter(target: str) -> Callable[[Dict], bool]:
     """
     filter_func = partial(
         filter_run,
-        funcs=SERIES_FUNCS,
+        filter_funcs=SERIES_FUNCS,
         target=target)
 
     return filter_func

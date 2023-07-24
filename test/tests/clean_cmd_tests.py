@@ -79,7 +79,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'clean',
-            '--filter', 'older_than=5 weeks'
+            '--filter', 'created>5 weeks'
         ])
 
         clean_cmd = commands.get_command(args.command_name)

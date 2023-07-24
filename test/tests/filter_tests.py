@@ -58,10 +58,6 @@ class FiltersTest(PavTestCase):
         series_parser = NoExitParser()
         sort_opts = list(filters.SORT_KEYS["SERIES"])
 
-        filters.add_common_filter_args("", common_parser,
-                                       filters.SERIES_FILTER_DEFAULTS,
-                                       sort_options=sort_opts,
-                                       disable_opts=[])
         filters.add_series_filter_args(series_parser)
 
         self.assertEqual(
@@ -158,14 +154,14 @@ class FiltersTest(PavTestCase):
             'complete',
             'user=bob',
             'sys_name=this',
-            'older_than={}'.format(now - 2*60),
+            'created>{}'.format(now - 2*60),
         ]
 
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
         inv_opt_set = [
             '!complete',
-            'newer_than={}'.format(now - 2*60),
+            'created<{}'.format(now - 2*60),
         ]
 
         for opt in opt_set:
@@ -218,7 +214,7 @@ class FiltersTest(PavTestCase):
             'user=bob',
             'sys_name=this',
             'passed',
-            'older_than={}'.format(now - timedelta(minutes=2).total_seconds()),
+            'created>{}'.format(now - timedelta(minutes=2).total_seconds()),
             'name=mytest.*'
         ]
 
@@ -228,7 +224,7 @@ class FiltersTest(PavTestCase):
             '!complete',
             'failed',
             'result_error',
-            'newer_than={}'.format(now - timedelta(minutes=2).total_seconds())
+            'created<{}'.format(now - timedelta(minutes=2).total_seconds())
         ]
 
         for opt in opt_set:

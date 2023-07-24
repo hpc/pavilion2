@@ -381,7 +381,7 @@ class RunSeries(Command):
         elif args.skipped:
             # Filter to just skipped messages
             states = [state for state in states
-                      if 'TESTS_SKIPPED' == state.state]
+                      if state.state == 'TESTS_SKIPPED']
 
         if args.text:
             for status in states:
