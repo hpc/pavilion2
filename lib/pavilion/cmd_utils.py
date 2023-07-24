@@ -44,11 +44,11 @@ def set_arg_defaults(args):
     """Set typical argument defaults, but don't override any given."""
 
     # Don't assume these actually exist.
-    args.user = getattr(args, 'user', utils.get_login())
-    def_newer_than = (time.time() - dt.timedelta(days=1).total_seconds())
-    args.newer_than = getattr(args, 'newer_than', def_newer_than)
-    sys_name = sys_vars.get_vars(defer=True).get('sys_name')
-    args.sys_name = getattr(args, 'sys_name', sys_name)
+    def_filter = 'user={} created<{} sys_name={}'.format(
+                  utils.get_login(),
+                  dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
+                  sys_vars.get_vars(defer=True).get('sys_name'))
+    args.filter = getattr(args, 'filter', def_filter)
 
 
 def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
@@ -108,8 +108,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                 break
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
-                                   "newer_than 1 day ago.", color=output.CYAN)
-            args.filter = 'user={} newer_than={} sys_name={}'.format(
+                                   "created less than 1 day ago.", color=output.CYAN)
+            args.filter = 'user={} created<{} sys_name={}'.format(
                            utils.get_login(),
                            dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
@@ -174,8 +174,8 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                 break
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
-                                   "newer_than 1 day ago.", color=output.CYAN)
-            args.filter = 'user={} newer_than={} sys_name={}'.format(
+                                   "created less than 1 day ago.", color=output.CYAN)
+            args.filter = 'user={} created<{} sys_name={}'.format(
                            utils.get_login(),
                            dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
