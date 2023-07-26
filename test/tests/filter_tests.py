@@ -3,7 +3,7 @@
 import argparse
 import random
 import time
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from pavilion import dir_db
 from pavilion import filters
@@ -59,6 +59,8 @@ class FiltersTest(PavTestCase):
         sort_opts = list(filters.SORT_KEYS["SERIES"])
 
         filters.add_series_filter_args(series_parser)
+
+        print(vars(series_parser.parse_args([])))
 
         self.assertEqual(
             vars(common_parser.parse_args([])),
@@ -132,18 +134,18 @@ class FiltersTest(PavTestCase):
     def test_make_series_filter(self):
         """Check the filter maker function."""
 
-        now = time.time()
+        now = datetime.now()
 
         always_match_series = {
             'complete': True,
-            'created': now - 5*60,
+            'created': now.timestamp() - 5*60,
             'sys_name': 'this',
             'user': 'bob',
         }
 
         never_match_series = {
             'complete': False,
-            'created': now - 1*60,
+            'created': now.timestamp() - 1*60,
             'sys_name': 'that',
             'user': 'gary',
         }
@@ -154,14 +156,14 @@ class FiltersTest(PavTestCase):
             'complete',
             'user=bob',
             'sys_name=this',
-            'created>{}'.format(now - 2*60),
+            'created>{}'.format((now - timedelta(minutes=2)).isoformat()),
         ]
 
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
         inv_opt_set = [
             '!complete',
-            'created<{}'.format(now - 2*60),
+            'created<{}'.format((now - timedelta(minutes=2)).isoformat()),
         ]
 
         for opt in opt_set:
@@ -187,11 +189,11 @@ class FiltersTest(PavTestCase):
     def test_make_test_run_filter(self):
         """Check that the series filter options all work."""
 
-        now = time.time()
+        now = datetime.now()
 
         always_match_test = {
             'complete': True,
-            'created':  now - timedelta(minutes=5).total_seconds(),
+            'created':  now.timestamp() - timedelta(minutes=5).total_seconds(),
             'name':     'mytest.always_match',
             'result':   TestRun.PASS,
             'sys_name': 'this',
@@ -200,7 +202,7 @@ class FiltersTest(PavTestCase):
 
         never_match_test = {
             'complete': False,
-            'created':  now - timedelta(minutes=1).total_seconds(),
+            'created':  now.timestamp() - timedelta(minutes=1).total_seconds(),
             'name':     'yourtest.never_match',
             'result':   TestRun.FAIL,
             'sys_name': 'that',
@@ -214,7 +216,7 @@ class FiltersTest(PavTestCase):
             'user=bob',
             'sys_name=this',
             'passed',
-            'created>{}'.format(now - timedelta(minutes=2).total_seconds()),
+            'created>{}'.format((now - timedelta(minutes=2)).isoformat()),
             'name=mytest.*'
         ]
 
@@ -224,7 +226,7 @@ class FiltersTest(PavTestCase):
             '!complete',
             'failed',
             'result_error',
-            'created<{}'.format(now - timedelta(minutes=2).total_seconds())
+            'created<{}'.format((now - timedelta(minutes=2)).isoformat())
         ]
 
         for opt in opt_set:
