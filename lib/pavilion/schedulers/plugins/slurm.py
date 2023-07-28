@@ -448,7 +448,6 @@ class Slurm(SchedulerPluginAdvanced):
                 seq_format = '{base}{z}[{num_list}]'
             else:
                 seq_format = '{base}{z}{num_list}'
-
             node_seqs.append(
                 seq_format
                 .format(base=base, z='0' * pre_digits, num_list=num_list))
@@ -559,8 +558,8 @@ class Slurm(SchedulerPluginAdvanced):
 
     def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
             -> Union[str, None]:
-        """Filter nodes by features. (Returns why a nodes should be filtered out, or None if it
-        shoulded be."""
+        """Filter nodes by features. (Returns why a node should be filtered out, or None if it
+        shouldn't be."""
 
         _ = self
 

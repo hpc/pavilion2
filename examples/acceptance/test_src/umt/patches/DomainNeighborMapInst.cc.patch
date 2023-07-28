@@ -1,0 +1,9 @@
+--- DomainNeighborMapInst.cc.orig	2022-09-19 17:25:39.103039000 -0600
++++ DomainNeighborMapInst.cc	2022-09-19 17:25:25.600049000 -0600
+@@ -3,5 +3,5 @@
+ using namespace Communication;
+ using namespace Geometry;
+ 
+-template class DomainNeighborMap< FaceBase >;
++template class Communication::DomainNeighborMap< FaceBase >;
+  

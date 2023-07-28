@@ -1,0 +1,25 @@
+good:
+  build:
+    cmds:
+      - echo "hello"
+
+bad_build_source:
+  build:
+    source_path: invalid_file.tar.gz
+
+bad_build_script:
+  build:
+    cmds:
+      - exit 1
+
+bad_make_format:
+  scheduler: no_exist
+
+bad_make_sched:
+  scheduler: dummy
+  schedule:
+    nodes: 42
+
+bad_kickoff_sched1:
+  scheduler: error
+

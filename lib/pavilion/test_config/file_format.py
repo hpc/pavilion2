@@ -421,6 +421,11 @@ expected to be added to by various plugins.
             help_text="Modes used in the creation of this test. Value is added "
                       "automatically."
         ),
+        yc.ListElem(
+            'overrides', hidden=True, sub_elem=yc.StrElem(),
+            help_text="Overrides used when creating this test. Value is added "
+                      "automatically."
+        ),
         yc.RegexElem(
             'inherits_from', regex=TEST_NAME_RE_STR,
             help_text="Inherit from the given test section, and override "

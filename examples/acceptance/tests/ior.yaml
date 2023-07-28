@@ -1,0 +1,283 @@
+_base:
+  summary: MPI-Coordinated Test of Parallel I/O.
+
+  subtitle: 'API-{{api}}_BLKSZ-{{blocksize}}_NODES:{{numnodes}}xPPN:{{taskspernode}}_RANKS:{{ranks}}'
+
+  doc: |
+    IOR is a parallel IO benchmark that can be used to test the performance of 
+    parallel storage systems using various interfaces and access patterns.
+
+  variables: 
+    api?: ['']                        #-a S  api --  API for I/O [POSIX|MPIIO|HDF5|NCMPI]
+    ref_num?: ['']                    #-A N  refNum -- user supplied reference number to include in the summary
+    block_size?: ['']                 #-b N  blockSize -- contiguous bytes to write per task  (e.g.: 8 4k 2m 1g)
+    collective?: ['']                 #-c    collective -- collective I/O
+    reorder_tasks?: ['']              #-C    reorderTasks -- changes task ordering to n+1 ordering for readback
+    inter_test_delay?: ['']           #-d N  interTestDelay -- delay between reps in seconds
+    deadline_for_stonewalling?: ['']  #-D N  deadlineForStonewalling -- seconds before stopping write or read phase
+    use_existing_test_file?: ['']     #-E    useExistingTestFile -- do not remove test file before write access
+    script_file?: ['']                #-f S  scriptFile -- test script name
+    file_per_proc?: ['']              #-F    filePerProc -- file-per-process
+    intra_test_barriers?: ['']        #-g    intraTestBarriers -- use barriers between open write/read and close
+    set_time_stamp_signature?: ['']   #-G N  setTimeStampSignature -- set value for time stamp signature
+    repetitions?: ['']                #-i N  repetitions -- number of repetitions of test
+    individual_data_sets?: ['']       #-I    individualDataSets -- datasets not shared by all procs [not working]
+    outlier_threshold?: ['']          #-j N  outlierThreshold -- warn on outlier N seconds from mean
+    keep_file?: ['']                  #-k    keepFile -- don't remove the test file(s) on program exit
+    keep_file_with_error?: ['']       #-K    keepFileWithError  -- keep error-filled file(s) after data-checking
+    store_file_offset?: ['']          #-l    datapacket type-- type of packet that will be created [offset|incompressible|timestamp|random|o|i|t|r]
+    multi_file?: ['']                 #-m    multiFile -- use number of reps (-i) for multiple file count
+    memory_per_node?: ['']            #-M N  memoryPerNode -- hog memory on the node  (e.g.: 2g 75%)
+    num_tasks?: ['']                  #-N N  numTasks -- number of tasks that should participate in the test
+    test_file?: ['']                  #-o S  testFile -- full name for test
+    ior_directives?: ['']             #-O S  string of IOR directives (e.g. -O checkRead=1lustreStripeCount=32)
+    preallocate?: ['']                #-p    preallocate -- preallocate file size
+    tasks_per_node_offset?: ['']      #-Q N  taskPerNodeOffset for read tests use with -C & -Z options (-C constant N -Z at least N)
+    read_file?: ['']                  #-r    readFile -- read existing file
+    check_read?: ['']                 #-R    checkRead -- check read after read
+    segment_count?: ['']              #-s N  segmentCount -- number of segments
+    transfer_size?: ['']              #-t N  transferSize -- size of transfer in bytes (e.g.: 8 4k 2m 1g)
+    max_time_duration?: ['']          #-T N  maxTimeDuration -- max time in minutes for each test
+    unique_dir?: ['']                 #-u    uniqueDir -- use unique directory name for each file-per-process
+    verbose?: ['']                    #-v    verbose -- output information (repeating flag increases level)
+    write_file?: ['']                 #-w    writeFile -- write file
+    check_write?: ['']                #-W    checkWrite -- check read after write
+    single_xfer_attempt?: ['']        #-x    singleXferAttempt -- do not retry transfer if incomplete
+    reorder_tasks_random_seed?: ['']  #-X N  reorderTasksRandomSeed -- random seed for -Z option
+    dual_mount?: ['']                 #-y    dualMount -- use dual mount points for a filesystem
+    fsync_per_write?: ['']            #-Y    fsyncPerWrite -- perform fsync after each POSIX write
+    random_offset?: ['']              #-z    randomOffset -- access is to random not sequential offsets within a file
+    reorder_tasks_random?: ['']       #-Z    reorderTasksRandom -- changes task ordering to random ordering for readback
+
+    test_variables: >
+        {{api}}
+        {{ref_num}}
+        {{block_size}}
+        {{collective}}
+        {{reorder_tasks}}
+        {{inter_test_delay}}
+        {{deadline_for_stonewalling}}
+        {{use_existing_test_file}}
+        {{script_file}}
+        {{file_per_proc}}
+        {{intra_test_barriers}}
+        {{set_time_stamp_signature}}
+        {{repetitions}}
+        {{individual_data_sets}}
+        {{outlier_threshold}}
+        {{keep_file}}
+        {{keep_file_with_error}}
+        {{store_file_offset}}
+        {{memory_per_node}}
+        {{num_tasks}}
+        {{test_file}}
+        {{ior_directives}}
+        {{preallocate}}
+        {{tasks_per_node_offset}}
+        {{read_file}}
+        {{check_read}}
+        {{segment_count}}
+        {{transfer_size}}
+        {{max_time_duration}}
+        {{unique_dir}}
+        {{verbose}}
+        {{write_file}}
+        {{check_write}}
+        {{single_xfer_attempt}}
+        {{reorder_tasks_random_seed}}
+        {{dual_mount}}
+        {{fsync_per_write}}
+        {{random_offset}}
+        {{reorder_tasks_random}}
+
+    scratch?:
+      - name: replace-me
+        path: /dont/use/this
+
+    # ram and tasks_per_node need to be set per arch
+    ram?: 128000000000 # in Bytes
+    tasks_per_node?: [32, 64] 
+
+  build:
+    source_url: https://github.com/hpc/ior/archive/refs/tags/3.3.0.tar.gz
+    source_path: ior/src
+    modules:
+      - '{{compilers}}'
+      - '{{mpis}}'
+
+    env:
+      CC: "$PAV_MPI_CC"
+
+    cmds:
+      - '[ -x boostrap ] && ./bootstrap'
+      - './configure'
+      - 'make'
+
+  run:
+    modules:
+      - '{{compilers}}'
+      - '{{mpis}}'
+
+  result_parse:
+    regex:
+      result:
+        regex: Finished
+        action: store_true
+      max_read:
+        regex: 'Max Read: +(.*)'
+      max_write:
+        regex: 'Max Write: +(.*)'
+      fs_size:
+        regex: 'FS: (.*) +Used FS.*'
+      fs_used:
+        regex: 'Used FS: (.*)  Inodes.*'
+      inodes:
+        regex: 'Inodes: (.*) +Used Inodes.*'
+      inodes_used:
+        regex: 'Used Inodes: (.*)'
+      mem_per_node:
+        regex: 'memoryPerNode += (.*)'
+      aggregate_filesize:
+        regex: 'aggregate filesize = (.*)'
+      clients:
+        regex: 'clients += (.*)'
+      api:
+        regex: 'api += (.*)'
+      num_files:
+        regex: 'access += (.*)'
+      test_file:
+        regex: 'test filename += (.*)'
+      pattern:
+        regex: 'pattern += (.*)'
+      in_file_order:
+        regex: 'ordering in a file += (.*)'
+      inter_file_order:
+        regex: 'ordering inter file= (.*)'
+      repetitions:
+        regex: 'repetitions += (.*)'
+      transfer_size:
+        regex: 'xfersize += (.*)'
+      block_size:
+        regex: 'blocksize += (.*)'
+
+_sequential_workload:
+  subtitle: 'API-{{api}}_BLKSZ-{{blocksize}}_NODES:{{numnodes}}xPPN:{{taskspernode}}_RANKS:{{ranks}}'
+  inherits_from: _base
+
+  variables:
+    #-C -a MPIIO -b 4m -g -i 3 -k -m -o /lustre/scratch5/n1-206-4m/outfile -s 256 -r –t 4m –w
+    api: ['-a MPIIO', '-a POSIX']
+    block_size: ['-b {{blocksize}}']
+    blocksize: ['{{ round( ram_80 / ranks ) }}']
+    dirname: '{{scratch.name}}-{{numnodes}}x{{taskspernode}}'
+    intra_test_barriers: ['-g']
+    keep_file: ['-k']
+    multi_file: ['-m']
+    numnodes?: [ '1', '16', '{{ round( 0.10 * total_nodes ) }}', '{{ round( 0.50 * total_nodes ) }}', '{{total_nodes}}' ]
+    ram_80: '{{ totalram * 0.8 }}'
+    ranks: '{{ taskspernode * numnodes }}'
+    numtasks: '-N {{ranks}}'
+    read_file: ['-r']
+    remainder: '{{ blocksize % transfersize }}'
+    reorder_tasks: ['-C']
+    repetitions: ['-i 3']
+    taskspernode?: [ 16, 32, 64 ] # this needs to be set per arch, 72, 80, 88, 96, 104, 112 ]
+    totalram: '{{ var.ram * numnodes }}'
+    transfer_size: ['-t {{transfersize}}']
+    transfersize: ['4000000'] # 1M; not sure what this number needs to be
+    write_file: ['-w']
+
+  permute_on: ['api', 'taskspernode', 'numnodes']
+
+  only_if: 
+    '{{remainder}}': 0 # blocksize needs to be a multiple of transfersize
+
+  scheduler: slurm
+  schedule:
+    nodes: '{{total_nodes}}'
+    share_allocation: 'true'
+
+  run:
+    timeout: 1800
+
+    modules: 
+      - '{{compilers.module}}'
+      - '{{var.mpis}}'
+
+    cmds:
+      - 'set -x'
+      - 'IOR_EXE=$([ -x $PWD/src/ior ] && readlink -f $PWD/src/ior)'
+      - 'test_variables=$(tv="{{test_variables}}"; echo $tv | tr -s " ")'
+      - 'echo "variables are $test_variables"'
+      - 'echo blocksize is {{block_size}}'
+      - 'echo transfersize is {{transfer_size}}'
+      - 'echo scratch path is {{scratch.path}}'
+      - '[ -d {{scratch.path}} ] || ( echo "{{scratch.path}} does not exist!" ; exit -1 )'
+      - 'mkdir -p {{scratch.path}}/{{dirname}} || ( echo "cannot make {{scratch.path}}/{{dirname}}" ; exit -1 )'
+      - 'subdir=$(mktemp -p {{scratch.path}}/{{dirname}} -d -t ior.XXXXXXXXXX) || ( echo "cannot mktmp {{scratch.path}}/{{dirname}}" ; exit -1 )'
+      - '[ -d ${subdir} ] && sleep 5 && pushd ${subdir} &>/dev/null || ( echo "cannot pushd ${subdir}" ; exit -1 )'
+      - 'echo "RUNNING: srun -n {{ranks}} --ntasks-per-node={{taskspernode}} $IOR_EXE $test_variables"'
+      - 'srun -N {{numnodes}} -n {{ranks}} --ntasks-per-node={{taskspernode}} $IOR_EXE $test_variables || exit -1'
+      - 'popd'
+      - 'rm -rf ${subdir}'
+
+sequential_workload_n_to_1:
+  inherits_from: _sequential_workload
+  variables:
+    segment_count: ['-s 256']
+
+sequential_workload_n_to_n:
+  inherits_from: _sequential_workload
+  variables:
+    file_per_proc: ['-F']
+
+scaling_study:
+  inherits_from: _base
+  variables:
+    api: ['-a MPIIO', '-a POSIX']
+    keep_file: ['-k']
+    file_per_proc: ['-F']
+    deadline_for_stonewalling: ['-D 300']
+    numnodes: [ 1, 10, 50 ] #, 100, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000 ]
+    taskspernode: [ 1, 8, 16, 24, 32, 40, 48, 56, 64 ] #, 72, 80, 88, 96, 104, 112 ] 
+    dirname: '{{scratch.name}}-{{numnodes}}-{{taskspernode}}'
+    numtasks: '-N {{ranks}}'
+    # using the formula: ranks * blocksize = 80% of total ram 
+    # where total ram is memory per node * number of nodes
+    totalram: '{{ ram * numnodes }}'
+    ram_80: '{{ totalram * 0.8 }}'
+    ranks: '{{ taskspernode * numnodes }}'
+    blocksize: ['{{ round( ram_80 / ranks ) }}']
+    transfersize: ['1000000'] # 1M; not sure what this number needs to be
+    remainder: '{{ blocksize % transfersize }}'
+    block_size: ['-b {{blocksize}}']
+    transfer_size: ['-t {{transfersize}}']
+
+  only_if: 
+    '{{remainder}}': 0 # blocksize needs to be a multiple of transfersize
+
+  schedule:
+    tasks_per_node: '{{taskspernode}}'
+    nodes: '{{numnodes}}'
+    share_allocation: 'false'
+
+  run:
+    modules: 
+      - '{{compilers.module}}'
+      - '{{var.mpis}}'
+
+    cmds:
+      - 'IOR_EXE=$([ -x $PWD/src/ior ] && readlink -f $PWD/src/ior)'
+      - 'test_variables=$(tv="{{test_variables}}"; echo $tv | tr -s " ")'
+      - '[ -d {{scratch.path}} ] && [ -x $PWD/src/ior ] || exit -1'
+      - '[ -d {{scratch.path}}/ior-test-{{dirname}} ] && rm -Rf {{scratch.path}}/ior-test-{{dirname}}'
+      - 'mkdir {{scratch.path}}/ior-test-{{dirname}} && pushd {{scratch.path}}/ior-test-{{dirname}}'
+      - '# this writes out the files'
+      - '{{sched.test_cmd}} $IOR_EXE "${test_variables} -w'
+      - 'if [[ {{numnodes}} -ne 1 ]]'
+      - 'then'
+      - '  # this reads those files'
+      - '  {{sched.test_cmd}} $IOR_EXE -E -C -Q {{taskspernode}} -r'
+      - 'fi'
+      - 'cd ..'
+      - 'rm -rf {{scratch.path}}/ior-test-{{dirname}}'

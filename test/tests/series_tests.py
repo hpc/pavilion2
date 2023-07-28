@@ -12,6 +12,8 @@ class SeriesTests(PavTestCase):
     def test_init(self):
         """Check initialization of the series object."""
 
+        ignore_keys = ['outfile']
+
         # Initialize from scratch
         series1 = series.TestSeries(
             pav_cfg=self.pav_cfg,
@@ -25,6 +27,8 @@ class SeriesTests(PavTestCase):
 
         # Make sure a loaded series is the same as the original
         for attr in series1.__dict__.keys():
+            if attr in ignore_keys:
+                continue
             self.assertEqual(series1.__getattribute__(attr),
                              series2.__getattribute__(attr), attr)
 
@@ -59,7 +63,8 @@ class SeriesTests(PavTestCase):
                 'set4': {
                     'depends_on': ['set3']
                 }
-            }})
+            },
+            'ignore_errors': False,})
 
         series1 = series.TestSeries(self.pav_cfg, config)
         with self.assertRaises(TestSeriesError):
@@ -74,6 +79,7 @@ class SeriesTests(PavTestCase):
         config = series_config.make_config({
             'ordered': True,
             'test_sets': series_sec_cfg,
+            'ignore_errors': False,
         })
         series2 = series.TestSeries(self.pav_cfg, config)
         with self.assertRaises(TestSeriesError):
@@ -89,6 +95,7 @@ class SeriesTests(PavTestCase):
                 'test_sets': series_sec_cfg,
                 'modes':        ['smode2'],
                 'simultaneous': '1',
+                'ignore_errors': False,
             })
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
@@ -114,7 +121,8 @@ class SeriesTests(PavTestCase):
                     'tests':      ['echo_test.a']},
             },
             'modes': ['smode2'],
-            'host': 'this'
+            'host': 'this',
+            'ignore_errors': False,
         })
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
@@ -142,6 +150,7 @@ class SeriesTests(PavTestCase):
             },
             'overrides': 'variables.another_num=17',
             'host': 'this',
+            'ignore_errors': False,
         })
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
@@ -162,7 +171,9 @@ class SeriesTests(PavTestCase):
                     'c': {'depends_on': ['a', 'b']},
                     'd': {'depends_on': ['c', 'b']},
                     'e': {},
-                }})
+                },
+                'ignore_errors': False,
+                })
 
         series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         series1._create_test_sets()
@@ -193,7 +204,8 @@ class SeriesTests(PavTestCase):
                 'a': {
                     'tests': ['sched_errors.a_error', 'sched_errors.b_skipped']
                 }
-            }
+            },
+            'ignore_errors': False,
         })
 
         series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
@@ -205,13 +217,50 @@ class SeriesTests(PavTestCase):
                 'a': {
                     'tests': ['sched_errors.c_other_error', 'sched_errors.b_skipped']
                 }
-            }
+            },
+            'ignore_errors': False,
         })
 
 
         series1 = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         with self.assertRaises(TestSeriesError):
             series1.run()
+
+    def test_ignore_errors(self):
+        """Make sure the series runs even when there are all sorts of errors along the way."""
+
+        cfg = series_config.make_config({
+            'test_sets': {
+                'a': {
+                    'tests': ['no_exist',
+                              'sched_errors.a_error',
+                              'sched_errors.b_skipped',
+                              'invalid',
+                              'invalid_yaml',
+                              'invalid_results',
+                              'missing_key_collect',
+                              'test_set_errors',
+                              'hello_world.hello']
+                },
+                'b': {
+                    'tests': [
+                        'invalid',
+                        'hello_world.hello',
+                        ]
+                }
+            },
+        })
+
+        series_obj = series.TestSeries(self.pav_cfg, series_cfg=cfg)
+        series_obj.run()
+
+        series_obj.wait()
+
+        for test in series_obj.tests.values():
+            if test.name in ['test_set_errors.good', 'hello_world.hello']:
+                self.assertEqual(test.result, test.PASS)
+            else:
+                self.assertEqual(test.result, None)
 
     def test_series_conditionals_only_if_ok(self):
         """Test that adding a conditional that always matches produces tests that
@@ -279,6 +328,7 @@ class SeriesTests(PavTestCase):
         series_cfg = series_config.generate_series_config(
             name='test',
             modes=['smode2'],
+            ignore_errors=False,
         )
 
         series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)

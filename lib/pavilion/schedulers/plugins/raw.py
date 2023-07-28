@@ -122,6 +122,7 @@ class Raw(SchedulerPluginBasic):
         proc = subprocess.Popen([job.kickoff_path.as_posix(), uniq_id],
                                 stdout=raw_log, stderr=subprocess.STDOUT)
 
+
         return JobInfo({
             'pid': proc.pid,
             'uniq_id': uniq_id,
@@ -154,7 +155,7 @@ class Raw(SchedulerPluginBasic):
         cmdline = cmdline.replace(b'\x00', b' ').decode('utf8')
 
         # Make sure we're looking at the same job.
-        if 'kickoff.sh' in cmdline and job_info['uniq_id'] in cmdline:
+        if 'kickoff' in cmdline and job_info['uniq_id'] in cmdline:
             return True
 
         return False

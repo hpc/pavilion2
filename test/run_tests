@@ -63,7 +63,10 @@ def save_failures(failures):
 
     test_names = []
     for failure in failures:
-        test_names.append(failure[0]._testMethodName)
+        failure = failure[0]
+        fail_name = '{}.{}'.format(failure.__class__.__name__, 
+                                   failure._testMethodName)
+        test_names.append(fail_name)
 
     if test_names:
         pass

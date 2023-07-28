@@ -59,8 +59,24 @@ class RunSeries(Command):
         list_p = subparsers.add_parser(
             'list',
             aliases=self.LIST_ALIASES,
-            help="Show a list of recently run series.",
-        )
+            help="Show a list of recently run series.\n\n"
+                 "Fields: \n"
+                 "  - Sid       - The series id\n"
+                 "  - Name      - The series name\n"
+                 "  - State     - Most recent series state.\n"
+                 "  - Tests     - Total tests created under this series.\n"
+                 "  - Sched     - Number of tests in a 'scheduled' state.\n"
+                 "  - Run       - Number of tests in a 'running' state.\n"
+                 "  - Err       - Number of errors encountered by the series and tests.\n"
+                 "                (see `pav series history --errors` series errors and \n"
+                 "                     `pav status <series_id>` for test errors)\n"
+                 "  - Pass      - Number of completed tests that passed.\n"
+                 "  - Fail      - Number of completed tests that failed.\n"
+                 "  - User      - Who started the series.\n"
+                 "  - System    - The system the series ran on.\n"
+                 "  - Complete  - Whether the series itself is complete.\n"
+                 "                  (All tests created and complete).\n"
+                 "  - Updated   - Last series status update.\n")
 
         list_p.add_argument(
             'series', nargs='*',
@@ -106,7 +122,8 @@ class RunSeries(Command):
         set_status_p = subparsers.add_parser(
             'sets',
             aliases=self.SETS_ALIASES,
-            help="Show the status of the test sets for a given series.")
+            help="Show the status of the test sets for a given series. Columns are as per "
+                 "`pav series status`")
         set_status_p.add_argument('--merge-repeats', '-m', default=False, action='store_true',
                                   help='Merge data from all repeats of each set.')
         set_status_p.add_argument('series', default='last', nargs='?',
@@ -118,6 +135,13 @@ class RunSeries(Command):
             help="Give the state history of the given series.")
         state_p.add_argument('--text', '-t', action='store_true', default=False,
                              help="Print plaintext, rather than a table.")
+        state_p_filter_args = state_p.add_mutually_exclusive_group()
+        state_p_filter_args.add_argument(
+            '--errors', action='store_true', default=False,
+            help="List only encountered errors.")
+        state_p_filter_args.add_argument(
+            '--skipped', action='store_true', default=False,
+            help="List only skipped test reasons.")
         state_p.add_argument('series', default='last', nargs='?',
                              help="The series to print status history for.")
 
@@ -213,9 +237,9 @@ class RunSeries(Command):
             'num_tests',
             'scheduled',
             'running',
+            'errors',
             'passed',
             'failed',
-            'errors',
             'user',
             'sys_name',
             'complete',
@@ -348,19 +372,30 @@ class RunSeries(Command):
                               .format(args.series, err.args[0]))
                 return errno.EINVAL
 
+        states = [status for status in ser.status.history()]
+        if args.errors:
+            # Filter out any non-errors.
+            states = [state for state in states
+                      if 'ERROR' in state.state]
+        elif args.skipped:
+            # Filter to just skipped messages
+            states = [state for state in states
+                      if 'TESTS_SKIPPED' == state.state]
+
         if args.text:
-            for status in ser.status.history():
+            for status in states:
                 output.fprint(self.outfile,
                               "{} {} {}".format(status.state, status.when, status.note))
             return 0
         else:
             output.draw_table(
                 outfile=self.outfile,
-                fields=['state', 'when', 'note'],
-                rows=[status.as_dict() for status in ser.status.history()],
+                fields=['state', 'time', 'note'],
+                rows=[state.as_dict() for state in states],
                 field_info={
-                    'when': {
+                    'time': {
                         'transform': output.get_relative_timestamp,
+                        'title': 'When',
                     }
                 }
             )

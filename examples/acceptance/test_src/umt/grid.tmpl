@@ -1,0 +1,20 @@
+#processor block decomposition domain_x by domain_y by domain_z
+sms({{umt_input.blk_x}},{{umt_input.blk_y}},{{umt_input.blk_z}})
+#Always specify blocks in block base numbering
+blk(on,0:{{umt_input.blk_x-1}},0:{{umt_input.blk_y-1}},0:{{umt_input.blk_z-1}})
+
+# tag boundary faces
+tag("xMinFaces",face,(0:0,0:{{umt_input.blk_y}},0:{{umt_input.blk_z}}))
+tag("xMaxFaces",face,({{umt_input.blk_x}}:{{umt_input.blk_x}},0:{{umt_input.blk_y}},0:{{umt_input.blk_z}}))
+tag("yMinFaces",face,(0:{{umt_input.blk_x}},0:0,0:{{umt_input.blk_z}}))
+tag("yMaxFaces",face,(0:{{umt_input.blk_x}},{{umt_input.blk_y}}:{{umt_input.blk_y}},0:{{umt_input.blk_z}}))
+tag("zMinFaces",face,(0:{{umt_input.blk_x}},0:{{umt_input.blk_y}},0:0))
+tag("zMaxFaces",face,(0:{{umt_input.blk_x}},0:{{umt_input.blk_y}},{{umt_input.blk_z}}:{{umt_input.blk_z}}))
+
+# define number of zones in each axis
+numzones({{umt_input.zone_x}},{{umt_input.zone_y}},{{umt_input.zone_z}})
+
+#Hex subdivisions
+sub(10%,0:3, 0:1, 0:1,(7,0,0,0)) #7 hex
+seed({{umt_input.seed}})
+

@@ -26,7 +26,7 @@ class ListCmdTest(PavTestCase):
             test.created = (now - dt.timedelta(hours=i)).timestamp()
             test.uuid = i
             if i % 2 == 0:
-                test.result = test.PASS
+                test.results['result'] = test.PASS
             if i % 3 == 0:
                 test.set_run_complete()
             test.save_attributes()

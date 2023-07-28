@@ -253,9 +253,9 @@ class ModWrapperTests(PavTestCase):
     def test_config_mod_wrappers(self):
         """Test config defined wrappers."""
 
-        rslvr = resolver.TestConfigResolver(self.pav_cfg)
         out = io.StringIO()
-        ptests = rslvr.load(['config_mod_wrappers'], outfile=out)
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, outfile=out)
+        ptests = rslvr.load(['config_mod_wrappers'])
         tests = [TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man) for ptest in ptests]
         tests_by_name = {}
         for test in tests:

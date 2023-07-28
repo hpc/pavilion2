@@ -31,14 +31,16 @@ class AutoSeries(Command):
 
         # load series obj
         try:
-            series_obj = series.TestSeries.load(pav_cfg, args.series_id)
+            series_obj = series.TestSeries.load(
+                pav_cfg,
+                args.series_id,
+                outfile=self.outfile)
         except TestSeriesError as err:
             output.fprint(sys.stdout, "Error in _series cmd.", err)
             sys.exit(1)
-
         try:
             # call function to actually run series
-            series_obj.run(outfile=self.outfile)
+            series_obj.run()
         except TestSeriesError as err:
             output.fprint(self.errfile, "Error while running series '{}'.".format(args.series_id))
             output.fprint(self.errfile, err.pformat())

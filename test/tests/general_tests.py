@@ -80,7 +80,7 @@ class GeneralTests(PavTestCase):
             'perm.dir',
         ]
 
-        cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run', '-bbbb'] + tests
+        cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run'] + tests
 
         self.run_test_cmd(cmd)
 

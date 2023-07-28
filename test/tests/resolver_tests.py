@@ -3,18 +3,20 @@
 import copy
 import io
 import random
+import time
 
 from pavilion import arguments
 from pavilion import commands
+from pavilion import errors
 from pavilion import plugins
 from pavilion import resolve
 from pavilion import resolver
 from pavilion import schedulers
 from pavilion import test_run
+from pavilion import variables
 from pavilion.deferred import DeferredVariable
 from pavilion.errors import TestConfigError, TestRunError
 from pavilion.pavilion_variables import PavVars
-from pavilion.resolver import variables
 from pavilion.sys_vars import base_classes
 from pavilion.unittest import PavTestCase
 
@@ -28,7 +30,7 @@ class ResolverTests(PavTestCase):
         """Initialize plugins and setup a resolver."""
         plugins.initialize_plugins(self.pav_cfg)
 
-        self.resolver = resolver.TestConfigResolver(self.pav_cfg)
+        self.resolver = resolver.TestConfigResolver(self.pav_cfg, host='this')
 
     def test_resolve_speed(self):
 
@@ -39,6 +41,7 @@ class ResolverTests(PavTestCase):
 
         requests = (
             ('hello',                   ('hello', None, 1)),
+
             ('hello123',                ('hello123', None, 1)),
             ('123-_hello',              ('123-_hello', None, 1)),
             ('123hello.world',          ('123hello', 'world', 1)),
@@ -56,17 +59,20 @@ class ResolverTests(PavTestCase):
             req = resolver.TestRequest(req_str)
             self.assertEqual((req.suite, req.test, req.count), answer)
 
-        with self.assertRaises(resolver.TestConfigError):
-            resolver.TestRequest('3*hello.world*5')
+        for request, answer in (
+                ('3*hello.world*5', 'cannot have both a pre-count'),
+                ('foo.bar.baz.quux', 'must be in the form'),):
+            with self.assertRaisesRegex(TestConfigError, answer):
+                resolver.TestRequest(request)
 
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
-        tests = self.resolver.load(['hello_world'], host='this')
+        tests = self.resolver.load(['hello_world'])
         self.assertEqual(sorted(['narf', 'hello', 'world']),
                          sorted([ptest.config['name'] for ptest in tests]))
 
-        tests = self.resolver.load(['hello_world.hello'], host='this')
+        tests = list(self.resolver.load(['hello_world.hello']))
         hello_cfg = tests[0].config
 
         # There should have only been 1
@@ -77,7 +83,7 @@ class ResolverTests(PavTestCase):
         # Make sure the variable from the host config got propagated.
         self.assertIn('hosty', hello_cfg['variables'])
 
-        tests = self.resolver.load(['hello_world.narf'], host='this')
+        tests = list(self.resolver.load(['hello_world.narf']))
         narf_cfg = tests[0].config
         # Make sure this got overridden from 'world'
         self.assertEqual(narf_cfg['scheduler'], 'dummy')
@@ -87,10 +93,10 @@ class ResolverTests(PavTestCase):
     def test_loading_hidden(self):
         """Make sure we only get hidden tests when specifically requested."""
 
-        tests = self.resolver.load(['hidden'], 'this', [])
+        tests = self.resolver.load(['hidden'])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['hello', 'narf'])
-        tests = self.resolver.load(['hidden._hidden'], 'this', [])
+        tests = self.resolver.load(['hidden._hidden'])
         names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['_hidden'])
 
@@ -109,9 +115,10 @@ class ResolverTests(PavTestCase):
                     if modes:
                         answer = 'mode'
 
-                    tests = self.resolver.load(
+                    rslvr = resolver.TestConfigResolver(self.pav_cfg, host=host)
+
+                    tests = rslvr.load(
                         [test],
-                        host=host,
                         modes=modes)
                     self.assertEqual(
                         tests[0].config['summary'], answer,
@@ -121,9 +128,9 @@ class ResolverTests(PavTestCase):
     def test_defaulted_variables(self):
         """Make sure default variables work as expected."""
 
-        tests = self.resolver.load(
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='defaulted')
+        tests = rslvr.load(
             tests=['defaulted'],
-            host='defaulted',
             modes=['defaulted'],
         )
 
@@ -164,31 +171,34 @@ class ResolverTests(PavTestCase):
         self.assertEqual(stack2b_vars['stack_def'][0]['a'], '1b-a')
         self.assertEqual(stack2b_vars['stack_def'][0]['b'], '2b-b')
 
-        with self.assertRaises(TestConfigError):
-            self.resolver.load(
+
+        with self.assertRaisesRegex(TestConfigError,
+                                    "Variable values must be unicode"):
+            rslvr.load(
                 tests=['defaulted_error.error'],
-                host='defaulted',
-                modes=['defaulted'],
-            )
+                modes=['defaulted'])
 
     def test_variable_consistency(self):
         """Make sure the variable consistency checks catch what they're supposed to."""
 
         bad_tests = [
-            'var_consistency.empty_var_list',
-            'var_consistency.empty_var',
-            'var_consistency.empty_subvar',
-            # TODO: There's some resolver work need to make these functional.
-            #'var_consistency.inconsistent_var1',
-            #'var_consistency.inconsistent_var2',
-            'var_consistency.inconsistent_var3',
-            'var_consistency.inconsistent_var4',
-            'var_consistency.foo',
+            ('var_consistency.empty_var_list', "'foo' was defined but wasn't given a value."),
+            ('var_consistency.empty_var', "must be unicode strings, got 'None'"),
+            ('var_consistency.empty_subvar', "must be unicode strings, got 'None'"),
+            ('var_consistency2.inconsistent_var1', "section has items of differing formats."),
+            ('var_consistency3.inconsistent_var2', "section has items of differing formats."),
+            ('var_consistency.inconsistent_var3', "Idx 1 had keys"),
+            ('var_consistency.inconsistent_var4', "Idx 1 had keys"),
+            ('var_consistency.foo', "Error processing variable key 'var.foo.1'"),
         ]
 
-        for bad_test in bad_tests:
-            with self.assertRaises(TestConfigError):
-                self.resolver.load([bad_test])
+        for bad_test, bad_excerpt in bad_tests:
+            with self.assertRaisesRegex(TestConfigError, bad_excerpt):
+                try:
+                    self.resolver.load([bad_test])
+                except errors.PavilionError as err:
+                    raise
+
 
     def test_wildcards(self):
         """Make sure wildcarded tests and permutations work"""
@@ -219,19 +229,20 @@ class ResolverTests(PavTestCase):
 
             self.assertEqual(len(tests), result_count)
 
-        for bad_request in (
-                ('wildcard.noperms.*'),
-                ('wildcard.doesnt_exist'),
-                ('wildcard.[invalidfnmatch')):
-            with self.assertRaises(TestConfigError):
+        for bad_request, bad_excerpt in (
+                ('wildcard.noperms.*', "doesn't have permutations at all"),
+                ('wildcard.sometest.not_me', "Available permutations:"),
+                ('wildcard.doesnt_exist', "test that matches 'doesnt_exist'"),
+                ('wildcard.[invalidfnmatch', r"test that matches '\[invalidfnmatch'")):
+            with self.assertRaisesRegex(TestConfigError, bad_excerpt):
                 self.resolver.load([bad_request])
 
     def test_extended_variables(self):
-        """Make sure default variables work as expected."""
+        """Make sure extending variables works correctly."""
 
-        tests = self.resolver.load(
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='extended')
+        tests = rslvr.load(
             tests=['extended.test'],
-            host='extended',
             modes=['extended'],
         )
 
@@ -267,22 +278,24 @@ class ResolverTests(PavTestCase):
 
         bad_overrides = [
             # No such variables
-            'florp.blorp=3',
-            # You can't override the scheduler
-            'scheduler="raw"',
+            ('florp.blorp=3', "there is no such key"),
             # run.cmds is a list
-            'run.cmds.eeeh="hello"',
+            ('run.cmds.eeeh="hello"', "a non-integer 'eeeh' in key"),
             # Invalid index.
-            'run.cmds.10000="ok"',
+            ('run.cmds.10000="ok"', "index is out of range"),
             # Summary isn't a dict.
-            'summary.nope=blarg',
+            ('summary.nope=blarg', "but 'nope' isn't a dict or list."),
             # A very empty key.
-            '""="empty"',
+            ('=empty', "given a blank key"),
+            # A very empty key.
+            ('foo.a b=empty', "has whitespace in its key"),
+            # A very empty key.
+            ('foo.=empty', "has an empty key part"),
             # Value is an incomplete mapping.
-            "summary={asdf",
+            ("summary={asdf", "Invalid value '{asdf'"),
         ]
 
-        proto_tests = self.resolver.load(['hello_world'], 'this',
+        proto_tests = self.resolver.load(['hello_world'],
                                          overrides=overrides)
 
         for ptest in proto_tests:
@@ -296,10 +309,9 @@ class ResolverTests(PavTestCase):
             self.assertEqual(ptest.config['run']['env'], alt_cfg['run']['env'])
 
         # Make sure we get appropriate errors in several bad key cases.
-        for bad_override in bad_overrides:
-            with self.assertRaises(TestConfigError):
-                self.resolver.load(['hello_world'], 'this',
-                                   overrides=[bad_override])
+        for bad_override, bad_excerpt in bad_overrides:
+            with self.assertRaisesRegex(TestConfigError, bad_excerpt):
+                self.resolver.load(['hello_world'], overrides=[bad_override])
 
     def test_resolve_permutations(self):
         """Make sure permutations are applied correctly."""
@@ -328,17 +340,17 @@ class ResolverTests(PavTestCase):
         }
 
         orig_permutations = raw_test['variables']
-        var_man = copy.deepcopy(self.resolver.base_var_man)
+        var_man = copy.deepcopy(self.resolver._base_var_man)
+        rproto = resolver.RawProtoTest(resolver.TestRequest('dummy'),
+                                       raw_test, var_man)
         var_man.add_var_set('var', raw_test['variables'])
 
-        test, permuted = self.resolver.resolve_permutations(
-            raw_test, var_man
-        )
+        ptests = rproto.resolve_permutations()
 
         # Foo should triple the permutations, bar should double them -> 6
         # baz shouldn't have an effect (on the permutation count).
         # blarg shouldn't either, because it's never used.
-        self.assertEqual(len(permuted), 6)
+        self.assertEqual(len(ptests), 6)
 
         # Make sure each possible 'combination' of variables is
         # present in the permuted var manager.
@@ -352,10 +364,10 @@ class ResolverTests(PavTestCase):
                     'baz': '6'
                 })
 
-        for per in permuted:
+        for ptest in ptests:
             comb_dict = {}
             for key in combinations[0]:
-                comb_dict[key] = per[key]
+                comb_dict[key] = ptest.var_man[key]
 
             self.assertIn(comb_dict, combinations)
 
@@ -380,6 +392,7 @@ class ResolverTests(PavTestCase):
         expected2 = {'0', '1', '90'}
         for ptest in ptests2:
             results2.add(ptest.config['run']['cmds'][0])
+        self.assertFalse(self.resolver.errors)
         self.assertEqual(results2, expected2)
 
         # Check that indirect self-references are permuted on as well
@@ -393,35 +406,28 @@ class ResolverTests(PavTestCase):
     def test_deferred_errors(self):
         """Using deferred variables in inappropriate places should raise
         errors."""
-        test = {
-            'permute_on': ['sys.def'],
-            'variables': {},
-        }
+        tests = [({'permute_on': ['sys.def'],
+                   'variables': {}},
+                   "sys.def' references a deferred variable"),
+                 ({'permute_on': ['foo.1'],
+                   'variables': {'foo': 'bleh'}},
+                  "Permutation variable 'foo.1' contains"),
+                 ({'permute_on': ['no_exist'],
+                   'variables': {}},
+                  "Permutation variable 'no_exist' is not defined")]
 
         var_man = variables.VariableSetManager()
         var_man.add_var_set('sys', {'def': DeferredVariable()})
 
-        with self.assertRaises(TestConfigError):
-            self.resolver.resolve_permutations(
-                test, var_man)
+        for test, answer in tests:
 
-        test = {
-            'permute_on': ['foo.1'],
-            'variables': {
-                'foo': 'bleh'
-            }
-        }
+            rptest = resolver.RawProtoTest(
+                request=resolver.TestRequest('dummy'),
+                config=test,
+                base_var_man=var_man)
 
-        with self.assertRaises(TestConfigError):
-            self.resolver.resolve_permutations(test, var_man)
-
-        test = {
-            'permute_on': ['no_exist'],
-            'variables': {},
-        }
-
-        with self.assertRaises(TestConfigError):
-            self.resolver.resolve_permutations(test, var_man)
+            with self.assertRaisesRegex(TestConfigError, answer):
+                rptest.resolve_permutations()
 
     def test_resolve_deferred(self):
         """Make sure deeply nested deferred references are resolved
@@ -478,6 +484,8 @@ class ResolverTests(PavTestCase):
                              msg="Mismatch for var '{}'".format(var))
 
     def test_resolve_vars_in_vars(self):
+        """Check resolution of variables within variables."""
+
         test = {
             'permute_on': ['fruit', 'snacks'],
             'variables': {
@@ -490,9 +498,13 @@ class ResolverTests(PavTestCase):
 
         var_man = variables.VariableSetManager()
         var_man.add_var_set('sys', {'soda': 'pepsi'})
-        var_man.add_var_set('var', test['variables'])
 
-        test, permuted = self.resolver.resolve_permutations(test, var_man)
+        rptest = resolver.RawProtoTest(
+            request=resolver.TestRequest('dummy'),
+            config=test,
+            base_var_man=var_man)
+
+        ptests = rptest.resolve_permutations()
 
         possible_stuff = ['yapple-apple-x',
                           'yapple-pepsi',
@@ -501,12 +513,14 @@ class ResolverTests(PavTestCase):
                           'ybanana-banana-x',
                           'ybanana-pepsi']
 
-        stuff = [var_man['var.stuff'] for var_man in permuted]
+        stuff = [ptest.var_man['var.stuff'] for ptest in ptests]
         possible_stuff.sort()
         stuff.sort()
         self.assertEqual(possible_stuff, stuff)
 
     def test_circular_variable_references(self):
+        """Check detection of variables that refer to themselves."""
+
         test = {
             'variables': {
                 'a': '--{{d}}-{{b}}-',
@@ -515,14 +529,17 @@ class ResolverTests(PavTestCase):
                 'd': '--{{c}}--',
                 'e': '--e--',
             },
-            'permute_on': []
+            'permute_on': [],
+            'scheduler': 'raw',
         }
 
-        var_man = copy.deepcopy(self.resolver.base_var_man)
-        var_man.add_var_set('var', test['variables'])
+        rptest = resolver.RawProtoTest(
+            request=resolver.TestRequest('dummy'),
+            config=test,
+            base_var_man=self.resolver._base_var_man)
 
-        with self.assertRaises(TestConfigError):
-            self.resolver.resolve_permutations(test, var_man)
+        with self.assertRaisesRegex(TestConfigError, 'contained reference loop'):
+            rptest.resolve_permutations()
 
     def test_finalize(self):
 
@@ -621,18 +638,19 @@ class ResolverTests(PavTestCase):
         var_man = variables.VariableSetManager()
         var_man.add_var_set('pav', {'nope': '9'})
         var_man.add_var_set('sys', {'nope': '10'})
-        var_man.add_var_set('var', test['variables'])
-        del test['variables']
 
-        test, permuted = self.resolver.resolve_permutations(test, var_man)
+        rptest = resolver.RawProtoTest(resolver.TestRequest('dummy'), test, var_man)
 
-        self.assertEqual(len(permuted), 2)
+        ptests = rptest.resolve_permutations()
+
+        self.assertEqual(len(ptests), 2)
 
         # Make sure each of our permuted results is in the list of answers.
-        for var_man in permuted:
-            out_test = resolve.test_config(test, var_man)
+        for ptest in ptests:
+            out_test = resolve.test_config(test, ptest.var_man)
             # This is a random number that gets added. It can't be predicted.
             del out_test['permute_base']
+            del out_test['variables']
             self.assertIn(out_test, answers)
 
         # Make sure we can successfully disallow deferred variables in a
@@ -648,19 +666,20 @@ class ResolverTests(PavTestCase):
 
         var_man = variables.VariableSetManager()
         var_man.add_var_set('sys', {'foo': DeferredVariable()})
-        var_man.add_var_set('var', {})
 
-        test, permuted = self.resolver.resolve_permutations(test, var_man)
+        rptest = resolver.RawProtoTest(resolver.TestRequest('dummy'), test, var_man)
 
-        with self.assertRaises(TestConfigError):
+        ptest = rptest.resolve_permutations()[0]
+
+        with self.assertRaisesRegex(TestConfigError, 'Deferred variable.*where it isn.t allowed'):
             # No deferred variables in the build section.
-            resolve.test_config(test, permuted[0])
+            resolve.test_config(ptest.config, ptest.var_man)
 
     def test_env_order(self):
         """Make sure environment variables keep their order from the test
         config to the final run scripts."""
 
-        ptests = self.resolver.load(['order'], host='this')
+        ptests = self.resolver.load(['order'])
 
         test_conf = ptests[0].config
 
@@ -797,7 +816,8 @@ class ResolverTests(PavTestCase):
                              'cmd_inherit_extend.test2',
                              'cmd_inherit_extend.test3'):
 
-                    tests = self.resolver.load([test], host=host, modes=modes)
+                    rslvr = resolver.TestConfigResolver(self.pav_cfg, host=host)
+                    tests = rslvr.load([test], modes=modes)
                     test_cfg = tests[0].config
                     test_name = test_cfg.get('name')
                     for sec in ['build', 'run']:
@@ -810,61 +830,23 @@ class ResolverTests(PavTestCase):
         """Make sure version compatibility checks are working and populate the
         results.json file correctly."""
 
-        commands.load('run')
-
         pav_version = PavVars().version()
 
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args([
-            'run',
-            'version_compatible'
-        ])
+        ptests = self.resolver.load(['version_compatible'])
 
-        expected_results = {
-            'version_compatible.one': {
-                'test_version': '1.2.3',
-                'pav_version': pav_version
-            },
-            'version_compatible.two': {
-                'test_version': 'beta',
-                'pav_version': pav_version
-            },
-            'version_compatible.three': {
-                'test_version': '0.0',
-                'pav_version': pav_version
-            }
+        expected = {
+            'one': '1.2.3',
+            'two': 'beta',
+            'three': '0.0',
         }
 
-        # Ensures Version information gets populated correctly even with empty
-        # version section in test config
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.silence()
-        run_cmd.run(self.pav_cfg, args)
+        for ptest in ptests:
+            self.assertEqual(ptest.config['test_version'],
+                             expected[ptest.config['name']])
+            self.assertEqual(ptest.var_man['pav.version'], pav_version)
 
-        for test in run_cmd.last_tests:
-            test.wait(timeout=5)
-            results = test.load_results()
-            name = results['name']
-            for key in expected_results[name].keys():
-                self.assertEqual(expected_results[name][key],
-                                 results[key])
-
-    def test_version_incompatibility(self):
-        """Make sure incompatible versions exit gracefully when attempting to
-        run."""
-
-        commands.load('run')
-
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args([
-            'run',
-            'version_incompatible'
-        ])
-
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = io.StringIO()
-        run_cmd.errfile = run_cmd.outfile
-        self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
+        with self.assertRaisesRegex(TestConfigError, 'has incompatibility'):
+            self.resolver.load(['version_incompatible'])
 
     def test_sched_errors(self):
         """Scheduler config errors are deferred until tests are saved, if possible."""
@@ -908,6 +890,12 @@ class ResolverTests(PavTestCase):
                 'bad_var_ref',
                 'bad_ref',
                 'bad_syntax',
+                # Yaml errors
+                'missing_key_same',
+                'missing_key_above',
+                'missing_key_below',
+                'missing_key_collect',
+                'invalid_yaml',
                 ):
             test_name = 'parse_errors.{}'.format(test_name)
 
@@ -935,3 +923,55 @@ class ResolverTests(PavTestCase):
             except TestConfigError as err:
                 # Make sure the error can be formatted.
                 err.pformat()
+
+    def test_incremental_load(self):
+        """Check that incremental loading is both incremental and loading."""
+
+        # Incremental loading allows us to break up the resolution of tests
+        # so they get their scheduler information last minute. It's not perfect -
+        # permutations can span multiple load sets.
+        # The dummy scheduler counts the mumber of times we've reset it, and we add
+        # that to the test name to check that the tests actually got new sched info.
+        requests = []
+        answers = []
+        # 14 copies of the same basic test.
+        requests += ['incremental.simple']*14
+        answers.append(['simple.1']*7)
+        answers.append(['simple.2']*7)
+        # A permuted test that's fits exactly in the batch size
+        requests += ['incremental.permuted_exact']
+        answers.append(['permuted_exact.3']*7)
+        # A bunch of separate requests for a permuted test that's smaller than batch size
+        requests += ['incremental.permuted_odd']*6
+        answers.append(['permuted_odd.4']*7)
+        answers.append(['permuted_odd.4']*2 + ['permuted_odd.5']*5)
+        # A permuted test too big for the batch size
+        requests += ['incremental.permuted_big', 'incremental.permuted_odd']
+        answers.append(['permuted_odd.5'] + ['permuted_odd.6']*3 + ['permuted_big.6']*3)
+        answers.append(['permuted_big.6']*7)
+        # A multiplied test, plus testing the remainders.
+        requests += ['5*incremental.permuted_odd']
+        answers.append(['permuted_odd.8']*7)
+        answers.append(['permuted_odd.8']*2 + ['permuted_odd.9']*5)
+        answers.append(['permuted_odd.9'] + ['permuted_odd.10']*3)
+        answers.reverse()
+
+        for tests in self.resolver.load_iter(requests, batch_size=7,
+                                             overrides=['scheduler=dummy']):
+
+
+            # Reset scheduler plugins
+            # The test set will do this for us, but we have to here.
+            for sched_name in schedulers.list_plugins():
+                sched = schedulers.get_plugin(sched_name)
+                sched.refresh()
+
+            answer = answers.pop()
+
+            result = ['{}.{}'.format(test.config['name'], test.var_man['sched.refresh_count'])
+                      for test in tests]
+            # The actual orders will be random because of multiprocessing
+            answer.sort()
+            result.sort()
+            self.assertEqual(result, answer)
+            self.assertEqual(self.resolver.errors, [])

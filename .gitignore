@@ -8,4 +8,4 @@ pav.pstats
 .local/
 __pycache__/
 .vscode
-
+examples/working_dir

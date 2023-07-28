@@ -289,8 +289,8 @@ The default config is: ::
         if modes is None:
             modes = []
 
-        res = TestConfigResolver(self.pav_cfg)
-        test_cfgs = res.load([name], host, modes)
+        res = TestConfigResolver(self.pav_cfg, host=host)
+        test_cfgs = res.load([name], modes=modes)
 
         tests = []
         for ptest in test_cfgs:
