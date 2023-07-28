@@ -245,8 +245,9 @@ class Flux(SchedulerPluginAdvanced):
         # Ensure that this is a child instance
         depth = child_handle.attr_get("instance-level")
         if depth == 0:
-            # TODO - Make this an error
-            print("DEBUG: no parent instance")
+            raise RuntimeError("This function should only be called from"
+                               "inside of an allocation, but it appears"
+                               "to have been called from outside of one.")
 
         # Get the Job ID of this child instance
         child_jobid = flux.job.JobID(child_handle.attr_get("jobid"))
