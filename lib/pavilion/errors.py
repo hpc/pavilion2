@@ -109,7 +109,7 @@ class PavilionError(RuntimeError):
                 else:
                     msg = str(next_exc)
 
-                msg_parts = msg.split('\n')
+                msg_parts = str(msg).split('\n')
                 for msg_part in msg_parts:
                     lines.extend(textwrap.wrap(msg_part, width, initial_indent=indent,
                                                subsequent_indent=indent))

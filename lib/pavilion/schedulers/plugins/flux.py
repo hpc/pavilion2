@@ -1,7 +1,7 @@
 # pylint: disable=too-many-lines
 """The Flux Framework Scheduler Plugin."""
 
-import os, sys
+import os, sys, subprocess
 import time
 from typing import List, Union, Any, Tuple
 
@@ -11,13 +11,18 @@ from pavilion.jobs import Job, JobInfo
 from pavilion.output import dbg_print
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
+from pavilion.var_dict import dfr_var_method
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
+from ..scheduler import KickoffScriptHeader
+from ..vars import SchedulerVariables
+from ...errors import SchedulerPluginError
 
 
 # Just import flux once
 try:
     import flux
+    import flux.hostlist
     import flux.job
     import flux.resource
     from flux.job import JobspecV1
@@ -35,11 +40,14 @@ except ImportError:
             flux_path = test_flux_path
             break
     sys.path.append(flux_path)
-    import flux
-    import flux.job
-    import flux.resource
-    from flux.job import JobspecV1
-#    flux = None
+    try:
+        import flux
+        import flux.hostlist
+        import flux.job
+        import flux.resource
+        from flux.job import JobspecV1
+    except ImportError:
+        flux = None
 
 flux_states = [
     "DEPEND",
@@ -50,10 +58,127 @@ flux_states = [
 ]
 
 
+class FluxVars(SchedulerVariables):
+    """Scheduler variables for the Flux scheduler."""
+    # pylint: disable=no-self-use
+
+    EXAMPLE = SchedulerVariables.EXAMPLE.copy()
+    EXAMPLE.update({
+        'test_cmd': 'flux run -x -N 5 -n 20',
+    })
+
+    def _test_cmd(self):
+        """Construct a cmd to run a process under this scheduler, with the
+        criteria specified by this test.
+        """
+
+        flux_conf = self._sched_config['flux']
+
+        nodes = len(self._nodes)
+
+        tasks = self._sched_config['tasks']
+        if tasks is None:
+            tasks = int(self.tasks_per_node()) * nodes
+
+        cmd = ['flux', 'run', '-x',
+               '-N', str(nodes),
+               '-n', str(tasks)]
+
+        cmd.extend(flux_conf['fluxrun_extra'])
+
+        return ' '.join(cmd)
+
+    @dfr_var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the return with the wrapper
+        provided in the schedule section of the configuration."""
+
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ' '.join(filter(lambda item: item is not None, [self._test_cmd(),
+                               self._sched_config['wrapper']]))
+
+
+class FluxbatchHeader(KickoffScriptHeader):
+    """Provides header information specific to batch files for the
+flux kickoff script.
+"""
+
+    def _kickoff_lines(self) -> List[str]:
+        """Get the batch header lines."""
+
+        lines = list()
+
+        # White space is discouraged in job names.
+        job_name = '__'.join(self._job_name.split())
+
+        lines.append(
+            '#flux: --job-name="{}"'.format(job_name))
+
+        # Default to exclusive allocations
+        lines.append('#flux: --exclusive')
+
+        # Flux uses "queues" rather than partitions, because why not?
+        # Use the flux: queue: setting if it is set, otherwise, use
+        # partition, as they seem interchangable.  If no queue or
+        # partition are specified, just don't put anything.  Flux
+        # should default to a reasonable queue.
+        if self._config['flux']['queue']:
+            queue = self._config['flux']['queue']
+        else:
+            queue = self._config['partition']
+
+        if queue:
+            lines.append('#flux: -q {}'.format(queue))
+
+        # As of 7/24/23, the only supported options here are properties,
+        # hostlist, and ranks.
+        features = self._config['flux']['features']
+        if self._include_nodes:
+            node_str = 'host:{}'.format(self._include_nodes)
+            if features is None:
+                # May need a compression method like the slurm plugin has
+                features = [node_str]
+            else:
+                features.append(node_str)
+
+        if self._exclude_nodes:
+            node_str = '-host:{}'.format(self._exclude_nodes)
+            if features is None:
+                features = [node_str]
+            else:
+                features.append(node_str)
+
+        if features:
+            constraint = []
+            for feat in features:
+                constraint.append('|'.join(feat))
+            constraint = '&'.join(constraint)
+            lines.append('#flux: --requires={}'.format(constraint))
+
+        # Should take times like 30s, 5m, 2h, or 8d
+        time_limit = '{}'.format(60*self._config['time_limit'])
+        lines.append('#flux: -t {}'.format(time_limit))
+
+        # Specify the number of nodes
+        nodes = self._config['nodes']
+        if nodes is not None:
+            lines.append('#flux: --nodes {}'.format(self._config['nodes']))
+
+        # Allow for any unprovided options to be used
+        for line in self._config['flux']['fluxbatch_extra']:
+            lines.append('#flux: {}'.format(line))
+
+        return lines
+
+
 class Flux(SchedulerPluginAdvanced):
     """
     Schedule tests with Flux!
     """
+
+    VAR_CLASS = FluxVars
+    KICKOFF_SCRIPT_HEADER_CLASS = FluxbatchHeader
 
     def __init__(self):
         super().__init__("flux", "Schedules tests via the Flux Framework scheduler.")
@@ -74,16 +199,38 @@ class Flux(SchedulerPluginAdvanced):
                 "allocated, they must be in one of these "
                 "states.",
             ),
+            yc.StrElem(name='queue',
+                       help_text="What queue to schedule the jobs in"),
+            yc.ListElem(name='features',
+                        sub_elem=yc.StrElem(),
+                        help_text="Extra options for the `#flux: --requires` "
+                                  "statements"),
+            yc.ListElem(name='fluxrun_extra',
+                        sub_elem=yc.StrElem(),
+                        help_text="Extra arguments to pass to flux run as part of "
+                                  "the 'sched.test_cmd' variable."),
+            yc.ListElem(name='fluxbatch_extra',
+                        sub_elem=yc.StrElem(),
+                        help_text="Extra arguments to pass to flux batch as part of "
+                                  "the 'sched.test_cmd' variable."),
         ]
 
         defaults = {
             "up_states": flux_states,
             "avail_states": flux_states,
+            "fluxrun_extra": [],
+            "fluxbatch_extra": [],
+            "queue": None,
+            "features": [],
         }
 
         validators = {
             "up_states": validate_list,
             "avail_states": validate_list,
+            "fluxrun_extra": validate_list,
+            "fluxbatch_extra": validate_list,
+            "queue": None,
+            "features": validate_list,
         }
 
         return elems, validators, defaults
@@ -92,13 +239,39 @@ class Flux(SchedulerPluginAdvanced):
         """
         Get the list of allocated nodes.
         """
-        listing = flux.job.list.JobList(flux.Flux(), ids=[job.info["jobid"]])
-        jobs = listing.jobs()
-        if not jobs:
-            return []
-        nodes = jobs[0]._nodelist
-        if not isinstance(nodes, list):
+        # Get handle for this (hopefully child) instance of flux
+        child_handle = flux.Flux()
+
+        # Ensure that this is a child instance
+        depth = child_handle.attr_get("instance-level")
+        if depth == 0:
+            # TODO - Make this an error
+            print("DEBUG: no parent instance")
+
+        # Get the Job ID of this child instance
+        child_jobid = flux.job.JobID(child_handle.attr_get("jobid"))
+
+        # Get the URI for the parent instance
+        parent_uri = child_handle.attr_get("parent-uri")
+
+        # Get the handle for the parent instance
+        parent_handle = flux.Flux(parent_uri)
+
+        # Use the handle for the parent instance to get information
+        # on the child Job ID
+        jobid = flux.job.job_list_id(parent_handle, child_jobid).get_jobinfo()
+
+        # Get compressed nodelist
+        nodes = jobid._nodelist
+        # Expand the nodelist as necessary
+        # Either it's a single node and just needs to be in a list
+        if jobid._nnodes == 1:
             nodes = [nodes]
+        # Or, it's a compressed format of a node list and must be expanded
+        elif not isinstance(nodes, list):
+            nodes = flux.hostlist.Hostlist(nodes).expand()
+
+        # Return list of individual nodes in this job allocation
         return nodes
 
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
@@ -111,7 +284,6 @@ class Flux(SchedulerPluginAdvanced):
 
         nodelist = listing.up.nodelist.expand()
         extra = {"nodes_listing": listing}
-        dbg_print("_get_raw_node_data found {} nodes: {}".format(len(nodelist), nodelist))
         return nodelist, extra
 
 
@@ -123,11 +295,11 @@ class Flux(SchedulerPluginAdvanced):
         node_info = NodeInfo({})
         node_info["name"] = node_data
         # Assume uniform nodes in the allocation
-        node_info["cpus"] = listing.free.ncores/listing.free.nnodes
-        dbg_print("NODE {} HAS {} CPUS".format(node_data, node_info["cpus"]))
+        node_info["cpus"] = max(1,listing.free.ncores//listing.free.nnodes)
+        #dbg_print("NODE {} HAS {} CPUS".format(node_data, node_info["cpus"]))
         node_info["up"] = node_data in listing.up.nodelist
         node_info["available"] = node_data in listing.free.nodelist
-        dbg_print("Node Info has type {}".format(type(node_info)))
+        #dbg_print("Node Info has type {}".format(type(node_info)))
         dbg_print("Node Info has contents {}".format(node_info.items()))
         return node_info
 
@@ -138,7 +310,7 @@ class Flux(SchedulerPluginAdvanced):
         dbg_print("Determining flux availability.")
         return flux is not None
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name: str) -> JobInfo:
         """
         Submit the kick off script using Flux.
         """
@@ -147,16 +319,22 @@ class Flux(SchedulerPluginAdvanced):
         error = output.replace(".log", ".err")
 
         # Generate the flux job
-        # Assume the filename includes a hashbang
         # flux does not support mem_mb, disk_mb
-        fluxjob = JobspecV1.from_command(
-            command=["/bin/bash", job.kickoff_path.as_posix()],
-            num_tasks=sched_config["tasks_per_node"],
+        # Flux is able to injest the contents of the batch
+        # file and generate a job submission from that.
+        script_file = open(job.kickoff_path.as_posix())
+        script_contents = script_file.read()
+        script_file.close()
+        fluxjob = JobspecV1.from_batch_command(
+                script=script_contents,
+                num_slots=sched_config["tasks_per_node"]*sched_config["nodes"],
+                num_nodes=sched_config["nodes"],
+                jobname=job_name,
         )
 
         # Min time is one minute
-        limit = sched_config["time_limit"] or 0
-        limit = limit * sched_config["time_limit"] * 60
+        limit = sched_config["time_limit"] or 1
+        limit = limit * 60
 
         # A duration of zero (the default) means unlimited
         fluxjob.duration = limit
@@ -168,10 +346,9 @@ class Flux(SchedulerPluginAdvanced):
         fluxjob.environment = dict(os.environ)
 
         # This submits without waiting
-        flux_future = flux.job.submit_async(flux.Flux(), fluxjob)
+        flux_return = flux.job.submit(flux.Flux(), fluxjob)
 
-        # This blocks until the RPC is complete so we will get an ID
-        jobid = flux_future.get_id()
+        jobid = flux_return
         job._jobid = str(jobid)
         job._submit_time = time.time()
         sys_name = sys_vars.get_vars(True)["sys_name"]
@@ -179,13 +356,13 @@ class Flux(SchedulerPluginAdvanced):
         return JobInfo(
             {
                 "id": str(jobid),
-                "jobid": jobid.orig_str,
+                "jobid": jobid,
                 "sys_name": sys_name,
-                "name": job.name,
+                "name": job_name,
             }
         )
 
-    def job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
+    def _job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
         """
         Get the current status of the flux job for the given test.
         """
