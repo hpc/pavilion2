@@ -295,23 +295,20 @@ class Flux(SchedulerPluginAdvanced):
         listing = extra["nodes_listing"]
         node_info = NodeInfo({})
         node_info["name"] = node_data
-        # Assume uniform nodes in the allocation
         node_info["cpus"] = max(1,listing.free.ncores//listing.free.nnodes)
-        #dbg_print("NODE {} HAS {} CPUS".format(node_data, node_info["cpus"]))
         node_info["up"] = node_data in listing.up.nodelist
         node_info["available"] = node_data in listing.free.nodelist
-        #dbg_print("Node Info has type {}".format(type(node_info)))
-        dbg_print("Node Info has contents {}".format(node_info.items()))
         return node_info
 
     def _available(self) -> bool:
         """
         Ensure we can import and talk to flux.
         """
-        dbg_print("Determining flux availability.")
         return flux is not None
 
-    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name: str) -> JobInfo:
+    def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name: str,
+                 nodes: Union[NodeList, None] = None,
+                 node_range: Union[Tuple[int, int], None] = None) -> JobInfo:
         """
         Submit the kick off script using Flux.
         """
