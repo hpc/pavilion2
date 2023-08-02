@@ -71,9 +71,16 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             'ignore_errors', default=True,
             help_text="Whether the series ignores build and/or scheduling errors."
         ),
-        yc.StrElem(
-            'restart', post_validator=make_invalidator(
-                "The series config option 'restart' has been replaced with 'repeat'.")
-        )
+        yc.DiscontinuedElem(
+            'series', 
+            help_text="Series parts are now configured under the 'test_sets' key in an effort "
+                      "to reduce overloading of names. The keys under 'test_sets' are the same "
+                      "as they were under the 'series' key, so all you should need to do is "
+                      "change 'series:' to 'test_sets:'."
+        ),
+        yc.DiscontinuedElem(
+            'restart',
+            help_text="The series config option 'restart' has been replaced with 'repeat'."
+        ),
     ]
     """Describes elements in Series Config Loader."""

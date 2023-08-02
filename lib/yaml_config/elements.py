@@ -22,6 +22,9 @@ from yc_yaml import representer
 class RequiredError(ValueError):
     pass
 
+class DiscontinuedError(ValueError):
+    pass
+
 
 class ConfigDict(dict):
     """Since we enforce field names that are also valid python names, we can
@@ -440,3 +443,25 @@ class ConfigElement:
 
     def __repr__(self):
         return "<yaml_config {} {}>".format(self.__class__.__name__, self.name)
+
+
+class DiscontinuedElem(ConfigElement):
+    """This element expects to never get a value. If a value other than
+    None is given, it throws a ValueError with a predefined warning to 
+    the user."""
+
+    _type_name = 'Discontinued' 
+
+    def __init__(self, name=None, hidden=True, help_text=""):
+        
+        super().__init__(name=name, hidden=hidden, help_text=help_text)
+
+    def normalize(self, value, root_name='root'):
+        """Throw an error if we get any value other than None."""
+
+        name = root_name if not self.name else self.name
+
+        if value is not None:
+            raise DiscontinuedError(
+                "Key '{}' is no longer valid: {}"
+                .format(name, self.help_text))
