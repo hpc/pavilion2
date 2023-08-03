@@ -190,8 +190,8 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             args.newer_than = (dt.datetime.now() - dt.timedelta(days=1)).timestamp()
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
-    matching_series = []
     seen_sids = []
+    found_series = []
     for sid in args.series:
         # Go through each provided sid (including last and all) and find all
         # matching series. Then only add them if we haven't seen them yet.
@@ -200,7 +200,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             if last_series is None:
                 return []
 
-            found_series = [last_series.info()]
+            found_series.append(last_series.info())
 
         elif sid == 'all':
             sort_by = getattr(args, 'sort_by', filters.SERIES_FILTER_DEFAULTS['sort_by'])
@@ -212,7 +212,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                 filter_args[arg] = getattr(args, arg, filters.SERIES_FILTER_DEFAULTS[arg])
 
             filter_func = filters.make_series_filter(**filter_args)
-            found_series = dir_db.select(
+            found_series.extend(dir_db.select(
                 pav_cfg=pav_cfg,
                 id_dir=pav_cfg.working_dir/'series',
                 filter_func=filter_func,
@@ -222,16 +222,17 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                 use_index=False,
                 verbose=verbose,
                 limit=limit,
-            ).data
+            ).data)
         else:
-            found_series = [series.SeriesInfo.load(pav_cfg, sid)]
+            found_series.append(series.SeriesInfo.load(pav_cfg, sid))
 
-        for sinfo in found_series:
-            if sinfo.sid not in seen_sids:
-                matching_series.append(sinfo)
-                seen_sids.append(sinfo.sid)
+    matching_series = []
+    for sinfo in found_series:
+        if sinfo.sid not in seen_sids:
+            matching_series.append(sinfo)
+            seen_sids.append(sinfo.sid)
 
-        return matching_series
+    return matching_series
 
 
 def read_test_files(pav_cfg, files: List[str]) -> List[str]:

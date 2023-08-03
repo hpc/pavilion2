@@ -537,7 +537,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # We aren't using chunking, so let the scheduler pick.
             picked_nodes = None
             # Save the data for all (compatible) nodes, we never know which we will get.
-            job.save_node_data({node: self._nodes[node] for node in chunk})
+            job.save_node_data(self._nodes)
         else:
             picked_nodes = node_list[:node_range[1]]
             # Save the data for all the nodes we're using.
@@ -652,8 +652,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
     def _schedule_indi_chunk(self, pav_cfg, tests: List[TestRun],
                              sched_configs: Dict[str, dict], chunk: NodeSet):
-        """Schedule tests individually under the given chunk. Unlike with flex scheduling,
-        we distribute the jobs across nodes manually."""
+        """Schedule tests individually under the given chunk. These are not flex
+        scheduled."""
 
         # Track which nodes are available for individual runs. We'll consume nodes
         # from this list as they're handed out to tests, and reset it when
