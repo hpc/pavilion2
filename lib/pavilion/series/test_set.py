@@ -305,6 +305,7 @@ class TestSet:
                         len(cfg_resolver.errors)))
             if skip_count:
                 output.fprint(
+                    self.outfile,
                     "To see why each test was skipped, run:\n"
                     "  `pav series states --skipped`")
 
