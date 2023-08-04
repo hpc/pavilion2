@@ -200,7 +200,14 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
         if latest is None or latest < ts_complete:
             latest = ts_complete
 
-    if latest and (series_path/ALL_STARTED_FN).exists():
+    if (series_path/ALL_STARTED_FN).exists():
+
+        if latest is None:
+            try:
+                latest = (series_path/STATUS_FN).stat().st_mtime
+            except (OSError, FileNotFoundError):
+                latest = time.time()
+
         # All tests exist, so now it's just a matter of waiting for all test sets
         # to complete (which they have if we're at this point)
         set_complete(series_path, latest)
