@@ -72,7 +72,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             help_text="Whether the series ignores build and/or scheduling errors."
         ),
         yc.DiscontinuedElem(
-            'series', 
+            'series',
             help_text="Series parts are now configured under the 'test_sets' key in an effort "
                       "to reduce overloading of names. The keys under 'test_sets' are the same "
                       "as they were under the 'series' key, so all you should need to do is "
