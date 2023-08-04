@@ -79,6 +79,10 @@ class RunSeries(Command):
                  "  - Updated   - Last series status update.\n")
 
         list_p.add_argument(
+            '-c', '--check-test-completion', action='store_true', default=False,
+            help_text="When getting series completion information, check with the scheduler "
+                      "for tests that don't appear complete.")
+        list_p.add_argument(
             'series', nargs='*',
             help="Specific series to show. Defaults to all your recent series on this cluster."
         )

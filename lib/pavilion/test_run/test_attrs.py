@@ -14,8 +14,14 @@ def basic_attr(name, doc):
     will produce a property object with a getter and setter that
     simply retrieve or set the value in the self._attrs dictionary."""
 
+    def getter(self):
+        if not self._loaded:
+            self.load_attributes()
+
+        return self._attrs.get(name, None)
+
     prop = property(
-        fget=lambda self: self._attrs.get(name, None),
+        fget=getter,
         fset=lambda self, val: self._attrs.__setitem__(name, val),
         doc=doc
     )
@@ -57,15 +63,16 @@ class TestAttributes:
 
     COMPLETE_FN = 'RUN_COMPLETE'
 
-    def __init__(self, path: Path, load=True):
+    def __init__(self, path: Path):
         """Initialize attributes.
         :param path: Path to the test directory.
-        :param load: Whether to autoload the attributes.
         """
 
         self.path = path
 
         self._attrs = {'warnings': []}
+
+        self._loaded = False
 
         self._complete = False
 
@@ -73,10 +80,6 @@ class TestAttributes:
 
         self.results_path = self.path/'results.json'
         self._results = None
-
-        # Set a logger more specific to this test.
-        if load:
-            self.load_attributes()
 
     ATTR_FILE_NAME = 'attributes'
 
@@ -135,7 +138,10 @@ class TestAttributes:
                     "Error deserializing attribute '{}' value '{}' for test "
                     "run '{}': {}".format(key, val, self.id, err.args[0]))
 
+        # Update the attributes with anything that was already set.
+        attrs.update(self._attrs)
         self._attrs = attrs
+        self._loaded = True
 
     def load_legacy_attributes(self, initial_attrs=None):
         """Try to load attributes in older Pavilion formats, primarily before

@@ -260,6 +260,14 @@ class SeriesInfo(SeriesInfoBase):
     of properties for a given series path. It should be replaced with
     something like TestAttributes in the future."""
 
+    def __init__(self, pav_cfg: config.PavConfig, path: Path, check_tests=False):
+        """
+        :param check_tests: Do a full scheduler check on tests that aren't marked as complete
+            when getting series completion status.
+        """
+
+        self._check_tests = check_tests
+
     def _find_tests(self):
         """Find all the tests for this series."""
         test_dict = common.LazyTestRunDict(self._pav_cfg, self.path)

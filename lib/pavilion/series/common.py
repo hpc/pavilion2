@@ -161,65 +161,76 @@ def set_complete(path, when: float = None) -> dict:
 # Call the series complete even if it wasn't marked as such.
 SERIES_COMPLETE_TIMEOUT = 3*60*60
 
-def _read_complete(series_path: Path) -> Union[dict, None]:
-    """Read the series completion file, if it exists, and return the completion data.
+def _read_complete(series_path: Path) -> Union[float, None]:
+    """Read the series completion file, if it exists, and return the completion timestamp.
     Returns None if the completion file doesn't exist or can't be read."""
 
     complete_fn = series_path/COMPLETE_FN
     if complete_fn.exists():
         try:
             with complete_fn.open() as complete_file:
-                return json.load(complete_file)
+                data = json.load(complete_file)
         except (OSError, json.decoder.JSONDecodeError):
             return None
 
+        # Handle badly formatted data
+        if isinstance(data, dict):
+            return data.get('when')
+        else:
+            return None
 
-def get_complete(pav_cfg: config.PavConfig, series_path: Path,
-                 check_tests: bool = False) -> Union[dict, None]:
-    """Check whether all the test sets in a series are complete.
-    :param check_tests: Check tests for completion and set completion if all
-        tests are complete. Will catch and ignore errors when setting completion."""
 
+def get_complete(pav_cfg: config.PavConfig, series_path: Path) -> Union[float, None]:
+    """Check whether all the test sets in a series are complete. Will set the
+    completion sentinal if the series is found to be complete.
+
+    Returns the completion timestamp.
+    """
+
+    # If the completion sentinal file exists, read it and return the timestamp
     if (series_path/COMPLETE_FN).exists():
         return _read_complete(series_path)
 
     if not (series_path/'test_sets').exists():
         return None
 
-    latest = None
-    # Get the latest completion time for each test set
-    # I any test set isn't complete, we're not done.
+    if (series_path/ALL_STARTED_FN).exists():
+        # All tests and test sets exists, so now just check if they're all done.
+        complete_ts = _all_test_sets_complete(pav_cfg, series_path) is not None:
+        if complete_ts is not None:
+            set_complete(series_path, latest)
+            return latest
+
+    # Not all tests have been started, but that could be because the series died.
+    # We use the status file as a heartbeat, check to see if it's been updated
+    # recently.
+    status_fn = series_path/STATUS_FN
+    try:
+        last_status = status_fn.stat().st_mtime
+    except (OSError, FileNotFoundError):
+        return None
+
+    if last_status + SERIES_COMPLETE_TIMEOUT < time.time():
+        set_complete(series_path, latest)
+        return last_status
+
+    return None
+
+def _all_test_sets_complete(pav_cfg: config.PavConfig, series_path: Path) -> Union[float, None]:
+    """Return the timestamp of the last test set to complete if all
+    sets that exist have completed. Otherwise return None."""
+
     for test_set_path in (series_path/'test_sets').iterdir():
         if not test_set_path.is_dir():
             continue
 
         ts_complete = get_test_set_complete(pav_cfg, test_set_path, check_tests)
         if ts_complete is None:
+            # Bail if any test sets aren't complete.
             return None
 
         if latest is None or latest < ts_complete:
             latest = ts_complete
-
-    if latest and (series_path/ALL_STARTED_FN).exists():
-        # All tests exist, so now it's just a matter of waiting for all test sets
-        # to complete (which they have if we're at this point)
-        set_complete(series_path, latest)
-        return latest
-
-    if latest is None:
-        try:
-            latest = series_path.stat().st_mtime
-        except OSError:
-            return None
-
-    # Set the series as complete if the last test set completed a while ago.
-    # There's no guarantee at this point that all test sets have even
-    # been created though.
-    if latest + SERIES_COMPLETE_TIMEOUT < time.time():
-        set_complete(series_path, latest)
-        return latest
-
-    return None
 
 def set_test_set_complete(test_set_path: Path, when: float):
     """Create a test set completion file and set it's timestamp."""
@@ -233,14 +244,11 @@ def set_test_set_complete(test_set_path: Path, when: float):
             pass
 
 
-def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path,
-                 check_tests: bool = False) -> Union[float, None]:
+def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path) -> Union[float, None]:
     """Get the test set completion timestamp. Returns None when not complete.
 
     :param pav_cfg: Pavilion configuration
     :param series_path: Path to the series
-    :param check_tests: Check tests for completion and set completion if all
-        tests are complete. Will catch and ignore errors when setting completion.
     """
 
     complete_fn = test_set_path/COMPLETE_FN
@@ -250,16 +258,17 @@ def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path,
         except OSError:
             return None
 
-    if check_tests:
-        latest = None
-        for test_path in dir_db.select(pav_cfg, test_set_path).paths:
-            complete_ts = TestAttributes(test_path).complete_time
+    latest = None
+    for test_path in dir_db.select(pav_cfg, test_set_path).paths:
+        complete_ts = TestAttributes(test_path).complete_time
 
-            if complete_ts is None:
-                return None
+        if complete_ts is None:
+            return None
 
-            if latest is None or complete_ts > latest:
-                latest = complete_ts
+        if latest is None or complete_ts > latest:
+            latest = complete_ts
+
+
 
         if latest is not None and latest + SERIES_COMPLETE_TIMEOUT < time.time():
             set_test_set_complete(test_set_path, latest)

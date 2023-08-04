@@ -282,6 +282,10 @@ appends of a size such that those writes should be atomic.
         self.path = path
         self._dummy = BytesIO() if path is None else None
 
+        # Keep track of the last time we touched the status file, so we don't
+        # do so too often.
+        self._last_touch = time.time()
+
         if self.path is not None and not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
             self.set(self.states.STATUS_CREATED, 'Created status file.')
@@ -427,6 +431,8 @@ could be wrong with the file format."""
     def _set(self, status_file, stinfo) -> TestStatusInfo:
         """Do the actual status setting step, given a file and the status object."""
 
+        self._last_touch = time.time()
+
         status_line = stinfo.status_line()
 
         try:
@@ -443,6 +449,24 @@ could be wrong with the file format."""
             isinstance(self, type(other)) and
             self.path == other.path
         )
+
+    # Max frequency for file TS updating.
+    TOUCH_RATE = 1
+
+    def touch(self):
+        """Touch the status file to update it's timestamp. This allows us to use the
+        status file as a heartbeat, even when we don't want to update the actual status."""
+
+        now = time.time()
+        if self._last_touch + self.TOUCH_RATE > now:
+            return
+
+        self._last_touch = now
+
+        try:
+            self.path.touch()
+        except OSError:
+            pass
 
 
 class SeriesStatusFile(TestStatusFile):
