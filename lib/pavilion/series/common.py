@@ -180,8 +180,6 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
     :param check_tests: Check tests for completion and set completion if all
         tests are complete. Will catch and ignore errors when setting completion."""
 
-    print('get complete')
-
     if (series_path/COMPLETE_FN).exists():
         return _read_complete(series_path)
 
