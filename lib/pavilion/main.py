@@ -31,13 +31,17 @@ except ImportError:
                               "dependencies?")
 
 
+MIN_SUPPORTED_MINOR_VERSION = 6
+SUPPORTED_MAJOR_VERSION = 3
+
 # pylint: disable=broad-except
 def main():
     """Setup Pavilion and run a command."""
 
     # Pavilion is compatible with python >= 3.4
-    if sys.version_info[0] != 3 or sys.version_info[1] < 5:
-        output.fprint(sys.stderr, "Pavilion requires python 3.5 or higher.", color=output.RED)
+    if (sys.version_info[0] != SUPPORTED_MAJOR_VERSION 
+            or sys.version_info[1] < MIN_SUPPORTED_MINOR_VERSION):
+        output.fprint(sys.stderr, "Pavilion requires python 3.6 or higher.", color=output.RED)
         sys.exit(-1)
 
     # This has to be done before we initialize plugins
