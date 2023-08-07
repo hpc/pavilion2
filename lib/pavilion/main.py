@@ -39,7 +39,7 @@ def main():
     """Setup Pavilion and run a command."""
 
     # Pavilion is compatible with python >= 3.4
-    if (sys.version_info[0] != SUPPORTED_MAJOR_VERSION 
+    if (sys.version_info[0] != SUPPORTED_MAJOR_VERSION
             or sys.version_info[1] < MIN_SUPPORTED_MINOR_VERSION):
         output.fprint(sys.stderr, "Pavilion requires python 3.6 or higher.", color=output.RED)
         sys.exit(-1)
