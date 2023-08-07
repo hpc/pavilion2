@@ -43,15 +43,10 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         status_f.note = ' '.join([
             status_f.note, '\nLast updated: ',
             str(last_update) if last_update is not None else '<unknown>'])
-#<<<<<<< HEAD
-#    elif status_f.state == STATES.RUNNING or test.scheduler == "flux":
-#=======
-
     elif status_f.state in STATES.RUNNING:
         # When running check for recent run log updates, and check the
         # scheduler if things have gone on too long.
 
-#>>>>>>> 7508b173df69f703309a73adb20e220788319cac
         log_path = test.path/'run.log'
         if log_path.exists():
             mtime = log_path.stat().st_mtime
