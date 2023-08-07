@@ -1,7 +1,9 @@
 # pylint: disable=too-many-lines
 """The Flux Framework Scheduler Plugin."""
 
-import os, sys, subprocess
+import os
+import sys
+import subprocess
 import time
 from typing import List, Union, Any, Tuple
 
@@ -26,28 +28,9 @@ try:
     import flux.job
     import flux.resource
     from flux.job import JobspecV1
+    HAS_FLUX = True
 except ImportError:
-    minor_version = sys.version_info.minor
-    if minor_version < 6:
-        message = "Python minor version {} is too low.".format(minor_version)
-        raise ImportError(message)
-    flux_path = None
-    for i in range(minor_version, 5, -1):
-        test_flux_path = "/usr/lib64/flux/python3." + str(minor_version)
-        if not os.path.exists(test_flux_path):
-            pass
-        else:
-            flux_path = test_flux_path
-            break
-    sys.path.append(flux_path)
-    try:
-        import flux
-        import flux.hostlist
-        import flux.job
-        import flux.resource
-        from flux.job import JobspecV1
-    except ImportError:
-        flux = None
+    HAS_FLUX = False
 
 flux_states = [
     "DEPEND",
@@ -263,10 +246,10 @@ class Flux(SchedulerPluginAdvanced):
         jobid = flux.job.job_list_id(parent_handle, child_jobid).get_jobinfo()
 
         # Get compressed nodelist
-        nodes = jobid._nodelist
+        nodes = jobid._nodelist  # pylint: disable=protected-access
         # Expand the nodelist as necessary
         # Either it's a single node and just needs to be in a list
-        if jobid._nnodes == 1:
+        if jobid._nnodes == 1:  # pylint: disable=protected-access
             nodes = [nodes]
         # Or, it's a compressed format of a node list and must be expanded
         elif not isinstance(nodes, list):
@@ -304,7 +287,8 @@ class Flux(SchedulerPluginAdvanced):
         """
         Ensure we can import and talk to flux.
         """
-        return flux is not None
+
+        return HAS_FLUX
 
     def _kickoff(self, pav_cfg, job: Job, sched_config: dict, job_name: str,
                  nodes: Union[NodeList, None] = None,
@@ -347,8 +331,8 @@ class Flux(SchedulerPluginAdvanced):
         flux_return = flux.job.submit(flux.Flux(), fluxjob)
 
         jobid = flux_return
-        job._jobid = str(jobid)
-        job._submit_time = time.time()
+        job._jobid = str(jobid)  # pylint: disable=protected-access
+        job._submit_time = time.time()  # pylint: disable=protected-access
         sys_name = sys_vars.get_vars(True)["sys_name"]
 
         return JobInfo(
@@ -406,9 +390,8 @@ class Flux(SchedulerPluginAdvanced):
             return TestStatusInfo(
                 state=STATES.BUILD_WAIT,
                 note=(
-                    "Job is waiting for a dependency or priority assignment. Has job state {}".format(
-                        flux_job.state
-                    )
+                    "Job is waiting for a dependency or priority assignment. "
+                    "Has job state {}".format(flux_job.state)
                 ),
                 when=time.time(),
             )

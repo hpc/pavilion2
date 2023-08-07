@@ -618,9 +618,8 @@ index, sub_var) tuple.
         while time.time() - start < 100:
             try:
                 tmp_path.rename(path)
-                print('tmp_testing', tmp_path, path, tmp_path.exists(), path.exists(), path.parent.exists())
                 break
-            except (FileNotFoundError):
+            except FileNotFoundError:
                 continue
 
     @classmethod

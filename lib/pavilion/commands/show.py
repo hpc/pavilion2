@@ -182,8 +182,8 @@ class ShowCommand(Command):
         nodes_parser = subparsers.add_parser(
             'nodes',
             help="Show node status for the current machine, from Pavilion's perspective.",
-            description="""Display a table of information on the current state 
-            of system nodes for a given scheduler."""
+            description="Display a table of information on the current state of "
+                        "system nodes for a given scheduler."
         )
 
         nodes_plugins = []
@@ -635,7 +635,9 @@ class ShowCommand(Command):
 
     @sub_cmd()
     def _nodes_cmd(self, pav_cfg, args):
-        
+        """Lists the nodes as seen by a given scheduler."""
+        # pylint: disable=protected-access
+
         sched = schedulers.get_plugin(args.scheduler)
 
         if args.test is not None:
@@ -643,7 +645,7 @@ class ShowCommand(Command):
                 rslvr = resolver.TestConfigResolver(pav_cfg)
                 ptests = rslvr.load([args.test])
             except errors.TestConfigError as err:
-                output.fprint(self.errfile, 
+                output.fprint(self.errfile,
                               "Could not load test {}\n{}"
                               .format(args.test, err.pformat()))
                 return errno.EINVAL
@@ -655,7 +657,6 @@ class ShowCommand(Command):
                     if not test.skipped:
                         break
                 except errors.PavilionError as err:
-                    print(err)
                     continue
 
             if test is not None:
