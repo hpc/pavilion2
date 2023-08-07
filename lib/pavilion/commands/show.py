@@ -695,11 +695,8 @@ class ShowCommand(Command):
             field_info={
                 'partitions': {'transform': lambda f: ', '.join(sorted(f))},
                 'states': {'transform': lambda f: ', '.join(sorted(f))},
-            },
-
+                },
             )
-
-
 
     @sub_cmd('pav_vars', 'pav_var', 'pav')
     def _pavilion_variables_cmd(self, pav_cfg, _):
