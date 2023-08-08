@@ -492,7 +492,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             _, max_nodes = node_range = acq_opts[0]
             # Schedule all these tests in one allocation. Chunked tests are already spread across
             # chunks, and these non-chunked tests are explicitly set to use one allocation.
-            if chunking_enabled or use_same_nodes:
+            if chunking_enabled or use_same_nodes or max_nodes is None:
                 errors.extend(self._schedule_shared(pav_cfg, tests, node_range,
                                                     sched_configs, chunk))
             # Otherwise, we need to bin the tests so they are spread across the machine.
@@ -674,6 +674,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             sched_config = sched_configs[test.full_id]
 
             min_nodes, max_nodes = calc_node_range(sched_config, chunk_size)
+            if max_nodes is None:
+                max_nodes = chunk_size
             needed_nodes = min(max_nodes, chunk_size)
 
             by_need.append((needed_nodes, test))
