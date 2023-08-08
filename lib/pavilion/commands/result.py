@@ -194,7 +194,8 @@ class ResultsCommand(Command):
             output.fprint(
                 self.errfile,
                 "One or more of the requested tests never completed, and therefore have no "
-                "results to 're-run'. Check the status and/or logs for these tests to see why:",
+                "results to 're-run'. Check the status and/or logs for these tests to see why:\n"
+                + ", ".join([test.full_id for test in skipped_reruns]),
                 color=output.YELLOW)
 
         return 0
