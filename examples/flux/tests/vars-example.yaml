@@ -1,0 +1,43 @@
+variable-formats:
+
+    variables:
+        single_value: "hello"
+
+        # A variable can be a list of values.
+        multi_value:
+            - "thing1"
+            - "thing2"
+
+        # A variable can be a single dictionary/mapping.
+        structured_value:
+            name: "Bob"
+            moniker: "bobzilla"
+            uid: "2341"
+
+        # Or a list of mappings, as long as they have the same keys.
+        more_structured_values:
+            - name: Paul
+              moniker: "paulblematic"
+            - name: Nick
+              moniker: "nickelback"
+            - name: Francine
+              moniker: "frantastic"
+
+    run:
+        cmds:
+            # You can use most variables just about anywhere in the test config,
+            # not just here.
+
+            # As seen in the prior example.
+            - 'echo {{single_value}}'
+
+            # You can access individual list items like this, counting from 0.
+            - 'echo "{{multi_value.0}} {{multi_value.1}}"'
+            # If you want the first item, the index is optional.
+            - 'echo "{{multi_value}}"'
+
+            # For structured values, you have to specify a sub-key
+            - 'echo "My name is {{structured_value.name}}"'
+            - 'echo "Your name is {{more_structured_values.1.name}}"'
+            # If you leave out the index, you still get the first item:
+            - 'echo "Your other name is {{more_structured_values.name}}"'
