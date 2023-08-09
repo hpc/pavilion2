@@ -31,15 +31,15 @@ try:
     from flux.job import JobspecV1
     HAS_FLUX = True
 except ImportError:
-    _minor_version = sys.version_info.minor
-    _flux_path = None
-    for i in range(_minor_version, 5, -1):
-        _flux_path = "/usr/lib64/flux/python3.{}".format(_minor_version)
-        if os.path.exists(_flux_path):
+    _MINOR_VERSION = sys.version_info.minor
+    _FLUX_PATH = None
+    for i in range(_MINOR_VERSION, 5, -1):
+        _FLUX_PATH = "/usr/lib64/flux/python3.{}".format(_MINOR_VERSION)
+        if os.path.exists(_FLUX_PATH):
             break
 
-    if _flux_path is not None:
-        sys.path.append(_flux_path)
+    if _FLUX_PATH is not None:
+        sys.path.append(_FLUX_PATH)
         try:
             import flux
             import flux.hostlist
