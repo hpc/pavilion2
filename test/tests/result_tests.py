@@ -814,7 +814,7 @@ class ResultParserTests(PavTestCase):
             ('result', '--re-run', bad_test.full_id))
         self.assertEqual(result_cmd.run(self.pav_cfg, res_args), 0)
         out, err = result_cmd.clear_output()
-        self.assertIn('test.4', err)
+        self.assertIn(bad_test.full_id, err)
 
     def test_re_search(self):
         """Check basic re functionality."""
