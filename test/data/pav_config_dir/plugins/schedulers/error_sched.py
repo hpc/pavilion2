@@ -24,7 +24,7 @@ class Error(schedulers.SchedulerPluginAdvanced):
 
         sched_vars = super().get_initial_vars(raw_sched_config)
 
-        if config['nodes'] % 2 == 0:
+        if config['nodes'] is not None and config['nodes'] % 2 == 0:
             sched_vars.add_errors(["You can't ask for an even number of nodes."])
 
         return sched_vars

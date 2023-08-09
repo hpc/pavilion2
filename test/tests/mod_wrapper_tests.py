@@ -192,12 +192,12 @@ class ModWrapperTests(PavTestCase):
             # test_mod1 only gets added once (no dups)
             'echo "${TEST_MODULE_NAME}"',
             'echo "${TEST_MODULE_VERSION}"',
-            'echo "${vers_sorted}"',
-            'echo "${mods_sorted}"',
+            'echo "vers ${vers_sorted}"',
+            'echo "mods ${mods_sorted}"',
             '[[ "${mods_sorted}" = "test_mod1:test_mod2:test_mod3" ]] || '
             'exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ "${vers_sorted}" = "1.1:4.0::" ]] || exit 1',
+            '[[ "${vers_sorted}" = "1.1:4.0:" ]] || exit 1',
         ]
 
         test = self._quick_test(test_cfg)
