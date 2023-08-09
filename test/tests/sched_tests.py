@@ -557,6 +557,35 @@ class SchedTests(PavTestCase):
             test.finalize(var_man)
             self.assertEqual(int(test.var_man['sched.tasks_per_node']), exp_tpn)
 
+    def test_task_based(self):
+        """Tests that we can schedule by task instead of just node."""
+
+        # Using the dummy scheduler to test the feature
+        dummy = pavilion.schedulers.get_plugin('dummy')
+
+        for sched_config in (
+                {'tasks': '21'},
+                {'tasks': '21', 'nodes': '2'},
+                {'tasks': '21', 'min_nodes': '1', 'nodes': '2'},
+                {'tasks': '21', 'min_nodes': '1'},
+                {'tasks': '21', 'share_allocation': 'False'},
+                {'tasks': '21', 'share_allocation': 'max', 'nodes': '2'},):
+
+            test_cfg = self._quick_test_cfg()
+            test_cfg['run']['cmds'] = ['echo "tasks: {{sched.tasks_total}}"']
+            test_cfg['scheduler'] = 'dummy'
+            test_cfg['schedule'] = sched_config
+
+            test = self._quick_test(test_cfg, finalize=False)
+            test2 = self._quick_test(test_cfg, finalize=False)
+            dummy.schedule_tests(self.pav_cfg, [test, test2])
+            test.wait()
+            test2.wait()
+            self.assertIn("tasks: 21", (test.path/'run.log').open().read())
+
+        self.assertIn("tasks: 21", (test.path/'run.log').open().read())
+
+
     def test_wrapper(self):
         """Tests the wrapper feature in the schedule section"""
 

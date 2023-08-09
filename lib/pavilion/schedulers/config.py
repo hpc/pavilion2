@@ -48,6 +48,11 @@ class ScheduleConfig(yc.KeyedElem):
                       "great for large tests over a many/all nodes, especially on "
                       "large systems where node setup/cleanup takes a while."),
         yc.StrElem(
+            'tasks',
+            help_text="The total number of tasks to run, across all nodes. How this "
+                      "interacts with 'tasks_per_node' is scheduler dependent. Under "
+                      "slurm, tasks_per_node becomes the maximum tasks per node."),
+        yc.StrElem(
             'tasks_per_node',
             help_text="The number of tasks to start per node. This can be"
                       "an integer, the keyword 'all', or a percentage."
@@ -79,7 +84,6 @@ class ScheduleConfig(yc.KeyedElem):
                       "select nodes regardless of reservation."),
         yc.StrElem(
             'time_limit',
-            default='1',
             help_text="The job time limit in hours. It is assumed that this is used to "
                       "increase time the time limit beyond the cluster default. "
                       "Tests that share an allocation share the largest given time "
@@ -483,6 +487,7 @@ CONFIG_VALIDATORS = {
         'extra':          NODE_EXTRA_OPTIONS,
     },
     'tasks_per_node':   _validate_tasks_per_node,
+    'tasks':            min_int('tasks', min_val=1, required=False),
     'min_tasks_per_node': min_int('min_tasks_per_node', min_val=1, required=False),
     'node_state':       NODE_STATE_OPTIONS,
     'partition':        None,
@@ -510,8 +515,8 @@ CONFIG_VALIDATORS = {
 }
 
 CONFIG_DEFAULTS = {
-    'nodes':            '1',
-    'min_nodes':        '0',
+    'nodes':            None,
+    'min_nodes':        None,
     'chunking':         {
         'size':           '0',
         'node_selection': CONTIGUOUS,
@@ -519,6 +524,7 @@ CONFIG_DEFAULTS = {
     },
     'tasks_per_node':   '1',
     'min_tasks_per_node': None,
+    'tasks': None,
     'node_state':       UP,
     'partition':        None,
     'qos':              None,
@@ -529,7 +535,7 @@ CONFIG_DEFAULTS = {
     'across_nodes':     [],
     'include_nodes':    [],
     'exclude_nodes':    [],
-    'time_limit':       None,
+    'time_limit':       '1',
     'cluster_info':     {
         'node_count': '1',
         'mem':        '1000',
@@ -624,18 +630,26 @@ def _validate_config(config: Dict[str, str],
 def calc_node_range(sched_config, node_count) -> Tuple[int, int]:
     """Calculate a node range for the job given the min_nodes and nodes, and
     the number of nodes available (for percentages. Returns the calculated min and max.
+    The max_nodes may be undefined (None), but the minimum nodes is always at least 1.
     """
 
     nodes = sched_config['nodes']
-    if isinstance(nodes, float):
-        nodes = math.ceil(nodes * node_count)
-    nodes = max(nodes, 1)
-
     min_nodes = sched_config['min_nodes']
+    tasks = sched_config['tasks']
+
+    # If we're not defining the allocation by purely tasks, set a node count of 1.
+    if tasks is None and nodes is None:
+        nodes = 1
+
+    if isinstance(nodes, float):
+        nodes = max(math.ceil(nodes * node_count), 1)
+
     if min_nodes in (None, 0):
         min_nodes = nodes
     elif isinstance(min_nodes, float):
-        min_nodes = math.ceil(min_nodes * node_count)
-        min_nodes = max(min_nodes, 1)
+        min_nodes = max(math.ceil(min_nodes * node_count), 1)
+
+    if min_nodes is None:
+        min_nodes = 1
 
     return min_nodes, nodes
