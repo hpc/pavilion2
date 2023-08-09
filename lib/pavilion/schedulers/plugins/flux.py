@@ -22,6 +22,7 @@ from ...errors import SchedulerPluginError
 
 
 # Just import flux once
+HAS_FLUX = False
 try:
     import flux
     import flux.hostlist
@@ -30,7 +31,25 @@ try:
     from flux.job import JobspecV1
     HAS_FLUX = True
 except ImportError:
-    HAS_FLUX = False
+    _minor_version = sys.version_info.minor
+    _flux_path = None
+    for i in range(_minor_version, 5, -1):
+        _flux_path = "/usr/lib64/flux/python3.{}".format(_minor_version)
+        if os.path.exists(_flux_path):
+            break
+
+    if _flux_path is not None:
+        sys.path.append(_flux_path)
+        try:
+            import flux
+            import flux.hostlist
+            import flux.job
+            import flux.resource
+            from flux.job import JobspecV1
+            HAS_FLUX = True
+        except ImportError:
+            pass
+
 
 flux_states = [
     "DEPEND",
