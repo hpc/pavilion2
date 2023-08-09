@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import shutil
 from typing import NewType, List, Tuple, Union, Dict
+import uuid
 
 from pavilion import config
 from pavilion.errors import TestGroupError
@@ -22,10 +23,12 @@ class TestGroup:
     GROUPS_DIR = 'groups'
     TESTS_DIR = 'tests'
     SERIES_DIR = 'series'
+    EXCLUDED_DIR = 'excluded'
 
     TEST_ITYPE = 'test'
     SERIES_ITYPE = 'series'
     GROUP_ITYPE = 'group'
+    EXCL_ITYPE = 'test*'
 
     group_name_re = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]+$')
 
@@ -53,7 +56,7 @@ class TestGroup:
             raise TestGroupError("Could not create group dir at '{}'"
                                  .format(self.path), prior_error=err)
 
-        for category in self.TESTS_DIR, self.SERIES_DIR, self.GROUPS_DIR:
+        for category in self.TESTS_DIR, self.SERIES_DIR, self.GROUPS_DIR, self.EXCLUDED_DIR:
             cat_dir = self.path/category
             try:
                 cat_dir.mkdir(exist_ok=True)
@@ -156,7 +159,15 @@ class TestGroup:
                 "Error getting sub groups for group '{}'"
                 .format(self.name), prior_error=err)
 
-        return tests
+        # Filter out any excluded tests.
+        excluded_paths = list(self._excluded().values())
+        tests = [test_path.resolve() for test_path in tests]
+        return [test_path for test_path in tests if test_path not in excluded_paths]
+
+    def _has_test(self, test_path: Path) -> bool:
+        """Return True if the given test path is included anywhere in the group."""
+
+        return test_path in self.tests()
 
     def add(self, items: FlexDescr) -> Tuple[List[str], List[TestGroupError]]:
         """Add each of the given items to the group. Accepts TestRun, TestSeries, and TestGroup
@@ -216,9 +227,24 @@ class TestGroup:
                                    prior_error=err))
                 continue
 
+            if itype == self.TEST_ITYPE:
+                if iname in self._excluded():
+                    try:
+                        self._remove_excluded(iname)
+                    except TestGroupError as err:
+                        warnings.append(
+                            TestGroupError(
+                                "Could not remove exclusion for test {}.".format(iname),
+                                prior_error=err))
+
+                    if self._has_test(dest_path):
+                        added.append((self.EXCL_ITYPE, iname))
+                        continue
+
             try:
                 # For tests and series, symlink to their directories.
                 if itype in (self.TEST_ITYPE, self.SERIES_ITYPE):
+                    # Add the item, unless it just needed to be un-excluded.
                     item_path.symlink_to(dest_path)
                 # For groups, just touch a file of that name (prevents symlink loops).
                 else:
@@ -241,6 +267,8 @@ class TestGroup:
         if not isinstance(items, list):
             items = [items]
 
+        all_tests = None
+
         for item in items:
             if isinstance(item, int):
                 item = str(item)
@@ -248,6 +276,25 @@ class TestGroup:
             itype, rmpath = self._get_member_info(item)
 
             if not rmpath.exists():
+                if itype == self.TEST_ITYPE:
+                    try:
+                        t_full_id, t_path = self._get_test_info(rmpath.name)
+                    except TestGroupError as err:
+                        warnings.append(
+                            TestGroupError(
+                                "Could not exclude item {}.".format(item),
+                                prior_error=err))
+                        continue
+
+                    # Check to see if this is in our list of tests at all.
+                    if all_tests is None:
+                        all_tests = self.tests()
+
+                    if t_path in all_tests:
+                        self._add_excluded(t_full_id, t_path)
+                        removed.append((self.EXCL_ITYPE, t_full_id))
+                        continue
+
                 warnings.append(
                 	TestGroupError("Given {} '{}' to remove, but it is not in group '{}'."
                                    .format(itype, item, self.name)))
@@ -543,3 +590,61 @@ class TestGroup:
                 return self.GROUP_ITYPE, self.path/self.GROUPS_DIR/item
         else:
             raise TestGroupError("Invalid group item '{}' given for removal.".format(item))
+
+    def _excluded(self) -> Dict[str, Path]:
+        """Excluded items are items that are in series or sub-groups that were deleted
+        from this group.
+
+        Returns a dict of excluded test id's and the test directories they point to.
+        """
+
+        excluded = {}
+        try:
+            for test_path in (self.path/self.EXCLUDED_DIR).iterdir():
+                full_id = test_path.name
+                test_path = test_path.resolve()
+                if test_path.exists():
+                    excluded[full_id] = test_path
+        except (OSError, FileNotFoundError):
+            pass
+
+        return excluded
+
+    def _add_excluded(self, full_id: str, test_path: Path):
+        """Add the given test path to the excluded directory."""
+
+        path = self.path/self.EXCLUDED_DIR/full_id
+
+        try:
+            if not path.exists():
+                path.symlink_to(test_path)
+        except (OSError, FileNotFoundError) as err:
+            raise TestGroupError(
+                "Could not create test exclusion record at {}".format(path),
+                prior_error=err)
+
+    def _remove_excluded(self, full_id: str):
+        """Remove the test from the exclusion records."""
+
+        path = self.path/self.EXCLUDED_DIR/full_id
+
+        try:
+            if path.exists():
+                path.unlink()
+        except (OSError, FileNotFoundError) as err:
+            raise TestGroupError(
+                "Could not remove test exclusion record at {}".format(path),
+                prior_error=err)
+
+    def _clean_excluded(self):
+        """Remove any dead links from the exclusion records."""
+
+        root_path = self.path/self.EXCLUDED_DIR
+
+        for full_id, path in self._excluded().items():
+            if not path.exists():
+                ex_path = root_path/full_id
+                try:
+                    ex_path.unlink()
+                except (OSError, FileNotFoundError) as err:
+                    pass

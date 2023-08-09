@@ -1,10 +1,11 @@
-from pavilion import unittest
-from pavilion import groups
-from pavilion.errors import TestGroupError
-from pavilion import series
-from pavilion.series_config import generate_series_config
-from pavilion import commands
 from pavilion import arguments
+from pavilion import commands
+from pavilion import groups
+from pavilion import series
+from pavilion import unittest
+from pavilion.errors import TestGroupError
+from pavilion.series_config import generate_series_config
+from pavilion.test_run import TestRun
 
 import shutil
 import uuid
@@ -126,6 +127,35 @@ class TestGroupTests(unittest.PavTestCase):
         removed, errors = group.remove(['nope', 'a.1', 'test.982349842', 's1234981234'])
         self.assertEqual(removed, [])
         self.assertEqual(len(errors), 4)
+
+    def test_group_exclusions(self):
+        """Check that excluded tests are handled properly."""
+
+        group, (btest, series1, sub_group) = self._make_example()
+        group.add([btest, series1, sub_group])
+
+        # Remove the tests from the series and sub_group.
+        s_test = list(series1.tests.values())[0]
+        g_test = sub_group.tests()[0]
+        g_test = g_test.resolve()
+        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], int(g_test.name))
+
+        removed, warnings = group.remove([g_test, s_test])
+        self.assertEqual(warnings, [])
+        removed.sort()
+        answer = sorted([(group.EXCL_ITYPE, s_test.full_id),
+                         (group.EXCL_ITYPE, g_test.full_id)])
+        self.assertEqual(removed, answer)
+        self.assertEqual(group._excluded(), {s_test.full_id: s_test.path,
+                                             g_test.full_id: g_test.path})
+        self.assertEqual(group.tests(), [btest.path])
+
+        group.remove([sub_group.name])
+
+        added, warnings = group.add([s_test, g_test])
+        self.assertEqual(sorted(added), [('test',  g_test.full_id),
+                                         ('test*', s_test.full_id)])
+        self.assertEqual(warnings, [])
 
     def test_group_clean(self):
         """Check that cleaning works as expected."""
