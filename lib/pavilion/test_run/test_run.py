@@ -508,11 +508,6 @@ class TestRun(TestAttributes):
             with tmp_path.open('w') as config_file:
 
                 yaml.dump(config, config_file)
-                try:
-                    config_path.unlink()
-                except OSError:
-                    pass
-                tmp_path.rename(config_path)
         except (OSError, IOError) as err:
             raise TestRunError(
                 "Could not save TestRun ({}) config at {}"
@@ -521,6 +516,19 @@ class TestRun(TestAttributes):
             raise TestRunError(
                 "Invalid type in config for ({})"
                 .format(self.name), err)
+
+        try:
+            config_path.unlink()
+        except (OSError, FileNotFoundError):
+            pass
+
+        start = time.time()
+        while time.time() - start < 100:
+            try:
+                tmp_path.rename(config_path)
+                break
+            except FileNotFoundError:
+                continue
 
     @classmethod
     def _load_config(cls, test_path):
