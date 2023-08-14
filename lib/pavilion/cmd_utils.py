@@ -475,7 +475,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
 
     return load_tests(pav_cfg, test_id_pairs, errfile)
 
-def get_testset_name(tests: List['str'], files: List['str']):
+def get_testset_name(pav_cfg, tests: List['str'], files: List['str']):
     """Generate the name for the set set based on the test input to the run command.
     """
     # Expected Behavior:
@@ -493,7 +493,7 @@ def get_testset_name(tests: List['str'], files: List['str']):
     #       foo.a and foo.b being specified in both areas
     if files:
         files = [Path(filepath) for filepath in files]
-        file_tests = read_test_files([file.absolute() for file in files])
+        file_tests = read_test_files(pav_cfg, [file.absolute() for file in files])
         tests = list(set(tests) - set(file_tests))
 
     # Here we generate a dictionary mapping tests to the suites they belong to
