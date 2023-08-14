@@ -74,17 +74,15 @@ class ViewCommand(run.RunCommand):
 
         self.logger.debug("Finding Configs")
 
-        res = resolver.TestConfigResolver(pav_cfg)
+        res = resolver.TestConfigResolver(pav_cfg, host=args.host, outfile=self.outfile)
 
         tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
 
         try:
             proto_tests = res.load(
-                host=args.host,
                 tests=tests,
                 modes=args.modes,
                 overrides=overrides,
-                outfile=self.outfile,
             )
         except CommandError as err:
             fprint(self.errfile, err, color=output.RED)

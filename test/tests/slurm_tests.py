@@ -56,7 +56,7 @@ class SlurmTests(PavTestCase):
             self.slurm_mode = {}
 
     def _get_job(self, match, test):
-        """Get a job id that from a job that contains match.
+        """Get a job id from a job that contains match.
         :param str match: The string to look for in the job id.
         :return: A job id.
         """
@@ -86,6 +86,9 @@ class SlurmTests(PavTestCase):
                     'sys_name': sys_vars.get_vars(True)['sys_name']
                 }
                 return job
+
+        # No job found
+        return None 
 
     def test_node_list_parsing(self):
         """Make sure the node list regex matches what it's supposed to."""
@@ -176,7 +179,7 @@ class SlurmTests(PavTestCase):
         if job is not None:
             test.job = job
             status = slurm.job_status(self.pav_cfg, test)
-            self.assertEqual(status.state, STATES.SCHED_RUNNING,
+            self.assertEqual(status.state, STATES.SCHED_STARTUP,
                              msg="Got status {} instead".format(status))
 
         # Steal a canceled jobs id
@@ -194,7 +197,7 @@ class SlurmTests(PavTestCase):
         test.status.set(STATES.SCHEDULED, "not really though.")
         test.job = self._get_job('JobState=COMPLETED', test)
         sched_status = slurm.job_status(self.pav_cfg, test)
-        self.assertEqual(sched_status.state, STATES.SCHED_RUNNING)
+        self.assertEqual(sched_status.state, STATES.SCHED_STARTUP)
         self.assertIn('COMPLETED', sched_status.note)
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
@@ -268,6 +271,26 @@ class SlurmTests(PavTestCase):
         self.assertIsNone(slurm.cancel(test.job.info))
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_schedule_tasks(self):
+        """Try to schedule a test based on tasks."""
+
+        slurm = pavilion.schedulers.get_plugin('slurm')
+        cfg = self._quick_test_cfg()
+        cfg.update(self.slurm_mode)
+        cfg['schedule']['tasks'] = 27
+        cfg['scheduler'] = 'slurm'
+        test = self._quick_test(cfg=cfg, name='slurm_test', finalize=False)
+
+        slurm.schedule_tests(self.pav_cfg, [test])
+
+        status = slurm.job_status(self.pav_cfg, test)
+
+        self.assertEqual(status.state, STATES.SCHEDULED)
+
+        self.assertIsNone(slurm.cancel(test.job.info))
+
+
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_cancel(self):
         """Try to schedule a test. We don't actually need to get nodes."""
 
@@ -323,6 +346,7 @@ class SlurmTests(PavTestCase):
         cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
         cfg['schedule']['nodes'] = '3'
         cfg['schedule']['node_state'] = 'available'
+        cfg['schedule']['share_allocation'] = 'max'
         cfg['schedule']['slurm'] = {
             'sbatch_extra': ['--comment "Hiya!"'],
             'srun_extra': ['--comment "Howdy!"'],
@@ -423,11 +447,13 @@ class SlurmTests(PavTestCase):
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
         cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['modules'] = ['gcc', 'openmpi']
         cfg['schedule']['nodes'] = '5'
         cfg['schedule']['slurm'] = {
-            'mpi_cmd': 'mpirun',
-            'mpirun_bind_to': 'core',
-            'mpirun_rank_by': 'core',
+            'mpi_cmd': 'mpirun'}
+        cfg['schedule']['mpirun_opts'] = {
+            'bind_to': 'core',
+            'rank_by': 'core',
             }
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg=cfg, name='slurm_test', finalize=False)
@@ -444,11 +470,12 @@ class SlurmTests(PavTestCase):
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
         cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['modules'] = ['gcc', 'openmpi']
         cfg['schedule']['nodes'] = '1'
-        cfg['schedule']['slurm'] = {
-            'mpi_cmd': 'mpirun',
-            'mpirun_mca': ['btl self'],
-            }
+        cfg['schedule']['slurm'] = {'mpi_cmd': 'mpirun'}
+        cfg['schedule']['mpirun_opts'] = {
+            'mca': ['btl self'],
+        }
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg=cfg, name='slurm_test', finalize=False)
 

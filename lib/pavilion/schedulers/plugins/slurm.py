@@ -68,11 +68,20 @@ slurm kickoff script.
             lines.append('#SBATCH -x {}'
                          .format(Slurm.compress_node_list(self._exclude_nodes)))
 
-        if self._node_min == self._node_max:
-            nodes = self._node_max
+        if self._node_max is None:
+            # The job is defined by # of tasks.
+            if self._node_min != 1:
+                lines.append('#SBATCH --nodes {}'.format(self._node_min))
+        elif self._node_min != self._node_max:
+            # Specify a node range.
+            lines.append('#SBATCH --nodes {}-{}'.format(self._node_min, self._node_max))
         else:
-            nodes = '{}-{}'.format(self._node_min, self._node_max)
-        lines.append('#SBATCH -N {}'.format(nodes))
+            # Specify the minimum number of nodes.
+            lines.append('#SBATCH --nodes {}'.format(self._node_min))
+
+        tasks = self._config['tasks']
+        if tasks is not None:
+            lines.append('#SBATCH --ntasks {}'.format(tasks))
 
         for line in self._config['slurm']['sbatch_extra']:
             lines.append('#SBATCH {}'.format(line))
@@ -134,7 +143,10 @@ class SlurmVars(SchedulerVariables):
         slurm_conf = self._sched_config['slurm']
 
         nodes = len(self._nodes)
-        tasks = int(self.tasks_per_node()) * nodes
+
+        tasks = self._sched_config['tasks']
+        if tasks is None:
+            tasks = int(self.tasks_per_node()) * nodes
 
         if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
             # cmd: srun
@@ -151,7 +163,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd = ['mpirun']
 
-            cmd.extend(self.mpirun_cmd())
+            cmd.extend(self.mpirun_opts())
 
             hostlist = ','.join(self._nodes.keys())
             cmd.extend(['--host', hostlist])
@@ -436,7 +448,6 @@ class Slurm(SchedulerPluginAdvanced):
                 seq_format = '{base}{z}[{num_list}]'
             else:
                 seq_format = '{base}{z}{num_list}'
-
             node_seqs.append(
                 seq_format
                 .format(base=base, z='0' * pre_digits, num_list=num_list))
@@ -547,8 +558,8 @@ class Slurm(SchedulerPluginAdvanced):
 
     def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
             -> Union[str, None]:
-        """Filter nodes by features. (Returns why a nodes should be filtered out, or None if it
-        shoulded be."""
+        """Filter nodes by features. (Returns why a node should be filtered out, or None if it
+        shouldn't be."""
 
         _ = self
 

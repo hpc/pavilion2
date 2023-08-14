@@ -433,12 +433,8 @@ These sub-sections defines conditions under which tests are skipped.
 
 See :ref:`tests.skip_conditions` for the sub-section keys and usage.
 
-<schedulers>
-~~~~~~~~~~~~
+<schedule>
+~~~~~~~~~~
 
-Each loaded scheduler plugin defines a sub-section for configuring that
-scheduler, such as ``slurm`` and ``raw``.
-
-To see documentation on these, use
-``pav show sched --config <scheduler>`` to get the config documentation
-for that scheduler.
+Settings for controlling test scheduling. See ``pav show sched --config`` for
+all the schedule options.

@@ -1,0 +1,7 @@
+# Make sure we give the user useful info
+# when a collection key is misplaced.
+
+collect:
+  result_parse:
+    foo:
+      regex: '1234'

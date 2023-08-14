@@ -1,7 +1,7 @@
 import sys
 
 import pavilion.deferred
-from pavilion.resolver import variables
+from pavilion import variables
 from pavilion.errors import VariableError, DeferredError
 from pavilion.unittest import PavTestCase
 

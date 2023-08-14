@@ -16,8 +16,8 @@ from pavilion import module_wrapper
 from pavilion import output
 from pavilion import plugins
 from pavilion import result_parsers
+from pavilion import variables
 from pavilion import sys_vars
-from pavilion.resolver import variables
 from pavilion.unittest import PavTestCase
 
 LOGGER = logging.getLogger(__name__)

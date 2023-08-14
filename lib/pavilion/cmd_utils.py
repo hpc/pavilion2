@@ -8,20 +8,48 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import List, TextIO
+from typing import List, TextIO, Union
 
 from pavilion import config
 from pavilion import dir_db
 from pavilion import filters
+from pavilion import groups
 from pavilion import output
 from pavilion import series
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.errors import TestRunError, CommandError, TestSeriesError
+from pavilion.errors import TestRunError, CommandError, TestSeriesError, TestGroupError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
 
 LOGGER = logging.getLogger(__name__)
+
+
+def load_last_series(pav_cfg, errfile: TextIO) -> Union[series.TestSeries, None]:
+    """Load the series object for the last series run by this user on this system."""
+
+    try:
+        series_id = series.load_user_series_id(pav_cfg)
+    except series.TestSeriesError as err:
+        output.fprint("Failed to find last series: {}".format(err.args[0]), file=errfile)
+        return None
+
+    try:
+        return series.TestSeries.load(pav_cfg, series_id)
+    except series.TestSeriesError as err:
+        output.fprint("Failed to load last series: {}".format(err.args[0]), file=errfile)
+        return None
+
+
+def set_arg_defaults(args):
+    """Set typical argument defaults, but don't override any given."""
+
+    # Don't assume these actually exist.
+    args.user = getattr(args, 'user', utils.get_login())
+    def_newer_than = (time.time() - dt.timedelta(days=1).total_seconds())
+    args.newer_than = getattr(args, 'newer_than', def_newer_than)
+    sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+    args.sys_name = getattr(args, 'sys_name', sys_name)
 
 
 def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
@@ -47,8 +75,10 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     :return: A list of test paths.
     """
 
-    limit = args.limit
+    limit = getattr(args, 'limit', filters.TEST_FILTER_DEFAULTS['limit'])
     verbose = verbose or io.StringIO()
+    sys_name = getattr(args, 'sys_name', sys_vars.get_vars(defer=True).get('sys_name'))
+    sort_by = getattr(args, 'sort_by', 'created')
 
     ids = []
     for test_range in args.tests:
@@ -82,7 +112,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                                    "newer_than 1 day ago.", color=output.CYAN)
             args.user = utils.get_login()
             args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
-            args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+            sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
     filter_func = filters.make_test_run_filter(
         complete=args.complete,
@@ -93,12 +123,12 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         user=args.user,
         state=args.state,
         has_state=args.has_state,
-        sys_name=args.sys_name,
+        sys_name=sys_name,
         older_than=args.older_than,
         newer_than=args.newer_than,
     )
 
-    order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
+    order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
     if 'all' in args.tests:
         tests = dir_db.SelectItems([], [])
@@ -126,20 +156,15 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
     test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
 
-    if not args.disable_filter:
-        return dir_db.select_from(
-            pav_cfg,
-            paths=test_paths,
-            transform=test_run_attr_transform,
-            filter_func=filter_func,
-            order_func=order_func,
-            order_asc=order_asc,
-            limit=limit
-        )
-
-    return dir_db.SelectItems(
-        data=[test_run_attr_transform(path) for path in test_paths],
-        paths=test_paths)
+    return dir_db.select_from(
+        pav_cfg,
+        paths=test_paths,
+        transform=test_run_attr_transform,
+        filter_func=filter_func,
+        order_func=order_func,
+        order_asc=order_asc,
+        limit=limit
+    )
 
 
 def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
@@ -149,7 +174,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
     search all series (with a default current user/system/1-day filter) and additonally filtered
     by args attributes provied via filters.add_series_filter_args()."""
 
-    limit = args.limit
+    limit = getattr(args, 'limit', filters.SERIES_FILTER_DEFAULTS['limit'])
     verbose = verbose or io.StringIO()
 
     if not args.series:
@@ -166,33 +191,29 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             args.newer_than = (dt.datetime.now() - dt.timedelta(days=1)).timestamp()
             args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
 
-    matching_series = []
     seen_sids = []
+    found_series = []
     for sid in args.series:
         # Go through each provided sid (including last and all) and find all
         # matching series. Then only add them if we haven't seen them yet.
         if sid == 'last':
-            sid = series.load_user_series_id(pav_cfg)
-            if sid is None:
+            last_series = load_last_series(pav_cfg, verbose)
+            if last_series is None:
                 return []
 
-            found_series = [series.SeriesInfo.load(pav_cfg, sid)]
+            found_series.append(last_series.info())
 
         elif sid == 'all':
-            order_func, order_asc = filters.get_sort_opts(args.sort_by, 'SERIES')
+            sort_by = getattr(args, 'sort_by', filters.SERIES_FILTER_DEFAULTS['sort_by'])
+            order_func, order_asc = filters.get_sort_opts(sort_by, 'SERIES')
 
-            filter_func = filters.make_series_filter(
-                complete=args.complete,
-                has_state=args.has_state,
-                incomplete=args.incomplete,
-                name=args.name,
-                newer_than=args.newer_than,
-                older_than=args.older_than,
-                state=args.state,
-                sys_name=args.sys_name,
-                user=args.user,
-            )
-            found_series = dir_db.select(
+            filter_args = {}
+            for arg in ('complete', 'has_state', 'incomplete', 'name', 'newer_than',
+                        'older_than', 'state', 'sys_name', 'user'):
+                filter_args[arg] = getattr(args, arg, filters.SERIES_FILTER_DEFAULTS[arg])
+
+            filter_func = filters.make_series_filter(**filter_args)
+            found_series.extend(dir_db.select(
                 pav_cfg=pav_cfg,
                 id_dir=pav_cfg.working_dir/'series',
                 filter_func=filter_func,
@@ -202,16 +223,17 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                 use_index=False,
                 verbose=verbose,
                 limit=limit,
-            ).data
+            ).data)
         else:
-            found_series = [series.SeriesInfo.load(pav_cfg, sid)]
+            found_series.append(series.SeriesInfo.load(pav_cfg, sid))
 
-        for sinfo in found_series:
-            if sinfo.sid not in seen_sids:
-                matching_series.append(sinfo)
-                seen_sids.append(sinfo.sid)
+    matching_series = []
+    for sinfo in found_series:
+        if sinfo.sid not in seen_sids:
+            matching_series.append(sinfo)
+            seen_sids.append(sinfo.sid)
 
-        return matching_series
+    return matching_series
 
 
 def read_test_files(pav_cfg, files: List[str]) -> List[str]:
@@ -271,36 +293,68 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
     :return: A list of test id's.
     """
 
+    if errfile is None:
+        errfile = io.StringIO()
+
     test_paths = []
     for raw_id in req_tests:
 
         if raw_id == 'last':
             raw_id = series.load_user_series_id(pav_cfg, errfile)
             if raw_id is None:
-                if errfile:
-                    output.fprint(errfile, "User has no 'last' series for this machine.",
-                                  color=output.YELLOW)
+                output.fprint(errfile, "User has no 'last' series for this machine.",
+                              color=output.YELLOW)
                 continue
 
-        if raw_id is None:
+        if raw_id is None or not raw_id:
             continue
 
-        if '.' not in raw_id and raw_id.startswith('s'):
-            try:
-                test_paths.extend(
-                    series.list_series_tests(pav_cfg, raw_id))
-            except TestSeriesError:
-                if errfile:
-                    output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
-                                  color=output.YELLOW)
-        else:
+        if '.' in raw_id or utils.is_int(raw_id):
+            # This is a test id.
             try:
                 test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
             except TestRunError as err:
                 output.fprint(errfile, err, color=output.YELLOW)
                 continue
 
-            test_paths.append(test_wd/TestRun.RUN_DIR/str(_id))
+            test_path = test_wd/TestRun.RUN_DIR/str(_id)
+            test_paths.append(test_path)
+            if not test_path.exists():
+                output.fprint(errfile,
+                              "Test run with id '{}' could not be found.".format(raw_id),
+                              color=output.YELLOW)
+        elif raw_id[0] == 's' and utils.is_int(raw_id[1:]):
+            # A series.
+            try:
+                test_paths.extend(
+                    series.list_series_tests(pav_cfg, raw_id))
+            except TestSeriesError:
+                output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
+                              color=output.YELLOW)
+        else:
+            # A group
+            try:
+                group = groups.TestGroup(pav_cfg, raw_id)
+            except TestGroupError as err:
+                output.fprint(
+                    errfile,
+                    "Invalid test group id '{}'.\n{}"
+                    .format(raw_id, err.pformat()))
+                continue
+
+            if not group.exists():
+                output.fprint(
+                    errfile,
+                    "Group '{}' does not exist.".format(raw_id))
+                continue
+
+            try:
+                test_paths.extend(group.tests())
+            except TestGroupError as err:
+                output.fprint(
+                    errfile,
+                    "Invalid test group id '{}', could not get tests from group."
+                    .format(raw_id))
 
     return test_paths
 

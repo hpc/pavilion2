@@ -48,22 +48,39 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                       "used when ad-hoc series are created from the command line."
         ),
         yc.ListElem(
-            'modes', sub_elem=yc.StrElem()
+            'modes', sub_elem=yc.StrElem(),
+            help_text="Modes to run all tests in this series under."
+        ),
+        yc.ListElem(
+            'overrides', sub_elem=yc.StrElem(),
+            help_text="Overrides to apply to all tests in this series."
         ),
         yc.IntElem(
             'simultaneous', default=0,
+            help_text="The maximum number of tests to run simultaneously."
         ),
         yc.BoolElem(
             'ordered', default=False,
+            help_text="Run test sets in the order listed."
         ),
         yc.IntElem(
             'repeat', default=1,
-            help_text="Number of times to repeat this series. Use 0 when running "
-                      "a series in the background to repeat forever."
+            help_text="Number of times to repeat this series."
         ),
-        yc.StrElem(
-            'restart', post_validator=make_invalidator(
-                "The series config option 'restart' has been replaced with 'repeat'.")
-        )
+        yc.BoolElem(
+            'ignore_errors', default=True,
+            help_text="Whether the series ignores build and/or scheduling errors."
+        ),
+        yc.DiscontinuedElem(
+            'series',
+            help_text="Series parts are now configured under the 'test_sets' key in an effort "
+                      "to reduce overloading of names. The keys under 'test_sets' are the same "
+                      "as they were under the 'series' key, so all you should need to do is "
+                      "change 'series:' to 'test_sets:'."
+        ),
+        yc.DiscontinuedElem(
+            'restart',
+            help_text="The series config option 'restart' has been replaced with 'repeat'."
+        ),
     ]
     """Describes elements in Series Config Loader."""

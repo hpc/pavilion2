@@ -30,6 +30,21 @@ def glob_to_re(glob):
     return glob
 
 
+def is_int(val: str):
+    """Return true if the given string value is an integer."""
+
+    # isdigit, isnumeric and similar accept all kinds of weird unicode, like roman numerals.
+
+    # An empty string is not an int
+    if not val:
+        return False
+
+    for char in val:
+        if char not in '0123456789':
+            return False
+
+    return True
+
 def str_bool(val):
     """Returns true if the string value is the string 'true' with allowances
     for capitalization."""

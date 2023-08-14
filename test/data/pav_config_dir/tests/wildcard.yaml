@@ -1,0 +1,27 @@
+sometest:
+  permute_on: [somenum, someaar]
+  variables:
+    somenum: [1, 2]
+    someaar: ['a', 'b']
+  run:
+    cmds:
+      - 'echo hello {{someaar}} {{somenum}}'
+
+somemest:
+  permute_on: [momenum, momeaar]
+  variables:
+    momenum: [1, 4]
+    momeaar: ['c', 'b']
+  run:
+    cmds:
+      - 'echo hello {{momeaar}} {{momenum}}'
+
+_base:
+  run:
+    cmds:
+      - 'echo hello'
+
+noperms:
+  run:
+    cmds:
+      - 'echo hello'

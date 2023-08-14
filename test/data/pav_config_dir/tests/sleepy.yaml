@@ -1,0 +1,23 @@
+_base:
+
+    variables:
+        sleep_time:
+
+    build:
+        cmds:
+            - echo "Doing nothing"
+
+    run:
+        cmds:
+            - 'sleep {{sleep_time}}'
+    scheduler: "raw"
+
+short:
+    inherits_from: _base
+    variables:
+        sleep_time: 2
+
+long:
+    inherits_from: _base
+    variables:
+        sleep_time: 100

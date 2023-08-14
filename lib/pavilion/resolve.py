@@ -1,6 +1,4 @@
-"""Functons for resolving/parsing strings in Pavilion data structures."""
-
-from typing import Union, List, Tuple, Dict
+from typing import Dict, List, Union, Tuple
 
 from pavilion import parsers
 from pavilion import variables
@@ -128,11 +126,11 @@ def section_values(component: Union[Dict, List, str],
     """Recursively resolve the given config component's value strings
     using a variable manager.
 
-    :param Union[dict,list,str] component: The config component to resolve.
+    :param component: The config component to resolve.
     :param var_man: A variable manager. (Presumably a permutation of the
         base var_man)
-    :param bool allow_deferred: Allow deferred variables in this section.
-    :param bool deferred_only: Only resolve values prepended with
+    :param allow_deferred: Allow deferred variables in this section.
+    :param deferred_only: Only resolve values prepended with
         the DEFERRED_PREFIX, and throw an error if such values can't be
         resolved. If this is True deferred values aren't allowed anywhere.
     :param Union[tuple[str],None] key_parts: A list of the parts of the

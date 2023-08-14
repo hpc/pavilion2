@@ -28,15 +28,14 @@ class LogCmdTest(PavTestCase):
         while not test.complete and time.time() < end:
             time.sleep(.1)
 
-        # test `pav log run test`
-        args = parser.parse_args(['run', test.full_id])
-
         out = io.StringIO()
         err = io.StringIO()
 
         log_cmd.outfile = out
         log_cmd.errfile = err
 
+        # test `pav log run test`
+        args = parser.parse_args(['run', test.full_id])
         result = log_cmd.run(self.pav_cfg, args)
         err.seek(0)
         out.seek(0)
