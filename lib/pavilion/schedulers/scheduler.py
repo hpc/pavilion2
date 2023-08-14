@@ -517,10 +517,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _make_kickoff_error(self, orig_err, tests):
         """Convert a generic error to something with more information."""
 
-        test_names = tests[:2]
+        test_names = ['{} ({})'.format(test.full_id, test.name) for test in tests[:2]]
         if len(tests) > 2:
             test_names.append('...')
-        test_names = ', '.join(test.name for test in test_names)
+        test_names = ', '.join(test_names)
 
         plural = 's' if len(tests) > 1 else ''
 
