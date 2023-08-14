@@ -70,6 +70,7 @@ from .elements import (
     ConfigDict,
     ConfigElement,
     RequiredError,
+    DiscontinuedElem,
 )
 from .loaders import (
     CatYamlConfigLoader,
