@@ -63,7 +63,7 @@ class TestAttributes:
         :param load: Whether to autoload the attributes.
         """
 
-        self.path = path
+        self.path = path.resolve()
 
         self._attrs = {'warnings': []}
 
@@ -313,6 +313,8 @@ class TestAttributes:
 
     @property
     def full_id(self):
+        """The test full id, which is the config label it was created under
+        and the test id.  The default config label is omitted."""
         # If the cfg label is actually something that exists, use it in the
         # test full_id. Otherwise give the test path.
         if self.cfg_label == DEFAULT_CONFIG_LABEL or self.cfg_label is None:
@@ -340,6 +342,7 @@ class TestAttributes:
         name='finished',
         doc="The end time for this test run.")
     id = basic_attr(
+
         name='id',
         doc="The test run id (unique per working_dir at any given time).")
     name = basic_attr(
