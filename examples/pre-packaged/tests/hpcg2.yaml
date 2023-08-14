@@ -1,0 +1,271 @@
+_base:
+    summary: Runs High Performance Conjugate Gradient (HPCG) benchmark.
+    maintainer:
+      name: Adam Good
+      email: agood@lanl.gov
+    subtitle: "{{hpcg_compilers.name}}-{{hpcg_compilers.version}}_{{hpcg_mpis.name}}-{{hpcg_mpis.version}}"
+
+    variables:
+      # These act as templates. They need to be overridden in inherited tests!
+      # If you're lucky these defaults might work on a toss system but please just be responsible and override them
+
+      hpcg_build?:
+          mpicc: mpicc
+          mpicxx: mpicxx
+          cc: gcc
+          cxx: g++
+          fc: gfortran
+
+          # 'opts' should be zero or more of:
+          # -DHPCG_NO_MPI         Define to disable MPI
+          # -DHPCG_NO_OPENMP      Define to disable OPENMP
+          # -DHPCG_DEBUG          Define to enable debugging output
+          # -DHPCG_DETAILED_DEBUG Define to enable very detailed debugging output
+          opts: '-DHPCG_NO_OPENMP'
+
+          cxx_flags: '-03 -ffast-math -ftree-vectorize -ftree-vectorizer-verbose=0'
+
+          # Common cxx flags for other compilers:
+          # Intel (classic and oneapi): '-03 -mavx'  ('-qopenmp' for openmp)
+          # CCE: '-O3 -ffast-math -ftree-vectorize'
+
+      num_nodes?: 1
+      num_threads?: 1
+      num_tasks_per_node?: 1
+      timeout?:
+        walltime: 2   # hours
+
+    permute_on:
+      - hpcg_compilers
+      - hpcg_mpis
+
+    scheduler: slurm
+    schedule:
+      time_limit: '{{timeout.walltime}}'
+      nodes: '{{num_nodes}}'
+      tasks_per_node: '{{num_tasks_per_node}}'
+      share_allocation: false
+
+    build:
+      source_url: 'https://github.com/hpcg-benchmark/hpcg/archive/master.zip'
+      source_path: 'hpcg'
+      source_download: never
+
+      cmds:
+        - "make arch={{sys_os.name}}_{{hpcg_mpis.name}}_{{hpcg_compilers.name}} || exit 1"
+        - "cp bin/hpcg.dat ."
+    run:
+      env:
+        OMP_NUM_THREADS: "{{num_threads}}"
+      cmds:
+        - "{{sched.test_cmd}} ./bin/xhpcg --npx={{args.npx}} --npy={{args.npy}} --npz={{args.npz}} --nx={{args.nx}} --ny={{args.ny}} --nz={{args.nz}} &> hpcg.out &"
+        - while [[ $(jobs | wc -l) != 0 ]] ; do
+        -   jobs
+        -   sleep 5
+        -   echo -n "."
+        - done
+
+
+    result_parse:
+      regex:
+        gflops:
+          files: 'HPCG-Benchmark-*.yaml'
+          regex: '.*GFLOP/s rating of:(.*)$'
+        memory:
+          files: 'HPCG-Benchmark-*.yaml'
+          regex: '.*Total memory used for data \(Gbytes\): (.*)$'
+        runtime:
+          files: 'HPCG-Benchmark-*.yaml'
+          regex: '.*Total: (.*)$'
+          match_select: 0
+        bandwidth:
+          files: 'HPCG-Benchmark-*.yaml'
+          regex: '.*Raw Total B/W: (.*)$'
+
+    result_evaluate:
+      gflops_per_node: 'gflops / {{num_nodes}}'
+
+_cts1:
+  inherits_from: _base
+  only_if:
+    "{{sys_os.name}}": 'toss'
+
+  variables:
+    hpcg_mpis:
+      - { name: "openmpi", version: "4.1.1", mpicc: "mpicc", mpicxx: "mpic++", mpifc: "mpif90" }
+    hpcg_compilers:
+      - { name: "intel-classic", version: "2021.2.0", cc: "icc", cxx: "icpc", fc: "ifort" }
+      - { name: "intel", version: "2021.2.0", cc: "icx", cxx: "icpx", fc: "ifort" }
+      - { name: "intel-oneapi", version: "2021.2.0", cc: "icx", cxx: "icpx", fc: "ifx" }
+
+  build:
+    modules:
+      - 'friendly-testing'
+      - '{{hpcg_compilers.name}}/{{hpcg_compilers.version}}'
+      - '{{hpcg_mpis.name}}/{{hpcg_mpis.version}}'
+
+  run:
+    modules:
+      - 'friendly-testing'
+      - '{{hpcg_compilers.name}}/{{hpcg_compilers.version}}'
+      - '{{hpcg_mpis.name}}/{{hpcg_mpis.version}}'
+
+_ats1:
+  inherits_from: _base
+  only_if:
+    "{{sys_os.name}}": 'cle'
+
+  variables:
+      hpcg_mpis:
+          - { name: "cray-mpich", version: "7.7.18", mpicc: "cc", mpicxx: "CC", mpifc: "ftn" }
+      hpcg_compilers:
+          - { name: "intel-classic", version: "2022.0.2", pe_env: "PrgEnv-intel", cc: "cc", cxx: "CC", fc: "ftn" }
+          - { name: "intel", version: "2022.0.2", pe_env: "PrgEnv-intel", cc: "cc", cxx: "CC", fc: "ftn" }
+          - { name: "intel-oneapi", version: "2022.0.2", pe_env: "PrgEnv-intel", cc: "cc", cxx: "CC", fc: "ftn" }
+          - { name: "gcc", version: "11.2.0", pe_env: "PrgEnv-gnu", cc: "cc", cxx: "CC", fc: "ftn" }
+          - { name: "cce", version: "12.0.3", pe_env: "PrgEnv-cray", cc: "cc", cxx: "CC", fc: "ftn" }
+      default_pe: "PrgEnv-intel"
+
+  build:
+    modules:
+      - 'friendly-testing'
+      - '-craype-hugepages2M'
+      - '{{default_pe}}->{{hpcg_compilers.pe_env}}'
+      - '{{hpcg_compilers.name}}->{{hpcg_compilers.name}}/{{hpcg_compilers.version}}'
+      - '{{hpcg_mpis.name}}->{{hpcg_mpis.name}}/{{hpcg_mpis.version}}'
+  run:
+    modules:
+      - 'friendly-testing'
+      - '-craype-hugepages2M'
+      - '{{default_pe}}->{{hpcg_compilers.pe_env}}'
+      - '{{hpcg_compilers.name}}->{{hpcg_compilers.name}}/{{hpcg_compilers.version}}'
+      - '{{hpcg_mpis.name}}->{{hpcg_mpis.name}}/{{hpcg_mpis.version}}'
+
+########
+##  Acceptance Tests
+##  https://www.lanl.gov/projects/crossroads/_assets/docs/ssi/Summary_HPCG.pdf
+##  https://re-git.lanl.gov/hpctest/hpcg_notes/-/tree/main/
+#######
+
+## Template for each acceptance test
+_cts1_acceptance:
+  inherits_from: _cts1
+
+  variables:
+    num_threads: 1
+    num_tasks_per_node: 36
+
+_ats1_acceptance:
+  inherits_from: _ats1
+
+  variables:
+    num_threads: 2
+    num_tasks_per_node: 32
+
+cts1_1node:
+  inherits_from: _cts1_acceptance
+  variables:
+    num_nodes: 1
+    args:
+      npx: 4
+      npy: 3
+      npz: 3
+      nx:  152
+      ny:  152
+      nz:  152
+
+cts1_48node:
+  inherits_from: _cts1_acceptance
+  variables:
+    num_nodes: 48
+    args:
+      npx: 12
+      npy: 12
+      npz: 12
+      nx:  152
+      ny:  152
+      nz:  152
+
+cts1_72node:
+  inherits_from: _cts1_acceptance
+  variables:
+    num_nodes: 72
+    args:
+      npx: 12
+      npy: 18
+      npz: 12
+      nx:  152
+      ny:  152
+      nz:  152
+
+cts1_100node:
+  inherits_from: _cts1_acceptance
+  variables:
+    num_nodes: 100
+    args:
+      npx: 16
+      npy: 15
+      npz: 15
+      nx:  152
+      ny:  152
+      nz:  152
+
+cts1_162node:
+  inherits_from: _cts1_acceptance
+  variables:
+    num_nodes: 162
+    args:
+      npx: 18
+      npy: 18
+      npz: 18
+      nx:  152
+      ny:  152
+      nz:  152
+
+cts1_242node:
+  inherits_from: _cts1_acceptance
+  variables:
+    num_nodes: 242
+    args:
+      npx: 22
+      npy: 22
+      npz: 18
+      nx:  152
+      ny:  152
+      nz:  152
+
+ats1_small:
+  inherits_from: _ats1_acceptance
+  variables:
+    num_nodes: 1
+    args:
+      npx: 4
+      npy: 4
+      npz: 2
+      nx:  160
+      ny:  160
+      nz:  160
+
+ats1_medium:
+  inherits_from: _ats1_acceptance
+  variables:
+    num_nodes: 32
+    args:
+      npx: 16
+      npy: 8
+      npz: 8
+      nx:  160
+      ny:  160
+      nz:  160
+
+ats1_large:
+  inherits_from: _ats1_acceptance
+  variables:
+    num_nodes: 4352
+    args:
+      npx: 64
+      npy: 64
+      npz: 34
+      nx:  160
+      ny:  160
+      nz:  160
