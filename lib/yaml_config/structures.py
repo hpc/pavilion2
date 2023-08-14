@@ -7,6 +7,7 @@ import yc_yaml as yaml
 from .elements import (
     ConfigElement,
     RequiredError,
+    DiscontinuedError,
     NullList,
     ConfigDict,
 )
@@ -517,6 +518,9 @@ class KeyedElem(_DictElem):
 
             try:
                 ndict[key] = elem.normalize(val, root_name=key)
+            except DiscontinuedError as err:
+                # This is thrown because the key is no longer allowed.
+                raise
             except ValueError as err:
                 if isinstance(val, dict):
                     msg = [err.args[0]]

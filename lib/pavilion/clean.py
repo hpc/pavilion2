@@ -2,9 +2,10 @@
 import shutil
 from functools import partial
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 from pavilion import dir_db
+from pavilion import groups
 from pavilion import lockfile
 from pavilion import utils
 from pavilion.builder import TestBuilder
@@ -39,34 +40,13 @@ def delete_series(pav_cfg, id_dir: Path, verbose: bool = False) -> int:
     return dir_db.delete(pav_cfg, id_dir, _delete_series_filter, verbose=verbose)
 
 
-def delete_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bool = False):
+def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bool = False):
     """Delete all build directories that are unused by any test run.
 
     :param pav_cfg: The pavilion config.
     :param builds_dir: Path to the pavilion builds directory.
     :param tests_dir: Path to the pavilion test_runs directory.
     :param verbose: Bool to determine if verbose output or not.
-    """
-
-    return delete_unused(pav_cfg, tests_dir, builds_dir, verbose)
-
-
-def _filter_unused_builds(used_build_paths: List[Path], build_path: Path) -> bool:
-    """Return whether a build is not used."""
-    return build_path.name not in used_build_paths
-
-
-def delete_unused(pav_cfg, tests_dir: Path, builds_dir: Path, verbose: bool = False) \
-        -> (int, List[str]):
-    """Delete all the build directories, that are unused by any test run.
-
-    :param pav_cfg: The pavilion config.
-    :param tests_dir: The test_runs directory path object.
-    :param builds_dir: The builds directory path object.
-    :param verbose: Print
-
-    :return int count: The number of builds that were removed.
-
     """
 
     used_build_paths = _get_used_build_paths(pav_cfg, tests_dir)
@@ -92,6 +72,32 @@ def delete_unused(pav_cfg, tests_dir: Path, builds_dir: Path, verbose: bool = Fa
                 msgs.append('Removed build {}.'.format(path.name))
 
     return count, msgs
+
+
+def clean_groups(pav_cfg) -> Tuple[int, List[str]]:
+    """Remove members that no longer exist from groups, and delete empty groups.
+    Returns the number of groups deleted and a list of error messages."""
+
+    groups_dir = pav_cfg.working_dir/groups.TestGroup.GROUPS_DIR
+
+    if not groups_dir.exists():
+        return 0, []
+
+    msgs = []
+    deleted = 0
+    for group_path in groups_dir.iterdir():
+        group = groups.TestGroup(pav_cfg, group_path.name)
+        for error in group.clean():
+            msgs.append(error.pformat())
+        if not group.exists():
+            deleted += 1
+
+    return deleted, msgs
+
+
+def _filter_unused_builds(used_build_paths: List[Path], build_path: Path) -> bool:
+    """Return whether a build is not used."""
+    return build_path.name not in used_build_paths
 
 
 def _get_used_build_paths(pav_cfg, tests_dir: Path) -> set:
