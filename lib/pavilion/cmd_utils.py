@@ -19,7 +19,8 @@ from pavilion import output
 from pavilion import series
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.errors import TestRunError, CommandError, TestSeriesError, PavilionError, TestGroupError
+from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
+                            PavilionError, TestGroupError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
 
