@@ -158,7 +158,7 @@ class RunCommand(Command):
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
                                 verbosity=Verbose[args.verbosity],
                                 outfile=self.outfile)
-        testset_name = cmd_utils.get_testset_name(args.tests, args.files)
+        testset_name = cmd_utils.get_testset_name(pav_cfg, args.tests, args.files)
 
         if args.group:
             try:
