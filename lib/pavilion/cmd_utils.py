@@ -493,7 +493,7 @@ def get_testset_name(tests: List['str'], files: List['str']):
     #       foo.a and foo.b being specified in both areas
     if files:
         files = [Path(filepath) for filepath in files]
-        file_tests = cmd_utils.read_test_files([file.absolute() for file in files])
+        file_tests = read_test_files([file.absolute() for file in files])
         tests = list(set(tests) - set(file_tests))
 
     # Here we generate a dictionary mapping tests to the suites they belong to
