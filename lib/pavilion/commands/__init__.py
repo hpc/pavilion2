@@ -22,6 +22,7 @@ _builtin_commands = {
     'clean': 'CleanCommand',
     'config': 'ConfigCommand',
     'graph': 'GraphCommand',
+    'group': 'GroupCommand',
     'list_cmd': 'ListCommand',
     'log': 'LogCommand',
     'ls': 'LSCommand',
