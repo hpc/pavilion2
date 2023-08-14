@@ -7,7 +7,9 @@ from pathlib import Path
 
 
 from pavilion import cmd_utils
+from pavilion import groups
 from pavilion import output
+from pavilion.enums import Verbose
 from pavilion.errors import TestSeriesError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
@@ -77,18 +79,22 @@ class RunCommand(Command):
                  'gathered used as a final set of overrides before the '
                  'configs are resolved. They should take the form '
                  '\'key=value\', where key is the dot separated key name, '
-                 'and value is a json object.')
+                 'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
-            '-b', '--build-verbose', dest='build_verbosity', action='count',
-            default=0,
-            help="Increase the verbosity when building. By default, the "
-                 "count of current states for the builds is printed. If this "
-                 "argument is included once, the final status and note for "
-                 "each build is printed. If this argument is included more"
-                 "than once, every status change for each build is printed. "
-                 "This only applies for local builds; refer to the build log "
-                 "for information on 'on_node' builds."
-        )
+            '-g', '--group', action="store", type=str,
+            help="Add the created test series to the given group, creating it if necessary.")
+        parser.add_argument(
+            '-v', '--verbosity', choices=[verb.name for verb in Verbose],
+            default=Verbose.DYNAMIC.name,
+            help="Adjust the verbosity of the run command.\n"
+                 " - QUIET   - Minimal output\n"
+                 " - DYNAMIC - Dynamic status reporting. (default)\n"
+                 " - HIGH    - Non-dynamic, high output.\n"
+                 " - MAX     - Maximized output\n")
+        parser.add_argument(
+            '-i', '--ignore-errors', action='store_true', default=False,
+            help="Ignore test creation, build and kickoff errors. Tests that "
+                 "don't have errors will still run.")
         parser.add_argument(
             '-r', '--rebuild', action='store_true', default=False,
             help="Deprecate existing builds of these tests and rebuild. This "
@@ -134,6 +140,7 @@ class RunCommand(Command):
             host=args.host,
             repeat=getattr(args, 'repeat', None),
             overrides=args.overrides,
+            ignore_errors=args.ignore_errors,
         )
 
         tests = args.tests
@@ -148,8 +155,25 @@ class RunCommand(Command):
         report_status = getattr(args, 'status', False)
 
         # create brand-new series object
-        series_obj = TestSeries(pav_cfg, config=series_cfg)
+        series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
+                                verbosity=Verbose[args.verbosity],
+                                outfile=self.outfile)
         testset_name = cmd_utils.get_testset_name(args.tests, args.files)
+
+        if args.group:
+            try:
+                group = groups.TestGroup(pav_cfg, args.group)
+                group.add([series_obj])
+            except groups.TestGroupError as err:
+                output.fprint(self.errfile,
+                              "Could not add series to group '{}'".format(args.group),
+                              color=output.RED)
+                output.fprint(self.errfile, err.pformat())
+                return errno.EINVAL
+
+        else:
+            output.fprint(self.outfile, "Created Test Series {}.".format(series_obj.name))
+
         series_obj.add_test_set_config(
             testset_name,
             tests,
@@ -162,9 +186,7 @@ class RunCommand(Command):
             series_obj.run(
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
-                local_builds_only=local_builds_only,
-                verbosity=args.build_verbosity,
-                outfile=self.outfile)
+                local_builds_only=local_builds_only)
             self.last_tests = list(series_obj.tests.values())
         except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())

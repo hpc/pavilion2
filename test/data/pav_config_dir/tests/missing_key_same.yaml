@@ -1,0 +1,5 @@
+# This should throw an error for a missing/misspelled key at the same tab level
+
+same:
+  scheduule:
+    nodes: 72

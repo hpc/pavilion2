@@ -1,0 +1,200 @@
+base:
+  summary: Pynamic Test with mpi4py
+  doc: |
+    "Pynamic is a benchmark designed to test a system's ability to handle the dynamic linking and
+    loading requirements of python-based scientific applications."
+
+    Pynamic was developed at Lawrence Livermore National Laboratory and hosted on github at -
+    https://github.com/LLNL/pynamic
+
+    Pynamic generates dummy code that will be linked and loaded into an application called
+    pynamic-mpi4py. It is designed to stress test applications, such as parallel debuggers, by
+    performing DLL operations. Library generation by Pynamic can be user configured by passing
+    arguments to the configure script. The user can specify the number of libraries, average number
+    of utility functions to generate per library, and randomness allowing for maximum
+    hetrogeneity.
+    
+    This test configuration is configured to work with python3 but it can be tweaked to work with
+    python2.7. Instructions can be found on the github repo.
+
+    Note - Pynamic requires mpi4py enabled python along with a mpi.  
+
+  variables:
+    shared_objects: 900             # total number of shared object libraries to produce
+    avg_num_funcs: 1250             # average number of functions per shared object library 
+    num_utility_mods: 350           # number of math library-like utility modules to generate
+    avg_num_u_funcs: 1250           # average number of functions per math library-like utility modules
+    add_chars: 150                  # number of characters to add to the function names
+    seed: 42                        # seed for the random number generator
+    mpicc: mpicc                    # MPI command
+    num_processes: "{{host_cpus}}"  # build in parallel. Uses a system variable that calculates the
+                                    # total number of processes on the node.
+
+    # Include paths to the python include dir and MPI include dir. May not be necessary depending on
+    # environmental variables.
+    include_paths: '"-I${PYTHON_HOME}/include/python3.9/ -I${MPI_HOME}/include"'
+
+    # Configuration options are passed directly to the configure script and not interpreted by
+    # pynamic.
+    config_opts: '--with-mpi4py --with-cc={{mpicc}} --with-includes={{include_paths}}'
+
+    # Build options for pynamic script.
+    build_opts: '{{shared_objects}} {{avg_num_funcs}} -e -u {{num_utility_mods}} {{avg_num_u_funcs}}
+                -n {{add_chars}} -s {{seed}} -j {{num_processes}} -c {{config_opts}}'
+
+
+  # Runs the test using the slurm scheduler. 
+  scheduler: slurm
+
+  # Slurm options
+  schedule:
+    nodes: 5
+    tasks_per_node: 32
+    share_allocation: false
+    qos: standard
+    partition: standard
+
+  build:
+    source_url: https://github.com/LLNL/pynamic/archive/refs/heads/master.zip
+    source_download: 'missing'      # Download the source only if its missing.
+    source_path: 'pynamic/src'
+
+    # Building a large number of libaries will take a while. Pavilion automatically, timesout a
+    # test if there is no output for 30 seconds. Adjust the timeout timer (in seconds) using the
+    # timeout option. Build time varies from system to system and based on process availibility. 
+    timeout: 120
+ 
+    # Build the test on a compute node instead of the front-end. This would allow usage of maximum
+    # processes of a compute node instead of limited processes available on the front-end.
+    on_nodes: true
+
+    # The current release (commit 4b17259) of pynamic contains few bugs that does not allow the
+    # application to be build with python3. These patches fix those bugs. The `extra_files:` option
+    # searches for the files inside the $PAV_CONFIG directory. These files are copied and placed
+    # inside the build directory.
+    extra_files:
+      - pynamic/config_pynamic.patch
+      - pynamic/get-symtab-sizes.patch
+      - pynamic/Makefile.mpi4py.patch
+    
+    # Load these modules before building the application.
+    modules:
+      - python
+      - gcc
+      - mvapich2
+    
+    # Build commands. Changes to the build directory, applies patches and then runs the configure
+    # script with the build options specified above in the variables section.
+    cmds:
+      - 'cd pynamic-pyMPI-2.6a1'
+      - 'patch -i ../config_pynamic.patch config_pynamic.py'
+      - 'patch -i ../get-symtab-sizes.patch get-symtab-sizes'
+      - 'patch -i ../Makefile.mpi4py.patch Makefile.mpi4py'
+      - './config_pynamic.py {{build_opts}}'
+
+  run:
+
+    # Larger applications require longer runtime. Adjust time accordingly.
+    timeout: 120
+
+    # Modules to load before running the pynamic-mpi4py application.
+    modules:
+      - python
+      - gcc
+      - mvapich2
+    
+    # Adds the newly generated libraries to the LD_LIBRARY_PATH
+    env:
+      LD_LIBRARY_PATH: $LD_LIBRARY_PATH:${PWD}/pynamic-pyMPI-2.6a1/
+
+    # Run commands.
+    cmds:
+      - 'cd pynamic-pyMPI-2.6a1'
+      - '{{sched.test_cmd}} ./pynamic-mpi4py $(date +%s)'
+
+  result_parse:
+    regex:
+      # Time required to import the modules.
+      ImportTime:
+        for_lines_matching: 'Pynamic: module import time'
+        regex: '\d+.\d+\s\w+'
+
+      # Time required to call the modules.
+      VisitTime:
+        for_lines_matching: 'Pynamic: module visit time'
+        regex: '\d+.\d+\s\w+'
+
+      # MPI Time of a fractal function.
+      MpiTime:
+        for_lines_matching: 'Pynamic: fractal mpi time'
+        regex: '\d+.\d+\s\w+'
+
+      # Size of the aggregate string table of shared libraries.
+      SharedLibraries:
+        for_lines_matching: 'summary of pynamic-mpi4py executable and'
+        regex: '\d+\s'
+        files: 'pynamic-pyMPI-2.6a1/sharedlib_section_info_*'
+
+      # Size of the aggregate total of shared libraries.
+      TotalLibrariesSize:
+        for_lines_matching: 'Size of aggregate total'
+        regex: '\d+.\d+\w+'
+        files: 'pynamic-pyMPI-2.6a1/sharedlib_section_info_*'
+
+      # Size of the aggregate texts of shared libraries.
+      TextSize:
+        for_lines_matching: 'Size of aggregate text'
+        regex: '\d+.\d+\w+'
+        files: 'pynamic-pyMPI-2.6a1/sharedlib_section_info_*'
+
+      # Size of the aggregate data of shared libraries.
+      DataSize:
+        for_lines_matching: 'Size of aggregate data'
+        regex: '\d+.\d+\w+'
+        files: 'pynamic-pyMPI-2.6a1/sharedlib_section_info_*'
+
+      # Size of the aggregate debug section of shared libraries.
+      DebugSectionSize:
+        for_lines_matching: 'Size of aggregate debug'
+        regex: '\d+.\d+\w+'
+        files: 'pynamic-pyMPI-2.6a1/sharedlib_section_info_*'
+
+      # Size of the aggregate symbol table of shared libraries.
+      SymbolTablesSize:
+        for_lines_matching: 'Size of aggregate symbol'
+        regex: '\d+.\d+\w+'
+        files: 'pynamic-pyMPI-2.6a1/sharedlib_section_info_*'
+
+      # Size of the aggregate string table of shared libraries.
+      StringTableSize:
+        for_lines_matching: 'Size of aggregate string'
+        regex: '\d+.\d+\w+'
+        files: 'pynamic-pyMPI-2.6a1/sharedlib_section_info_*'
+
+      # Pass the test if 'mpi test passed' is found in the run log.
+      result:
+        action: store_true
+        regex: 'mpi test passed'
+
+cray:
+  # Inherits everything from the base test suite. Only overrides the parameters that are set in
+  # this section.
+  inherits_from: base
+
+  summary: Cray Pynamic Test with mpi4py
+  variables:
+    mpicc: cc       # Cray mpi wrapper.
+    include_paths: '"-I${PYTHON_PATH}/include/python3.9/ -I${CRAY_MPICH_DIR}/include"'
+
+  # Cray modules for build and run section.
+  build:
+    modules:
+      - cray-python
+      - intel
+      - cray-mpich
+
+  run:
+    modules:
+      - cray-python
+      - intel
+      - cray-mpich

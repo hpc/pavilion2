@@ -1,6 +1,6 @@
 import time
 
-from pavilion import cancel
+from pavilion import cancel_utils
 from pavilion import schedulers
 from pavilion import unittest
 from pavilion.status_file import STATES
@@ -33,13 +33,13 @@ class CancelTests(unittest.PavTestCase):
         while not test2.status.has_state(STATES.RUNNING):
             time.sleep(0.1)
 
-        jobs = cancel.cancel_jobs(self.pav_cfg, [test1, test2])
+        jobs = cancel_utils.cancel_jobs(self.pav_cfg, [test1, test2])
         self.assertEqual(test2.status.current().state, STATES.RUNNING)
         self.assertTrue(test1.cancelled)
         self.assertFalse(jobs[0]['success'])
 
         test2.cancel('for other reasons')
-        jobs = cancel.cancel_jobs(self.pav_cfg, [test1, test2])
+        jobs = cancel_utils.cancel_jobs(self.pav_cfg, [test1, test2])
         self.assertTrue(test2.cancelled)
         self.assertTrue(test1.cancelled)
         self.assertTrue(jobs[0]['success'])

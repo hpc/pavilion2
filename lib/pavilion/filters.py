@@ -30,7 +30,6 @@ TEST_FILTER_DEFAULTS = {
     'sys_name': None,
     'user': None,
     'limit': None,
-    'disable_filter': False,
 }
 
 SORT_KEYS = {
@@ -52,7 +51,8 @@ def sort_func(test, choice):
 def add_common_filter_args(target: str,
                            arg_parser: argparse.ArgumentParser,
                            defaults: dict,
-                           sort_options: List[str]):
+                           sort_options: List[str],
+                           disable_opts: List[str]):
     """Add common arguments for all filters.
 
     :param target: The name of what is being filtered, to be inserted
@@ -60,73 +60,83 @@ def add_common_filter_args(target: str,
     :param arg_parser: The argparser to add arguments to.
     :param defaults: A dictionary of default values for all arguments.
     :param sort_options: A list of possible sort options.
+    :param disable_opts: Options to disable.
 
     :return:
     """
-    ci_group = arg_parser.add_mutually_exclusive_group()
-    ci_group.add_argument(
-        '--complete', action='store_true', default=defaults['complete'],
-        help=('Include only completed test runs. Default: {}'
-              .format(defaults['complete']))
-    )
-    arg_parser.add_argument(
-        '--has-state', type=str, default=defaults['state'],
-        help="Include only {} who have had the given state at some point."
-             "Default: {}".format(target, defaults['has_state'])
-    )
-    ci_group.add_argument(
-        '--incomplete', action='store_true',
-        default=defaults['incomplete'],
-        help=('Include only test runs that are incomplete. Default: {}'
-              .format(defaults['complete']))
-    )
+
+    if 'complete' not in disable_opts and 'incomplete' not in disable_opts:
+        ci_group = arg_parser.add_mutually_exclusive_group()
+        ci_group.add_argument(
+            '--complete', action='store_true', default=defaults['complete'],
+            help=('Include only completed test runs. Default: {}'
+                  .format(defaults['complete']))
+        )
+        ci_group.add_argument(
+            '--incomplete', action='store_true',
+            default=defaults['incomplete'],
+            help=('Include only test runs that are incomplete. Default: {}'
+                  .format(defaults['complete']))
+        )
+    if 'has-state' not in disable_opts:
+        arg_parser.add_argument(
+            '--has-state', type=str, default=defaults['state'],
+            help="Include only {} who have had the given state at some point."
+                 "Default: {}".format(target, defaults['has_state'])
+        )
     arg_parser.add_argument(
         '-l', '--limit', type=int, default=defaults['limit'],
         help=("Max number of {} to display.  Default: {}"
               .format(target, defaults['limit']))
 
     )
-    arg_parser.add_argument(
-        '--name', default=defaults['name'],
-        help=("Include only tests/series that match this name. Globbing wildcards are "
-              "allowed. Default: {}"
-              .format(defaults['name']))
-    )
-    arg_parser.add_argument(
-        '--older-than', type=utils.hr_cutoff_to_ts,
-        default=defaults['older_than'],
-        help=("Include only {} older than (by creation time) the given "
-              "date or a time period given relative to the current date. \n\n"
-              "This can be in the format a partial ISO 8601 timestamp "
-              "(YYYY-MM-DDTHH:MM:SS), such as "
-              "'2018', '1999-03-21', or '2020-05-03 14:32:02'\n\n"
-              "Additionally, you can give an integer time distance into the "
-              "past, such as '1 hour', '3months', or '2years'. "
-              "(Whitespace between the number and unit is optional).\n"
-              "Default: {}".format(target, defaults['older_than']))
-    )
-    arg_parser.add_argument(
-        '--newer-than', type=utils.hr_cutoff_to_ts,
-        default=defaults['newer_than'],
-        help='As per older-than, but include only {} newer than the given'
-             'time.  Default: {}'.format(target, defaults['newer_than'])
-    )
-    arg_parser.add_argument(
-        '--state', type=str, default=defaults['state'],
-        help="Include only {} whose most recent state is the one given. "
-             "Default: {}".format(target, defaults['state'])
-    )
-    arg_parser.add_argument(
-        '--sys-name', type=str, default=defaults['sys_name'],
-        help='Include only {} that match the given system name, as '
-             'presented by the sys.sys_name pavilion variable. '
-             'Default: {}'.format(target, defaults['sys_name'])
-    )
-    arg_parser.add_argument(
-        '--user', type=str, default=defaults['user'],
-        help='Include only {} started by this user. Default: {}'
-        .format(target, defaults['user'])
-    )
+    if 'name' not in disable_opts:
+        arg_parser.add_argument(
+            '--name', default=defaults['name'],
+            help=("Include only tests/series that match this name. Globbing wildcards are "
+                  "allowed. Default: {}"
+                  .format(defaults['name']))
+        )
+    if 'older-than' not in disable_opts:
+        arg_parser.add_argument(
+            '--older-than', type=utils.hr_cutoff_to_ts,
+            default=defaults['older_than'],
+            help=("Include only {} older than (by creation time) the given "
+                  "date or a time period given relative to the current date. \n\n"
+                  "This can be in the format a partial ISO 8601 timestamp "
+                  "(YYYY-MM-DDTHH:MM:SS), such as "
+                  "'2018', '1999-03-21', or '2020-05-03 14:32:02'\n\n"
+                  "Additionally, you can give an integer time distance into the "
+                  "past, such as '1 hour', '3months', or '2years'. "
+                  "(Whitespace between the number and unit is optional).\n"
+                  "Default: {}".format(target, defaults['older_than']))
+        )
+    if 'newer-than' not in disable_opts:
+        arg_parser.add_argument(
+            '--newer-than', type=utils.hr_cutoff_to_ts,
+            default=defaults['newer_than'],
+            help='As per older-than, but include only {} newer than the given'
+                 'time.  Default: {}'.format(target, defaults['newer_than'])
+        )
+    if 'state' not in disable_opts:
+        arg_parser.add_argument(
+            '--state', type=str, default=defaults['state'],
+            help="Include only {} whose most recent state is the one given. "
+                 "Default: {}".format(target, defaults['state'])
+        )
+    if 'sys-name' not in disable_opts:
+        arg_parser.add_argument(
+            '--sys-name', type=str, default=defaults['sys_name'],
+            help='Include only {} that match the given system name, as '
+                 'presented by the sys.sys_name pavilion variable. '
+                 'Default: {}'.format(target, defaults['sys_name'])
+        )
+    if 'user' not in disable_opts:
+        arg_parser.add_argument(
+            '--user', type=str, default=defaults['user'],
+            help='Include only {} started by this user. Default: {}'
+            .format(target, defaults['user'])
+        )
     if sort_options:
         arg_parser.add_argument(
             '--sort-by', type=str, default=defaults['sort_by'],
@@ -139,7 +149,8 @@ def add_common_filter_args(target: str,
 
 def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                          default_overrides: Dict[str, Any] = None,
-                         sort_functions: Dict[str, Callable] = None) -> None:
+                         sort_keys: List[str] = None,
+                         disable_opts: List[str] = None) -> None:
     """Add a common set of arguments for filtering tests (those supported by
     make_test_run_filter below).
 
@@ -149,9 +160,11 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
 
     :param arg_parser: The arg parser (or sub-parser) to add arguments to.
     :param default_overrides: A dictionary of defaults to override.
-    :param sort_functions: A dict of sort-by names and sorting functions. The
-        functions don't matter at this point. If empty, sorting is disabled.
+    :param sort_keys: A list of sort-by names, corresponding to keys in the data being sorted.
+    :param disable_opts: Options to disable (not attach to the arg_parser).
     """
+
+    disable_opts = disable_opts or []
 
     defaults = TEST_FILTER_DEFAULTS.copy()
     if default_overrides is not None:
@@ -164,36 +177,34 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                     .format(ovr_key)
                 )
 
-    if sort_functions is None:
-        sort_functions = SORT_KEYS['TEST']
+    if sort_keys is None:
+        sort_keys = SORT_KEYS['TEST']
 
-    sort_options = (sort_functions
-                    + ['-' + key for key in sort_functions])
+    sort_options = (sort_keys
+                    + ['-' + key for key in sort_keys])
 
-    add_common_filter_args("test runs", arg_parser, defaults, sort_options)
+    add_common_filter_args("test runs", arg_parser, defaults, sort_options, disable_opts)
 
     pf_group = arg_parser.add_mutually_exclusive_group()
-    pf_group.add_argument(
-        '--passed', action='store_true', default=defaults['passed'],
-        help=('Include only passed test runs. Default: {}'
-              .format(defaults['passed']))
-    )
-    pf_group.add_argument(
-        '--failed', action='store_true', default=defaults['failed'],
-        help=('Include only failed test runs. Default: {}'
-              .format(defaults['failed']))
-    )
-    pf_group.add_argument(
-        '--result-error', action='store_true',
-        default=defaults['result_error'],
-        help=('Include only test runs with a result error. Default: {}'
-              .format(defaults['result_error']))
-    )
-    arg_parser.add_argument(
-        '--disable-filter', default=False, action='store_true',
-        help="Disable filtering for tests that are specifically "
-             "requested."
-    )
+    if 'passed' not in disable_opts:
+        pf_group.add_argument(
+            '--passed', action='store_true', default=defaults['passed'],
+            help=('Include only passed test runs. Default: {}'
+                  .format(defaults['passed']))
+        )
+    if 'failed' not in disable_opts:
+        pf_group.add_argument(
+            '--failed', action='store_true', default=defaults['failed'],
+            help=('Include only failed test runs. Default: {}'
+                  .format(defaults['failed']))
+        )
+    if 'result-error' not in disable_opts:
+        pf_group.add_argument(
+            '--result-error', action='store_true',
+            default=defaults['result_error'],
+            help=('Include only test runs with a result error. Default: {}'
+                  .format(defaults['result_error']))
+        )
 
 
 add_test_filter_args.__doc__.format(
@@ -203,7 +214,8 @@ add_test_filter_args.__doc__.format(
 
 def add_series_filter_args(arg_parser: argparse.ArgumentParser,
                            default_overrides: Dict[str, Any] = None,
-                           sort_functions: Dict[str, Callable] = None) -> None:
+                           sort_keys: List[str] = None,
+                           disable_opts: List[str] = None) -> None:
     """Add a common set of arguments for filtering series (those supported by
     make_series_filter below).
 
@@ -213,9 +225,11 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 
     :param arg_parser: The arg parser (or sub-parser) to add arguments to.
     :param default_overrides: A dictionary of defaults to override.
-    :param sort_functions: A dict of sort-by names and sorting functions. The
-        functions don't matter at this point. If empty, sorting is disabled.
+    :param sort_keys: A list of sort-by names.
+    :param disable_opts: Don't include the listed options.
     """
+
+    disable_opts = disable_opts or []
 
     defaults = SERIES_FILTER_DEFAULTS.copy()
     if default_overrides is not None:
@@ -228,13 +242,13 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
                     .format(ovr_key)
                 )
 
-    if sort_functions is None:
-        sort_functions = SORT_KEYS["SERIES"]
+    if sort_keys is None:
+        sort_keys = SORT_KEYS["SERIES"]
 
-    sort_options = (sort_functions
-                    + ['-' + key for key in sort_functions])
+    sort_options = (sort_keys
+                    + ['-' + key for key in sort_keys])
 
-    add_common_filter_args("series", arg_parser, defaults, sort_options)
+    add_common_filter_args("series", arg_parser, defaults, sort_options, disable_opts)
 
 
 def filter_test_run(

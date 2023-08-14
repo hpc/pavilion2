@@ -30,6 +30,21 @@ def glob_to_re(glob):
     return glob
 
 
+def is_int(val: str):
+    """Return true if the given string value is an integer."""
+
+    # isdigit, isnumeric and similar accept all kinds of weird unicode, like roman numerals.
+
+    # An empty string is not an int
+    if not val:
+        return False
+
+    for char in val:
+        if char not in '0123456789':
+            return False
+
+    return True
+
 def str_bool(val):
     """Returns true if the string value is the string 'true' with allowances
     for capitalization."""
@@ -255,10 +270,23 @@ def get_login():
         raise RuntimeError(
             "Could not get the name of the current user.")
 
+def get_user_id():
+    """Get the current user's id, either through os.getuid or the id command."""
+
+    try:
+        return os.getuid()
+    except OSError:
+        pass
+
+    try:
+        name = subprocess.check_output(['id', '-u'], stderr=subprocess.DEVNULL)
+        return name.decode('utf8').strip()
+    except Exception:
+        raise RuntimeError(
+            "Could not get the id of the current user.")
 
 class ZipFileFixed(zipfile.ZipFile):
-    """Overrides the default behavior in ZipFile to preserve execute
-    permissions."""
+    """Overrides the default behavior in ZipFile to preserve execute permissions."""
     def _extract_member(self, member, targetpath, pwd):
 
         ret = super()._extract_member(member, targetpath, pwd)

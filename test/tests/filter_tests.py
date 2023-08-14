@@ -19,6 +19,7 @@ class FiltersTest(PavTestCase):
         """Test adding standardized test run filter args."""
 
         class ExitError(RuntimeError):
+            """Get around auto-exiting when argparse errors happen."""
             pass
 
         class NoExitParser(argparse.ArgumentParser):
@@ -59,7 +60,8 @@ class FiltersTest(PavTestCase):
 
         filters.add_common_filter_args("", common_parser,
                                        filters.SERIES_FILTER_DEFAULTS,
-                                       sort_options=sort_opts)
+                                       sort_options=sort_opts,
+                                       disable_opts=[])
         filters.add_series_filter_args(series_parser)
 
         self.assertEqual(

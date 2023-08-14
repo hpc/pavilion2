@@ -59,6 +59,23 @@ class RoundPlugin(CoreFunctionPlugin):
         return round(val)
 
 
+class RoundDigPlugin(CoreFunctionPlugin):
+    """Round the number to N decimal places: ``round_dig(12.12341234, 3) -> 12.123``"""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="round_dig",
+            arg_specs=(float, int))
+
+    @staticmethod
+    def round_dig(val: float, places: int):
+        """Round the given number to the nearest int."""
+
+        return round(val, places)
+
+
 class LogPlugin(CoreFunctionPlugin):
     """Take the log of the given number to the given base."""
 

@@ -227,66 +227,29 @@ class ResultsCommand(Command):
             printing of any failure related errors.
         """
 
-        reslvr = resolver.TestConfigResolver(pav_cfg)
+        rslvr = resolver.TestConfigResolver(pav_cfg)
 
         for test in tests:
 
             # Re-load the raw config using the saved name, host, and modes
             # of the original test.
             try:
-                test_name = '.'.join((test.config['suite'],
-                                      test.config['name']))
 
-                configs = reslvr.load_raw_configs(
-                    tests=[resolver.TestRequest(test_name)],
-                    host=test.config['host'],
+                ptests = rslvr.load(
+                    tests=[test.name],
                     modes=test.config['modes'],
-                )
+                    overrides=test.config['overrides'])
             except TestConfigError as err:
-                output.fprint(self.errfile, "Test '{}' could not be found."
-                              .format(test.name), err, color=output.RED)
+                output.fprint(self.errfile, "Test '{}' could not be reloaded."
+                              .format(test.name), color=output.RED)
+                output.fprint(self.errfile, err.pformat())
                 return False
 
-            # Dump the request part of the return values
-            configs = [cfg for _, cfg in configs]
-
-            # These conditions guard against unexpected results from
-            # load_raw_configs. They may not be possible.
-            if not configs:
-                output.fprint(self.errfile, "No configs found for test '{}'. Skipping update."
-                              .format(test.name), color=output.YELLOW)
-                continue
-            elif len(configs) > 1:
-                output.fprint(self.errfile, "Test '{}' somehow matched multiple configs."
-                                            "Skipping update.".format(test.name),
-                              color=output.YELLOW)
-                continue
-
-            cfg = configs[0]
-            updates = {}
-
-            for section in 'result_parse', 'result_evaluate':
-                # Try to resolve the updated result section of the config using
-                # the original variable values.
-                try:
-                    updates[section] = resolve.section_values(
-                        component=cfg[section],
-                        var_man=test.var_man,
-                    )
-                except TestConfigError as err:
-                    output.fprint(self.errfile, "Test '{}' had a {} section that could not be "
-                                                "resolved with it's original variables."
-                                  .format(test.name, section), err, color=output.RED)
-                    return False
-                except RuntimeError as err:
-                    output.fprint(self.errfile,
-                                  "Unexpected error updating {} section for test '{}'."
-                                  .format(section, test.name), err, color=output.RED)
-                    return False
+            ptest = ptests[0]
 
             # Set the test's result section to the newly resolved one.
-            test.config['result_parse'] = updates['result_parse']
-            test.config['result_evaluate'] = updates['result_evaluate']
+            test.config['result_parse'] = ptest.config['result_parse']
+            test.config['result_evaluate'] = ptest.config['result_evaluate']
 
             try:
                 result.check_config(

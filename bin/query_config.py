@@ -12,7 +12,7 @@ parser.add_argument('keys', nargs='+', action="store",
 args = parser.parse_args()
 
 try:
-    pav_cfg = config.find_pavilion_config(warn=False, setup_working_dirs=False)
+    pav_cfg = config.find_pavilion_config(setup_working_dirs=False)
 except Exception as err:
     print(err, file=sys.stderr)
     sys.exit(1)

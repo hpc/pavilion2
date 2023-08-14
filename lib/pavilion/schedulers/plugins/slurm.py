@@ -68,11 +68,20 @@ slurm kickoff script.
             lines.append('#SBATCH -x {}'
                          .format(Slurm.compress_node_list(self._exclude_nodes)))
 
-        if self._node_min == self._node_max:
-            nodes = self._node_max
+        if self._node_max is None:
+            # The job is defined by # of tasks.
+            if self._node_min != 1:
+                lines.append('#SBATCH --nodes {}'.format(self._node_min))
+        elif self._node_min != self._node_max:
+            # Specify a node range.
+            lines.append('#SBATCH --nodes {}-{}'.format(self._node_min, self._node_max))
         else:
-            nodes = '{}-{}'.format(self._node_min, self._node_max)
-        lines.append('#SBATCH -N {}'.format(nodes))
+            # Specify the minimum number of nodes.
+            lines.append('#SBATCH --nodes {}'.format(self._node_min))
+
+        tasks = self._config['tasks']
+        if tasks is not None:
+            lines.append('#SBATCH --ntasks {}'.format(tasks))
 
         for line in self._config['slurm']['sbatch_extra']:
             lines.append('#SBATCH {}'.format(line))
@@ -134,9 +143,13 @@ class SlurmVars(SchedulerVariables):
         slurm_conf = self._sched_config['slurm']
 
         nodes = len(self._nodes)
-        tasks = int(self.tasks_per_node()) * nodes
+
+        tasks = self._sched_config['tasks']
+        if tasks is None:
+            tasks = int(self.tasks_per_node()) * nodes
 
         if self._sched_config['slurm']['mpi_cmd'] == Slurm.MPI_CMD_SRUN:
+            # cmd: srun
 
             # The full node list isn't currently required,
             cmd = ['srun',
@@ -146,23 +159,14 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(slurm_conf['srun_extra'])
         else:
+            # cmd: mpirun
+
             cmd = ['mpirun']
 
-            rank_by = slurm_conf['mpirun_rank_by']
-            bind_to = slurm_conf['mpirun_bind_to']
-            mca = slurm_conf['mpirun_mca']
-            if rank_by:
-                cmd.extend(['--rank-by', rank_by])
-            if bind_to:
-                cmd.extend(['--bind-to', bind_to])
-            if mca:
-                for mca_opt in mca:
-                    cmd.extend(['--mca', mca_opt])
+            cmd.extend(self.mpirun_opts())
 
             hostlist = ','.join(self._nodes.keys())
             cmd.extend(['--host', hostlist])
-
-            cmd.extend(self._sched_config['slurm']['mpirun_extra'])
 
         return ' '.join(cmd)
 
@@ -280,14 +284,6 @@ class Slurm(SchedulerPluginAdvanced):
             yc.StrElem(name='mpi_cmd',
                        help_text="What command to use to start mpi jobs. Options"
                                  "are {}.".format(self.MPI_CMD_OPTIONS)),
-            yc.StrElem(name='mpirun_bind_to',
-                       help_text="MPIrun --bind-to option. See `man mpirun`"),
-            yc.StrElem(name='mpirun_rank_by',
-                       help_text="MPIrun --rank-by option. See `man mpirun`"),
-            yc.ListElem(name='mpirun_mca', sub_elem=yc.StrElem(),
-                        help_text="MPIrun mca module options (--mca). See `man mpirun`"),
-            yc.ListElem(name='mpirun_extra', sub_elem=yc.StrElem(),
-                        help_text="Extra arguments to add to mpirun commands."),
         ]
 
         defaults = {
@@ -303,8 +299,6 @@ class Slurm(SchedulerPluginAdvanced):
             'sbatch_extra': [],
             'srun_extra': [],
             'mpi_cmd': self.MPI_CMD_SRUN,
-            'mpirun_extra': [],
-            'mpirun_mca': [],
         }
 
         validators = {
@@ -315,10 +309,6 @@ class Slurm(SchedulerPluginAdvanced):
             'srun_extra': validate_list,
             'sbatch_extra': validate_list,
             'mpi_cmd': self.MPI_CMD_OPTIONS,
-            'mpirun_bind_to': self.MPIRUN_BIND_OPTS,
-            'mpirun_rank_by': self.MPIRUN_BIND_OPTS,
-            'mpirun_mca': validate_list,
-            'mpirun_extra': validate_list,
         }
 
         return elems, validators, defaults
@@ -458,7 +448,6 @@ class Slurm(SchedulerPluginAdvanced):
                 seq_format = '{base}{z}[{num_list}]'
             else:
                 seq_format = '{base}{z}{num_list}'
-
             node_seqs.append(
                 seq_format
                 .format(base=base, z='0' * pre_digits, num_list=num_list))
@@ -569,8 +558,8 @@ class Slurm(SchedulerPluginAdvanced):
 
     def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
             -> Union[str, None]:
-        """Filter nodes by features. (Returns why a nodes should be filtered out, or None if it
-        shoulded be."""
+        """Filter nodes by features. (Returns why a node should be filtered out, or None if it
+        shouldn't be."""
 
         _ = self
 

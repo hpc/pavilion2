@@ -11,7 +11,8 @@ class BuildCmdTests(PavTestCase):
 
     def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)
-        commands.get_command('build').silence()
+        build_cmd = commands.get_command('build')
+        build_cmd.silence()
 
     def test_multi_build(self):
         """Make sure we can just build multiple simultaneous builds on
@@ -133,21 +134,3 @@ class BuildCmdTests(PavTestCase):
             origin = test.build_origin_path.resolve().name
             self.assertEqual(origin, expected_name,
                              msg=test.name)
-
-    def test_build_verbosity(self):
-        """Make sure that the build verbosity levels at least appear to work."""
-
-        arg_parser = arguments.get_parser()
-        arg_sets = [
-            ['build', '-H', 'this', '-l', '-b', 'build_parallel'],
-            ['build', '-H', 'this', '-l', '-b', '-b', 'build_parallel'],
-        ]
-        build_cmd = commands.get_command('build')
-
-        for arg_set in arg_sets:
-            args = arg_parser.parse_args(arg_set)
-
-            build_ret = build_cmd.run(self.pav_cfg, args)
-
-            build_cmd.outfile.seek(0)
-            self.assertEqual(build_ret, 0, msg=build_cmd.outfile.read())

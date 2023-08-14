@@ -21,6 +21,7 @@ provided (sched).
 import collections
 import copy
 import json
+import time
 from typing import Union, List, Tuple
 
 import lark
@@ -607,11 +608,19 @@ index, sub_var) tuple.
                 data['__deferred'] = list(self.deferred)
 
                 json.dump(data, outfile)
-                tmp_path.rename(path)
+                #tmp_path.rename(path)
         except (OSError, IOError, FileNotFoundError) as err:
             raise VariableError(
                 "Could not write variable file at '{}'"
                 .format(tmp_path), err)
+
+        start = time.time()
+        while time.time() - start < 100:
+            try:
+                tmp_path.rename(path)
+                break
+            except FileNotFoundError:
+                continue
 
     @classmethod
     def load(cls, path):
@@ -849,7 +858,7 @@ end up as a list (of one)."""
                 sub_vars = set(value_pairs.keys())
             elif set(value_pairs.keys()) != sub_vars:
                 raise VariableError(
-                    "Sub-keys do not match across variable values. "
+                    "Sub-keys do not match across variable values.\n"
                     "Idx {} had keys {}, but expected {}"
                     .format(idx, set(value_pairs.keys()), sub_vars),
                     index=str(idx))

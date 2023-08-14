@@ -1,5 +1,8 @@
 """Show a variety of different internal information for Pavilion."""
 
+# pylint: disable=too-many-lines
+
+
 import argparse
 import errno
 import fnmatch
@@ -9,10 +12,9 @@ import sys
 from pathlib import Path
 from typing import Union
 
-import pavilion.errors
 import yaml_config
 from pavilion import config
-from pavilion.errors import ResultError
+from pavilion import errors
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
@@ -26,6 +28,7 @@ from pavilion import sys_vars
 from pavilion.deferred import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion import resolver
+from pavilion import test_run
 from pavilion.types import Nodes
 from .base_classes import Command, sub_cmd
 
@@ -175,6 +178,29 @@ class ShowCommand(Command):
             action='store_true', default=False,
             help='Display the path to the plugin file.'
         )
+
+        nodes_parser = subparsers.add_parser(
+            'nodes',
+            help="Show node status for the current machine, from Pavilion's perspective.",
+            description="Display a table of information on the current state of "
+                        "system nodes for a given scheduler."
+        )
+
+        nodes_plugins = []
+        for sched in schedulers.list_plugins():
+            if isinstance(schedulers.get_plugin(sched), schedulers.SchedulerPluginAdvanced):
+                nodes_plugins.append(sched)
+        nodes_parser.add_argument(
+            'scheduler', choices=nodes_plugins,
+            help="The scheduler to use to gather node info. Only 'advanced' "
+                 "Pavilion scheduler plugins are valid.")
+        nodes_parser.add_argument(
+            'test', nargs='?',
+            help="The test to base the scheduler configuration on. Nodes are filtered "
+                 "according to the test's scheduler config.")
+        nodes_parser.add_argument(
+            '--show-filtered', action='store_true', default=False,
+            help="Show the filtered nodes along with their reason for being filtered.")
 
         subparsers.add_parser(
             'pavilion_variables',
@@ -607,6 +633,71 @@ class ShowCommand(Command):
             title="Available Module Wrapper Plugins"
         )
 
+    @sub_cmd()
+    def _nodes_cmd(self, pav_cfg, args):
+        """Lists the nodes as seen by a given scheduler."""
+        # pylint: disable=protected-access
+
+        sched = schedulers.get_plugin(args.scheduler)
+
+        if args.test is not None:
+            try:
+                rslvr = resolver.TestConfigResolver(pav_cfg)
+                ptests = rslvr.load([args.test])
+            except errors.TestConfigError as err:
+                output.fprint(self.errfile,
+                              "Could not load test {}\n{}"
+                              .format(args.test, err.pformat()))
+                return errno.EINVAL
+
+            test = None
+            for ptest in ptests:
+                try:
+                    test = test_run.TestRun(pav_cfg, ptest.config, ptest.var_man)
+                    if not test.skipped:
+                        break
+                except errors.PavilionError as err:
+                    continue
+
+            if test is not None:
+                sched_config = test.config['schedule']
+        else:
+            loader = file_format.TestConfigLoader()
+            cfg = loader.load_empty()
+            cfg = loader.validate(loader.normalize(cfg))
+            sched_config = cfg['schedule']
+            sched_config = schedulers.validate_config(sched_config)
+
+        nodes = sched._get_system_inventory(sched_config)
+        sched._nodes = nodes
+        filtered_nodes, filter_reasons = sched._filter_nodes(sched_config)
+        for reason, fnodes in filter_reasons.items():
+            for fnode in fnodes:
+                nodes[fnode]['filtered'] = reason
+
+        fields = ['name', 'up', 'available', 'partitions', 'states']
+
+        shown_nodes = []
+        if not args.show_filtered:
+            for node in filtered_nodes:
+                shown_nodes.append(nodes[node])
+        else:
+            fields.append('filtered')
+            for node in nodes:
+                if node not in filtered_nodes:
+                    shown_nodes.append(nodes[node])
+
+        output.draw_table(
+            outfile=self.outfile,
+            fields=fields,
+            title="System node state via {}".format(args.scheduler.capitalize()),
+            rows=shown_nodes,
+            field_info={
+                'partitions': {'transform': lambda f: ', '.join(sorted(f))},
+                'states': {'transform': lambda f: ', '.join(sorted(f))},
+                },
+            )
+
     @sub_cmd('pav_vars', 'pav_var', 'pav')
     def _pavilion_variables_cmd(self, pav_cfg, _):
 
@@ -648,7 +739,7 @@ class ShowCommand(Command):
         if args.doc:
             try:
                 res_plugin = result_parsers.get_plugin(args.doc)
-            except ResultError:
+            except errors.ResultError:
                 output.fprint(sys.stdout, "Invalid result parser '{}'.".format(args.doc),
                               color=output.RED)
                 return errno.EINVAL
@@ -684,14 +775,13 @@ class ShowCommand(Command):
         """
         :param argparse.Namespace args:
         """
-
         sched = None  # type : schedulers.SchedulerPlugin
         if args.vars is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
             try:
                 sched = schedulers.get_plugin(sched_name)
-            except pavilion.errors.SchedulerPluginError:
+            except errors.SchedulerPluginError:
                 output.fprint(sys.stdout, "Invalid scheduler plugin '{}'.".format(sched_name),
                               color=output.RED)
                 return errno.EINVAL
@@ -779,7 +869,7 @@ class ShowCommand(Command):
                 deferred = isinstance(value, DeferredVariable)
                 help_str = svars.help(key)
 
-            except pavilion.errors.SystemPluginError as err:
+            except errors.SystemPluginError as err:
                 value = output.ANSIString('error', code=output.RED)
                 deferred = False
                 help_str = output.ANSIString(str(err), code=output.RED)
@@ -992,6 +1082,15 @@ class ShowCommand(Command):
         pvalue("Email:", test['email'])
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
+
+
+    DOC_KEYS = ['summary', 'doc']
+    PERMUTATION_KEYS = ['permute_on', 'subtitle']
+    INHERITANCE_KEYS = ['inherits_from']
+    SCHEDULING_KEYS = ['schedule', 'chunk']
+    RUN_KEYS = ['run']
+    BUILD_KEYS = ['build']
+    RESULT_KEYS = ['result_parse', 'result_evaluate']
 
     @sub_cmd()
     def _test_config_cmd(self, *_):

@@ -31,19 +31,23 @@ except ImportError:
                               "dependencies?")
 
 
+MIN_SUPPORTED_MINOR_VERSION = 6
+SUPPORTED_MAJOR_VERSION = 3
+
 # pylint: disable=broad-except
 def main():
     """Setup Pavilion and run a command."""
 
     # Pavilion is compatible with python >= 3.4
-    if sys.version_info[0] != 3 or sys.version_info[1] < 5:
-        output.fprint(sys.stderr, "Pavilion requires python 3.5 or higher.", color=output.RED)
+    if (sys.version_info[0] != SUPPORTED_MAJOR_VERSION
+            or sys.version_info[1] < MIN_SUPPORTED_MINOR_VERSION):
+        output.fprint(sys.stderr, "Pavilion requires python 3.6 or higher.", color=output.RED)
         sys.exit(-1)
 
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()
 
-    # Get the config, and
+    # Get the Pavilion config
     try:
         pav_cfg = config.find_pavilion_config()
     except Exception as err:
@@ -51,11 +55,7 @@ def main():
         sys.exit(-1)
 
     # Setup all the loggers for Pavilion
-    if not log_setup.setup_loggers(pav_cfg):
-        output.fprint(sys.stderr,
-                      "Could not set up loggers. This is usually because of a badly defined "
-                      "working_dir in pavilion.yaml.", color=output.RED)
-        sys.exit(-1)
+    log_output = log_setup.setup_loggers(pav_cfg)
 
     # Initialize all the plugins
     try:
@@ -84,9 +84,19 @@ def main():
     # parser), we'll reparse the args for real.
     args = parser.parse_args()
 
-    pav_cfg.pav_vars = pavilion_variables.PavVars()
-    run_cmd(pav_cfg, args)
+    if not args.quiet:
+        show_setup_warnings(pav_cfg)
 
+    pav_cfg.pav_vars = pavilion_variables.PavVars()
+    return_code = run_cmd(pav_cfg, args)
+
+    if not args.quiet:
+        log_messages = log_output.getvalue()
+        if log_messages:
+            output.fprint(sys.stderr, "Log Messages (disable with --quiet)")
+            output.fprint(sys.stderr, log_messages)
+
+    sys.exit(return_code)
 
 def run_cmd(pav_cfg, args):
     """Run the command specified by the user using the remaining arguments."""
@@ -96,12 +106,15 @@ def run_cmd(pav_cfg, args):
     except KeyError:
         output.fprint(sys.stderr, "Unknown command '{}'."
                       .format(args.command_name), color=output.RED)
-        sys.exit(-1)
+        return -1
+
+    if args.quiet:
+        cmd.stderr = open('/dev/null', 'w')
 
     try:
-        sys.exit(cmd.run(pav_cfg, args))
+        return cmd.run(pav_cfg, args)
     except KeyboardInterrupt:
-        sys.exit(-1)
+        return -1
     except Exception as err:
         exc_info = {
             'traceback': traceback.format_exc(),
@@ -119,7 +132,17 @@ def run_cmd(pav_cfg, args):
 
         output.fprint(sys.stderr, "Traceback logged to {}".format(pav_cfg.exception_log),
                       color=output.RED)
-        sys.exit(-1)
+        return -1
+
+
+def show_setup_warnings(pav_cfg: config.PavConfig):
+    """Print any warnings accumulated during setup."""
+
+    for warning in pav_cfg.warnings:
+        output.fprint(sys.stderr, 'Warning: {}'.format(warning), color=output.YELLOW)
+    if pav_cfg.warnings:
+        output.fprint(sys.stderr, 'Note: You can silence warnings with `pav --quiet`.',
+            color=output.YELLOW)
 
 
 def _get_arg_val(arg_name, default):

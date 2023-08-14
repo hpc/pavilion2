@@ -123,8 +123,6 @@ class TestRun(TestAttributes):
         else:
             self.working_dir = Path(config['working_dir'])
 
-        self.cfg_label = config.get('cfg_label', self.NO_LABEL)
-
         tests_path = self.working_dir/self.RUN_DIR
 
         self.config = config
@@ -152,6 +150,7 @@ class TestRun(TestAttributes):
             self.created = time.time()
             self.name = self.make_name(config)
             self.rebuild = rebuild
+            self.cfg_label = config.get('cfg_label', self.NO_LABEL)
             suite_path = config.get('suite_path')
             if suite_path == '<no_suite>' or suite_path is None:
                 self.suite_path = Path('..')
@@ -177,11 +176,8 @@ class TestRun(TestAttributes):
             try:
                 self.var_man = VariableSetManager.load(self._variables_path)
             except VariableError as err:
-                raise TestRunError(*err.args)
-
-        # If the cfg label is actually something that exists, use it in the
-        # test full_id. Otherwise give the test path.
-        self.full_id = '{}.{}'.format(self.cfg_label, self.id)
+                raise TestRunError("Error loading variable set for test {}".format(self.id),
+                                   err)
 
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
@@ -201,7 +197,6 @@ class TestRun(TestAttributes):
         self.run_log = self.path/'run.log'
         self.build_log = self.path/'build.log'
         self.results_log = self.path/'results.log'
-        self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
 
         # Use run.log as the default run timeout file
@@ -342,8 +337,7 @@ class TestRun(TestAttributes):
                     tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                     create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
                 except TestConfigError as err:
-                    raise TestRunError("Error resolving Build template files"
-                                       .format(err.args[0]))
+                    raise TestRunError("Error resolving Build template files", err)
             tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
 
         return tmpl_paths
@@ -444,14 +438,16 @@ class TestRun(TestAttributes):
             try:
                 create_files.create_file(file, self.build_path, contents)
             except TestConfigError as err:
-                raise TestRunError("Test run '{}'".format(self.full_id, err.args[0]))
+                raise TestRunError("Test run '{}' Could not create build script."
+                                   .format(self.full_id), err)
 
         for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
             try:
                 tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                 create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
             except TestConfigError as err:
-                raise TestRunError("Test run '{}'".format(self.full_id, err.args[0]))
+                raise TestRunError("Test run '{}' could not create run script."
+                                   .format(self.full_id, err))
 
         self.save_attributes()
 
@@ -512,11 +508,6 @@ class TestRun(TestAttributes):
             with tmp_path.open('w') as config_file:
 
                 yaml.dump(config, config_file)
-                try:
-                    config_path.unlink()
-                except OSError:
-                    pass
-                tmp_path.rename(config_path)
         except (OSError, IOError) as err:
             raise TestRunError(
                 "Could not save TestRun ({}) config at {}"
@@ -525,6 +516,19 @@ class TestRun(TestAttributes):
             raise TestRunError(
                 "Invalid type in config for ({})"
                 .format(self.name), err)
+
+        try:
+            config_path.unlink()
+        except (OSError, FileNotFoundError):
+            pass
+
+        start = time.time()
+        while time.time() - start < 100:
+            try:
+                tmp_path.rename(config_path)
+                break
+            except FileNotFoundError:
+                continue
 
     @classmethod
     def _load_config(cls, test_path):
@@ -582,7 +586,7 @@ class TestRun(TestAttributes):
 
         if tracker is None:
             mb_tracker = MultiBuildTracker()
-            tracker = mb_tracker.register(self.builder, self.status)
+            tracker = mb_tracker.register(self)
 
         if not self.saved:
             raise RuntimeError("The .save() method must be called before you "
@@ -619,7 +623,7 @@ class TestRun(TestAttributes):
             except errors.TestBuilderError as err:
                 tracker.fail("Error copying build: {}".format(err.args[0]))
                 cancel_event.set()
-            build_result = True
+            build_success = True
 
         else:
             try:
@@ -633,17 +637,17 @@ class TestRun(TestAttributes):
                 except FileNotFoundError:
                     # Builds can have symlinks that point to non-existent files.
                     pass
-            build_result = False
+            build_success = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
 
-        if build_result:
+        if build_success:
             self.status.set(STATES.BUILD_DONE, "Build is complete.")
 
-        if self.build_only:
+        if self.build_only or not build_success:
             self.set_run_complete()
 
-        return build_result
+        return build_success
 
     RUN_WAIT_MAX = 1
     # The maximum wait time before checking things like test cancellation
@@ -732,7 +736,7 @@ class TestRun(TestAttributes):
                         elif self.cancelled:
                             proc.kill()
                             self.status.set(
-                                STATES.STATES.SCHED_CANCELLED,
+                                STATES.SCHED_CANCELLED,
                                 "Test cancelled mid-run.")
                             self.finished = time.time()
                             self.save_attributes()
@@ -746,8 +750,9 @@ class TestRun(TestAttributes):
         self.save_attributes()
 
         if ret == 0:
-            self.status.set(STATES.RUN_DONE,
-                            "Test run has completed.")
+            if not self.status.has_state(STATES.CANCELLED):
+                self.status.set(STATES.RUN_DONE,
+                                "Test run has completed.")
 
         return ret
 
@@ -925,7 +930,7 @@ of result keys.
             pass
         results_tmp_path.rename(self.results_path)
 
-        self.result = results.get('result')
+        self._results = results
         self.save_attributes()
 
         result_logger = logging.getLogger('common_results')
@@ -942,43 +947,6 @@ of result keys.
                 result_logger.info(output.json_dumps(per_result))
         else:
             result_logger.info(output.json_dumps(results))
-
-    def load_results(self):
-        """Load results from the results file.
-
-:returns A dict of results, or None if the results file doesn't exist.
-:rtype: dict
-"""
-
-        if self.results_path.exists():
-            with self.results_path.open() as results_file:
-                return json.load(results_file)
-        else:
-            return None
-
-    PASS = 'PASS'
-    FAIL = 'FAIL'
-    ERROR = 'ERROR'
-
-    @property
-    def results(self):
-        """The test results. Returns a dictionary of basic information
-        if the test has no results."""
-        if self.results_path.exists() and (
-                self._results is None or self._results['result'] is None):
-            with self.results_path.open() as results_file:
-                self._results = json.load(results_file)
-
-        if self._results is None:
-            return {
-                'name': self.name,
-                'sys_name': self.var_man['sys_name'],
-                'created': self.created,
-                'id': self.full_id,
-                'result': None,
-            }
-        else:
-            return self._results
 
     @property
     def is_built(self):
@@ -1146,6 +1114,8 @@ be set by the scheduler plugin as soon as it's known."""
             if utils.str_bool(self.config.get(stype, {}).get('autoexit')):
                 script.command("set -e -o pipefail")
             for line in config.get('cmds', []):
+                if line is None:
+                    line = ''
                 for split_line in line.split('\n'):
                     script.command(split_line)
         else:

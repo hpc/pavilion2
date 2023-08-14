@@ -40,6 +40,7 @@ each test right before it runs on an allocation in order to un-defer values.
         'errors': ['oh no, there was an error.'],
         'node_list': ['node01', 'node03', 'node04'],
         'status_info': '',
+        'tasks': '35',
         'tasks_per_node': "5",
         'test_nodes':     '45',
         'test_node_list': ['node02', 'node04'],
@@ -313,7 +314,34 @@ each test right before it runs on an allocation in order to un-defer values.
         return self._get_min(list(self._nodes.values()), 'mem', 4*1024**3)
 
     @dfr_var_method
-    def tasks_total(self):
-        """Total tasks to create, based on number of nodes actually acquired."""
+    def tasks_total(self) -> int:
+        """The total number of tasks for the job, either as defined by 'tasks' or
+        by the tasks_per_node and number of nodes."""
 
-        return self._sched_config.get('tasks_per_node', 1) * len(self._nodes)
+        tasks = self._sched_config.get('tasks')
+
+        if tasks is None:
+            return self._sched_config.get('tasks_per_node', 1) * len(self._nodes)
+        else:
+            return tasks
+
+    def mpirun_opts(self):
+        """Sets up mpirun command with user-defined options."""
+
+        mpirun_opts = ['-N', str(self._sched_config.get('tasks_per_node', 1))]
+
+        rank_by = self._sched_config['mpirun_opts']['rank_by']
+        bind_to = self._sched_config['mpirun_opts']['bind_to']
+        mca = self._sched_config['mpirun_opts']['mca']
+        extra = self._sched_config['mpirun_opts']['extra']
+
+        if rank_by:
+            mpirun_opts.extend(['--rank-by', rank_by])
+        if bind_to:
+            mpirun_opts.extend(['--bind-to', bind_to])
+        if mca:
+            for mca_opt in mca:
+                mpirun_opts.extend(['--mca', mca_opt])
+        mpirun_opts.extend(extra)
+
+        return mpirun_opts
