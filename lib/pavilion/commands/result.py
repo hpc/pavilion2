@@ -101,7 +101,9 @@ class ResultsCommand(Command):
         if args.show_log and args.re_run:
             log_file = io.StringIO()
 
+        skipped_reruns = [test for test in tests if test.finished is None]
         if args.re_run:
+            tests = [test for test in tests if test.finished is not None]
             if not self.update_results(pav_cfg, tests, log_file, save=args.save):
                 return errno.EINVAL
 
@@ -187,6 +189,14 @@ class ResultsCommand(Command):
                 else:
                     output.fprint(self.outfile, "Log file '{}' missing>".format(log_path),
                                   color=output.YELLOW)
+
+        if skipped_reruns:
+            output.fprint(
+                self.errfile,
+                "One or more of the requested tests never completed, and therefore have no "
+                "results to 're-run'. Check the status and/or logs for these tests to see why:\n"
+                + ", ".join([test.full_id for test in skipped_reruns]),
+                color=output.YELLOW)
 
         return 0
 
