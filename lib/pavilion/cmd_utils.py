@@ -245,8 +245,17 @@ def read_test_files(pav_cfg, files: List[str]) -> List[str]:
     tests = []
     for path in files:
         path = Path(path)
-        if not path.is_absolute():
+
+        if path.name == path.as_posix() and not path.exists():
+            # If a plain filename is given (with not path components) and it doesn't
+            # exist in the CWD, check to see if it's a saved collection.
             path = get_collection_path(pav_cfg, path)
+
+            if path is None:
+                raise PavilionError(
+                    "Cannot find collection '{}' in the config dirs nor the current dir."
+                    .format(collection))
+
         try:
             with path.open() as file:
                 for line in file:
@@ -256,14 +265,14 @@ def read_test_files(pav_cfg, files: List[str]) -> List[str]:
                     test = line.split('#')[0].strip()  # Removing any trailing comments.
                     tests.append(test)
         except OSError as err:
-            raise ValueError("Could not read test list file at '{}': {}"
-                             .format(path, err))
+            raise PavilionError("Could not read test list file at '{}'"
+                                .format(path), prior_error=err)
 
     return tests
 
 
-def get_collection_path(pav_cfg, collection) -> Path:
-    """Read the given list of collection files and return full absolute paths."""
+def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
+    """Find a collection in one of the config directories. Returns None on failure."""
 
     # Check if this collection exists in one of the defined config dirs
     for config in pav_cfg['configs'].items():
@@ -272,15 +281,7 @@ def get_collection_path(pav_cfg, collection) -> Path:
         if collection_path.exists():
             return collection_path
 
-    # If the previous loop completes, then check the current working directory for the collection
-    cwd_collection = Path.cwd() / collection
-    if cwd_collection.exists():
-        return cwd_collection
-
-    # If it reaches this point, then the collection does not exist in any of the defined config dirs
-    # nor the current working directory
-    raise ValueError("Cannot find collection '{}' in the config dirs nor the current dir."
-                     .format(collection))
+    return None
 
 
 def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
@@ -493,7 +494,7 @@ def get_testset_name(pav_cfg, tests: List['str'], files: List['str']):
     #       foo.a and foo.b being specified in both areas
     if files:
         files = [Path(filepath) for filepath in files]
-        file_tests = read_test_files(pav_cfg, [file.absolute() for file in files])
+        file_tests = read_test_files(pav_cfg, files)
         tests = list(set(tests) - set(file_tests))
 
     # Here we generate a dictionary mapping tests to the suites they belong to

@@ -10,7 +10,7 @@ from pavilion import cmd_utils
 from pavilion import groups
 from pavilion import output
 from pavilion.enums import Verbose
-from pavilion.errors import TestSeriesError
+from pavilion.errors import TestSeriesError, PavilionError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
@@ -146,8 +146,8 @@ class RunCommand(Command):
         tests = args.tests
         try:
             tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
-        except ValueError as err:
-            output.fprint(sys.stdout, "Error reading given test list files.\n{}"
+        except PavilionError as err:
+            output.fprint(self.errfile, "Error reading given test list files.\n{}"
                           .format(err))
             return errno.EINVAL
 
