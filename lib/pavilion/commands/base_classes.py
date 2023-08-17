@@ -164,7 +164,7 @@ case that includes:
                                            aliases=self.aliases,
                                            description=self.description,
                                            help=self.short_help,
-                                           formatter_class=self.formatter_class)
+                                           formatter_class=arguments.WrappedFormatter)
         else:
             parser = sub_parser.add_parser(self.name,
                                            aliases=self.aliases,

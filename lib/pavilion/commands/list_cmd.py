@@ -4,6 +4,7 @@ undefined) bits."""
 import errno
 from typing import List
 
+from pavilion import arguments
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
@@ -99,7 +100,8 @@ class ListCommand(Command):
             'test_runs',
             aliases=['runs', 'tests'],
             help="List test runs.",
-            description="Print a list of test run id's."
+            description="Print a list of test run id's.",
+            formatter_class=arguments.WrappedFormatter
         )
         runs_p.add_argument('--label', default=None,
                             help="The config label to search under.")
