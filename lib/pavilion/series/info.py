@@ -215,7 +215,7 @@ class SeriesInfoBase:
 
         try:
             test_info = TestAttributes(test_path)
-        except TestRunError:
+        except (TestRunError, FileNotFoundError):
             test_info = None
 
         self._test_info[test_path] = test_info

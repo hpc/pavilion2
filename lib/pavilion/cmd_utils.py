@@ -46,7 +46,7 @@ def set_arg_defaults(args):
     # Don't assume these actually exist.
     def_filter = 'user={} created<{} sys_name={}'.format(
                   utils.get_login(),
-                  dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
+                  (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
                   sys_vars.get_vars(defer=True).get('sys_name'))
     args.filter = getattr(args, 'filter', def_filter)
 
@@ -111,7 +111,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                                    "created less than 1 day ago.", color=output.CYAN)
             args.filter = 'user={} created<{} sys_name={}'.format(
                            utils.get_login(),
-                           dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
+                           (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
 
     filter_func = filters.make_test_run_filter(target=args.filter)
@@ -177,7 +177,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                                    "created less than 1 day ago.", color=output.CYAN)
             args.filter = 'user={} created<{} sys_name={}'.format(
                            utils.get_login(),
-                           dt.datetime.now().timestamp() - dt.timedelta(days=1).total_seconds(),
+                           (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
 
     matching_series = []

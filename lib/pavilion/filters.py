@@ -17,6 +17,7 @@ from pavilion.status_file import TestStatusFile, SeriesStatusFile, StatusError, 
     STATES, SERIES_STATES
 from pavilion import sys_vars
 from pavilion.test_run import TestRun
+from pavilion import variables
 
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
@@ -363,13 +364,29 @@ def created(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> b
 
     time_val = utils.hr_cutoff_to_ts(val, dt.datetime.now())
 
+    if attrs.get('created') is None:
+        return False
+
     if operator == OP_GT:
-        return attrs.get('created', False) < time_val
+        return attrs.get('created') < time_val
     elif operator == OP_LT:
-        return attrs.get('created', False) > time_val
+        return attrs.get('created') > time_val
     else:
         raise ValueError(
                     "Operator {} not recognized.".format(operator))
+
+def partition(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
+    """Return "partition" status
+
+    :param attrs: attributes of a given test or series
+    :param val: the value of the filter query
+
+    :return: result of the test or series "partition" attribute
+    """
+    return attrs.get('partition', False) == val
+
+def nodes(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
+    pass
 
 def finished(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
     """Return whether 'finished' status of a test is greater or less than a given time
@@ -382,6 +399,9 @@ def finished(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> 
     """
 
     time_val = utils.hr_cutoff_to_ts(val, dt.datetime.now())
+
+    if attrs.get('finished') is None:
+        return False
 
     if operator == OP_GT:
         return attrs.get('finished', False) < time_val
@@ -443,7 +463,11 @@ def NOT(op: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
 
     :return: result of the not evaluation on the operand
     """
-    print("hi")
+    if OP_NEQ in op:
+        op = op.replace('!=', '=')
+        print(op)
+        return not filter_run(attrs, funcs, op)
+
     return not filter_run(attrs, funcs, op.strip(OP_NOT))
 
 def OR(op1: str, op2: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
@@ -480,7 +504,21 @@ def remove_extra_spaces(target: str) -> str:
 
     :return: the whitespace-trimmed query
     """
-    return re.sub(r' *([|!=<>]) *', r'\1', target).strip(' ')
+    new_target = re.sub(r' *([|!=<>]) *', r'\1', target).strip(' ')
+
+    if FINISHED in new_target or CREATED in new_target:
+        new_target = re.sub(r'(created[<>]|finished[<>])'
+                            r'(\d+(?:\.\d+)?)\s*'
+                            r'(second|minute|hour|day|week|year([s])?)', r'\1\2\3', new_target)
+        new_target = re.sub(r'(created[<>]|finished[<>])'
+                            r'(\d{4})'
+                            r'(-\d{1,2})?'
+                            r'(-\d{1,2})?'
+                            r'(?:[T ](\d{1,2}))?'
+                            r'(:\d{1,2})?'
+                            r'(:\d{1,2})?(?:\.\d+)?', r'\1\2\3\4T\5\6\7', new_target)
+
+    return new_target
 
 def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
     """Parse the key, operand, and value apart. If there is not an
@@ -493,9 +531,9 @@ def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
     for operator in [OP_NEQ, OP_EQ, OP_LT, OP_GT]:
         if operator in target:
             key, val = target.split(operator, 1)
-            return (key, operator, val)
+            return (key.lower(), operator, val)
 
-    return (target, '', '')
+    return (target.lower(), '', '')
 
 def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, target: str) -> bool:
     """Main logic of the filter. Evaluate arguments and apply any operations to them.
@@ -506,7 +544,7 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
 
     :return: whether a particular test passes the filter query requirements
     """
-
+    partition(test_attrs)
     if target is None:
         return True
     else:
@@ -523,43 +561,43 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
         return OR(op1, op2, test_attrs, filter_funcs)
 
     else:
-        if OP_NOT in target and OP_NEQ not in target:
+        key, operator, val = parse_target(target)
+
+        if OP_NOT in key:
             return NOT(target, test_attrs, filter_funcs)
 
-        else:
-            key, operator, val = parse_target(target)
-
-            if key in filter_funcs:
-                if operator in filter_funcs[key][OPS]:
-                    if operator == OP_NEQ:
-                        return not filter_funcs[key][FUNC](test_attrs, val)
-                    else:
-                        return filter_funcs[key][FUNC](test_attrs, val)
+        elif key in filter_funcs:
+            if operator in filter_funcs[key][OPS]:
+                if operator == OP_NEQ:
+                    return NOT(target, test_attrs, filter_funcs)
                 else:
-                    raise ValueError(
-                        "Operator {} not recognized.".format(operator))
-
-            elif key == CREATED:
-                return created(test_attrs, operator, val)
-
-            elif key == FINISHED:
-                return finished(test_attrs, operator, val)
-
-            elif key in STATES.list() and filter_funcs == TEST_FUNCS:
-                return state(test_attrs, STATE, key, TestStatusFile)
-
-            elif key in SERIES_STATES.list() and filter_funcs == SERIES_FUNCS:
-                return state(test_attrs, STATE, key, SeriesStatusFile)
-
-            elif key == HAS_STATE and filter_funcs == TEST_FUNCS:
-                return state(test_attrs, HAS_STATE, val, TestStatusFile)
-
-            elif key == HAS_STATE and filter_funcs == SERIES_FUNCS:
-                return state(test_attrs, HAS_STATE, val, SeriesStatusFile)
-
+                    return filter_funcs[key][FUNC](test_attrs, val)
             else:
                 raise ValueError(
-                    "Keyword {} not recognized.".format(key))
+                    "Operator {} not valid for {}."
+                    .format(operator, key))
+
+        elif key == CREATED:
+            return created(test_attrs, operator, val)
+
+        elif key == FINISHED:
+            return finished(test_attrs, operator, val)
+
+        elif key.upper() in STATES.list() and filter_funcs == TEST_FUNCS:
+            return state(test_attrs, STATE, key, TestStatusFile)
+
+        elif key in SERIES_STATES.list() and filter_funcs == SERIES_FUNCS:
+            return state(test_attrs, STATE, key, SeriesStatusFile)
+
+        elif key == HAS_STATE and filter_funcs == TEST_FUNCS:
+            return state(test_attrs, HAS_STATE, val, TestStatusFile)
+
+        elif key == HAS_STATE and filter_funcs == SERIES_FUNCS:
+            return state(test_attrs, HAS_STATE, val, SeriesStatusFile)
+
+        else:
+            raise ValueError(
+                "Keyword {} not recognized.".format(key))
 
 def make_test_run_filter(target: str) -> Callable[[Dict], bool]:
     """Generate a filter function for use by dir_db.select and similar
