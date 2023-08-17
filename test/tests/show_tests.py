@@ -13,10 +13,10 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'config', '--template'),
             ('show', 'functions'),
             ('show', 'functions', '--detail', 'int'),
-            ('show', 'sys_os'),
-            ('show', 'sys_os', '--verbose'),
-            ('show', 'sys_os', '--vars', 'that'),
-            ('show', 'sys_os', '--config', 'that'),
+            ('show', 'os'),
+            ('show', 'os', '--verbose'),
+            ('show', 'os', '--vars', 'that'),
+            ('show', 'os', '--config', 'that'),
             ('show', 'hosts'),
             ('show', 'hosts', '--verbose'),
             ('show', 'hosts', '--vars', 'this'),
@@ -57,4 +57,4 @@ class ShowTests(unittest.PavTestCase):
 
         for arg_list in arg_lists:
             args = parser.parse_args(arg_list)
-            show_cmd.run(self.pav_cfg, args)
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0)

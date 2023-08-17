@@ -156,11 +156,23 @@ class ResolverTests(PavTestCase):
         stack2a_vars = find_test(tests, 'stack2a').config['variables']
         stack2b_vars = find_test(tests, 'stack2b').config['variables']
 
+        # These make sure that setting a default only overrides the default at
+        # all levels
         self.assertEqual(test_vars['sys_os_def'], [{None: 'sys_os'}])
         self.assertEqual(test_vars['host_def'], [{None: 'host'}])
         self.assertEqual(test_vars['mode_def'], [{None: 'mode'}])
         self.assertEqual(test_vars['test_def'], [{None: 'test'}])
         self.assertEqual(test_vars['stack_def'], [{'a': 'base', 'b': 'base'}])
+
+        # These make sure that a value set normally always overrides the default
+        # wherever it was set. The default is set at the namesakes layer,
+        # and the value is set at the test layer (except for 'def_test', which is set
+        # at the host layer.)
+        self.assertEqual(test_vars['def_os'], [{None: 'test'}])
+        self.assertEqual(test_vars['def_host'], [{None: 'test'}])
+        self.assertEqual(test_vars['def_test'], [{None: 'host'}])
+        self.assertEqual(test_vars['def_mode'], [{None: 'test'}])
+
         self.assertNotIn('no_val', test_vars)
 
         # stack1 just sets defaults all the way up, so the values
@@ -825,14 +837,15 @@ class ResolverTests(PavTestCase):
                     for test in ('cmd_inherit_extend.test1',
                                  'cmd_inherit_extend.test2',
                                  'cmd_inherit_extend.test3'):
+                        rslvr = resolver.TestConfigResolver(self.pav_cfg, op_sys=sys_os, host=host)
 
-                        tests = self.resolver.load([test], sys_os=sys_os, host=host, modes=modes)
+                        tests = rslvr.load([test], modes=modes)
                         test_cfg = tests[0].config
                         test_name = test_cfg.get('name')
                         for sec in ['build', 'run']:
                             self.assertEqual(test_cfg[sec]['cmds'],
                                              correct[test_name][sec]['cmds'])
-                        self.assertEqual(test_cfg['sys_os'], sys_os)
+                        self.assertEqual(test_cfg['os'], sys_os)
                         self.assertEqual(test_cfg['host'], host)
                         self.assertEqual(test_cfg['modes'], modes)
 

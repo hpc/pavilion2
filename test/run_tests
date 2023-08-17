@@ -14,7 +14,8 @@ tests_dir = this_file.parent/'tests'
 
 # Setup our paths to the pavilion libraries.
 sys.path.insert(0, str(lib_dir))
-del os.environ["PAV_CONFIG_DIR"]
+if "PAV_CONFIG_DIR" in os.environ:
+    del os.environ["PAV_CONFIG_DIR"]
 
 from pavilion import output
 
@@ -125,7 +126,7 @@ def main():
                         help="Only run tests matching the given glob pattern. "
                              "The 'test_' prefix is removed from the name "
                              "for this check.")
-    parser.add_argument('--re-run-failures', action='store_true', default=False,
+    parser.add_argument('--re-run', action='store_true', default=False,
                         help="Only run tests that failed last time.")
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help="Print all log output to stderr.")
@@ -140,7 +141,7 @@ def main():
         TestCaseEx.set_skip(args.skip)
 
     only = args.only
-    if args.re_run_failures:
+    if args.re_run:
         only += load_failures()
         if not only:
             msg("Selected re-run-failures, but there were no previous failures to re-run.")

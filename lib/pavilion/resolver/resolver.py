@@ -90,8 +90,8 @@ class TestConfigResolver:
         self._host = self._base_var_man['sys.sys_name'] if host is None else host
         if op_sys is None:
             os_name = self._base_var_man['sys.sys_os.name']
-            os_vers = self._base_var_man['sys.sys_os.vers']
-            self._os = "{}-{}".format(sys_os['name'], sys_os['vers'])
+            os_vers = self._base_var_man['sys.sys_os.version']
+            self._os = f"{os_name}-{os_vers}"
         else:
             self._os = op_sys
 
@@ -605,7 +605,6 @@ class TestConfigResolver:
             if request.matches_test_name(test_name):
                 added_tests.append(test_name)
 
-
         if not added_tests:
             self.errors.append(TestConfigError(
                 "Test suite '{}' does not have a test that matches '{}'.\n"
@@ -616,7 +615,6 @@ class TestConfigResolver:
                     "\n - ".join(suite_tests.keys())),
                 request=request))
             return []
-
 
         test_configs = []
         for test_name in added_tests:
@@ -667,6 +665,8 @@ class TestConfigResolver:
 
                 test_cfg['result_evaluate'][key] = '"{}"'.format(const)
 
+            test_cfg = self._validate(test_name, test_cfg)
+
             # Now that we've applied all general transforms to the config, make it into a ProtoTest.
             try:
                 rproto_test = RawProtoTest(request, test_cfg, self._base_var_man)
@@ -686,12 +686,49 @@ class TestConfigResolver:
 
         return test_configs
 
-    def _load_base_config(self, os, host) -> Dict:
+    def _validate(self, test_name: str, test_cfg: Dict) -> Dict:
+        """Return the finalized, validated copy of the test config."""
+
+        suite_path = test_cfg['suite_path']
+
+        try:
+            test_cfg = self._loader.validate(test_cfg)
+        except RequiredError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has a missing key."
+                .format(test_name, suite_path), prior_error=err)
+        except ValueError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has an invalid value."
+                .format(test_name, suite_path), prior_error=err)
+        except KeyError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has an invalid key."
+                .format(test_name, suite_path), prior_error=err)
+        except yc_yaml.YAMLError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has a YAML Error"
+                .format(test_name, suite_path), prior_error=err)
+        except TypeError as err:
+            raise TestConfigError(
+                "Structural issue with test {} in suite {}"
+                .format(test_name, suite_path), prior_error=err)
+
+        try:
+            self.check_version_compatibility(test_cfg)
+        except TestConfigError as err:
+            raise TestConfigError(
+                "Test '{}' in suite '{}' has incompatibility issues."
+                .format(test_name, suite_path), prior_error=err)
+
+        return test_cfg
+
+    def _load_base_config(self, op_sys, host) -> Dict:
         """Load the base configuration for the given host.  This is done once and saved."""
 
         # Get the base, empty config, then apply the host config on top of it.
         base_config = self._loader.load_empty()
-        base_config = self.apply_os(base_config, os)
+        base_config = self.apply_os(base_config, op_sys)
         return self.apply_host(base_config, host)
 
     def _load_suite_tests(self, suite: str):
@@ -796,11 +833,17 @@ class TestConfigResolver:
 
         loader = self._loader
 
-        raw_host_cfg, _, _ = self._load_raw_config(host, 'host', optional=True)
+        raw_host_cfg, host_cfg_path, _ = self._load_raw_config(host, 'host', optional=True)
         if raw_host_cfg is None:
             return test_cfg
 
-        host_cfg = loader.normalize(raw_host_cfg, root_name='host file {}'.format(host))
+        try:
+            host_cfg = loader.normalize(
+                raw_host_cfg,
+                root_name=f"the top level of the host file.")
+        except (KeyError, ValueError) as err:
+            raise TestConfigError(
+                f"Error loading host config '{host}' from file '{host_cfg_path}'.")
 
         try:
             return loader.merge(test_cfg, host_cfg)
@@ -808,16 +851,22 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging host configuration for host '{}'".format(host))
 
-    def apply_os(self, test_cfg, os):
+    def apply_os(self, test_cfg, op_sys):
         """Apply the OS configuration to the given config."""
 
         loader = self._loader
 
-        raw_os_cfg, _, _ = self._load_raw_config(os, 'OS', optional=True)
+        raw_os_cfg, os_cfg_path, _ = self._load_raw_config(op_sys, 'OS', optional=True)
         if raw_os_cfg is None:
             return test_cfg
 
-        os_cfg = loader.normalize(raw_os_cfg, root_name='OS file {}'.format(host))
+        try:
+            os_cfg = loader.normalize(
+                raw_os_cfg,
+                root_name=f"the top level of the OS file.")
+        except (KeyError, ValueError) as err:
+            raise TestConfigError(
+                f"Error loading host config '{op_sys}' from file '{os_cfg_path}'.")
 
         try:
             return loader.merge(test_cfg, os_cfg)
@@ -836,7 +885,13 @@ class TestConfigResolver:
 
         for mode in modes:
             raw_mode_cfg, mode_cfg_path, _ = self._load_raw_config(mode, 'mode')
-            mode_cfg = loader.normalize(raw_mode_cfg, root_name='mode file {}'.format(mode))
+            try:
+                mode_cfg = loader.normalize(
+                    raw_mode_cfg,
+                    root_name=f"the top level of the OS file.")
+            except (KeyError, ValueError) as err:
+                raise TestConfigError(
+                    f"Error loading host config '{mode}' from file '{mode_cfg_path}'.")
 
             try:
                 test_cfg = loader.merge(test_cfg, mode_cfg)
@@ -949,37 +1004,6 @@ class TestConfigResolver:
 
         # Remove the test base
         del suite_tests['__base__']
-
-        for test_name, test_config in suite_tests.items():
-            try:
-                suite_tests[test_name] = self._loader.validate(test_config)
-            except RequiredError as err:
-                raise TestConfigError(
-                    "Test {} in suite {} has a missing key."
-                    .format(test_name, suite_path), prior_error=err)
-            except ValueError as err:
-                raise TestConfigError(
-                    "Test {} in suite {} has an invalid value."
-                    .format(test_name, suite_path), prior_error=err)
-            except KeyError as err:
-                raise TestConfigError(
-                    "Test {} in suite {} has an invalid key."
-                    .format(test_name, suite_path), prior_error=err)
-            except yc_yaml.YAMLError as err:
-                raise TestConfigError(
-                    "Test {} in suite {} has a YAML Error"
-                    .format(test_name, suite_path), prior_error=err)
-            except TypeError as err:
-                raise TestConfigError(
-                    "Structural issue with test {} in suite {}"
-                    .format(test_name, suite_path), prior_error=err)
-
-            try:
-                self.check_version_compatibility(test_config)
-            except TestConfigError as err:
-                raise TestConfigError(
-                    "Test '{}' in suite '{}' has incompatibility issues."
-                    .format(test_name, suite_path), prior_error=err)
 
         return suite_tests
 

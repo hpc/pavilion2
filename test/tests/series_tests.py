@@ -123,7 +123,7 @@ class SeriesTests(PavTestCase):
             'modes': ['smode2'],
             'host': 'this',
             'ignore_errors': False,
-            'sys_os': 'that',
+            'os': 'that',
         })
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)

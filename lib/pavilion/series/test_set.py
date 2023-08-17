@@ -159,7 +159,7 @@ class TestSet:
                 status=self.status,
                 modes=self.modes,
                 host=self.host,
-                sys_os=self.sys_os,
+                op_sys=self.op_sys,
                 only_if=self.only_if,
                 not_if=self.not_if,
                 overrides=self.overrides))
@@ -203,7 +203,7 @@ class TestSet:
 
         cfg_resolver = TestConfigResolver(
             self.pav_cfg,
-            op_sys=self.os,
+            op_sys=self.op_sys,
             host=self.host,
             outfile=self.outfile,
             verbosity=self.verbosity)

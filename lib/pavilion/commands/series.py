@@ -96,7 +96,7 @@ class RunSeries(Command):
             '-o', '--os', action='store', default=None,
             help='The operating system to configure this test for. If not '
             'specificied, the current operating system as denoted by the '
-            'sys plugin \'sys_os\' is used.')
+            'sys plugin \'sys_os\' is used (EX: "ubuntu-22.04").')
         run_p.add_argument(
             '-H', '--host', action='store', default=None,
             help='The host to configure this test for. If not specified, the '
@@ -184,7 +184,7 @@ class RunSeries(Command):
                 # Pre-verify that all the series, tests, sys_os, modes, and hosts exist.
                 series_cfg = series_config.verify_configs(pav_cfg,
                                                           args.series_name,
-                                                          sys_os=args.sys_os,
+                                                          op_sys=args.os,
                                                           host=args.host,
                                                           modes=args.modes,
                                                           overrides=args.overrides)

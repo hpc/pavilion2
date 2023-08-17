@@ -1,5 +1,0 @@
-variables:
-  sys_os_def?: sys_os
-  mode_def: sys_os
-  host_def?: sys_os
-  test_def?: sys_os

@@ -103,9 +103,8 @@ class ShowCommand(Command):
         )
 
         sys_os = subparsers.add_parser(
-            'sys_os',
-            aliases=['os'],
-            help="Show available operating systems and their information.",
+            'os',
+            help="Show available operating system configs.",
             description="Pavilion can support different default configs "
                         "depending on the operating system."
         )
@@ -113,7 +112,7 @@ class ShowCommand(Command):
         sys_os_group = sys_os.add_mutually_exclusive_group()
         sys_os_group.add_argument(
             '--config', action='store', type=str, metavar='<sys_os>',
-            help="Show full sys_os config for desired operating system."
+            help="Show full os config for desired operating system."
         )
 
         sys_os_group.add_argument(
@@ -497,6 +496,13 @@ class ShowCommand(Command):
         table."""
 
         _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
+        if file is None:
+            output.fprint(
+                self.errfile,
+                f"Could not find a config for {conf_type} '{cfg}'",
+                color=output.YELLOW)
+            return 1
+
         with file.open() as config_file:
             cfg = file_format.TestConfigLoader().load(config_file)
 
@@ -617,11 +623,11 @@ class ShowCommand(Command):
         """List all known sys_os files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, 'sys_os')
+            self.show_vars(pav_cfg, args.vars, 'OS')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'sys_os')
+            self.show_full_config(pav_cfg, args.config, 'OS')
         else:
-            self.show_configs_table(pav_cfg, 'sys_os',
+            self.show_configs_table(pav_cfg, 'OS',
                                     verbose=args.verbose,
                                     errors=args.err)
 

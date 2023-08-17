@@ -296,12 +296,12 @@ blocks in Pavilion, and we'll be using these expressions more in the advanced re
 tutorial (:ref:`tutorials.extracting_results`).
 
 Writing Generic Tests using OS, Host, and Mode Files
--------------------------------------------------
+----------------------------------------------------
 
 When writing a test wrapper script, a common goal is to make it 'system agnostic' - independent
 of the configuration of the system its running on. The primary way to do this is to move
 any system specific information into variables, and provide the value of those variables through
-configuration files. 
+configuration files.
 
 OS Files
 ~~~~~~~~

@@ -38,7 +38,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             help_text="Brief description of the test series.",
         ),
         yc.StrElem(
-            'sys_os', hidden=True,
+            'os', hidden=True,
             help_text="The operating system this series will be run on. "
                       "This is not configured, but dynamically added to the config."
         ),

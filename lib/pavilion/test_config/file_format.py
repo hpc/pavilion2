@@ -37,7 +37,11 @@ class SubVarDict(dict):
     def __copy__(self):
         """Copy over the default dict too."""
 
-        return self.__class__(self, defaults=self.defaults)
+        base = {}
+        for key in super().keys():
+            base[key] = self[key]
+
+        return self.__class__(base, defaults=self.defaults)
 
     def __deepcopy__(self, memodict=None):
         """Copy the defaults too."""
@@ -301,13 +305,19 @@ class VarCatElem(yc.CategoryElem):
                                 "one or more simple string values."
                                 .format(key))
 
-                    if base.get(key, []):
-                        # Values already exist. Don't apply defaults.
-                        pass
+                    existing_values = base.get(key, [])
+                    # Check if the existing values are just defaults.
+                    for value in existing_values:
+                        if not value.is_defaults_only():
+                            break
                     else:
-                        # Set each item as an empty dict with a default.
+                        # If there are no existing values or the existing are just
+                        # previously set defaults. Override the defaults with these new
+                        # defaults.
                         new_values = []
                         for value in values:
+                            # Set each item as an empty dict with a default.
+                            # This allows the default list to be extended
                             new_values.append(SubVarDict(defaults=value))
                         base[key] = new_values
 
