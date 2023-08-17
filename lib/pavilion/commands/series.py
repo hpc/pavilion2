@@ -9,6 +9,7 @@ from pavilion import cancel_utils
 from pavilion import config
 from pavilion import cmd_utils
 from pavilion import filters
+from pavilion import groups
 from pavilion import output
 from pavilion import series
 from pavilion import series_config
@@ -113,7 +114,9 @@ class RunSeries(Command):
             '-m', '--mode', action='append', dest='modes', default=[],
             help='Mode configurations to overlay on the host configuration for '
                  'each test. These are overlayed in the order given.')
-
+        run_p.add_argument(
+            '--group', '-g', action="store", type=str,
+            help="Add the created test series to the given group, creating it if necessary.")
         run_p.add_argument(
             '-V', '--skip-verify', action='store_true', default=False,
             help="By default we load all the relevant configs. This can take some "
@@ -189,7 +192,6 @@ class RunSeries(Command):
                                                           modes=args.modes,
                                                           overrides=args.overrides)
             except series_config.SeriesConfigError as err:
-
                 output.fprint(self.errfile, err.pformat(), color=output.RED)
                 return errno.EINVAL
 
@@ -204,7 +206,21 @@ class RunSeries(Command):
                           .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
 
-        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
+
+        if args.group:
+            try:
+                group = groups.TestGroup(pav_cfg, args.group)
+                group.add([series_obj])
+            except groups.TestGroupError as err:
+                output.fprint(self.errfile, "Error adding series '{}' to group '{}'."
+                                            .format(series_obj.sid, group.name), color=output.RED)
+                output.fprint(self.errfile, err.pformat())
+                return errno.EINVAL
+            output.fprint(self.errfile,
+                          "Created Test Series '{}' and added it to test group '{}'."
+                          .format(series_obj.name, group.name))
+        else:
+            output.fprint(self.outfile, "Created Test Series {}.".format(series_obj.name))
 
         # pav _series runs in background using subprocess
         try:
@@ -215,6 +231,8 @@ class RunSeries(Command):
             return errno.EINVAL
         except TestSeriesWarning as err:
             output.fprint(self.errfile, err, color=output.YELLOW)
+
+        self.last_series = series_obj
 
         output.fprint(self.outfile,
                       "Started series {sid}.\n"

@@ -40,28 +40,28 @@ class ResolverTests(PavTestCase):
         """Check request parsing."""
 
         requests = (
-            ('hello',                   ('hello', None, 1)),
-
-            ('hello123',                ('hello123', None, 1)),
-            ('123-_hello',              ('123-_hello', None, 1)),
-            ('123hello.world',          ('123hello', 'world', 1)),
-            ('123hello.123world',       ('123hello', '123world', 1)),
-            ('123hello.123-_world-',    ('123hello', '123-_world-', 1)),
-            ('5*123hello.world',        ('123hello', 'world', 5)),
-            ('5*123hello.123world',     ('123hello', '123world', 5)),
-            ('5*123hello.123-_world-',  ('123hello', '123-_world-', 5)),
-            ('123hello.world3*6',       ('123hello', 'world3', 6)),
-            ('123hello.123world3*6',    ('123hello', '123world3', 6)),
-            ('123hello.123-_world-3*6', ('123hello', '123-_world-3', 6)),
+            ('hello',                   ('hello',       None,           None,       1)),
+            ('hello123',                ('hello123',    None,           None,       1)),
+            ('123-_hello',              ('123-_hello',  None,           None,       1)),
+            ('123hello.world',          ('123hello',    'world',        None,       1)),
+            ('123hello.123world',       ('123hello',    '123world',     None,       1)),
+            ('123hello.123-_world-',    ('123hello',    '123-_world-',  None,       1)),
+            ('5*123hello.world',        ('123hello',    'world',        None,       5)),
+            ('5*123hello.123world',     ('123hello',    '123world',     None,       5)),
+            ('5*123hello.123-_world-',  ('123hello',    '123-_world-',  None,       5)),
+            ('123hello.world3*6',       ('123hello',    'world3',       None,       6)),
+            ('hello.123world3*6',       ('hello',       '123world3',    None,       6)),
+            ('hello.abc.de(35)f*6',     ('hello',       'abc',          'de(35)f',  6)),
+            ('hello.abc.qr.65-3@2*6',   ('hello',       'abc',          'qr.65-3@2',6)),
         )
 
         for req_str, answer in requests:
             req = resolver.TestRequest(req_str)
-            self.assertEqual((req.suite, req.test, req.count), answer)
+            self.assertEqual((req.suite, req.test, req.permutation, req.count), answer)
 
         for request, answer in (
                 ('3*hello.world*5', 'cannot have both a pre-count'),
-                ('foo.bar.baz.quux', 'must be in the form'),):
+                ('foo.bar.baz#quux', 'must be in the form'),):
             with self.assertRaisesRegex(TestConfigError, answer):
                 resolver.TestRequest(request)
 

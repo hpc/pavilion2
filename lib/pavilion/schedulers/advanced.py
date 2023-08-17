@@ -655,8 +655,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
     def _schedule_indi_chunk(self, pav_cfg, tests: List[TestRun],
                              sched_configs: Dict[str, dict], chunk: NodeSet):
-        """Schedule tests individually under the given chunk. Unlike with flex scheduling,
-        we distribute the jobs across nodes manually."""
+        """Schedule tests individually under the given chunk. These are not flex
+        scheduled."""
 
         # Track which nodes are available for individual runs. We'll consume nodes
         # from this list as they're handed out to tests, and reset it when

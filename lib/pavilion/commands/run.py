@@ -4,6 +4,7 @@ import errno
 import sys
 
 from pavilion import cmd_utils
+from pavilion import groups
 from pavilion import output
 from pavilion.enums import Verbose
 from pavilion.errors import TestSeriesError
@@ -83,6 +84,9 @@ class RunCommand(Command):
                  '\'key=value\', where key is the dot separated key name, '
                  'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
+            '-g', '--group', action="store", type=str,
+            help="Add the created test series to the given group, creating it if necessary.")
+        parser.add_argument(
             '-v', '--verbosity', choices=[verb.name for verb in Verbose],
             default=Verbose.DYNAMIC.name,
             help="Adjust the verbosity of the run command.\n"
@@ -158,8 +162,19 @@ class RunCommand(Command):
                                 verbosity=Verbose[args.verbosity],
                                 outfile=self.outfile)
 
-        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
+        if args.group:
+            try:
+                group = groups.TestGroup(pav_cfg, args.group)
+                group.add([series_obj])
+            except groups.TestGroupError as err:
+                output.fprint(self.errfile,
+                              "Could not add series to group '{}'".format(args.group),
+                              color=output.RED)
+                output.fprint(self.errfile, err.pformat())
+                return errno.EINVAL
 
+        else:
+            output.fprint(self.outfile, "Created Test Series {}.".format(series_obj.name))
         series_obj.add_test_set_config(
             'cmd_line',
             tests,

@@ -303,16 +303,19 @@ class TestSet:
 
             self.status.set(
                 S_STATES.SET_MAKE,
-                "Test set '{}' created {} more tests, skipped {}"
+                "Test set '{}' created {} more tests, skipped {}."
                 .format(self.name, len(new_test_runs), skip_count))
 
             output.fprint(
                 self.outfile,
-                "Test set '{}' created {} tests, skipped {}, {} errors\n"
-                "To see why each test was skipped, run:\n"
-                "`pav series states --skipped`"
+                "Test set '{}' created {} tests, skipped {}, {} errors."
                 .format(self.name, len(self.tests), skip_count,
                         len(cfg_resolver.errors)))
+            if skip_count:
+                output.fprint(
+                    self.outfile,
+                    "To see why each test was skipped, run:\n"
+                    "  `pav series states --skipped`")
 
             if new_test_runs:
                 self.ready_to_build.extend(new_test_runs)

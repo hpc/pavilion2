@@ -456,6 +456,8 @@ differentiate it from test ids."""
                         "All {} tests have been started.".format(len(self.tests)))
         common.set_all_started(self.path)
 
+        # Completion will be set when looked for.
+
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
@@ -499,7 +501,7 @@ differentiate it from test ids."""
                     fprint(self.outfile, "Kicked off a job for test set '{}' in series {}."
                                          .format(test_set.name, self.sid))
                 else:
-                    ktests = ', '.join([test.name for test in started_tests]
+                    ktests = ', '.join([test.name for test in started_tests[:3]]
                                        + ['...'] if len(started_tests) > 3 else [])
 
                     fprint(self.outfile, "Kicked off tests {} ({} total) for test set {} "
