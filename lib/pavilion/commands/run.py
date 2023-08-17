@@ -2,12 +2,15 @@
 
 import errno
 import sys
+from collections import defaultdict
+from pathlib import Path
+
 
 from pavilion import cmd_utils
 from pavilion import groups
 from pavilion import output
 from pavilion.enums import Verbose
-from pavilion.errors import TestSeriesError
+from pavilion.errors import TestSeriesError, PavilionError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
@@ -110,6 +113,7 @@ class RunCommand(Command):
 
     SLEEP_INTERVAL = 1
 
+
     def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
@@ -142,8 +146,8 @@ class RunCommand(Command):
         tests = args.tests
         try:
             tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
-        except ValueError as err:
-            output.fprint(sys.stdout, "Error reading given test list files.\n{}"
+        except PavilionError as err:
+            output.fprint(self.errfile, "Error reading given test list files.\n{}"
                           .format(err))
             return errno.EINVAL
 
@@ -154,6 +158,7 @@ class RunCommand(Command):
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
                                 verbosity=Verbose[args.verbosity],
                                 outfile=self.outfile)
+        testset_name = cmd_utils.get_testset_name(pav_cfg, args.tests, args.files)
 
         if args.group:
             try:
@@ -168,8 +173,9 @@ class RunCommand(Command):
 
         else:
             output.fprint(self.outfile, "Created Test Series {}.".format(series_obj.name))
+
         series_obj.add_test_set_config(
-            'cmd_line',
+            testset_name,
             tests,
             modes=args.modes,
         )
