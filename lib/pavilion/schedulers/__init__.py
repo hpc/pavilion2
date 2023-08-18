@@ -3,6 +3,7 @@ from typing import Union
 
 from .plugins.raw import Raw
 from .plugins.slurm import Slurm
+from .plugins.flux import Flux
 from .advanced import SchedulerPluginAdvanced
 from .basic import SchedulerPluginBasic
 from .config import validate_config
@@ -15,6 +16,7 @@ from .vars import SchedulerVariables
 _builtin_scheduler_plugins = [
     Raw,
     Slurm,
+    Flux,
 ]
 
 

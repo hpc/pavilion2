@@ -2,11 +2,15 @@
 
 import errno
 import sys
+from collections import defaultdict
+from pathlib import Path
+
 
 from pavilion import cmd_utils
+from pavilion import groups
 from pavilion import output
 from pavilion.enums import Verbose
-from pavilion.errors import TestSeriesError
+from pavilion.errors import TestSeriesError, PavilionError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
@@ -77,6 +81,9 @@ class RunCommand(Command):
                  '\'key=value\', where key is the dot separated key name, '
                  'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
+            '-g', '--group', action="store", type=str,
+            help="Add the created test series to the given group, creating it if necessary.")
+        parser.add_argument(
             '-v', '--verbosity', choices=[verb.name for verb in Verbose],
             default=Verbose.DYNAMIC.name,
             help="Adjust the verbosity of the run command.\n"
@@ -105,6 +112,7 @@ class RunCommand(Command):
         )
 
     SLEEP_INTERVAL = 1
+
 
     def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
@@ -138,8 +146,8 @@ class RunCommand(Command):
         tests = args.tests
         try:
             tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
-        except ValueError as err:
-            output.fprint(sys.stdout, "Error reading given test list files.\n{}"
+        except PavilionError as err:
+            output.fprint(self.errfile, "Error reading given test list files.\n{}"
                           .format(err))
             return errno.EINVAL
 
@@ -150,11 +158,24 @@ class RunCommand(Command):
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
                                 verbosity=Verbose[args.verbosity],
                                 outfile=self.outfile)
+        testset_name = cmd_utils.get_testset_name(pav_cfg, args.tests, args.files)
 
-        output.fprint(self.errfile, "Created Test Series {}.".format(series_obj.name))
+        if args.group:
+            try:
+                group = groups.TestGroup(pav_cfg, args.group)
+                group.add([series_obj])
+            except groups.TestGroupError as err:
+                output.fprint(self.errfile,
+                              "Could not add series to group '{}'".format(args.group),
+                              color=output.RED)
+                output.fprint(self.errfile, err.pformat())
+                return errno.EINVAL
+
+        else:
+            output.fprint(self.outfile, "Created Test Series {}.".format(series_obj.name))
 
         series_obj.add_test_set_config(
-            'cmd_line',
+            testset_name,
             tests,
             modes=args.modes,
         )

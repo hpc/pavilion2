@@ -804,6 +804,18 @@ class ResultParserTests(PavTestCase):
             self.fail("Result command failed: \n{}\n{}"
                       .format(cmd_out, cmd_err))
 
+        result_cmd.clear_output()
+
+        # Make sure re-running results works even with a bad test.
+        test_cfg = self._quick_test_cfg()
+        test_cfg['build']['cmds'] = ['false']
+        bad_test = self._quick_test(test_cfg)
+        res_args = arg_parser.parse_args(
+            ('result', '--re-run', bad_test.full_id))
+        self.assertEqual(result_cmd.run(self.pav_cfg, res_args), 0)
+        out, err = result_cmd.clear_output()
+        self.assertIn(bad_test.full_id, err)
+
     def test_re_search(self):
         """Check basic re functionality."""
 

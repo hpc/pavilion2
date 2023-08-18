@@ -31,7 +31,7 @@ tests that are normally run just to make sure the machine works.
 
   # This is the body of the series file. This is where we define test sets,
   # which are groups of tests that we want to apply the same configurations to.
-  series:
+  test_sets: 
 
     # We'll call this test set 'front_end_tests' and run all the tests that
     # don't run on compute nodes with this set.

@@ -83,8 +83,8 @@ class CleanCommand(Command):
             builds_dir = working_dir / 'builds'        # type: Path
             tests_dir = working_dir / 'test_runs'
             output.fprint(self.outfile, "Removing Builds ({})".format(working_dir), end=end)
-            rm_builds_count, msgs = clean.delete_builds(pav_cfg, builds_dir, tests_dir,
-                                                        args.verbose)
+            rm_builds_count, msgs = clean.delete_unused_builds(pav_cfg, builds_dir, tests_dir,
+                                                               args.verbose)
             msgs.extend(clean.delete_lingering_build_files(pav_cfg, builds_dir, tests_dir,
                                                            args.verbose))
             if args.verbose:
@@ -92,5 +92,14 @@ class CleanCommand(Command):
                     output.fprint(self.outfile, msg, color=output.YELLOW)
             output.fprint(self.outfile, "Removed {} build(s).".format(rm_builds_count),
                           color=output.GREEN, clear=True)
+
+
+        deleted_groups, msgs = clean.clean_groups(pav_cfg)
+        if args.verbose:
+            for msg in msgs:
+                output.fprint(self.outfile, msg, color=output.YELLOW)
+        output.fprint(self.outfile,
+                      "Removed {} test groups that became empty.".format(deleted_groups),
+                      color=output.GREEN, clear=True)
 
         return 0

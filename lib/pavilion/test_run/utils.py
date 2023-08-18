@@ -1,6 +1,7 @@
 """Utility functions for test run objects."""
 
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import List, TextIO
 
 from pavilion import dir_db, output
@@ -35,6 +36,24 @@ def get_latest_tests(pav_cfg: PavConfig, limit):
     test_dir_list.sort()
     return [test_id for _, test_id in test_dir_list[-limit:]]
 
+
+def id_pair_from_path(path: Path) -> ID_Pair:
+    """Generate a test id pair given a path to a test.
+    Raises TestRunError if there are problems, or if the test doesn't exist."""
+
+    try:
+        path.resolve()
+    except OSError as err:
+        raise TestRunError("Test does not exist at path '{}'".format(path.as_posix()))
+
+    try:
+        test_id = int(path.name)
+    except ValueError as err:
+        raise TestRunError("Invalid test id '{}' for test at path '{}'"
+                           .format(path.name, path.as_posix()))
+
+    working_dir = path.parents[1]
+    return ID_Pair((working_dir, test_id))
 
 def _load_test(pav_cfg, id_pair: ID_Pair):
     """Load a test object from an ID_Pair."""

@@ -111,12 +111,13 @@ class PavilionError(RuntimeError):
             else:
                 if hasattr(next_exc, 'args') \
                        and isinstance(next_exc.args, (list, tuple)) \
-                       and next_exc.args:
+                       and next_exc.args \
+                       and isinstance(next_exc.args[0], str):
                     msg = next_exc.args[0]
                 else:
                     msg = str(next_exc)
 
-                msg_parts = msg.split('\n')
+                msg_parts = str(msg).split('\n')
                 for msg_part in msg_parts:
                     lines.extend(textwrap.wrap(msg_part, width, initial_indent=indent,
                                                subsequent_indent=indent))
@@ -306,3 +307,6 @@ class SystemPluginError(PavilionError):
 
 class WGetError(RuntimeError):
     """Errors for the Wget subsystem."""
+
+class TestGroupError(PavilionError):
+    """Errors thrown when managing test groups."""

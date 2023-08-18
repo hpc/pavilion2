@@ -268,10 +268,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
             raise SchedulerPluginError(
                 "Error validating 'schedule' config section.", prior_error=err)
 
-        if sched_config['nodes'] is None:
-            raise SchedulerPluginError(
-                "You must specify a value for schedule.nodes")
-
         return self._get_initial_vars(sched_config)
 
     def available(self) -> bool:
@@ -304,7 +300,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param pavilion.test_run.TestRun test: The test we're checking on.
         :return: A StatusInfo object representing the status.
         """
-
         if test.job is None:
             return TestStatusInfo(
                 STATES.SCHED_ERROR, "Test does not have an associated job.")
@@ -522,10 +517,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _make_kickoff_error(self, orig_err, tests):
         """Convert a generic error to something with more information."""
 
-        test_names = tests[:2]
+        test_names = ['{} ({})'.format(test.full_id, test.name) for test in tests[:2]]
         if len(tests) > 2:
             test_names.append('...')
-        test_names = ', '.join(test.name for test in test_names)
+        test_names = ', '.join(test_names)
 
         plural = 's' if len(tests) > 1 else ''
 

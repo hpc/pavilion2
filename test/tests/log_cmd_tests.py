@@ -1,6 +1,7 @@
 import argparse
 import io
 import sys
+import threading
 import time
 
 import pavilion.commands
@@ -121,3 +122,27 @@ class LogCmdTest(PavTestCase):
 
         log_cmd.outfile = sys.stdout
         log_cmd.outfile = sys.stderr
+
+    def test_follow(self):
+        log_cmd = pavilion.commands.get_command('log')
+        log_cmd.silence()
+
+        test_cfg = self._quick_test_cfg()
+        test_cfg['run']['cmds'] = ['echo "this"', 'echo "is"', 'echo "some"',
+                                   'echo "crazy"', 'echo "long"']
+        test = self._quick_test(cfg=test_cfg)
+        test.run()
+
+        parser = argparse.ArgumentParser()
+        log_cmd._setup_arguments(parser)
+
+        args = parser.parse_args(['--follow', 'run', test.full_id])
+        thread = threading.Thread(target=log_cmd.run, args=(self.pav_cfg, args))
+        thread.start()
+        time.sleep(.2)
+        with (test.path/'run.log').open('a') as runlog:
+            runlog.write('output \n')
+        thread.join(timeout=5)
+        out, err = log_cmd.clear_output()
+        self.assertIn('output', out)
+        log_cmd.follow_testing = True
