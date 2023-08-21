@@ -1,9 +1,6 @@
 """Show a variety of different internal information for Pavilion."""
 # pylint: disable=too-many-lines
 
-# pylint: disable=too-many-lines
-
-
 import argparse
 import errno
 import fnmatch
