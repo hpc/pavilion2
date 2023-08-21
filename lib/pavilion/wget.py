@@ -79,7 +79,6 @@ def get(pav_cfg, url, dest):
     session.trust_env = False
 
     dest_dir = Path(dest).resolve().parent
-
     try:
         response = session.get(url, proxies=proxies, stream=True,
                                verify=ca_cert_path(),

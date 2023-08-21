@@ -354,6 +354,22 @@ class Replace(CoreFunctionPlugin):
         return string.replace(find, replacement)
 
 
+class Sqrt(CoreFunctionPlugin):
+    """Calculate the square root of a given number.
+    Yes, people can just do X^(1/2), but most people forget that."""
+
+    def __init__(self):
+        super().__init__(
+            'sqrt',
+            arg_specs=(num,))
+
+    @staticmethod
+    def sqrt(value: num):
+        """Take a square root."""
+
+        return value ** 0.5
+
+
 class Outliers(CoreFunctionPlugin):
     """Calculate outliers given a list of values and a separate list
     of their associated names. The lists should be the same length, and

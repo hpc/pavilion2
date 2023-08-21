@@ -703,6 +703,11 @@ index, sub_var) tuple.
                     resolved = parsers.parse_text(def_val, self)
                 except DeferredError:
                     continue
+                except StringParserError as err:
+                    raise VariableError(
+                        "Parsing error when resolving a variables value.",
+                        var_set=var_set, var=var, index=index, sub_var=sub_var,
+                        prior_error=err)
 
                 self._set_value(def_key, resolved)
                 self.deferred.remove(def_key)
