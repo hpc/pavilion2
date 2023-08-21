@@ -244,7 +244,7 @@ class ConfigCommand(Command):
             raise ConfigCmdError("Error writing config file at '{}'"
                                  .format(config_file_path), err)
 
-        for subdir in 'hosts', 'modes', 'tests', 'sys_os', 'test_src', 'plugins', 'collections':
+        for subdir in 'hosts', 'modes', 'tests', 'os', 'test_src', 'plugins', 'collections':
             subdir = path/subdir
             try:
                 subdir.mkdir()
