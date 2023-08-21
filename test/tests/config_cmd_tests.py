@@ -71,7 +71,7 @@ class ConfigCmdTests(unittest.PavTestCase):
         args = arg_parser.parse_args(['config', 'create', 'foo', foo_config_dir.as_posix()])
         self.assertEqual(config_cmd.run(pav_cfg, args), 0)
         for subfile in ['config.yaml', 'test_src', 'tests', 'hosts', 'modes', 'plugins',
-                        'sys_os']:
+                        'os']:
             self.assertTrue((foo_config_dir/subfile).exists())
 
         # Load and delete from the pavilion.yaml we created.
