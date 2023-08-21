@@ -9,6 +9,7 @@ import sys
 import time
 from pathlib import Path
 from typing import List, TextIO, Union
+from collections import defaultdict
 
 from pavilion import config
 from pavilion import dir_db
@@ -18,7 +19,8 @@ from pavilion import output
 from pavilion import series
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.errors import TestRunError, CommandError, TestSeriesError, TestGroupError
+from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
+                            PavilionError, TestGroupError
 from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
 from pavilion.types import ID_Pair
 
@@ -243,8 +245,17 @@ def read_test_files(pav_cfg, files: List[str]) -> List[str]:
     tests = []
     for path in files:
         path = Path(path)
-        if not path.is_absolute():
+
+        if path.name == path.as_posix() and not path.exists():
+            # If a plain filename is given (with not path components) and it doesn't
+            # exist in the CWD, check to see if it's a saved collection.
             path = get_collection_path(pav_cfg, path)
+
+            if path is None:
+                raise PavilionError(
+                    "Cannot find collection '{}' in the config dirs nor the current dir."
+                    .format(collection))
+
         try:
             with path.open() as file:
                 for line in file:
@@ -254,14 +265,14 @@ def read_test_files(pav_cfg, files: List[str]) -> List[str]:
                     test = line.split('#')[0].strip()  # Removing any trailing comments.
                     tests.append(test)
         except OSError as err:
-            raise ValueError("Could not read test list file at '{}': {}"
-                             .format(path, err))
+            raise PavilionError("Could not read test list file at '{}'"
+                                .format(path), prior_error=err)
 
     return tests
 
 
-def get_collection_path(pav_cfg, collection) -> Path:
-    """Read the given list of collection files and return full absolute paths."""
+def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
+    """Find a collection in one of the config directories. Returns None on failure."""
 
     # Check if this collection exists in one of the defined config dirs
     for config in pav_cfg['configs'].items():
@@ -270,15 +281,7 @@ def get_collection_path(pav_cfg, collection) -> Path:
         if collection_path.exists():
             return collection_path
 
-    # If the previous loop completes, then check the current working directory for the collection
-    cwd_collection = Path.cwd() / collection
-    if cwd_collection.exists():
-        return cwd_collection
-
-    # If it reaches this point, then the collection does not exist in any of the defined config dirs
-    # nor the current working directory
-    raise ValueError("Cannot find collection '{}' in the config dirs nor the current dir."
-                     .format(collection))
+    return None
 
 
 def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
@@ -472,3 +475,72 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
         test_id_pairs = _filter_tests_by_raw_id(pav_cfg, test_id_pairs, exclude_ids)
 
     return load_tests(pav_cfg, test_id_pairs, errfile)
+
+def get_testset_name(pav_cfg, tests: List['str'], files: List['str']):
+    """Generate the name for the set set based on the test input to the run command.
+    """
+    # Expected Behavior:
+    # pav run foo                   - 'foo'
+    # pav run bar.a bar.b bar.c     - 'bar.*'
+    # pav run -f some_file          - 'file:some_file'
+    # pav run baz.a baz.b foo       - 'baz.*,foo'
+    # pav run foo bar baz blarg     - 'foo,baz,bar,...'
+
+    # First we get the list of files and a list of tests.
+    # NOTE: If there is an intersection between tests in files and tests specified on command
+    #       line, we remove the intersection from the list of tests
+    #       For example, if some_test contains foo.a and foo.b
+    #       pav run -f some_test foo.a foo.b will generate the test set file:some_test despite
+    #       foo.a and foo.b being specified in both areas
+    if files:
+        files = [Path(filepath) for filepath in files]
+        file_tests = read_test_files(pav_cfg, files)
+        tests = list(set(tests) - set(file_tests))
+
+    # Here we generate a dictionary mapping tests to the suites they belong to
+    # (Also the filenames)
+    # This way we can name the test set based on suites rather than listing every test
+    # Essentially, this dictionary will be reduced into a list of "globs" for the name
+    test_set_dict = defaultdict(list)
+    for test in tests:
+        test_name_split = test.split('.')
+        if len(test_name_split) == 2:
+            suite_name, test_name = test_name_split
+        elif len(test_name_split) == 1:
+            suite_name = test
+            test_name = None
+        else:
+            # TODO: Look through possible errors to find the proper one to raise here
+            raise PavilionError(f"Test name not in suitename.testname format: {test}")
+
+
+        if test_name:
+            test_set_dict[suite_name].append(test_name)
+        else:
+            test_set_dict[suite_name] = None
+
+    # Don't forget to add on the files!
+    for file in files:
+        test_set_dict[f'file:{file.name}'] = None
+
+    # Reduce into a list of globs so we get foo.*, bar.*, etc.
+    def get_glob(test_suite_name, test_names):
+        if test_names is None:
+            return test_suite_name
+
+        num_names = len(test_names)
+        if num_names == 1:
+            return f'{test_suite_name}.{test_names[0]}'
+        else:
+            return f'{test_suite_name}.*'
+
+    globs = [get_glob(test_suite, tests) for test_suite,tests in test_set_dict.items()]
+    globs.sort(key=lambda glob: 0 if "file:" in glob else 1) # Sort the files to the front
+
+    ntests_cutoff = 3 # If more than 3 tests in name, truncate and append '...'
+    if len(globs) > ntests_cutoff:
+        globs = globs[:ntests_cutoff+1]
+        globs[ntests_cutoff] = '...'
+
+    testset_name = ','.join(globs).rstrip(',')
+    return testset_name
