@@ -280,7 +280,7 @@ The default config is: ::
 
         return cfg
 
-    def _load_test(self, name: str, host: str = 'this',
+    def _load_test(self, name: str, op_sys: str = 'this', host: str = 'this',
                    modes: List[str] = None,
                    build=True, finalize=True) -> List[TestRun]:
         """Load the named test config from file. Returns a list of the
@@ -289,7 +289,7 @@ The default config is: ::
         if modes is None:
             modes = []
 
-        res = TestConfigResolver(self.pav_cfg, host=host)
+        res = TestConfigResolver(self.pav_cfg, op_sys=op_sys, host=host)
         test_cfgs = res.load([name], modes=modes)
 
         tests = []

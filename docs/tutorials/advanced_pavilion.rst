@@ -295,18 +295,27 @@ our people list. While this is a silly, contrived example, it shows the power of
 blocks in Pavilion, and we'll be using these expressions more in the advanced result parsing
 tutorial (:ref:`tutorials.extracting_results`).
 
-Writing Generic Tests using Hosts and Modes Files
--------------------------------------------------
+Writing Generic Tests using OS, Host, and Mode Files
+----------------------------------------------------
 
 When writing a test wrapper script, a common goal is to make it 'system agnostic' - independent
 of the configuration of the system its running on. The primary way to do this is to move
 any system specific information into variables, and provide the value of those variables through
-the host configuration.
+configuration files.
 
-Host files, which are placed in the ``<configs>/hosts/`` directory, provide that functionality.
-Each host file is like a single test configuration that forms the defaults for all tests run on
-that system. Values in the test config will override these defaults (see below for a way around
-this).
+OS Files
+~~~~~~~~
+
+OS files are placed in the ``<configs>/sys_os/`` directory. Each OS file is like a single test
+configuration that forms the defaults for all tests run on that operating system. Values in the
+host, mode, and test configuration files will override the defaults defined in the OS file.
+
+Host Files
+~~~~~~~~~~
+
+Host files are placed in the ``<configs>/hosts/`` directory. Similar to OS files, host files
+provide defaults for tests run on a specific host. Defaults defined in the host file will be
+overridden by mode and test configurations.
 
 **Let's create our first host file.**
 
@@ -341,7 +350,7 @@ names from our host file instead of the three names that were originally in our 
 dynamically handle any number of items like this in a bit.
 
 Keeping Host Variables Simple
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To keep this host configurations simple, you should try to design these variables such that they
 are usable across multiple tests. For instance, you might have a list of filesystems that need to

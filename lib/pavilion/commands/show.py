@@ -1,7 +1,5 @@
 """Show a variety of different internal information for Pavilion."""
-
 # pylint: disable=too-many-lines
-
 
 import argparse
 import errno
@@ -101,6 +99,35 @@ class ShowCommand(Command):
             help="Show full documentation on the requested plugin."
         )
 
+        os_parser = subparsers.add_parser(
+            'os',
+            help="Show available operating system configs.",
+            description="Pavilion can support different default configs "
+                        "depending on the operating system."
+        )
+
+        os_group = os_parser.add_mutually_exclusive_group()
+        os_group.add_argument(
+            '--config', action='store', type=str, metavar='<os>',
+            help="Show full os config for desired operating system."
+        )
+
+        os_group.add_argument(
+            '--err', action='store_true', default=False,
+            help="Display any errors encountered while reading a operating system file."
+        )
+
+        os_group.add_argument(
+            '--vars', action='store', type=str, metavar='<os>',
+            help="Show defined variables for desired operating system config."
+        )
+
+        os_group.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help="Display paths to the operating system files."
+        )
+
         hosts = subparsers.add_parser(
             'hosts',
             aliases=['host'],
@@ -112,7 +139,7 @@ class ShowCommand(Command):
         hosts_group = hosts.add_mutually_exclusive_group()
         hosts_group.add_argument(
             '--config', action='store', type=str, metavar='<host>',
-            help="Show full host config for desired host"
+            help="Show full host config for desired host."
         )
 
         hosts_group.add_argument(
@@ -466,6 +493,13 @@ class ShowCommand(Command):
         table."""
 
         _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
+        if file is None:
+            output.fprint(
+                self.errfile,
+                f"Could not find a config for {conf_type} '{cfg}'",
+                color=output.YELLOW)
+            return 1
+
         with file.open() as config_file:
             cfg = file_format.TestConfigLoader().load(config_file)
 
@@ -479,7 +513,7 @@ class ShowCommand(Command):
                     'value': var[0][None]
                 })
             else:
-                complex_vars.append(var)
+                complex_vars.append(var_key)
         if simple_vars:
             output.draw_table(
                 self.outfile,
@@ -488,6 +522,9 @@ class ShowCommand(Command):
                 rows=simple_vars,
                 title="Simple Variables"
             )
+
+        if complex_vars:
+            output.fprint(self.outfile, '\nComplex Variables')
 
         for var in complex_vars:
             subvar = cfg['variables'][var][0]
@@ -565,7 +602,7 @@ class ShowCommand(Command):
         )
 
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
-        """Show the full config of a given host/mode."""
+        """Show the full config of a given os/host/mode."""
 
         _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
         config_data = None
@@ -575,11 +612,24 @@ class ShowCommand(Command):
                               .load_raw(config_file)
 
         if config_data is not None:
-            output.fprint(self.outfile, pprint.pformat(config_data, compact=True))
+            output.fprint(self.outfile, pprint.pformat(config_data, compact=False))
         else:
             output.fprint(sys.stdout, "No {} config found for "
                                       "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
+
+    @sub_cmd()
+    def _os_cmd(self, pav_cfg, args):
+        """List all known os files."""
+
+        if args.vars:
+            self.show_vars(pav_cfg, args.vars, 'OS')
+        elif args.config:
+            self.show_full_config(pav_cfg, args.config, 'OS')
+        else:
+            self.show_configs_table(pav_cfg, 'OS',
+                                    verbose=args.verbose,
+                                    errors=args.err)
 
     @sub_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):

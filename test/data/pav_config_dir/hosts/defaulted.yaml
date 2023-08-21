@@ -1,4 +1,7 @@
 variables:
-  mode_def: host
+  mode_def?: host
   host_def?: host
-  test_def: host
+  test_def?: host
+
+  def_host?: host
+  def_test: host

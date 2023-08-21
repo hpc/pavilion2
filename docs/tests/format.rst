@@ -203,11 +203,28 @@ the base test is never supposed to run on its own.
         variables:
             count: 1000
 
+OS Configs
+----------
+
+OS configs allow you to have per-OS settings. These are layered on top
+of general defaults for every test run on a particular OS. They are
+``<name>.yaml`` files that go in the ``<config_dir>>/sys_os/`` directory,
+in any of your :ref:`config.config_dirs`.
+
+Pavilion determines your current operating system through the ``sys_os``
+system variable.
+
+You can specify the OS config with the ``'-o'`` option to the ``pav run``.
+
+::
+
+    pav run -o another_os my_tests
+
 Host Configs
 ------------
 
 Host configs allow you to have per-host settings. These are layered on
-top of the general defaults for every test run on a particular host.
+top of the OS configurations for every test run on a particular host.
 They are ``<name>.yaml`` files that go in the ``<config_dir>/hosts/``
 directory, in any of your :ref:`config.config_dirs`.
 
@@ -334,10 +351,11 @@ order.
    later items take precedence in conflicts.
 
    1. The general defaults.
-   2. The host config.
-   3. The actual test config.
-   4. Inheritance is resolved.
-   5. Any mode configs in the order specified.
+   2. The OS config.
+   3. The host config.
+   4. The actual test config.
+   5. Inheritance is resolved.
+   6. Any mode configs in the order specified.
 
 2. Tests are filtered down to only those requested.
 3. Command line overrides ('-c') are applied.
