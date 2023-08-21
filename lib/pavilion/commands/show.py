@@ -99,30 +99,30 @@ class ShowCommand(Command):
             help="Show full documentation on the requested plugin."
         )
 
-        sys_os = subparsers.add_parser(
+        os_parser = subparsers.add_parser(
             'os',
             help="Show available operating system configs.",
             description="Pavilion can support different default configs "
                         "depending on the operating system."
         )
 
-        sys_os_group = sys_os.add_mutually_exclusive_group()
-        sys_os_group.add_argument(
-            '--config', action='store', type=str, metavar='<sys_os>',
+        os_group = os_parser.add_mutually_exclusive_group()
+        os_group.add_argument(
+            '--config', action='store', type=str, metavar='<os>',
             help="Show full os config for desired operating system."
         )
 
-        sys_os_group.add_argument(
+        os_group.add_argument(
             '--err', action='store_true', default=False,
             help="Display any errors encountered while reading a operating system file."
         )
 
-        sys_os_group.add_argument(
-            '--vars', action='store', type=str, metavar='<sys_os>',
+        os_group.add_argument(
+            '--vars', action='store', type=str, metavar='<os>',
             help="Show defined variables for desired operating system config."
         )
 
-        sys_os_group.add_argument(
+        os_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
             help="Display paths to the operating system files."
@@ -599,7 +599,7 @@ class ShowCommand(Command):
         )
 
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
-        """Show the full config of a given sys_os/host/mode."""
+        """Show the full config of a given os/host/mode."""
 
         _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
         config_data = None
@@ -615,9 +615,9 @@ class ShowCommand(Command):
                                       "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
-    @sub_cmd('os')
-    def _sys_os_cmd(self, pav_cfg, args):
-        """List all known sys_os files."""
+    @sub_cmd()
+    def _os_cmd(self, pav_cfg, args):
+        """List all known os files."""
 
         if args.vars:
             self.show_vars(pav_cfg, args.vars, 'OS')
