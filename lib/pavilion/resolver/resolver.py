@@ -250,9 +250,11 @@ class TestConfigResolver:
 
         """
 
+        conf_dir = self.CONF_TYPE_DIRNAMES[conf_type]
+
         configs = {}
         for config in self.pav_cfg.configs.values():
-            path = config['path'] / conf_type
+            path = config['path'] / conf_dir
 
             if not (path.exists() and path.is_dir()):
                 continue

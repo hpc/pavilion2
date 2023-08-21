@@ -513,7 +513,7 @@ class ShowCommand(Command):
                     'value': var[0][None]
                 })
             else:
-                complex_vars.append(var)
+                complex_vars.append(var_key)
         if simple_vars:
             output.draw_table(
                 self.outfile,
@@ -522,6 +522,9 @@ class ShowCommand(Command):
                 rows=simple_vars,
                 title="Simple Variables"
             )
+
+        if complex_vars:
+            output.fprint(self.outfile, '\nComplex Variables')
 
         for var in complex_vars:
             subvar = cfg['variables'][var][0]
@@ -609,7 +612,7 @@ class ShowCommand(Command):
                               .load_raw(config_file)
 
         if config_data is not None:
-            output.fprint(self.outfile, pprint.pformat(config_data, compact=True))
+            output.fprint(self.outfile, pprint.pformat(config_data, compact=False))
         else:
             output.fprint(sys.stdout, "No {} config found for "
                                       "{}.".format(conf_type.strip('s'), cfg_name))
