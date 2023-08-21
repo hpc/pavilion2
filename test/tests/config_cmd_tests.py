@@ -50,7 +50,7 @@ class ConfigCmdTests(unittest.PavTestCase):
         self.assertEqual(pav_cfg.working_dir, test_config_wd)
         # Make sure all created files exist.
         for subfile in ['config.yaml', 'test_src', 'tests', 'hosts', 'modes', 'plugins',
-                        'pavilion.yaml', 'sys_os']:
+                        'pavilion.yaml', 'os']:
             self.assertTrue((test_config_root / subfile).exists())
         # Make sure groups are sane.
         if other_group is not None:
