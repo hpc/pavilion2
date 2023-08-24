@@ -56,6 +56,8 @@ HAS_STATE = "has_state"
 CREATED = "created"
 FINISHED = "finished"
 
+NUM_NODES = "num_nodes"
+
 HELP_TEXT = (
             "Filter requirements for tests and series.\n"
             "Example: pav status -F \"name=suite.test.* user=bob|user=jim complete\" \n"
@@ -81,6 +83,13 @@ HELP_TEXT = (
             "                       (Whitespace between the number and unit is optional). \n"
             "  finished<TIME      Include only {} that have finished before or after TIME. \n"
             "                       Both < and > comparators are accepted. \n"
+            "  partition=PARTITION \n"
+            "                     Include only {} that match this partition. \n"
+            "  nodes=NODES        Include only {} that match NODES. Wildcards and ranges defined \n"
+            "                       by brackets (i.e., node[001-005]) are allowed. \n"
+            "  num_nodes>NUM_NODES \n"
+            "                     Include only {} that have greater or less than NUM_NODES. \n"
+            "                       Comparators <, >, and = are accepted. \n"
             "  STATE              Include only {} whose most recent state is the one given. \n"
             "                       States can be listed with 'pav show states' \n"
             "  sys_name=SYS_NAME  Include only {} that match the given system name, as \n"
@@ -138,7 +147,8 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                  "  FAILED             Include only failed test runs. \n"
                  "  RESULT_ERROR       Include only test runs with a result error. \n"\
                  .format(defaults['filter'], target, target,
-                        target, target, target, target))
+                        target, target, target, target, target,
+                        target, target))
 
     arg_parser.add_argument(
         '-l', '--limit', type=int, default=defaults['limit'],
@@ -203,7 +213,8 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 
     target = "series"
     help_text = HELP_TEXT.format(defaults['filter'], target, target,
-                    target, target, target, target)
+                    target, target, target, target, target, target,
+                    target)
 
     arg_parser.add_argument(
         '-l', '--limit', type=int, default=defaults['limit'],
@@ -385,8 +396,61 @@ def partition(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
     """
     return attrs.get('partition', False) == val
 
-def nodes(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
-    pass
+def nodes(attrs: Union[Dict, series.SeriesInfo], val: str):
+    """Return "partition" status
+
+    :param attrs: attributes of a given test or series
+    :param val: the value of the filter query
+
+    :return: result of the test or series "partition" attribute
+    """
+    if 'results' in attrs and 'sched' in attrs['results']:
+        if 'test_node_list' not in attrs['results']['sched']:
+            node_var = variables.VariableSetManager.load(Path(attrs.get('path')) / 'variables')
+
+            if 'sched' in node_var.as_dict() and 'test_node_list' in node_var.as_dict()['sched']:
+                attrs['results']['sched']['test_node_list'] \
+                    = node_var.as_dict()['sched']['test_node_list']
+
+            else:
+                return False
+
+        for node in attrs['results']['sched']['test_node_list']:
+            if not fnmatch.fnmatch(node, val):
+                return False
+
+            return True
+    else:
+        return False
+
+def num_nodes(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
+    """Return whether 'num_nodes' status of a test is greater or less than a given number
+
+    :param attrs: attributes of a given test or series
+    :param op: the operator of the filter query
+    :param val: the value of the filter query
+
+    :return: result of the test or series 'num_nodes' greater or less than a given number
+    """
+    if 'results' in attrs and 'sched' in attrs['results']:
+        if 'test_nodes' in attrs['results']['sched']:
+            try:
+                int_val = int(val)
+            except ValueError:
+                return False
+
+            test_nodes = int(attrs['results']['sched']['test_nodes'])
+
+            if operator == OP_GT:
+                return test_nodes > int_val
+            elif operator == OP_LT:
+                return test_nodes < int_val
+            elif operator == OP_EQ:
+                return test_nodes == int_val
+            else:
+                raise ValueError(
+                            "Operator {} not recognized.".format(operator))
+
 
 def finished(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
     """Return whether 'finished' status of a test is greater or less than a given time
@@ -442,6 +506,8 @@ SERIES_FUNCS = {
     'name': [name, ('=', '!=')],
     'user': [user, ('=', '!=')],
     'sys_name': [sys_name, ('=', '!=')],
+    'partition': [partition, ('=')],
+    'nodes': [nodes, ('=')],
 }
 
 TEST_FUNCS = {
@@ -449,6 +515,8 @@ TEST_FUNCS = {
     'name': [name, ('=', '!=')],
     'user': [user, ('=', '!=')],
     'sys_name': [sys_name, ('=', '!=')],
+    'partition': [partition, ('=')],
+    'nodes': [nodes, ('=')],
     'result_error': [result_error, ''],
     'passed': [passed, ''],
     'failed': [failed, ''],
@@ -544,7 +612,7 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
 
     :return: whether a particular test passes the filter query requirements
     """
-    partition(test_attrs)
+
     if target is None:
         return True
     else:
@@ -582,6 +650,9 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
 
         elif key == FINISHED:
             return finished(test_attrs, operator, val)
+
+        elif key == NUM_NODES:
+            return num_nodes(test_attrs, operator, val)
 
         elif key.upper() in STATES.list() and filter_funcs == TEST_FUNCS:
             return state(test_attrs, STATE, key, TestStatusFile)
