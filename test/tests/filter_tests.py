@@ -3,7 +3,7 @@
 import argparse
 import random
 import time
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from pavilion import dir_db
 from pavilion import filters
@@ -58,11 +58,9 @@ class FiltersTest(PavTestCase):
         series_parser = NoExitParser()
         sort_opts = list(filters.SORT_KEYS["SERIES"])
 
-        filters.add_common_filter_args("", common_parser,
-                                       filters.SERIES_FILTER_DEFAULTS,
-                                       sort_options=sort_opts,
-                                       disable_opts=[])
         filters.add_series_filter_args(series_parser)
+
+        print(vars(series_parser.parse_args([])))
 
         self.assertEqual(
             vars(common_parser.parse_args([])),
@@ -71,83 +69,131 @@ class FiltersTest(PavTestCase):
                 "they've diverged, add tests to check the untested "
                 "values (the common ones are tested via the test_run args).")
 
+    def test_series_filter_name(self):
+        """Check the series name filter option"""
+
+        match_sets = [
+            [{'name': 'this.test'}, 'name=this'],
+            [{'name': 'this.test.perm'}, 'name=*'],
+            [{'name': 'this.test'}, 'name=*.*.*'],
+            [{'name': 'this.test'}, 'name=*.?est'],
+            [{'name': 'this'}, '']
+        ]
+
+        never_match_sets = [
+            [{'name': 'this'}, 'name=that'],
+            [{'name': 'not.this.test'}, 'name=not.this.again'],
+            [{'name': 'this.that'}, 'name=that']
+        ]
+
+        for opt in match_sets:
+            series_filter = filters.make_series_filter(opt[1])
+
+            self.assertTrue(series_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
+        for opt in never_match_sets:
+            series_filter = filters.make_series_filter(opt[1])
+
+            self.assertFalse(series_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
+    def test_test_run_filter_name(self):
+        """Check the test run name filter option"""
+
+        match_sets = [
+            [{'name': 'this.test'}, 'name=this'],
+            [{'name': 'this.test.perm'}, 'name=*'],
+            [{'name': 'this.test'}, 'name=*.*.*'],
+            [{'name': 'this.test'}, 'name=*.?est'],
+            [{'name': 'this'}, '']
+        ]
+
+        never_match_sets = [
+            [{'name': 'this'}, 'name=that'],
+            [{'name': 'not.this.test'}, 'name=not.this.again'],
+            [{'name': 'this.that'}, 'name=that']
+        ]
+
+        for opt in match_sets:
+            test_run_filter = filters.make_test_run_filter(opt[1])
+
+            self.assertTrue(test_run_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
+        for opt in never_match_sets:
+            test_run_filter = filters.make_test_run_filter(opt[1])
+
+            self.assertFalse(test_run_filter(opt[0]),
+                            msg="Failed on opt ({})"
+                            .format(opt[1]))
+
     def test_make_series_filter(self):
         """Check the filter maker function."""
 
-        now = time.time()
-
-        base = {
-            'complete': False,
-            'incomplete': False,
-            'user': None,
-            'sys_name': None,
-            'older_than': None,
-            'newer_than': None,
-        }
+        now = datetime.now()
 
         always_match_series = {
             'complete': True,
-            'created': now - 5*60,
+            'created': now.timestamp() - 5*60,
             'sys_name': 'this',
             'user': 'bob',
         }
 
         never_match_series = {
             'complete': False,
-            'created': now - 1*60,
+            'created': now.timestamp() - 1*60,
             'sys_name': 'that',
             'user': 'gary',
         }
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
-        opt_set = {
-            'complete': True,
-            'user': 'bob',
-            'sys_name': 'this',
-            'older_than': now - 2*60,
-        }
+        opt_set = [
+            'complete',
+            'user=bob',
+            'sys_name=this',
+            'created>{}'.format((now - timedelta(minutes=2)).isoformat()),
+        ]
 
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
-        inv_opt_set = {
-            'incomplete': True,
-            'newer_than': now - 2*60,
-        }
+        inv_opt_set = [
+            '!complete',
+            'created<{}'.format((now - timedelta(minutes=2)).isoformat()),
+        ]
 
-        for opt, val in opt_set.items():
-            opts = base.copy()
-            opts[opt] = val
-
-            series_filter = filters.make_series_filter(**opts)
+        for opt in opt_set:
+            series_filter = filters.make_series_filter(opt)
 
             self.assertTrue(series_filter(always_match_series),
-                            msg="Failed on opt, val ({}, {})"
-                            .format(opt, val))
+                            msg="Failed on opt ({})"
+                            .format(opt))
             self.assertFalse(series_filter(never_match_series),
-                             msg="Failed on opt, val ({}, {})"
-                             .format(opt, val))
+                             msg="Failed on opt ({})"
+                             .format(opt))
 
-        for opt, val in inv_opt_set.items():
-            opts = base.copy()
-            opts[opt] = val
-            series_filter = filters.make_test_run_filter(**opts)
+        for opt in inv_opt_set:
+            series_filter = filters.make_series_filter(opt)
 
             self.assertFalse(series_filter(always_match_series),
-                             msg="Failed on opt, val ({}, {})"
-                             .format(opt, val))
+                            msg="Failed on opt ({})"
+                            .format(opt))
             self.assertTrue(series_filter(never_match_series),
-                            msg="Failed on opt, val ({}, {})"
-                            .format(opt, val))
+                             msg="Failed on opt ({})"
+                             .format(opt))
 
     def test_make_test_run_filter(self):
         """Check that the series filter options all work."""
 
-        now = time.time()
+        now = datetime.now()
 
         always_match_test = {
             'complete': True,
-            'created':  now - timedelta(minutes=5).total_seconds(),
+            'created':  now.timestamp() - timedelta(minutes=5).total_seconds(),
             'name':     'mytest.always_match',
             'result':   TestRun.PASS,
             'sys_name': 'this',
@@ -156,7 +202,7 @@ class FiltersTest(PavTestCase):
 
         never_match_test = {
             'complete': False,
-            'created':  now - timedelta(minutes=1).total_seconds(),
+            'created':  now.timestamp() - timedelta(minutes=1).total_seconds(),
             'name':     'yourtest.never_match',
             'result':   TestRun.FAIL,
             'sys_name': 'that',
@@ -165,45 +211,45 @@ class FiltersTest(PavTestCase):
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
-        opt_set = {
-            'complete':     True,
-            'user':         'bob',
-            'sys_name':     'this',
-            'passed':       True,
-            'older_than':   now - timedelta(minutes=2).total_seconds(),
-            'name':         'mytest.*',
-        }
+        opt_set = [
+            'complete',
+            'user=bob',
+            'sys_name=this',
+            'passed',
+            'created>{}'.format((now - timedelta(minutes=2)).isoformat()),
+            'name=mytest.*'
+        ]
 
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
-        inv_opt_set = {
-            'incomplete':   True,
-            'failed':       True,
-            'result_error': True,
-            'newer_than':   now - timedelta(minutes=2).total_seconds(),
-        }
+        inv_opt_set = [
+            '!complete',
+            'failed',
+            'result_error',
+            'created<{}'.format((now - timedelta(minutes=2)).isoformat())
+        ]
 
-        for opt, val in opt_set.items():
-            tr_filter = filters.make_test_run_filter(**{opt: val})
+        for opt in opt_set:
+            tr_filter = filters.make_test_run_filter(opt)
 
             self.assertTrue(tr_filter(always_match_test),
-                            msg="Failed on opt, val ({}, {})\n{}"
-                            .format(opt, val, always_match_test))
+                            msg="Failed on opt ({})\n{}"
+                            .format(opt, always_match_test))
             self.assertFalse(tr_filter(never_match_test),
-                             msg="Failed on opt, val ({}, {})\n{}"
-                             .format(opt, val, never_match_test))
+                             msg="Failed on opt ({})\n{}"
+                             .format(opt, never_match_test))
 
-        for opt, val in inv_opt_set.items():
-            tr_filter = filters.make_test_run_filter(**{opt: val})
+        for opt in inv_opt_set:
+            tr_filter = filters.make_test_run_filter(opt)
 
             self.assertFalse(tr_filter(always_match_test),
-                             msg="Failed on opt, val ({}, {})\n{}"
-                             .format(opt, val, always_match_test))
+                             msg="Failed on opt ({})\n{}"
+                             .format(opt, always_match_test))
             if opt != 'result_error':  # Fails on this one (expected)
                 self.assertTrue(
                     tr_filter(never_match_test),
-                    msg="Failed on opt, val ({}, {})\n{}"
-                        .format(opt, val, never_match_test))
+                    msg="Failed on opt ({})\n{}"
+                        .format(opt, never_match_test))
 
     def test_filter_states(self):
         """Check filtering by test state. These filters require an actual test to
@@ -213,11 +259,11 @@ class FiltersTest(PavTestCase):
         test2 = self._quick_test()
         test2.run()
 
-        t_filter = filters.make_test_run_filter(state=STATES.RUN_DONE)
+        t_filter = filters.make_test_run_filter("RUN_DONE")
         self.assertFalse(t_filter(test.attr_dict()))
         self.assertTrue(t_filter(test2.attr_dict()))
 
-        t_filter2 = filters.make_test_run_filter(has_state=STATES.RUNNING)
+        t_filter2 = filters.make_test_run_filter("has_state=RUNNING")
         self.assertFalse(t_filter2(test.attr_dict()))
         self.assertTrue(t_filter2(test2.attr_dict()))
 
@@ -235,8 +281,8 @@ class FiltersTest(PavTestCase):
         series2.add_test_set_config('test', test_names=['hello_world'])
         series2_info = series2.info().attr_dict()
 
-        state_filter = filters.make_series_filter(state=SERIES_STATES.ALL_STARTED)
-        has_state_filter = filters.make_series_filter(has_state=SERIES_STATES.SET_MAKE)
+        state_filter = filters.make_series_filter("ALL_STARTED")
+        has_state_filter = filters.make_series_filter("has_state=SET_MAKE")
 
         self.assertTrue(state_filter(series_info))
         self.assertFalse(state_filter(series2_info))

@@ -47,11 +47,11 @@ def set_arg_defaults(args):
     """Set typical argument defaults, but don't override any given."""
 
     # Don't assume these actually exist.
-    args.user = getattr(args, 'user', utils.get_login())
-    def_newer_than = (time.time() - dt.timedelta(days=1).total_seconds())
-    args.newer_than = getattr(args, 'newer_than', def_newer_than)
-    sys_name = sys_vars.get_vars(defer=True).get('sys_name')
-    args.sys_name = getattr(args, 'sys_name', sys_name)
+    def_filter = 'user={} created<{} sys_name={}'.format(
+                  utils.get_login(),
+                  (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
+                  sys_vars.get_vars(defer=True).get('sys_name'))
+    args.filter = getattr(args, 'filter', def_filter)
 
 
 def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
@@ -111,24 +111,13 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                 break
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
-                                   "newer_than 1 day ago.", color=output.CYAN)
-            args.user = utils.get_login()
-            args.newer_than = time.time() - dt.timedelta(days=1).total_seconds()
-            sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+                                   "created less than 1 day ago.", color=output.CYAN)
+            args.filter = 'user={} created<{} sys_name={}'.format(
+                           utils.get_login(),
+                           (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
+                           sys_vars.get_vars(defer=True).get('sys_name'))
 
-    filter_func = filters.make_test_run_filter(
-        complete=args.complete,
-        incomplete=args.incomplete,
-        passed=args.passed,
-        failed=args.failed,
-        name=args.name,
-        user=args.user,
-        state=args.state,
-        has_state=args.has_state,
-        sys_name=sys_name,
-        older_than=args.older_than,
-        newer_than=args.newer_than,
-    )
+    filter_func = filters.make_test_run_filter(target=args.filter)
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
@@ -188,10 +177,11 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                 break
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
-                                   "newer_than 1 day ago.", color=output.CYAN)
-            args.user = utils.get_login()
-            args.newer_than = (dt.datetime.now() - dt.timedelta(days=1)).timestamp()
-            args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
+                                   "created less than 1 day ago.", color=output.CYAN)
+            args.filter = 'user={} created<{} sys_name={}'.format(
+                           utils.get_login(),
+                           (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
+                           sys_vars.get_vars(defer=True).get('sys_name'))
 
     seen_sids = []
     found_series = []
@@ -206,15 +196,10 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             found_series.append(last_series.info())
 
         elif sid == 'all':
-            sort_by = getattr(args, 'sort_by', filters.SERIES_FILTER_DEFAULTS['sort_by'])
-            order_func, order_asc = filters.get_sort_opts(sort_by, 'SERIES')
+            order_func, order_asc = filters.get_sort_opts(args.sort_by, 'SERIES')
 
-            filter_args = {}
-            for arg in ('complete', 'has_state', 'incomplete', 'name', 'newer_than',
-                        'older_than', 'state', 'sys_name', 'user'):
-                filter_args[arg] = getattr(args, arg, filters.SERIES_FILTER_DEFAULTS[arg])
+            filter_func = filters.make_series_filter(target=args.filter)
 
-            filter_func = filters.make_series_filter(**filter_args)
             found_series.extend(dir_db.select(
                 pav_cfg=pav_cfg,
                 id_dir=pav_cfg.working_dir/'series',

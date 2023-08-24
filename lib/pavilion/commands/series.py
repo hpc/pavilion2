@@ -5,6 +5,7 @@ import errno
 import sys
 from typing import List
 
+from pavilion import arguments
 from pavilion import cancel_utils
 from pavilion import config
 from pavilion import cmd_utils
@@ -29,7 +30,6 @@ class RunSeries(Command):
                         '  For information on configuring series, run `pav show series_config`.\n'
                         '  To see series log output, run `pav log series <series_id>`',
             short_help='Run/work with test series.',
-            formatter_class=argparse.RawDescriptionHelpFormatter,
         )
 
         # Useful for testing this command. Populated by the run sub command.
@@ -77,11 +77,12 @@ class RunSeries(Command):
                  "  - System    - The system the series ran on.\n"
                  "  - Complete  - Whether the series itself is complete.\n"
                  "                  (All tests created and complete).\n"
-                 "  - Updated   - Last series status update.\n")
+                 "  - Updated   - Last series status update.\n",
+            formatter_class=arguments.WrappedFormatter)
 
         list_p.add_argument(
             'series', nargs='*',
-            help="Specific series to show. Defaults to all your recent series on this cluster."
+            help="Specific series to show. Defaults to all your recent series on this cluster.",
         )
         filters.add_series_filter_args(list_p)
 
@@ -404,7 +405,7 @@ class RunSeries(Command):
         elif args.skipped:
             # Filter to just skipped messages
             states = [state for state in states
-                      if 'TESTS_SKIPPED' == state.state]
+                      if state.state == 'TESTS_SKIPPED']
 
         if args.text:
             for status in states:
@@ -428,9 +429,6 @@ class RunSeries(Command):
     def _cancel_cmd(self, pav_cfg, args):
         """Cancel all series found given the arguments."""
 
-        args.user = args.user or utils.get_login()
-        args.sys_name = sys_vars.get_vars(defer=True).get('sys_name')
-
         series_info = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
         output.fprint(self.outfile, "Found {} series to cancel.".format(len(series_info)))
 
@@ -447,7 +445,7 @@ class RunSeries(Command):
         tests_to_cancel = []
         for ser in chosen_series:
             # We'll cancel the tests verbosely.
-            ser.cancel(message="By user {}".format(args.user), cancel_tests=False)
+            ser.cancel(message="By user {}".format(utils.get_login()), cancel_tests=False)
             output.fprint(self.outfile, "Series {} cancelled.".format(ser.sid))
 
             tests_to_cancel.extend(ser.tests.values())
