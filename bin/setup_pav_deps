@@ -1,7 +1,6 @@
 #!/bin/bash
 
 PAV_ROOT=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
-YAML_CONFIG_URL="https://github.com/lanl-preteam/yaml_config/archive/refs/heads/master.zip"
 
 pushd "$PAV_ROOT" || exit 1
 
@@ -54,21 +53,6 @@ echo "Installing dependencies in requirements.txt"
 if ! pip install -r "$PAV_ROOT"/requirements.txt; then
   echo "Failed to install requirements."
   exit 1
-fi
-
-if [[ -d "$PAV_ROOT"/lib/sub_repos/yaml_config/README.md ]]; then
-  echo "Yaml_config already installed."
-else
-  echo "Installing non-pip dependencies"
-  if ! wget "$YAML_CONFIG_URL"; then
-    echo "Could not download yaml_config."
-    exit 1
-  fi
-
-  unzip master.zip >/dev/null 2>&1 || exit 1
-  rm master.zip
-  rm -rf "$PAV_ROOT"/lib/sub_repos/yaml_config
-  mv yaml_config-master "$PAV_ROOT"/lib/sub_repos/yaml_config || exit 1
 fi
 
 echo "Finished installing dependencies"
