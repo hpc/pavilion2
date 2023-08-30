@@ -247,11 +247,3 @@ class LogCommand(Command):
                 fields=['time', 'state', 'note'],)
 
         return 0
-
-
-
-
-
-
-
-
