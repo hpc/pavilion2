@@ -10,6 +10,43 @@ CONFIG_KEYS=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group umask)
 SHARED_GROUP=$(echo "${CONFIG_KEYS}" | awk -F: '/shared_group/{ print $2 }' )
 UMASK=$(echo "${CONFIG_KEYS}" | awk -F: '/umask/{ print $2 }' )
 
+# Check if we need to update/install
+if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
+    DEPS_STATUS=${PAV_DIR}/.deps_pulled
+
+    # Make sure we're not already in a virtual env.
+    if [[ -z "${VIRTUAL_ENV}" ]]; then
+        if [[ -d ${PAV_DIR}/.git ]]; then
+            # This is a checkout of the git repo. Consider pulling the
+            # dependencies through git submodule
+
+            if [[ ${PAV_DIR}/requirements.txt -nt ${DEPS_STATUS} ]]; then
+                # If the requirements file has been updated, update the dependencies.
+                echo "Running bin/setup_pav_deps to update dependencies." 1>&2
+                ${PAV_DIR}/bin/setup_pav_deps 1>&2
+                echo "Pulled pavilion dependencies via git on $(date)" > ${DEPS_STATUS}
+            fi
+        else
+            # Check if our virtual env already exists, and create it if it doesn't.
+            if ! [[ -d ${PAV_DIR}/.env ]]; then
+                echo "Creating a virtual environment and installing dependencies in " 1>&2
+                echo "'${PAV_DIR}/.env'." 1>&2
+                ${PAV_DIR}/bin/setup_pav_deps ${PAV_DIR}/.env 1>&2
+                echo "Pulled pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
+            fi
+
+            # Activate this built-in virtual environment
+            source ${PAV_DIR}/.env/bin/activate
+
+            if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.submodules_pulled ]]; then
+                echo "Updating Pavilion dependencies." 1>&2
+                pip install -r ${PAV_DIR}/requirements.txt 1>&2
+                echo "Pulled pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
+            fi
+        fi
+    fi
+fi
+
 # Set to restrict files to owner only permissions. All files
 # written by Pavilion will have their correct permissions applied after
 # being written.
