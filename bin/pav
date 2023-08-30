@@ -6,10 +6,6 @@ PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib"
 
-CONFIG_KEYS=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group umask)
-SHARED_GROUP=$(echo "${CONFIG_KEYS}" | awk -F: '/shared_group/{ print $2 }' )
-UMASK=$(echo "${CONFIG_KEYS}" | awk -F: '/umask/{ print $2 }' )
-
 # Check if we need to update/install
 if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
     DEPS_STATUS=${PAV_DIR}/.deps_pulled
@@ -46,6 +42,11 @@ if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
         fi
     fi
 fi
+
+# Get some config keys from the pavilion.yaml file
+CONFIG_KEYS=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group umask)
+SHARED_GROUP=$(echo "${CONFIG_KEYS}" | awk -F: '/shared_group/{ print $2 }' )
+UMASK=$(echo "${CONFIG_KEYS}" | awk -F: '/umask/{ print $2 }' )
 
 # Set to restrict files to owner only permissions. All files
 # written by Pavilion will have their correct permissions applied after

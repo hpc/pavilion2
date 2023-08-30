@@ -5,7 +5,7 @@ YAML_CONFIG_URL="https://github.com/lanl-preteam/yaml_config/archive/refs/heads/
 
 pushd "$PAV_ROOT" || exit 1
 
-if git status; then
+if git status > /dev/null 2>&1; then
   echo "In a git repo, using submodules to get dependencies."
 
   if git submodule update --init; then
