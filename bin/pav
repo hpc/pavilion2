@@ -1,7 +1,5 @@
 #!/bin/bash
 
-PYTHON=$(which python3)
-
 PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib"
@@ -41,9 +39,10 @@ if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
             # Activate this built-in virtual environment
             source ${PAV_DIR}/.env/bin/activate
 
-            if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.submodules_pulled ]]; then
+            if [[ ${PAV_DIR}/requirements.txt -nt ${DEPS_STATUS} ]]; then
                 echo "Updating Pavilion dependencies." 1>&2
-                if pip install -r ${PAV_DIR}/requirements.txt >> ${DEPS_LOG} 2>&1; then
+                PIP=${PAV_DIR}/env/bin/pip
+                if ${PIP} install -r ${PAV_DIR}/requirements.txt >> ${DEPS_LOG} 2>&1; then
                     echo "Updated pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
                 else
                     echo "Failed to update Pavilion deps via pip. See log at '${DEPS_LOG}'"
@@ -51,6 +50,12 @@ if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
             fi
         fi
     fi
+fi
+
+if [[ -d ${PAV_DIR}/.env ]]; then
+    PYTHON=${PAV_DIR}/.env/bin/python
+else
+    PYTHON=$(which python3)
 fi
 
 # Get some config keys from the pavilion.yaml file
