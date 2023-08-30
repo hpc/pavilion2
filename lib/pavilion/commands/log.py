@@ -1,5 +1,7 @@
 """Print out the contents of the various log files for a given test run.
 """
+
+import datetime
 import errno
 import time
 import sys
@@ -83,6 +85,16 @@ class LogCommand(Command):
             description="Displays Pavilion's global output log."
         )
 
+        states_cmd = subparsers.add_parser(
+            'states',
+            help="Show a tests's state history.",
+            description="Displays the state ('<test_id>/status' file in full for a given test.")
+        states_cmd.add_argument(
+            '--raw', action='store_true', help="Print the state file as is.")
+        states_cmd.add_argument(
+            '--raw_time', action='store_true', help="Print raw unix timestamps.")
+        states_cmd.add_argument('id', help="The test id to show states for.")
+
         subparsers.add_parser(
             'all_results',
             aliases=['allresults', 'all-results'],
@@ -132,6 +144,8 @@ class LogCommand(Command):
         else:
             cmd_name = args.log_cmd
 
+        if cmd_name == 'states':
+            return self._states(pav_cfg, args.id, raw=args.raw, raw_time=args.raw_time)
 
         if cmd_name in ['global', 'all_results', 'allresults', 'all-results']:
             if 'results' in cmd_name:
@@ -204,3 +218,40 @@ class LogCommand(Command):
             if self.follow_testing:
                 break
         return 0
+
+    def _states(self, pav_cfg, test_id, raw=False, raw_time=False):
+        """Print the states for a test."""
+
+        try:
+            test = TestRun.load_from_raw_id(pav_cfg, test_id)
+        except errors.TestRunError as err:
+            output.fprint(self.errfile, "Error loading test.", err, color=output.RED)
+            return 1
+
+        states = test.status.history()
+
+        states = [state.as_dict() for state in states]
+
+        if not raw_time:
+            for state in states:
+                state['time'] = datetime.datetime.fromtimestamp(state['time']).isoformat(' ')
+
+        if raw:
+            for state in states:
+                output.fprint(self.outfile,
+                             "{time} {state} {note}".format(**state))
+        else:
+            output.draw_table(
+                self.outfile,
+                rows=states,
+                fields=['time', 'state', 'note'],)
+
+        return 0
+
+
+
+
+
+
+
+

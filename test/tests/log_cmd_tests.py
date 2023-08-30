@@ -4,22 +4,22 @@ import sys
 import threading
 import time
 
-import pavilion.commands
-import pavilion.schedulers
+from pavilion import commands
+from pavilion import schedulers
 from pavilion.unittest import PavTestCase
 
 
 class LogCmdTest(PavTestCase):
 
     def test_log_arguments(self):
-        log_cmd = pavilion.commands.get_command('log')
+        log_cmd = commands.get_command('log')
 
         parser = argparse.ArgumentParser()
         log_cmd._setup_arguments(parser)
 
         # run a simple test
         test = self._quick_test(finalize=False)
-        raw = pavilion.schedulers.get_plugin('raw')
+        raw = schedulers.get_plugin('raw')
 
         raw.schedule_tests(self.pav_cfg, [test])
 
@@ -86,7 +86,7 @@ class LogCmdTest(PavTestCase):
         self.assertEqual(err.getvalue(), '')
 
     def test_log_tail(self):
-        log_cmd = pavilion.commands.get_command('log')
+        log_cmd = commands.get_command('log')
 
         parser = argparse.ArgumentParser()
         log_cmd._setup_arguments(parser)
@@ -103,7 +103,7 @@ class LogCmdTest(PavTestCase):
                                    'echo "crazy"', 'echo "long"', 'echo "output"']
         test = self._quick_test(cfg=test_cfg)
 
-        raw = pavilion.schedulers.get_plugin('raw')
+        raw = schedulers.get_plugin('raw')
         raw.schedule_tests(self.pav_cfg, [test])
 
         end = time.time() + 5
@@ -124,7 +124,7 @@ class LogCmdTest(PavTestCase):
         log_cmd.outfile = sys.stderr
 
     def test_follow(self):
-        log_cmd = pavilion.commands.get_command('log')
+        log_cmd = commands.get_command('log')
         log_cmd.silence()
 
         test_cfg = self._quick_test_cfg()
@@ -146,3 +146,33 @@ class LogCmdTest(PavTestCase):
         out, err = log_cmd.clear_output()
         self.assertIn('output', out)
         log_cmd.follow_testing = True
+
+    def test_log_states(self):
+        """Test the 'log states' command."""
+
+
+        test = self._quick_test()
+
+        log_cmd = commands.get_command('log')
+        log_cmd.silence()
+
+        parser = argparse.ArgumentParser()
+        log_cmd._setup_arguments(parser)
+
+        for args in (
+                ('states', test.full_id),
+                ('states', '--raw', test.full_id),
+                ('states', '--raw_time', test.full_id),
+                ):
+            args = parser.parse_args(args)
+            self.assertEqual(log_cmd.run(self.pav_cfg, args), 0)
+
+
+
+
+
+
+
+
+
+
