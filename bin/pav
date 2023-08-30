@@ -9,6 +9,7 @@ export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib"
 # Check if we need to update/install
 if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
     DEPS_STATUS=${PAV_DIR}/.deps_pulled
+    DEPS_LOG=$(mktemp /tmp/pav_deps_log.XXXXXXX)
 
     # Make sure we're not already in a virtual env.
     if [[ -z "${VIRTUAL_ENV}" ]]; then
@@ -19,16 +20,22 @@ if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
             if [[ ${PAV_DIR}/requirements.txt -nt ${DEPS_STATUS} ]]; then
                 # If the requirements file has been updated, update the dependencies.
                 echo "Running bin/setup_pav_deps to update dependencies." 1>&2
-                ${PAV_DIR}/bin/setup_pav_deps 1>&2
-                echo "Pulled pavilion dependencies via git on $(date)" > ${DEPS_STATUS}
+                if ${PAV_DIR}/bin/setup_pav_deps > $DEPS_LOG 2>&1; then
+                    echo "Pulled pavilion dependencies via git on $(date)" > ${DEPS_STATUS}
+                else
+                    echo "Failed to setup dependences. See log at '${DEPS_LOG}'"
+                fi
             fi
         else
             # Check if our virtual env already exists, and create it if it doesn't.
             if ! [[ -d ${PAV_DIR}/.env ]]; then
                 echo "Creating a virtual environment and installing dependencies in " 1>&2
                 echo "'${PAV_DIR}/.env'." 1>&2
-                ${PAV_DIR}/bin/setup_pav_deps ${PAV_DIR}/.env 1>&2
-                echo "Pulled pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
+                if ${PAV_DIR}/bin/setup_pav_deps ${PAV_DIR}/.env > ${DEPS_LOG} 2>&1; then
+                    echo "Pulled pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
+                else
+                    echo "Failed to get dependencies via pip. See log at '${DEPS_LOG}'"
+                fi
             fi
 
             # Activate this built-in virtual environment
@@ -36,8 +43,11 @@ if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
 
             if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.submodules_pulled ]]; then
                 echo "Updating Pavilion dependencies." 1>&2
-                pip install -r ${PAV_DIR}/requirements.txt 1>&2
-                echo "Pulled pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
+                if pip install -r ${PAV_DIR}/requirements.txt >> ${DEPS_LOG} 2>&1; then
+                    echo "Updated pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
+                else
+                    echo "Failed to update Pavilion deps via pip. See log at '${DEPS_LOG}'"
+                fi
             fi
         fi
     fi
