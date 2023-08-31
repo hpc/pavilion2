@@ -61,6 +61,7 @@ jobs:
         path: test/working_dir.zip
 
   auto-deps:
+    # Check to make sure Pavilion can auto-fetch it's dependencies.
     runs-on: ubuntu-latest
 
     steps:
@@ -74,13 +75,13 @@ jobs:
     - name: setup_via_venv
       run: |
         mv .git .not-git
-        ./bin/pav
+        ./bin/pav show sys_vars
         rm -rf .deps_installed .env
         mv .not-git .git
 
     - name: set_via_git
       run: |
-        ./bin/pav
+        ./bin/pav show sys_vars
 
   style:
     runs-on: ubuntu-latest
