@@ -4,57 +4,11 @@ PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib"
 
-# Check if we need to update/install
-if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.got_reqs ]]; then
-    DEPS_STATUS=${PAV_DIR}/.deps_pulled
-    DEPS_LOG=$(mktemp /tmp/pav_deps_log.XXXXXXX)
-
-    # Change output color to yellow
-    echo -ne "\033[1;33m"
-
-    # Make sure we're not already in a virtual env.
-    if [[ -z "${VIRTUAL_ENV}" ]]; then
-        if [[ -d ${PAV_DIR}/.git ]]; then
-            # This is a checkout of the git repo. Consider pulling the
-            # dependencies through git submodule
-
-            if [[ ${PAV_DIR}/requirements.txt -nt ${DEPS_STATUS} ]]; then
-                # If the requirements file has been updated, update the dependencies.
-                echo "Running bin/setup_pav_deps to update dependencies." 1>&2
-                if ${PAV_DIR}/bin/setup_pav_deps > $DEPS_LOG 2>&1; then
-                    echo "Pulled pavilion dependencies via git on $(date)" > ${DEPS_STATUS}
-                else
-                    echo "Failed to setup dependences. See log at '${DEPS_LOG}'"
-                fi
-            fi
-        else
-            # Check if our virtual env already exists, and create it if it doesn't.
-            if ! [[ -d ${PAV_DIR}/.env ]]; then
-                echo "Creating a virtual environment and installing dependencies in " 1>&2
-                echo "'${PAV_DIR}/.env'." 1>&2
-                if ${PAV_DIR}/bin/setup_pav_deps ${PAV_DIR}/.env > ${DEPS_LOG} 2>&1; then
-                    echo "Pulled pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
-                else
-                    echo "Failed to get dependencies via pip. See log at '${DEPS_LOG}'"
-                fi
-            fi
-
-            # Activate this built-in virtual environment
-            source ${PAV_DIR}/.env/bin/activate
-
-            if [[ ${PAV_DIR}/requirements.txt -nt ${DEPS_STATUS} ]]; then
-                echo "Updating Pavilion dependencies." 1>&2
-                PIP=${PAV_DIR}/.env/bin/pip
-                if ${PIP} install -r ${PAV_DIR}/requirements.txt >> ${DEPS_LOG} 2>&1; then
-                    echo "Updated pavilion dependencies via pip on $(date)" > ${DEPS_STATUS}
-                else
-                    echo "Failed to update Pavilion deps via pip. See log at '${DEPS_LOG}'"
-                fi
-            fi
-        fi
+# Setup Pavilion dependencies if needed.
+if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.deps_status ]]; then
+    if ! ${PAV_DIR}/bin/setup_pav_deps; then
+        exit 1
     fi
-    # Reset the terminal colors
-    echo -ne "\033[0m"
 fi
 
 if [[ -d ${PAV_DIR}/.env ]]; then

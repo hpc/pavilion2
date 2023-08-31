@@ -1,59 +1,71 @@
 #!/bin/bash
 
-PAV_ROOT=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
+PAV_DIR=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
 
-pushd "$PAV_ROOT" || exit 1
+DEPS_STATUS=${PAV_DIR}/.deps_pulled
+DEPS_LOG=$(mktemp /tmp/pav_deps_log.XXXXXXX)
 
-if git status > /dev/null 2>&1; then
-  echo "In a git repo, using submodules to get dependencies."
-
-  if git submodule update --init; then
-    echo "Dependencies successfully obtained."
-    exit 0
-  else
-    echo "Could not get dependencies."
-    echo "You may need to double check your proxy settings."
+function setup_exit() {
+    echo $1
+    echo "Tip: Make sure your proxy settings are correct."
+    echo -ne "\033[0m"
     exit 1
-  fi
-fi
-popd || exit
+}
 
-echo "Installing dependencies via virtual environments."
-virtual_env_path="$1"
+function eecho () {
+    echo $1 1>&2
+}
 
-if [[ -z $virtual_env_path ]]; then
-  echo "You need to provide a path to where you would like the virtual environment installed."
-  echo "Usage: ${BASH_SOURCE[0]} <virtual_env>"
-  echo "  virtual_env - If a virtual environment already exists here, Pavilion will use it. "
-  echo "                Otherwise, Pavilion will create one at that location."
-  exit 1
-fi
+# Change output color to yellow
+eecho -ne "\033[1;33m"
+eecho "Setting up Pavilion dependencies. (This may take a minute.)" 1>&2
 
-if [[ -x $virtual_env_path/bin/activate ]]; then
-  echo "Virtual environment already exists."
+# Check if the dependencies are already installed (rare) at the system
+# level.
+if python3 ${PAV_DIR}/test/utils/check_pav_deps.py >/dev/null 2>&1; then
+    eecho "All dependencies already available."
+    echo "All dependencies already available." > ${DEPS_STATUS}
+# Install the deps in the current virtual environment, if there is one. 
+elif [[ -n "${VIRTUAL_ENV}" ]]; then
+    eecho "Installing dependencies in current virtual env."
+    if ! pip3 install -r ${PAV_DIR}/requirements.txt > ${DEPS_LOG} 2>&1; then
+        echo "Dependency installation failed. See '${DEPS_LOG}'"
+    fi
+elif [[ -d ${PAV_DIR}/.git ]]; then
+    # This is a checkout of the git repo. Grab the dependencies with git.
+
+    eecho "Updating dependencies via git submodule."
+    if git -C ${PAV_DIR} submodule update --init > $DEPS_LOG 2>&1; then
+        popd > /dev/null
+        echo "Pulled pavilion dependencies via git on $(date)" > ${DEPS_STATUS}
+    else
+        setup_exit "Failed to setup dependences. See log at '${DEPS_LOG}'"
+    fi
 else
-  if ! python3 -m venv "$virtual_env_path"; then
-    echo "Failed to install virtual environment at $virtual_env_path"
-    exit 1
-  fi
-fi
+    # Check if our virtual env already exists, and create it if it doesn't.
+    venv_path=${PAV_DIR}/.env
+    if ! [[ -d ${venv_path} ]]; then
 
-echo "Activating virtual environment"
-if ! source "$virtual_env_path"/bin/activate; then
-  echo "Could not activate virtual environment."
-fi
+        eecho "Creating a virtual environment and installing dependencies in " 
+        eecho "'${venv_path}'." 1>&2
+        eecho "(Pavilion will automatically run under this virtual environment.)"
 
-echo "Upgrading pip"
-if ! pip install --upgrade pip; then
-    echo "Failed to upgrade pip"
-    exit 1
-fi
+        if ! python3 -m venv ${venv_path} > ${DEPS_LOG} 2>&1; then
+            eecho "Failed create virtual environment. See log at '${DEPS_LOG}'"
+            setup_exit
+        fi
+    fi
 
-echo "Installing dependencies in requirements.txt"
-if ! pip install -r "$PAV_ROOT"/requirements.txt; then
-  echo "Failed to install requirements."
-  exit 1
-fi
+    pip_path=${venv_path}/bin/pip
+    if ! ${pip_path} install --upgrade pip > ${DEPS_LOG} 2>&1; then
+        eecho "Failed to upgrade pip. See log at '${DEPS_LOG}'"
+        setup_exit
+    fi
 
-echo "Finished installing dependencies"
-echo "To run Pavilion, you must first activate the virtual environment at ${virtual_env_path}"
+    if ! ${pip_path} install -r ${PAV_DIR}/requirements.txt > ${DEPS_LOG} 2>&1; then
+        eecho "Failed to update dependencies with pip. See log at '${DEPS_LOG}'"
+        setup_exit
+    fi
+fi
+# Reset the terminal colors
+eecho -ne "\033[0m"
