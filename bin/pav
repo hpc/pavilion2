@@ -5,7 +5,7 @@ PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib"
 
 # Setup Pavilion dependencies if needed.
-if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.deps_status ]]; then
+if [[ ${PAV_DIR}/requirements.txt -nt ${PAV_DIR}/.deps_installed ]]; then
     if ! ${PAV_DIR}/bin/setup_pav_deps; then
         exit 1
     fi
