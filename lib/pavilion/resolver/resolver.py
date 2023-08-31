@@ -443,6 +443,7 @@ class TestConfigResolver:
         """Resolve string escapes and variable references in parallel for the given tests."""
 
         complete = 0
+        test_count = len(ptests)
 
         if not ptests:
             return []
@@ -477,8 +478,8 @@ class TestConfigResolver:
 
                             if self._verbosity == Verbose.DYNAMIC:
                                 complete += 1
-                                progress = len(ptests) - complete
-                                progress = 1 - progress/len(ptests)
+                                progress = test_count - complete
+                                progress = 1 - progress/test_count
                                 output.fprint(self._outfile,
                                               "Resolving Test Configs: {:.0%}".format(progress),
                                               end='\r')

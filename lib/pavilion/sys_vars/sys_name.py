@@ -28,4 +28,4 @@ class SystemName(SystemPlugin):
         if end == 0:
             return name
         else:
-            return name[:end+1]
+            return name[:end]
