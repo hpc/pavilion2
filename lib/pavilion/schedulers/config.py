@@ -398,7 +398,7 @@ def parse_node_range(node: str) -> List[str]:
     prefix = node[:range_start]
     suffix = node[range_end + 1:]
 
-    range_txt = node[range_start + 1:range_end]
+    range_txt = node[range_start +1 :range_end]
     if '-' not in range_txt:
         raise ValueError("Range in node range missing '-': {}".format(node))
     start, end = range_txt.split('-', 1)

@@ -163,6 +163,7 @@ class LogCmdTest(PavTestCase):
                 ('states', test.full_id),
                 ('states', '--raw', test.full_id),
                 ('states', '--raw_time', test.full_id),
+                ('states', '--raw', '--raw_time', test.full_id),
                 ):
             args = parser.parse_args(args)
             self.assertEqual(log_cmd.run(self.pav_cfg, args), 0)

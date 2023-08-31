@@ -219,7 +219,7 @@ class LogCommand(Command):
                 break
         return 0
 
-    def _states(self, pav_cfg, test_id, raw=False, raw_time=False):
+    def _states(self, pav_cfg, test_id: str, raw: bool = False, raw_time: bool = False):
         """Print the states for a test."""
 
         try:
