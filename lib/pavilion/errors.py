@@ -54,13 +54,13 @@ class PavilionError(RuntimeError):
         width = shutil.get_terminal_size((80, 80)).columns
         tab_level = 0
         for line in str(self.msg).split('\n'):
-            lines.append(textwrap.wrap(line, width=width))
+            lines.extend(textwrap.wrap(line, width=width))
 
         # Add any included data.
         if self.data:
             data = pprint.pformat(self.data, width=width - tab_level*2)
             for line in data.split('\n'):
-                lines.extend(tab_level*self.TAB_LEVEL + line)
+                lines.append(tab_level*self.TAB_LEVEL + line)
 
         while next_exc:
             tab_level += 1
