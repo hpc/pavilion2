@@ -326,12 +326,32 @@ class Flux(SchedulerPluginAdvanced):
         script_file = open(job.kickoff_path.as_posix())
         script_contents = script_file.read()
         script_file.close()
+
+        # Flux requires the number of tasks (aka slots) to be equal to or
+        # greater than the number of nodes.  As we don't know ahead of time
+        # which task value in sched_config will be populated, iterate through
+        # until we get a hit and use that value.
+        slot_count = 1
+        # Start with whether the user provides a specific number of tasks to run
+        if sched_config["tasks"]:
+            slot_count = sched_config["tasks"]
+        # Alternatively, use the number of tasks-per-node multiplied by the number
+        # of nodes
+        elif sched_config["tasks_per_node"]:
+            slot_count = sched_config["tasks_per_node"] * sched_config["nodes"]
+        # Alternatively, use the minimum number of tasks-per-node multiplied by
+        # the number of nodes
+        elif sched_config["min_tasks_per_node"]:
+            slot_count = sched_config["min_tasks_per_node"] * sched_config["nodes"]
+        # Finally, if none of those are specified, use one task per node
+        else:
+            slot_count = sched_config["nodes"]
+
         fluxjob = JobspecV1.from_batch_command(
                 script=script_contents,
-                num_slots=sched_config["tasks_per_node"]*sched_config["nodes"],
+                num_slots=slot_count,
                 num_nodes=sched_config["nodes"],
-                jobname=job_name,
-        )
+                jobname=job_name)
 
         # Min time is one minute
         limit = sched_config["time_limit"] or 1
