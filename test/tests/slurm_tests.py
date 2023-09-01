@@ -1,5 +1,6 @@
 import subprocess
 import copy
+import hostlist
 import yc_yaml as yaml
 import time
 import unittest
@@ -88,7 +89,7 @@ class SlurmTests(PavTestCase):
                 return job
 
         # No job found
-        return None 
+        return None
 
     def test_node_list_parsing(self):
         """Make sure the node list regex matches what it's supposed to."""
@@ -148,15 +149,15 @@ class SlurmTests(PavTestCase):
             ['not_numbered'] +
             ['another000003'])
 
-        snodes = Slurm.compress_node_list(nodes)
+        snodes = hostlist.collect_hostlist(nodes)
 
         self.assertEqual(
             snodes,
-            'another000003,n0de[0020-0034,0047,0049,0095-0100,0105-1234],node00[1-2],not_numbered'
+            'another000003,n0de[0020-0034,047,49,0095-0100,0105-1234],node[001-002],not_numbered,t##rible'
         )
 
         nodes = ['node{:03d}'.format(i) for i in range(90, 101)]
-        snodes = Slurm.compress_node_list(nodes)
+        snodes = hostlist.collect_hostlist(nodes)
         self.assertEqual(
             snodes, 'node[090-100]'
         )
