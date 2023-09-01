@@ -64,7 +64,7 @@ class LSCommand(Command):
         parser.add_argument(
             '--tree',
             action='store_true',
-            help="List file tree for the given test run (may be huge). Most output args don't"
+            help="List file tree for the given test run (may be huge). Most output args don't "
                  "apply.",
         )
         parser.add_argument(

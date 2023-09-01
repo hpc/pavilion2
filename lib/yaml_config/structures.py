@@ -91,7 +91,7 @@ class ListElem(ConfigElement):
 
         if root_name is not None:
             name = root_name
-        else: 
+        else:
             name = self.name
 
         if value is None or value == [None]:
@@ -816,7 +816,7 @@ class CategoryElem(_DictElem):
             next_key = parts[1] if len(parts) == 2 else ''
             if key != '*':
                 raise KeyError(
-                    "Invalid dotted key for {} called '{}'. CategoryElem"
+                    "Invalid dotted key for {} called '{}'. CategoryElem "
                     "must have their element name given as a *, since it's "
                     "sub-element isn't named. Got '{}' from '{}' instead."
                     .format(self.__class__.__name__, self.name,
@@ -994,7 +994,7 @@ class DerivedElem(ConfigElement):
     def find(self, dotted_key):
         if dotted_key != '':
             raise ValueError(
-                "Invalid key '{0}' for {1} called '{2}'. Since {1} don't have"
+                "Invalid key '{0}' for {1} called '{2}'. Since {1} don't have "
                 "sub-elements, the key must be '' by this point."
                 .format(dotted_key, self.__class__.__name__, self.name))
         return self

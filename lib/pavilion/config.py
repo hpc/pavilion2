@@ -347,7 +347,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         ExPathElem(
             "working_dir",
             default=DEFAULT_WORKING_DIR,
-            help_text="Set the default working directory. Each config dir can set its"
+            help_text="Set the default working directory. Each config dir can set its "
                       "own working_dir."),
         ExPathElem(
             'spack_path', default=None, required=False,
@@ -381,7 +381,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         ),
         yc.IntRangeElem(
             "max_cpu", default=NCPU, vmin=1,
-            help_text="Maximum number of cpus to use when spawning multiple processes."
+            help_text="Maximum number of cpus to use when spawning multiple processes. "
                       "The number used may be less depending on the task."
         ),
         yc.StrElem(
@@ -389,8 +389,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             default=LOG_FORMAT,
             help_text="The log format to use for the pavilion logger. "
                       "Uses the modern '{' format style. See: "
-                      "https://docs.python.org/3/library/logging.html#"
-                      "logrecord-attributes"),
+                      "https://docs.python.org/3/library/logging.html#logrecord-attributes"),
         yc.StrElem(
             "log_level", default="info",
             choices=['debug', 'info', 'warning', 'error', 'critical'],

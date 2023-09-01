@@ -43,7 +43,7 @@ class ScheduleConfig(yc.KeyedElem):
             help_text="If true, share the allocation with other tests in the same "
                       "chunk. The allocation will have a number of nodes equal to "
                       "the test that needs the most. Tests started with "
-                      "{{sched.run_cmd}} will start with the right number of nodes."
+                      "{{sched.run_cmd}} will start with the right number of nodes. "
                       "Tests are run one at a time within the allocation. This is "
                       "great for large tests over a many/all nodes, especially on "
                       "large systems where node setup/cleanup takes a while."),
@@ -54,15 +54,15 @@ class ScheduleConfig(yc.KeyedElem):
                       "slurm, tasks_per_node becomes the maximum tasks per node."),
         yc.StrElem(
             'tasks_per_node',
-            help_text="The number of tasks to start per node. This can be"
-                      "an integer, the keyword 'all', or a percentage."
+            help_text="The number of tasks to start per node. This can be "
+                      "an integer, the keyword 'all', or a percentage. "
                       "'all' will create a number of tasks per node equal "
                       "to the CPUs for the node with the least CPUs in the "
                       "selected nodes. A percentage will create a task "
                       "for that percentage of the 'all', rounded down (min 1)."),
         yc.StrElem(
             'min_tasks_per_node',
-            help_text="A minimum number of tasks per node. Must be an integer (or undefined),"
+            help_text="A minimum number of tasks per node. Must be an integer (or undefined), "
                       "This will take precedence over 'tasks_per_node' if it is larger than that "
                       "value after it is calculated."),
         yc.StrElem(
@@ -118,7 +118,7 @@ class ScheduleConfig(yc.KeyedElem):
             elements=[
                 yc.StrElem(
                     'size',
-                    help_text="Divide the allocation into chunks of this many nodes."
+                    help_text="Divide the allocation into chunks of this many nodes. "
                               "A variable 'sched.chunks' will hold a list of "
                               "these chunks that can be permuted over in the test "
                               "config. No values or 0 sets the chunk size to include "

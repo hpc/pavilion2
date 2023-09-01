@@ -51,7 +51,7 @@ class ConfigCommand(Command):
 
         create_p.add_argument(
             '--group',
-            help="Set the group of the created directory to this group name, and set the"
+            help="Set the group of the created directory to this group name, and set the "
                  "group sticky bit to the config dir and it's working dir (if given).")
 
         create_p.add_argument(
@@ -71,7 +71,7 @@ class ConfigCommand(Command):
         )
         setup_p.add_argument(
             '--group',
-            help="Set the group of the created directory to this group name, and set the"
+            help="Set the group of the created directory to this group name, and set the "
                  "group sticky bit to the config dir and it's working directory.")
         setup_p.add_argument(
             'path', type=Path,
@@ -90,7 +90,7 @@ class ConfigCommand(Command):
         remove_p = subparsers.add_parser(
             'remove',
             help="Remove the given config dir path from the root pavilion.yaml",
-            description="Remove the config config dir path from the root pavilion.yaml. The"
+            description="Remove the config config dir path from the root pavilion.yaml. The "
                         "directory itself is not removed.")
         remove_p.add_argument("config", help="Path or config label to remove.")
 

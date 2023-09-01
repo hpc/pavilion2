@@ -11,7 +11,7 @@ class Filecheck(base_classes.ResultParser):
     def __init__(self):
         super().__init__(
             name='filecheck',
-            description="Checks working directory for a given file. Globs are"
+            description="Checks working directory for a given file. Globs are "
                         "accepted.",
             config_elems=[],
         )

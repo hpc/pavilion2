@@ -54,7 +54,7 @@ class PavilionError(RuntimeError):
         width = shutil.get_terminal_size((80, 80)).columns
         tab_level = 0
         for line in str(self.msg).split('\n'):
-            lines.extend(textwrap.wrap(line, width=width))
+            lines.append(textwrap.wrap(line, width=width))
 
         # Add any included data.
         if self.data:
