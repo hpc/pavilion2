@@ -3,6 +3,8 @@
 from typing import Any, Dict, Union, List, Tuple
 import math
 
+import hostlist
+
 import yaml_config as yc
 from pavilion import utils
 
@@ -360,77 +362,37 @@ def _validate_tasks_per_node(val) -> Union[int, float]:
 def parse_node_range(node: str) -> List[str]:
     """Parse a node range and return the list of nodes that it represents.
 
-    Node ranges are text with a single numeric range in brackets. Text before
-    the brackets are prepended as a suffix, and text after the brackets are
-    appended as a suffix. All numbers in the range are padded out with zeros
-    to the longer of the numbers.
-
-    Examples:
-    - 'node[5-200]b' -> ['node005b', 'node006b', ...]
-    - 'node0[5-9]' -> ['node05', 'node06', ...]
-    - 'node123' -> ['node123']
-
-    :param node: The node range to parse.
-    :return:
+    :raises ValueError: For bad node ranges.
     """
 
-    range_start = range_end = None
-    if '[' in node:
-        range_start = node.index('[')
-    if ']' in node:
-        range_end = node.index(']')
-
-    if range_start is None and range_end is None:
-        # No range in node text
-        return [node]
-    elif range_start is None:
-        raise ValueError("Missing closing bracket on node range.")
-    elif range_end is None:
-        raise ValueError("Missing open bracket on node range.")
-
-    if node.count('[') > 1:
-        raise ValueError("Node names can only contain a single open bracket '[': "
-                         "'{}'".format(node))
-    if node.count(']') > 1:
-        raise ValueError("Node names can only contain a single closing "
-                         "bracket '[': '{}'".format(node))
-
-    prefix = node[:range_start]
-    suffix = node[range_end + 1:]
-
-    range_txt = node[range_start +1 :range_end]
-    if '-' not in range_txt:
-        raise ValueError("Range in node range missing '-': {}".format(node))
-    start, end = range_txt.split('-', 1)
-    digits = max(len(start), len(end))
     try:
-        start = int(start)
-    except ValueError:
-        raise ValueError("Invalid start value for node range '{}': {}"
-                         .format(node, start))
-    try:
-        end = int(end)
-    except ValueError:
-        raise ValueError("Invalid end value for node range '{}': {}"
-                         .format(node, end))
+        return hostlist.expand_hostlist(node)
+    except hostlist.BadHostlist as err:
+        # The hostlist module isn't very specific in its errors.
+        # Break it into pieces and report the error regarding a specific piece.
+        parts = []
+        in_brackets = False
+        start = 0
+        pos = 0
+        for char in node:
+            if char == '[':
+                in_brackets = True
+            elif char == ']':
+                in_brackets = False
+            elif char == ',' and not in_brackets:
+                parts.append(node[start:pos])
+                start = pos+1
+            pos += 1
+        parts.append(node[start:])
+        for part in parts:
+            try:
+                hostlist.expand_hostlist(part)
+            except hostlist.BadHostlist as err:
+                raise ValueError("{}: '{}'".format(err.args[0], part))
 
-    if end <= start:
-        raise ValueError("Invalid node range '{}'. Range start must be less than "
-                         "its end. Got {} - {}.".format(node, start, end))
-
-    if end < 0:
-        raise ValueError("Negative end value (probably an extra '-' in node range "
-                         "'{}'.".format(node))
-
-    nodes = []
-    for i in range(start, end+1):
-        nodes.append(''.join([
-            prefix,
-            '{:0{digits}d}'.format(i, digits=digits),
-            suffix]))
-
-    return nodes
-
+        # Our subdivision strategy may fail. Just give the error with the whole
+        # bad hostlist.
+        raise ValueError("{}: '{}'".format(err.args[0], node))
 
 def _validate_node_list(items) -> List[str]:
     """Validate a list of node ranges, returning the combined list of nodes."""

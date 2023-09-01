@@ -8,6 +8,7 @@ import subprocess
 import time
 from typing import List, Union, Any, Tuple
 
+import hostlist
 import yaml_config as yc
 from pavilion import sys_vars
 from pavilion.jobs import Job, JobInfo
@@ -63,10 +64,10 @@ slurm kickoff script.
 
         if self._include_nodes:
             lines.append('#SBATCH -w {}'
-                         .format(Slurm.compress_node_list(self._include_nodes)))
+                         .format(hostlist.collect_hostlist(self._include_nodes)))
         if self._exclude_nodes:
             lines.append('#SBATCH -x {}'
-                         .format(Slurm.compress_node_list(self._exclude_nodes)))
+                         .format(hostlist.collect_hostlist(self._exclude_nodes)))
 
         if self._node_max is None:
             # The job is defined by # of tasks.
@@ -154,7 +155,7 @@ class SlurmVars(SchedulerVariables):
             # The full node list isn't currently required,
             cmd = ['srun',
                    '-N', str(nodes),
-                   '-w', Slurm.compress_node_list(self._nodes.keys()),
+                   '-w', hostlist.collect_hostlist(self._nodes.keys()),
                    '-n', str(tasks)]
 
             cmd.extend(slurm_conf['srun_extra'])
@@ -381,81 +382,6 @@ class Slurm(SchedulerPluginAdvanced):
                 nodes.append(part)
 
         return NodeList(nodes)
-
-    @staticmethod
-    def compress_node_list(nodes: List[str]):
-        """Convert a list of nodes into an abbreviated node list that
-        slurm should understand."""
-
-        # Pull apart the node name into a prefix and number. The prefix
-        # is matched minimally to avoid consuming any parts of the
-        # node number.
-        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d*)$')
-
-        # These nodes don't have numbers, so just add them to the list.
-        non_numbered_nodes = []
-
-        seqs = {}
-        nodes = sorted(nodes)
-        for node in nodes:
-            node_match = node_re.match(node)
-            if node_match is None:
-                continue
-
-            base, raw_number = node_match.groups()
-            if not raw_number:
-                non_numbered_nodes.append(base)
-            else:
-                number = int(raw_number)
-                if base not in seqs:
-                    seqs[base] = (len(raw_number), [])
-
-                _, node_nums = seqs[base]
-                node_nums.append(number)
-
-        # This compresses the node list into sequences like 'node[0095-0105,0900-1002]'
-        node_seqs = []
-        for base, (digits, nums) in sorted(seqs.items()):
-            nums.sort(reverse=True)
-            num_digits = len(str(nums[0]))
-            pre_digits = digits - num_digits
-
-            num_list = []
-
-            num_series = []
-            start = last = nums.pop()
-            while nums:
-                next_num = nums.pop()
-                if next_num != last + 1:
-                    num_series.append((start, last))
-                    start = next_num
-                last = next_num
-
-            num_series.append((start, last))
-
-            for start, last in num_series:
-                if start == last:
-                    num_list.append(
-                        '{num:0{digits}d}'
-                            .format(base=base, num=start, digits=num_digits))
-                else:
-                    num_list.append(
-                        '{start:0{num_digits}d}-{last:0{num_digits}d}'
-                            .format(start=start, last=last, num_digits=num_digits))
-
-            num_list = ','.join(num_list)
-            if ',' in num_list or '-' in num_list:
-                seq_format = '{base}{z}[{num_list}]'
-            else:
-                seq_format = '{base}{z}{num_list}'
-            node_seqs.append(
-                seq_format
-                .format(base=base, z='0' * pre_digits, num_list=num_list))
-
-        # Add the non numbered nodes
-        node_seqs.extend(non_numbered_nodes)
-
-        return ','.join(node_seqs)
 
     def _get_alloc_nodes(self, job) -> NodeList:
         """Get the list of allocated nodes."""

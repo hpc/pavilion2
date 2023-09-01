@@ -19,3 +19,6 @@
 [submodule "lib/sub_repos/lark"]
 	path = lib/sub_repos/lark
 	url = https://github.com/lark-parser/lark.git
+[submodule "lib/sub_repos/python-hostlist"]
+	path = lib/sub_repos/python-hostlist
+	url = https://github.com/lanl-preteam/python-hostlist.git

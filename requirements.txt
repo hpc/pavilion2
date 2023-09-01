@@ -1,5 +1,8 @@
+# When adding a requirement here, also add its usage to 'bin/check_dependencies'.
+
 Pillow
 requests >= 2.27.1
 yapsy
 lark >= 1.0
 matplotlib
+python-hostlist

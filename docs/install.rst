@@ -144,19 +144,8 @@ supported and tests versions for each are recorded in ``requirements.txt``.
 Installing Dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-To install the pavilion dependencies simply run the included:
-
-.. code:: bash
-
-    bin/setup_pav_deps
-
-If you downloaded Pavilion as a git repository, this will simply run ``submodule update --init``
-on that repository, which will fetch the dependencies (not including matplotlib).
-
-If you downloaded Pavilion as zip/tarball, The command will tell you to rerun it with
-a path to where it should create (or reuse) a virtual environment. The script will then install
-most needed dependencies via pip. A few non-pip dependencies will be downloaded and installed
-in the pavilion directory directly.
+Dependencies auto-install when you run the pav command for the first time. If you've
+checked out Pavilion as a git repo, it will even auto-update dependencies if they change.
 
 Environment Modules
 -------------------
@@ -170,10 +159,4 @@ It is assumed that the module environment is set up before you run Pavilion. If
 you need to set up this environment separately on allocations, use the
 'env_setup' option in the :ref:`config` to add the commands
 to do so.
-
-
-
-
-
-
 

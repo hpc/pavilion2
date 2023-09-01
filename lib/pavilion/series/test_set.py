@@ -689,7 +689,7 @@ class TestSet:
                 # The test will have been marked as complete
                 self.started_tests.remove(test)
                 self.completed_tests.append(test)
-                just_completed.add(test)
+                just_completed.append(test)
 
         return len(just_completed)
 

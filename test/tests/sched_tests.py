@@ -169,7 +169,7 @@ class SchedTests(PavTestCase):
             'node[0-5]a': ['node{}a'.format(i) for i in range(6)],
             'node0[0-5]a': ['node0{}a'.format(i) for i in range(6)],
             '[0-5]': ['{}'.format(i) for i in range(6)],
-            'node[7-10]': ['node{:02d}'.format(i) for i in range(7, 11)],
+            'node[7-10]': ['node{:d}'.format(i) for i in range(7, 11)],
             'node05': ['node05'],
         }
 
@@ -178,7 +178,6 @@ class SchedTests(PavTestCase):
             'node]',
             'n[ode[]',
             'node[]]',
-            'node[5]',
             'node[9-5]',
             'node[3--10]',
         ]
@@ -188,7 +187,8 @@ class SchedTests(PavTestCase):
             self.assertEqual(nodes, answer)
 
         for test_str in bad:
-            with self.assertRaises(ValueError):
+            msg = "Bad nodelist '{}' didn't raise an error.".format(test_str)
+            with self.assertRaises(ValueError, msg=msg):
                 schedulers.config.parse_node_range(test_str)
 
     def test_node_filtering(self):
@@ -221,7 +221,7 @@ class SchedTests(PavTestCase):
 
         # Exclude nodes 10-19
         sched_vars = dummy.get_initial_vars({'exclude_nodes': [
-            'node[9-20]', 'node05']})
+            'node[09-20]', 'node05']})
         node_list = dummy._node_lists[int(sched_vars.node_list_id())]
         self.assertEqual(len(node_list), 79)
 
