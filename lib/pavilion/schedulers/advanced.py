@@ -544,7 +544,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             if node_range[1] is not None:
                 picked_nodes = node_list[:node_range[1]]
             # Save the data for all the nodes we're using.
-            job.save_node_data({node: self._nodes[node] for node in picked_nodes})
+            job.save_node_data(self._nodes)
             # Clear the node range - it's only used for flexible scheduling.
             node_range = None
 
@@ -704,7 +704,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             picked_nodes = chunk_usage[:needed_nodes]
 
             try:
-                job.save_node_data({node: self._nodes[node] for node in picked_nodes})
+                job.save_node_data(self._nodes)
             except JobError as err:
                 errors.append(SchedulerPluginError("Error saving node info to job.",
                               prior_error=err, tests=[test]))

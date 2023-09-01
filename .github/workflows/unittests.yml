@@ -10,7 +10,7 @@ jobs:
   # The debug job is meant for debugging CI related issues.
   debug:
     # Comment out the following line to enable.
-    #if: ${{ false }}
+    if: ${{ false }}
 
     runs-on: ubuntu-latest
 

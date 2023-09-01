@@ -333,9 +333,9 @@ class TestBuilder:
             else:
                 dwn_dest = src_path
 
-            if not src_path.parent.exists():
+            if not dwn_dest.parent.exists():
                 try:
-                    src_path.parent.mkdir(parents=True)
+                    dwn_dest.parent.mkdir(parents=True)
                 except OSError as err:
                     raise TestBuilderError(
                         "Could not create parent directory to place "

@@ -426,7 +426,9 @@ class BaseExprTransformer(PavTransformer):
         except pavilion.errors.FunctionPluginError:
             raise ParserValueError(
                 token=items[0],
-                message="No such function '{}'".format(func_name))
+                message="No such function '{}'\n"
+                        "See `pav show functions` for a list of available functions."
+                        .format(func_name))
 
         try:
             result = func(*args)
