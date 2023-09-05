@@ -81,7 +81,7 @@ def add_common_filter_args(target: str,
     if 'has-state' not in disable_opts:
         arg_parser.add_argument(
             '--has-state', type=str, default=defaults['state'],
-            help="Include only {} who have had the given state at some point."
+            help="Include only {} who have had the given state at some point. "
                  "Default: {}".format(target, defaults['has_state'])
         )
     arg_parser.add_argument(
@@ -115,7 +115,7 @@ def add_common_filter_args(target: str,
         arg_parser.add_argument(
             '--newer-than', type=utils.hr_cutoff_to_ts,
             default=defaults['newer_than'],
-            help='As per older-than, but include only {} newer than the given'
+            help='As per older-than, but include only {} newer than the given '
                  'time.  Default: {}'.format(target, defaults['newer_than'])
         )
     if 'state' not in disable_opts:

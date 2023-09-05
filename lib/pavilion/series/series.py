@@ -254,7 +254,7 @@ differentiate it from test ids."""
         separately for unit testing."""
 
         if self.test_sets:
-            raise RuntimeError("_create_test_sets should only run when there are"
+            raise RuntimeError("_create_test_sets should only run when there are "
                                "no test sets for a series, but this series has: {}"
                                .format(self.test_sets))
 
