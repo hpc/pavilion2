@@ -112,7 +112,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         else:
             if len(sig.parameters) != len(arg_specs):
                 raise FunctionPluginError(
-                    "Invalid arg specs. The function takes {} arguments, but"
+                    "Invalid arg specs. The function takes {} arguments, but "
                     "an arg_spec of length {} was provided."
                     .format(len(sig.parameters), len(arg_specs)))
 
@@ -333,7 +333,7 @@ class FunctionPlugin(IPlugin.IPlugin):
                     self.name, self.path, other.path)
             else:
                 raise RuntimeError(
-                    "Function plugin conflict. Parser '{}' at '{}'"
+                    "Function plugin conflict. Parser '{}' at '{}' "
                     "has the same priority as plugin at '{}'"
                     .format(self.name, self.path, other.path))
 

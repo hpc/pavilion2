@@ -194,8 +194,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             node_info = self._transform_raw_node_data(sched_config, raw_node,
                                                       extra)
             if 'name' not in node_info:
-                raise RuntimeError("Advanced schedulers must always return a node"
-                                   "'name' key when transforming raw node data."
+                raise RuntimeError("Advanced schedulers must always return a node "
+                                   "'name' key when transforming raw node data. "
                                    "Got: {}".format(node_info))
 
             nodes[node_info['name']] = node_info

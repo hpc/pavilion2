@@ -18,7 +18,7 @@ class BuildCommand(RunCommand):
             self,
             name="build",
             description="Perform just the build step on the given tests, "
-                        "or perform rebuilds. May still use the scheduler"
+                        "or perform rebuilds. May still use the scheduler "
                         "to build tests that specify they must be built on "
                         "nodes.",
             short_help="Build and re-build.",

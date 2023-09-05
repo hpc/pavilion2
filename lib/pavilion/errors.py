@@ -60,7 +60,7 @@ class PavilionError(RuntimeError):
         if self.data:
             data = pprint.pformat(self.data, width=width - tab_level*2)
             for line in data.split('\n'):
-                lines.extend(tab_level*self.TAB_LEVEL + line)
+                lines.append(tab_level*self.TAB_LEVEL + line)
 
         while next_exc:
             tab_level += 1

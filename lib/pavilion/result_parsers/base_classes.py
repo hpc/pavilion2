@@ -157,7 +157,7 @@ take a `file` argument and kwargs to match the config arguments.
                     (isinstance(elem, yc.ListElem) and
                      isinstance(elem._sub_elem, yc.StrElem))):
                 raise RuntimeError(
-                    "Config elements for result parsers must be strings"
+                    "Config elements for result parsers must be strings "
                     "or lists of strings. Got elem {} in parser at {}"
                     .format(elem, self.path)
                 )
@@ -165,7 +165,7 @@ take a `file` argument and kwargs to match the config arguments.
             if elem.default not in [None, []] or elem._choices is not None:
                 raise RuntimeError(
                     "Config elements for result parsers shouldn't set "
-                    "a default or choices (use the defaults or validators"
+                    "a default or choices (use the defaults or validators "
                     "argument for the result_parser init). Problem found "
                     "in {} in result parser at {}"
                     .format(elem, self.path)
@@ -311,7 +311,7 @@ deferred args. On error, should raise a ResultParserError.
             "files",
             sub_elem=yc.StrElem(),
             help_text="Path to the file/s that this result parser "
-                      "will examine. Each may be a file glob,"
+                      "will examine. Each may be a file glob, "
                       "such as '*.log'"),
         yc.StrElem(
             "per_file",
@@ -354,7 +354,7 @@ deferred args. On error, should raise a ResultParserError.
             "preceded_by", sub_elem=yc.StrElem(),
             help_text=(
                 "A list of regular expressions that must match lines that "
-                "precede the lines to be parsed. Empty items"
+                "precede the lines to be parsed. Empty items "
                 "in the sequence will match anything. The result parser "
                 "will see the file starting from start of the line after "
                 "these match.")),
@@ -569,7 +569,7 @@ In this case it:
                     "Result parser '%s' at %s is ignored in lieu of %s.",
                     self.name, self.path, other.path)
             else:
-                raise RuntimeError("Result parser conflict. Parser '{}' at {}"
+                raise RuntimeError("Result parser conflict. Parser '{}' at {} "
                                    "has the same priority as {}"
                                    .format(self.name, other.path, self.path))
         else:

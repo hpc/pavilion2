@@ -14,27 +14,27 @@ class Json(base_classes.ResultParser):
     def __init__(self):
         super().__init__(
             name='json',
-            description="Return a JSON dict parsed from the given file according to"
+            description="Return a JSON dict parsed from the given file according to "
                         "the given keys. Includes all keys by default.",
             config_elems=[
                 yc.ListElem(
                     'include_only',
                     sub_elem = yc.StrElem(),
-                    help_text="Include this key and exclude all others."
+                    help_text="Include this key and exclude all others. "
                               "Example: '[key1, key2.subkey]'"
                 ),
                 yc.ListElem(
                     'exclude',
                     sub_elem = yc.StrElem(),
-                    help_text="Exclude this key."
+                    help_text="Exclude this key. "
                               "Example: '[key1, key2.subkey]'"
                 ),
                 yc.StrElem(
                     'stop_at',
-                    help_text="The line after the final line of JSON to be parsed."
-                    "If the results contain more than just pure JSON, use the preceded_by"
-                    "option to mark where the JSON begins and this option to mark where"
-                    "the JSON ends."
+                    help_text="The line after the final line of JSON to be parsed. "
+                    "If the results contain more than just pure JSON, use the preceded_by "
+                    "option to mark where the JSON begins and this option to mark where "
+                    "the JSON ends. "
                     "Example: \"a string of text\""
                 )
             ]

@@ -73,7 +73,7 @@ class ListCommand(Command):
 
         parser.add_argument(
             '--out-fields', '-O',
-            help="A comma separated list of fields to put in the output. More"
+            help="A comma separated list of fields to put in the output. More "
                  "than one field requires '--long' or '--csv' mode. "
                  "See --show-fields for available fields."
         )
@@ -108,7 +108,7 @@ class ListCommand(Command):
 
         runs_p.add_argument(
             'tests', nargs="*", default=['all'],
-            help="Specific tests (or series) to filter from. Defaults to"
+            help="Specific tests (or series) to filter from. Defaults to "
                  "'all'."
         )
 

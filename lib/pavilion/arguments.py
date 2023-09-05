@@ -77,8 +77,7 @@ def get_parser():
         '--profile-sort', default=PROFILE_SORT_DEFAULT,
         choices=['cumtime', 'calls', 'file', 'line', 'name', 'nfl', 'time'],
         help="The sort method for the profile table. See:\n"
-             "https://docs.python.org/3.5/library/profile.html"
-             "#pstats.Stats.sort_stats")
+             "https://docs.python.org/3.5/library/profile.html#pstats.Stats.sort_stats")
 
     parser.add_argument(
         '--profile-count', default=PROFILE_COUNT_DEFAULT, action='store', type=int,
