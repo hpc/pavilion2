@@ -124,7 +124,9 @@ class TestSeries:
 
         # Similarly, we need to tell Pavilion where to find it's config.
         env = os.environ.copy()
-        env['PAV_CONFIG_FILE'] = self.pav_cfg.pav_cfg_file.resolve().as_posix()
+        pav_cfg = self.pav_cfg.pav_cfg_file
+        pav_cfg = pav_cfg.parent.resolve()/pav_cfg.name
+        env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
 
         # start subprocess
         temp_args = [pav_exe, '_series', self.sid]

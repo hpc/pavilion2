@@ -80,10 +80,23 @@ class PavilionError(RuntimeError):
                         lines.append(indent + line)
 
                 next_exc = next_exc.prior_error
+
             elif isinstance(next_exc, yc_yaml.YAMLError):
-                lines.append(indent + next_exc.context)
-                ctx_mark = next_exc.context_mark
-                prob_mark = next_exc.problem_mark
+                if next_exc.context is not None:
+                    lines.append(indent + next_exc.context)
+                    ctx_mark = next_exc.context_mark
+                    prob_mark = next_exc.problem_mark
+                elif next_exc.problem:
+                    # Not all yaml exceptions have context info.
+                    prob_mark = next_exc.problem_mark
+                    lines.append(indent + "{} - line {}, col {}"
+                                .format(next_exc.problem, prob_mark.line, prob_mark.column))
+                    break
+                else:
+                    # Some might not have any info (no known cases)
+                    for line in str(next_exc).split('\n'):
+                        lines.append(indent + line)
+                    break
 
                 # Try to open the yaml file to pinpoint the issue.
                 try:
@@ -91,8 +104,7 @@ class PavilionError(RuntimeError):
                         file_lines = yaml_file.readlines()
                 except OSError:
                     lines.append(indent + str(next_exc.problem))
-                    next_exc = None
-                    continue
+                    break
 
                 prior = max([ctx_mark.line-2, 0])
                 final = min([prob_mark.line+2, len(file_lines)-1])
@@ -107,7 +119,7 @@ class PavilionError(RuntimeError):
                         lines.append(indent + ' '*(prob_mark.column + digits + 2) + '^')
 
                 lines.append(indent + str(next_exc.problem))
-                next_exc = None
+                break
             else:
                 if hasattr(next_exc, 'args') \
                        and isinstance(next_exc.args, (list, tuple)) \
@@ -121,7 +133,7 @@ class PavilionError(RuntimeError):
                 for msg_part in msg_parts:
                     lines.extend(textwrap.wrap(msg_part, width, initial_indent=indent,
                                                subsequent_indent=indent))
-                next_exc = None
+                break
 
         return '\n'.join(lines)
 
