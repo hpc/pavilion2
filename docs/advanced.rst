@@ -449,7 +449,31 @@ scheduler, but don't configure one. It's time to rectify that.
             - {sched.test_cmd} ./supermagic -a
 
 
-
 - See ``pav show sched --vars <sched_name>`` for a listing of what variables are
   available for a given scheduler.
 - See ``pav show sched --config`` for full scheduler configuration documentation.
+
+
+An Automated Workflow
+---------------------
+
+Pavilion is often run manually, but can be used to run tests automatically through cron jobs or CI. 
+
+A typical sequence in an automated setup looks like this:
+
+.. code-block::
+
+    # Run a script that adds Pavilion to the path, and sets PAV_CONFIG_DIR in the environment.
+    source activate.sh
+
+    # Run a collection file of tests.
+    # Ignore build and test generation errors (we'll find those later).
+    pav run -f my_collection --ignore-errors
+
+    # Wait for those tests to complete.
+    pav wait
+
+    # Get the results (--all-passed checks that all tests passed).
+    pav result --all-passed
+
+The above assumes the script exits/fails if any command exits non-zero.
