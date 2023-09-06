@@ -88,10 +88,7 @@ class PavilionError(RuntimeError):
                     prob_mark = next_exc.problem_mark
                 elif next_exc.problem:
                     # Not all yaml exceptions have context info.
-                    prob_mark = next_exc.problem_mark
-                    lines.append(indent + "{} - line {}, col {}"
-                                .format(next_exc.problem, prob_mark.line, prob_mark.column))
-                    break
+                    ctx_mark = prob_mark = next_exc.problem_mark
                 else:
                     # Some might not have any info (no known cases)
                     for line in str(next_exc).split('\n'):
