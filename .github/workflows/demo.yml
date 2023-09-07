@@ -25,6 +25,7 @@ jobs:
     - name: 
       run: |
         . examples/demo/activate.sh
+        pav show tests
         pav run -v QUIET demo advanced buildit
         pav wait 
         pav results --all-passed
