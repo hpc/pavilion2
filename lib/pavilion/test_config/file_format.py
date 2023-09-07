@@ -501,7 +501,7 @@ expected to be added to by various plugins.
             'chunk', default='any',
             help_text="The scheduler chunk to run on. Will run on 'any' chunk "
                       "by default, but the chunk may be specified by number. The "
-                      "available chunk ids are in the sched.chunks variable, and"
+                      "available chunk ids are in the sched.chunks variable, and "
                       "can be permuted on."
         ),
         CondCategoryElem(
@@ -511,10 +511,10 @@ expected to be added to by various plugins.
                       "section evaluate to true. Each clause consists of "
                       "a mapping key (that can contain Pavilion variable "
                       "references, like '{{pav.user}}' or '{{sys.sys_arch}}'"
-                      ") and one or more regex values"
+                      ") and one or more regex values "
                       "(that much match the whole key). A clause is true "
-                      "if the value of the Pavilion variable matches one or"
-                      " more of the values. "
+                      "if the value of the Pavilion variable matches one or "
+                      "more of the values. "
         ),
         CondCategoryElem(
             'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
@@ -524,7 +524,7 @@ expected to be added to by various plugins.
                       "a mapping key (that can contain Pavilion variable "
                       "references, like '{{pav.user}}' or "
                       "'{{sys.sys_arch}}') and one or more "
-                      "regex values (that much match the whole key)."
+                      "regex values (that much match the whole key). "
                       "A clause is true if the value of "
                       "the Pavilion variable matches one or more of the "
                       " values."
@@ -587,14 +587,14 @@ expected to be added to by various plugins.
                 yc.ListElem(
                     'copy_files', sub_elem=yc.StrElem(),
                     help_text="When attaching the build to a test run, copy "
-                              "these files instead of creating a symlink."
+                              "these files instead of creating a symlink. "
                               "They may include path glob wildcards, "
                               "including the recursive '**'."),
                 PathCategoryElem(
                     'create_files',
                     key_case=PathCategoryElem.KC_MIXED,
                     sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create at path relative to the test's"
+                    help_text="File(s) to create at path relative to the test's "
                               "build/run directory. The key is the filename, "
                               "while the contents is a list of lines to include in the "
                               "file. Pavilion test variables will be resolved in this lines "
@@ -728,7 +728,7 @@ expected to be added to by various plugins.
                     'create_files',
                     key_case=PathCategoryElem.KC_MIXED,
                     sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create at path relative to the test's"
+                    help_text="File(s) to create at path relative to the test's "
                               "build/run directory. The key is the filename, "
                               "while the contents is a list of lines to include in the "
                               "file. Pavilion test variables will be resolved in this lines "
@@ -814,7 +814,7 @@ expected to be added to by various plugins.
                 elements=[
                     yc.ListElem(
                         'modules', sub_elem=yc.StrElem(),
-                        help_text="Modules to load/remove/swap when the given module"
+                        help_text="Modules to load/remove/swap when the given module "
                                   "is specified. Loads and swaps into the wrapped module "
                                   "will automatically be at the requested version if none "
                                   "is given.  (IE - If the user asks for gcc/5.2, a "
@@ -902,7 +902,7 @@ expected to be added to by various plugins.
         list_elem = ResultParserCatElem(name, sub_elem=config)
 
         if name in [e.name for e in cls._RESULT_PARSERS.config_elems.values()]:
-            raise ValueError("Tried to add result parser with name '{}'"
+            raise ValueError("Tried to add result parser with name '{}' "
                              "to the config, but one already exists."
                              .format(name))
 

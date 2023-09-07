@@ -122,7 +122,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         self._job_statuses = JobStatusDict({})  # type: JobStatusDict
 
         if self.VAR_CLASS is None:
-            raise SchedulerPluginError("You must set the Var class for"
+            raise SchedulerPluginError("You must set the Var class for "
                                        "each plugin type.")
 
     # These need to be overridden by plugin classes. See the Advanced/Basic classes
@@ -132,7 +132,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Return true if this scheduler is available on this system,
         false otherwise."""
 
-        raise NotImplementedError("You must add a method to determine if the"
+        raise NotImplementedError("You must add a method to determine if the "
                                   "scheduler is available on this system.")
 
     def _job_status(self, pav_cfg, job_info: JobInfo) -> Union[TestStatusInfo, None]:
@@ -361,7 +361,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         for elem in config_elements:
             if elem.name not in validators:
                 raise SchedulerPluginError(
-                    "Scheduler plugin gave config element '{}', but did not provide"
+                    "Scheduler plugin gave config element '{}', but did not provide "
                     "a validator for that key.".format(elem.name)
                 )
 
@@ -425,7 +425,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
 
         if nodes and node_range:
-            raise RuntimeError("Only one of the 'nodes' and 'node_range' arguments may be"
+            raise RuntimeError("Only one of the 'nodes' and 'node_range' arguments may be "
                                "provided.")
         elif not (nodes or node_range):
             raise RuntimeError("One of 'nodes' and 'node_range' must be provided.")

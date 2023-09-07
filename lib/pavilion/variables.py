@@ -335,7 +335,7 @@ index, sub_var) tuple.
                     try:
                         r_var_set, r_var, r_index, r_subvar = ref_key = self.resolve_key(var_str)
                     except KeyError as err:
-                        raise VariableError("Key '{}'referenced by user variable '{}' could "
+                        raise VariableError("Key '{}' referenced by user variable '{}' could "
                                             "not be parsed.".format(var_str, uvar),
                                             prior_error=err)
 
