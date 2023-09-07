@@ -36,7 +36,6 @@ elif [[ -d ${PAV_DIR}/.git ]]; then
 
     eecho "Updating dependencies via git submodule."
     if git -C ${PAV_DIR} submodule update --init > $DEPS_LOG 2>&1; then
-        popd > /dev/null
         echo "Pulled pavilion dependencies via git on $(date)" > ${DEPS_STATUS}
     else
         setup_exit "Failed to setup dependences. See log at '${DEPS_LOG}'"

@@ -25,6 +25,6 @@ jobs:
     - name: 
       run: |
         . examples/demo/activate.sh
-        pav run demo
+        pav run -v QUIET demo
         pav wait 
         pav results --all-passed
