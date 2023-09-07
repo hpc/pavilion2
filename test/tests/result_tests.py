@@ -725,6 +725,8 @@ class ResultParserTests(PavTestCase):
         """Make sure the result command works as expected, including the
         re-run option."""
 
+        arg_parser = arguments.get_parser()
+
         result_cmd = commands.get_command('result')
         result_cmd.silence()
         run_cmd = commands.get_command('run')
@@ -741,7 +743,6 @@ class ResultParserTests(PavTestCase):
         rerun_cfg['configs'] = tmp_cfg['configs']
         rerun_cfg['config_dirs'] = tmp_cfg['config_dirs']
 
-        arg_parser = arguments.get_parser()
         run_args = arg_parser.parse_args(['run', 'result_tests'])
         if run_cmd.run(self.pav_cfg, run_args) != 0:
             cmd_out, cmd_err = run_cmd.clear_output()
@@ -815,6 +816,45 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(result_cmd.run(self.pav_cfg, res_args), 0)
         out, err = result_cmd.clear_output()
         self.assertIn(bad_test.full_id, err)
+
+    def test_result_cmd_all_passed(self):
+        """Check that the '--all-passed' option works."""
+
+        arg_parser = arguments.get_parser()
+        rslts_cmd = commands.get_command('result')
+        rslts_cmd.silence()
+
+        good = self._quick_test()
+        rslts = good.gather_results(good.run())
+        good.save_results(rslts)
+
+        bad_cfg = self._quick_test_cfg()
+        bad_cfg['run']['cmds'] = ['exit 1']
+        bad_run = self._quick_test(bad_cfg)
+        rslts = bad_run.gather_results(bad_run.run())
+        bad_run.save_results(rslts)
+
+        bad_build_cfg = self._quick_test_cfg()
+        bad_build_cfg['build']['cmds'] = ['exit 1']
+        bad_build = self._quick_test(bad_build_cfg)
+
+        bad_rslts_cfg = self._quick_test_cfg()
+        bad_rslts_cfg['result_evaluate']['foo'] = 'does_not_exist'
+        bad_rslts = self._quick_test(bad_rslts_cfg)
+        rslts = bad_rslts.gather_results(bad_rslts.run())
+        bad_rslts.save_results(rslts)
+
+        args = arg_parser.parse_args(['result', '--all-passed', good.full_id])
+        self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 0)
+
+        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_run.full_id])
+        self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
+
+        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_build.full_id])
+        self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
+
+        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_rslts.full_id])
+        self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
 
     def test_re_search(self):
         """Check basic re functionality."""

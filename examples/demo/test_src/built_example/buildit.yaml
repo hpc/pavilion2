@@ -1,0 +1,13 @@
+base: 
+  build:
+    source_path: built_example/hello_world.c
+
+    modules: gcc
+
+    cmds:
+      - gcc -o hello hello_world.c
+
+  
+  run:
+    cmds:
+      - ./hello

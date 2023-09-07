@@ -17,9 +17,12 @@ RELEASE=2.4
    - `pav series history` is now `pav series `states`.
    - Added `-c` 'overrides' to `pav series run`, and an overrides section to the series config.
    - `pav cancel` no longer cancels series, just tests.
+ - Series now only generate tests as needed, rather than all in advance, and handles test creation,
+   build, and run errors gracefully.
 
  - The `SCHED_RUNNING` state is now `SCHED_STARTUP` - existing scheduler plugins that use
    `SCHED_RUNNING` should still work.
+ - Added an '--all-passed' option to the results command
  - Added `pav log states` command, which lists all states a test has had.
 
 ## 2.4 Release Notes

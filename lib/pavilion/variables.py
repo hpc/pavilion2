@@ -309,13 +309,8 @@ index, sub_var) tuple.
                     except (lark.LarkError, lark.LexError) as err:
                         raise VariableError(var=var, index=idx, sub_var=key, prior_error=err)
 
-                    if tree_vars:
-                        # Unresolved variable reference that will be resolved
-                        # below.
-                        unresolved_vars[('var', var, idx, key)] = (tree, tree_vars)
-                        fully_resolved = False
-                    else:
-                        self.resolved_user_vars.append(var_tpl)
+                    unresolved_vars[('var', var, idx, key)] = (tree, tree_vars)
+                    fully_resolved = False
 
             if fully_resolved:
                 fully_resolved_vars.append(var)

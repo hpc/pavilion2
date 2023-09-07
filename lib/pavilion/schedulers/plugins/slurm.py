@@ -166,8 +166,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(self.mpirun_opts())
 
-            hostlist = ','.join(self._nodes.keys())
-            cmd.extend(['--host', hostlist])
+            cmd.extend(['--host', ','.join(self._nodes.keys())])
 
         return ' '.join(cmd)
 

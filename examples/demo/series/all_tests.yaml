@@ -1,0 +1,30 @@
+# Series files let you structure the running of tests.
+
+name: all_test
+summary: Run all the demo tests in a variety of ways. 
+
+# Only run 10 tests at a time.
+simultaneous: 10
+
+# Run each test set sequentially in the order listed.
+ordered: True
+
+test_sets: 
+  basic_checks: 
+    tests:
+      # Run buildit 3 times.
+      - '3*buildit'
+  
+  quality_control:
+    # Run the advanced tests on every node.
+    tests:
+      - advanced
+    modes:
+      - sample_10_perc
+
+  final:
+    tests:
+      - demo
+  
+
+

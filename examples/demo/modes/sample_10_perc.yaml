@@ -1,0 +1,19 @@
+# Modes like this let you modify existing tests. 
+# This would get applied on top of the fully configured test. 
+
+
+# This mode converts a 'raw' test to run on a random sample of nodes across the machine.
+scheduler: slurm
+
+# Make one test per 'chunk'
+permute_on: 'sched.chunk_ids'
+
+chunk: '{{sched.chunk_ids}}'
+
+schedule:
+  # Only run on one node per chunk
+  nodes: 1
+
+  chunking:
+    size: 10%
+    node_selection: random

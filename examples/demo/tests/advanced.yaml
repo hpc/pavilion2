@@ -1,0 +1,88 @@
+# This test suite shows off some advanced Pavilion features.
+
+some_math:
+  
+  # We can create a test for every combination of the values
+  # of 'a' and 'b'
+  permute_on: [a, b]
+
+  variables:
+    a: 27
+    b: 48
+
+  run:
+    cmds:
+      # The double curly braces let us insert pavilion variables.
+      - echo "{{a}} {{b}}" 
+      # We'll calculate their multiple in python
+      - python3 -c 'print("result:", {{a}} * {{b}})'
+
+  # We can parse the results out of the our run script's output.
+  result_parse:
+    regex:
+      mult:
+        regex: '^result: (-?\d+)'
+
+    # There are lots of other result parsers. 
+    split:
+      # We'll store the second half, but discard the rest.
+      _, mult_via_split:
+        sep: ': '
+         
+  result_evaluate:
+    # We can actually do the math in Pavilion.
+    expected_result: '{{ a * b }}'
+    # Result evaluate strings do calculations on other result values.
+    # The test passes if the 'result' key is True.
+    result: 'expected_result == mult'
+    
+    
+permutations: 
+  # We can inherit from other tests in a series, and replace or expand settings.
+  inherits_from: some_math
+
+  # We can also permute over variable values, creating a test for each combination.
+  variables:
+    a: 
+      - 13
+      - 12
+      - 47
+
+    b:
+      - 37
+      - 92
+      - '-5'
+
+  # Everything else is the same in this test, we'll just end up with nine of them.
+
+test_filtering:
+  # Let's use the filesystems variable defined in the host file to run a check
+
+  permute_on: filesystems
+  # Not all of the filesystems in our host file are appropriate for this test
+  # (most don't actually exist...), so we'll just use the 'tmp' one.
+  only_if: 
+    # Check the filesystem variable, and make sure its type is tmp.
+    '{{filesystems.type}}': 'tmp'
+
+  variables:
+    
+    # We'll tell Pavilion we expect a variable named filesystems to be
+    # defined somewhere else. This just sets a default format, the host
+    # file will override it.
+    filesystems?: 
+      - path: null
+        type: null
+
+    # We'll use pavilion function plugins to generate a random file name.
+    # See `pav show func` for a list of available functions.
+    fn: '{{ floor(random()*100000) }}.txt'
+
+    # Variables can reference each other.
+    path: '{{filesystems.path}}/{{fn}}'
+
+
+  run:
+    cmds:
+      - 'touch {{path}}'
+
