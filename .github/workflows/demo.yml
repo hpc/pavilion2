@@ -20,7 +20,7 @@ jobs:
         python-version: "3.10"
     
     - name: install-deps
-      run: apt install gcc
+      run: sudo apt install gcc
 
     - name: 
       run: |
