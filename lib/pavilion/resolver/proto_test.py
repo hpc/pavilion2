@@ -52,7 +52,7 @@ class ProtoTest:
             name = self.config['name']
             permute_on = self.config.get('permute_on')
             if permute_on:
-                permute_values = {key: var_man.get(key) for key in permute_on}
+                permute_values = {key: self.var_man.get(key) for key in permute_on}
 
                 raise TestConfigError(
                     "Error resolving test {} with permute values:"

@@ -22,7 +22,7 @@ class _RunCommand(Command):
 
         super().__init__(
             '_run',
-            'Setup and run a single test, under the assumption we\'re already'
+            'Setup and run a single test, under the assumption we\'re already '
             'in the expected, scheduled environment.')
 
     def _setup_arguments(self, parser):
@@ -171,7 +171,7 @@ class _RunCommand(Command):
             fprint(sys.stdout, "Unexpected error gathering results.", err)
             test.status.set(STATES.RESULTS_ERROR,
                             "Unexpected error parsing results: '{}'... (This is a "
-                            "bug, you should report it.)"
+                            "bug, you should report it.) "
                             "See 'pav log kickoff {}' for the full error."
                             .format(str(err)[:100], test.id))
             raise

@@ -975,7 +975,7 @@ class TestBuilder:
 
     def __eq__(self, other):
         if not isinstance(other, TestBuilder):
-            raise ValueError("Can only compare a builder instance with another"
+            raise ValueError("Can only compare a builder instance with another "
                              "builder instance.")
 
         compare_keys = [

@@ -141,7 +141,7 @@ class TestSet:
         the last and the tests run in the order given."""
 
         if self.tests:
-            raise RuntimeError("You can't split a TestSet once it's tests have been"
+            raise RuntimeError("You can't split a TestSet once it's tests have been "
                                "created.")
 
         # For empty or single test_name test sets, we don't need to do anything.

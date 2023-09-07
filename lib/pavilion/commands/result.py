@@ -45,7 +45,7 @@ class ResultsCommand(Command):
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
             "-k", "--key", type=str, default='',
-            help="Comma separated list of additional result keys to display."
+            help="Comma separated list of additional result keys to display. "
                  "Use ~ (tilda) in front of default key to remove from default list."
         )
         group.add_argument(
@@ -74,7 +74,7 @@ class ResultsCommand(Command):
         )
         parser.add_argument(
             '-L', '--show-log', action='store_true', default=False,
-            help="Also show the result processing log. This is particularly"
+            help="Also show the result processing log. This is particularly "
                  "useful when re-parsing results, as the log is not saved."
         )
         parser.add_argument(
@@ -179,7 +179,7 @@ class ResultsCommand(Command):
             else:
                 if len(results) > 1:
                     output.fprint(self.errfile,
-                                  "Please give a single test id when requesting the full"
+                                  "Please give a single test id when requesting the full "
                                   "result log.", color=output.YELLOW)
                     return 1
 

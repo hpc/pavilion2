@@ -104,12 +104,11 @@ class StyleTests(PavTestCase):
             excludes=['style_tests.py', 'blarg.py', 'poof.py'])
         yaml_config_matches = self.find_prints(
             self.PAV_ROOT_DIR/'lib'/'yaml_config')
+        test_ex_matches = self.find_prints(self.PAV_ROOT_DIR/'lib'/'unittest_ex')
 
-        for tmatch, values in test_matches.items():
-            matches[tmatch].extend(values)
-
-        for yc_match, values in yaml_config_matches.items():
-            matches[yc_match].extend(values)
+        for match_set in test_matches, yaml_config_matches, test_ex_matches:
+            for match, values in match_set.items():
+                matches[match].extend(values)
 
         if matches:
             msg = io.StringIO()
@@ -128,6 +127,73 @@ class StyleTests(PavTestCase):
     SKIP_NEXT_RE = re.compile(r'^\s*#\s+ext[-_]print:\s*ignore')
 
     PRINT_RE = re.compile(r'^\s*[^"\'#].*[^f]print\(')
+
+    def test_string_continuation(self):
+        """Find instances where strings continue across lines without a space
+        between words."""
+
+        bad_continuations = defaultdict(lambda: list())
+
+        count = 0
+        for search_path in (
+                self.PAV_ROOT_DIR/'lib'/'pavilion',
+                self.PAV_ROOT_DIR/'lib'/'yaml_config',
+                self.PAV_ROOT_DIR/'lib'/'unittest_ex'):
+            for path, _, filenames in os.walk(search_path):
+                for fn in filenames:
+                    if not fn.endswith('.py'):
+                        continue
+
+                    fn = "{}/{}".format(path, fn)
+                    with open(fn) as file:
+                        lines = file.readlines()
+                        for i in range(len(lines)):
+                            line = lines[i].strip()
+
+                            # Skip short lines and the last line.
+                            if len(line) < 2 or i+1 >= len(lines):
+                                continue
+
+                            next_line = lines[i+1].strip()
+                            if not next_line:
+                                continue
+
+                            if '"hello"' in line:
+                                print(line)
+                                print(next_line)
+
+                            if (line[-1] in ('"', "'") and
+                                    next_line.lstrip()[0] in ('"', "'")):
+
+                                last = line[-2]
+                                first = next_line[1]
+                                last_two = line[-3:-1]
+                                first_two = next_line[1:3]
+
+                                if (    last in ('-', ' ', '/', '(')  or
+                                        first in (' ', '-', '/', ')') or
+                                        first_two == '\\n' or
+                                        last_two == '\\n' or
+                                        line.endswith('"""') or
+                                        line.endswith("'''") or
+                                        next_line.startswith('"""') or
+                                        next_line.startswith("'''")
+                                        ):
+                                    continue
+                                count += 1
+
+                                print("first two", first_two)
+
+                                bad_continuations[fn].append((i, line, next_line))
+        if bad_continuations:
+            msg = []
+            msg.append("\nFound wrapped lines with bad spacing:")
+            for path, items in bad_continuations.items():
+                msg.append("=> {}".format(path))
+                for line_num, first, second in items:
+                    msg.append("  {}: ... {} -> {} ...".format(line_num+1, first[-20:], second[:20]))
+
+            self.fail('\n'.join(msg))
 
     def find_prints(self, path, excludes=None):
         """Find any code with print( statements."""

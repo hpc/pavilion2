@@ -90,7 +90,7 @@ class ShowCommand(Command):
             'functions',
             aliases=['func', 'function'],
             help="Show available expression functions plugins.",
-            description="Expression function plugins allow you to dynamically"
+            description="Expression function plugins allow you to dynamically "
                         "add complex (or simple) new functionality to "
                         "Pavilion value expressions.")
         func_group.add_argument(
@@ -345,9 +345,9 @@ class ShowCommand(Command):
             help="Show the available system variables.",
             description="System variables are available for use in test "
                         "configurations. Simply put the name in curly "
-                        "brackets in any config value. '{sys_name}' or '{"
+                        "brackets in any config value. '{sys_name}' or '{ "
                         "sys.sys_name}'. You can add your own "
-                        "system_variables via plugins. They may be deferred"
+                        "system_variables via plugins. They may be deferred "
                         "(resolved on nodes, at test run time), otherwise "
                         "they are resolved at test kickoff time on the "
                         "kickoff host."
