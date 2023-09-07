@@ -58,11 +58,14 @@ class ResultParserTests(PavTestCase):
                     'echo "What in the World" >> other.log',
                     'echo "something happens..." >> other2.log',
                     'echo "and someone saves the World." >> other3.log',
-                    'echo "I\'m here to cause Worldwide issues." >> other.txt'
+                    'echo "I\'m here to cause Worldwide issues." >> other.txt',
+                    'printf "This\\xb0 character can not be read \\xb0" > bad.txt',
                 ]
             },
             'result_parse': {
                 'regex': {
+                    'bad': {'regex': r'character (\w+)',
+                            'files': 'bad.txt'},
                     'Basic': {'regex': r'.* World'},
                     'BC': {
                         'regex': r'.: (\d)',
@@ -206,6 +209,7 @@ class ResultParserTests(PavTestCase):
         results = test.gather_results(0)
 
         expected = {
+            'bad': 'can',
             'Basic': 'Hello World',
             'BC': [8],
             'bcd': [8],
