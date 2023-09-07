@@ -660,7 +660,12 @@ class ResultParserTests(PavTestCase):
                     'regex': r'.*',
                     'per_file': 'name',
                     'files': '*.out',
-                }
+                },
+                'missing': {
+                    'regex': r'missing: (\d+)',
+                    'per_file': 'name',
+                    'files': 'missing*.txt',
+                },
             }
         }
 
@@ -671,6 +676,10 @@ class ResultParserTests(PavTestCase):
               'blarg': 'return_value != 0'}, {'result': 'FAIL'}),
             # Make sure functions work.
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
+
+            # Make sure we handle missing values gracefully.
+            ({'missing_sum': 'sum(per_file.*.missing)'},
+             {'missing_sum': 7}),
 
             # Check basic math.
             ({'Val_a': '3',
@@ -724,6 +733,23 @@ class ResultParserTests(PavTestCase):
 
             with self.assertRaises(pavilion.errors.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
+
+    def test_evaluate_filter(self):
+        """Check that bad values are filtered out of evaluation lists."""
+
+        results = {
+            'foo': {
+                'a': {'data': 3},
+                # Handle the fact that some items will be None (and should be ignored.)
+                'b': {'data': None},
+                'c': {'data': 4},
+                # Handle the fact that not all items will have the key.
+                'd': {'blarg': 3},
+            },
+            'return_value': 0,
+        }
+
+        eval = result.evaluate_results(results, {'mysum': 'sum(foo.*.data)'})
 
     def test_result_command(self):
         """Make sure the result command works as expected, including the
