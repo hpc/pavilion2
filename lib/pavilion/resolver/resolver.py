@@ -178,6 +178,10 @@ class TestConfigResolver:
             for file in os.listdir(path.as_posix()):
 
                 file = path/file
+                print('file', file, file.exists(), file.is_file())
+                rfile = file.resolve()
+                print('rfile', rfile, rfile.exists(), rfile.is_file())
+
                 if file.suffix != '.yaml' or not file.is_file():
                     continue
 
