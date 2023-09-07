@@ -1,5 +1,6 @@
-working_dir: ~/pav_working_dir
+working_dir: working_dir
 
+# If you're behind a proxy, set your proxy settings here.
 proxies:
   http: http://proxyout.lanl.gov:8080
   https: http://proxyout.lanl.gov:8080

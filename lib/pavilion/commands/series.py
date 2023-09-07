@@ -1,4 +1,4 @@
-    """Start a series config defined test series."""
+"""Start a series config defined test series."""
 
 import argparse
 import errno

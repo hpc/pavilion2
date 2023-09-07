@@ -1,0 +1,45 @@
+# Host files take all the same options as test configs in a suite file, 
+# except without the test naming level.
+
+# Host configs are selected based on the name of the cluster, based on the
+# output from the Pavilion `sys_name` plugin. See `pav show sys_vars` for 
+# the value.  For this demo directory, we have a sys_name plugin that 
+# always returns the name 'demo_host', so this file will always be used.
+
+# Always run our demo tests on the raw scheduler (bash)
+scheduler: raw
+
+# Module wrappers allow you to change how Pavilion handles 
+# different module requests from machine to machine.
+module_wrappers:
+
+  # Whenever gcc is asked for, we'll do nothing since it should be installed 
+  # locally. 
+  gcc: 
+    env:
+      # We could export environment variables here, but we don't need to.
+      # PATH: "${PATH}:/path/to/gcc/bin"
+
+    modules: 
+      # This would be a list of modules to load/unload swap whenever gcc is asked for.
+      # For example, on a Cray Shasta machine we might have to swap out PrgEnv modules.
+      # - 'PrgEnv-cray->PrgEnv-gnu'   # The arrow means to swap
+      # - 'gcc->gcc'                  # Swap to the correct gcc.
+
+# We can set common variables for use across our test suites
+variables:
+  compilers: 
+    # We can permute across all of a systems compilers
+    - name: gcc
+      module: gcc
+    - name: intel
+      module: intel
+
+  filesystems:
+    # We can permute over these, and even downselect by type in our tests.
+    - path: /lustre/scratch3/{{user}}  # This path will include the user from a pavilion var.
+      type: lustre
+    - path: /usr/projects/hpctest
+      type: nfs
+    - path: /tmp
+      type: tmp
