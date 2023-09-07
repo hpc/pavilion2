@@ -42,24 +42,6 @@ class IntPlugin(CoreFunctionPlugin):
         return int(value, base)
 
 
-class SqrtPlugin(CoreFunctionPlugin):
-    """Convert integer strings to ints of arbitrary bases."""
-
-    def __init__(self):
-        """Setup plugin."""
-
-        super().__init__(
-            name="sqrt",
-            arg_specs=(float,),
-        )
-
-    @staticmethod
-    def sqrt(value):
-        """Calculate the square root."""
-
-        return math.sqrt(value)
-
-
 class RoundPlugin(CoreFunctionPlugin):
     """Round the given number to the nearest integer."""
 
