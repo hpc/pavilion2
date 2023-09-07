@@ -26,6 +26,7 @@ jobs:
       run: |
         . examples/demo/activate.sh
         ls -l examples/demo/tests
+        cat examples/demo/tests/buildit.yaml
         pav show tests
         pav run -v QUIET demo advanced buildit
         pav wait 
