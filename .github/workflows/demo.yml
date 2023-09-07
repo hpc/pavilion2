@@ -24,12 +24,6 @@ jobs:
 
     - name: 
       run: |
-        . examples/demo/activate.sh
-        ls -l examples/demo/tests
-        ls -l examples/demo/test_src/built_example
-        #cat examples/demo/tests/buildit.yaml
-        whoami
-        pav show tests
         pav run -v QUIET demo advanced buildit
         pav wait 
         pav results --all-passed
