@@ -40,12 +40,12 @@ class GraphCommand(Command):
         super().__init__(
             'graph',
             description=(
-                "Produce a graph from a set of test results. Each x value for"
+                "Produce a graph from a set of test results. Each x value for "
                 "each test run matched will be plotted. You can graph multiple "
                 "result values , but it's up to you to make sure units and the "
                 "plot as a whole makes sense. Wildcards in the x and y "
                 "specifiers can be used to plot more complicated graphs."
-                ".\n\n"
+                "\n\n"
                 "Graph Command Instructions:\n"
                 "  1. Determine which test run results you want to\n"
                 "     graph. Provide these test runs specifically\n"

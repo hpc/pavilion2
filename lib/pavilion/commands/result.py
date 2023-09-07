@@ -19,7 +19,7 @@ from pavilion import result
 from pavilion import result_utils
 from pavilion import utils
 from pavilion.status_file import STATES
-from pavilion.test_run import (TestRun)
+from pavilion.test_run import TestRun
 from .base_classes import Command
 
 
@@ -45,7 +45,7 @@ class ResultsCommand(Command):
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
             "-k", "--key", type=str, default='',
-            help="Comma separated list of additional result keys to display."
+            help="Comma separated list of additional result keys to display. "
                  "Use ~ (tilda) in front of default key to remove from default list."
         )
         group.add_argument(
@@ -74,9 +74,12 @@ class ResultsCommand(Command):
         )
         parser.add_argument(
             '-L', '--show-log', action='store_true', default=False,
-            help="Also show the result processing log. This is particularly"
+            help="Also show the result processing log. This is particularly "
                  "useful when re-parsing results, as the log is not saved."
         )
+        parser.add_argument(
+            '--all-passed', action='store_true', default=False,
+            help="The result command will return zero only if all tests passed.")
 
         parser.add_argument(
             "tests",
@@ -109,12 +112,13 @@ class ResultsCommand(Command):
 
         results = result_utils.get_results(pav_cfg, tests)
         flat_results = []
+        all_passed = True
         for rslt in results:
             flat_results.append(utils.flatten_dictionary(rslt))
+            if rslt['result'] != TestRun.PASS:
+                all_passed = False
 
         field_info = {}
-        last_s = series.load_user_series_id(pav_cfg, self.errfile)
-        sid = [last_s if s == 'last' else s for s in args.tests]
 
         if args.list_keys:
             flat_keys = result_utils.keylist(flat_results)
@@ -129,7 +133,7 @@ class ResultsCommand(Command):
                               fields=fields,
                               rows=flatter_keys,
                               border=True,
-                              title=f"AVAILABLE KEYS FOR: {', '.join(sid)}")
+                              title="Available keys for specified tests.")
 
         elif args.json or args.full:
             if not results:
@@ -166,7 +170,7 @@ class ResultsCommand(Command):
                 field_info=field_info,
                 fields=fields,
                 rows=flat_sorted_results,
-                title=f"Test Results for: {', '.join(sid)}"
+                title=f"Test Results"
             )
 
         if args.show_log:
@@ -175,7 +179,7 @@ class ResultsCommand(Command):
             else:
                 if len(results) > 1:
                     output.fprint(self.errfile,
-                                  "Please give a single test id when requesting the full"
+                                  "Please give a single test id when requesting the full "
                                   "result log.", color=output.YELLOW)
                     return 1
 
@@ -198,7 +202,10 @@ class ResultsCommand(Command):
                 + ", ".join([test.full_id for test in skipped_reruns]),
                 color=output.YELLOW)
 
-        return 0
+        if args.all_passed and not all_passed:
+            return 1
+        else:
+            return 0
 
     def key_fields(self, args):
         """Update default fields with keys given as arguments.

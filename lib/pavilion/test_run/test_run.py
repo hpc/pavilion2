@@ -838,7 +838,7 @@ of result keys.
 """
         if self.finished is None:
             raise RuntimeError(
-                "test.gather_results can't be run unless the test was run"
+                "test.gather_results can't be run unless the test was run "
                 "(or an attempt was made to run it. "
                 "This occurred for test {s.name}, #{s.id}"
                 .format(s=self))

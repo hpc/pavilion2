@@ -159,7 +159,7 @@ flux kickoff script.
             lines.append('#flux: --requires={}'.format(constraint))
 
         # Should take times like 30s, 5m, 2h, or 8d
-        time_limit = '{}'.format(60*self._config['time_limit'])
+        time_limit = '{}'.format(self._config['time_limit'])
         lines.append('#flux: -t {}'.format(time_limit))
 
         # Specify the number of nodes
@@ -247,8 +247,8 @@ class Flux(SchedulerPluginAdvanced):
         # Ensure that this is a child instance
         depth = child_handle.attr_get("instance-level")
         if depth == 0:
-            raise RuntimeError("This function should only be called from"
-                               "inside of an allocation, but it appears"
+            raise RuntimeError("This function should only be called from "
+                               "inside of an allocation, but it appears "
                                "to have been called from outside of one.")
 
         # Get the Job ID of this child instance

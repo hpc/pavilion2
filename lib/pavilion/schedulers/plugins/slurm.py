@@ -166,8 +166,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(self.mpirun_opts())
 
-            hostlist = ','.join(self._nodes.keys())
-            cmd.extend(['--host', hostlist])
+            cmd.extend(['--host', ','.join(self._nodes.keys())])
 
         return ' '.join(cmd)
 
@@ -280,10 +279,10 @@ class Slurm(SchedulerPluginAdvanced):
                                   "'sched.test_cmd' variable."),
             yc.ListElem(name='sbatch_extra',
                         sub_elem=yc.StrElem(),
-                        help_text="Extra arguments to add as sbatch header lines."
+                        help_text="Extra arguments to add as sbatch header lines. "
                                   "Example: ['--deadline now+20hours']"),
             yc.StrElem(name='mpi_cmd',
-                       help_text="What command to use to start mpi jobs. Options"
+                       help_text="What command to use to start mpi jobs. Options "
                                  "are {}.".format(self.MPI_CMD_OPTIONS)),
         ]
 
@@ -345,7 +344,7 @@ class Slurm(SchedulerPluginAdvanced):
 
             # If all the parts matched, then it's an overall format issue.
             raise ValueError("Invalid Node List: '{}' "
-                             "Good Example: foo003,foo0[10-20],"
+                             "Good Example: foo003,foo0[10-20], "
                              "foo[103-104], foo[10,12-14]")
 
         nodes = []
@@ -749,7 +748,7 @@ class Slurm(SchedulerPluginAdvanced):
         # it might be! Who knows.
         return TestStatusInfo(
             state=STATES.SCHEDULED,
-            note="Job '{}' has unknown/unhandled job state '{}'. We have no"
+            note="Job '{}' has unknown/unhandled job state '{}'. We have no "
                  "idea what is going on.".format(job_info['id'], job_state),
             when=time.time()
         )

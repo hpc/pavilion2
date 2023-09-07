@@ -55,7 +55,7 @@ class ViewCommand(run.RunCommand):
         )
         parser.add_argument(
             'tests', action='store', nargs='*',
-            help='The name of the test to view. Should be in the format'
+            help='The name of the test to view. Should be in the format '
                  '<suite_name>.<test_name>.')
 
     SLEEP_INTERVAL = 1
