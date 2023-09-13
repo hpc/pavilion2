@@ -653,6 +653,9 @@ class ResultParserTests(PavTestCase):
             'echo 1 > int.out',
             'echo 2.3 > float.out',
             'echo "blarg" > str.out',
+            'echo "missing: 4" > missing1.txt',
+            'echo "missing:" > missing2.txt',
+            'echo "missing: 3" > missing3.txt',
         ]
         base_cfg['result_parse'] = {
             'regex': {
