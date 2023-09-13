@@ -556,6 +556,10 @@ class EvaluationExprTransformer(BaseExprTransformer):
                 token=self._merge_tokens(items, None),
                 message=err.args[0])
 
+        if isinstance(value, list):
+            # Filter out any 'None' values.
+            value = [val for val in value if val is not None]
+
         return self._merge_tokens(items, value)
 
     def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
@@ -590,9 +594,20 @@ class EvaluationExprTransformer(BaseExprTransformer):
             if isinstance(base, dict):
                 # The 'sorted' here is important, as it ensures the values
                 # are always in the same order.
-                return [self._resolve_ref(base[sub_base], key_parts,
-                                          seen_parts, False)
-                        for sub_base in sorted(base.keys())]
+                items = []
+                seen_error = None
+                for sub_base in sorted(base.keys()):
+                    try:
+                        items.append(self._resolve_ref(
+                            base[sub_base], key_parts, seen_parts, False))
+                    except ValueError as err:
+                        seen_error = err
+                        continue
+                # Only raise errors from higher levels if they result in no data being found.
+                if not items and seen_error is not None:
+                    raise seen_error
+                return items
+
             elif isinstance(base, list):
                 return [self._resolve_ref(sub_base, key_parts,
                                           seen_parts, False)

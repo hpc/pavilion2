@@ -58,11 +58,14 @@ class ResultParserTests(PavTestCase):
                     'echo "What in the World" >> other.log',
                     'echo "something happens..." >> other2.log',
                     'echo "and someone saves the World." >> other3.log',
-                    'echo "I\'m here to cause Worldwide issues." >> other.txt'
+                    'echo "I\'m here to cause Worldwide issues." >> other.txt',
+                    'printf "This\\xb0 character can not be read \\xb0" > bad.txt',
                 ]
             },
             'result_parse': {
                 'regex': {
+                    'bad': {'regex': r'character (\w+)',
+                            'files': 'bad.txt'},
                     'Basic': {'regex': r'.* World'},
                     'BC': {
                         'regex': r'.: (\d)',
@@ -206,6 +209,7 @@ class ResultParserTests(PavTestCase):
         results = test.gather_results(0)
 
         expected = {
+            'bad': 'can',
             'Basic': 'Hello World',
             'BC': [8],
             'bcd': [8],
@@ -649,6 +653,9 @@ class ResultParserTests(PavTestCase):
             'echo 1 > int.out',
             'echo 2.3 > float.out',
             'echo "blarg" > str.out',
+            'echo "missing: 4" > missing1.txt',
+            'echo "missing:" > missing2.txt',
+            'echo "missing: 3" > missing3.txt',
         ]
         base_cfg['result_parse'] = {
             'regex': {
@@ -656,7 +663,12 @@ class ResultParserTests(PavTestCase):
                     'regex': r'.*',
                     'per_file': 'name',
                     'files': '*.out',
-                }
+                },
+                'missing': {
+                    'regex': r'missing: (\d+)',
+                    'per_file': 'name',
+                    'files': 'missing*.txt',
+                },
             }
         }
 
@@ -667,6 +679,10 @@ class ResultParserTests(PavTestCase):
               'blarg': 'return_value != 0'}, {'result': 'FAIL'}),
             # Make sure functions work.
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
+
+            # Make sure we handle missing values gracefully.
+            ({'missing_sum': 'sum(per_file.*.missing)'},
+             {'missing_sum': 7}),
 
             # Check basic math.
             ({'Val_a': '3',
@@ -720,6 +736,23 @@ class ResultParserTests(PavTestCase):
 
             with self.assertRaises(pavilion.errors.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
+
+    def test_evaluate_filter(self):
+        """Check that bad values are filtered out of evaluation lists."""
+
+        results = {
+            'foo': {
+                'a': {'data': 3},
+                # Handle the fact that some items will be None (and should be ignored.)
+                'b': {'data': None},
+                'c': {'data': 4},
+                # Handle the fact that not all items will have the key.
+                'd': {'blarg': 3},
+            },
+            'return_value': 0,
+        }
+
+        eval = result.evaluate_results(results, {'mysum': 'sum(foo.*.data)'})
 
     def test_result_command(self):
         """Make sure the result command works as expected, including the
