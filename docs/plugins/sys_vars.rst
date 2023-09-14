@@ -30,9 +30,9 @@ from the system variable base class.
 
 .. code-block:: python
 
-    from pavilion import system_variables
+    import pavilion.sys_vars.base_classes as system_plugins
 
-    class Uptime(system_variables.SystemPlugin):
+    class Uptime(system_plugins.SystemPlugin):
         """This is a fairly useless variable, but is a good enough example."""
 
         def __init__(self):
