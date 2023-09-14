@@ -32,7 +32,6 @@ def check_evaluations(evaluations: Dict[str, str]):
                 .format(key, err.message, err.context)
             )
 
-
 def evaluate_results(results: dict, evaluations: Dict[str, str],
                      base_log: utils.IndentedLog = None):
     """Perform result evaluations using an expression parser. The variables
