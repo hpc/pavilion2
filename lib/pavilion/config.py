@@ -542,7 +542,10 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
                 continue
 
             # Attempt to force a permissions error if we can't read this directory.
-            config_dir.touch()
+            try:
+                config_dir.touch()
+            except IsADirectoryError:
+                raise PermissionError
             list(config_dir.iterdir())
 
         except PermissionError:

@@ -184,7 +184,6 @@ class RunCommand(Command):
         series_obj.add_test_set_config(
             testset_name,
             tests,
-            modes=args.modes,
         )
 
         self.last_series = series_obj

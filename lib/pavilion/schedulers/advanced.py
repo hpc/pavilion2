@@ -250,6 +250,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                                  .format(reservation, node['reservations'])
                     filter_reasons[reason_key].append(node_name)
                     continue
+                elif reservation is None and node['reserved']:
+                    reason_key = "Node is reserved {}" \
+                                 .format(sorted(node['reservations']))
+                    filter_reasons[reason_key].append(node_name)
+                    continue
 
             if across_nodes and node_name not in across_nodes:
                 filter_reasons['Not in "schedule.across_nodes"'].append(node_name)

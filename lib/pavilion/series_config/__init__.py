@@ -122,10 +122,11 @@ def verify_configs(pav_cfg, series_name: str, op_sys: str = None,
                 modes=all_modes,
                 overrides=overrides)
     except AttributeError as err:
-        raise SeriesConfigError("Cannot load series.", err)
+        raise SeriesConfigError("Cannot load series.", prior_err=err)
     except TestConfigError as err:
         raise SeriesConfigError("Error loading test for series {}."
-                                .format(series_name), err)
+                                .format(series_name), 
+                                prior_error=err)
 
     return series_cfg
 

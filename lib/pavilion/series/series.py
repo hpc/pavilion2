@@ -124,7 +124,9 @@ class TestSeries:
 
         # Similarly, we need to tell Pavilion where to find it's config.
         env = os.environ.copy()
-        env['PAV_CONFIG_FILE'] = self.pav_cfg.pav_cfg_file.resolve().as_posix()
+        cfg_file = self.pav_cfg.pav_cfg_file
+        cfg_file = cfg_file.parent.resolve()/cfg_file.name
+        env['PAV_CONFIG_FILE'] = cfg_file.as_posix()
 
         # start subprocess
         temp_args = [pav_exe, '_series', self.sid]
@@ -512,6 +514,9 @@ differentiate it from test ids."""
             # Wait for jobs until enough have finished to start a new batch.
             while tests_running + self.batch_size > self.simultaneous:
                 tests_running -= test_set.wait()
+
+        if self.config['simultaneous'] not in (0, None):
+            test_set.wait(wait_for_all=True)
 
 
     WAIT_INTERVAL = 0.5

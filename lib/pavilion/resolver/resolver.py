@@ -894,13 +894,15 @@ class TestConfigResolver:
                     root_name=f"the top level of the OS file.")
             except (KeyError, ValueError) as err:
                 raise TestConfigError(
-                    f"Error loading host config '{mode}' from file '{mode_cfg_path}'.")
+                    f"Error loading mode config '{mode}' from file '{mode_cfg_path}'.",
+                    prior_error=err)
 
             try:
                 test_cfg = loader.merge(test_cfg, mode_cfg)
             except (KeyError, ValueError) as err:
                 raise TestConfigError(
-                    "Error merging mode configuration for mode '{}'".format(mode))
+                    "Error merging mode configuration for mode '{}'".format(mode),
+                    prior_error=err)
 
             test_cfg = resolve.cmd_inheritance(test_cfg)
 

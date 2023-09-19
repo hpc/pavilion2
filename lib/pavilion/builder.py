@@ -967,7 +967,10 @@ class TestBuilder:
                 latest = dir_stat.st_mtime
 
         if src_stat.st_mtime != latest:
-            os.utime(base_path.as_posix(), (src_stat.st_atime, latest))
+            try:
+               os.utime(base_path.as_posix(), (src_stat.st_atime, latest))
+            except PermissionError:
+               print("WARNING: permission error")
 
     def __hash__(self):
         """Having a comparison operator breaks hashing."""

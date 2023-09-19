@@ -165,8 +165,7 @@ class SlurmVars(SchedulerVariables):
 
             cmd.extend(self.mpirun_opts())
 
-            hostlist = ','.join(self._nodes.keys())
-            cmd.extend(['--host', hostlist])
+            cmd.extend(['--host', ','.join(self._nodes.keys())])
 
         return ' '.join(cmd)
 
@@ -547,12 +546,12 @@ class Slurm(SchedulerPluginAdvanced):
         up_states = sched_config['slurm']['up_states']
         avail_states = sched_config['slurm']['avail_states']
         reserved_states = sched_config['slurm']['reserved_states']
-        if sched_config['reservation']:
-            up_states = up_states + reserved_states
-            avail_states = avail_states + reserved_states
+        up_states = up_states + reserved_states
+        avail_states = avail_states + reserved_states
 
         node_info['up'] = all(state in up_states for state in node_info['states'])
         node_info['available'] = all(state in avail_states for state in node_info['states'])
+        node_info['reserved'] = any(state in reserved_states for state in node_info['states'])
 
         return node_info
 

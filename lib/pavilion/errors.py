@@ -60,7 +60,7 @@ class PavilionError(RuntimeError):
         if self.data:
             data = pprint.pformat(self.data, width=width - tab_level*2)
             for line in data.split('\n'):
-                lines.extend(tab_level*self.TAB_LEVEL + line)
+                lines.append(tab_level*self.TAB_LEVEL + line)
 
         while next_exc:
             tab_level += 1
@@ -81,9 +81,14 @@ class PavilionError(RuntimeError):
 
                 next_exc = next_exc.prior_error
             elif isinstance(next_exc, yc_yaml.YAMLError):
-                lines.append(indent + next_exc.context)
-                ctx_mark = next_exc.context_mark
-                prob_mark = next_exc.problem_mark
+                if next_exc.context:
+                    lines.append(indent + next_exc.context)
+                    ctx_mark = next_exc.context_mark
+                    prob_mark = next_exc.problem_mark
+                else:
+                    lines.append("{}\n{}".format(next_exc, "(No error context to show)"))
+                    next_exc = None
+                    continue
 
                 # Try to open the yaml file to pinpoint the issue.
                 try:

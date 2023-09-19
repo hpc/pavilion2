@@ -225,12 +225,15 @@ class TestSet:
                     "Error loading test configs for test set '{}'".format(self.name))
 
                 for error in cfg_resolver.errors:
-                    self.status.set(S_STATES.ERROR,
-                                    '{} - {}'.format(error.request.request, error.pformat()))
+                    if error.request is not None:
+                        self.status.set(S_STATES.ERROR,
+                                        '{} - {}'.format(error.request.request, error.pformat()))
 
-                    output.fprint(
-                        self.outfile,
-                        "{} - {}".format(error.request.request, error.pformat()))
+                        output.fprint(
+                            self.outfile,
+                            "{} - {}".format(error.request.request, error.pformat()))
+                    else:
+                        print(error)
 
                 if not self.ignore_errors:
                     raise TestSetError("Error creating tests for test set {}.".format(self.name),
@@ -710,10 +713,19 @@ class TestSet:
 
         completed_tests = self.mark_completed()
 
+        timeout = 60 * 10
+        start = time.time()
+
         while ((wait_for_all and self.started_tests) or
                (not wait_for_all and completed_tests == 0)):
             time.sleep(wait_period)
-            completed_tests += self.mark_completed()
+            completed = self.mark_completed()
+            completed_tests += completed
+            if completed != 0:
+                start = time.time()
+
+            if start + timeout < time.time():
+                break
 
         return completed_tests
 

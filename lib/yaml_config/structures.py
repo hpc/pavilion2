@@ -422,7 +422,7 @@ class KeyedElem(_DictElem):
                                                old[key], value)
             elif value is not None:
                 try:
-                    base[key] = self.config_elems[key].merge(old[key], new[key])
+                    base[key] = self.config_elems[key].merge(old.get(key), new[key])
                 except:
                     raise
 
