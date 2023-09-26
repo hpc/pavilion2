@@ -46,7 +46,7 @@ class ScheduleConfig(yc.KeyedElem):
                       "same chunk. The allocation will have a number of nodes equal"
                       " to the test that needs the most. Tests started with "
                       "{{sched.run_cmd}} will start with the right number of nodes."
-                      "Tests are run one at a time within the allocation. This is "
+                      " Tests are run one at a time within the allocation. This is "
                       "great for large tests over a many/all nodes, especially on "
                       "large systems where node setup/cleanup takes a while. If set"
                       " to true, and all the tests have the same size and scheduler "
