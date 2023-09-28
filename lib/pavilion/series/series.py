@@ -411,6 +411,7 @@ differentiate it from test ids."""
         while potential_sets:
 
             sets_to_run = []  # type: List[TestSet]
+            running_sets = []
 
             # kick off any sets that aren't waiting on any sets to complete
             for test_set in potential_sets:
@@ -515,9 +516,13 @@ differentiate it from test ids."""
             while tests_running + self.batch_size > self.simultaneous:
                 tests_running -= test_set.wait()
 
+        timeout = 30.0
+        start = time.time()
         if self.config['simultaneous'] not in (0, None):
-            test_set.wait(wait_for_all=True)
-
+            while tests_running and tests_running > self.batch_size and (start + timeout > time.time()):
+                tests_running -= test_set.wait()
+        
+        return tests_running
 
     WAIT_INTERVAL = 0.5
 

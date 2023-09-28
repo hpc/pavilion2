@@ -328,7 +328,7 @@ class TestRun(TestAttributes):
                 try:
                     tmpl_dir.mkdir(exist_ok=True)
                 except OSError as err:
-                    raise TestRunError("Could not create build template directory", err)
+                    raise TestRunError("Could not create build template directory", prior_error=err)
 
         tmpl_paths = {}
         for tmpl_src, tmpl_dest in templates.items():
@@ -337,7 +337,7 @@ class TestRun(TestAttributes):
                     tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
                     create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
                 except TestConfigError as err:
-                    raise TestRunError("Error resolving Build template files", err)
+                    raise TestRunError("Error resolving Build template files", prior_error=err)
             tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
 
         return tmpl_paths

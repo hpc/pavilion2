@@ -213,7 +213,7 @@ class RunSeries(Command):
                 group.add([series_obj])
             except groups.TestGroupError as err:
                 output.fprint(self.errfile, "Error adding series '{}' to group '{}'."
-                                            .format(series_obj.sid, group.name), color=output.RED)
+                                            .format(series_obj.sid, args.group), color=output.RED)
                 output.fprint(self.errfile, err.pformat())
                 return errno.EINVAL
             output.fprint(self.errfile,

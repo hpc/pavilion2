@@ -54,6 +54,18 @@ def set_arg_defaults(args):
     args.sys_name = getattr(args, 'sys_name', sys_name)
 
 
+def is_test_or_series_id(raw_id):
+    """Returns true if raw_id is a well formated test or series id."""
+
+    if not raw_id:
+        return False
+    if utils.is_int(raw_id):
+        return True
+    if raw_id[0] == 's' and utils.is_int(raw_id[1:]):
+        return True
+    return False
+
+
 def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                        verbose: TextIO = None) -> dir_db.SelectItems:
     """Search for test runs that match based on the argument values in args,
@@ -82,11 +94,17 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     sys_name = getattr(args, 'sys_name', sys_vars.get_vars(defer=True).get('sys_name'))
     sort_by = getattr(args, 'sort_by', 'created')
 
+    all_tests = False
+
     ids = []
-    for test_range in args.tests:
-        if '-' in test_range:
-            id_start, id_end = test_range.split('-', 1)
-            if id_start.startswith('s'):
+    group_ids = []
+    for raw_id in args.tests:
+        range_parts = raw_id.split('-') 
+        if (len(range_parts) == 2 and 
+                is_test_or_series_id(range_parts[0]) and
+                is_test_or_series_id(range_parts[1])):
+            id_start, id_end = range_parts
+            if id_start.startswith('s') :
                 series_range_start = int(id_start.replace('s',''))
                 if id_end.startswith('s'):
                     series_range_end = int(id_end.replace('s',''))
@@ -102,10 +120,15 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                 for tid in test_ids:
                     ids.append(str(tid))
         else:
-            ids.append(test_range)
-    args.tests = ids
-
-    if 'all' in args.tests:
+            if utils.is_int(raw_id) or (raw_id[0] == 's' and utils.is_int(raw_id[1:])):
+                ids.append(raw_id)
+            elif raw_id == 'all':
+                all_tests = True
+            else:
+                # A group
+                group_ids.append(raw_id)
+    
+    if all_tests:
         for arg, default in filters.TEST_FILTER_DEFAULTS.items():
             if hasattr(args, arg) and default != getattr(args, arg):
                 break
@@ -132,7 +155,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
-    if 'all' in args.tests:
+    if all_tests:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
@@ -153,10 +176,33 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
 
         return tests
 
-    if not args.tests:
-        args.tests.append('last')
+    if not (ids or group_ids):
+        ids.append('last')
 
-    test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
+    test_paths = test_list_to_paths(pav_cfg, ids, verbose)
+    for group in group_ids:
+        try:
+            group = groups.TestGroup(pav_cfg, raw_id)
+        except TestGroupError as err:
+            output.fprint(
+                errfile,
+                "Invalid test group id '{}'.\n{}"
+                .format(raw_id, err.pformat()))
+            continue
+
+        if not group.exists():
+            output.fprint(
+                errfile,
+                "Group '{}' does not exist.".format(raw_id))
+            continue
+
+        try:
+            test_paths.extend(group.tests())
+        except TestGroupError as err:
+            output.fprint(
+                errfile,
+                "Invalid test group id '{}', could not get tests from group."
+                .format(raw_id)) 
 
     return dir_db.select_from(
         pav_cfg,

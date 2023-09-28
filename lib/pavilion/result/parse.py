@@ -239,7 +239,7 @@ def process_file(args: Tuple[Path, List[KeySet]]) -> \
 
     log("Parsing each key for file {}".format(path.as_posix()))
 
-    with path.open() as file:
+    with path.open(errors='replace') as file:
         # If we have to go through the file more than once, just read the whole thing
         #  memory.
         if len(key_sets) > 1:

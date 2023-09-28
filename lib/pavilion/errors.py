@@ -90,12 +90,17 @@ class PavilionError(RuntimeError):
                     next_exc = None
                     continue
 
-                # Try to open the yaml file to pinpoint the issue.
-                try:
-                    with open(ctx_mark.name) as yaml_file:
-                        file_lines = yaml_file.readlines()
-                except OSError:
-                    lines.append(indent + str(next_exc.problem))
+                if ctx_mark is not None:
+                    # Try to open the yaml file to pinpoint the issue.
+                    try:
+                        with open(ctx_mark.name) as yaml_file:
+                            file_lines = yaml_file.readlines()
+                    except OSError:
+                        lines.append(indent + str(next_exc.problem))
+                        next_exc = None
+                        continue
+                else:
+                    lines.append('{}'.format(next_exc))
                     next_exc = None
                     continue
 

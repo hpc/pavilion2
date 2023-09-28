@@ -75,10 +75,10 @@ def resolve_template(pav_cfg: pavilion.config.PavConfig, template: str,
         with tmpl_path.open() as tmpl_file:
             tmpl_lines = tmpl_file.readlines()
     except OSError as err:
-        raise TestConfigError("Error reading template file '{}'".format(tmpl_path), err)
+        raise TestConfigError("Error reading template file '{}'".format(tmpl_path), prior_error=err)
 
     try:
         return resolve.section_values(tmpl_lines, var_man)
     except TestConfigError as err:
         raise TestConfigError("Error resolving template '{}'"
-                              .format(tmpl_path), err)
+                              .format(tmpl_path), prior_error=err)
