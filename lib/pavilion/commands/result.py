@@ -302,4 +302,3 @@ class ResultsCommand(Command):
                                      .format(results["result"]))
 
         return True
-
