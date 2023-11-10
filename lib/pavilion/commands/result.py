@@ -159,7 +159,7 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            flat_sorted_results = utils.sort_table(args, flat_results)
+            flat_sorted_results = utils.sort_table(args.sort_by, flat_results)
 
             field_info = {
                 'created': {'transform': output.get_relative_timestamp},
