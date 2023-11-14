@@ -110,6 +110,8 @@ class ResultsCommand(Command):
             if not self.update_results(pav_cfg, tests, log_file, save=args.save):
                 return errno.EINVAL
 
+        serieses = ",".join(
+            set([test.series for test in tests if test.series is not None]))
         results = result_utils.get_results(pav_cfg, tests)
         flat_results = []
         all_passed = True
@@ -127,13 +129,14 @@ class ResultsCommand(Command):
             fields = ["default", "common"]
             test_fields = [f for f in flat_keys.keys() if f not in fields]
             fields = fields + sorted(test_fields)
+            title_str=f"Available keys for specified tests in {serieses}."
 
             output.draw_table(outfile=self.outfile,
                               field_info=field_info,
                               fields=fields,
                               rows=flatter_keys,
                               border=True,
-                              title="Available keys for specified tests.")
+                              title=title_str)
 
         elif args.json or args.full:
             if not results:
@@ -156,7 +159,7 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            flat_sorted_results = sort_results(args, flat_results)
+            flat_sorted_results = utils.sort_table(args.sort_by, flat_results)
 
             field_info = {
                 'created': {'transform': output.get_relative_timestamp},
@@ -165,12 +168,13 @@ class ResultsCommand(Command):
                 'duration': {'transform': output.format_duration},
                 }
 
+            title_str=f"Test Results: {serieses}."
             output.draw_table(
                 outfile=self.outfile,
                 field_info=field_info,
                 fields=fields,
                 rows=flat_sorted_results,
-                title=f"Test Results"
+                title=title_str
             )
 
         if args.show_log:
@@ -298,48 +302,3 @@ class ResultsCommand(Command):
                                      .format(results["result"]))
 
         return True
-
-
-def sort_results(args, results: List[dict]) -> List[dict]:
-    """Same basic operation as pavilion.filters.get_sort_opts except
-    here the sort operation is performed on the results array rather
-    than stored as a function and called later.
-
-    If the sort-by key is present in the test object, the
-    sort will be performed in dir_db.select or select_from.
-    Otherwise the default sort will be performed in dir_db and here the
-    results dict will be sorted according to the key for output.
-
-    Results dicts without the key will be skipped with dummy value dval.
-    Thus the user may sort the results of incomplete series, by result keys specific to
-    a particular test in a series, or by keys that are not being displayed.
-    If the key is not in any of the results dicts, it simply returns a copy of
-    the results dict.
-
-    :param args: Command line arguments, for sort_by.
-    :param results: A list of flattened result dicts.
-    :returns: The sorted (or copied) list of results dicts.
-    """
-
-    sort_key = args.sort_by
-    dval = None
-
-    sort_ascending = True
-    if sort_key.startswith('-'):
-        sort_ascending = False
-        sort_key = sort_key[1:]
-
-    for rslt in results:
-        if sort_key in rslt.keys():
-            if isinstance(rslt[sort_key], str):
-                dval = " "
-            else:
-                dval = float("-inf")
-            break
-
-    if not dval:
-        return results.copy()
-
-    rslts = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
-
-    return rslts
