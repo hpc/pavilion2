@@ -201,6 +201,14 @@ class TestSet:
             'not_if': self.not_if
         }
 
+        if build_only:
+            for override in self.overrides:
+                if override.startswith('schedule.nodes'):
+                    self.overrides.remove(override)
+                    break
+
+            self.overrides.append('schedule.nodes=1')
+
         cfg_resolver = TestConfigResolver(
             self.pav_cfg,
             op_sys=self.op_sys,
