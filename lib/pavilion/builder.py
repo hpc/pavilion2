@@ -827,6 +827,20 @@ class TestBuilder:
 
         return True
 
+
+    def register_build_hash(self, mb_tracker) -> None:
+        """Register the build's hash with the multibuildtracker to prevent redundant work
+        and concurrent bugs.
+
+        :param mb_tracker: MultiBuildTracker with which to register hash
+
+        """
+        hash = self.create_build_hash()
+
+        with mb_tracker.lock:
+            mb_tracker.build_hashes.add(hash)
+
+
     def _fix_build_permissions(self, root_path):
         """The files in a build directory should never be writable, but
             directories should be. Users are thus allowed to delete build

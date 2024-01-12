@@ -22,15 +22,19 @@ class MultiBuildTracker:
         self.status_files = {}
         self.trackers = {}
         self.lock = threading.Lock()
+        self.build_hashes = set()
 
     def register(self, test) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
 
-    :param test: The builder object to track.
-    :return: A build tracker instance that can be used by builds directly."""
+        :param test: The builder object to track. 
+        :return: A build tracker instance that can be used by builds directly."""
 
         tracker = BuildTracker(test, self)
+
         with self.lock:
+            # Test may actually be a TestRun object rather than a TestBuilder object,
+            # which has no builder attribute
             self.status_files[test.builder] = test.status
             self.status[test.builder] = None
             self.messages[test.builder] = []
