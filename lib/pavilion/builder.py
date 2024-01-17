@@ -384,14 +384,18 @@ class TestBuilder:
             to die.
         :return: True if these steps completed successfully.
         """
+        mb_tracker = tracker.tracker
+        hash = self.create_build_hash()
 
-        # Only try to do the build if it doesn't already exist and is finished.
-        if not self.finished_path.exists():
-            # Make sure another test doesn't try to do the build at
-            # the same time.
-            # Note cleanup of failed builds HAS to occur under this lock to
-            # avoid a race condition, even though it would be way simpler to
-            # do it in .build()
+        new_build = True
+
+        with mb_tracker.lock:
+            if hash in mb_tracker.build_hashes:
+                new_build = False
+            else:
+                mb_tracker.add(hash)
+
+        if new_build:
             tracker.update(
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
