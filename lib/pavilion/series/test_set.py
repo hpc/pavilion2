@@ -403,7 +403,7 @@ class TestSet:
         
         for test in local_builds:
             hash_thread = threading.Thread(
-                target=test.build.register_build_hash,
+                target=test.build,
                 args=(self.mb_tracker)
             )
 
