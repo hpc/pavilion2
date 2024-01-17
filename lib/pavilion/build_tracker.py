@@ -41,6 +41,23 @@ class MultiBuildTracker:
             self.trackers[test.builder] = tracker
 
         return tracker
+    
+    def register_build(self, hash: str) -> bool:
+        """In a thread-safe manner, attempts to register a build, and reports
+        whether the attempt was successfully (i.e. whether the build has been
+        previously registered).
+        
+        :param str hash: The hash associated with the build to register.
+        :return bool: False if the hash was previously registered; True otherwise.
+        """
+
+        with self.lock:
+            if hash in self.build_hashes:
+                return False
+            else:
+                self.build_hashes.add(hash)
+                
+                return True
 
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.

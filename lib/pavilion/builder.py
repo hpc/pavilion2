@@ -237,13 +237,13 @@ class TestBuilder:
 
         hash_obj.update(self._config.get('specificity', '').encode())
 
-        return hash_obj.hexdigest()
+        return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES*2]
 
     def name_build(self) -> str:
         """Search for the first non-deprecated version of this build (whether
         or not it exists) and name the build for it."""
 
-        base_hash = self.create_build_hash()[:self.BUILD_HASH_BYTES*2]
+        base_hash = self.create_build_hash()
 
         builds_dir = self._pav_cfg.working_dir/'builds'
         name = base_hash
@@ -385,81 +385,57 @@ class TestBuilder:
         :return: True if these steps completed successfully.
         """
         mb_tracker = tracker.tracker
-        hash = self.create_build_hash()
+        hash = self.create_build_hash() # Assumes hashing is idempotent
 
-        new_build = True
-
-        with mb_tracker.lock:
-            if hash in mb_tracker.build_hashes:
-                new_build = False
-            else:
-                mb_tracker.add(hash)
+        # Check whether the build exists
+        new_build = mb_tracker.register_build(hash)
 
         if new_build:
+            
             tracker.update(
-                state=STATES.BUILD_WAIT,
-                note="Waiting on lock for build {}.".format(self.name))
-            lock_path = self.path.with_suffix('.lock')
-            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group) as lock:
-                # Make sure the build wasn't created while we waited for
-                # the lock.
-                if not self.finished_path.exists():
-                    tracker.update(
-                        state=STATES.BUILDING,
-                        note="Starting build {}.".format(self.name))
+                state=STATES.BUILDING,
+                note="Starting build {}.".format(self.name))
 
-                    # If the build directory exists, we're assuming there was
-                    # an incomplete build at this point.
-                    if self.path.exists():
-                        tracker.warn(
-                            "Build lock acquired, but build exists that was "
-                            "not marked as finished. Deleting...")
-                        try:
-                            shutil.rmtree(self.path)
-                        except OSError as err:
-                            tracker.error(
-                                "Could not remove unfinished build.\n{}"
-                                .format(err))
-                            return False
+            # If the build directory exists, we're assuming there was
+            # an incomplete build at this point.
+            if self.path.exists():
+                tracker.warn(
+                    "Build lock acquired, but build exists that was "
+                    "not marked as finished. Deleting...")
+                try:
+                    shutil.rmtree(self.path)
+                except OSError as err:
+                    tracker.error(
+                        "Could not remove unfinished build.\n{}"
+                        .format(err))
+                    return False
 
-                    with lockfile.LockFilePoker(lock):
-                        # Attempt to perform the actual build, this shouldn't
-                        # raise an exception unless something goes terribly
-                        # wrong.
-                        # This will also set the test status for
-                        # non-catastrophic cases.
-                        if not self._build(self.path, cancel_event, test_id, tracker):
+            if not self._build(self.path, cancel_event, test_id, tracker):
 
-                            try:
-                                self.path.rename(self.fail_path)
-                            except FileNotFoundError as err:
-                                tracker.error(
-                                    "Failed to move build {} from {} to "
-                                    "failure path {}"
-                                    .format(self.name, self.path,
-                                            self.fail_path), err)
-                                try:
-                                    self.fail_path.mkdir()
-                                except OSError as err2:
-                                    tracker.error(
-                                        "Could not create fail directory for "
-                                        "build {} at {}"
-                                        .format(self.name, self.fail_path, err2))
-                            if cancel_event is not None:
-                                cancel_event.set()
-
-                            return False
-
+                try:
+                    self.path.rename(self.fail_path)
+                except FileNotFoundError as err:
+                    tracker.error(
+                        "Failed to move build {} from {} to "
+                        "failure path {}"
+                        .format(self.name, self.path,
+                                self.fail_path), err)
                     try:
-                        self.finished_path.touch()
-                    except OSError:
-                        tracker.warn("Could not touch '<build>.finished' file.")
+                        self.fail_path.mkdir()
+                    except OSError as err2:
+                        tracker.error(
+                            "Could not create fail directory for "
+                            "build {} at {}"
+                            .format(self.name, self.fail_path, err2))
+                if cancel_event is not None:
+                    cancel_event.set()
 
-                else:
-                    tracker.update(
-                        state=STATES.BUILD_REUSED,
-                        note="Build {s.name} created while waiting for build "
-                             "lock.".format(s=self))
+                return False
+            try:
+                self.finished_path.touch()
+            except OSError:
+                tracker.warn("Could not touch '<build>.finished' file.")
+
         else:
             tracker.update(
                 note=("Build {s.name} is being reused.".format(s=self)),
