@@ -14,7 +14,6 @@ import time
 import urllib.parse
 from pathlib import Path
 from typing import Union, Dict
-from functools import cached_property
 
 import pavilion.config
 import pavilion.errors
@@ -167,7 +166,7 @@ class TestBuilder:
             except OSError:
                 return None
 
-    @cached_property
+    @property
     def build_hash(self) -> str:
         """Turn the build config, and everything the build needs, into a hash.
         This includes the build config itself, the source tarball, and all

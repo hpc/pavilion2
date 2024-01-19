@@ -31,7 +31,7 @@ class MultiBuildTracker:
         :return: A build tracker instance that can be used by builds directly."""
 
         tracker = BuildTracker(test, self)
-        hash = test.builder.create_build_hash
+        hash = test.builder.build_hash
 
         with self.lock:
             # Test may actually be a TestRun object rather than a TestBuilder object,
