@@ -22,15 +22,16 @@ class MultiBuildTracker:
         self.status_files = {}
         self.trackers = {}
         self.lock = threading.Lock()
-        self.build_hashes = set()
+        self.build_locks = {} # type: Dict[str, threading.lock]
 
     def register(self, test) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
 
-        :param test: The builder object to track. 
+        :param test: The TestRun object to track. 
         :return: A build tracker instance that can be used by builds directly."""
 
         tracker = BuildTracker(test, self)
+        hash = test.builder.create_build_hash
 
         with self.lock:
             # Test may actually be a TestRun object rather than a TestBuilder object,
@@ -40,24 +41,10 @@ class MultiBuildTracker:
             self.messages[test.builder] = []
             self.trackers[test.builder] = tracker
 
-        return tracker
-    
-    def register_build(self, hash: str) -> bool:
-        """In a thread-safe manner, attempts to register a build, and reports
-        whether the attempt was successfully (i.e. whether the build has been
-        previously registered).
-        
-        :param str hash: The hash associated with the build to register.
-        :return bool: False if the hash was previously registered; True otherwise.
-        """
+            if hash not in self.build_locks:
+                self.build_locks[hash] = threading.Lock()
 
-        with self.lock:
-            if hash in self.build_hashes:
-                return False
-            else:
-                self.build_hashes.add(hash)
-                
-                return True
+        return tracker
 
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.

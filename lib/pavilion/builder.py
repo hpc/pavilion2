@@ -14,6 +14,7 @@ import time
 import urllib.parse
 from pathlib import Path
 from typing import Union, Dict
+from functools import cached_property
 
 import pavilion.config
 import pavilion.errors
@@ -166,7 +167,8 @@ class TestBuilder:
             except OSError:
                 return None
 
-    def create_build_hash(self) -> str:
+    @cached_property
+    def build_hash(self) -> str:
         """Turn the build config, and everything the build needs, into a hash.
         This includes the build config itself, the source tarball, and all
         extra files."""
@@ -243,7 +245,7 @@ class TestBuilder:
         """Search for the first non-deprecated version of this build (whether
         or not it exists) and name the build for it."""
 
-        base_hash = self.create_build_hash()
+        base_hash = self.build_hash
 
         builds_dir = self._pav_cfg.working_dir/'builds'
         name = base_hash
@@ -384,65 +386,83 @@ class TestBuilder:
             to die.
         :return: True if these steps completed successfully.
         """
+
         mb_tracker = tracker.tracker
-        hash = self.create_build_hash() # Assumes hashing is idempotent
 
-        # Check whether the build exists
-        new_build = mb_tracker.register_build(hash)
+        if not self.finished_path.exists():
+            # Make sure another test doesn't try to do the build at
+            # the same time.
+            # Note cleanup of failed builds HAS to occur under this lock to
+            # avoid a race condition, even though it would be way simpler to
+            # do it in .build()
 
-        if new_build:
-            
             tracker.update(
-                state=STATES.BUILDING,
-                note="Starting build {}.".format(self.name))
+                state=STATES.BUILD_WAIT,
+                note="Waiting on lock for build {}.".format(self.name))
 
-            # If the build directory exists, we're assuming there was
-            # an incomplete build at this point.
-            if self.path.exists():
-                tracker.warn(
-                    "Build lock acquired, but build exists that was "
-                    "not marked as finished. Deleting...")
-                try:
-                    shutil.rmtree(self.path)
-                except OSError as err:
-                    tracker.error(
-                        "Could not remove unfinished build.\n{}"
-                        .format(err))
-                    return False
+            with mb_tracker.build_locks[self.build_hash]:
+                # Make sure the build wasn't created while we waited for
+                # the lock.
 
-            if not self._build(self.path, cancel_event, test_id, tracker):
+                if not self.finished_path.exists():
+                    tracker.update(
+                        state=STATES.BUILDING,
+                        note="Starting build {}.".format(self.name))
 
-                try:
-                    self.path.rename(self.fail_path)
-                except FileNotFoundError as err:
-                    tracker.error(
-                        "Failed to move build {} from {} to "
-                        "failure path {}"
-                        .format(self.name, self.path,
-                                self.fail_path), err)
+                    # If the build directory exists, we're assuming there was
+                    # an incomplete build at this point.
+
+                    if self.path.exists():
+                        tracker.warn(
+                            "Build lock acquired, but build exists that was "
+                            "not marked as finished. Deleting...")
+                        try:
+                            shutil.rmtree(self.path)
+                        except OSError as err:
+                            tracker.error(
+                                "Could not remove unfinished build.\n{}"
+                                .format(err))
+                            return False
+
+                    if not self._build(self.path, cancel_event, test_id, tracker):
+
+                        try:
+                            self.path.rename(self.fail_path)
+                        except FileNotFoundError as err:
+                            tracker.error(
+                                "Failed to move build {} from {} to "
+                                "failure path {}"
+                                .format(self.name, self.path,
+                                        self.fail_path), err)
+                            try:
+                                self.fail_path.mkdir()
+                            except OSError as err2:
+                                tracker.error(
+                                    "Could not create fail directory for "
+                                    "build {} at {}"
+                                    .format(self.name, self.fail_path, err2))
+                        if cancel_event is not None:
+                            cancel_event.set()
+
+                        return False
+
                     try:
-                        self.fail_path.mkdir()
-                    except OSError as err2:
-                        tracker.error(
-                            "Could not create fail directory for "
-                            "build {} at {}"
-                            .format(self.name, self.fail_path, err2))
-                if cancel_event is not None:
-                    cancel_event.set()
+                        self.finished_path.touch()
+                    except OSError:
+                        tracker.warn("Could not touch '<build>.finished' file.")
 
-                return False
-            try:
-                self.finished_path.touch()
-            except OSError:
-                tracker.warn("Could not touch '<build>.finished' file.")
-
+                else:
+                    tracker.update(
+                        state=STATES.BUILD_REUSED,
+                        note="Build {s.name} created while waiting for build "
+                             "lock.".format(s=self))
         else:
             tracker.update(
                 note=("Build {s.name} is being reused.".format(s=self)),
                 state=STATES.BUILD_REUSED)
 
         return True
-
+    
     def create_spack_env(self, build_dir):
         """Creates a spack.yaml file in the build dir, so that each unique
         build can activate it's own spack environment."""
@@ -482,7 +502,7 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, test_id, tracker: BuildTracker):
+    def _build(self, build_dir, cancel_event, test_id, tracker: BuildTracker) -> bool:
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
@@ -806,20 +826,6 @@ class TestBuilder:
                         .format(time.time() - start))
 
         return True
-
-
-    def register_build_hash(self, mb_tracker) -> None:
-        """Register the build's hash with the multibuildtracker to prevent redundant work
-        and concurrent bugs.
-
-        :param mb_tracker: MultiBuildTracker with which to register hash
-
-        """
-        hash = self.create_build_hash()
-
-        with mb_tracker.lock:
-            mb_tracker.build_hashes.add(hash)
-
 
     def _fix_build_permissions(self, root_path):
         """The files in a build directory should never be writable, but
