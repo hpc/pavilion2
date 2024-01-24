@@ -395,6 +395,31 @@ class ModuleWrapperCatElem(yc.CategoryElem):
     type=OrderedDict
 
 
+class AnyElem(yc.ConfigElement):
+    """A generic, unchecked config element that can contain arbitrary YAML."""
+
+    def str_converter(self, value):
+        """Convert an arbitrary structure of lists/dicts into the same structure with
+        all leaf elements converted into strings."""
+
+        if isinstance(value, dict):
+            norm_dict = {}
+            for key, subval in value.items():
+                norm_dict[str(key)] = self.str_converter(subval)
+            return norm_dict
+        elif isinstance(value, (list, tuple)):
+            return [self.str_converter(item) for item in value]
+        else:
+            return str(value)
+
+    class NoType:
+        """Never match this type in the normalize method."""
+
+    type = NoType
+    type_converter = str_converter
+    _type_name = 'Arbitrary-YAML'
+
+
 NO_WORKING_DIR = '<no_working_dir>'
 
 
