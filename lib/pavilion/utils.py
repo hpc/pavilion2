@@ -564,6 +564,50 @@ def auto_type_convert(value):
 
     return value
 
+def sort_table(sort_key, table_rows: List[dict]) -> List[dict]:
+    """Same basic operation as pavilion.filters.get_sort_opts except
+    here the sort operation is performed on the results array rather
+    than stored as a function and called later.
+
+    If the sort-by key is present in the test object, the
+    sort will be performed in dir_db.select or select_from.
+    Otherwise the default sort will be performed in dir_db and here the
+    results dict will be sorted according to the key for output.
+
+    Results dicts without the key will be skipped with dummy value dval.
+    Thus the user may sort the results of incomplete series, by result keys specific to
+    a particular test in a series, or by keys that are not being displayed.
+    If the key is not in any of the results dicts, it simply returns a copy of
+    the results dict.
+
+    :param sort_key: Command line sort_by argument.
+    :param results: A list of flattened result dicts.
+    :returns: The sorted (or copied) list of results dicts.
+    """
+
+    dval = None
+
+    sort_ascending = True
+    if sort_key.startswith('-'):
+        sort_ascending = False
+        sort_key = sort_key[1:]
+
+    for row in table_rows:
+        if sort_key in row.keys():
+            if isinstance(row[sort_key], str):
+                dval = " "
+            else:
+                dval = float("-inf")
+            break
+
+    if not dval:
+        return table_rows.copy()
+
+    sorted_rows = sorted(table_rows,
+                         key=lambda d: d.get(sort_key, dval),
+                         reverse=not sort_ascending)
+
+    return sorted_rows
 
 class IndentedLog:
     """A logging object for writing indented, easy to follow logs."""

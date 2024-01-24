@@ -66,7 +66,7 @@ with extra notes:
 
     # Always import the containing module for the plugin base class,and reference
     # the plugin via that.
-    import pavilion.system_variables as system_plugins
+    import pavilion.sys_vars.base_classes as system_plugins
 
     import subprocess
 

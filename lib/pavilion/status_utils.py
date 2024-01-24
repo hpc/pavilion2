@@ -8,6 +8,7 @@ from typing import TextIO, List
 
 from pavilion import output
 from pavilion import schedulers
+from pavilion import utils
 from pavilion.errors import TestRunError, TestRunNotFoundError, DeferredError
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
@@ -131,7 +132,8 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
         return list(pool.map(get_this_status, tests))
 
 
-def print_status(statuses: List[dict], outfile, note=False, series=False, json=False):
+def print_status(statuses: List[dict], outfile,
+                 note=False, series=False, json=False, sorter=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param statuses: list of dictionary objects containing the test_id,
@@ -141,6 +143,7 @@ def print_status(statuses: List[dict], outfile, note=False, series=False, json=F
                   not.
 :param note: Print the status note.
 :param series: Print the series id.
+:param sorter: Sort tests by sorter key.
 :param stream outfile: Stream to which the statuses should be printed.
 :return: success or failure.
 :rtype: int
@@ -156,6 +159,12 @@ def print_status(statuses: List[dict], outfile, note=False, series=False, json=F
         if note:
             fields.append('note')
 
+        if sorter:
+            flat_status = [utils.flatten_dictionary(status) for status in statuses]
+            flat_sorted_statuses = utils.sort_table(sorter, flat_status)
+        else:
+            flat_sorted_statuses = statuses
+
         output.draw_table(
             outfile=outfile,
             field_info={
@@ -165,7 +174,7 @@ def print_status(statuses: List[dict], outfile, note=False, series=False, json=F
                 'test_id': {'title': 'Test'},
             },
             fields=fields,
-            rows=statuses,
+            rows=flat_sorted_statuses,
             title='Test statuses')
 
     return 0
