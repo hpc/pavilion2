@@ -487,7 +487,7 @@ expected to be added to by various plugins.
         yc.StrElem(
             'shebang', default='#!/usr/bin/bash',
             help_text="The shebang to put at the top of build/run/kickoff scripts. "
-                      "Should always pint to 'bash', but the path and options may vary "
+                      "Should always point to 'bash', but the path and options may vary "
                       "per-system."),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
