@@ -396,7 +396,7 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
             lock_path = self.path.with_suffix('.lock')
-            with tracker.tracker.build_ex:            
+            with tracker.tracker.build_ex:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists():
