@@ -22,6 +22,7 @@ class MultiBuildTracker:
         self.status_files = {}
         self.trackers = {}
         self.lock = threading.Lock()
+        self.build_ex = threading.Lock()
 
     def register(self, test) -> "BuildTracker":
         """Register a builder, and get your own build tracker.

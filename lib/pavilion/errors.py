@@ -236,7 +236,7 @@ class FunctionArgError(ValueError):
     function arguments."""
 
 
-class ParserValueError(lark.LarkError, PavilionError):
+class ParserValueError(PavilionError):
     """A value error that contains the problematic token and its position."""
 
     def __init__(self, token: lark.Token, message: str):

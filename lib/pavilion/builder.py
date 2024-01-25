@@ -396,7 +396,7 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
             lock_path = self.path.with_suffix('.lock')
-            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group) as lock:
+            with tracker.tracker.build_ex:            
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists():
@@ -418,33 +418,27 @@ class TestBuilder:
                                 .format(err))
                             return False
 
-                    with lockfile.LockFilePoker(lock):
-                        # Attempt to perform the actual build, this shouldn't
-                        # raise an exception unless something goes terribly
-                        # wrong.
-                        # This will also set the test status for
-                        # non-catastrophic cases.
-                        if not self._build(self.path, cancel_event, test_id, tracker):
+                    if not self._build(self.path, cancel_event, test_id, tracker):
 
+                        try:
+                            self.path.rename(self.fail_path)
+                        except FileNotFoundError as err:
+                            tracker.error(
+                                "Failed to move build {} from {} to "
+                                "failure path {}"
+                                .format(self.name, self.path,
+                                        self.fail_path), err)
                             try:
-                                self.path.rename(self.fail_path)
-                            except FileNotFoundError as err:
+                                self.fail_path.mkdir()
+                            except OSError as err2:
                                 tracker.error(
-                                    "Failed to move build {} from {} to "
-                                    "failure path {}"
-                                    .format(self.name, self.path,
-                                            self.fail_path), err)
-                                try:
-                                    self.fail_path.mkdir()
-                                except OSError as err2:
-                                    tracker.error(
-                                        "Could not create fail directory for "
-                                        "build {} at {}"
-                                        .format(self.name, self.fail_path, err2))
-                            if cancel_event is not None:
-                                cancel_event.set()
+                                    "Could not create fail directory for "
+                                    "build {} at {}"
+                                    .format(self.name, self.fail_path, err2))
+                        if cancel_event is not None:
+                            cancel_event.set()
 
-                            return False
+                        return False
 
                     try:
                         self.finished_path.touch()
