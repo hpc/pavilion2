@@ -73,6 +73,7 @@ class TestBuilder:
         self._script_path = script
         self._download_dest = download_dest
         self._templates: Dict[Path, Path] = templates or {}
+        self._build_hash = None
 
         try:
             self._timeout = parse_timeout(config.get('timeout'))
@@ -168,6 +169,14 @@ class TestBuilder:
 
     @property
     def build_hash(self) -> str:
+        """Get the cached build hash, if it exists. Otherwise,
+        create it and cache it."""
+        if self._build_hash is None:
+            self._build_hash = self._create_build_hash()
+            
+        return self._build_hash
+
+    def _create_build_hash(self) -> str:
         """Turn the build config, and everything the build needs, into a hash.
         This includes the build config itself, the source tarball, and all
         extra files."""
