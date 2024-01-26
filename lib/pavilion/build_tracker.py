@@ -4,6 +4,7 @@ import datetime
 import threading
 from collections import defaultdict
 from typing import List
+from contextlib import contextmanager
 
 from pavilion.status_file import STATES
 
@@ -13,7 +14,7 @@ class MultiBuildTracker:
 
     :ivar {StatusFile} status_files: The dictionary of status files by build."""
 
-    def __init__(self):
+    def __init__(self, timeout: float = -1):
         """Setup the build tracker."""
 
         # A map of build tokens to build names
@@ -23,6 +24,7 @@ class MultiBuildTracker:
         self.trackers = {}
         self.lock = threading.Lock()
         self.build_locks = {} # type: Dict[str, threading.lock]
+        self._timeout = timeout
 
     def register(self, test) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
@@ -33,6 +35,15 @@ class MultiBuildTracker:
         tracker = BuildTracker(test, self)
         hash = test.builder.build_hash
 
+        @contextmanager
+        def acquire_lock(lock: threading.Lock, timeout: float):
+            result = lock.acquire(lock, timeout)
+            try:
+                yield result
+            finally:
+                if result:
+                    lock.release()
+
         with self.lock:
             # Test may actually be a TestRun object rather than a TestBuilder object,
             # which has no builder attribute
@@ -42,7 +53,7 @@ class MultiBuildTracker:
             self.trackers[test.builder] = tracker
 
             if hash not in self.build_locks:
-                self.build_locks[hash] = threading.Lock()
+                self.build_locks[hash] = acquire_lock(threading.Lock(), self._timeout)
 
         return tracker
 
