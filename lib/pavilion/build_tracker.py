@@ -27,7 +27,7 @@ class MultiBuildTracker:
     def register(self, test) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
 
-        :param test: The TestRun object to track. 
+        :param test: The TestRun object to track.
         :return: A build tracker instance that can be used by builds directly."""
 
         tracker = BuildTracker(test, self)
