@@ -62,8 +62,7 @@ class TestBuilder:
         :param script: Path to the build script
         :param templates: Paths to template files and their destinations.
         :param spack_config: Give a spack config to enable spack builds.
-        :param build_name: The build name, if this is a build that
-            already exists.
+        :param build_name: The build name, if this is a build that already exists.
         :raises TestBuilderError: When the builder can't be initialized.
         """
 
@@ -173,7 +172,7 @@ class TestBuilder:
         create it and cache it."""
         if self._build_hash is None:
             self._build_hash = self._create_build_hash()
-            
+
         return self._build_hash
 
     def _create_build_hash(self) -> str:
@@ -470,7 +469,7 @@ class TestBuilder:
                 state=STATES.BUILD_REUSED)
 
         return True
-    
+
     def create_spack_env(self, build_dir):
         """Creates a spack.yaml file in the build dir, so that each unique
         build can activate it's own spack environment."""
