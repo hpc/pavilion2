@@ -400,12 +400,6 @@ class TestSet:
             # All builds share a cancel event.
             single_cancel_event = threading.Event()
             cancel_events = {name: single_cancel_event for name in build_names}
-        
-        for test in local_builds:
-            hash_thread = threading.Thread(
-                target=test.build,
-                args=(self.mb_tracker)
-            )
 
         # We don't want to start threads that are just going to wait on a lock,
         # so we'll rearrange the builds so that the unique build names go first.
