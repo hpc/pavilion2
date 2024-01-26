@@ -606,10 +606,6 @@ class TestRun(TestAttributes):
             # a bit easier.
             self.build_origin_path.symlink_to(self.builder.path)
 
-            if not self.build_origin_path.exists():
-                tracker.warn(f"Build origin path {self.build_origin_path} does not exist.",
-                             state=self.status.states.WARNING)
-
             # Make a file with the test id of the building test.
             built_by_path = self.build_origin_path / '.built_by'
             try:
