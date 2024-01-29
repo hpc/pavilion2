@@ -1,6 +1,8 @@
 """Contains the object for tracking multi-threaded builds, along with
 the TestBuilder class itself."""
 
+# pylint: disable=too-many-lines
+
 import glob
 import hashlib
 import io
@@ -14,7 +16,6 @@ import time
 import urllib.parse
 from pathlib import Path
 from typing import Union, Dict
-from contextlib import contextmanager
 
 import pavilion.config
 import pavilion.errors
@@ -24,17 +25,6 @@ from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
-
-
-@contextmanager
-def acquire_lock(lock: threading.Lock, timeout: float):
-    try:
-        result = lock.acquire(timeout=timeout)
-        yield result
-    finally:
-        if result:
-            lock.release()
-
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -418,11 +408,11 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
 
-            timed_lock = acquire_lock(mb_tracker.build_locks[self.build_hash], mb_tracker._timeout)
+            timed_lock = mb_tracker.acquire_lock(self.build_hash)
             with timed_lock as acquired:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
-                
+
                 if acquired:
                     if not self.finished_path.exists():
                         tracker.update(

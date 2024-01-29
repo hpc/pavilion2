@@ -9,6 +9,16 @@ from contextlib import contextmanager
 from pavilion.status_file import STATES
 
 
+@contextmanager
+def acquire_lock(lock: threading.Lock, timeout: float) -> bool:
+    try:
+        result = lock.acquire(timeout=timeout)
+        yield result
+    finally:
+        if result:
+            lock.release()
+
+
 class MultiBuildTracker:
     """Allows for the central organization of multiple build tracker objects.
 
@@ -23,7 +33,7 @@ class MultiBuildTracker:
         self.status_files = {}
         self.trackers = {}
         self.lock = threading.Lock()
-        self.build_locks = {} # type: Dict[str, threading.lock]
+        self._build_locks = {} # type: Dict[str, threading.Lock]
         self._timeout = timeout
 
     def register(self, test) -> "BuildTracker":
@@ -48,6 +58,12 @@ class MultiBuildTracker:
 
         return tracker
 
+    def make_lock_context(self, hash: str):
+        """
+
+        """
+        return acquire_lock(self._build_locks[hash], self._timeout)
+    
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.
 
