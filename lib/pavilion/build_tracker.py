@@ -37,7 +37,7 @@ class MultiBuildTracker:
 
         @contextmanager
         def acquire_lock(lock: threading.Lock, timeout: float):
-            result = lock.acquire(lock, timeout)
+            result = lock.acquire(timeout=timeout)
             try:
                 yield result
             finally:
