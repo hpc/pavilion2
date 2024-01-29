@@ -62,11 +62,10 @@ class MultiBuildTracker:
         """Return a context manager to manage the build-specific lock.
 
         :param str hash: The hash identifying the specific build.
-        :return: A context manager to manage the (optionally) timed lock associated with the build.
+        :return: A context manager to manage the (optionally) timed lock associated with the build."""
 
-        """
         return acquire_lock(self._build_locks[hash], self._timeout)
-    
+
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.
 
