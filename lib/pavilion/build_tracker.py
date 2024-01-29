@@ -35,15 +35,6 @@ class MultiBuildTracker:
         tracker = BuildTracker(test, self)
         hash = test.builder.build_hash
 
-        @contextmanager
-        def acquire_lock(lock: threading.Lock, timeout: float):
-            result = lock.acquire(timeout=timeout)
-            try:
-                yield result
-            finally:
-                if result:
-                    lock.release()
-
         with self.lock:
             # Test may actually be a TestRun object rather than a TestBuilder object,
             # which has no builder attribute
@@ -53,7 +44,7 @@ class MultiBuildTracker:
             self.trackers[test.builder] = tracker
 
             if hash not in self.build_locks:
-                self.build_locks[hash] = acquire_lock(threading.Lock(), self._timeout)
+                self.build_locks[hash] = threading.Lock()
 
         return tracker
 
