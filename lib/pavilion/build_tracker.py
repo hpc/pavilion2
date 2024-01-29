@@ -53,13 +53,16 @@ class MultiBuildTracker:
             self.messages[test.builder] = []
             self.trackers[test.builder] = tracker
 
-            if hash not in self.build_locks:
-                self.build_locks[hash] = threading.Lock()
+            if hash not in self._build_locks:
+                self._build_locks[hash] = threading.Lock()
 
         return tracker
 
     def make_lock_context(self, hash: str):
-        """
+        """Return a context manager to manage the build-specific lock.
+
+        :param str hash: The hash identifying the specific build.
+        :return: A context manager to manage the (optionally) timed lock associated with the build.
 
         """
         return acquire_lock(self._build_locks[hash], self._timeout)
