@@ -56,7 +56,7 @@ class BuilderTests(PavTestCase):
             return status
         
         status_strs = map(read_status_string, status_paths)
-        self.assertEqual(sum(map(lambda x: "BUILD_REUSED" not in x, status_strs)), 1)
+        self.assertEqual(sum(map(lambda x: "REUSED" not in x.upper(), status_strs)), 1)
 
     def test_setup_build_dir(self):
         """Make sure we can correctly handle all of the various archive
