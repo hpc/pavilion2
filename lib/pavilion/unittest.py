@@ -260,9 +260,7 @@ though."""
         """Return a pre-populated test config to use with ``self._quick_test``.
         This can be used as is, or modified for desired effect.
 
-        The default config is: ::
-
-        {} """
+        The default config is: {}"""
 
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
