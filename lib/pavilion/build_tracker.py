@@ -8,22 +8,12 @@ from contextlib import contextmanager
 from pavilion.status_file import STATES
 
 
-@contextmanager
-def acquire_lock(lock: threading.Lock, timeout: float) -> Iterator[bool]:
-    try:
-        result = lock.acquire(timeout=timeout)
-        yield result
-    finally:
-        if result:
-            lock.release()
-
-
 class MultiBuildTracker:
     """Allows for the central organization of multiple build tracker objects.
 
     :ivar {StatusFile} status_files: The dictionary of status files by build."""
 
-    def __init__(self, timeout: float = -1):
+    def __init__(self):
         """Setup the build tracker."""
 
         # A map of build tokens to build names
@@ -33,7 +23,6 @@ class MultiBuildTracker:
         self.trackers = {}
         self.lock = threading.Lock()
         self._build_locks = {} # type: Dict[str, threading.Lock]
-        self._timeout = timeout
 
     def register(self, test) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
@@ -53,18 +42,26 @@ class MultiBuildTracker:
             self.trackers[test.builder] = tracker
 
             if hash not in self._build_locks:
-                self.build_locks[hash] = threading.Lock()
+                self._build_locks[hash] = threading.Lock()
 
         return tracker
 
-    def make_lock_context(self, hash: str) -> ContextManager[bool]:
+    @contextmanager
+    def make_lock_context(self, hash: str, timeout: float = -1) -> ContextManager[bool]:
         """Return a context manager to manage the build-specific lock.
 
         :param str hash: The hash identifying the specific build.
         :return: A context manager to manage the (optionally) timed lock
         associated with the build."""
 
-        return acquire_lock(self._build_locks[hash], self._timeout)
+        lock = self._build_locks[hash]
+
+        try:
+            result = lock.acquire(timeout=timeout)
+            yield result
+        finally:
+            if result:
+                lock.release()
 
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.
