@@ -1,16 +1,15 @@
 """Tracks builds across multiple threads, including their output."""
 
-import datetime
 import threading
 from collections import defaultdict
-from typing import List
+from typing import List, Iterator, ContextManager
 from contextlib import contextmanager
 
 from pavilion.status_file import STATES
 
 
 @contextmanager
-def acquire_lock(lock: threading.Lock, timeout: float) -> bool:
+def acquire_lock(lock: threading.Lock, timeout: float) -> Iterator[bool]:
     try:
         result = lock.acquire(timeout=timeout)
         yield result
@@ -54,11 +53,11 @@ class MultiBuildTracker:
             self.trackers[test.builder] = tracker
 
             if hash not in self._build_locks:
-                self._build_locks[hash] = threading.Lock()
+                self.build_locks[hash] = threading.Lock()
 
         return tracker
 
-    def make_lock_context(self, hash: str):
+    def make_lock_context(self, hash: str) -> ContextManager[bool]:
         """Return a context manager to manage the build-specific lock.
 
         :param str hash: The hash identifying the specific build.
@@ -114,7 +113,7 @@ class MultiBuildTracker:
 class BuildTracker:
     """Tracks the status updates for a single build."""
 
-    def __init__(self, test, tracker):
+    def __init__(self, test: 'TestRun', tracker: MultiBuildTracker):
         self.test = test
         if test is None:
             self.builder = None

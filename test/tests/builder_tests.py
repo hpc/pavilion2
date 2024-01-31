@@ -12,7 +12,7 @@ from pathlib import Path
 from pavilion import builder
 from pavilion import lockfile
 from pavilion import wget
-from pavilion.build_tracker import DummyTracker, MultiBuildTracker
+from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.errors import TestRunError
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
@@ -25,25 +25,37 @@ class BuilderTests(PavTestCase):
 
         # Make a unique build.
         test_cfg = self._quick_test_cfg()
-        test_cfg['build']['cmds'] = ["echo {}".format(uuid.uuid4().hex)]
+        test_cfg['build']['cmds'] = ['sleep 200']
         test = self._quick_test(test_cfg, build=False, finalize=False)
-
-        bldr = builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
-                                   test.build_script_path, test.status, Path('/tmp'))
         
-        tracker = DummyTracker()
-        mb_tracker = MultiBuildTracker(timeout=2)
-        tracker.tracker = mb_tracker
+        mb_tracker = MultiBuildTracker()
+        builders = []
+        threads = []
 
-        # Prelock the build.
-        lock = mb_tracker.build_locks[bldr.build_hash]
-        lock.acquire()
+        for _ in range(3):
+            tracker = mb_tracker.register(test)
+            builders.append(builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
+                                   test.build_script_path, test.status, Path('/tmp')))
 
-        start = time.time() 
-        bldr.build(test.full_id, tracker)
-        # Make sure the builder actually waited for the lock to expire.
-        # Note: This is inelegant, but I can't really think of a better (single-threaded) way.
-        self.assertGreater(time.time() - start, 2.0)
+            threads.append(threading.Thread(target=builders[-1].build, args=(test.full_id, tracker)))
+            threads[-1].run()
+    
+        map(lambda x: x.join(), threads)
+
+        status_paths = list(map(lambda x: mb_tracker.status_files[x].path, builders))
+
+        def read_status_string(fpath: Path) -> str:
+            status = None
+
+            with open(fpath, 'r') as fin:
+                status = fin.readline()
+            
+            return status
+        
+        status_strs = map(read_status_string), status_paths
+
+
+
 
     def test_setup_build_dir(self):
         """Make sure we can correctly handle all of the various archive
