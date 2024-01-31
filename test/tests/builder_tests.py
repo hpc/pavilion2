@@ -37,11 +37,10 @@ class BuilderTests(PavTestCase):
 
             builders.append(builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
                                    test.build_script_path, tests[-1].status, Path('/tmp')))
-            builder = builder[-1]
-            
-            test.builder = builder[-1]
+            bldr = builder[-1]
+            test.builder = bldr
             tracker = mb_tracker.register(test)
-            threads.append(threading.Thread(target=builders[-1].build, args=(test.full_id, tracker)))
+            threads.append(threading.Thread(target=bldr.build, args=(test.full_id, tracker)))
             threads[-1].run()
     
         map(lambda x: x.join(), threads)
