@@ -45,7 +45,7 @@ class BuilderTests(PavTestCase):
     
         map(lambda x: x.join(), threads)
 
-        status_paths = list(map(lambda x: mb_tracker.status_files[x].path, builders))
+        status_paths = map(lambda x: mb_tracker.status_files[x].path, builders)
 
         def read_status_string(fpath: Path) -> str:
             status = None
@@ -55,7 +55,7 @@ class BuilderTests(PavTestCase):
             
             return status
         
-        status_strs = map(read_status_string), status_paths
+        status_strs = map(read_status_string, status_paths)
         self.assertEqual(sum(map(lambda x: "BUILD_REUSED" not in x, status_strs)), 1)
 
     def test_setup_build_dir(self):
