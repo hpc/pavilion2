@@ -1,8 +1,8 @@
 """Tracks builds across multiple threads, including their output."""
 
+import datetime
 import threading
 from collections import defaultdict
-from datetime import datetime
 from typing import List, ContextManager
 from contextlib import contextmanager
 
