@@ -349,10 +349,10 @@ class NFSLock:
 
             if self._get_earliest() == self._lockfile:
                 return self
-    
-    def __exit__(self):
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.lockfile.unlink()
-    
+
     def _get_earliest(self) -> Path:
         """Return the path to the lockfile that was created first."""
         lockfiles = self._lock_dir.iterdir()
