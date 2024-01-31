@@ -2,7 +2,8 @@
 
 import threading
 from collections import defaultdict
-from typing import List, Iterator, ContextManager
+from datetime import datetime
+from typing import List, ContextManager
 from contextlib import contextmanager
 
 from pavilion.status_file import STATES
