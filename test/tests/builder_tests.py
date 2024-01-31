@@ -10,9 +10,8 @@ import uuid
 from pathlib import Path
 
 from pavilion import builder
-from pavilion import lockfile
 from pavilion import wget
-from pavilion.build_tracker import BuildTracker, MultiBuildTracker
+from pavilion.build_tracker import MultiBuildTracker, DummyTracker
 from pavilion.errors import TestRunError
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
@@ -26,17 +25,22 @@ class BuilderTests(PavTestCase):
         # Make a unique build.
         test_cfg = self._quick_test_cfg()
         test_cfg['build']['cmds'] = ['sleep 200']
-        test = self._quick_test(test_cfg, build=False, finalize=False)
         
         mb_tracker = MultiBuildTracker()
+        tests = []
         builders = []
         threads = []
 
         for _ in range(3):
-            tracker = mb_tracker.register(test)
-            builders.append(builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
-                                   test.build_script_path, test.status, Path('/tmp')))
+            tests.append(self._quick_test(test_cfg, build=False, finalize=False))
+            test = tests[-1]
 
+            builders.append(builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
+                                   test.build_script_path, tests[-1].status, Path('/tmp')))
+            builder = builder[-1]
+            
+            test.builder = builder[-1]
+            tracker = mb_tracker.register(test)
             threads.append(threading.Thread(target=builders[-1].build, args=(test.full_id, tracker)))
             threads[-1].run()
     
@@ -53,9 +57,7 @@ class BuilderTests(PavTestCase):
             return status
         
         status_strs = map(read_status_string), status_paths
-
-
-
+        self.assertEqual(sum(map(lambda x: "BUILD_REUSED" not in x, status_strs)), 1)
 
     def test_setup_build_dir(self):
         """Make sure we can correctly handle all of the various archive

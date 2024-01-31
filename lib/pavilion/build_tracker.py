@@ -20,7 +20,7 @@ class MultiBuildTracker:
         # A map of build tokens to build names
         self.messages = {}
         self.status = {}
-        self.status_files = {}
+        self.status_files = {} # type: Dict[TestBuilder, TestStatusFile]
         self.trackers = {}
         self.lock = threading.Lock()
         self._build_locks = {} # type: Dict[str, threading.Lock]
