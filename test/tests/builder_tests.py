@@ -24,39 +24,29 @@ class BuilderTests(PavTestCase):
 
         # Make a unique build.
         test_cfg = self._quick_test_cfg()
-        test_cfg['build']['cmds'] = ['sleep 200']
+        test_cfg['build']['cmds'] = ['sleep 0.2']
+
+        num_tests = 3
         
         mb_tracker = MultiBuildTracker()
         tests = []
-        builders = []
         threads = []
 
-        for _ in range(3):
+        for _ in range(num_tests):
             tests.append(self._quick_test(test_cfg, build=False, finalize=False))
-            test = tests[-1]
 
-            builders.append(builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
-                                   test.build_script_path, tests[-1].status, Path('/tmp')))
-            bldr = builders[-1]
-            test.builder = bldr
+        for test in tests:
             tracker = mb_tracker.register(test)
-            threads.append(threading.Thread(target=bldr.build, args=(test.full_id, tracker)))
-            threads[-1].run()
+            thread = threading.Thread(target=test.builder.build, args=(test.full_id, tracker))
+            threads.append(thread)
+            thread.run()
     
         map(lambda x: x.join(), threads)
 
-        status_paths = map(lambda x: mb_tracker.status_files[x].path, builders)
-
-        def read_status_string(fpath: Path) -> str:
-            status = None
-
-            with open(fpath, 'r') as fin:
-                status = fin.readline()
-            
-            return status
-        
-        status_strs = map(read_status_string, status_paths)
-        self.assertEqual(sum(map(lambda x: "REUSED" not in x.upper(), status_strs)), 1)
+        states = [test.status.current().state for test in tests]
+        reused = list(filter(lambda x: x == STATES.BUILD_REUSED, states))
+        self.assertEqual(len(reused), num_tests - 1)
+        self.assertIn(STATES.BUILD_SUCCESS, states)
 
     def test_setup_build_dir(self):
         """Make sure we can correctly handle all of the various archive
