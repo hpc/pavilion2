@@ -10,8 +10,6 @@ import uuid
 from pathlib import Path
 from typing import Union, TextIO
 import threading
-from uuid import uuid4
-from time import sleep
 
 from pavilion import output
 from pavilion import utils
@@ -297,6 +295,7 @@ these values if there was an error..
         output.fprint(self._errfile, msg, color=output.YELLOW)
 
 
+
 class LockFilePoker:
     """This context creates a thread that regularly 'pokes' a lockfile to make sure it
     doesn't expire."""
@@ -329,33 +328,3 @@ class LockFilePoker:
 
         self._done_event.set()
         self._thread.join()
-
-
-class NFSLock:
-    def __init__(self, lock_dir: Path, build_name: str):
-        self._lock_dir = lock_dir
-        self.build_name = build_name
-
-        # create a globally unique lockfile
-        self._lockfile = lock_dir / f"{build_name}-{uuid4()}.lock"
-
-    def __enter__(self):
-        # Declare intent to take lock
-        self._lockfile.touch()
-
-        while True:
-            # Give other instances opportunity to declare intent
-            sleep(0.5)
-
-            if self._get_earliest() == self._lockfile:
-                return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.lockfile.unlink()
-
-    def _get_earliest(self) -> Path:
-        """Return the path to the lockfile that was created first."""
-        lockfiles = self._lock_dir.iterdir()
-
-        # Sort files by creation time, and return oldest
-        return sorted(lockfiles, key=lambda x: x.stat().st_ctime)[0]
