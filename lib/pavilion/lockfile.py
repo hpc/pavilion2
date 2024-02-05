@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 from typing import Union, TextIO
 import threading
+from uuid import uuid4
+from time import sleep
 
 from pavilion import output
 from pavilion import utils
@@ -19,7 +21,7 @@ NEVER = 10**10
 
 
 class LockFile:
-    """An NFS friendly way to create a lock file. Locks contain information
+    """A custom lock object that is not NFS-friendly. Locks contain information
 on what host and user created the lock, and have a built in expiration
 date. To be used in a 'with' context.
 
@@ -295,7 +297,6 @@ these values if there was an error..
         output.fprint(self._errfile, msg, color=output.YELLOW)
 
 
-
 class LockFilePoker:
     """This context creates a thread that regularly 'pokes' a lockfile to make sure it
     doesn't expire."""
@@ -328,3 +329,44 @@ class LockFilePoker:
 
         self._done_event.set()
         self._thread.join()
+
+
+class NFSLock:
+    """A custom lock object designed to work with NFS systems. The object lessens,
+    but does not fully resolve, some of the concurrency issues related to NFS. Intended
+    to be invoked using the 'with' keyword.
+
+    :ivar lock_dir: Directory in which this and other instances of Pavilion will create locks.
+    :ivar build_name: Full build name of build associated with lock.
+    :ivar _lockfile: Path to lockfile.
+    """
+    def __init__(self, lock_dir: Path, build_name: str):
+        self._lock_dir = lock_dir
+        self.build_name = build_name
+
+        # create a globally unique lockfile
+        self._lockfile = lock_dir / f"{build_name}-{uuid4()}.lock"
+
+    def __enter__(self) -> 'NFSLock':
+        # Declare intent to take lock
+        self._lockfile.touch()
+
+        first = False
+
+        while not first:
+            # Give other instances opportunity to declare intent
+            sleep(0.5)
+            first = self._get_earliest() == self._lockfile
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        # Remove the lockfile, since no longer competing for lock
+        self.lockfile.unlink()
+
+    def _get_earliest(self) -> Path:
+        """Get the path to the lockfile that was created first."""
+        lockfiles = self._lock_dir.iterdir()
+
+        # Sort files by creation time, and return oldest
+        return sorted(lockfiles, key=lambda x: x.stat().st_ctime)[0]
