@@ -8,7 +8,7 @@ import tempfile
 import time
 from hashlib import sha1
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any
 
 import pavilion.schedulers
 from pavilion import arguments
@@ -256,7 +256,7 @@ though."""
         'schedule': {},
     }
 
-    def _quick_test_cfg(self):
+    def _quick_test_cfg(self) -> Dict[str, Any]:
         """Return a pre-populated test config to use with
 ``self._quick_test``. This can be used as is, or modified for
 desired effect.
