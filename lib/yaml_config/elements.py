@@ -94,7 +94,7 @@ class ConfigElement:
     _type_name = None
 
     # The regular expression that all element names are matched against.
-    _NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]+$')
+    _NAME_RE = re.compile(r'^[a-zA-Z*?\[\]-][a-zA-Z0-9_*?\[\]-]+$')
 
     # We use the representer functions in this to consistently represent
     # certain types

@@ -51,6 +51,7 @@ class YCFormatTest(YCTestCase):
                                                  elements=[
                                  yaml_config.scalars.StrElem("description",
                                                              help_text="General pet description."),
+                                 yaml_config.scalars.StrElem("fuzzy_*", help_text="a wildcard key"),
                                  yaml_config.scalars.RegexElem("greeting", regex=r'hello \w+$',
                                                                help_text="A regex of some sort."),
                                  yaml_config.scalars.IntRangeElem("legs", vmin=0)
