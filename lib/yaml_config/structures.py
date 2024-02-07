@@ -1,4 +1,5 @@
 from collections import defaultdict, OrderedDict
+import fnmatch
 import io
 
 import similarity
@@ -304,13 +305,65 @@ class _DictElem(ConfigElement):
 class KeyedElem(_DictElem):
     """A dictionary configuration item with predefined keys that may have
     non-uniform types. The valid keys are are given as ConfigItem objects,
-    with their names being used as the key name."""
+    with their names being used as the key name. Keys can contain wildcards,
+    as per globbing syntax (see the fnmatch library). Keys are checked against
+    exact matches first, then are checked against wildcard keys in the order 
+    those elements were originally given."""
+
+    class _FuzzyOrderedDict(OrderedDict):
+        
+        def __getitem__(self, key):
+            """Get an item, but do fnmatch'ing on the given key vs the existing keys."""
+
+            if key in self.keys():
+                return super().__getitem__(key)
+
+            for pattern in self.keys():
+                if fnmatch.fnmatchcase(key, pattern):
+                    return super().__getitem__(pattern)
+            
+            raise KeyError(key)
+
+        def get(self, key, default=None):
+            """Use fuzzy mathing with the get() method too."""
+
+            if key in self.keys():
+                return super().__getitem__(key)
+
+            for pattern in self.keys():
+                if fnmatch.fnmatchcase(key, pattern):
+                    return super().__getitem__(pattern)
+
+            return default
+
+        def __contains__(self, key):
+            """Return true if the key is in the dict (or matches a fuzzy key)."""
+
+            if key in self.keys():
+                return True
+
+            for pattern in self.keys():
+                if fnmatch.fnmatchcase(key, pattern):
+                    return True
+
+            return False
+
+        def get_key(self, key):
+            """Return the key pattern that would match the given key."""
+
+            if key in self.keys():
+                return key
+
+            for pattern in self.keys():
+                if fnmatch.fnmatchcase(key, pattern):
+                    return pattern
+
+            return None
 
     type = ConfigDict
     _type_name = ''
 
-    def __init__(self, name=None, elements=None, key_case=_DictElem.KC_MIXED,
-                 **kwargs):
+    def __init__(self, name=None, elements=None, key_case=_DictElem.KC_MIXED, **kwargs):
         """
         :param key_case: Must be one of the <cls>.KC_* values. Determines
             whether keys are automatically converted to lower or upper case,
@@ -319,7 +372,7 @@ class KeyedElem(_DictElem):
             of accepted keys, with the element.name being the key.
         """
 
-        self.config_elems = OrderedDict()
+        self.config_elems = self._FuzzyOrderedDict()
 
         if elements is None:
             elements = []
@@ -513,6 +566,8 @@ class KeyedElem(_DictElem):
 
             elem = self.config_elems.get(final_key, None)
             if elem is None:
+                print(list(self.config_elems.keys()))
+                print(elem, final_key)
                 msg = self._make_missing_key_message(root_name, key, value)
                 raise KeyError(msg, key)
 
@@ -632,6 +687,11 @@ class KeyedElem(_DictElem):
         if value is None:
             value = dict()
 
+        resolved_vals = defaultdict(list)
+        for vkey, val in value.items():
+            pattern = self.config_elems.get_key(vkey)
+            resolved_vals[pattern].append((vkey, val))
+
         events = list()
         events.append(yaml.MappingStartEvent(anchor=None, tag=None,
                                              implicit=True))
@@ -643,18 +703,19 @@ class KeyedElem(_DictElem):
             if isinstance(elem, DerivedElem):
                 continue
 
-            val = value.get(key, None)
-            if show_comments:
-                comment = elem.make_comment(show_choices=show_choices)
-                events.append(yaml.CommentEvent(value=comment))
+            items = resolved_vals.get(key, [(key, None)])
+            for vkey, val in items:
+                if show_comments:
+                    comment = elem.make_comment(show_choices=show_choices)
+                    events.append(yaml.CommentEvent(value=comment))
 
-            # Add the mapping key
-            events.append(yaml.ScalarEvent(value=key, anchor=None,
-                                           tag=None, implicit=(True, True)))
-            # Add the mapping value
-            events.extend(elem.yaml_events(val,
-                                           show_comments,
-                                           show_choices))
+                # Add the mapping key
+                events.append(yaml.ScalarEvent(value=vkey, anchor=None,
+                                               tag=None, implicit=(True, True)))
+                # Add the mapping value
+                events.extend(elem.yaml_events(val,
+                                               show_comments,
+                                               show_choices))
         events.append(yaml.MappingEndEvent())
         return events
 
@@ -1007,3 +1068,97 @@ class DerivedElem(ConfigElement):
 
     def set_default(self, dotted_key, value):
         raise RuntimeError("You can't set defaults on derived elements.")
+
+
+class AnyElem(ConfigElement):
+    """A generic, unchecked config element that can contain arbitrary YAML."""
+
+    class NoType:
+        """Never match this type in the normalize method."""
+
+    def str_converter(self, value):
+        """Convert an arbitrary structure of lists/dicts into the same structure with
+        all leaf elements converted into strings."""
+
+        if isinstance(value, dict):
+            norm_dict = {}
+            for key, subval in value.items():
+                norm_dict[str(key)] = self.str_converter(subval)
+            return norm_dict
+        elif isinstance(value, (list, tuple)):
+            return [self.str_converter(item) for item in value]
+        else:
+            return str(value)
+
+    type = NoType
+    type_converter = str_converter
+    _type_name = 'Arbitrary-YAML'
+
+    def yaml_events(self, value, show_comments, show_choices):
+        """Convert value to a list of yaml events."""
+
+        events = list()
+        if isinstance(value, (list, tuple)):
+            events.append(yaml.SequenceStartEvent(
+                anchor=None,
+                tag=None,
+                implicit=True,
+                flow_style=False,
+            ))
+
+            if show_comments:
+                comment = self._sub_elem.make_comment(
+                    show_choices=show_choices,
+                    recursive=True,
+                )
+                events.append(yaml.CommentEvent(value=comment))
+
+            if not value:
+                value = []
+
+            # Value is expected to be a list of items at this point.
+            for val in value:
+                events.extend(
+                    self.yaml_events(
+                        value=val,
+                        show_comments=False,
+                        show_choices=False))
+
+            events.append(yaml.SequenceEndEvent())
+
+        elif isinstance(value, dict):
+            if value is None:
+                value = dict()
+
+            events.append(yaml.MappingStartEvent(anchor=None, tag=None,
+                                                 implicit=True))
+            for key, elem in self.config_elems.items():
+                if elem.hidden:
+                    continue
+
+                # Don't output anything for Derived Elements
+                if isinstance(elem, DerivedElem):
+                    continue
+
+                val = value.get(key, None)
+                if show_comments:
+                    comment = elem.make_comment(show_choices=show_choices)
+                    events.append(yaml.CommentEvent(value=comment))
+
+                # Add the mapping key
+                events.append(yaml.ScalarEvent(value=key, anchor=None,
+                                               tag=None, implicit=(True, True)))
+                # Add the mapping value
+                events.extend(self.yaml_events(val,
+                                               show_comments=False,
+                                               show_choices=False))
+            events.append(yaml.MappingEndEvent())
+        else:
+            tag = None
+            if value is not None:
+                value, tag = self._represent(value)
+
+            events.append(yaml.ScalarEvent(value=value, anchor=None, tag=tag,
+                                           implicit=(True, True)))
+
+        return events

@@ -21,6 +21,8 @@ properties:
   # LEGS(required int)
   # Valid Range: > 0
   legs: 4
+  # Accept wildcard keys
+  fuzzy_wuzzy: "is here"
 traits:
     int: 'low'
     agility: 'terrible'
