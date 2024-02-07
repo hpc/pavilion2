@@ -1,7 +1,7 @@
 """This module organizes the builtin scheduler plugins."""
 from typing import Union
 
-from .plugins.raw import Raw
+from .plugins.shell import Shell
 from .plugins.slurm import Slurm
 from .plugins.flux import Flux
 from .advanced import SchedulerPluginAdvanced
@@ -14,7 +14,7 @@ from ..types import NodeInfo, Nodes, NodeList, NodeSet
 from .vars import SchedulerVariables
 
 _builtin_scheduler_plugins = [
-    Raw,
+    Shell,
     Slurm,
     Flux,
 ]
@@ -37,6 +37,10 @@ def get_plugin(name) -> Union[SchedulerPluginBasic,
 
     :param str name: The name of the scheduler plugin.
     """
+
+    # We've renamed 'raw' to 'shell' - support the old naming.
+    if name == 'raw':
+        name = 'shell'
 
     if _SCHEDULER_PLUGINS is None:
         raise SchedulerPluginError("No scheduler plugins loaded.")

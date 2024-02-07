@@ -50,6 +50,10 @@ class ScheduleConfig(yc.KeyedElem):
                       "great for large tests over a many/all nodes, especially on "
                       "large systems where node setup/cleanup takes a while."),
         yc.StrElem(
+            'serialize',
+            help_text="If true, only run this test by itself. This is only meaningful "
+                      "for 'un-scheduled' (IE - shell) tests.")
+        yc.StrElem(
             'tasks',
             help_text="The total number of tasks to run, across all nodes. How this "
                       "interacts with 'tasks_per_node' is scheduler dependent. Under "
@@ -291,6 +295,12 @@ def min_int(name, min_val, required=True):
 
     return validator
 
+def validate_bool(val) -> bool:
+    """Check for any valid bool value."""
+
+    if val in ('true', 'True'):
+        return True
+    return False
 
 def validate_list(val) -> List[str]:
     """Ensure that a list is a list."""
@@ -462,6 +472,7 @@ CONFIG_VALIDATORS = {
     'include_nodes':    _validate_node_list,
     'exclude_nodes':    _validate_node_list,
     'share_allocation': _validate_allocation_str,
+    'serialize':        validate_bool,
     'time_limit':       min_int('time_limit', min_val=1),
     'cluster_info':     {
         'node_count':   min_int('cluster_info.node_count', min_val=1, required=False),
@@ -494,6 +505,7 @@ CONFIG_DEFAULTS = {
     'wrapper':          None,
     'reservation':      None,
     'share_allocation': True,
+    'serialize':        False,
     'across_nodes':     [],
     'include_nodes':    [],
     'exclude_nodes':    [],

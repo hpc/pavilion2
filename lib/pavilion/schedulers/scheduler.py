@@ -106,6 +106,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
         'distributed': node_selection.distributed,
     }
 
+    # Set to True if the class supports the `schedule.serial` option.
+    SERIALIZABLE = False
+
     def __init__(self, name, description, priority=PRIO_CORE):
         """Scheduler plugin that is expected to be overriden by subclasses.
         The plugin will populate a set of expected 'sched' variables."""

@@ -1,4 +1,4 @@
-"""The Raw (local system) scheduler."""
+"""The Shell (local system) scheduler."""
 
 import os
 import signal
@@ -14,11 +14,12 @@ from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
 from ..basic import SchedulerPluginBasic
 from ..scheduler import KickoffScriptHeader
+from ..config import validate_bool
 from ..vars import SchedulerVariables
 
 
-class RawKickoffHeader(KickoffScriptHeader):
-    """The header for raw kickoff scripts has no special additions."""
+class ShellKickoffHeader(KickoffScriptHeader):
+    """The header for shell kickoff scripts has no special additions."""
 
     def _kickoff_lines(self) -> List[str]:
         """Return nothing."""
@@ -26,18 +27,18 @@ class RawKickoffHeader(KickoffScriptHeader):
         return []
 
 
-class Raw(SchedulerPluginBasic):
-    """The Raw (local system) scheduler."""
+class Shell(SchedulerPluginBasic):
+    """The Shell (local system) scheduler."""
 
     VAR_CLASS = SchedulerVariables
 
-    KICKOFF_SCRIPT_HEADER_CLASS = RawKickoffHeader
+    KICKOFF_SCRIPT_HEADER_CLASS = ShellKickoffHeader
 
     UNIQ_ID_LEN = 10
 
     def __init__(self):
         super().__init__(
-            'raw',
+            'shell',
             "Schedules tests as local processes."
         )
 
@@ -49,7 +50,7 @@ class Raw(SchedulerPluginBasic):
         return NodeList([socket.gethostname()])
 
     def _available(self) -> bool:
-        """The raw scheduler is always available."""
+        """The shell scheduler is always available."""
         return True
 
     def _get_alloc_node_info(self, node_name) -> NodeInfo:
@@ -78,7 +79,7 @@ class Raw(SchedulerPluginBasic):
         return info
 
     def _job_status(self, pav_cfg, job_info: JobInfo) -> Union[TestStatusInfo, None]:
-        """Raw jobs will either be scheduled (waiting on a concurrency
+        """Shell jobs will either be scheduled (waiting on a concurrency
         lock), or in an unknown state (as there aren't records of dead jobs)."""
 
         now = time.time()
@@ -88,7 +89,7 @@ class Raw(SchedulerPluginBasic):
             return TestStatusInfo(
                 when=time.time(),
                 state=STATES.SCHEDULED,
-                note=("Can't determine the scheduler status of a 'raw' "
+                note=("Can't determine the scheduler status of a 'shell' "
                       "test started on a different host ({} vs {})."
                       .format(job_info['host'], local_host))
             )
@@ -102,7 +103,7 @@ class Raw(SchedulerPluginBasic):
             return None
 
     def available(self):
-        """The raw scheduler is always available."""
+        """The shell scheduler is always available."""
 
         return True
 
