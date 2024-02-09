@@ -7,6 +7,7 @@ from typing import List, ContextManager
 from contextlib import contextmanager
 
 from pavilion.status_file import STATES
+from lockfile import NFSLock
 
 
 class MultiBuildTracker:
@@ -23,9 +24,9 @@ class MultiBuildTracker:
         self.status_files = {} # type: Dict[TestBuilder, TestStatusFile]
         self.trackers = {}
         self.lock = threading.Lock()
-        self._build_locks = {} # type: Dict[str, threading.Lock]
+        self._build_locks = {} # type: Dict[str, NFSLock]
 
-    def register(self, test) -> "BuildTracker":
+    def register(self, test: 'TestRun') -> 'BuildTracker':
         """Register a builder, and get your own build tracker.
 
         :param test: The TestRun object to track.
@@ -43,26 +44,21 @@ class MultiBuildTracker:
             self.trackers[test.builder] = tracker
 
             if hash not in self._build_locks:
-                self._build_locks[hash] = threading.Lock()
+                self._build_locks[hash] = NFSLock(test.builder.path, test.builder.name)
 
         return tracker
 
-    @contextmanager
-    def make_lock_context(self, hash: str, timeout: float = -1) -> ContextManager[bool]:
-        """Return a context manager to manage the build-specific lock.
+    def get_build_lock(self, hash: str, timeout: float = -1) -> 'NFSLock':
+        """Get the NFSLock object associated with a particular build.
 
-        :param str hash: The hash identifying the specific build.
-        :return: A context manager to manage the (optionally) timed lock
-        associated with the build."""
+        :param hash: the hash of the build whose lock will be returned
+        :return: the NFSLock for the build
+        """
 
         lock = self._build_locks[hash]
+        lock.set_timeout(timeout)
 
-        try:
-            result = lock.acquire(timeout=timeout)
-            yield result
-        finally:
-            if result:
-                lock.release()
+        return lock
 
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.
