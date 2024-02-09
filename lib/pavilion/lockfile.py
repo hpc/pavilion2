@@ -18,6 +18,7 @@ from pavilion import utils
 
 # Expires after a silly long time.
 NEVER = 10**10
+MS_PER_SEC = 1000
 
 
 class LockFile:
@@ -332,34 +333,57 @@ class LockFilePoker:
 
 
 class NFSLock:
-    """A custom lock object designed to work with NFS systems. The object lessens,
-    but does not fully resolve, some of the concurrency issues related to NFS,
-    particularly in the case where multiple Pavilion instances are working with
+    """A custom lock object designed for use on NFS systems. The lock behaves like a queue:
+    each process declares its intent to take the lock, and the lock goes to whichever process
+    declared first. The object lessens, but does not fully resolve, some of the concurrency issues
+    related to NFS, particularly in the case where multiple Pavilion instances are working with
     the same build. Intended to be invoked as a context manager, using the 'with' keyword.
     """
-    def __init__(self, lock_dir: Path, build_name: str):
+    def __init__(self, lock_dir: Path, build_name: str, wait_time: float = 0.5, timeout: float = -1):
         """
         :param lock_dir: directory in which lockfiles will be created
         :param build_name: full name of the build to which the lock controls access
+        :param wait_time: time to wait between checking status
+        :param timeout: time (in seconds) after which the lock times out. A value of -1 indicates no timeout
         """
         self._lock_dir = lock_dir
         self.build_name = build_name
+        self._wait_time = wait_time
+        self._timeout = timeout
 
         # create a globally unique lockfile
         self._lockfile = lock_dir / f"{build_name}-{uuid4()}.lock"
 
-    def __enter__(self) -> 'NFSLock':
+    def set_timeout(self, timeout: float) -> None:
+        """Set the timeout for the lock object.
+
+        :param timeout: the length of the timeout, in seconds
+        """
+        self._timeout = timeout
+
+    def __enter__(self) -> bool:
+        """
+        Attempt to acquire the lock.
+
+        :return: True if lock has been successfully acquired; False if timed out
+        """
         # Declare intent to take lock
         self._lockfile.touch()
 
         first = False
 
+        start = time.time()
+
         while not first:
             # Give other instances opportunity to declare intent
-            sleep(0.5)
+            sleep(self._wait_time)
+
+            if self._timeout >= 0 and (time.time() - start > self._timeout * MS_PER_SEC):
+                return False
+
             first = self._get_earliest() == self._lockfile
 
-        return self
+        return True
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         # Remove the lockfile, since no longer competing for lock
