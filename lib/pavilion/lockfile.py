@@ -333,14 +333,15 @@ class LockFilePoker:
 
 class NFSLock:
     """A custom lock object designed to work with NFS systems. The object lessens,
-    but does not fully resolve, some of the concurrency issues related to NFS. Intended
-    to be invoked using the 'with' keyword.
-
-    :ivar lock_dir: Directory in which this and other instances of Pavilion will create locks.
-    :ivar build_name: Full build name of build associated with lock.
-    :ivar _lockfile: Path to lockfile.
+    but does not fully resolve, some of the concurrency issues related to NFS,
+    particularly in the case where multiple Pavilion instances are working with
+    the same build. Intended to be invoked as a context manager, using the 'with' keyword.
     """
     def __init__(self, lock_dir: Path, build_name: str):
+        """
+        :param lock_dir: directory in which lockfiles will be created
+        :param build_name: full name of the build to which the lock controls access
+        """
         self._lock_dir = lock_dir
         self.build_name = build_name
 
@@ -365,7 +366,10 @@ class NFSLock:
         self.lockfile.unlink()
 
     def _get_earliest(self) -> Path:
-        """Get the path to the lockfile that was created first."""
+        """Get the path to the lockfile that was created first.
+
+        :return: Path object to whichever lockfile was created first"""
+
         lockfiles = self._lock_dir.iterdir()
 
         # Sort files by creation time, and return oldest
