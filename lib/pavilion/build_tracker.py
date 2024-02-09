@@ -7,7 +7,7 @@ from typing import List, ContextManager
 from contextlib import contextmanager
 
 from pavilion.status_file import STATES
-from lockfile import NFSLock
+from .lockfile import NFSLock
 
 
 class MultiBuildTracker:
@@ -44,7 +44,7 @@ class MultiBuildTracker:
             self.trackers[test.builder] = tracker
 
             if hash not in self._build_locks:
-                self._build_locks[hash] = NFSLock(test.builder.path, test.builder.name)
+                self._build_locks[hash] = NFSLock(test.builder.path.parent, test.builder.name)
 
         return tracker
 

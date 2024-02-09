@@ -18,7 +18,6 @@ from pavilion import utils
 
 # Expires after a silly long time.
 NEVER = 10**10
-MS_PER_SEC = 1000
 
 
 class LockFile:
@@ -378,7 +377,7 @@ class NFSLock:
             # Give other instances opportunity to declare intent
             sleep(self._wait_time)
 
-            if self._timeout >= 0 and (time.time() - start > self._timeout * MS_PER_SEC):
+            if self._timeout >= 0 and (time.time() - start > self._timeout):
                 return False
 
             first = self._get_earliest() == self._lockfile
@@ -387,7 +386,7 @@ class NFSLock:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         # Remove the lockfile, since no longer competing for lock
-        self.lockfile.unlink()
+        self._lockfile.unlink()
 
     def _get_earliest(self) -> Path:
         """Get the path to the lockfile that was created first.
