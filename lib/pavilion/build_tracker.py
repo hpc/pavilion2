@@ -24,7 +24,6 @@ class MultiBuildTracker:
         self.status_files = {} # type: Dict[TestBuilder, TestStatusFile]
         self.trackers = {}
         self.lock = threading.Lock()
-        self._build_locks = {} # type: Dict[str, NFSLock]
 
     def register(self, test: 'TestRun') -> 'BuildTracker':
         """Register a builder, and get your own build tracker.
@@ -33,7 +32,6 @@ class MultiBuildTracker:
         :return: A build tracker instance that can be used by builds directly."""
 
         tracker = BuildTracker(test, self)
-        hash = test.builder.build_hash
 
         with self.lock:
             # Test may actually be a TestRun object rather than a TestBuilder object,
@@ -43,22 +41,16 @@ class MultiBuildTracker:
             self.messages[test.builder] = []
             self.trackers[test.builder] = tracker
 
-            if hash not in self._build_locks:
-                self._build_locks[hash] = NFSLock(test.builder.path.parent, test.builder.name)
-
         return tracker
 
-    def get_build_lock(self, hash: str, timeout: float = -1) -> 'NFSLock':
+    def get_build_lock(self, builder: 'TestBuilder', timeout: float = -1) -> 'NFSLock':
         """Get the NFSLock object associated with a particular build.
 
         :param hash: the hash of the build whose lock will be returned
         :return: the NFSLock for the build
         """
 
-        lock = self._build_locks[hash]
-        lock.set_timeout(timeout)
-
-        return lock
+        return NFSLock(builder.path.parent, builder.name, timeout=timeout)
 
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.

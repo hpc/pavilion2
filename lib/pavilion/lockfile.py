@@ -393,7 +393,7 @@ class NFSLock:
 
         :return: Path object to whichever lockfile was created first"""
 
-        lockfiles = [x for x in self._lock_dir.iterdir() if (x.suffix == '.lock')]
+        lockfiles = self._lock_dir.glob(f'{self.build_name}-*.lock')
 
         # Sort files by creation time, and return oldest
         return sorted(lockfiles, key=lambda x: x.stat().st_ctime)[0]
