@@ -409,7 +409,7 @@ class TestBuilder:
                 note="Waiting on lock for build {}.".format(self.name))
 
             # NOTE: May want to pass a timeout here to prevent starvation
-            timed_lock = mb_tracker.get_build_lock(self.build_hash, 5)
+            timed_lock = mb_tracker.get_build_lock(self, 5)
 
             with timed_lock as acquired:
                 # Make sure the build wasn't created while we waited for
