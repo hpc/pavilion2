@@ -408,7 +408,7 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
 
-            # NOTE: May want to pass a timeout here to prevent starvation
+            # Pass a timeout here to prevent starvation
             timed_lock = mb_tracker.get_build_lock(self, 5)
 
             with timed_lock as acquired:

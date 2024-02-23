@@ -24,6 +24,7 @@ class MultiBuildTracker:
         self.status_files = {} # type: Dict[TestBuilder, TestStatusFile]
         self.trackers = {}
         self.lock = threading.Lock()
+        self._build_locks = {} # type: Dict[str, threading.Lock]
 
     def register(self, test: 'TestRun') -> 'BuildTracker':
         """Register a builder, and get your own build tracker.
