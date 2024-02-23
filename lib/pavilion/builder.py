@@ -21,6 +21,7 @@ import pavilion.config
 import pavilion.errors
 from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
+from pavilion.lockfile import NFSLock
 from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
