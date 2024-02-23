@@ -338,12 +338,14 @@ class NFSLock:
     related to NFS, particularly in the case where multiple Pavilion instances are working with
     the same build. Intended to be invoked as a context manager, using the 'with' keyword.
     """
-    def __init__(self, lock_dir: Path, build_name: str, wait_time: float = 0.5, timeout: float = -1):
+    def __init__(self, lock_dir: Path, build_name: str,
+        wait_time: float = 0.5, timeout: float = -1):
         """
         :param lock_dir: directory in which lockfiles will be created
         :param build_name: full name of the build to which the lock controls access
         :param wait_time: time to wait between checking status
-        :param timeout: time (in seconds) after which the lock times out. A value of -1 indicates no timeout
+        :param timeout: time (in seconds) after which the lock times out.
+            A value of -1 indicates no timeout
         """
         self._lock_dir = lock_dir
         self.build_name = build_name

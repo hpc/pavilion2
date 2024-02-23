@@ -44,15 +44,6 @@ class MultiBuildTracker:
 
         return tracker
 
-    def get_build_lock(self, builder: 'TestBuilder', timeout: float = -1) -> 'NFSLock':
-        """Get the NFSLock object associated with a particular build.
-
-        :param hash: the hash of the build whose lock will be returned
-        :return: the NFSLock for the build
-        """
-
-        return NFSLock(builder.path.parent, builder.name, timeout=timeout)
-
     def update(self, builder, note, state=None):
         """Add a message for the given builder without changes the status.
 
