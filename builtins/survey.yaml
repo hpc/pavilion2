@@ -17,7 +17,7 @@ variables:
 
     schedule:
         wrapper: >-
-            survey --counters [~{{counters}}~,] 
+            survey {{ opt(survey.counters, "--counters") }}
             {{ flag(survey.disable-papi-multiplex, "--disable-papi-multiplex") }} 
             {{ flag(survey.disable-papi, "--disable-papi") }} 
             {{ flag(survey.disable-io, "--disable-io") }} 
