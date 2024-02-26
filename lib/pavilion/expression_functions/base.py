@@ -48,6 +48,28 @@ class Opt:
 
         self.sub_spec = sub_spec
 
+def flag(val: str, flag_str: str) -> str:
+    """Return a flag string for a boolean variable, if
+    the variable is set, or an empty string otherwise."""
+
+    if val.lower() in {'true', 'on', 'yes'}:
+        return flag_str
+    elif val.lower() in {'false', 'off', 'no'}:
+        return ''
+    else:
+        raise ValueError(f'Could not convert {val} into boolean-like.')
+
+
+def option(val: str, option_str: str) -> str:
+    """Return an option string for a boolean variable, if
+    it has a non-null value, or an empty string otherwise."""
+
+    if val.lower() in {'null', 'none'}:
+        return ''
+    else:
+        return f"{option_str}='{val}'"
+>>>>>>> 364e98cd (add flag and option functions)
+
 
 class FunctionPlugin(IPlugin.IPlugin):
     """Plugin base class for math functions.
