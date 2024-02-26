@@ -3,6 +3,7 @@
 import inspect
 import logging
 import re
+from typing import Union, Callable
 
 from yapsy import IPlugin
 from ..errors import FunctionPluginError
@@ -48,14 +49,32 @@ def flag(val: str, flag_str: str) -> str:
         raise ValueError(f'Could not convert {val} into boolean-like.')
 
 
-def option(val: str, option_str: str) -> str:
-    """Return an option string for a boolean variable, if
-    it has a non-null value, or an empty string otherwise."""
+def sopt(val: Union[str, list[str]], option_str: str) -> str:
+    """Return an option string for a variable, if it has a non-null value,
+    or an empty string otherwise. For a list, create separate option string
+    for each value in the list."""
 
-    if val.lower() in {'null', 'none'}:
-        return ''
+    if isinstance(val, list):
+        return " ".join(map(lambda x: f"{option_str}='{x}'", list))
     else:
-        return f"{option_str}='{val}'"
+        if val.lower() in {'null', 'none'}:
+            return ''
+        else:
+            return f"{option_str}='{val}'"
+
+
+def opt(val: Union[str, list[str]], option_str: str, delimiter=',') -> str:
+    """Return an option string for a variable, if it has a non-null value,
+    or an empty string otherwise. For a list, create a single option string
+    by concatenating the values in the list."""
+
+    if isinstance(val, list):
+        return f"{option_str}={delimiter.join(val)}"
+    else:
+        if val.lower() in {'null', 'none'}:
+            return ''
+        else:
+            return f"{option_str}='{val}'"
 
 
 class FunctionPlugin(IPlugin.IPlugin):
