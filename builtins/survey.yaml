@@ -1,0 +1,38 @@
+variables:
+    survey?:
+        counters: []
+        disable-papi-multiplex: False
+        disable-papi: False
+        disable-io: False
+        disable-mpi: False
+        disable-ompt: False
+        disable-kokkos: False
+        use-survey-omp-rt: False
+        enable-kokkos: False
+        enable-mem: False
+        enable-mem-gotcha: False
+        top-down: False
+        top-down-fe: False
+        top-down-bs: False
+        top-down-be: False
+        top-down-ret: False
+        top-down-mem-bound: False
+        top-down-core-bound: False
+        info: null
+        csv-only: False
+        json-only: False
+        debug_collector: False
+        debug_monitor: False
+        no-collector: False
+        no-analysis: False
+        block-report: False
+        output-to-file: False
+        prefix: null
+        project: null
+        version: False
+        config: null
+        tag: null
+        timestamp: False
+
+    schedule:
+        wrapper: 'survey -counters {{counters}}'
