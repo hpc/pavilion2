@@ -31,7 +31,7 @@ elif [[ -n "${VIRTUAL_ENV}" ]]; then
     if ! pip3 install -r ${PAV_DIR}/requirements.txt > ${DEPS_LOG} 2>&1; then
         echo "Dependency installation failed. See '${DEPS_LOG}'"
     fi
-elif [[ -d ${PAV_DIR}/.git ]]; then
+elif git -C ${PAV_DIR} rev-parse 2>/dev/null; then
     # This is a checkout of the git repo. Grab the dependencies with git.
 
     eecho "Updating dependencies via git submodule."
