@@ -319,7 +319,7 @@ class TestBuilder:
 
         if (src_url is not None
                 and ((src_download == 'missing' and found_src_path is None)
-                     or src_download == 'latest')):
+                     or src_download == 'latest' and found_src_path is None)):
 
             if self._download_dest is None:
                 raise TestBuilderError(
