@@ -74,7 +74,7 @@ class SchedTests(PavTestCase):
                   NodeSet(frozenset(['node05', 'node06', 'node07']))]
 
         expected = {
-            'test_cmd': '',
+            'launch': '',
             'tasks_per_node': '1',
             'chunk_ids': ['0', '1'],
             'chunk_size': '3',
@@ -127,7 +127,7 @@ class SchedTests(PavTestCase):
         chunks = None
 
         expected = {
-            'test_cmd': '',
+            'launch': '',
             'tasks_per_node': '1',
             'chunk_ids': [],
             'chunk_size': '',
@@ -596,7 +596,7 @@ class SchedTests(PavTestCase):
 
         # The wrapper can by anything a command or even a string
         test_cfg['schedule'] = {'wrapper': 'echo'}
-        test_cfg['run']['cmds'] = ['{{sched.test_cmd}} "this is the wrapper test"']
+        test_cfg['run']['cmds'] = ['{{sched.launch}} "this is the wrapper test"']
 
         test = self._quick_test(test_cfg, finalize=False)
 

@@ -111,7 +111,7 @@ command.
                     |          |                 | 1.
      tasks_total    | True     | 180             | Total tasks to create, based on number of nodes
                     |          |                 | actually acquired.
-     test_cmd       | True     | srun -N 5 -w no | Construct a cmd to run a process under this
+     launch         | True     | srun -N 5 -w no | Construct a cmd to run a process under this
                     |          | de[05-10],node2 | scheduler, with the criteria specified by this test.
                     |          | 3 -n 20         |
 
@@ -338,9 +338,9 @@ wrapper command before actually running the intended command.
             cmds:
                 # The run command will be `srun -N1 -p standard valgrind ./supermagic -a`
                 # It will run `valgrind ./supermagic -a` on the allocation
-                - '{{sched.test_cmd}} ./supermagic -a'
+                - '{{sched.launch}} ./supermagic -a'
 
-When using the ``raw`` scheduler, the ``{{sched.test_cmd}}`` normally returns an empty string. You can 
+When using the ``raw`` scheduler, the ``{{sched.launch}}`` normally returns an empty string. You can 
 use the wrapper setting to control a different scheduler directly.
 
 .. code-block:: yaml
@@ -355,5 +355,5 @@ use the wrapper setting to control a different scheduler directly.
         run:
             cmds:
                 # With the schedule wrapper, this will be `mpirun -np 2 ./supermagic -a`
-                - '{{sched.test_cmd}} ./supermagic -a'
+                - '{{sched.launch}} ./supermagic -a'
 

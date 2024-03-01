@@ -133,10 +133,10 @@ class SlurmVars(SchedulerVariables):
 
     EXAMPLE = SchedulerVariables.EXAMPLE.copy()
     EXAMPLE.update({
-        'test_cmd': 'srun -N 5 -w node[05-10],node23 -n 20',
+        'launch': 'srun -N 5 -w node[05-10],node23 -n 20',
     })
 
-    def _test_cmd(self):
+    def _launch(self):
         """Construct a cmd to run a process under this scheduler, with the
         criteria specified by this test.
         """
@@ -171,13 +171,13 @@ class SlurmVars(SchedulerVariables):
         return ' '.join(cmd)
 
     @dfr_var_method
-    def test_cmd(self):
+    def launch(self):
         """Calls the actual test command and then wraps the return with the wrapper
         provided in the schedule section of the configuration."""
 
         # Removes all the None values to avoid getting a TypeError while trying to
         # join two commands
-        return ' '.join(filter(lambda item: item is not None, [self._test_cmd(),
+        return ' '.join(filter(lambda item: item is not None, [self._launch(),
                                self._sched_config['wrapper']]))
 
 def slurm_float(val):
@@ -276,7 +276,7 @@ class Slurm(SchedulerPluginAdvanced):
             yc.ListElem(name='srun_extra',
                         sub_elem=yc.StrElem(),
                         help_text="Extra arguments to pass to srun as part of the "
-                                  "'sched.test_cmd' variable."),
+                                  "'sched.launch' variable."),
             yc.ListElem(name='sbatch_extra',
                         sub_elem=yc.StrElem(),
                         help_text="Extra arguments to add as sbatch header lines. "

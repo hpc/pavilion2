@@ -42,6 +42,7 @@ _aliases = {
     'set_status': ['status_set'],
     'result': ['results'],
     'list_cmd': ['list'],
+    'launch': ['test_cmd'],
 }
 
 

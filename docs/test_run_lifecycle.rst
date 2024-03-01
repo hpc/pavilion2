@@ -217,7 +217,7 @@ something like this:
                     "result": "last_login > {{pav.timestamp - time_limit}}"},
                  "regex": [{"key": "last_login",
                             "regex": "Last Login: (\\d+)"}]},
-     "run": {"cmds": ["{{sched.test_cmd}} ./test1 $ARGS"],
+     "run": {"cmds": ["{{sched.launch}} ./test1 $ARGS"],
              "env": {"ARGS": "-u {{user}}"},
              "modules": ["gcc"]},
      "variables": {"hours": 5,

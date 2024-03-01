@@ -446,7 +446,7 @@ scheduler, but don't configure one. It's time to rectify that.
             # srun -N 50 -n 150 ./supermagic -a
             # Note that this would run in an sbatch script within an allocation
             # that conforms to the rest of the slurm settings.
-            - {sched.test_cmd} ./supermagic -a
+            - {sched.launch} ./supermagic -a
 
 
 - See ``pav show sched --vars <sched_name>`` for a listing of what variables are

@@ -208,7 +208,7 @@ _base:
     # seconds to update all the information. Sleeping for a few seconds allows for the seff command
     # to report the data accurately.
     cmds:
-      - "{{sched.test_cmd}} ./umt2015-crossroads/Teton/SuOlsonTest {{umt_run.gridfilename}}
+      - "{{sched.launch}} ./umt2015-crossroads/Teton/SuOlsonTest {{umt_run.gridfilename}}
          {{umt_run.groups}} {{umt_run.quadtype}} {{umt_run.order}} {{umt_run.polar}}
          {{umt_run.azim}} ; job_id=${SLURM_JOB_ID}"
       - "sleep 10s"
