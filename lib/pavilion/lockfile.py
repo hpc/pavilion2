@@ -383,6 +383,10 @@ class FuzzyLock:
         self._lockfile.unlink()
         del self._mtimes[self._lockfile]
 
+        # Remove lock directory once it's empty
+        if len(list(self._lock_dir.iterdir())) == 0:
+            self._lock_dir.rmdir()
+
     def _get_earliest(self) -> Path:
         """Get the path to the lockfile that was created first.
 
