@@ -374,14 +374,12 @@ class FuzzyLock:
 
             if self._timeout is not None and self._timeout >= 0 and \
                 (time.time() - start > self._timeout):
-                    raise TimeoutError("Timeout while attempting to acquire lock")
+                raise TimeoutError("Timeout while attempting to acquire lock")
 
             first = self._get_earliest() == self._lockfile
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         # Remove the lockfile, since no longer competing for lock
-        assert(self._lock_dir.exists())
-        assert(self._lockfile.exists())
         self._lockfile.unlink()
         del self._mtimes[self._lockfile]
 
@@ -392,7 +390,7 @@ class FuzzyLock:
 
         for lockfile in self._lock_dir.iterdir():
             if not lockfile in self._mtimes:
-               self._mtimes[lockfile] = lockfile.stat().st_mtime
+                self._mtimes[lockfile] = lockfile.stat().st_mtime
 
         # Sort files by creation time and return oldest
         return sorted(list(self._mtimes.items()), key=lambda x: x[1])[0][0]

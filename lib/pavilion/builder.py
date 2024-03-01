@@ -411,8 +411,9 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
 
-            try: 
-                with FuzzyLock(self.path.parent / f"{self.name}.lock", timeout = LOCK_TIMEOUT_SECONDS):
+            try:
+                with FuzzyLock(self.path.parent / f"{self.name}.lock",
+                    timeout=LOCK_TIMEOUT_SECONDS):
                     # Make sure the build wasn't created while we waited for
                     # the lock.
 
