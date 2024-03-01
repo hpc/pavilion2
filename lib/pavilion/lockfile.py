@@ -388,6 +388,10 @@ class NFSLock:
         # Remove the lockfile, since no longer competing for lock
         self._lockfile.unlink()
 
+        # Remove lock directory once it's empty
+        if len(list(self._lock_dir.iterdir())) == 0:
+            self._lock_dir.rmdir()
+
     def _get_earliest(self) -> Path:
         """Get the path to the lockfile that was created first.
 
