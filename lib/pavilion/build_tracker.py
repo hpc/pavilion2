@@ -7,7 +7,6 @@ from typing import List, ContextManager
 from contextlib import contextmanager
 
 from pavilion.status_file import STATES
-from .lockfile import NFSLock
 
 
 class MultiBuildTracker:

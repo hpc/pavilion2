@@ -21,11 +21,13 @@ import pavilion.config
 import pavilion.errors
 from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
-from pavilion.lockfile import NFSLock
+from pavilion.lockfile import FuzzyLock
 from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
+
+LOCK_TIMEOUT_SECONDS = 5
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -409,14 +411,11 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
 
-            # Pass a timeout here to prevent starvation
-            timed_lock = NFSLock(self.path.parent, self.name, timeout=5)
+            try: 
+                with FuzzyLock(self.path.parent / f"{self.name}.lock", timeout = LOCK_TIMEOUT_SECONDS):
+                    # Make sure the build wasn't created while we waited for
+                    # the lock.
 
-            with timed_lock as acquired:
-                # Make sure the build wasn't created while we waited for
-                # the lock.
-
-                if acquired:
                     if not self.finished_path.exists():
                         tracker.update(
                             state=STATES.BUILDING,
@@ -469,9 +468,10 @@ class TestBuilder:
                             state=STATES.BUILD_REUSED,
                             note="Build {s.name} created while waiting for build "
                                 "lock.".format(s=self))
-                else:
-                    tracker.warn("Timed out when attempting to acquire lock")
-                    return False
+            except TimeoutError:
+                tracker.warn("Timed out while attempting to acquire lock")
+                return False
+
         else:
             tracker.update(
                 note=("Build {s.name} is being reused.".format(s=self)),
