@@ -16,7 +16,7 @@ variables:
         enable-mem-gotcha: False
 
     schedule:
-        wrapper: >-
+        wrapper+: >-
             survey {{ opt(survey.counters, "--counters") }}
             {{ flag(survey.disable-papi-multiplex, "--disable-papi-multiplex") }} 
             {{ flag(survey.disable-papi, "--disable-papi") }} 
