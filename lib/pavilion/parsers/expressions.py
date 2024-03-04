@@ -153,14 +153,14 @@ class BaseExprTransformer(PavTransformer):
             for arg, val in (arg1, val1), (arg2, val2):
                 if isinstance(val, str):
                     raise ParserValueError(
-                        arg, 
+                        arg,
                         f"Math operation given string '{val}', but strings aren't valid "
                          "operands")
                 elif isinstance(val, list):
                     for subval in val:
                         if isinstance(subval, str):
                             raise ParserValueError(
-                                arg, 
+                                arg,
                                 f"Math operation given string '{subval}', but strings aren't valid "
                                  "operands")      
         else:
