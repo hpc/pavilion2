@@ -3,7 +3,7 @@
 import inspect
 import logging
 import re
-from typing import Union, Callable, Any
+from typing import Union, Callable, List, Any
 
 from yapsy import IPlugin
 from ..errors import FunctionPluginError
@@ -60,7 +60,7 @@ def flag(val: str, flag_str: str) -> str:
         raise ValueError(f'Could not convert {val} into boolean-like.')
 
 
-def sopt(val: Union[str, list[str]], option_str: str) -> str:
+def sopt(val: Union[str, List[str]], option_str: str) -> str:
     """Return an option string for a variable, if it has a non-null value,
     or an empty string otherwise. For a list, create separate option string
     for each value in the list."""
