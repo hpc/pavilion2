@@ -162,7 +162,7 @@ class BaseExprTransformer(PavTransformer):
                             raise ParserValueError(
                                 arg,
                                 f"Math operation given string '{subval}', but strings aren't valid "
-                                 "operands")      
+                                 "operands")
         else:
             val1 = arg1.value
             val2 = arg2.value
