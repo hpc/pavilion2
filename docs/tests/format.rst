@@ -190,6 +190,7 @@ Items in the config that can take a list can be extended by a list variable.
         build:
             modules:
                 - openmpi
+                # All the values from the 'extra_modules' variable will be added to the list.
                 - '{{ extra_modules.* }}'
 
 Hidden Tests
