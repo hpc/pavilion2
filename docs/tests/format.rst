@@ -174,6 +174,24 @@ automatically interprets that as a list of that single value.
             - {bar: 2}
           baz: {buz: "hello"}
 
+Extending Config Lists
+^^^^^^^^^^^^^^^^^^^^^^
+
+Items in the config that can take a list can be extended by a list variable.
+
+.. code:: yaml
+
+    mytest:
+        variables:
+            extra_modules:
+                - intel
+                - intel-mkl
+
+        build:
+            modules:
+                - openmpi
+                - '{{ extra_modules.* }}'
+
 Hidden Tests
 ------------
 

@@ -136,14 +136,24 @@ class ParserTests(unittest.PavTestCase):
         '[1, 2, 3, 4] * [4, 4, 2, 1]': [4, 8, 6, 4],
         '[1, 2, 3, 4] < 3 < 10 < [10, 11, 12, 13]': [False, True, False, False],
         '[1, "foo", False, 0, ""] and 2': [True, True, False, False, False],
+
+        # Concatenation
+        '"abc" .. "def"': "abcdef",
+        '[1, 2, 3] .. [4, 5, 6]': [1, 2, 3, 4, 5, 6],
+        '"a" .. ["b"] .. "c" .. ["d", "e"]': ['abc', 'd', 'e'],
     }
 
     def test_good_expressions(self):
         """Make sure good expressions work as expected."""
+        import logging
+        from lark import Lark, logger
+
+        logger.setLevel(logging.DEBUG)
 
         expr_parser = lark.Lark(
             grammar=parsers.expressions.EXPR_GRAMMAR,
             parser='lalr',
+            debug=True,
         )
         trans = parsers.expressions.ExprTransformer(self.var_man)
 
@@ -186,10 +196,10 @@ class ParserTests(unittest.PavTestCase):
         '1 2': 'Invalid Syntax',
         'a b': 'Invalid Syntax',
         'True False': 'Invalid Syntax',
-        '"hello" + 1': "Non-numeric value 'hello' in math operation.",
-        '"hello" * 1': "Non-numeric value 'hello' in math operation.",
-        '"hello" ^ 1': "Non-numeric value 'hello' in math operation.",
-        '-"hello"': "Non-numeric value 'hello' in math operation.",
+        '"hello" + 1': "Math operation given string",
+        '"hello" * 1': "Math operation given string",
+        '"hello" ^ 1': "Math operation given string",
+        '-"hello"': "Math operation given string",
         'var.1.2.3.4.5': "Invalid variable 'var.1.2.3.4.5': too many name "
                          "parts.",
         'var.structs.0.*': "Could not resolve reference 'var.structs.0.*': "
@@ -200,10 +210,8 @@ class ParserTests(unittest.PavTestCase):
                          'floor. Got 2, but expected 1',
         '[1, 2, 3] + [1, 2]': "List operations must be between two equal "
                               "length lists. Arg1 had 3 values, arg2 had 2.",
-        '[1, "foo", 3] * 2': "Non-numeric value 'foo' in list in math "
-                             "operation.",
-        '3 + [1, "foo", 3]': "Non-numeric value 'foo' in list in math "
-                             "operation.",
+        '[1, "foo", 3] * 2': "Math operation given string",
+        '3 + [1, "foo", 3]': "Math operation given string",
 
     }
 
@@ -266,6 +274,11 @@ class ParserTests(unittest.PavTestCase):
             '${hello}': '${hello}',
             'also{': 'also{',
             '[0-9]': '[0-9]',
+            # Allow strings to return a list if it's just the list expression and whitespace.
+            ' {{ ints.* }} \n': ['0', '1', '2', '3', '4', '5'],
+            '{{ ints.* }}': ['0', '1', '2', '3', '4', '5'],
+            '{{ ints.* :02d}}': ['00', '01', '02', '03', '04', '05'],
+
         }
 
         for expr, result in self.GOOD_EXPRESSIONS.items():
@@ -315,6 +328,12 @@ class ParserTests(unittest.PavTestCase):
             # Bad expression
             '{{ nope }}': "Could not find a variable named 'nope' in any "
                           "variable set.",
+
+            # Lists are allowed, but they can't have anything other than whitespace in the string.
+            'nope{{ ints.* }}': "Value resolved to a list, but also contained none-whitespace.",
+            # Only a single list is allowed.
+            '{{ ints.* }} {{ints.*}}': "Value contained multiple expressions that resolved to lists.",
+
         }
 
         for expr, expected in self.BAD_EXPRESSIONS.items():
