@@ -23,7 +23,7 @@ are often deferred. All other variables should not be deferred.
 
 This class is meant to be inherited from - each scheduler can provide its own set of variables
 in addition to these defaults, and may also provide different implementations of
-each variable. Most schedulers can get away with overriding one variable - the 'test_cmd'
+each variable. Most schedulers can get away with overriding one variable - the 'launch'
 method. See the documentation for that method below for more information.
 
 Return values of all variables should be the same format as those allowed by regular test
@@ -155,7 +155,7 @@ each test right before it runs on an allocation in order to un-defer values.
 
         return self._sched_config['partition'] or ''
 
-    def _test_cmd(self):
+    def _launch(self):
         """The command to prepend to a line to kick it off under the scheduler.
 
         This should return the command needed to start one or more MPI processes within
@@ -177,13 +177,13 @@ each test right before it runs on an allocation in order to un-defer values.
         return ''
 
     @var_method
-    def test_cmd(self):
+    def launch(self):
         """Calls the actual test command and then wraps the result with the wrapper
         provided in the schedule section of the configuration."""
 
         # Removes all the None values to avoid getting a TypeError while trying to
         # join two commands
-        return ''.join(filter(lambda item: item is not None, [self._test_cmd(),
+        return ''.join(filter(lambda item: item is not None, [self._launch(),
                               self._sched_config['wrapper']]))
 
     @dfr_var_method
