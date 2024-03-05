@@ -291,9 +291,6 @@ class BuilderTests(PavTestCase):
         self._quick_test(config, build=False, finalize=False)
         self.assertEqual(orig_time, expected_path.stat().st_mtime)
 
-        if expected_path.exists():
-            expected_path.unlink()
-
         # Here it should be updated. We're playing a weird trick here though,
         # by pointing to a completely different url.
         config = copy.deepcopy(config)
