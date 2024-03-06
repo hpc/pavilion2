@@ -36,6 +36,13 @@ def num(val):
     raise RuntimeError("Invalid value '{}' given to num.".format(val))
 
 
+class Opt:
+    """An optional arg spec, the contained spec is checked if the value is given."""
+
+    def __init__(self, sub_spec):
+        self.sub_spec = sub_spec
+
+
 class FunctionPlugin(IPlugin.IPlugin):
     """Plugin base class for math functions.
 
@@ -51,6 +58,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         str,
         bool,
         num,
+        Opt,
         None
     )
 
@@ -130,7 +138,6 @@ class FunctionPlugin(IPlugin.IPlugin):
             dicts, and types from self.VALID_SPEC_TYPES.
 
             - Lists should contain one representative containing type.
-            - Dicts should have at least one key-value pair (with string keys).
             - Dict specs don't have to contain every key the dict might have,
               just those that will be used.
             - Specs may be any structure of these types, as long
@@ -139,11 +146,15 @@ class FunctionPlugin(IPlugin.IPlugin):
               or bool. ints and floats are left alone, bools become
               ints, and strings become an int or a float if they can.
             - 'None' may be given as the type of contained items for lists
-              or dicts, denoting that contained type doesn't matter.
+              or dicts, denoting that contained type doesn't matter. Dict
+              specs can similarly contain no items.
         :raises FunctionPluginError: On a bad arg spec.
         """
 
-        if isinstance(arg, list):
+        if isinstance(arg, Opt):
+            self._validate_arg_spec(arg.sub_spec)
+
+        elif isinstance(arg, list):
             if len(arg) != 1:
                 raise FunctionPluginError(
                     "Invalid list spec argument. List arguments must contain "
@@ -153,12 +164,6 @@ class FunctionPlugin(IPlugin.IPlugin):
             self._validate_arg_spec(arg[0])
 
         elif isinstance(arg, dict):
-            if len(arg) == 0:
-                raise FunctionPluginError(
-                    "Invalid dict spec argument. Dict arguments must contain "
-                    "at least one key-value pair. This had '{}'."
-                    .format(arg)
-                )
             for key, sub_arg in arg.items():
                 self._validate_arg_spec(sub_arg)
 
@@ -182,7 +187,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         """Validate/convert the arguments and call the function."""
 
         if self.arg_specs is not None:
-            if len(args) != len(self.arg_specs):
+            if len(args) > len(self.arg_specs):
                 raise FunctionPluginError(
                     "Invalid number of arguments defined for function {}. Got "
                     "{}, but expected {}"
@@ -243,6 +248,8 @@ class FunctionPlugin(IPlugin.IPlugin):
             return [self._spec_to_desc(spec[0])]
         elif isinstance(spec, dict):
             return {k: self._spec_to_desc(v) for k, v in spec.items()}
+        elif isinstance(spec, Opt):
+            return self._spec_desc(spec.sub_spec + '?')
         elif spec is None:
             return 'Any'
         else:
@@ -257,6 +264,9 @@ class FunctionPlugin(IPlugin.IPlugin):
             this argument.
         :return: The validated, auto-converted argument.
         """
+        
+        if isinstance(spec, Opt):
+            return self._validate_arg(arg, spec.sub_spec)
 
         if isinstance(spec, list):
             if not isinstance(arg, list):
@@ -290,13 +300,13 @@ class FunctionPlugin(IPlugin.IPlugin):
                         .format(arg, key))
 
                 try:
-                    val_args[key] = self._validate_arg(arg[key], sub_spec)
+                    self._validate_arg(arg[key], sub_spec)
                 except FunctionPluginError as err:
                     raise FunctionPluginError(
                         "Invalid dict argument '{}' for key '{}'"
                         .format(arg[key], key), err)
 
-            return val_args
+            return arg
 
         if spec is None:
             # None denotes to leave the argument alone.

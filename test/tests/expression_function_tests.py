@@ -48,7 +48,13 @@ class ExprFuncTests(PavTestCase):
             'outliers': [(([1, 2, 3, 4, 5, 6, 7, 99, 108],
                            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
                            1.5),
-                          {'h': 1.7581382586345833, 'i': 1.9752254521550119})]
+                          {'h': 1.7581382586345833, 'i': 1.9752254521550119})],
+            'high_pass_filter': [(({'a': 1, 'b': 2, 'c': 3}, 2), {'c': 3}),
+                                 (({'a': {'i': 1}, 'b': {'i': 2}}, 1.5, 'i'), {'b': {'i': 2}})],
+            'low_pass_filter': [(({'a': 1, 'b': 2, 'c': 3}, 2), {'a': 1}),
+                                (({'a': {'i': 1}, 'b': {'i': 2}}, 1.5, 'i'), {'a': {'i': 1}})],
+
+
         }
 
         exp_funcs = expression_functions.list_plugins()
@@ -72,10 +78,13 @@ class ExprFuncTests(PavTestCase):
                 try:
                     result = func(*args)
                 except Exception as err:
+                    raise
                     self.fail("Error evaluating function '{}' with args '{}': {}"
                               .format(func_name, args, err.args[0]))
                 if answer is None:
                     continue
 
-                self.assertEqual(result, answer)
+                self.assertEqual(result, answer, 
+                                 msg="Result for func {} does not match: {} != {}"
+                                     .format(func_name, result, answer))
                 self.assertEqual(type(result), type(answer))

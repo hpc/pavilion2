@@ -31,3 +31,7 @@ permuted:
         result: 'world < 50 * {{var1}}'
         other: 'world * {{var1}} + {{var2}}'
 
+
+complex:
+  result_evaluate:
+    result: '0 == 0'
