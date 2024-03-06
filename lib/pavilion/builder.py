@@ -412,8 +412,8 @@ class TestBuilder:
                 note="Waiting on lock for build {}.".format(self.name))
 
             try:
-                with FuzzyLock(self.path.parent / f"{self.name}.lock",
-                    timeout=LOCK_TIMEOUT_SECONDS):
+                with mb_tracker.make_lock_context(self.build_hash, timeout=LOCK_TIMEOUT_SECONDS) as local_lock, \
+                FuzzyLock(self.path.parent / f"{self.name}.lock", timeout=LOCK_TIMEOUT_SECONDS) as global_lock:
                     # Make sure the build wasn't created while we waited for
                     # the lock.
 
@@ -438,6 +438,7 @@ class TestBuilder:
                                 return False
 
                         if not self._build(self.path, cancel_event, test_id, tracker):
+                            import pdb; pdb.set_trace()
 
                             try:
                                 self.path.rename(self.fail_path)
