@@ -48,7 +48,7 @@ class TestSet:
                  not_if: Dict[str, List[str]] = None,
                  overrides: List = None,
                  parents_must_pass: bool = False,
-                 simultaneous: Union[int, None] = None,
+                 simultaneous: Union[List[int], None] = None,
                  ignore_errors: bool = False,
                  outfile: TextIO = StringIO(),
                  verbosity=Verbose.QUIET):
