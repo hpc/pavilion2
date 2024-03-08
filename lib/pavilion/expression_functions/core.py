@@ -362,13 +362,13 @@ class Sqrt(CoreFunctionPlugin):
 
 
 class HighPassFilter(CoreFunctionPlugin):
-    """Given the 'value_dict', return a new dictionary that contains only 
+    """Given the 'value_dict', return a new dictionary that contains only
     items that exceed 'limit'. For dicts of dicts, you must specify an item_key
     to check limit against.
 
     Examples:
      Given dict 'data={a: 1, b: 2, c: 3, d: 4}',
-     `high_pass_filter(data, 3)` would return a dict with 
+     `high_pass_filter(data, 3)` would return a dict with
      the 'c' and 'd' keys removed.
 
      Given dict 'data={foo: {a: 5}, bar: {a: 100}}, baz: {a: 20}}'
@@ -379,7 +379,7 @@ class HighPassFilter(CoreFunctionPlugin):
         super().__init__(
             'high_pass_filter',
             arg_specs=({}, num, Opt(str)))
-            
+
     @staticmethod
     def high_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
         """Return only items > limit"""
@@ -389,11 +389,12 @@ class HighPassFilter(CoreFunctionPlugin):
             if isinstance(values, dict):
                 if item_key is None:
                     raise FunctionArgError("value_dict contained a dict, but no key was specified.")
-        
+
                 value = values.get(item_key)
             else:
                 if item_key is not None:
-                    raise FunctionArgError("value_dict contained a non-dictionary, but a key was specified.")
+                    raise FunctionArgError(
+                        "value_dict contained a non-dictionary, but a key was specified.")
 
                 value = values
 
@@ -409,7 +410,7 @@ class HighPassFilter(CoreFunctionPlugin):
 
 
 class LowPassFilter(CoreFunctionPlugin):
-    """Given the 'value_dict', return a new dictionary that contains only 
+    """Given the 'value_dict', return a new dictionary that contains only
     items that are less than 'limit'. For dicts of dicts, you must specify
     a sub-key to check 'limit' against. See 'high_pass_filter' for examples."""
 
@@ -417,7 +418,7 @@ class LowPassFilter(CoreFunctionPlugin):
         super().__init__(
             'low_pass_filter',
             arg_specs=({}, num, Opt(str)))
-            
+
     @staticmethod
     def low_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
         """Return only items > limit"""
@@ -427,11 +428,12 @@ class LowPassFilter(CoreFunctionPlugin):
             if isinstance(values, dict):
                 if item_key is None:
                     raise FunctionArgError("value_dict contained a dict, but no key was specified.")
-        
+
                 value = values.get(item_key)
             else:
                 if item_key is not None:
-                    raise FunctionArgError("value_dict contained a non-dictionary, but a key was specified.")
+                    raise FunctionArgError(
+                        "value_dict contained a non-dictionary, but a key was specified.")
 
                 value = values
 

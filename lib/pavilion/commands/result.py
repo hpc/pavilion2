@@ -44,7 +44,7 @@ class ResultsCommand(Command):
             help="Give the results in json."
         )
         parser.add_argument(
-            "--by-key", type=str, default='', 
+            "--by-key", type=str, default='',
             help="Show the data in the given results key instead of the regular results. \n"
                  "Such keys must contain a dictionary of dictionaries. Use the `--by-key-compat`\n"
                  "argument to find out which keys are compatible. Results from all matched \n"

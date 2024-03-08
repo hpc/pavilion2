@@ -45,7 +45,7 @@ class Opt:
         :param sub_spec: The type of the argument spec to accept.
                          Ex:  Opt(int) or Opt([str])
         """
-        
+
         self.sub_spec = sub_spec
 
 
@@ -270,7 +270,7 @@ class FunctionPlugin(IPlugin.IPlugin):
             this argument.
         :return: The validated, auto-converted argument.
         """
-        
+
         if isinstance(spec, Opt):
             return self._validate_arg(arg, spec.sub_spec)
 
