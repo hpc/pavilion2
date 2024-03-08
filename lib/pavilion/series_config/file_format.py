@@ -18,7 +18,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                     yc.BoolElem('depends_pass', default=False),
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
-                    yc.ListElem('simultaneous', sub_elem=yc.StrElem()),
+                    yc.IntElem('simultaneous', default=None),
                     CondCategoryElem(
                         'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                         key_case=EnvCatElem.KC_MIXED

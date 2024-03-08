@@ -283,13 +283,12 @@ differentiate it from test ids."""
                 parents_must_pass=set_info['depends_pass'],
                 overrides=self.config.get('overrides', []),
                 status=self.status,
-                simultaneous=self.simultaneous,
+                simultaneous=set_info['simultaneous'] if set_info['simultaneous'] else self.simultaneous,
                 outfile=self.outfile,
                 verbosity=self.verbosity,
                 ignore_errors=self.ignore_errors,
             )
             self._add_test_set(set_obj)
-
             depends_on[set_name] = set_info['depends_on']
             for parent in set_info['depends_on']:
                 depended_on_by[parent].add(set_name)
@@ -583,6 +582,7 @@ differentiate it from test ids."""
             self, name, test_names: List[str], modes: List[str] = None,
             only_if: Dict[str, List[str]] = None,
             not_if: Dict[str, List[str]] = None,
+            simultaneous: int = None,
             save: bool = True,
             _depends_on: List[str] = None, _depends_pass: bool = False):
         """Manually add a test set to this series. The set will be added to the
@@ -594,6 +594,7 @@ differentiate it from test ids."""
         :param modes: A List of modes to add.
         :param only_if: Only if conditions
         :param not_if:  Not if conditions
+        :param simultaneous: Number of tests within the test set to run simultaneously. 
         :param save: Save the series config after adding the test set. Setting this
             to false is useful if you want to add multiple configs before saving.
         :param _depends_on: A list of test names that this test depends on. For
@@ -613,6 +614,7 @@ differentiate it from test ids."""
             'modes': modes or [],
             'only_if': only_if or {},
             'not_if': not_if or {},
+            'simulteneous': simultaneous, 
         }
 
         if save:
