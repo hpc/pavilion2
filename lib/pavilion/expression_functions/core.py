@@ -4,7 +4,7 @@ loading."""
 import math
 import random
 import re
-from typing import List
+from typing import List, Dict, Union
 
 from .base import FunctionPlugin, num, Opt
 from ..errors import FunctionPluginError, FunctionArgError
@@ -381,7 +381,7 @@ class HighPassFilter(CoreFunctionPlugin):
             arg_specs=({}, num, Opt(str)))
             
     @staticmethod
-    def high_pass_filter(value_dict, limit, item_key=None):
+    def high_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
         """Return only items > limit"""
 
         new_dict = {}
@@ -419,7 +419,7 @@ class LowPassFilter(CoreFunctionPlugin):
             arg_specs=({}, num, Opt(str)))
             
     @staticmethod
-    def low_pass_filter(value_dict, limit, item_key=None):
+    def low_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
         """Return only items > limit"""
 
         new_dict = {}
