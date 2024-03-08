@@ -67,6 +67,7 @@ identically to Python3 (with one noted exception). This includes:
 - Power operations, though Pavilion uses ``^`` to denote these. ``a ^ 3``
 - Logical operations ``a and b or not False``.
 - Parenthetical expressions ``a * (b + 1)``
+- Concatenation ``"hello " .. "world"`` and ``[1, 2 ,3] .. [4, 5, 6]``
 
 List Operations
 ```````````````
