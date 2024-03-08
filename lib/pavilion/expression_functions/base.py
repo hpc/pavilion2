@@ -39,7 +39,12 @@ def num(val):
 class Opt:
     """An optional arg spec, the contained spec is checked if the value is given."""
 
-    def __init__(self, sub_spec):
+    def __init__(self, sub_spec: Any):
+        """
+        :param sub_spec: The type of the argument spec to accept.
+                         Ex:  Opt(int) or Opt([str])
+        """
+        
         self.sub_spec = sub_spec
 
 
