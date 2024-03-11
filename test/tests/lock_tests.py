@@ -151,6 +151,7 @@ class TestLocking(PavTestCase):
 
         num_threads = 3
         sleep_time = 1
+        repeats = 10
 
         with self.assertRaises(TimeoutError):
             with lockfile.FuzzyLock(self.lock_dir):
@@ -160,22 +161,28 @@ class TestLocking(PavTestCase):
             f.unlink()
 
         def sleep_lock(idx, results):
-            with lockfile.FuzzyLock(self.lock_dir):
-                time.sleep(sleep_time)
+            with lockfile.FuzzyLock(self.lock_dir, timeout=10) as lock:
                 results[idx] = True
 
-        threads = []
-        results = [False] * num_threads
+        # Do this several times to account for indeterminacy
+        for _ in range(repeats):
 
-        for i in range(num_threads):
-            thread = Thread(target=sleep_lock, args=(i, results))
-            threads.append(thread)
-            thread.start()
+            if self.lock_dir.exists():
+                for f in self.lock_dir.iterdir():
+                    f.unlink()
 
-        # map(lambda x: x.join(), threads)
-        time.sleep(num_threads * sleep_time * 1.5)
+            threads = []
+            results = [False] * num_threads
 
-        self.assertTrue(all(results))
+            for i in range(num_threads):
+                thread = Thread(target=sleep_lock, args=(i, results))
+                threads.append(thread)
+                thread.start()
+
+            for t in threads:
+                t.join()
+
+            self.assertTrue(all(results))
 
     def test_fuzzylock_cleanup(self):
         # Test that the FuzzyLock object removes its lockfiles and directories

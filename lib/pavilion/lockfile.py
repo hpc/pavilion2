@@ -338,7 +338,7 @@ class FuzzyLock:
     related to NFS, particularly in the case where multiple Pavilion instances are working with
     the same build. Intended to be invoked as a context manager, using the 'with' keyword.
     """
-    def __init__(self, lock_dir: Path, wait_time: float = 0.5, timeout: Optional[float] = None):
+    def __init__(self, lock_dir: Path, wait_time: float = 0.5, timeout: Optional[float] = None, verbose = False):
         """
         :param lock_dir: directory in which lockfiles will be created
         :param wait_time: time to wait between checking status
@@ -348,11 +348,12 @@ class FuzzyLock:
         self._lock_dir = lock_dir
         self._wait_time = wait_time
         self._timeout = timeout
+        self._verbose = verbose
+
         self._mtimes = {} # type: Dict[Path, float]
 
         # create a (statistically) unique lockfile
         self._lockfile = lock_dir / f"{uuid4().hex[-16:]}.lock"
-        self._lockfile = lock_dir / f"{uuid4().hex}.lock"
 
     def __enter__(self) -> 'FuzzyLock':
         """
@@ -376,12 +377,27 @@ class FuzzyLock:
                 (time.time() - start > self._timeout):
                 raise TimeoutError("Timeout while attempting to acquire lock")
 
-            first = self._get_earliest() == self._lockfile
+            lfiles = list(self._lock_dir.iterdir())
+
+            if self._verbose:
+                print(f"FuzzyLock: {len(lfiles)} lockfiles present: {list(map(lambda x: x.name, lfiles))}")
+
+            earliest = self._get_earliest()
+            first = (earliest == self._lockfile)
+
+            if self._verbose: 
+                print(f"Earliest: {earliest.name}")
+                print(f"This: {self._lockfile.name}")
+                print(f"mtimes size: {len(self._mtimes.items())}")
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         # Remove the lockfile, since no longer competing for lock
+
+        if self._verbose:
+            print(f"Deleting {self._lockfile.name}...")
+
         self._lockfile.unlink()
         del self._mtimes[self._lockfile]
 
@@ -394,9 +410,25 @@ class FuzzyLock:
 
         :return: Path object to whichever lockfile was created first"""
 
-        for lockfile in self._lock_dir.iterdir():
-            if not lockfile in self._mtimes:
-                self._mtimes[lockfile] = lockfile.stat().st_mtime
+        lfiles = self._lock_dir.iterdir()
+
+        for lockfile in self._mtimes.items():
+            if lockfile not in lfiles:
+                try:
+                    del self._mtimes[lockfile]
+                except KeyError:
+                    # Item has been deleted in another thread;
+                    # can be safely igored
+                    pass
+
+        for lockfile in lfiles:
+            if lockfile not in self._mtimes:
+                try:
+                    self._mtimes[lockfile] = lockfile.stat().st_mtime
+                except FileNotFoundError:
+                    # File has been deleted since walking directory;
+                    # can be safely ignored
+                    pass
 
         # Sort files by creation time and return oldest
         return sorted(list(self._mtimes.items()), key=lambda x: x[1])[0][0]
