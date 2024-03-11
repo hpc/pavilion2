@@ -65,7 +65,7 @@ class MultiBuildTracker:
 
             if not acquired:
                 raise TimeoutError("Unable to acquire local lock.")
-                
+
             yield
         finally:
             if acquired:
