@@ -200,9 +200,9 @@ class TestLocking(PavTestCase):
 
             with lockfile.FuzzyLock(self.lock_dir) as lock:
                 file = lock._lockfile
-                print(f'Num files: {len(list(self.lock_dir.iterdir()))}')
 
-            results[i] = file.exists()
+            # File should be removed upon exit from lock context
+            results[idx] = file.exists()
 
         threads = []
 
