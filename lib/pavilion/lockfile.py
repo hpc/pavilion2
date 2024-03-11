@@ -338,7 +338,8 @@ class FuzzyLock:
     related to NFS, particularly in the case where multiple Pavilion instances are working with
     the same build. Intended to be invoked as a context manager, using the 'with' keyword.
     """
-    def __init__(self, lock_dir: Path, wait_time: float = 0.5, timeout: Optional[float] = None, verbose = False):
+    def __init__(self, lock_dir: Path, wait_time: float = 0.5,
+     timeout: Optional[float] = None, verbose = False):
         """
         :param lock_dir: directory in which lockfiles will be created
         :param wait_time: time to wait between checking status
@@ -380,12 +381,13 @@ class FuzzyLock:
             lfiles = list(self._lock_dir.iterdir())
 
             if self._verbose:
-                print(f"FuzzyLock: {len(lfiles)} lockfiles present: {list(map(lambda x: x.name, lfiles))}")
+                print(f"FuzzyLock: {len(lfiles)} lockfiles present: \
+                 {list(map(lambda x: x.name, lfiles))}")
 
             earliest = self._get_earliest()
             first = (earliest == self._lockfile)
 
-            if self._verbose: 
+            if self._verbose:
                 print(f"Earliest: {earliest.name}")
                 print(f"This: {self._lockfile.name}")
                 print(f"mtimes size: {len(self._mtimes.items())}")
