@@ -403,16 +403,22 @@ class FuzzyLock:
 
         # Remove lock directory once it's empty
         if len(list(self._lock_dir.iterdir())) == 0:
-            self._lock_dir.rmdir()
+            try:
+                self._lock_dir.rmdir()
+            except FileNotFoundError:
+                # Another thread or process has removed the directory;
+                # can be safely ignored
+                pass
 
     def _get_earliest(self) -> Path:
         """Get the path to the lockfile that was created first.
 
         :return: Path object to whichever lockfile was created first"""
 
-        lfiles = self._lock_dir.iterdir()
+        lfiles = list(self._lock_dir.iterdir())
+        dict_keys = list(self._mtimes.keys())
 
-        for lockfile in self._mtimes.items():
+        for lockfile in dict_keys:
             if lockfile not in lfiles:
                 try:
                     del self._mtimes[lockfile]
