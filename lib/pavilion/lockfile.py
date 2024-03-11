@@ -343,7 +343,7 @@ class FuzzyLock:
         :param lock_dir: directory in which lockfiles will be created
         :param wait_time: time to wait between checking status
         :param timeout: time (in seconds) after which the lock times out.
-            A value of -1 indicates no timeout
+            None may be passed to indicate no timeout.
         """
         self._lock_dir = lock_dir
         self._wait_time = wait_time
@@ -354,7 +354,7 @@ class FuzzyLock:
         self._lockfile = lock_dir / f"{uuid4().hex[-16:]}.lock"
         self._lockfile = lock_dir / f"{uuid4().hex}.lock"
 
-    def __enter__(self) -> None:
+    def __enter__(self) -> 'FuzzyLock':
         """
         Attempt to acquire the lock.
 
@@ -377,6 +377,8 @@ class FuzzyLock:
                 raise TimeoutError("Timeout while attempting to acquire lock")
 
             first = self._get_earliest() == self._lockfile
+
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         # Remove the lockfile, since no longer competing for lock
