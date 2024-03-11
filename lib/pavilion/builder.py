@@ -27,7 +27,6 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
 
-LOCK_TIMEOUT_SECONDS = 5
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -412,8 +411,8 @@ class TestBuilder:
                 note="Waiting on lock for build {}.".format(self.name))
 
             try:
-                with mb_tracker.make_lock_context(self.build_hash, timeout=LOCK_TIMEOUT_SECONDS) as local_lock, \
-                FuzzyLock(self.path.parent / f"{self.name}.lock", timeout=LOCK_TIMEOUT_SECONDS) as global_lock:
+                with mb_tracker.make_lock_context(self.build_hash) as local_lock, \
+                FuzzyLock(self.path.parent / f"{self.name}.lock") as global_lock:
                     # Make sure the build wasn't created while we waited for
                     # the lock.
 
@@ -438,7 +437,6 @@ class TestBuilder:
                                 return False
 
                         if not self._build(self.path, cancel_event, test_id, tracker):
-                            import pdb; pdb.set_trace()
 
                             try:
                                 self.path.rename(self.fail_path)
