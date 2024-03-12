@@ -893,7 +893,7 @@ class ResultParserTests(PavTestCase):
         """Check basic re functionality."""
 
         answers = {
-            'hello': '33',
+            'hello': 33,
             'ip': '127.33.123.43',
             'all_escapes': r'.^$*\+?\{}\[]|'
         }
