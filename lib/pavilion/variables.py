@@ -179,28 +179,52 @@ index, sub_var) tuple.
         else:
             raise KeyError("No variable name given for key '{}'".format(key))
 
-        # Grab the index and sub_var parts, if present.
         index = None
-        if parts:
-            if parts[0] is None:
-                # We were given an explicit None in a variable tuple.
-                parts.pop(0)
-            elif parts[0] == '':
-                # Note: The index is optional. This is for when it's given as
-                # an empty string.
-                raise KeyError("Invalid, empty index in key: '{}'".format(key))
-            else:
-                try:
-                    # This denotes that all values should be returned.
-                    if parts[0] == '*':
-                        index = '*'
-                    else:
-                        index = int(parts[0])
-                except ValueError:
-                    # If it's not an integer, assume it's a sub_key.
-                    pass
+        if '[' in var or ']' in var:
+            orig_var = var
+            var, slice_ = var.split('[', 1)
+            if ('[' in slice_ or slice_.count(']') != 1
+                    or slice_.count(':') > 1 or not slice_.endswith(']')):
+                raise KeyError("Malformed slice '{}' for variable '{}'".format(slice_, orig_var))
+
+            slice_ = slice_[:-1]
+            if ':' in slice_:
+                start, end = slice_.split(':', 1)
+                if not start:
+                    start = None
                 else:
+                    start = int(start)
+                if not end:
+                    end = None
+                else:
+                    end = int(end)
+                index = (start, end)
+            else:
+                index = int(slice_)
+        else:
+            # Grab the index and sub_var parts in the old style, if present
+            if parts:
+                if parts[0] is None:
+                    # We were given an explicit None in a variable tuple.
                     parts.pop(0)
+                elif isinstance(parts[0], tuple):
+                    index = parts.pop(0)
+                elif parts[0] == '':
+                    # Note: The index is optional. This is for when it's given as
+                    # an empty string.
+                    raise KeyError("Invalid, empty index in key: '{}'".format(key))
+                else:
+                    try:
+                        # This denotes that all values should be returned.
+                        if parts[0] == '*':
+                            index = '*'
+                        else:
+                            index = int(parts[0])
+                    except ValueError:
+                        # If it's not an integer, assume it's a sub_key.
+                        pass
+                    else:
+                        parts.pop(0)
 
         sub_var = None
         if parts:
@@ -874,6 +898,22 @@ end up as a list (of one)."""
 
         if index == '*':
             return [data.get(sub_var) for data in self.data]
+        elif isinstance(index, tuple):
+            item_count = len(self.data)
+            start, end = index
+
+            start = 0 if start is None else start
+            start = max(item_count + start if start < 0 else start, 0)
+
+            end = item_count if end is None else end
+            end = max(item_count + end  if end < 0 else end, 0)
+
+            items = []
+            for idx in range(start, end):
+                data = self.data[idx]
+                items.append(data.get(sub_var))
+            return items
+
         else:
             return self[index].get(sub_var)
 
@@ -894,6 +934,10 @@ end up as a list (of one)."""
         return var_list
 
     def __getitem__(self, index):
+        item_count = len(self.data)
+
+        if item_count == 0:
+            raise KeyError('Variable is empty.')
 
         if index is None:
             index = 0
@@ -901,12 +945,10 @@ end up as a list (of one)."""
             if not isinstance(index, int):
                 raise KeyError("Non-integer index given: '{}'".format(index))
 
-        if len(self.data) == 0:
-            raise KeyError('Variable is empty.')
-        elif not -len(self.data) <= index < len(self.data):
-            raise KeyError(
-                "Index out of range. There are only {} items in this variable."
-                .format(len(self.data)))
+            if not -len(self.data) <= index < len(self.data):
+                raise KeyError(
+                    "Index out of range. There are only {} items in this variable."
+                    .format(len(self.data)))
 
         return self.data[index]
 

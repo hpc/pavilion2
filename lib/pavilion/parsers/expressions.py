@@ -40,12 +40,14 @@ conc_expr: primary (CONCAT primary)*
 primary: literal
        | var_ref
        | negative
-       | "(" expr ")"
+       | paren_expr
        | function_call
        | list_
 
+paren_expr: OPEN_PAREN expr CLOSE_PAREN
+
 // A function call can contain zero or more arguments.
-function_call: NAME "(" (expr ("," expr)*)? ")"
+function_call: NAME OPEN_PAREN (expr ("," expr)*)? CLOSE_PAREN ( slice | ("." var_key)* )?
 
 negative: (MINUS|PLUS) primary
 
@@ -60,10 +62,12 @@ list_: L_BRACKET (expr ("," expr)* ","?)? R_BRACKET
 
 // Variable references are kept generic. We'll use this both
 // for Pavilion string variables and result calculation variables.
-var_ref: NAME ("." var_key)*
-var_key: NAME
+var_ref: NAME slice? ("." var_key)*
+var_key: NAME slice?
         | INTEGER
         | TIMES
+
+slice: L_BRACKET expr? (COLON expr?)? R_BRACKET
 
 // Strings can contain anything as long as they don't end in an odd
 // number of backslashes, as that would escape the closing quote.
@@ -73,6 +77,9 @@ ESCAPED_STRING : "\"" _STRING_ESC_INNER "\""
 
 L_BRACKET: "["
 R_BRACKET: "]"
+OPEN_PAREN: "("
+CLOSE_PAREN: ")"
+COLON: ":"
 PLUS: "+"
 MINUS: "-"
 TIMES: "*"
@@ -411,6 +418,12 @@ class BaseExprTransformer(PavTransformer):
         # the parenthesis aren't captured as tokens.
         return items[0]
 
+    def paren_expr(self, items) -> lark.Token:
+        """Just return the middle item, and ignore the parenthesis.  They're resolved via
+        the structure of the parse tree."""
+
+        return items[1]
+
     def negative(self, items) -> lark.Token:
         """
         :param list[lark.Token] items:
@@ -452,7 +465,15 @@ class BaseExprTransformer(PavTransformer):
         """
 
         func_name = items[0].value
-        args = [tok.value for tok in items[1:]]
+
+        # Find the closing parenthesis. Everything that comes after is a value navigation.
+        for idx, tok in enumerate(items):
+            if tok.type == 'CLOSE_PAREN':
+                paren_idx = idx
+                break
+
+        args = [tok.value for tok in items[2:paren_idx]]
+        ref_parts = items[paren_idx+1:]
 
         try:
             func = functions.get_plugin(func_name)
@@ -473,7 +494,9 @@ class BaseExprTransformer(PavTransformer):
             # The function plugins give a reasonable message.
             raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 
-        return self._merge_tokens(items, result)
+        final_result = self._resolve_ref(result, ref_parts)
+
+        return self._merge_tokens(items, final_result)
 
     def INTEGER(self, tok) -> lark.Token:
         """Convert to an int.
@@ -509,6 +532,122 @@ class BaseExprTransformer(PavTransformer):
         tok.value = ast.literal_eval('r' + tok.value)
         return tok
 
+    def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
+                     allow_listing: bool = True):
+        """Recursively resolve a value reference by navigating dicts and
+            lists using the key parts until we reach the final value. If a
+            '*' is given, a list of the value found from looking up the
+            remainder of the key are returned. For example, for a dict
+            of lists of dicts, we might have a key 'a.*.b', which would return
+            the value of the 'b' key for each item in the list at 'a'.
+        :param base: The next item to apply a key lookup too.
+        :param key_parts: The remaining parts of the key.
+        :param seen_parts: The parts of the key we've seen so far.
+        :param allow_listing: Allow '*' in the key_parts. This is turned off
+            once we've seen one.
+        :return:
+        """
+
+        key_parts = key_parts.copy()
+
+        if not key_parts:
+            return auto_type_convert(base)
+
+        raw_key_part = key_part = key_parts.pop(0)
+        seen_parts = seen_parts + (key_part,)
+
+        if key_part == '*':
+            key_part = '[:]'
+
+        # Prep the key_part
+        if '[' in key_part:
+
+            stripped_kp = key_part[1:-1]
+            if ':' in stripped_kp:
+                if not allow_listing:
+                    raise ValueError(
+                        "Value references can only contain a single '*' or slice (IE '[3:]').")
+
+                if isinstance(base, dict):
+                    # The 'sorted' here is important, as it ensures the values
+                    # are always in the same order.
+                    base = [base[key] for key in sorted(base.keys())]
+
+                if not isinstance(base, list):
+                    raise ValueError("Slice or '*' given in value reference at a level where the value "
+                        "isn't a dict or list.")
+
+                start, end = stripped_kp.split(':', 1)
+                start = start or None
+                end = end or None
+
+                if start is not None:
+                    try:
+                        start = int(start)
+                    except ValueError:
+                        raise ValueError("Invalid slice start value '{}'".format(start))
+
+                if end is not None:
+                    try:
+                        end = int(end)
+                    except ValueError:
+                        raise ValueError("Invalid slice end value '{}'".format(end))
+
+                start = 0 if start is None else start
+                start = len(base) + start if start < 0 else start
+
+                end = len(base) if end is None else end
+                end = len(base) + end if end < 0 else end
+
+                error = None
+                items = []
+                for val in base[start:end]:
+                    try:
+                        items.append(self._resolve_ref(val, key_parts, seen_parts, False))
+                    except ValueError as err:
+                        error = err
+
+                # Only raise errors from higher levels if they result in no data being found.
+                if not items and error is not None:
+                    raise error
+
+                return items
+
+            else:
+                key_part = stripped_kp
+
+        if isinstance(base, dict):
+            if key_part not in base:
+                raise ValueError(
+                    "Results dict does not have the key '{}'."
+                    .format('.'.join([str(part) for part in seen_parts]))
+                )
+
+            return self._resolve_ref(base[key_part], key_parts, seen_parts,
+                                     allow_listing)
+
+        elif isinstance(base, list):
+            try:
+                key_part = int(key_part)
+            except ValueError:
+                raise ValueError(
+                    "Invalid key component '{}'. The results structure at "
+                    "'{}' is a list (so that component must be an integer)."
+                    .format(key_part, '.'.join(seen_parts)))
+            else:
+                if key_part >= len(base):
+                    raise ValueError(
+                        "Key component '{}' is out of range for the list "
+                        "at '{}'.".format(key_part, '.'.join(seen_parts))
+                    )
+
+                return self._resolve_ref(base[key_part], key_parts, seen_parts, allow_listing)
+
+        raise ValueError("Key component '{}' given, but value '{}' at '{}' "
+                         "is a '{}' not a dict or list."
+                         .format(key_part, base, '.'.join(seen_parts),
+                                 type(base)))
+
 
 class ExprTransformer(BaseExprTransformer):
     """Convert Pavilion string expressions into their final values given
@@ -531,13 +670,16 @@ class ExprTransformer(BaseExprTransformer):
         :return:
         """
 
-        var_key_parts = [str(item.value) for item in items]
-        var_key = '.'.join(var_key_parts)
-        if len(var_key_parts) > 4:
-            raise ParserValueError(
-                self._merge_tokens(items, var_key),
-                "Invalid variable '{}': too many name parts."
-                .format(var_key))
+        var_key_parts = []
+        for item in items:
+            if not var_key_parts:
+                var_key_parts.append(item.value)
+            elif item.type == 'slice':
+                var_key_parts.append(item.value)
+            else:
+                var_key_parts.extend(['.', str(item.value)])
+
+        var_key = ''.join(var_key_parts)
 
         try:
             # This may also raise a DeferredError, but we don't want to
@@ -559,6 +701,13 @@ class ExprTransformer(BaseExprTransformer):
         """Just return the key component."""
 
         return items[0]
+
+    def slice(self, items) -> lark.Token:
+        """Return the slice ref as given."""
+
+        value = ''.join(str(item.value) for item in items)
+
+        return self._merge_tokens(items, value, type_='slice')
 
 
 class EvaluationExprTransformer(BaseExprTransformer):
@@ -594,95 +743,6 @@ class EvaluationExprTransformer(BaseExprTransformer):
             value = [val for val in value if val is not None]
 
         return self._merge_tokens(items, value)
-
-    def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
-                     allow_listing: bool = True):
-        """Recursively resolve a variable reference by navigating dicts and
-            lists using the key parts until we reach the final value. If a
-            '*' is given, a list of the value found from looking up the
-            remainder of the key are returned. For example, for a dict
-            of lists of dicts, we might have a key 'a.*.b', which would return
-            the value of the 'b' key for each item in the list at 'a'.
-        :param base: The next item to apply a key lookup too.
-        :param key_parts: The remaining parts of the key.
-        :param seen_parts: The parts of the key we've seen so far.
-        :param allow_listing: Allow '*' in the key_parts. This is turned off
-            once we've seen one.
-        :return:
-        """
-
-        key_parts = key_parts.copy()
-
-        if not key_parts:
-            return auto_type_convert(base)
-
-        key_part = key_parts.pop(0)
-        seen_parts = seen_parts + (key_part,)
-
-        if key_part == '*':
-            if not allow_listing:
-                raise ValueError(
-                    "References can only contain a single '*'.")
-
-            if isinstance(base, dict):
-                # The 'sorted' here is important, as it ensures the values
-                # are always in the same order.
-                items = []
-                seen_error = None
-                for sub_base in sorted(base.keys()):
-                    try:
-                        items.append(self._resolve_ref(
-                            base[sub_base], key_parts, seen_parts, False))
-                    except ValueError as err:
-                        seen_error = err
-                        continue
-                # Only raise errors from higher levels if they result in no data being found.
-                if not items and seen_error is not None:
-                    raise seen_error
-                return items
-
-            elif isinstance(base, list):
-                return [self._resolve_ref(sub_base, key_parts,
-                                          seen_parts, False)
-                        for sub_base in base]
-            else:
-                raise ValueError(
-                    "Used a '*' in a variable name, but the "
-                    "component at that point '{}' isn't a list or dict."
-                    .format('.'.join(seen_parts)))
-
-        elif isinstance(base, list):
-            try:
-                idx = int(key_part)
-            except ValueError:
-                raise ValueError(
-                    "Invalid key component '{}'. The results structure at "
-                    "'{}' is a list (so that component must be an integer)."
-                    .format(key_part, '.'.join(seen_parts)))
-
-            if idx >= len(base):
-                raise ValueError(
-                    "Key component '{}' is out of range for the list "
-                    "at '{}'.".format(idx, '.'.join(seen_parts))
-                )
-
-            return self._resolve_ref(base[idx], key_parts, seen_parts,
-                                     allow_listing)
-
-        elif isinstance(base, dict):
-            if key_part not in base:
-                raise ValueError(
-                    "Results dict does not have the key '{}'."
-                    .format('.'.join([str(part) for part in seen_parts]))
-                )
-
-            return self._resolve_ref(base[key_part], key_parts, seen_parts,
-                                     allow_listing)
-
-        raise ValueError("Key component '{}' given, but value '{}' at '{}' "
-                         "is a '{}' not a dict or list."
-                         .format(key_part, base, '.'.join(seen_parts),
-                                 type(base)))
 
     @staticmethod
     def var_key(items) -> lark.Token:
