@@ -270,6 +270,12 @@ differentiate it from test ids."""
         # create all TestSet objects
         universal_modes = self.config['modes']
         for set_name, set_info in self.config['test_sets'].items():
+
+            if set_info['simultaneous']:
+                _simultaneous = set_info['simultaneous']
+            else:
+                _simultaneous = self.simultaneous
+
             set_obj = TestSet(
                 pav_cfg=self.pav_cfg,
                 name=set_name,
@@ -283,7 +289,7 @@ differentiate it from test ids."""
                 parents_must_pass=set_info['depends_pass'],
                 overrides=self.config.get('overrides', []),
                 status=self.status,
-                simultaneous=set_info['simultaneous'] if set_info['simultaneous'] else self.simultaneous,
+                simultaneous= _simultaneous,
                 outfile=self.outfile,
                 verbosity=self.verbosity,
                 ignore_errors=self.ignore_errors,
