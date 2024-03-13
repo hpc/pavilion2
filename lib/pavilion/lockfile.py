@@ -378,7 +378,7 @@ class FuzzyLock:
                 raise TimeoutError("Timeout while attempting to acquire lock")
 
             earliest = self._get_earliest()
-            first = (earliest == self._lockfile)
+            first = earliest == self._lockfile
 
         return self
 
