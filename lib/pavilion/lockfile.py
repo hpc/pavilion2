@@ -8,8 +8,10 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Union, TextIO
+from typing import Union, TextIO, Optional
 import threading
+from uuid import uuid4
+from time import sleep
 
 from pavilion import output
 from pavilion import utils
@@ -19,7 +21,7 @@ NEVER = 10**10
 
 
 class LockFile:
-    """An NFS friendly way to create a lock file. Locks contain information
+    """A custom lock object that is not NFS-friendly. Locks contain information
 on what host and user created the lock, and have a built in expiration
 date. To be used in a 'with' context.
 
@@ -295,7 +297,6 @@ these values if there was an error..
         output.fprint(self._errfile, msg, color=output.YELLOW)
 
 
-
 class LockFilePoker:
     """This context creates a thread that regularly 'pokes' a lockfile to make sure it
     doesn't expire."""
@@ -328,3 +329,99 @@ class LockFilePoker:
 
         self._done_event.set()
         self._thread.join()
+
+
+class FuzzyLock:
+    """A custom lock object designed for use on NFS systems. The lock behaves like a queue:
+    each process declares its intent to take the lock, and the lock goes to whichever process
+    declared first. The object lessens, but does not fully resolve, some of the concurrency issues
+    related to NFS, particularly in the case where multiple Pavilion instances are working with
+    the same build. Intended to be invoked as a context manager, using the 'with' keyword.
+    """
+    def __init__(self, lock_dir: Path, wait_time: float = 0.5,
+     timeout: Optional[float] = None):
+        """
+        :param lock_dir: directory in which lockfiles will be created
+        :param wait_time: time to wait between checking status
+        :param timeout: time (in seconds) after which the lock times out.
+            None may be passed to indicate no timeout.
+        """
+        self._lock_dir = lock_dir
+        self._wait_time = wait_time
+        self._timeout = timeout
+
+        self._mtimes = {} # type: Dict[Path, float]
+
+        # create a (statistically) unique lockfile
+        self._lockfile = lock_dir / f"{uuid4().hex[-16:]}.lock"
+
+    def __enter__(self) -> 'FuzzyLock':
+        """
+        Attempt to acquire the lock.
+
+        :return: True if lock has been successfully acquired; False if timed out
+        """
+        self._lock_dir.mkdir(exist_ok=True)
+
+        # Declare intent to take lock
+        self._lockfile.touch(exist_ok=False)
+
+        first = False
+        start = time.time()
+
+        while not first:
+            # Give other instances opportunity to declare intent
+            sleep(self._wait_time)
+
+            if self._timeout is not None and self._timeout >= 0 and \
+                (time.time() - start > self._timeout):
+                raise TimeoutError("Timeout while attempting to acquire lock")
+
+            earliest = self._get_earliest()
+            first = earliest == self._lockfile
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        # Remove the lockfile, since no longer competing for lock
+
+        self._lockfile.unlink()
+        del self._mtimes[self._lockfile]
+
+        # Remove lock directory once it's empty
+        if len(list(self._lock_dir.iterdir())) == 0:
+            try:
+                self._lock_dir.rmdir()
+            except FileNotFoundError:
+                # Another thread or process has removed the directory;
+                # can be safely ignored
+                pass
+
+    def _get_earliest(self) -> Path:
+        """Get the path to the lockfile that was created first.
+
+        :return: Path object to whichever lockfile was created first"""
+
+        lfiles = list(self._lock_dir.iterdir())
+        dict_keys = list(self._mtimes.keys())
+
+        for lockfile in dict_keys:
+            if lockfile not in lfiles:
+                try:
+                    del self._mtimes[lockfile]
+                except KeyError:
+                    # Item has been deleted in another thread;
+                    # can be safely igored
+                    pass
+
+        for lockfile in lfiles:
+            if lockfile not in self._mtimes:
+                try:
+                    self._mtimes[lockfile] = lockfile.stat().st_mtime
+                except FileNotFoundError:
+                    # File has been deleted since walking directory;
+                    # can be safely ignored
+                    pass
+
+        # Sort files by creation time and return oldest
+        return sorted(list(self._mtimes.items()), key=lambda x: x[1])[0][0]
