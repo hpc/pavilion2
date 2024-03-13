@@ -289,6 +289,7 @@ differentiate it from test ids."""
                 ignore_errors=self.ignore_errors,
             )
             self._add_test_set(set_obj)
+
             depends_on[set_name] = set_info['depends_on']
             for parent in set_info['depends_on']:
                 depended_on_by[parent].add(set_name)
