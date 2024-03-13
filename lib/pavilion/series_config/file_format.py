@@ -64,7 +64,8 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         yc.IntElem(
             'simultaneous', default=0,
             help_text="The maximum number of tests to run simultaneously. This can be"
-                      " set at the full series level and/or at each test_set level."
+                      " set at the full series level and/or at each test_set level. If"
+                      " set at both levels then test_set will take precedence."
         ),
         yc.BoolElem(
             'ordered', default=False,
