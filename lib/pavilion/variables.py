@@ -18,6 +18,9 @@ There are expected to be multiple variable sets: plain variables (var),
 plugin provided via sys_vars (sys), core pavilion provided (pav), and scheduler
 provided (sched).
 """
+
+# pylint: disable=too-many-lines
+
 import collections
 import copy
 import json

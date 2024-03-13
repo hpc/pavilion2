@@ -574,8 +574,8 @@ class BaseExprTransformer(PavTransformer):
                     base = [base[key] for key in sorted(base.keys())]
 
                 if not isinstance(base, list):
-                    raise ValueError("Slice or '*' given in value reference at a level where the value "
-                        "isn't a dict or list.")
+                    raise ValueError("Slice or '*' given in value reference at a level "
+                        "where the value isn't a dict or list.")
 
                 start, end = stripped_kp.split(':', 1)
                 start = start or None

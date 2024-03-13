@@ -432,4 +432,3 @@ class Outliers(CoreFunctionPlugin):
                 deviations[names[i]] = dev
 
         return deviations
-
