@@ -622,7 +622,7 @@ differentiate it from test ids."""
             'modes': modes or [],
             'only_if': only_if or {},
             'not_if': not_if or {},
-            'simulteneous': simultaneous, 
+            'simultaneous': simultaneous, 
         }
 
         if save:
