@@ -511,7 +511,8 @@ differentiate it from test ids."""
                                                  test_set.name, self.sid))
 
             # Wait for jobs until enough have finished to start a new batch.
-            while tests_running + self.batch_size > self.simultaneous:
+            _simultaneous = test_set.simultaneous if test_set.simultaneous else self.simultaneous
+            while tests_running + self.batch_size > _simultaneous:
                 tests_running -= test_set.wait()
 
 
