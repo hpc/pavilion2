@@ -270,7 +270,8 @@ differentiate it from test ids."""
         # create all TestSet objects
         universal_modes = self.config['modes']
         for set_name, set_info in self.config['test_sets'].items():
-
+            # Checks if the simultaneous key is set inside the test_set, if so, simultaneous limit
+            # set in the test_set will override the simultaneous key at the full series level
             if set_info['simultaneous']:
                 _simultaneous = set_info['simultaneous']
             else:
@@ -516,9 +517,9 @@ differentiate it from test ids."""
                                          "in series {}."
                                          .format(ktests, len(started_tests),
                                                  test_set.name, self.sid))
-
-            # Wait for jobs until enough have finished to start a new batch.
+            # If simultaneous is set in the test_set, use that.
             _simultaneous = test_set.simultaneous if test_set.simultaneous else self.simultaneous
+            # Wait for jobs until enough have finished to start a new batch.
             while tests_running + self.batch_size > _simultaneous:
                 tests_running -= test_set.wait()
 
@@ -602,7 +603,7 @@ differentiate it from test ids."""
         :param modes: A List of modes to add.
         :param only_if: Only if conditions
         :param not_if:  Not if conditions
-        :param simultaneous: Number of tests within the test set to run simultaneously. 
+        :param simultaneous: Number of tests within the test set to run simultaneously.
         :param save: Save the series config after adding the test set. Setting this
             to false is useful if you want to add multiple configs before saving.
         :param _depends_on: A list of test names that this test depends on. For
@@ -622,7 +623,7 @@ differentiate it from test ids."""
             'modes': modes or [],
             'only_if': only_if or {},
             'not_if': not_if or {},
-            'simultaneous': simultaneous, 
+            'simultaneous': simultaneous,
         }
 
         if save:
