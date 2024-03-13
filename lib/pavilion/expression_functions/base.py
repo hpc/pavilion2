@@ -74,7 +74,7 @@ def sopt(val: Union[str, List[str]], option_str: str) -> str:
             return f"{option_str}='{val}'"
 
 
-def opt(val: Union[str, list[str]], option_str: str, delimiter=',') -> str:
+def opt(val: Union[str, List[str]], option_str: str, delimiter=',') -> str:
     """Return an option string for a variable, if it has a non-null value,
     or an empty string otherwise. For a list, create a single option string
     by concatenating the values in the list."""
