@@ -339,7 +339,7 @@ class FuzzyLock:
     the same build. Intended to be invoked as a context manager, using the 'with' keyword.
     """
     def __init__(self, lock_dir: Path, wait_time: float = 0.5,
-     timeout: Optional[float] = None, verbose = False):
+     timeout: Optional[float] = None):
         """
         :param lock_dir: directory in which lockfiles will be created
         :param wait_time: time to wait between checking status
@@ -349,7 +349,6 @@ class FuzzyLock:
         self._lock_dir = lock_dir
         self._wait_time = wait_time
         self._timeout = timeout
-        self._verbose = verbose
 
         self._mtimes = {} # type: Dict[Path, float]
 
@@ -378,27 +377,13 @@ class FuzzyLock:
                 (time.time() - start > self._timeout):
                 raise TimeoutError("Timeout while attempting to acquire lock")
 
-            lfiles = list(self._lock_dir.iterdir())
-
-            if self._verbose:
-                print(f"FuzzyLock: {len(lfiles)} lockfiles present: \
-                 {list(map(lambda x: x.name, lfiles))}")
-
             earliest = self._get_earliest()
             first = (earliest == self._lockfile)
-
-            if self._verbose:
-                print(f"Earliest: {earliest.name}")
-                print(f"This: {self._lockfile.name}")
-                print(f"mtimes size: {len(self._mtimes.items())}")
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         # Remove the lockfile, since no longer competing for lock
-
-        if self._verbose:
-            print(f"Deleting {self._lockfile.name}...")
 
         self._lockfile.unlink()
         del self._mtimes[self._lockfile]

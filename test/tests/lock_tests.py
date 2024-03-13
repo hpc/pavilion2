@@ -161,7 +161,7 @@ class TestLocking(PavTestCase):
             f.unlink()
 
         def sleep_lock(idx, results):
-            with lockfile.FuzzyLock(self.lock_dir, timeout=10, verbose=False) as lock:
+            with lockfile.FuzzyLock(self.lock_dir, timeout=10) as lock:
                 results[idx] = True
 
         # Do this several times to account for indeterminacy
