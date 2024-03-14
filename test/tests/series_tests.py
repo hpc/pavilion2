@@ -112,21 +112,17 @@ class SeriesTests(PavTestCase):
             last_ended = ended
 
     def test_series_test_set_simultaneous(self):
-        """Tests to see if simultaneous: <num> works as intended. """
+        """Test to see if simultaneous in the test_set overrides the simultaneous at full series"""
         series_sec_cfg = OrderedDict()
         series_sec_cfg['set1'] = {
-                                  'tests': [
-                                            'echo_test.b',
-                                            'echo_test.b',
-                                            'echo_test.b'
-                                           ],
-                                  'simultaneous': 1
-                                  }
+                'tests': ['echo_test.b', 'echo_test.b', 'echo_test.b'],
+                'simultaneous': 1
+                }
 
         series_cfg = series_config.make_config({
                 'test_sets': series_sec_cfg,
                 'modes':        ['smode2'],
-                'simultaneous': '5',
+                'simultaneous': '3',
                 'ignore_errors': False,
             })
 
