@@ -35,7 +35,8 @@ not_expr: NOT? compare_expr
 compare_expr: add_expr ((EQ | NOT_EQ | LT | GT | LT_EQ | GT_EQ ) add_expr)*
 add_expr: mult_expr ((PLUS | MINUS) mult_expr)*
 mult_expr: pow_expr ((TIMES | DIVIDE | INT_DIV | MODULUS) pow_expr)*
-pow_expr: primary ("^" primary)?
+pow_expr: conc_expr ("^" conc_expr)?
+conc_expr: primary (CONCAT primary)*
 primary: literal
        | var_ref
        | negative
@@ -78,6 +79,9 @@ TIMES: "*"
 DIVIDE: "/"
 INT_DIV: "//"
 MODULUS: "%"
+// The ignored whitespace below mucks with this, which requires us to include the whitespace in the
+// token definition.
+CONCAT: / *\.\./
 AND: /and(?![a-zA-Z_])/
 OR: /or(?![a-zA-Z_])/
 NOT.2: /not(?![a-zA-Z_])/
@@ -139,37 +143,37 @@ class BaseExprTransformer(PavTransformer):
 
     def _apply_op(self, op_func: Callable[[Any, Any], Any],
                   arg1: lark.Token, arg2: lark.Token, allow_strings=True):
-        """"""
+        """Apply the given op_func to the given arguments. If strings are not allowed, then
+        the values are converted to numeric types if possible."""
 
-        # Verify that the arg value types are something numeric, or that it's a
-        # string and strings are allowed.
-        for arg in arg1, arg2:
-            if isinstance(arg.value, list):
-                for val in arg.value:
-                    if (isinstance(val, str) and not allow_strings and
-                            not isinstance(val, self.NUM_TYPES)):
-                        raise ParserValueError(
-                            token=arg,
-                            message="Non-numeric value '{}' in list in math "
-                                    "operation.".format(val))
-            else:
-                if (isinstance(arg.value, str) and not allow_strings and
-                        not isinstance(arg.value, self.NUM_TYPES)):
+        if not allow_strings:
+            # Shouldn't throw exceptions or introduce invalid types.
+            val1 = auto_type_convert(arg1.value)
+            val2 = auto_type_convert(arg2.value)
+            for arg, val in (arg1, val1), (arg2, val2):
+                if isinstance(val, str):
                     raise ParserValueError(
-                        token=arg1,
-                        message="Non-numeric value '{}' in math operation."
-                        .format(arg.value))
+                        arg,
+                        f"Math operation given string '{val}', but strings aren't valid "
+                         "operands")
+                elif isinstance(val, list):
+                    for subval in val:
+                        if isinstance(subval, str):
+                            raise ParserValueError(
+                                arg,
+                                f"Math operation given string '{subval}', but strings aren't valid "
+                                 "operands")
+        else:
+            val1 = arg1.value
+            val2 = arg2.value
 
-        if (isinstance(arg1.value, list) and isinstance(arg2.value, list)
-                and len(arg1.value) != len(arg2.value)):
+        if (isinstance(val1, list) and isinstance(val2, list)
+                and len(val1) != len(val2)):
             raise ParserValueError(
                 token=arg2,
                 message="List operations must be between two equal length "
                 "lists. Arg1 had {} values, arg2 had {}."
                 .format(len(arg1.value), len(arg2.value)))
-
-        val1 = arg1.value
-        val2 = arg2.value
 
         if isinstance(val1, list) and not isinstance(val2, list):
             return [op_func(val1_part, val2) for val1_part in val1]
@@ -368,6 +372,35 @@ class BaseExprTransformer(PavTransformer):
             return self._merge_tokens(items, result)
         else:
             return items[0]
+
+    def conc_expr(self, items) -> lark.Token:
+        """Concatenate strings or lists.  The '..' operator isn't captured."""
+
+        if len(items) == 1:
+            return items[0]
+
+        def _concat(val1, val2):
+            if isinstance(val1, list):
+                if isinstance(val2, list):
+                    return val1 + val2
+                else:
+                    return [item + str(val2) for item in val1]
+            else:
+                if isinstance(val2, list):
+                    return [str(val1) + item for item in val2]
+                else:
+                    return str(val1) + str(val2)
+
+        base = items[0].value
+        for item in items[1:]:
+            if item.type == 'CONCAT':
+                continue
+
+            val = item.value
+
+            base = _concat(base, val)
+
+        return self._merge_tokens(items, base)
 
     def primary(self, items) -> lark.Token:
         """Simply pass the value up to the next layer.

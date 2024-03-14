@@ -34,12 +34,22 @@ def test_config(config, var_man):
 
     for section in config:
         try:
-            resolved_dict[section] = section_values(
+            section_val = config[section]
+
+            resolved_val = section_values(
                 component=config[section],
                 var_man=var_man,
                 allow_deferred=section not in NO_DEFERRED_ALLOWED,
                 key_parts=(section,),
             )
+
+            if isinstance(section_val, str) and isinstance(resolved_val, list):
+                raise TestConfigError(
+                    "Section '{}' was set to '{}' which resolved to list '{}'. This key does "
+                    "not accept lists.".format(section, section_val, resolved_val))
+
+            resolved_dict[section] = resolved_val
+
         except (StringParserError, ParserValueError) as err:
             raise TestConfigError("Error parsing '{}' section".format(section), err)
 
@@ -144,26 +154,39 @@ def section_values(component: Union[Dict, List, str],
 
     if isinstance(component, dict):
         resolved_dict = type(component)()
-        for key in component.keys():
-            resolved_dict[key] = section_values(
-                component[key],
+        for key, val in component.items():
+            resolved_val = section_values(
+                val,
                 var_man,
                 allow_deferred=allow_deferred,
                 deferred_only=deferred_only,
                 key_parts=key_parts + (key,))
+            if isinstance(val, str) and isinstance(resolved_val, list):
+                # We probably got back a list, which is only valid when dealing with a list
+                full_key = '.'.join(key_parts + (key,))
+                raise TestConfigError(
+                    "Key '{}' was set to '{}' which resolved to list '{}'. This key does not "
+                    "accept lists.".format(full_key, val, resolved_val))
+
+            resolved_dict[key] = resolved_val
 
         return resolved_dict
 
     elif isinstance(component, list):
         resolved_list = type(component)()
-        for i in range(len(component)):
-            resolved_list.append(
-                section_values(
-                    component[i], var_man,
+        for idx, val in enumerate(component):
+            resolved_val = section_values(
+                    val, var_man,
                     allow_deferred=allow_deferred,
                     deferred_only=deferred_only,
-                    key_parts=key_parts + (i,)
-                ))
+                    key_parts=key_parts + (idx,)
+                )
+            # String resolution converted a string to a list - extend this list with those items.
+            if isinstance(resolved_val, list) and isinstance(val, str):
+                resolved_list.extend(resolved_val)
+            else:
+                resolved_list.append(resolved_val)
+
         return resolved_list
 
     elif isinstance(component, str):
