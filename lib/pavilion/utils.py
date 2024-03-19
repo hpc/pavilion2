@@ -196,14 +196,17 @@ def path_is_external(path: Path):
 
 
 def symlinktree(source_directory, destination_directory):
+    """Recursively create symlinks from test source directory to builds directory in working_dir"""
+
     for root, dirs, files in os.walk(source_directory):
         for file in files:
             src_path = os.path.join(root, file)
             rel_path = os.path.relpath(src_path, source_directory)
             dst_path = os.path.join(destination_directory, rel_path)
 
-            # Create
+            # Create parent dir if it doesn't already exist
             os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+            # Create the symlink
             os.symlink(src_path, dst_path)
 
 
