@@ -13,6 +13,7 @@ class ExprFuncTests(PavTestCase):
         # checked.
         tests = {
             'int': [(("1234", 8), 668)],
+            'range': [((1, 8), [1, 2, 3, 4, 5, 6, 7])],
             'round': [((1.234,), 1)],
             'round_dig': [((1.1274, 2), 1.13)],
             'floor': [((1.234,), 1)],
