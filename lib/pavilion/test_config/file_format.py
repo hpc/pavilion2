@@ -663,6 +663,10 @@ expected to be added to by various plugins.
                               "source, tracking changes by "
                               "file size/timestamp/hash."
                 ),
+                yc.StrElem(
+                    'source_copy', default='True', choices=['true', 'false', 'True', 'False'],
+                    help_text="Whether to copy everything in source_path into the working dir."
+                ),
                 yc.KeyedElem(
                     'spack', elements=[
                         yc.ListElem(
