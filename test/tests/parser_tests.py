@@ -158,14 +158,11 @@ class ParserTests(unittest.PavTestCase):
     def test_good_expressions(self):
         """Make sure good expressions work as expected."""
         import logging
-        from lark import Lark, logger
-
-        logger.setLevel(logging.DEBUG)
 
         expr_parser = lark.Lark(
             grammar=parsers.expressions.EXPR_GRAMMAR,
             parser='lalr',
-            debug=True,
+            debug=False,
         )
         trans = parsers.expressions.ExprTransformer(self.var_man)
 
@@ -204,7 +201,6 @@ class ParserTests(unittest.PavTestCase):
         # Bad lists
         '[,foo,]': 'Misplaced Comma',
         '[foo,,]': 'Misplaced Comma',
-        # Consecutive operands
         '1 2': 'Invalid Syntax',
         'a b': 'Invalid Syntax',
         'True False': 'Invalid Syntax',
@@ -212,6 +208,13 @@ class ParserTests(unittest.PavTestCase):
         '"hello" * 1': "Math operation given string",
         '"hello" ^ 1': "Math operation given string",
         '-"hello"': "Math operation given string",
+        'var[1': 'Unmatched "["',
+        'var[]': 'List indexes and slices must contain a value.',
+        'var[1:2:3]': 'Extra colon in slice',
+        'range(1, 5)[3': 'Unmatched "["',
+        'range(1, 5):3]': 'Unmatched "]"',
+        'range(1, 5)[]': 'List indexes and slices must contain a value.',
+        'range(1, 5).a': 'Invalid key component',
         'var.1.2.3.4.5': "Variable reference (var.1.2.3.4.5) has too many parts",
         'var.structs.0.*': "Could not resolve reference 'var.structs.0.*': "
                            "Unknown sub_var: '*'",

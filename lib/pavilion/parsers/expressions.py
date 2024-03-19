@@ -494,7 +494,10 @@ class BaseExprTransformer(PavTransformer):
             # The function plugins give a reasonable message.
             raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 
-        final_result = self._resolve_ref(result, ref_parts)
+        try:
+            final_result = self._resolve_ref(result, ref_parts)
+        except ValueError as err:
+            raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 
         return self._merge_tokens(items, final_result)
 
@@ -704,6 +707,11 @@ class ExprTransformer(BaseExprTransformer):
 
     def slice(self, items) -> lark.Token:
         """Return the slice ref as given."""
+
+        if not items[1:-1]:
+            raise ParserValueError(
+                self._merge_tokens(items, None),
+                'List indexes and slices must contain a value.')
 
         value = ''.join(str(item.value) for item in items)
 
