@@ -4,9 +4,9 @@ loading."""
 import math
 import random
 import re
-from typing import List
+from typing import List, Dict, Union
 
-from .base import FunctionPlugin, num
+from .base import FunctionPlugin, num, Opt
 from ..errors import FunctionPluginError, FunctionArgError
 
 
@@ -253,17 +253,8 @@ class KeysPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name='keys',
-            arg_specs=None,
+            arg_specs=({},),
         )
-
-    signature = "keys(dict)"
-
-    def _validate_arg(self, arg, spec):
-        if not isinstance(arg, dict):
-            raise FunctionPluginError(
-                "The dicts function only accepts dicts. Got {} of type {}."
-                .format(arg, type(arg).__name__))
-        return arg
 
     @staticmethod
     def keys(arg):
@@ -370,6 +361,93 @@ class Sqrt(CoreFunctionPlugin):
         return value ** 0.5
 
 
+class HighPassFilter(CoreFunctionPlugin):
+    """Given the 'value_dict', return a new dictionary that contains only
+    items that exceed 'limit'. For dicts of dicts, you must specify an item_key
+    to check limit against.
+
+    Examples:
+     Given dict 'data={a: 1, b: 2, c: 3, d: 4}',
+     `high_pass_filter(data, 3)` would return a dict with
+     the 'c' and 'd' keys removed.
+
+     Given dict 'data={foo: {a: 5}, bar: {a: 100}}, baz: {a: 20}}'
+     `high_pass_filter(data, 20, 'a')` would return a dict containing
+     only key 'foo' and its value/s."""
+
+    def __init__(self):
+        super().__init__(
+            'high_pass_filter',
+            arg_specs=({}, num, Opt(str)))
+
+    @staticmethod
+    def high_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
+        """Return only items > limit"""
+
+        new_dict = {}
+        for key, values in value_dict.items():
+            if isinstance(values, dict):
+                if item_key is None:
+                    raise FunctionArgError("value_dict contained a dict, but no key was specified.")
+
+                value = values.get(item_key)
+            else:
+                if item_key is not None:
+                    raise FunctionArgError(
+                        "value_dict contained a non-dictionary, but a key was specified.")
+
+                value = values
+
+            if isinstance(value, (int, float, str)):
+                value = num(value)
+            else:
+                continue
+
+            if value > limit:
+                new_dict[key] = values
+
+        return new_dict
+
+
+class LowPassFilter(CoreFunctionPlugin):
+    """Given the 'value_dict', return a new dictionary that contains only
+    items that are less than 'limit'. For dicts of dicts, you must specify
+    a sub-key to check 'limit' against. See 'high_pass_filter' for examples."""
+
+    def __init__(self):
+        super().__init__(
+            'low_pass_filter',
+            arg_specs=({}, num, Opt(str)))
+
+    @staticmethod
+    def low_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
+        """Return only items > limit"""
+
+        new_dict = {}
+        for key, values in value_dict.items():
+            if isinstance(values, dict):
+                if item_key is None:
+                    raise FunctionArgError("value_dict contained a dict, but no key was specified.")
+
+                value = values.get(item_key)
+            else:
+                if item_key is not None:
+                    raise FunctionArgError(
+                        "value_dict contained a non-dictionary, but a key was specified.")
+
+                value = values
+
+            if isinstance(value, (int, float, str)):
+                value = num(value)
+            else:
+                continue
+
+            if value < limit:
+                new_dict[key] = values
+
+        return new_dict
+
+
 class Range(CoreFunctionPlugin):
     """Return a list of numbers from a..b, not inclusive of b."""
 
@@ -389,6 +467,7 @@ class Range(CoreFunctionPlugin):
             start += 1
 
         return vals
+
 
 class Outliers(CoreFunctionPlugin):
     """Calculate outliers given a list of values and a separate list
