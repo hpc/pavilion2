@@ -233,12 +233,13 @@ class TestSet:
                     "Error loading test configs for test set '{}'".format(self.name))
 
                 for error in cfg_resolver.errors:
-                    self.status.set(S_STATES.ERROR,
-                                    '{} - {}'.format(error.request.request, error.pformat()))
+                    if error.request:
+                        self.status.set(S_STATES.ERROR,
+                                        '{} - {}'.format(error.request.request, error.pformat()))
 
-                    output.fprint(
-                        self.outfile,
-                        "{} - {}".format(error.request.request, error.pformat()))
+                        output.fprint(
+                            self.outfile,
+                            "{} - {}".format(error.request.request, error.pformat()))
 
                 if not self.ignore_errors:
                     raise TestSetError("Error creating tests for test set {}.".format(self.name),
