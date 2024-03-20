@@ -6,7 +6,7 @@ import random
 import re
 from typing import List, Dict, Union
 
-from .base import FunctionPlugin, num, Opt
+from .base import FunctionPlugin, num, Opt, opt, sopt
 from ..errors import FunctionPluginError, FunctionArgError
 
 
@@ -511,3 +511,32 @@ class Outliers(CoreFunctionPlugin):
                 deviations[names[i]] = dev
 
         return deviations
+
+
+class SoptPlugin(CoreFunctionPlugin):
+    """Convert a config option into a UNIX-style option string. If the
+    option is a list, create a separate option string for each element."""
+
+    def __init__(self):
+        super().__init__(
+            'sopt',
+            arg_specs=([str], str)
+        )
+
+    @staticmethod
+    def sopt(val: Union[str, List[str]], opt_str: str) -> str: 
+        return opt(val, opt_str)
+
+
+class OptPlugin(CoreFunctionPlugin):
+    """Convert a config option into a UNIX-style option string. If the option is
+    a list, concatenate the elements of the list to form a single option."""
+    def __init__(self):
+        super().__init__(
+            'opt',
+            arg_specs=([str], str, str)
+        )
+
+    @staticmethod
+    def opt(val: Union[str, List[str]], opt_str: str, delimiter: str = ',') -> str:
+        return sopt(val, opt_str, delimiter)
