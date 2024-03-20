@@ -360,7 +360,7 @@ class Sqrt(CoreFunctionPlugin):
 
         return value ** 0.5
 
-      
+
 class HighPassFilter(CoreFunctionPlugin):
     """Given the 'value_dict', return a new dictionary that contains only
     items that exceed 'limit'. For dicts of dicts, you must specify an item_key
@@ -468,7 +468,7 @@ class Range(CoreFunctionPlugin):
 
         return vals
 
-      
+
 class Outliers(CoreFunctionPlugin):
     """Calculate outliers given a list of values and a separate list
     of their associated names. The lists should be the same length, and

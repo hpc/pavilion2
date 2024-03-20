@@ -255,7 +255,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         elif isinstance(spec, dict):
             return {k: self._spec_to_desc(v) for k, v in spec.items()}
         elif isinstance(spec, Opt):
-            return self._spec_desc(spec.sub_spec + '?')
+            return self._spec_to_desc(spec.sub_spec) + '?'
         elif spec is None:
             return 'Any'
         else:
