@@ -360,7 +360,7 @@ class Sqrt(CoreFunctionPlugin):
 
         return value ** 0.5
 
-
+      
 class HighPassFilter(CoreFunctionPlugin):
     """Given the 'value_dict', return a new dictionary that contains only
     items that exceed 'limit'. For dicts of dicts, you must specify an item_key
@@ -448,6 +448,27 @@ class LowPassFilter(CoreFunctionPlugin):
         return new_dict
 
 
+class Range(CoreFunctionPlugin):
+    """Return a list of numbers from a..b, not inclusive of b."""
+
+    def __init__(self):
+        super().__init__(
+            'range',
+            arg_specs=(int, int),
+            )
+
+    @staticmethod
+    def range(start, end):
+        """Calculate the range."""
+
+        vals = []
+        while start < end:
+            vals.append(start)
+            start += 1
+
+        return vals
+
+      
 class Outliers(CoreFunctionPlugin):
     """Calculate outliers given a list of values and a separate list
     of their associated names. The lists should be the same length, and
