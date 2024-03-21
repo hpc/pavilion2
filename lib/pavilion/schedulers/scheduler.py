@@ -33,14 +33,15 @@ class KickoffScriptHeader(ScriptHeader):
 
     def __init__(self, job_name: str, sched_config: dict,
                  nodes: Union[NodeList, None] = None,
-                 node_range: Union[Tuple[int, int], None] = None):
+                 node_range: Union[Tuple[int, int], None] = None,
+                 shebang = None):
         """Initialize the script header.
 
         The arguments are the same, and should be treated the same, as the
         'SchedulerPlugin._kickoff()' method's arguments.
         """
 
-        super().__init__()
+        super().__init__(shebang=shebang)
 
         self._job_name = job_name
         self._config = sched_config
@@ -415,7 +416,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
                                     sched_config: dict,
                                     nodes: Union[NodeList, None] = None,
-                                    node_range: Union[Tuple[int, int], None] = None)\
+                                    node_range: Union[Tuple[int, int], None] = None,
+                                    shebang: str = None)\
             -> ScriptComposer:
         """Generate the kickoff script essentials preamble common to all scheduled
         tests.
@@ -430,7 +432,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
         elif not (nodes or node_range):
             raise RuntimeError("One of 'nodes' and 'node_range' must be provided.")
 
-        header = self._get_kickoff_script_header(job_name, sched_config, nodes, node_range)
+        header = self._get_kickoff_script_header(
+            job_name=job_name,
+            sched_config=sched_config,
+            nodes=nodes,
+            node_range=node_range,
+            shebang=shebang)
 
         script = ScriptComposer(header=header)
         script.comment("Redirect all output to the kickoff log.")
@@ -454,7 +461,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def _get_kickoff_script_header(self, job_name: str, sched_config: dict,
                                    nodes: Union[None, NodeList],
-                                   node_range: Union[Tuple[int, int], None]) \
+                                   node_range: Union[Tuple[int, int], None],
+                                   shebang: str = None) \
             -> KickoffScriptHeader:
         """Get a script header object for the kickoff script.  The nodes are those
         picked specifically for this job (if empty, the choice is left to the scheduler). The
@@ -465,6 +473,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
             sched_config=sched_config,
             nodes=nodes,
             node_range=node_range,
+            shebang=shebang,
         )
 
     @staticmethod

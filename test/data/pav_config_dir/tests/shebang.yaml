@@ -1,0 +1,34 @@
+raw:
+    shebang: '#!/usr/bin/bash -x'
+    scheduler: raw
+
+dummy_indi:
+    shebang: '#!/usr/bin/bash -x'
+    scheduler: dummy
+
+dummy_indi_chunked:
+    shebang: '#!/usr/bin/bash -x'
+    scheduler: dummy
+    schedule:
+        chunking:
+            size: 13
+
+dummy_shared:
+    permute_on: 'foo'
+    variables:
+        foo: [1, 2]
+    shebang: '#!/usr/bin/bash -x'
+    scheduler: dummy
+    schedule:
+        nodes: 2
+
+dummy_shared_chunked:
+    permute_on: 'foo'
+    variables:
+        foo: [1, 2]
+    shebang: '#!/usr/bin/bash -x'
+    scheduler: dummy
+    schedule:
+        nodes: all
+        chunking:
+            size: 5
