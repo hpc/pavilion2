@@ -271,7 +271,10 @@ def update(pav_cfg, url, dest):
                 head_data.get('Content-Length') == info.get('Content-Length') and
                 # Or if the content length matches the actual size.
                 head_data.get('Content-Length') == info['size'])):
-            print( "content differs: ", info, head_data )
+            print( "ETag: ", info.get('ETag'), head_data.get('ETag') )
+            print( "content length: ", info.get('Content-Length'), 
+                    head_data.get('Content-Length') )
+            print( "content differs: ", info['size'] )
             fetch = True
 
     if fetch:
