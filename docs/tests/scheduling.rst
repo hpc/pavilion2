@@ -113,7 +113,7 @@ command.
                     |          |                 | actually acquired.
      launch         | True     | srun -N 5 -w no | Construct a cmd to run a process under this
                     |          | de[05-10],node2 | scheduler, with the criteria specified by this test.
-                    |          | 3 -n 20         |
+                    |          | 3 -n 20         | (used to be `sched.test_cmd`)
 
 .. _tests.scheduling.jobs:
 
