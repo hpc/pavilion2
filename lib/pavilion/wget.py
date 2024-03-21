@@ -268,7 +268,7 @@ def update(pav_cfg, url, dest):
                 info.get('ETag') == head_data.get('ETag') and
                 # If the old content length is the same, it's probably
                 # unchanged. Probably...
-                head_data.get('Content-Length') == info.get('Content-Length') ):
+                head_data.get('Content-Length') == info.get('Content-Length')) ):
             print( "ETag: ", info.get('ETag'), head_data.get('ETag') )
             print( "content length: ", info.get('Content-Length'), 
                     head_data.get('Content-Length') )
