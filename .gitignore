@@ -1,13 +1,20 @@
 .deps_installed
 .env
-*.pyc
 PAV/scripts/site
-.idea
 *.swp
 *.swo
+
+# Python Artifacts
+__pycache__/
+*.pyc
+
+# IntelliJ Artifacts (Why?)
+.idea
+
+# VSCode Artifacts
 .vscode
+*.code-workspace
+
 pav.pstats
 .local/
-__pycache__/
-.vscode
 examples/working_dir

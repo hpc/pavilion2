@@ -587,8 +587,7 @@ class TestRun(TestAttributes):
         """
 
         if tracker is None:
-            mb_tracker = MultiBuildTracker()
-            tracker = mb_tracker.register(self)
+            tracker = MultiBuildTracker().register(self)
 
         if not self.saved:
             raise RuntimeError("The .save() method must be called before you "
