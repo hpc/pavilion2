@@ -18,4 +18,4 @@ base:
             - "{{compilers}}"
             - "{{mpis}}"
         cmds:
-            - "{{sched.test_cmd}} ./stream"
+            - "{{sched.launch}} ./stream"

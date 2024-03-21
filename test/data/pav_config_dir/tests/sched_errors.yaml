@@ -4,7 +4,7 @@ a_error:
     scheduler: dummy
     run:
         cmds:
-            - '{{sched.test_cmd}} echo "foo"'
+            - '{{sched.launch}} echo "foo"'
 
 b_skipped:
     inherits_from: a_error

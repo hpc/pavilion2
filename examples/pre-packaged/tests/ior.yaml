@@ -76,7 +76,7 @@ base:
     - "  rm -rf ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
     - "  mkdir ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
     - "  cd ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
-    - "  {{sched.test_cmd}} {{srun_opts}} $bloc/src/ior -a {{a_flag}} -b {{block_size}} -c -e -F -i 2"
+    - "  {{sched.launch}} {{srun_opts}} $bloc/src/ior -a {{a_flag}} -b {{block_size}} -c -e -F -i 2"
     - "  cd .."
     - "  rm -rf {{scratch.path}}/ior-test-{{block_size}}-{{a_flag}}-{{scratch.name}}"
     - "fi"
@@ -180,7 +180,7 @@ xroads_load1:
     - "rm -rf ior-test-{{outname}}"
     - "mkdir ior-test-{{outname}}"
     - "cd ior-test-{{outname}}"
-    - "{{sched.test_cmd}} {{srun_opts}} $bloc/src/ior -f $bloc/inp"
+    - "{{sched.launch}} {{srun_opts}} $bloc/src/ior -f $bloc/inp"
     - "cd .."
     - "rm -rf {{scratch.path}}/ior-test-{{outname}}"
 

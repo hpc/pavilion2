@@ -265,7 +265,7 @@ _base:
     cmds:
       - ./build/bin/vpic {{vpic_input_deck}}
       - 'top -b -u {{user}} > top_out.txt 2>&1 &'
-      - '{{vpic_run.time_cmd}} {{sched.test_cmd}} {{vpic_run.numa}} ./lpi-input.Linux --tpp 1'
+      - '{{vpic_run.time_cmd}} {{sched.launch}} {{vpic_run.numa}} ./lpi-input.Linux --tpp 1'
 
   schedule:
     nodes: '{{nnodes}}'
