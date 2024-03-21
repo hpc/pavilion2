@@ -1,5 +1,6 @@
 """Print the test results for the given test/suite."""
 
+from collections import defaultdict
 import datetime
 import errno
 import io
@@ -42,6 +43,16 @@ class ResultsCommand(Command):
             action="store_true", default=False,
             help="Give the results in json."
         )
+        parser.add_argument(
+            "--by-key", type=str, default='',
+            help="Show the data in the given results key instead of the regular results. \n"
+                 "Such keys must contain a dictionary of dictionaries. Use the `--by-key-compat`\n"
+                 "argument to find out which keys are compatible. Results from all matched \n"
+                 "tests are combined (duplicates are ignored).\n"
+                 "Example `pav results --by-key=per_file`.")
+        parser.add_argument(
+            "--by-key-compat", action="store_true",
+            help="List keys compatible with the '--by-key' argument.")
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
             "-k", "--key", type=str, default='',
@@ -94,8 +105,6 @@ class ResultsCommand(Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        fields = self.key_fields(args)
-
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
                                 verbose=self.errfile).paths
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
@@ -110,15 +119,69 @@ class ResultsCommand(Command):
             if not self.update_results(pav_cfg, tests, log_file, save=args.save):
                 return errno.EINVAL
 
+        serieses = ",".join(
+            set([test.series for test in tests if test.series is not None]))
         results = result_utils.get_results(pav_cfg, tests)
-        flat_results = []
-        all_passed = True
-        for rslt in results:
-            flat_results.append(utils.flatten_dictionary(rslt))
-            if rslt['result'] != TestRun.PASS:
-                all_passed = False
 
-        field_info = {}
+        if args.by_key_compat:
+            compat_keys = set()
+            for rslt in results:
+                for key in rslt:
+                    if isinstance(rslt[key], dict):
+                        for subkey, val in rslt[key].items():
+                            if isinstance(val, dict):
+                                compat_keys.add(key)
+                                break
+
+            if 'var' in compat_keys:
+                compat_keys.remove("var")
+
+            output.fprint(self.outfile, "Keys compatible with '--by-key'")
+            for key in compat_keys:
+                output.fprint(self.outfile, "  ", key)
+
+            return 0
+
+        elif args.by_key:
+            reorged_results = defaultdict(dict)
+            fields = set()
+            for rslt in results:
+                subtable = rslt.get(args.by_key, None)
+                if not isinstance(subtable, dict):
+                    continue
+                for key, values in subtable.items():
+                    if not isinstance(values, dict):
+                        continue
+                    reorged_results[key].update(values)
+                    fields = fields.union(values.keys())
+
+            fields = ['--tag'] + sorted(fields)
+            flat_results = []
+            for key, values in reorged_results.items():
+                values['--tag'] = key
+                flat_results.append(values)
+
+            flat_results.sort(key=lambda val: val['--tag'])
+
+            field_info = {
+                '--tag': {'title': ''},
+            }
+
+        else:
+            fields = self.key_fields(args)
+            flat_results = []
+            all_passed = True
+            for rslt in results:
+                flat_results.append(utils.flatten_dictionary(rslt))
+                if rslt['result'] != TestRun.PASS:
+                    all_passed = False
+            field_info = {
+                'created': {'transform': output.get_relative_timestamp},
+                'started': {'transform': output.get_relative_timestamp},
+                'finished': {'transform': output.get_relative_timestamp},
+                'duration': {'transform': output.format_duration},
+                }
+
 
         if args.list_keys:
             flat_keys = result_utils.keylist(flat_results)
@@ -127,13 +190,13 @@ class ResultsCommand(Command):
             fields = ["default", "common"]
             test_fields = [f for f in flat_keys.keys() if f not in fields]
             fields = fields + sorted(test_fields)
+            title_str=f"Available keys for specified tests in {serieses}."
 
             output.draw_table(outfile=self.outfile,
-                              field_info=field_info,
                               fields=fields,
                               rows=flatter_keys,
                               border=True,
-                              title="Available keys for specified tests.")
+                              title=title_str)
 
         elif args.json or args.full:
             if not results:
@@ -156,21 +219,15 @@ class ResultsCommand(Command):
                 pass
 
         else:
-            flat_sorted_results = sort_results(args, flat_results)
+            flat_sorted_results = utils.sort_table(args.sort_by, flat_results)
 
-            field_info = {
-                'created': {'transform': output.get_relative_timestamp},
-                'started': {'transform': output.get_relative_timestamp},
-                'finished': {'transform': output.get_relative_timestamp},
-                'duration': {'transform': output.format_duration},
-                }
-
+            title_str=f"Test Results: {serieses}."
             output.draw_table(
                 outfile=self.outfile,
                 field_info=field_info,
                 fields=fields,
                 rows=flat_sorted_results,
-                title=f"Test Results"
+                title=title_str
             )
 
         if args.show_log:
@@ -298,48 +355,3 @@ class ResultsCommand(Command):
                                      .format(results["result"]))
 
         return True
-
-
-def sort_results(args, results: List[dict]) -> List[dict]:
-    """Same basic operation as pavilion.filters.get_sort_opts except
-    here the sort operation is performed on the results array rather
-    than stored as a function and called later.
-
-    If the sort-by key is present in the test object, the
-    sort will be performed in dir_db.select or select_from.
-    Otherwise the default sort will be performed in dir_db and here the
-    results dict will be sorted according to the key for output.
-
-    Results dicts without the key will be skipped with dummy value dval.
-    Thus the user may sort the results of incomplete series, by result keys specific to
-    a particular test in a series, or by keys that are not being displayed.
-    If the key is not in any of the results dicts, it simply returns a copy of
-    the results dict.
-
-    :param args: Command line arguments, for sort_by.
-    :param results: A list of flattened result dicts.
-    :returns: The sorted (or copied) list of results dicts.
-    """
-
-    sort_key = args.sort_by
-    dval = None
-
-    sort_ascending = True
-    if sort_key.startswith('-'):
-        sort_ascending = False
-        sort_key = sort_key[1:]
-
-    for rslt in results:
-        if sort_key in rslt.keys():
-            if isinstance(rslt[sort_key], str):
-                dval = " "
-            else:
-                dval = float("-inf")
-            break
-
-    if not dval:
-        return results.copy()
-
-    rslts = sorted(results, key=lambda d: d.get(sort_key, dval), reverse=not sort_ascending)
-
-    return rslts

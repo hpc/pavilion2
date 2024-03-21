@@ -18,6 +18,7 @@ class ParserTests(unittest.PavTestCase):
         self.var_man.add_var_set('var', {
             'int1': "1",
             'int2': "2",
+            'int5': "5",
             'float1': '1.1',
             'str1': 'hello',
             'ints': ['0', '1', '2', '3', '4', '5'],
@@ -74,10 +75,21 @@ class ParserTests(unittest.PavTestCase):
         'len([int1, 1, "hello",])': 3,
         'len([])': 0,
         'sum([1,2,3,4000])': 4006,
+        'range(1, 5)': [1, 2, 3, 4],
+        'range(1, 5).2': 3,
+        'range(1, 5)[2:4]': [3, 4],
+        'range(1, 5)[3-1:int5]': [3, 4],
         'int1 + var.int2 * 11 * - sum([int1, int2])': -65,
         'int1 + var.float1 * -2 * -len(ints.*)': 14.200000000000001,
         'str1': 'hello',
         'ints.3': 3,
+        'ints[3]': 3,
+        'ints[3:5]': ['3', '4'],
+        'ints[:3]': ['0', '1', '2'],
+        'ints[3:]': ['3', '4', '5'],
+        'ints[:]': ['0', '1', '2', '3', '4', '5'],
+        'ints[-3]': 3,
+        'ints[-4:-1]': ['2', '3', '4'],
         'ints': 0,
         # Make sure this isn't parsed as 'not e'
         'note': 3,
@@ -136,14 +148,21 @@ class ParserTests(unittest.PavTestCase):
         '[1, 2, 3, 4] * [4, 4, 2, 1]': [4, 8, 6, 4],
         '[1, 2, 3, 4] < 3 < 10 < [10, 11, 12, 13]': [False, True, False, False],
         '[1, "foo", False, 0, ""] and 2': [True, True, False, False, False],
+
+        # Concatenation
+        '"abc" .. "def"': "abcdef",
+        '[1, 2, 3] .. [4, 5, 6]': [1, 2, 3, 4, 5, 6],
+        '"a" .. ["b"] .. "c" .. ["d", "e"]': ['abc', 'd', 'e'],
     }
 
     def test_good_expressions(self):
         """Make sure good expressions work as expected."""
+        import logging
 
         expr_parser = lark.Lark(
             grammar=parsers.expressions.EXPR_GRAMMAR,
             parser='lalr',
+            debug=False,
         )
         trans = parsers.expressions.ExprTransformer(self.var_man)
 
@@ -182,16 +201,21 @@ class ParserTests(unittest.PavTestCase):
         # Bad lists
         '[,foo,]': 'Misplaced Comma',
         '[foo,,]': 'Misplaced Comma',
-        # Consecutive operands
         '1 2': 'Invalid Syntax',
         'a b': 'Invalid Syntax',
         'True False': 'Invalid Syntax',
-        '"hello" + 1': "Non-numeric value 'hello' in math operation.",
-        '"hello" * 1': "Non-numeric value 'hello' in math operation.",
-        '"hello" ^ 1': "Non-numeric value 'hello' in math operation.",
-        '-"hello"': "Non-numeric value 'hello' in math operation.",
-        'var.1.2.3.4.5': "Invalid variable 'var.1.2.3.4.5': too many name "
-                         "parts.",
+        '"hello" + 1': "Math operation given string",
+        '"hello" * 1': "Math operation given string",
+        '"hello" ^ 1': "Math operation given string",
+        '-"hello"': "Math operation given string",
+        'var[1': 'Unmatched "["',
+        'var[]': 'List indexes and slices must contain a value.',
+        'var[1:2:3]': 'Extra colon in slice',
+        'range(1, 5)[3': 'Unmatched "["',
+        'range(1, 5):3]': 'Unmatched "]"',
+        'range(1, 5)[]': 'List indexes and slices must contain a value.',
+        'range(1, 5).a': 'Invalid key component',
+        'var.1.2.3.4.5': "Variable reference (var.1.2.3.4.5) has too many parts",
         'var.structs.0.*': "Could not resolve reference 'var.structs.0.*': "
                            "Unknown sub_var: '*'",
         'funky_town()': "No such function 'funky_town'",
@@ -200,10 +224,8 @@ class ParserTests(unittest.PavTestCase):
                          'floor. Got 2, but expected 1',
         '[1, 2, 3] + [1, 2]': "List operations must be between two equal "
                               "length lists. Arg1 had 3 values, arg2 had 2.",
-        '[1, "foo", 3] * 2': "Non-numeric value 'foo' in list in math "
-                             "operation.",
-        '3 + [1, "foo", 3]': "Non-numeric value 'foo' in list in math "
-                             "operation.",
+        '[1, "foo", 3] * 2': "Math operation given string",
+        '3 + [1, "foo", 3]': "Math operation given string",
 
     }
 
@@ -266,6 +288,11 @@ class ParserTests(unittest.PavTestCase):
             '${hello}': '${hello}',
             'also{': 'also{',
             '[0-9]': '[0-9]',
+            # Allow strings to return a list if it's just the list expression and whitespace.
+            ' {{ ints.* }} \n': ['0', '1', '2', '3', '4', '5'],
+            '{{ ints.* }}': ['0', '1', '2', '3', '4', '5'],
+            '{{ ints.* :02d}}': ['00', '01', '02', '03', '04', '05'],
+
         }
 
         for expr, result in self.GOOD_EXPRESSIONS.items():
@@ -315,6 +342,12 @@ class ParserTests(unittest.PavTestCase):
             # Bad expression
             '{{ nope }}': "Could not find a variable named 'nope' in any "
                           "variable set.",
+
+            # Lists are allowed, but they can't have anything other than whitespace in the string.
+            'nope{{ ints.* }}': "Value resolved to a list, but also contained none-whitespace.",
+            # Only a single list is allowed.
+            '{{ ints.* }} {{ints.*}}': "Value contained multiple expressions that resolved to lists.",
+
         }
 
         for expr, expected in self.BAD_EXPRESSIONS.items():

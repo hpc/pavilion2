@@ -67,9 +67,10 @@ identically to Python3 (with one noted exception). This includes:
 - Power operations, though Pavilion uses ``^`` to denote these. ``a ^ 3``
 - Logical operations ``a and b or not False``.
 - Parenthetical expressions ``a * (b + 1)``
+- Concatenation ``"hello " .. "world"`` and ``[1, 2 ,3] .. [4, 5, 6]``
 
 List Operations
-```````````````
+^^^^^^^^^^^^^^^
 
 When using math operations with list values, the operation is applied
 recursively to each element. Operations between two lists require that the
@@ -90,6 +91,21 @@ of items.
             # This would produce (1*4 + 2*4 + 3*2 + 4*1.5)/4 == 6.0
             mult_avg: '{{avg(nums*mult)}}'
 
+List Indexing and Slicing
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can reference individual items and slices from lists both from variables when they're returned
+from functions. The syntax ``val[start:end]`` mirrors that of Python.  You can also use the
+Pavilion classic syntax of ``val.1`` or ``val.*`` to access individual items or get the full list of
+items (``val`` is the same as ``val.0`` or ``val[0]``).
+
+.. code-block::
+
+    list_expr_test:
+        variables:
+            nums: '{{ range(1, 10)[4] }}'
+            vals: [4, 4, 2, 1.5]
+            some_sum: '{{ sum(vals[1:3]) }}'
 
 Types and End Results
 ^^^^^^^^^^^^^^^^^^^^^

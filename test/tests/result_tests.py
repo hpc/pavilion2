@@ -831,7 +831,8 @@ class ResultParserTests(PavTestCase):
 
         for test in run_cmd.last_tests:
             # Each of these tests should have a 'FAIL' as the result.
-            self.assertEqual(test.results['result'], TestRun.FAIL)
+            self.assertEqual(test.results['result'], TestRun.FAIL, 
+                             msg='Should be FAIL {}'.format(test.results))
 
         # Make sure we can re-run results, even with permutations.
         # Check that the changed results are what we expected.
@@ -881,6 +882,44 @@ class ResultParserTests(PavTestCase):
         out, err = result_cmd.clear_output()
         self.assertIn(bad_test.full_id, err)
 
+    def test_result_cmd_by_key(self):
+        """Check the by-key and by-key-compat options."""
+
+        arg_parser = arguments.get_parser()
+
+        result_cmd = commands.get_command('result')
+        result_cmd.silence()
+        run_cmd = commands.get_command('run')
+        run_cmd.silence()
+
+        run_args = arg_parser.parse_args(['run', 'result_tests.complex'])
+        if run_cmd.run(self.pav_cfg, run_args) != 0:
+            cmd_out, cmd_err = run_cmd.clear_output()
+            self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
+        for test in run_cmd.last_tests:
+            test.wait(10)
+ 
+        res_args = arg_parser.parse_args(
+            ('result', '--by-key-compat', run_cmd.last_tests[0].full_id))
+        rslt = result_cmd.run(self.pav_cfg, res_args)
+        cmd_out, cmd_err = result_cmd.clear_output()
+        self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
+                                  .format(cmd_out, cmd_err))
+
+        self.assertIn('data', cmd_out)
+
+        res_args = arg_parser.parse_args(
+            ('result', '--by-key=data', run_cmd.last_tests[0].full_id))
+        rslt = result_cmd.run(self.pav_cfg, res_args)
+        cmd_out, cmd_err = result_cmd.clear_output()
+        self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
+                                   .format(cmd_out, cmd_err))
+
+
+        self.assertIn('A | B | C', cmd_out)
+        self.assertIn('3 | 4 | 5', cmd_out)
+
+
     def test_result_cmd_all_passed(self):
         """Check that the '--all-passed' option works."""
 
@@ -924,7 +963,7 @@ class ResultParserTests(PavTestCase):
         """Check basic re functionality."""
 
         answers = {
-            'hello': '33',
+            'hello': 33,
             'ip': '127.33.123.43',
             'all_escapes': r'.^$*\+?\{}\[]|'
         }

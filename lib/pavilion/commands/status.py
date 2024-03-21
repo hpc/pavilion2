@@ -73,7 +73,8 @@ class StatusCommand(Command):
             return self.print_summary(statuses)
         else:
             return status_utils.print_status(statuses, self.outfile, json=args.json,
-                                             series=args.series, note=args.note)
+                                             series=args.series, note=args.note,
+                                             sorter=args.sort_by)
 
     def print_summary(self, statuses):
         """Print_summary takes in a list of test statuses.
