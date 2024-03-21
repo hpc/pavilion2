@@ -263,10 +263,10 @@ def update(pav_cfg, url, dest):
         # depends on the transfer encoding. It should match for any already
         # compressed files, but other data types are frequently compressed.
         elif (not (
-                info.get('ETag') == head_data.get('ETag') or
+                info.get('ETag') == head_data.get('ETag') and
                 # If the old content length is the same, it's probably
                 # unchanged. Probably...
-                head_data.get('Content-Length') == info.get('Content-Length') or
+                head_data.get('Content-Length') == info.get('Content-Length') and
                 # Or if the content length matches the actual size.
                 head_data.get('Content-Length') == info['size'])):
             fetch = True
