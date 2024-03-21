@@ -47,6 +47,7 @@ each test right before it runs on an allocation in order to un-defer values.
         'test_min_cpus': '4',
         'test_min_mem': '32',
         'tasks_total': '180',
+        'test_cmd': '# This is an alias to "launch"',
     }
 
     # Scheduler variable errors are deferred. We'll handle them later we we create
@@ -176,6 +177,12 @@ each test right before it runs on an allocation in order to un-defer values.
 
         return ''
 
+    @dfr_var_method
+    def test_cmd(self):
+        """Alias to the launch command"""
+        
+        return self.launch()
+        
     @var_method
     def launch(self):
         """Calls the actual test command and then wraps the result with the wrapper
