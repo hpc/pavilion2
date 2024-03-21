@@ -18,6 +18,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                     yc.BoolElem('depends_pass', default=False),
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
+                    yc.IntElem('simultaneous', default=None),
                     CondCategoryElem(
                         'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                         key_case=EnvCatElem.KC_MIXED
@@ -62,7 +63,9 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         ),
         yc.IntElem(
             'simultaneous', default=0,
-            help_text="The maximum number of tests to run simultaneously."
+            help_text="The maximum number of tests to run simultaneously. This can be"
+                      " set at the full series level and/or at each test_set level. If"
+                      " set at both levels then test_set will take precedence."
         ),
         yc.BoolElem(
             'ordered', default=False,
