@@ -1,6 +1,8 @@
 """Contains the object for tracking multi-threaded builds, along with
 the TestBuilder class itself."""
 
+# pylint: disable=too-many-lines
+
 import glob
 import hashlib
 import io
@@ -23,7 +25,6 @@ from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
-
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -62,8 +63,7 @@ class TestBuilder:
         :param script: Path to the build script
         :param templates: Paths to template files and their destinations.
         :param spack_config: Give a spack config to enable spack builds.
-        :param build_name: The build name, if this is a build that
-            already exists.
+        :param build_name: The build name, if this is a build that already exists.
         :raises TestBuilderError: When the builder can't be initialized.
         """
 
@@ -73,6 +73,7 @@ class TestBuilder:
         self._script_path = script
         self._download_dest = download_dest
         self._templates: Dict[Path, Path] = templates or {}
+        self._build_hash = None
 
         try:
             self._timeout = parse_timeout(config.get('timeout'))
@@ -166,7 +167,16 @@ class TestBuilder:
             except OSError:
                 return None
 
-    def create_build_hash(self) -> str:
+    @property
+    def build_hash(self) -> str:
+        """Get the cached build hash, if it exists. Otherwise,
+        create it and cache it."""
+        if self._build_hash is None:
+            self._build_hash = self._create_build_hash()
+
+        return self._build_hash
+
+    def _create_build_hash(self) -> str:
         """Turn the build config, and everything the build needs, into a hash.
         This includes the build config itself, the source tarball, and all
         extra files."""
@@ -237,13 +247,13 @@ class TestBuilder:
 
         hash_obj.update(self._config.get('specificity', '').encode())
 
-        return hash_obj.hexdigest()
+        return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES*2]
 
     def name_build(self) -> str:
         """Search for the first non-deprecated version of this build (whether
         or not it exists) and name the build for it."""
 
-        base_hash = self.create_build_hash()[:self.BUILD_HASH_BYTES*2]
+        base_hash = self.build_hash
 
         builds_dir = self._pav_cfg.working_dir/'builds'
         name = base_hash
@@ -385,45 +395,45 @@ class TestBuilder:
         :return: True if these steps completed successfully.
         """
 
-        # Only try to do the build if it doesn't already exist and is finished.
+        mb_tracker = tracker.tracker
+
         if not self.finished_path.exists():
             # Make sure another test doesn't try to do the build at
             # the same time.
             # Note cleanup of failed builds HAS to occur under this lock to
             # avoid a race condition, even though it would be way simpler to
             # do it in .build()
+
             tracker.update(
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
-            lock_path = self.path.with_suffix('.lock')
-            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group) as lock:
+
+            timed_lock = mb_tracker.make_lock_context(self.build_hash)
+            with timed_lock as acquired:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
-                if not self.finished_path.exists():
-                    tracker.update(
-                        state=STATES.BUILDING,
-                        note="Starting build {}.".format(self.name))
 
-                    # If the build directory exists, we're assuming there was
-                    # an incomplete build at this point.
-                    if self.path.exists():
-                        tracker.warn(
-                            "Build lock acquired, but build exists that was "
-                            "not marked as finished. Deleting...")
-                        try:
-                            shutil.rmtree(self.path)
-                        except OSError as err:
-                            tracker.error(
-                                "Could not remove unfinished build.\n{}"
-                                .format(err))
-                            return False
+                if acquired:
+                    if not self.finished_path.exists():
+                        tracker.update(
+                            state=STATES.BUILDING,
+                            note="Starting build {}.".format(self.name))
 
-                    with lockfile.LockFilePoker(lock):
-                        # Attempt to perform the actual build, this shouldn't
-                        # raise an exception unless something goes terribly
-                        # wrong.
-                        # This will also set the test status for
-                        # non-catastrophic cases.
+                        # If the build directory exists, we're assuming there was
+                        # an incomplete build at this point.
+
+                        if self.path.exists():
+                            tracker.warn(
+                                "Build lock acquired, but build exists that was "
+                                "not marked as finished. Deleting...")
+                            try:
+                                shutil.rmtree(self.path)
+                            except OSError as err:
+                                tracker.error(
+                                    "Could not remove unfinished build.\n{}"
+                                    .format(err))
+                                return False
+
                         if not self._build(self.path, cancel_event, test_id, tracker):
 
                             try:
@@ -446,16 +456,19 @@ class TestBuilder:
 
                             return False
 
-                    try:
-                        self.finished_path.touch()
-                    except OSError:
-                        tracker.warn("Could not touch '<build>.finished' file.")
+                        try:
+                            self.finished_path.touch()
+                        except OSError:
+                            tracker.warn("Could not touch '<build>.finished' file.")
 
+                    else:
+                        tracker.update(
+                            state=STATES.BUILD_REUSED,
+                            note="Build {s.name} created while waiting for build "
+                                "lock.".format(s=self))
                 else:
-                    tracker.update(
-                        state=STATES.BUILD_REUSED,
-                        note="Build {s.name} created while waiting for build "
-                             "lock.".format(s=self))
+                    tracker.warn("Timed out when attempting to acquire lock")
+                    return False
         else:
             tracker.update(
                 note=("Build {s.name} is being reused.".format(s=self)),
@@ -502,7 +515,7 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, test_id, tracker: BuildTracker):
+    def _build(self, build_dir, cancel_event, test_id, tracker: BuildTracker) -> bool:
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build

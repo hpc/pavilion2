@@ -12,16 +12,17 @@ from typing import List
 import lark
 from .common import PavTransformer
 from ..errors import ParserValueError
+from ..utils import auto_type_convert
 from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
 
 STRING_GRAMMAR = r'''
-// All strings resolve to this token. 
+// All strings resolve to this token.
 start: string TRAILING_NEWLINE?
 
 TRAILING_NEWLINE: /\n/
 
-// It's important that each of these start with a terminal, rather than 
-// a reference back to the 'string' rule. A 'STRING' terminal (or nothing) 
+// It's important that each of these start with a terminal, rather than
+// a reference back to the 'string' rule. A 'STRING' terminal (or nothing)
 // is definite, but a 'string' would be non-deterministic.
 string: STRING?
       | STRING? iter string
@@ -35,15 +36,15 @@ _CLOSE_BRACKET: "]"
 
 iter_inner: STRING?
           | STRING? expr iter_inner
-    
+
 
 expr: _START_EXPR EXPR? (ESCAPED_STRING EXPR?)* FORMAT? _END_EXPR
 _START_EXPR: "{{"
 _END_EXPR: "}}"
-EXPR: /[^}~{":]+/
-// Match anything enclosed in quotes as long as the last 
+EXPR: /([^}~{:"]+(:[^}~{:"]*\])?)+/
+// Match anything enclosed in quotes as long as the last
 // escape doesn't escape the close quote.
-// A minimal match, but the required close quote will force this to 
+// A minimal match, but the required close quote will force this to
 // consume most of the string.
 _STRING_ESC_INNER: /.*?/
 // If the string ends in a backslash, it must end with an even number
@@ -62,7 +63,7 @@ FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 //      we can't match the start of the string in the look-behind.
 //  - Strings can contain anything, but they can't start with an open
 //    expression '{{' or open iteration '[~'.
-//  - Strings cannot end in an odd number of backslashes (that would 
+//  - Strings cannot end in an odd number of backslashes (that would
 //    escape the closing characters).
 //  - Strings must end with the end of string, an open expression '{{',
 //    an open iteration '[~', or a tilde.
@@ -152,7 +153,31 @@ class StringTransformer(PavTransformer):
         if len(items) > 1:
             parts.append('\n')
 
-        return ''.join(parts)
+        # If everything is a string, join the bits and return them.
+        is_str = lambda v: isinstance(v, str)
+        if all(map(is_str, parts)):
+            return ''.join(parts)
+
+        # Check if all the parts are whitespace or a (single) list.
+        found_list = None
+        for part in parts:
+            if isinstance(part, list):
+                if found_list is None:
+                    found_list = part
+                else:
+                    raise ParserValueError(
+                        token=self._merge_tokens(items, parts),
+                        message="Value contained multiple expressions that resolved to lists.")
+            elif not (is_str(part) and part.isspace()):
+                raise ParserValueError(
+                    token=self._merge_tokens(items, parts),
+                    message="Value resolved to a list, but also contained none-whitespace.")
+        if not found_list:
+            raise ParserValueError(
+                token=self._merge_tokens(items, parts),
+                message="Value resolved to an invalid type (this should never happen).")
+
+        return found_list
 
     def string(self, items) -> lark.Token:
         """Strings are merged into a single token whose value is all
@@ -357,29 +382,48 @@ class StringTransformer(PavTransformer):
             err.pos_in_stream += expr.start_pos
             raise
 
-        if not isinstance(value, (int, float, bool, str)):
+        format_spec = expr.value['format_spec']
+        if format_spec is not None:
+            spec = format_spec[1:]
+            def _format(val):
+                try:
+                    return f'{val:{spec}}'
+                except ValueError as err:
+                    try:
+                        val = auto_type_convert(val)
+                        return f'{val:{spec}}'
+                    except ValueError as err:
+                        raise ParserValueError(
+                            expr, f"Invalid format_spec '{spec}' for value '{val}': {err}")
+        else:
+            _format = str
+
+        if isinstance(value, list):
+            formatted = []
+            for idx, item in enumerate(value):
+                if not isinstance(item, (int, float, bool, str)):
+                    type_name = type(value).__name__
+                    raise ParserValueError(
+                        expr,
+                        "Pavilion expression resolved to a list with a bad item. Expression "
+                        "lists can only contain basic data types (int, float, str, bool), but "
+                        "we got type {} in position {} with value: \n{}"
+                        .format(type_name, idx, item))
+
+                formatted.append(_format(item))
+
+            return formatted
+
+        elif not isinstance(value, (int, float, bool, str)):
             type_name = type(value).__name__
             raise ParserValueError(
                 expr,
                 "Pavilion expressions must resolve to a string, int, float, "
-                "or boolean. Instead, we got {} '{}'"
+                "or boolean (or a list of such values). Instead, we got {} '{}'"
                 .format('an' if type_name[0] in 'aeiou' else 'a', type_name))
 
-        format_spec = expr.value['format_spec']
-
-        if format_spec is not None:
-            try:
-                value = '{value:{format_spec}}'.format(
-                    format_spec=format_spec[1:],
-                    value=value)
-            except ValueError as err:
-                raise ParserValueError(
-                    expr,
-                    "Invalid format_spec '{}': {}".format(format_spec, err))
         else:
-            value = str(value)
-
-        return value
+            return _format(value)
 
     @staticmethod
     def _displace_token(base: lark.Token, inner: lark.Token):

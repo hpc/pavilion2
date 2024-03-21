@@ -10,9 +10,8 @@ import uuid
 from pathlib import Path
 
 from pavilion import builder
-from pavilion import lockfile
 from pavilion import wget
-from pavilion.build_tracker import DummyTracker
+from pavilion.build_tracker import MultiBuildTracker, DummyTracker
 from pavilion.errors import TestRunError
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
@@ -25,40 +24,29 @@ class BuilderTests(PavTestCase):
 
         # Make a unique build.
         test_cfg = self._quick_test_cfg()
-        test_cfg['build']['cmds'] = ["echo {}".format(uuid.uuid4().hex)]
-        test = self._quick_test(test_cfg, build=False, finalize=False)
+        test_cfg['build']['cmds'] = ['sleep 0.2']
 
-        bldr = builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
-                                   test.build_script_path, test.status, Path('/tmp'))
+        num_tests = 3
+        
+        mb_tracker = MultiBuildTracker()
+        tests = []
+        threads = []
 
-        # Prelock the build.
-        lock = lockfile.LockFile(bldr.path.with_suffix('.lock'), expires_after=2)
-        lock._create_lockfile()
+        for _ in range(num_tests):
+            tests.append(self._quick_test(test_cfg, build=False, finalize=False))
 
-        start = time.time()
-        bldr.build(test.full_id, DummyTracker())
-        # Make sure the builder actually waited for the lock to expire.
-        # Note: This is inelegant, but I can't really think of a better (single-threaded) way.
-        self.assertGreater(time.time() - start, 2.0)
+        for test in tests:
+            tracker = mb_tracker.register(test)
+            thread = threading.Thread(target=test.builder.build, args=(test.full_id, tracker))
+            threads.append(thread)
+            thread.run()
+    
+        map(lambda x: x.join(), threads)
 
-        # Now start a build that takes some time and has to update its lockfile.
-        test_cfg = self._quick_test_cfg()
-        test_cfg['build']['cmds'] = ["echo {}".format(uuid.uuid4().hex), 'sleep 5']
-        test = self._quick_test(test_cfg, build=False, finalize=False)
-        bldr = builder.TestBuilder(self.pav_cfg, self.pav_cfg.working_dir, test.config['build'],
-                                   test.build_script_path, test.status, Path('/tmp'))
-        bldr_lock_path = bldr.path.with_suffix('.lock')
-
-        # And now I'm using threading anyway...
-        thread = threading.Thread(target=bldr.build, args=(test.full_id, DummyTracker()))
-        thread.start()
-        # We must wait a moment for the builder to actually create the lockfile.
-        while not bldr_lock_path.exists():
-            time.sleep(0.1)
-
-        start = time.time()
-        with lockfile.LockFile(bldr_lock_path):
-            self.assertGreater(time.time() - start, 5)
+        states = [test.status.current().state for test in tests]
+        reused = list(filter(lambda x: x == STATES.BUILD_REUSED, states))
+        self.assertEqual(len(reused), num_tests - 1)
+        self.assertIn(STATES.BUILD_SUCCESS, states)
 
     def test_setup_build_dir(self):
         """Make sure we can correctly handle all of the various archive

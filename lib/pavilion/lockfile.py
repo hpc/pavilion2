@@ -241,6 +241,9 @@ lock regularly while it's in use for longer periods of time.
         file_note = ",".join([os.uname()[1], utils.get_login(), str(self.expire_period),
                               self._id])
         file_note = file_note.encode('utf8')
+
+	# This will not work on certain version combinations of Linux/NFS
+	# Proposal: replace with link/fstat pattern
         file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         os.write(file_num, file_note)
         os.close(file_num)
