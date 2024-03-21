@@ -116,10 +116,12 @@ def head(pav_cfg, url):
 
     redirects = 0
 
+    headers = { 'Cache-Control':'no-cache' }
     try:
         response = session.head(url,
                                 proxies=proxies,
                                 verify=ca_cert_path(),
+                                headers=headers,
                                 timeout=pav_cfg.wget_timeout)
         # The location header is the redirect location. While the requests
         # library resolves these automatically, it still returns the first
@@ -135,6 +137,7 @@ def head(pav_cfg, url):
             response = session.head(redirect_url,
                                     proxies=proxies,
                                     verify=ca_cert_path(),
+                                    headers=headers,
                                     timeout=pav_cfg.wget_timeout)
 
     except requests.exceptions.RequestException as err:
@@ -246,7 +249,6 @@ def update(pav_cfg, url, dest):
 
     # If the file doesn't exist, just get it.
     if not dest.exists():
-        print( "does not exist" )
         fetch = True
     else:
         head_data = head(pav_cfg, url)
@@ -257,7 +259,6 @@ def update(pav_cfg, url, dest):
         # matching Content-Length and fetch it if we can't.
         if (not info_path.exists() and
                 (head_data.get('Content-Length') != info['size'])):
-            print( "no content length match: ", info, head_data )
             fetch = True
 
         # If we do have an info file and neither the ETag or content length
@@ -269,10 +270,6 @@ def update(pav_cfg, url, dest):
                 # If the old content length is the same, it's probably
                 # unchanged. Probably...
                 head_data.get('Content-Length') == info.get('Content-Length')) ):
-            print( "ETag: ", info.get('ETag'), head_data.get('ETag') )
-            print( "content length: ", info.get('Content-Length'), 
-                    head_data.get('Content-Length') )
-            print( "content differs: ", info['size'] )
             fetch = True
 
     if fetch:
