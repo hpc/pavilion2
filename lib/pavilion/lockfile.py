@@ -15,6 +15,7 @@ from time import sleep
 
 from pavilion import output
 from pavilion import utils
+from pavilion.errors import LockfileError
 
 # Expires after a silly long time.
 NEVER = 10**10
@@ -361,10 +362,23 @@ class FuzzyLock:
 
         :return: True if lock has been successfully acquired; False if timed out
         """
-        self._lock_dir.mkdir(exist_ok=True)
 
-        # Declare intent to take lock
-        self._lockfile.touch(exist_ok=False)
+        try:
+            self._lock_dir.mkdir(exist_ok=True)
+
+            # Declare intent to take lock
+            self._lockfile.touch(exist_ok=False)
+        except OSError:
+            msg = f"Unable to create lockfile {self._lockfile}."
+
+            if not self._lock_dir.exists():
+                # This is probably the fault of the caller
+                msg += " Lock directory ({self._lock_dir}) does not exist."
+            elif self._lockfile.exists():
+                # If this happens, something went very wrong. This is likely dead code.
+                msg += " Lockfile ({self._lock_dir}) already exists."
+            
+            raise LockFileError(msg)
 
         first = False
         start = time.time()
@@ -389,13 +403,14 @@ class FuzzyLock:
         del self._mtimes[self._lockfile]
 
         # Remove lock directory once it's empty
-        if len(list(self._lock_dir.iterdir())) == 0:
-            try:
-                self._lock_dir.rmdir()
-            except FileNotFoundError:
-                # Another thread or process has removed the directory;
-                # can be safely ignored
-                pass
+        try:
+            # This will simply fail if the directory isn't empty,
+            # which is what we want.
+            self._lock_dir.rmdir()
+        except OSError:
+            # Another thread or process has removed the directory,
+            # or the directory is not empty; can be safely ignored
+            pass
 
     def _get_earliest(self) -> Path:
         """Get the path to the lockfile that was created first.
@@ -403,9 +418,8 @@ class FuzzyLock:
         :return: Path object to whichever lockfile was created first"""
 
         lfiles = list(self._lock_dir.iterdir())
-        dict_keys = list(self._mtimes.keys())
 
-        for lockfile in dict_keys:
+        for lockfile in list(self._mtimes.keys()):
             if lockfile not in lfiles:
                 try:
                     del self._mtimes[lockfile]

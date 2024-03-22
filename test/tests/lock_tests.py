@@ -6,6 +6,7 @@ import time
 import io
 import time
 from threading import Thread
+from typing import List
 
 from pavilion import lockfile
 from pavilion.unittest import PavTestCase
@@ -146,23 +147,36 @@ class TestLocking(PavTestCase):
         self.lock_path.unlink()
         self.assertIn("mysteriously replaced", errfile.getvalue())
 
-    def test_fuzzylock_mutual_exclusion(self):
+    def test_fuzzylock(self):
         # Test that FuzzyLock object correctly excludes concurrent access
 
         num_threads = 3
-        sleep_time = 1
+        sleep_time = 0.1
         repeats = 10
 
+        # Check simple mutual exclusion
         with self.assertRaises(TimeoutError):
             with lockfile.FuzzyLock(self.lock_dir):
-                lockfile.FuzzyLock(self.lock_dir, timeout=3).__enter__()
+                with lockfile.FuzzyLock(self.lock_dir, timeout=3):
+                    ...
 
+        # Make sure they removed the lock directory
+        self.assertFalse(self.lock_dir.exists(), msg='Lock directory was not removed upon exiting lock context.')
+
+        # Clean up previous test
         for f in self.lock_dir.iterdir():
             f.unlink()
 
-        def sleep_lock(idx, results):
+        def sleep_lock(idx: int, acquired: List[int], cleaned_up: List[int]) -> None:
+            """Simultaneously test that all threads finish running and properly remove
+            their lockfiles."""
             with lockfile.FuzzyLock(self.lock_dir, timeout=10) as lock:
-                results[idx] = True
+                acquired[idx] = True
+                self.assertTrue(self.lock_dir.exists(), msg='Lock directory is missing')
+                time.sleep(sleep_time)
+
+            # Did the thread remove its lockfile?
+            cleaned_up = not self._lockfile.exists()
 
         # Do this several times to account for indeterminacy
         for _ in range(repeats):
@@ -172,49 +186,16 @@ class TestLocking(PavTestCase):
                     f.unlink()
 
             threads = []
-            results = [False] * num_threads
+            acquired = [False] * num_threads
+            cleaned_up = acquired[:]
 
             for i in range(num_threads):
-                thread = Thread(target=sleep_lock, args=(i, results))
+                thread = Thread(target=sleep_lock, args=(i, acquired, cleaned_up))
                 threads.append(thread)
                 thread.start()
 
             for t in threads:
                 t.join()
 
-            self.assertTrue(all(results))
-
-    def test_fuzzylock_cleanup(self):
-        # Test that the FuzzyLock object removes its lockfiles and directories
-        # once finished
-
-        num_threads = 10
-
-        with lockfile.FuzzyLock(self.lock_dir):
-            self.assertTrue(self.lock_dir.exists())
-
-        self.assertFalse(self.lock_dir.exists())
-
-        def check_file(idx, results):
-            file = None
-
-            with lockfile.FuzzyLock(self.lock_dir) as lock:
-                file = lock._lockfile
-
-            # File should be removed upon exit from lock context
-            results[idx] = file.exists()
-
-        threads = []
-
-        results = [True] * num_threads
-
-        for i in range(num_threads):
-            thread = Thread(target=check_file, args=(i, results))
-            threads.append(thread)
-            thread.start()
-        
-        for t in threads:
-            t.join()
-
-        self.assertFalse(any(results))
-        self.assertFalse(self.lock_dir.exists())
+            self.assertTrue(all(acquired), msg='Not all threads acquired the lock.')
+            self.assertTrue(all(cleaned_up), msg='Not all threads cleaned up their lockfiles.')
