@@ -319,6 +319,3 @@ class WGetError(RuntimeError):
 
 class TestGroupError(PavilionError):
     """Errors thrown when managing test groups."""
-
-class LockfileError(PavilionError):
-    """Errors relating to lockfiles."""
