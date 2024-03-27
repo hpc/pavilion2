@@ -1,0 +1,50 @@
+variables:
+    survey_counters:
+        - PAPI_TOT_CYC
+        - PAPI_TOT_INS
+        - PAPI_LD_INS
+        - PAPI_VEC_DP
+        - PAPI_DP_OPS
+        - PAPI_FDV_OPS
+        - PAPI_FP_INS
+        - PAPI_FP_OPS
+        - PAPI_L3_TCM
+        - PAPI_L2_TCM
+        - PAPI_L1_TCM
+        - PAPI_TLB_IM
+        - PAPI_REF_CYC
+        - PAPI_REF_NS
+        - PAPI_FUL_CCY
+        - PAPI_RES_STL
+        - PAPI_TLB_DM
+        - PAPI_TLB_TL
+    survey?:
+        disable_papi_multiplex: False
+        disable_papi: False
+        disable_io: False
+        disable_mpi: False
+        disable_ompt: False
+        disable_kokkos: False
+        use_survey_omp_rt: False
+        enable_kokkos: False
+        enable_mem: False
+        enable_mem_gotcha: False
+        module: survey
+
+run:
+    modules+: ['{{survey.module}}']
+
+schedule:
+    wrapper: >-
+        survey {{ opt(survey_counters, "--counters") }}
+        {{ flag(survey.disable-papi-multiplex, "--disable-papi-multiplex") }} 
+        {{ flag(survey.disable-papi, "--disable-papi") }} 
+        {{ flag(survey.disable-io, "--disable-io") }} 
+        {{ flag(survey.disable-mpi, "--disable-mpi") }} 
+        {{ flag(survey.disable-ompt, "--disable-ompt") }} 
+        {{ flag(survey.disable-kokkos, "--disable-kokkos") }} 
+        {{ flag(survey.use-survey-omp-rt "--user-survey-omp-rt") }} 
+        {{ flag(survey.enable-kokkos, "--enable-kokkos") }} 
+        {{ flag(survey.enable-mem, "--enable-mem") }} 
+        {{ flag(survey.enable-mem-gotcha, "--enable-mem") }} 
+        --json-only

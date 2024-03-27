@@ -8,8 +8,10 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Union, TextIO
+from typing import Union, TextIO, Optional
 import threading
+from uuid import uuid4
+from time import sleep
 
 from pavilion import output
 from pavilion import utils
@@ -19,7 +21,7 @@ NEVER = 10**10
 
 
 class LockFile:
-    """An NFS friendly way to create a lock file. Locks contain information
+    """A custom lock object that is not NFS-friendly. Locks contain information
 on what host and user created the lock, and have a built in expiration
 date. To be used in a 'with' context.
 
@@ -293,7 +295,6 @@ these values if there was an error..
         """Issue a warning message."""
 
         output.fprint(self._errfile, msg, color=output.YELLOW)
-
 
 
 class LockFilePoker:

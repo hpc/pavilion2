@@ -1,0 +1,8 @@
+survey-config:
+    build:
+        cmds:
+            - pwd
+    run:
+        cmds:
+            - "./hello"
+    scheduler: raw

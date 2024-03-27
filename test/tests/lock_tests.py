@@ -4,6 +4,8 @@ import pathlib
 import subprocess as sp
 import time
 import io
+import time
+from threading import Thread
 
 from pavilion import lockfile
 from pavilion.unittest import PavTestCase
@@ -15,9 +17,16 @@ class TestLocking(PavTestCase):
 
     def set_up(self):
         self.lock_path = self.pav_cfg.working_dir/'lock_test.lock'
+        self.lock_dir = self.pav_cfg.working_dir/'fuzzy_test.lock'
 
         if self.lock_path.exists():
             self.lock_path.unlink()
+
+        if self.lock_dir.exists():
+            for f in self.lock_dir.iterdir():
+                f.unlink()
+
+            self.lock_dir.rmdir()
 
     def tear_down(self):
         pass

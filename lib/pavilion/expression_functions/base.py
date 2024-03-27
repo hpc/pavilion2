@@ -3,7 +3,7 @@
 import inspect
 import logging
 import re
-from typing import Any
+from typing import Union, Callable, List, Any
 
 from yapsy import IPlugin
 from ..errors import FunctionPluginError
@@ -36,7 +36,6 @@ def num(val):
 
     raise RuntimeError("Invalid value '{}' given to num.".format(val))
 
-
 class Opt:
     """An optional arg spec, the contained spec is checked if the value is given."""
 
@@ -47,6 +46,45 @@ class Opt:
         """
 
         self.sub_spec = sub_spec
+
+def flag(val: str, flag_str: str) -> str:
+    """Return a flag string for a boolean variable, if
+    the variable is set, or an empty string otherwise."""
+
+    if val.lower() in {'true', 'on', 'yes'}:
+        return flag_str
+    elif val.lower() in {'false', 'off', 'no'}:
+        return ''
+    else:
+        raise ValueError(f'Could not convert {val} into boolean-like.')
+
+
+def sopt(val: Union[str, List[str]], option_str: str) -> str:
+    """Return an option string for a variable, if it has a non-null value,
+    or an empty string otherwise. For a list, create separate option string
+    for each value in the list."""
+
+    if isinstance(val, list):
+        return " ".join(map(lambda x: f"{option_str}='{x}'", list))
+    else:
+        if val.lower() in {'null', 'none'}:
+            return ''
+        else:
+            return f"{option_str}='{val}'"
+
+
+def opt(val: Union[str, List[str]], option_str: str, delimiter=',') -> str:
+    """Return an option string for a variable, if it has a non-null value,
+    or an empty string otherwise. For a list, create a single option string
+    by concatenating the values in the list."""
+
+    if isinstance(val, list):
+        return f"{option_str}={delimiter.join(val)}"
+    else:
+        if val.lower() in {'null', 'none'}:
+            return ''
+        else:
+            return f"{option_str}='{val}'"
 
 
 class FunctionPlugin(IPlugin.IPlugin):

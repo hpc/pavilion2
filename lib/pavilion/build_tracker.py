@@ -3,10 +3,11 @@
 import datetime
 import threading
 from collections import defaultdict
-from typing import List, ContextManager
+from typing import List, ContextManager, Optional
 from contextlib import contextmanager
 
 from pavilion.status_file import STATES
+from .lockfile import NFSLock
 
 
 class MultiBuildTracker:
@@ -23,16 +24,14 @@ class MultiBuildTracker:
         self.status_files = {} # type: Dict[TestBuilder, TestStatusFile]
         self.trackers = {}
         self.lock = threading.Lock()
-        self._build_locks = {} # type: Dict[str, threading.Lock]
 
-    def register(self, test) -> "BuildTracker":
+    def register(self, test: 'TestRun') -> 'BuildTracker':
         """Register a builder, and get your own build tracker.
 
         :param test: The TestRun object to track.
         :return: A build tracker instance that can be used by builds directly."""
 
         tracker = BuildTracker(test, self)
-        hash = test.builder.build_hash
 
         with self.lock:
             # Test may actually be a TestRun object rather than a TestBuilder object,
@@ -42,26 +41,30 @@ class MultiBuildTracker:
             self.messages[test.builder] = []
             self.trackers[test.builder] = tracker
 
-            if hash not in self._build_locks:
-                self._build_locks[hash] = threading.Lock()
-
         return tracker
 
     @contextmanager
-    def make_lock_context(self, hash: str, timeout: float = -1) -> ContextManager[bool]:
+    def make_lock_context(self, hash: str, timeout: Optional[float] = None) -> ContextManager:
         """Return a context manager to manage the build-specific lock.
 
-        :param str hash: The hash identifying the specific build.
-        :return: A context manager to manage the (optionally) timed lock
-        associated with the build."""
+        :param hash: the hash of the build whose lock will be returned
+        :return: the NFSLock for the build
+        """
+
+        if timeout is None:
+            timeout = -1
 
         lock = self._build_locks[hash]
 
         try:
-            result = lock.acquire(timeout=timeout)
-            yield result
+            acquired = lock.acquire(timeout=timeout)
+
+            if not acquired:
+                raise TimeoutError("Unable to acquire local lock.")
+
+            yield
         finally:
-            if result:
+            if acquired:
                 lock.release()
 
     def update(self, builder, note, state=None):
