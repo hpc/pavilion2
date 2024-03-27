@@ -8,7 +8,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Union, TextIO
+from typing import Union, TextIO, Optional
 import threading
 from uuid import uuid4
 from time import sleep
@@ -329,75 +329,3 @@ class LockFilePoker:
 
         self._done_event.set()
         self._thread.join()
-
-
-class NFSLock:
-    """A custom lock object designed for use on NFS systems. The lock behaves like a queue:
-    each process declares its intent to take the lock, and the lock goes to whichever process
-    declared first. The object lessens, but does not fully resolve, some of the concurrency issues
-    related to NFS, particularly in the case where multiple Pavilion instances are working with
-    the same build. Intended to be invoked as a context manager, using the 'with' keyword.
-    """
-    def __init__(self, lock_dir: Path, build_name: str, wait_time: float = 0.5, timeout: float = -1):
-        """
-        :param lock_dir: directory in which lockfiles will be created
-        :param build_name: full name of the build to which the lock controls access
-        :param wait_time: time to wait between checking status
-        :param timeout: time (in seconds) after which the lock times out. A value of -1 indicates no timeout
-        """
-        self._lock_dir = lock_dir
-        self.build_name = build_name
-        self._wait_time = wait_time
-        self._timeout = timeout
-
-        # create a globally unique lockfile
-        self._lockfile = lock_dir / f"{build_name}-{uuid4()}.lock"
-
-    def set_timeout(self, timeout: float) -> None:
-        """Set the timeout for the lock object.
-
-        :param timeout: the length of the timeout, in seconds
-        """
-        self._timeout = timeout
-
-    def __enter__(self) -> bool:
-        """
-        Attempt to acquire the lock.
-
-        :return: True if lock has been successfully acquired; False if timed out
-        """
-        # Declare intent to take lock
-        self._lockfile.touch()
-
-        first = False
-
-        start = time.time()
-
-        while not first:
-            # Give other instances opportunity to declare intent
-            sleep(self._wait_time)
-
-            if self._timeout >= 0 and (time.time() - start > self._timeout):
-                return False
-
-            first = self._get_earliest() == self._lockfile
-
-        return True
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        # Remove the lockfile, since no longer competing for lock
-        self._lockfile.unlink()
-
-        # Remove lock directory once it's empty
-        if len(list(self._lock_dir.iterdir())) == 0:
-            self._lock_dir.rmdir()
-
-    def _get_earliest(self) -> Path:
-        """Get the path to the lockfile that was created first.
-
-        :return: Path object to whichever lockfile was created first"""
-
-        lockfiles = self._lock_dir.glob(f'{self.build_name}-*.lock')
-
-        # Sort files by creation time, and return oldest
-        return sorted(lockfiles, key=lambda x: x.stat().st_ctime)[0]

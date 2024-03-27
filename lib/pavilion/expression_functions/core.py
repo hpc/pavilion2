@@ -6,7 +6,7 @@ import random
 import re
 from typing import List, Dict, Union
 
-from .base import FunctionPlugin, num, Opt, opt, sopt
+from .base import FunctionPlugin, num, opt, sopt
 from ..errors import FunctionPluginError, FunctionArgError
 
 

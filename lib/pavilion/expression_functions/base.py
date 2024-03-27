@@ -36,7 +36,6 @@ def num(val):
 
     raise RuntimeError("Invalid value '{}' given to num.".format(val))
 
-
 class Opt:
     """An optional arg spec, the contained spec is checked if the value is given."""
 
@@ -86,20 +85,6 @@ def opt(val: Union[str, List[str]], option_str: str, delimiter=',') -> str:
             return ''
         else:
             return f"{option_str}='{val}'"
->>>>>>> bdda3948 (add list logic for options)
-
-
-class Opt:
-    """An optional arg spec, the contained spec is checked if the value is given."""
-
-    def __init__(self, sub_spec: Any):
-        """
-        :param sub_spec: The type of the argument spec to accept.
-                         Ex:  Opt(int) or Opt([str])
-        """
-
-        self.sub_spec = sub_spec
-
 
 
 class FunctionPlugin(IPlugin.IPlugin):
