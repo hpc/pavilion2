@@ -100,8 +100,8 @@ def limit_digits(value: Union[int, float], digits: int) -> str:
             f' but received {type(value)}.')
 
     # Remove leading zeros in exponent, as well as + sign, if present
-    pos_regex = 'e(\+0*)'
-    neg_regex = 'e(\-0*)'
+    pos_regex = 'e\+0*'
+    neg_regex = 'e-0*'
 
     res = re.sub(pos_regex, "e", res)
     res = re.sub(neg_regex, "e-", res)
