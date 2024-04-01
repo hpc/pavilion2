@@ -150,7 +150,7 @@ class TestLocking(PavTestCase):
         # Test that FuzzyLock object correctly excludes concurrent access
 
         num_threads = 3
-        sleep_time = 1
+        sleep_time = 0.1
         repeats = 10
 
         with self.assertRaises(TimeoutError):
@@ -162,6 +162,7 @@ class TestLocking(PavTestCase):
 
         def sleep_lock(idx, results):
             with lockfile.FuzzyLock(self.lock_dir, timeout=10) as lock:
+                time.sleep(sleep_time)
                 results[idx] = True
 
         # Do this several times to account for indeterminacy
@@ -189,6 +190,7 @@ class TestLocking(PavTestCase):
         # once finished
 
         num_threads = 10
+        sleep_time = 0.1
 
         with lockfile.FuzzyLock(self.lock_dir):
             self.assertTrue(self.lock_dir.exists())
@@ -200,6 +202,7 @@ class TestLocking(PavTestCase):
 
             with lockfile.FuzzyLock(self.lock_dir) as lock:
                 file = lock._lockfile
+                time.sleep(sleep_time)
 
             # File should be removed upon exit from lock context
             results[idx] = file.exists()

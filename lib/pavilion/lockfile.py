@@ -378,7 +378,7 @@ class FuzzyLock:
             elif self._lockfile.exists():
                 # If this happens, something went very wrong. This is likely dead code.
                 msg += " Lockfile ({self._lock_dir}) already exists."
-            
+
             raise LockFileError(msg)
 
         first = False
@@ -411,11 +411,6 @@ class FuzzyLock:
         except OSError as err:
             # Another thread or process has removed the directory,
             # or the directory is not empty; can be safely ignored
-            print(f'{self.name}: Caught OSError: {err}. Continuing...')
-
-            if (self._lockfile in list(self._lock_dir.iterdir())):
-                print(f'{self.name} did not remove its own lockfile')
-
             pass
 
     def _get_earliest(self) -> Path:
