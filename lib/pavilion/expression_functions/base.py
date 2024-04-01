@@ -3,7 +3,7 @@
 import inspect
 import logging
 import re
-from typing import Any
+from typing import List, Union, Any
 
 from yapsy import IPlugin
 from ..errors import FunctionPluginError
