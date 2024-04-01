@@ -521,6 +521,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     if pav_cfg['user_config'] and USER_HOME_PAV and USER_HOME_PAV.exists():
         config_dirs.append(USER_HOME_PAV.resolve())
 
+    config_dirs.append(PAV_ROOT / 'builtins')
+
     if PAV_CONFIG_DIR is not None and PAV_CONFIG_DIR.exists():
         for config_dir in config_dirs:
             try:
