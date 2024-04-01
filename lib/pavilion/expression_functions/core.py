@@ -6,7 +6,7 @@ import random
 import re
 from typing import List, Dict, Union
 
-from .base import FunctionPlugin, num, opt, sopt
+from .base import FunctionPlugin, num, opt, sopt, Opt
 from ..errors import FunctionPluginError, FunctionArgError
 
 
@@ -512,7 +512,6 @@ class Outliers(CoreFunctionPlugin):
 
         return deviations
 
-
 class SoptPlugin(CoreFunctionPlugin):
     """Convert a config option into a UNIX-style option string. If the
     option is a list, create a separate option string for each element."""
@@ -526,7 +525,6 @@ class SoptPlugin(CoreFunctionPlugin):
     @staticmethod
     def sopt(val: Union[str, List[str]], opt_str: str) -> str: 
         return opt(val, opt_str)
-
 
 class OptPlugin(CoreFunctionPlugin):
     """Convert a config option into a UNIX-style option string. If the option is
