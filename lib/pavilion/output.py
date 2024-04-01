@@ -34,6 +34,8 @@ import shutil
 import sys
 import textwrap
 import random
+import re
+from math import floor, log10
 from collections import UserString, UserDict
 from functools import lru_cache
 from pathlib import Path
@@ -73,6 +75,40 @@ COLORS = {
 }
 
 IDENTITY_FORMAT = '{0}'
+
+
+def _num_digits(n: int) -> int:
+    if n == 0:
+        return 1
+    return floor(log10(n)) + 1
+
+
+def limit_digits(value: Union[int, float], digits: int) -> str:
+    sci_fmt = '{' + f':.{digits-1}e' + '}'
+
+    if isinstance(value, int):
+        if _num_digits(value) > digits:
+            res = sci_fmt.format(value)
+        else:
+            res = str(value)
+    elif isinstance(value, float):
+        if value < 10**-(digits - 1):
+            res = sci_fmt.format(value)
+        else:
+            fmt = '{' + f':.{digits-1}f' + '}'
+            res = fmt.format(value)
+    else:
+        raise ValueError(f'Cannot format value {value}. Expected one of (int, float),' +
+            f' but received {type(value)}.')
+
+    # Remove leading zeros in exponent, as well as + sign, if present
+    pos_regex = 'e(\+0*)'
+    neg_regex = 'e(\-0*)'
+
+    res = re.sub(pos_regex, "e", res)
+    res = re.sub(neg_regex, "e-", res)
+
+    return res
 
 
 def format_duration(time_delta: float) -> str:
@@ -662,7 +698,7 @@ def dt_format_rows(rows: List[Dict], fields: List[str],
     blank_row = {field: ANSIString('') for field in fields}
 
     if default_format is None:
-        default_format = lambda x: '{0}'.format(x) # pylint: disable=unnecessary-lambda
+        default_format = lambda x: '{0}'.format # pylint: disable=unnecessary-lambda
 
     formatted_rows = []
     for row in rows:
@@ -957,3 +993,6 @@ class PavEncoder(json.JSONEncoder):
             return o.as_dict()
 
         return super().default(o)
+
+
+
