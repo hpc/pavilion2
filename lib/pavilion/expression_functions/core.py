@@ -523,7 +523,7 @@ class SoptPlugin(CoreFunctionPlugin):
         )
 
     @staticmethod
-    def sopt(val: Union[str, List[str]], opt_str: str) -> str: 
+    def sopt(val: Union[str, List[str]], opt_str: str) -> str:
         return opt(val, opt_str)
 
 class OptPlugin(CoreFunctionPlugin):
