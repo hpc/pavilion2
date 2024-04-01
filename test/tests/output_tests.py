@@ -83,3 +83,9 @@ class OutputTests(PavTestCase):
                               "args: {}, kwargs: {}".format(args, kwargs))
 
         self.assertLess(timer/count, .3, "Per table draw speed exceed 30 ms")
+
+
+    def test_float_formatting(self):
+       self.assertEqual(output.limit_digits(5.123412341234, 5), '5.1234')
+       self.assertEqual(output.limit_digits(5123049812734, 5), '5.1230e12')
+       self.assertEqual(output.limit_digits(0.000000001234, 5), '1.2340e-9')
