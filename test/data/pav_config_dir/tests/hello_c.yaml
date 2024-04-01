@@ -1,0 +1,12 @@
+hello_c:
+    summary: Minimal C program.
+    build:
+        source_path: hello_world.c
+        modules: []
+        cmds:
+            - echo 'Compiling hello_world.c...'
+            - gcc -o hello hello_world.c
+    run:
+        commands:
+            - echo 'Running hello...' 
+            - './hello'
