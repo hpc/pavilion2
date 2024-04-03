@@ -2,6 +2,7 @@ from pavilion.unittest import PavTestCase
 from pavilion import output
 import time
 import random
+import io
 
 
 class OutputTests(PavTestCase):
@@ -86,6 +87,12 @@ class OutputTests(PavTestCase):
 
 
     def test_float_formatting(self):
-       self.assertEqual(output.limit_digits(5.123412341234, 5), '5.1234')
-       self.assertEqual(output.limit_digits(5123049812734, 5), '5.1230e12')
-       self.assertEqual(output.limit_digits(0.000000001234, 5), '1.2340e-9')
+        fields = ['data']
+        rows = [{'data': 5.123412341234}, {'data': 5123049812734}, {'data': 0.000000001234},
+             {'data': 42}, {'data': 0}, {'data': -9000}, {'data': 2.718}, {'data': -3.14}, {'data': 'bricks'}]
+
+        rows = output.dt_format_rows(rows, fields, {})
+        expected = ['5.1234', '5.1230e12', '1.2340e-9', '42', '0', '-9000', '2.718', '-3.14', 'bricks']
+        actual = list(map(lambda x: x['data'], rows))
+
+        self.assertEqual(expected, actual)

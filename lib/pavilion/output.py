@@ -39,7 +39,7 @@ from math import floor, log10
 from collections import UserString, UserDict
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Dict, Union
+from typing import List, Dict, Union, TextIO, Any, Optional
 
 from pavilion import errors
 
@@ -74,14 +74,18 @@ COLORS = {
     'UNDERLINE': UNDERLINE,
 }
 
+DEFAULT_FORMAT = '{0}'
+
 
 def _num_digits(n: int) -> int:
-    if n == 0:
+    if n < 0:
+        n = abs(n)
+    elif n == 0:
         return 1
     return floor(log10(n)) + 1
 
 
-def limit_digits(value: Union[int, float], digits: int) -> str:
+def format_numeric(value: Union[int, float], digits: int) -> str:
     sci_fmt = '{' + f':.{digits-1}e' + '}'
 
     if isinstance(value, int):
@@ -444,9 +448,10 @@ DEFAULT_BORDER_CHARS = {
 }
 
 
-def draw_table(outfile, fields, rows,
-               field_info=None, border=False, pad=True,
-               border_chars=None, header=True, title=None, table_width=None):
+def draw_table(outfile: TextIO, fields: List[str], rows: Dict[str, Any],
+               field_info: Optional[Dict[str, Dict]] = None, border: bool = False,
+               pad: bool = True, border_chars: Optional[Dict[str, str]] = None,
+               header: bool = True, title: str = None, table_width: Optional[int] = None) -> None:
     """Prints a table from the given data, dynamically setting
 the column width.
 
@@ -681,7 +686,7 @@ def dt_field_titles(fields: List[str], field_info: dict) \
     return titles
 
 
-def dt_format_rows(rows, fields, field_info):
+def dt_format_rows(rows: List[Dict], fields: List[str], field_info: Dict) -> Dict:
     """Format each field value in each row according to the format
     specifications. Also converts each field value into an ANSIStr so we
     can rely on it's built in '.wrap' method."""
@@ -720,19 +725,24 @@ def dt_format_rows(rows, fields, field_info):
                 ansi_code = None
 
             # Format the data
-            col_format = info.get('format', '{0}')
+            col_format = info.get('format', DEFAULT_FORMAT)
 
-            try:
-                formatted_data = col_format.format(data)
-            except ValueError:
-                print("Bad format for data. Format: {0}, data: {1}"
-                      .format(col_format, repr(data)), file=sys.stderr)
-                raise
+            if col_format == DEFAULT_FORMAT and isinstance(data, (int, float)):
+                formatted_data = format_numeric(data, 5)
+            else:
+                try:
+                    formatted_data = col_format.format(data)
+                except ValueError:
+                    print("Bad format for data. Format: {0}, data: {1}"
+                          .format(col_format, repr(data)), file=sys.stderr)
+                    raise
+
             # Cast all data as ANSI strings, so we can get accurate lengths
             # and use ANSI friendly text wrapping.
             data = ANSIString(formatted_data, code=ansi_code)
 
             formatted_row[field] = data
+
         formatted_rows.append(formatted_row)
 
     return formatted_rows
