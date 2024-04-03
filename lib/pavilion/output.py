@@ -78,6 +78,8 @@ DEFAULT_FORMAT = '{0}'
 
 
 def _num_digits(n: int) -> int:
+    """Only attempt to count number digits for ints, since
+    precision error makes it nonsensical for floats."""
     if n < 0:
         n = abs(n)
     elif n == 0:
@@ -94,11 +96,10 @@ def format_numeric(value: Union[int, float], digits: int) -> str:
         else:
             res = str(value)
     elif isinstance(value, float):
-        if value < 10**-(digits - 1):
+        if abs(value) < 10**-(digits - 1):
             res = sci_fmt.format(value)
         else:
-            fmt = '{' + f':.{digits-1}f' + '}'
-            res = fmt.format(value)
+            res = str(round(value, digits - 1))
     else:
         raise ValueError(f'Cannot format value {value}. Expected one of (int, float),' +
             f' but received {type(value)}.')
