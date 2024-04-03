@@ -234,7 +234,7 @@ class ResultsCommand(Command):
                 field_info=field_info,
                 fields=fields,
                 rows=flat_sorted_results,
-                title=title_str
+                title=title_str,
                 num_digits=args.num_digits
             )
 
