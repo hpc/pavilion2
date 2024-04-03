@@ -74,7 +74,7 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
     return count, msgs
 
 
-def clean_groups(pav_cfg) -> Tuple[int, List[str]]:
+def clean_groups(pav_cfg: config.PavConfig, show_tracebacks: bool = False) -> Tuple[int, List[str]]:
     """Remove members that no longer exist from groups, and delete empty groups.
     Returns the number of groups deleted and a list of error messages."""
 
@@ -88,7 +88,7 @@ def clean_groups(pav_cfg) -> Tuple[int, List[str]]:
     for group_path in groups_dir.iterdir():
         group = groups.TestGroup(pav_cfg, group_path.name)
         for error in group.clean():
-            msgs.append(error.pformat())
+            msgs.append(error.pformat(show_tracebacks))
         if not group.exists():
             deleted += 1
 

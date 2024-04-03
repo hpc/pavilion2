@@ -47,11 +47,18 @@ def main():
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()
 
+    # Just need the show_tracebacks flag here
+    partial_args, _ = parser.parse_known_args()
+
     # Get the Pavilion config
     try:
         pav_cfg = config.find_pavilion_config()
     except Exception as err:
-        output.fprint(sys.stderr, "Error getting config, exiting.", err, color=output.RED)
+        if not partial_args.show_tracebacks:
+            output.fprint(sys.stderr, "Error getting config, exiting.", err, color=output.RED)
+        else:
+            print(traceback.format_exc())
+
         sys.exit(-1)
 
     # Setup all the loggers for Pavilion
@@ -61,7 +68,11 @@ def main():
     try:
         plugins.initialize_plugins(pav_cfg)
     except pavilion.errors.PluginError as err:
-        output.fprint(sys.stderr, "Error initializing plugins.", err, color=output.RED)
+        if not partial_args.show_tracebacks:
+            output.fprint(sys.stderr, "Error initializing plugins.", err, color=output.RED)
+        else:
+            print(traceback.format_exc())
+
         sys.exit(-1)
 
     # Partially parse the arguments. All we really care about is the subcommand.

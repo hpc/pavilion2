@@ -175,7 +175,7 @@ class RunCommand(Command):
                 output.fprint(self.errfile,
                               "Could not add series to group '{}'".format(args.group),
                               color=output.RED)
-                output.fprint(self.errfile, err.pformat())
+                output.fprint(self.errfile, err.pformat(args.show_tracebacks))
                 return errno.EINVAL
 
         else:
