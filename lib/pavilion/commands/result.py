@@ -287,7 +287,7 @@ class ResultsCommand(Command):
         return fields
 
     def update_results(self, pav_cfg: dict, tests: List[TestRun],
-                       log_file: IO[str], save: bool = False) -> bool:
+                       log_file: IO[str], save: bool = False, show_tracebacks: bool = False) -> bool:
         """Update each of the given tests with the result section from the
         current version of their configs. Then rerun result processing and
         update the results in the test object (but change nothing on disk).
@@ -315,7 +315,7 @@ class ResultsCommand(Command):
             except TestConfigError as err:
                 output.fprint(self.errfile, "Test '{}' could not be reloaded."
                               .format(test.name), color=output.RED)
-                output.fprint(self.errfile, err.pformat())
+                output.fprint(self.errfile, err.pformat(show_tracebacks))
                 return False
 
             ptest = ptests[0]

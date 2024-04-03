@@ -468,7 +468,8 @@ differentiate it from test ids."""
         # Completion will be set when looked for.
 
 
-    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
+    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool,
+         local_builds_only: bool, show_tracebacks: bool = False):
         """Run all requested tests in the given test set."""
 
         # Track which builds we've already marked as deprecated, when doing rebuilds.
@@ -476,7 +477,7 @@ differentiate it from test ids."""
         failed_builds = dict()
         tests_running = 0
 
-        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only):
+        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only, show_tracebacks):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)
@@ -497,7 +498,7 @@ differentiate it from test ids."""
                 continue
 
             try:
-                started_tests, new_jobs = test_set.kickoff()
+                started_tests, new_jobs = test_set.kickoff(show_tracebacks)
                 tests_running += len(started_tests)
             except TestSetError as err:
                 self.status.set(SERIES_STATES.KICKOFF_ERROR,

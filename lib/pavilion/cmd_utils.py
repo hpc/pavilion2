@@ -284,7 +284,7 @@ def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
     return None
 
 
-def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
+def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List, errfile: Optional[Path] = None, show_tracebacks: bool = False) -> List[Path]:
     """Given a list of raw test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by
@@ -342,7 +342,7 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
                 output.fprint(
                     errfile,
                     "Invalid test group id '{}'.\n{}"
-                    .format(raw_id, err.pformat()))
+                    .format(raw_id, err.pformat(show_tracebacks)))
                 continue
 
             if not group.exists():

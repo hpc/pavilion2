@@ -122,14 +122,14 @@ class GroupCommand(Command):
 
         return self._run_sub_command(pav_cfg, args)
 
-    def _get_group(self, pav_cfg, group_name: str) -> TestGroup:
+    def _get_group(self, pav_cfg: config.PavConfig, group_name: str, show_tracebacks: bool = False) -> TestGroup:
         """Get the requested group, and print a standard error message on failure."""
 
         try:
             group = TestGroup(pav_cfg, group_name)
         except TestGroupError as err:
             fprint(self.errfile, "Error loading group '{}'", color=output.RED)
-            fprint(self.errfile, err.pformat())
+            fprint(self.errfile, err.pformat(show_tracebacks))
             return None
 
         if not group.exists():
@@ -151,7 +151,7 @@ class GroupCommand(Command):
                 group.create()
         except TestGroupError as err:
             fprint(self.errfile, "Error adding tests.", color=output.RED)
-            fprint(self.errfile, err.pformat())
+            fprint(self.errfile, err.pformat(args.show_tracebacks))
             return 1
 
         added, errors = group.add(args.items)
@@ -159,7 +159,7 @@ class GroupCommand(Command):
             fprint(self.errfile, "There were one or more errors when adding tests.",
             	   color=output.RED)
             for error in errors:
-                fprint(self.errfile, error.pformat(), '\n')
+                fprint(self.errfile, error.pformat(args.show_tracebacks), '\n')
 
         existed = len(args.items) - len(added) - len(errors)
         fprint(self.outfile,
@@ -175,7 +175,7 @@ class GroupCommand(Command):
     def _remove_cmd(self, pav_cfg, args):
         """Remove the given tests/series/groups"""
 
-        group = self._get_group(pav_cfg, args.group)
+        group = self._get_group(pav_cfg, args.group, args.show_tracebacks)
         if group is None:
             return 1
 
@@ -184,7 +184,7 @@ class GroupCommand(Command):
             fprint(self.errfile, "There were one or more errors when removing tests.",
             	   color=output.RED)
             for error in errors:
-                output.fprint(self.errfile, error.pformat(), '\n')
+                output.fprint(self.errfile, error.pformat(args.show_tracebacks), '\n')
 
         fprint(self.outfile,
                "Removed {} item{}."
@@ -196,7 +196,7 @@ class GroupCommand(Command):
     def _delete_cmd(self, pav_cfg, args):
         """Delete the group entirely."""
 
-        group = self._get_group(pav_cfg, args.group)
+        group = self._get_group(pav_cfg, args.group, args.show_tracebacks)
         if group is None:
             return 1
 
@@ -222,7 +222,7 @@ class GroupCommand(Command):
             fprint(self.errfile,
                    "Could not remove group '{}'"
                    .format(group.display_name), color=output.RED)
-            fprint(self.errfile, err.pformat())
+            fprint(self.errfile, err.pformat(args.show_tracebacks))
             return 1
 
         return 0
@@ -261,7 +261,7 @@ class GroupCommand(Command):
     def _members_cmd(self, pav_cfg, args):
         """List the members of a group."""
 
-        group = self._get_group(pav_cfg, args.group)
+        group = self._get_group(pav_cfg, args.group, args.show_tracebacks)
         if group is None:
             return 1
 
@@ -276,7 +276,7 @@ class GroupCommand(Command):
             members = group.members(recursive=args.recursive)
         except TestGroupError as err:
             fprint(self.errfile, "Could not get members.", color=output.RED)
-            fprint(self.errfile, err.pformat())
+            fprint(self.errfile, err.pformat(args.show_tracebacks))
             return 1
 
         filtered_members = []
@@ -309,7 +309,7 @@ class GroupCommand(Command):
     def _rename_cmd(self, pav_cfg, args):
         """Give a test group a new name."""
 
-        group = self._get_group(pav_cfg, args.group)
+        group = self._get_group(pav_cfg, args.group, args.show_tracebacks)
         if group is None:
             return 1
 
@@ -317,6 +317,6 @@ class GroupCommand(Command):
             group.rename(args.new_name, redirect_parents=not args.no_redirect)
         except TestGroupError as err:
             fprint(self.errfile, "Error renaming group.", color=output.RED)
-            fprint(self.errfile, err.pformat())
+            fprint(self.errfile, err.pformat(args.show_tracebacks))
 
         return 0

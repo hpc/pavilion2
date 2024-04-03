@@ -5,6 +5,7 @@ import re
 import pprint
 import textwrap
 import shutil
+import traceback
 
 import lark
 
@@ -46,8 +47,11 @@ class PavilionError(RuntimeError):
         else:
             return self.msg
 
-    def pformat(self) -> str:
+    def pformat(self, show_traceback: bool = False) -> str:
         """Specially format the exception for printing."""
+
+        if show_traceback:
+            return traceback.format_exception(self)
 
         lines = []
         next_exc = self.prior_error

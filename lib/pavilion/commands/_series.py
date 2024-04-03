@@ -43,6 +43,6 @@ class AutoSeries(Command):
             series_obj.run()
         except TestSeriesError as err:
             output.fprint(self.errfile, "Error while running series '{}'.".format(args.series_id))
-            output.fprint(self.errfile, err.pformat())
+            output.fprint(self.errfile, err.pformat(args.show_tracebacks))
 
         return 0

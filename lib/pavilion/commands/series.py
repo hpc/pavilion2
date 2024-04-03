@@ -153,7 +153,7 @@ class RunSeries(Command):
         state_p.add_argument('series', default='last', nargs='?',
                              help="The series to print status history for.")
 
-    def _find_series(self, pav_cfg, series_name):
+    def _find_series(self, pav_cfg: config.PavConfig, series_name: int, show_tracebacks: bool = False):
         """Grab the series based on the series name, if one was given."""
 
         if series_name == 'last':
@@ -165,7 +165,7 @@ class RunSeries(Command):
                 output.fprint(self.errfile,
                               "Could not load given series '{}'"
                               .format(series_name))
-                output.fprint(self.errfile, err.pformat())
+                output.fprint(self.errfile, err.pformat(show_tracebacks))
                 return None
 
         return ser
@@ -192,7 +192,7 @@ class RunSeries(Command):
                                                           modes=args.modes,
                                                           overrides=args.overrides)
             except series_config.SeriesConfigError as err:
-                output.fprint(self.errfile, err.pformat(), color=output.RED)
+                output.fprint(self.errfile, err.pformat(args.show_tracebacks), color=output.RED)
                 return errno.EINVAL
 
         if args.re_name is not None:
@@ -298,7 +298,7 @@ class RunSeries(Command):
     def _sets_cmd(self, pav_cfg, args):
         """Display a series by test set."""
 
-        ser = self._find_series(pav_cfg, args.series)
+        ser = self._find_series(pav_cfg, args.series, args.show_tracebacks)
         if ser is None:
             return errno.EINVAL
 
