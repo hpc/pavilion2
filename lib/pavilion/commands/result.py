@@ -100,6 +100,13 @@ class ResultsCommand(Command):
                  "default, 'all' will only display tests newer than 1 day ago, but setting any "
                  "filter argument will override that."
         )
+        parser.add_argument(
+            '-d', '--num-digits', dest="num_digits",
+            help="The maximum number of digits to display when formatting floating point values. If set,"
+                 " numbers much larger or much smaller than 1 are displayed in scientific notation with "
+                 " the specified precision, and numbers near 1 are truncated. If not provided, defaults to"
+                 " standard Python rules for formatting numeric values."""
+        )
         filters.add_test_filter_args(parser)
 
     def run(self, pav_cfg, args):
@@ -228,6 +235,7 @@ class ResultsCommand(Command):
                 fields=fields,
                 rows=flat_sorted_results,
                 title=title_str
+                num_digits=args.num_digits
             )
 
         if args.show_log:

@@ -87,7 +87,10 @@ def _num_digits(n: int) -> int:
     return floor(log10(n)) + 1
 
 
-def format_numeric(value: Union[int, float], digits: int) -> str:
+def format_numeric(value: Union[int, float], digits: Optional[int]) -> str:
+    if digits is None:
+        return str(value)
+
     sci_fmt = '{' + f':.{digits-1}e' + '}'
 
     if isinstance(value, int):
@@ -452,7 +455,8 @@ DEFAULT_BORDER_CHARS = {
 def draw_table(outfile: TextIO, fields: List[str], rows: Dict[str, Any],
                field_info: Optional[Dict[str, Dict]] = None, border: bool = False,
                pad: bool = True, border_chars: Optional[Dict[str, str]] = None,
-               header: bool = True, title: str = None, table_width: Optional[int] = None) -> None:
+               header: bool = True, title: str = None, table_width: Optional[int] = None,
+               num_digits: Optional[int] = None) -> None:
     """Prints a table from the given data, dynamically setting
 the column width.
 
@@ -602,7 +606,7 @@ A more complicated example: ::
     titles = dt_field_titles(fields, field_info)
 
     # Format the rows according to the field_info format specifications.
-    rows = dt_format_rows(rows, fields, field_info)
+    rows = dt_format_rows(rows, fields, field_info, num_digits)
     if header:
         rows.insert(0, titles)
 
@@ -687,7 +691,7 @@ def dt_field_titles(fields: List[str], field_info: dict) \
     return titles
 
 
-def dt_format_rows(rows: List[Dict], fields: List[str], field_info: Dict) -> Dict:
+def dt_format_rows(rows: List[Dict], fields: List[str], field_info: Dict, num_digits: Optional[int]) -> Dict:
     """Format each field value in each row according to the format
     specifications. Also converts each field value into an ANSIStr so we
     can rely on it's built in '.wrap' method."""
@@ -729,7 +733,7 @@ def dt_format_rows(rows: List[Dict], fields: List[str], field_info: Dict) -> Dic
             col_format = info.get('format', DEFAULT_FORMAT)
 
             if col_format == DEFAULT_FORMAT and isinstance(data, (int, float)):
-                formatted_data = format_numeric(data, 5)
+                formatted_data = format_numeric(data, num_digits)
             else:
                 try:
                     formatted_data = col_format.format(data)
