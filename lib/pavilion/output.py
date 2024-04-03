@@ -85,7 +85,10 @@ def _num_digits(n: int) -> int:
     return floor(log10(n)) + 1
 
 
-def format_numeric(value: Union[int, float], digits: int) -> str:
+def format_numeric(value: Union[int, float], digits: Optional[int]) -> str:
+    if digits is None:
+        return str(value)
+
     sci_fmt = '{' + f':.{digits-1}e' + '}'
 
     if isinstance(value, int):
