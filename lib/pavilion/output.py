@@ -34,7 +34,6 @@ import shutil
 import sys
 import textwrap
 import random
-import re
 from math import floor, log10
 from collections import UserString, UserDict
 from functools import lru_cache
@@ -77,7 +76,9 @@ COLORS = {
 IDENTITY_FORMAT = '{0}'
 
 
-def _num_digits(n: int) -> int:
+def _num_digits(n: int) -> int: # pylint: disable=invalid-name
+    """Only attempt to count number digits for ints, since
+    precision error makes it nonsensical for floats."""
     if n < 0:
         n = abs(n)
     elif n == 0:
@@ -998,6 +999,3 @@ class PavEncoder(json.JSONEncoder):
             return o.as_dict()
 
         return super().default(o)
-
-
-
