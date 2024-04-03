@@ -78,12 +78,14 @@ IDENTITY_FORMAT = '{0}'
 
 
 def _num_digits(n: int) -> int:
-    if n == 0:
+    if n < 0:
+        n = abs(n)
+    elif n == 0:
         return 1
     return floor(log10(n)) + 1
 
 
-def limit_digits(value: Union[int, float], digits: int) -> str:
+def format_numeric(value: Union[int, float], digits: int) -> str:
     sci_fmt = '{' + f':.{digits-1}e' + '}'
 
     if isinstance(value, int):
