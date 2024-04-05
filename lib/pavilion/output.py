@@ -34,7 +34,6 @@ import shutil
 import sys
 import textwrap
 import random
-from math import floor, log10
 from collections import UserString, UserDict
 from functools import lru_cache
 from pathlib import Path
