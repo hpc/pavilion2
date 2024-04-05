@@ -34,7 +34,7 @@ class OutputTests(PavTestCase):
             # Column 3 is capitalized (test transforms)
             columns[3]: {'transform': lambda s: s.capitalize()},
             # Column 1 is specially formatted
-            columns[4]: {'format': '"{}"'},
+            columns[4]: {'format': lambda x: '{}'.format(x)},
             # Column 2 has a title
             columns[5]: {'title': columns[2].capitalize()},
             # Column 4 has a min width.

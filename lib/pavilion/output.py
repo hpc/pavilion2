@@ -433,8 +433,8 @@ the column width.
   - transform - a function that takes the field value,
     transforms it in some way, and returns the result to be inserted
     into the table.
-  - format - a format string in the new style format syntax.
-    It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
+  - format - a function that takes a single argument of any type and
+    returns a string.
   - default - A default value for the field. A blank is
     printed by default.
   - no_wrap - a boolean that determines if a field will be
@@ -452,6 +452,8 @@ the column width.
 :param str title: Add the given title above the table. Default None
 :param int table_width: By default size table to the terminal width. If set
     size the table to this width instead.
+:param default_format: A function that takes an arbitrary object and returns a
+    string representation, used when no format is specified in field_info.
 :return: None
 
 **Examples**
@@ -659,6 +661,9 @@ def dt_format_rows(rows: List[Dict], fields: List[str],
 
     blank_row = {field: ANSIString('') for field in fields}
 
+    if default_format is None:
+        default_format = lambda x: '{0}'.format(x) # pylint: disable=unnecessary-lambda
+
     formatted_rows = []
     for row in rows:
         formatted_row = {}
@@ -691,25 +696,14 @@ def dt_format_rows(rows: List[Dict], fields: List[str],
                 ansi_code = None
 
             # Format the data
-            col_format = info.get('format', IDENTITY_FORMAT)
+            col_format = info.get('format', default_format)
 
-            use_format_str = True
-
-            if col_format == IDENTITY_FORMAT and default_format is not None:
-                try:
-                    formatted_data = default_format(data)
-                    use_format_str = False
-                except (TypeError, ValueError):
-                    print("Invalid format function for data: {0}. "
-                          "Falling back on format string: {1}..."
-                          .format(repr(data), col_format), file=sys.stderr)
-            if use_format_str:
-                try:
-                    formatted_data = col_format.format(data)
-                except ValueError:
-                    print("Bad format for data. Format: {0}, data: {1}"
-                          .format(col_format, repr(data)), file=sys.stderr)
-                    raise
+            try:
+                formatted_data = col_format(data)
+            except ValueError:
+                print("Bad format for data. Format: {0}, data: {1}"
+                      .format(col_format, repr(data)), file=sys.stderr)
+                raise
 
             # Cast all data as ANSI strings, so we can get accurate lengths
             # and use ANSI friendly text wrapping.

@@ -9,7 +9,7 @@ import pprint
 import shutil
 from math import log10, floor
 import re
-from typing import List, IO, Union, Optional
+from typing import List, IO, Union, Optional, Any
 
 from pavilion.errors import TestConfigError, ResultError
 from pavilion import cmd_utils
@@ -36,7 +36,7 @@ def _num_digits(n: int) -> int: # pylint: disable=invalid-name
     return floor(log10(n)) + 1
 
 
-def format_numeric(value: Union[int, float], digits: Optional[int]) -> str:
+def format_numeric(value: Any, digits: Optional[int]) -> str:
     if digits is None:
         return str(value)
 
@@ -53,8 +53,7 @@ def format_numeric(value: Union[int, float], digits: Optional[int]) -> str:
         else:
             res = str(round(value, digits - 1))
     else:
-        raise ValueError(f'Cannot format value {value}. Expected one of (int, float),' +
-            f' but received {type(value)}.')
+        return str(value)
 
     # Remove leading zeros in exponent, as well as + sign, if present
     pos_regex = 'e\+0*'
