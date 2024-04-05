@@ -703,7 +703,7 @@ def dt_format_rows(rows: List[Dict], fields: List[str],
     blank_row = {field: ANSIString('') for field in fields}
 
     if default_format is None:
-        default_format = lambda x: '{0}'.format # pylint: disable=unnecessary-lambda
+        default_format = lambda x: '{0}'.format
 
     formatted_rows = []
     for row in rows:
