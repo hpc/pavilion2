@@ -34,11 +34,10 @@ import shutil
 import sys
 import textwrap
 import random
-from math import floor, log10
 from collections import UserString, UserDict
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Dict, Union, TextIO, Any, Optional
+from typing import List, Dict, Union, TextIO, Any, Optional, Callable
 
 from pavilion import errors
 
@@ -73,47 +72,7 @@ COLORS = {
     'UNDERLINE': UNDERLINE,
 }
 
-DEFAULT_FORMAT = '{0}'
-
-
-def _num_digits(n: int) -> int: # pylint: disable=invalid-name
-    """Only attempt to count number digits for ints, since
-    precision error makes it nonsensical for floats."""
-    if n < 0:
-        n = abs(n)
-    elif n == 0:
-        return 1
-    return floor(log10(n)) + 1
-
-
-def format_numeric(value: Union[int, float], digits: Optional[int]) -> str:
-    if digits is None:
-        return str(value)
-
-    sci_fmt = '{' + f':.{digits-1}e' + '}'
-
-    if isinstance(value, int):
-        if _num_digits(value) > digits:
-            res = sci_fmt.format(value)
-        else:
-            res = str(value)
-    elif isinstance(value, float):
-        if abs(value) < 10**-(digits - 1):
-            res = sci_fmt.format(value)
-        else:
-            res = str(round(value, digits - 1))
-    else:
-        raise ValueError(f'Cannot format value {value}. Expected one of (int, float),' +
-            f' but received {type(value)}.')
-
-    # Remove leading zeros in exponent, as well as + sign, if present
-    pos_regex = 'e\+0*'
-    neg_regex = 'e-0*'
-
-    res = re.sub(pos_regex, "e", res)
-    res = re.sub(neg_regex, "e-", res)
-
-    return res
+IDENTITY_FORMAT = '{0}'
 
 
 def format_duration(time_delta: float) -> str:
@@ -451,11 +410,13 @@ DEFAULT_BORDER_CHARS = {
 }
 
 
+FormatFunction = Callable[[Any], str]
+
 def draw_table(outfile: TextIO, fields: List[str], rows: Dict[str, Any],
                field_info: Optional[Dict[str, Dict]] = None, border: bool = False,
                pad: bool = True, border_chars: Optional[Dict[str, str]] = None,
                header: bool = True, title: str = None, table_width: Optional[int] = None,
-               num_digits: Optional[int] = None) -> None:
+               default_format : Optional[FormatFunction] = None) -> None:
     """Prints a table from the given data, dynamically setting
 the column width.
 
@@ -605,7 +566,7 @@ A more complicated example: ::
     titles = dt_field_titles(fields, field_info)
 
     # Format the rows according to the field_info format specifications.
-    rows = dt_format_rows(rows, fields, field_info, num_digits)
+    rows = dt_format_rows(rows, fields, field_info, default_format)
     if header:
         rows.insert(0, titles)
 
@@ -691,7 +652,7 @@ def dt_field_titles(fields: List[str], field_info: dict) \
 
 
 def dt_format_rows(rows: List[Dict], fields: List[str],
-     field_info: Dict, num_digits: Optional[int]) -> Dict:
+     field_info: Dict, default_format: Optional[FormatFunction]) -> Dict:
     """Format each field value in each row according to the format
     specifications. Also converts each field value into an ANSIStr so we
     can rely on it's built in '.wrap' method."""
@@ -730,11 +691,19 @@ def dt_format_rows(rows: List[Dict], fields: List[str],
                 ansi_code = None
 
             # Format the data
-            col_format = info.get('format', DEFAULT_FORMAT)
+            col_format = info.get('format', IDENTITY_FORMAT)
 
-            if col_format == DEFAULT_FORMAT and isinstance(data, (int, float)):
-                formatted_data = format_numeric(data, num_digits)
-            else:
+            use_format_str = True
+
+            if col_format == IDENTITY_FORMAT and default_format is not None:
+                try:
+                    formatted_data = default_format(data)
+                    use_format_str = False
+                except (TypeError, ValueError):
+                    print("Invalid format function for data: {0}. "
+                          "Falling back on format string: {1}..."
+                          .format(repr(data), col_format), file=sys.stderr)
+            if use_format_str:
                 try:
                     formatted_data = col_format.format(data)
                 except ValueError:
