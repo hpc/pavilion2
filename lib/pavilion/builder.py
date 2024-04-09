@@ -438,6 +438,8 @@ class TestBuilder:
 
                             try:
                                 self.path.rename(self.fail_path)
+                                tracker.warn("FAILED_BUILD_MOVED to {}"
+                                             .format(self.fail_path))
                             except FileNotFoundError as err:
                                 tracker.error(
                                     "Failed to move build {} from {} to "
@@ -543,6 +545,7 @@ class TestBuilder:
             with self.tmp_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
                 cmd = [self._script_path.as_posix(), test_id]
+                build_log.write("FAIL PATH: {}".format(self.fail_path))
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
