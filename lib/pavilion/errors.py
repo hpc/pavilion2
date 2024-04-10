@@ -47,11 +47,8 @@ class PavilionError(RuntimeError):
         else:
             return self.msg
 
-    def pformat(self, show_traceback: bool = False) -> str:
+    def pformat(self) -> str:
         """Specially format the exception for printing."""
-
-        if show_traceback:
-            return traceback.format_exception(self)
 
         lines = []
         next_exc = self.prior_error

@@ -697,7 +697,7 @@ class ShowCommand(Command):
             except errors.TestConfigError as err:
                 output.fprint(self.errfile,
                               "Could not load test {}\n{}"
-                              .format(args.test, err.pformat(args.show_tracebacks)))
+                              .format(args.test, err.pformat()))
                 return errno.EINVAL
 
             test = None

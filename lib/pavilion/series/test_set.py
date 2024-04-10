@@ -188,7 +188,7 @@ class TestSet:
         return test_sets
 
     def make_iter(self, build_only: bool = False, rebuild: bool = False,
-         local_builds_only: bool = False, show_tracebacks: bool = False) -> Iterator[List[TestRun]]:
+         local_builds_only: bool = False) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).
@@ -234,11 +234,11 @@ class TestSet:
 
                 for error in cfg_resolver.errors:
                     self.status.set(S_STATES.ERROR,
-                                    '{} - {}'.format(error.request.request, error.pformat(show_tracebacks)))
+                                    '{} - {}'.format(error.request.request, error.pformat()))
 
                     output.fprint(
                         self.outfile,
-                        "{} - {}".format(error.request.request, error.pformat(show_tracebacks)))
+                        "{} - {}".format(error.request.request, error.pformat()))
 
                 if not self.ignore_errors:
                     raise TestSetError("Error creating tests for test set {}.".format(self.name),
@@ -548,7 +548,7 @@ class TestSet:
                         .format(len(built_tests), self.name))
 
 
-    def kickoff(self, show_tracebacks: bool = False) -> Tuple[List[TestRun], List[Job]]:
+    def kickoff(self) -> Tuple[List[TestRun], List[Job]]:
         """Kickoff all the given tests under this test set.
 
     :return: The number of jobs kicked off.
@@ -599,7 +599,7 @@ class TestSet:
 
                 output.fprint(self.outfile, "Errors:")
                 for err in sched_errors:
-                    output.fprint(self.outfile, err.pformat(show_tracebacks), '\n')
+                    output.fprint(self.outfile, err.pformat(), '\n')
 
         jobs = dict()
         for test in new_started:
