@@ -6,20 +6,20 @@ class BuiltinTests(PavTestCase):
     """Test Pavilion builtins."""
 
     def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)        
-        run_cmd = commands.get_command("run")
-        run_cmd.silence()
+        plugins.initialize_plugins(self.pav_cfg)
 
     def test_survey_mode_config(self):
+
+        run_cmd = commands.get_command('run')
+        #run_cmd.silence()
         arg_parser = arguments.get_parser()
 
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
             '-m', 'survey',
-            'hello_world_c'
+            'hello_c'
         ])
 
-        run_cmd = commands.get_command(args.command_name)
         ret = run_cmd.run(self.pav_cfg, args)
         self.assertEqual(ret, 0)
