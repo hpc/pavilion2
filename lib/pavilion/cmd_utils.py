@@ -180,7 +180,7 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
     if not args.tests:
         args.tests.append('last')
 
-    test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
+    test_paths = test_list_to_paths(pav_cfg, args.tests)
 
     return dir_db.select_from(
         pav_cfg,
