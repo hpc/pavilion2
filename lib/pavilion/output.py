@@ -37,7 +37,7 @@ import random
 from collections import UserString, UserDict
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Union, TextIO, Any, Optional, Callable
 
 from pavilion import errors
 
@@ -71,6 +71,8 @@ COLORS = {
     'FAINT': FAINT,
     'UNDERLINE': UNDERLINE,
 }
+
+IDENTITY_FORMAT = '{0}'
 
 
 def format_duration(time_delta: float) -> str:
@@ -408,9 +410,13 @@ DEFAULT_BORDER_CHARS = {
 }
 
 
-def draw_table(outfile, fields, rows,
-               field_info=None, border=False, pad=True,
-               border_chars=None, header=True, title=None, table_width=None):
+FormatFunction = Callable[[Any], str]
+
+def draw_table(outfile: TextIO, fields: List[str], rows: Dict[str, Any],
+               field_info: Optional[Dict[str, Dict]] = None, border: bool = False,
+               pad: bool = True, border_chars: Optional[Dict[str, str]] = None,
+               header: bool = True, title: str = None, table_width: Optional[int] = None,
+               default_format : Optional[FormatFunction] = None) -> None:
     """Prints a table from the given data, dynamically setting
 the column width.
 
@@ -427,8 +433,8 @@ the column width.
   - transform - a function that takes the field value,
     transforms it in some way, and returns the result to be inserted
     into the table.
-  - format - a format string in the new style format syntax.
-    It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
+  - format - a function that takes a single argument of any type and
+    returns a string.
   - default - A default value for the field. A blank is
     printed by default.
   - no_wrap - a boolean that determines if a field will be
@@ -446,6 +452,8 @@ the column width.
 :param str title: Add the given title above the table. Default None
 :param int table_width: By default size table to the terminal width. If set
     size the table to this width instead.
+:param default_format: A function that takes an arbitrary object and returns a
+    string representation, used when no format is specified in field_info.
 :return: None
 
 **Examples**
@@ -560,7 +568,7 @@ A more complicated example: ::
     titles = dt_field_titles(fields, field_info)
 
     # Format the rows according to the field_info format specifications.
-    rows = dt_format_rows(rows, fields, field_info)
+    rows = dt_format_rows(rows, fields, field_info, default_format)
     if header:
         rows.insert(0, titles)
 
@@ -645,12 +653,16 @@ def dt_field_titles(fields: List[str], field_info: dict) \
     return titles
 
 
-def dt_format_rows(rows, fields, field_info):
+def dt_format_rows(rows: List[Dict], fields: List[str],
+     field_info: Dict, default_format: Optional[FormatFunction]) -> Dict:
     """Format each field value in each row according to the format
     specifications. Also converts each field value into an ANSIStr so we
     can rely on it's built in '.wrap' method."""
 
     blank_row = {field: ANSIString('') for field in fields}
+
+    if default_format is None:
+        default_format = lambda x: '{0}'.format(x) # pylint: disable=unnecessary-lambda
 
     formatted_rows = []
     for row in rows:
@@ -684,18 +696,21 @@ def dt_format_rows(rows, fields, field_info):
                 ansi_code = None
 
             # Format the data
-            col_format = info.get('format', '{0}')
+            col_format = info.get('format', default_format)
+
             try:
-                formatted_data = col_format.format(data)
+                formatted_data = col_format(data)
             except ValueError:
                 print("Bad format for data. Format: {0}, data: {1}"
                       .format(col_format, repr(data)), file=sys.stderr)
                 raise
+
             # Cast all data as ANSI strings, so we can get accurate lengths
             # and use ANSI friendly text wrapping.
             data = ANSIString(formatted_data, code=ansi_code)
 
             formatted_row[field] = data
+
         formatted_rows.append(formatted_row)
 
     return formatted_rows
