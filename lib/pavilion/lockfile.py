@@ -359,27 +359,29 @@ class FuzzyLock:
 
     def __enter__(self) -> 'FuzzyLock':
         """
-        Attempt to acquire the lock.
+        Attempt to acquire the lock. Raise a TimeoutError if a timeout is set and the
+        specified duration has passed.
 
-        :return: True if lock has been successfully acquired; False if timed out
+        :return: The FuzzyLock itself, if a timeout has not occurred.
         """
 
         try:
             self._lock_dir.mkdir(exist_ok=True)
+        except OSError as err:
+            raise LockFileError(f"Unable to create lockfile directory {self._lock_dir}.",
+                                 prior_error=err)
 
+        try:
             # Declare intent to take lock
             self._lockfile.touch(exist_ok=False)
-        except OSError:
-            msg = f"Unable to create lockfile {self._lockfile}."
-
-            if not self._lock_dir.exists():
-                # This is probably the fault of the caller
-                msg += " Lock directory ({self._lock_dir}) does not exist."
-            elif self._lockfile.exists():
+        except OSError as err:
+            if self._lockfile.exists():
                 # If this happens, something went very wrong. This is likely dead code.
-                msg += " Lockfile ({self._lock_dir}) already exists."
+                msg = f"Lockfile ({self._lockfile}) already exists, but should not."
+            else:
+                msg = f"Unable to create lockfile ({self._lockfile})"
 
-            raise LockFileError(msg)
+            raise LockFileError(msg, prior_error=err)
 
         first = False
         start = time.time()
@@ -439,4 +441,4 @@ class FuzzyLock:
                     pass
 
         # Sort files by creation time and return oldest
-        return sorted(list(self._mtimes.items()), key=lambda x: x[1])[0][0]
+        return sorted(self._mtimes.items(), key=lambda x: x[1])[0][0]
