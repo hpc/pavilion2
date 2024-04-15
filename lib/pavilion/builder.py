@@ -438,8 +438,6 @@ class TestBuilder:
 
                             try:
                                 self.path.rename(self.fail_path)
-                                tracker.warn("FAILED_BUILD_MOVED to {}"
-                                             .format(self.fail_path))
                             except FileNotFoundError as err:
                                 tracker.error(
                                     "Failed to move build {} from {} to "
@@ -452,7 +450,7 @@ class TestBuilder:
                                     tracker.error(
                                         "Could not create fail directory for "
                                         "build {} at {}"
-                                        .format(self.name, self.fail_path, err2))
+                                        .format(self.name, self.fail_path), err2)
                             if cancel_event is not None:
                                 cancel_event.set()
 
@@ -545,7 +543,6 @@ class TestBuilder:
             with self.tmp_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
                 cmd = [self._script_path.as_posix(), test_id]
-                build_log.write("FAIL PATH: {}".format(self.fail_path))
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
@@ -613,7 +610,7 @@ class TestBuilder:
 
         if result != 0:
             tracker.fail(
-                note="Build returned a non-zero result.")
+                note="Build returned a non-zero result {}.".format(result))
             if cancel_event is not None:
                 cancel_event.set()
             return False
@@ -767,7 +764,9 @@ class TestBuilder:
                         copystat=utils.make_umask_filtered_copystat(umask),
                         symlinks=True)
                 else:
+                    extra_perm = stat.S_IMODE(os.stat(path).st_mode)
                     shutil.copyfile(path.as_posix(), final_dest.as_posix())
+                    os.chmod(final_dest, extra_perm)
             except OSError as err:
                 raise TestBuilderError(
                     "Could not copy extra file '{}' to dest '{}'"
