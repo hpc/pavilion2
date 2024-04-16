@@ -77,8 +77,8 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     if not test.build():
-                        fprint(sys.stdout, "Test {} failed to build.".format(test.full_id))
-                        raise Exception
+                        fprint(sys.stdout, "Test {} build failed.".format(test.full_id))
+                        raise Exception("Unknown build error. Refer to the kickoff log.")
             except Exception:
                 test.status.set(
                     STATES.BUILD_ERROR,
