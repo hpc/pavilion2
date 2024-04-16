@@ -78,7 +78,7 @@ class _RunCommand(Command):
                 if not test.build_local:
                     if not test.build():
                         fprint(sys.stdout, "Test {} failed to build.".format(test.full_id))
-
+                        raise Exception
             except Exception:
                 test.status.set(
                     STATES.BUILD_ERROR,
