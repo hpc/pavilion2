@@ -585,7 +585,7 @@ expected to be added to by various plugins.
                     help_text='Commands to run after inherited build '
                               'commands.'),
                 yc.ListElem(
-                    'copy_files', sub_elem.yc.StrElem(),
+                    'copy_files', sub_elem=yc.StrElem(),
                     help_text="Make these files editable by test runs. "
                               "Normally files in a test run's build/run directory are "
                               "symlinks to read-only files in the shared build. "
