@@ -213,7 +213,7 @@ class TestRun(TestAttributes):
         self.run_tmpl_path = self.path/'run.tmpl'
         self.run_script_path = self.path/'run.sh'
 
-        if not new_test:
+        if not new_test and utils.str_bool(self.config.get('build', 'true')):
             self.builder = self._make_builder()
 
         # This will be set by the scheduler
@@ -288,6 +288,7 @@ class TestRun(TestAttributes):
         self.saved = True
 
     def _make_builder(self):
+        """Create the builder for this test, if a build is even enabled."""
 
         spack_config = (self.config.get('spack_config', {}) if self.spack_enabled()
                         else None)

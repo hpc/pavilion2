@@ -572,6 +572,9 @@ expected to be added to by various plugins.
         ),
         yc.KeyedElem(
             'build', elements=[
+                yc.StrElem(
+                    'disable',
+                    help_text='Disable the build step entirely for this test.'),
                 yc.ListElem(
                     'cmds', sub_elem=yc.StrElem(),
                     help_text='The sequence of commands to run to perform '
