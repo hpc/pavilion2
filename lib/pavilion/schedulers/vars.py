@@ -37,7 +37,6 @@ each test right before it runs on an allocation in order to un-defer values.
     # Only deferred vars need examples. The rest will be pulled automatically.
     EXAMPLE = {
         'chunk_ids': ['0', '1', '2', '3'],
-        'base_concurrency': "1",
         'errors': ['oh no, there was an error.'],
         'node_list': ['node01', 'node03', 'node04'],
         'status_info': '',
@@ -211,7 +210,7 @@ each test right before it runs on an allocation in order to un-defer values.
             return tasks
 
     @var_method
-    def base_concurrency(self):
+    def concurrent_default(self):
         """The default level of concurrency for the scheduler."""
         return 1
 

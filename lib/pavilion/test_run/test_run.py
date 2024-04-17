@@ -202,7 +202,7 @@ class TestRun(TestAttributes):
                 raise ValueError()
         except ValueError:
             raise TestRunError("The run.concurrent test config key must be a positive integer. "
-                               "Test '{}' got '{}'".format(self.full_id, self.concurrent)) 
+                               "Test '{}' got '{}'".format(self.full_id, self.concurrent))
 
         self.run_log = self.path/'run.log'
         self.build_log = self.path/'build.log'
@@ -467,6 +467,8 @@ class TestRun(TestAttributes):
             self.config['run'],
             self.config.get('module_wrappers', {})
         )
+
+        self.status.set(STATES.FINALIZED, "Test Run Finalized.")
 
     @staticmethod
     def make_name(config):

@@ -19,8 +19,8 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
     """A Scheduler plugin that does not support automatic node inventories. It relies
     on manually set parameters in 'schedule.cluster_info'."""
 
-    """A 'Basic' scheduler is concurrent or not - either all tests can run from the same job
-    or they must run from separate jobs."""
+    # A 'Basic' scheduler is concurrent or not - either all tests can run from the same job
+    # or they must run from separate jobs.
     IS_CONCURRENT = True
 
     def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
@@ -67,7 +67,8 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                                              sched_config['cluster_info']['node_count'])
             except SchedulerPluginError as err:
                 err.tests = [test]
-                test.status.update(STATES.SCHED_ERROR, "Error with scheduler config: {}".format(err))
+                test.status.update(STATES.SCHED_ERROR,
+                                   "Error with scheduler config: {}".format(err))
                 test.set_run_complete()
                 errors.append(err)
                 continue
@@ -89,7 +90,6 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             except JobError as err:
                 errors.append(SchedulerPluginError("Error creating Job.",
                                                    prior_error=err, tests=[test]))
-                self._mass_status_update(test_bin, "Could not create job: {}".format(err))
                 continue
 
             job_name = 'pav-{}-{}-runs'.format(self.name, test_bin[0].series)
@@ -117,16 +117,13 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                     node_range=node_range)
             except SchedulerPluginError as err:
                 errors.append(self._make_kickoff_error(err, [test]))
-                self._mass_status_update(test_bin, "Could not kickoff job '{}': {}"
-                                                   .format(job.name, err))
                 continue
             except Exception as err:     # pylint: disable=broad-except
                 errors.append(SchedulerPluginError(
                     "Unexpected error when starting test under the '{}' scheduler"
                     .format(self.name),
                     prior_error=err, tests=[test]))
-                self._mass_status_update(test_bin, "Unexpected error kicking off job '{}': {}"
-                                                   .format(job.name, err))
+
                 continue
 
             test.status.set(STATES.SCHEDULED,

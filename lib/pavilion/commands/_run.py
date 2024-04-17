@@ -15,10 +15,12 @@ from pavilion.errors import TestRunError, ResultError, TestBuilderError, Pavilio
 from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
-from pavilion.test_run import TestRun
+from pavilion.test_run import TestRun, mass_status_update
 from pavilion.variables import VariableSetManager
 from .base_classes import Command
 
+# We need to catch pretty much all exceptions to cleanly report errors.
+# pylint: disable=broad-except
 
 class _RunCommand(Command):
 
@@ -37,7 +39,6 @@ class _RunCommand(Command):
 
     def run(self, pav_cfg, args):
         """Load and run an already prepped test."""
-
 
         tests = []
         for test_id in args.test_ids:
@@ -59,7 +60,9 @@ class _RunCommand(Command):
                 continue
 
             # Only add tests that weren't skipped.
-            if not test.skipped:
+            if test.skipped:
+                test.status.set(STATES.SKIPPED, "Test skipped based on deferred variables.")
+            else:
                 finalized_tests.append(test)
 
         tests = finalized_tests
@@ -70,6 +73,7 @@ class _RunCommand(Command):
         for test in tests:
             try:
                 if not test.build_local:
+                    test.status.set(STATES.BUILDING, "Test building on an allocation.")
                     if not test.build():
                         test.set_run_complete()
                         fprint(self.outfile, "Test {} build failed.".format(test.full_id))
@@ -89,17 +93,20 @@ class _RunCommand(Command):
                                  .format(len(tests)))
             return 1
 
+        msg = "Ready to run along with {} other tests.".format(len(tests))
+        mass_status_update(tests, STATES.RUN_READY, msg)
+
         # Run test tests, and make sure they're set as complete regardless of what happens
         try:
             self._run_tests(pav_cfg, tests)
         except Exception as err:
             for test in tests:
-                test.status.set(STATES.RUN_ERROR, 
+                test.status.set(STATES.RUN_ERROR,
                                 "Unexpected error in _run command: {}".format(err))
         finally:
             for test in tests:
                 test.set_run_complete()
-            
+
     def _finalize_test(self, pav_cfg: PavConfig, test: TestRun):
         # The scheduler will be the same for all tests
 
@@ -140,7 +147,7 @@ class _RunCommand(Command):
                 next_test = tests.pop()
 
                 # The maximum number of concurrent tests is the lowest
-                # 'concurrent' value from amongst the running tests (plus the 
+                # 'concurrent' value from amongst the running tests (plus the
                 # one we're about to add).
                 next_tests = [test for _, test in running_tests.values()]
                 next_tests.append(next_test)
@@ -153,7 +160,7 @@ class _RunCommand(Command):
                 else:
                     # The next test puts us over the limit. Wait for tests to die.
                     tests.append(next_test)
-            
+
             if not added_thread: # Only wait if we didn't add a new thread/test.
                 thread_exited = False
                 while not thread_exited:
@@ -268,11 +275,10 @@ class _RunCommand(Command):
             test.status.set(STATES.COMPLETE,
                             "The test completed with result: {}"
                             .format(results.get('result', '<unknown>')))
-            # We set the general completion of the test outside of this function, regardless of 
+            # We set the general completion of the test outside of this function, regardless of
             # how it exited.
         except Exception:
             test.status.set(
                 STATES.UNKNOWN,
                 "Unknown error while setting test completion. Refer to the "
                 "kickoff log.")
-

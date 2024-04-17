@@ -577,6 +577,11 @@ class TestSet:
                             .format(len(sched_tests), sched_name))
             sched_errors = scheduler.schedule_tests(self.pav_cfg, sched_tests)
 
+            # Update the status of each test with any errors received from the scheduler.
+            for err in sched_errors:
+                mass_update_tests(err.tests, STATES.SCHED_ERROR,
+                                  err.pformat(), set_complete=True)
+
             # We rely on the scheduler to tell us which tests failed.
             err_tests = []
             for err in sched_errors:

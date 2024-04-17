@@ -528,6 +528,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         plural = 's' if len(tests) > 1 else ''
 
+        status_msg = 'Job kickoff failed:\n{}'.format(orig_err.pformat())
+
         return SchedulerPluginError(
             "Error kicking off test{} '{}' under the '{}' scheduler."
             .format(plural, test_names, self.name),
@@ -540,6 +542,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
         This always depends on the min and max nodes (which will always be the first and second
         values, plus whatever keys a the scheduler plugin gives in JOB_SHARE_KEY_ATTRS.
         """
+
+        def convert_lists_to_tuples(obj):
+            """Replace any lists in the given ubject with tuples."""
+
+            if isinstance(obj, list):
+                return tuple(convert_lists_to_tuples(item) for item in obj)
 
         key_parts = [min_nodes, max_nodes]
 
@@ -554,15 +562,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
             key_parts.append(opt)
 
         return tuple(key_parts)
-
-    def _mass_status_update(self, tests: List[TestRun], message: str,
-                            state=STATES.SCHED_ERROR, complete=True):
-        """Update the status of all the given tests with the state and message."""
-
-
-        for test in tests:
-            test.status.update(state, message)
-            test.set_run_complete()
 
 
 def __reset():

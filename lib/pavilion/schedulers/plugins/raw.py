@@ -12,10 +12,10 @@ from typing import Union, List, Tuple
 from pavilion.jobs import JobInfo, Job
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
+from pavilion.var_dict import var_method
 from ..basic import SchedulerPluginBasic
 from ..scheduler import KickoffScriptHeader
 from ..vars import SchedulerVariables
-from pavilion.var_dict import var_method
 
 
 class RawKickoffHeader(KickoffScriptHeader):
@@ -27,9 +27,10 @@ class RawKickoffHeader(KickoffScriptHeader):
         return []
 
 class RawSchedulerVariables(SchedulerVariables):
+    """Extra variables for the raw scheduler."""
 
     @var_method
-    def base_concurrency(self):
+    def concurrent_default(self):
         """For the raw scheduler, set the default concurrency to 100."""
         return 100
 
@@ -37,7 +38,7 @@ class RawSchedulerVariables(SchedulerVariables):
 class Raw(SchedulerPluginBasic):
     """The Raw (local system) scheduler."""
 
-    VAR_CLASS = SchedulerVariables
+    VAR_CLASS = RawSchedulerVariables
 
     KICKOFF_SCRIPT_HEADER_CLASS = RawKickoffHeader
 

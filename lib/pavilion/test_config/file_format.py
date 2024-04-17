@@ -790,9 +790,10 @@ expected to be added to by various plugins.
                     help_text='If True, test will fail if any of its run commands '
                               'fail, rather than just the last command.'),
                 yc.StrElem(
-                    'concurrent', default='{{sched.base_concurrency}}',
+                    'concurrent', default='{{sched.concurrent_default}}',
                     help_text='Total tests that can run concurrently including this one in a '
-                              'shared allocation. The default is 1 for most schedulers, but may vary. '
+                              'shared allocation. The default is 1 for most schedulers, '
+                              'but may vary. '
                               '(In particular, the \'raw\' scheduler has a much higher limit.) '
                               'Tests that use MPI should use this cautiously.'),
             ],

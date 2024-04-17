@@ -425,7 +425,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     # These allow us to form sharable groups given a specific nodelist - jobs with
     # different nodelists will never be shared.
     # This can be modified by subclasses. Separate multipart keys with a '.'.
-    ALLOC_ACQUIRE_OPTIONS = ['partition', 'reservation', 'account', 'qos']
+    JOB_SHARE_KEY_ATTRS = ['partition', 'reservation', 'account', 'qos']
 
     def _schedule_chunk(self, pav_cfg, chunk: NodeSet, tests: List[TestRun],
                         sched_configs: Dict[str, dict]) -> List[SchedulerPluginError]:
@@ -728,10 +728,3 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 .format(self.name, len(test_chunk)))
 
         return errors
-
-
-def convert_lists_to_tuples(obj):
-    """Replace any lists in the given ubject with tuples."""
-
-    if isinstance(obj, list):
-        return tuple(convert_lists_to_tuples(item) for item in obj)
