@@ -48,6 +48,17 @@ class _RunCommand(Command):
                 fprint(self.outfile, "Error loading test '{}'".format(args.test_id))
                 fprint(self.outfile, err.pformat())
 
+        # Filter out cancelled tests
+        uncancelled_tests = []
+        for test in tests:
+            if test.cancelled:
+                test.set_run_complete()
+            else:
+                uncancelled_tests.append(test)
+        tests = uncancelled_tests
+
+        tests = [test for test in tests if not test.cancelled]
+
         finalized_tests = []
         for test in tests:
             try:
@@ -89,8 +100,8 @@ class _RunCommand(Command):
 
         # Bail if no tests remain
         if not tests:
-            fprint(self.outfile, "Could not load any of the specified tests ({} total)"
-                                 .format(len(tests)))
+            fprint(self.outfile, "Of the specified tests that were loaded, none need to "
+                                 "(or could) run.")
             return 1
 
         msg = "Ready to run along with {} other tests.".format(len(tests))
@@ -231,10 +242,6 @@ class _RunCommand(Command):
             test.status.set(
                 STATES.RUN_ERROR,
                 "Unknown error while running test. Refer to the kickoff log.")
-            return
-
-        if test.cancelled:
-            # Skip the result parsing step if the test was cancelled.
             return
 
         try:

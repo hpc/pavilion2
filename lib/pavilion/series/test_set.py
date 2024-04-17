@@ -15,7 +15,7 @@ from pavilion.build_tracker import MultiBuildTracker
 from pavilion.errors import TestRunError, TestConfigError, TestSetError, ResultError
 from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
-from pavilion.test_run import TestRun
+from pavilion.test_run import TestRun, mass_status_update
 from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
@@ -579,8 +579,8 @@ class TestSet:
 
             # Update the status of each test with any errors received from the scheduler.
             for err in sched_errors:
-                mass_update_tests(err.tests, STATES.SCHED_ERROR,
-                                  err.pformat(), set_complete=True)
+                mass_status_update(err.tests, STATES.SCHED_ERROR,
+                                   err.pformat(), set_complete=True)
 
             # We rely on the scheduler to tell us which tests failed.
             err_tests = []
