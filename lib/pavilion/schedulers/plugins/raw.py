@@ -15,6 +15,7 @@ from pavilion.types import NodeInfo, NodeList
 from ..basic import SchedulerPluginBasic
 from ..scheduler import KickoffScriptHeader
 from ..vars import SchedulerVariables
+from pavilion.var_dict import var_method
 
 
 class RawKickoffHeader(KickoffScriptHeader):
@@ -24,6 +25,13 @@ class RawKickoffHeader(KickoffScriptHeader):
         """Return nothing."""
 
         return []
+
+class RawSchedulerVariables(SchedulerVariables):
+
+    @var_method
+    def base_concurrency(self):
+        """For the raw scheduler, set the default concurrency to 100."""
+        return 100
 
 
 class Raw(SchedulerPluginBasic):
