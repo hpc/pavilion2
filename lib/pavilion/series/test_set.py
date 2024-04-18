@@ -233,8 +233,11 @@ class TestSet:
                     "Error loading test configs for test set '{}'".format(self.name))
 
                 for error in cfg_resolver.errors:
-                    self.status.set(S_STATES.ERROR,
-                                    '{} - {}'.format(error.request.request, error.pformat()))
+                    if error.request is not None:
+                        self.status.set(S_STATES.ERROR,
+                                        '{} - {}'.format(error.request.request, error.pformat()))
+                    else:
+                        self.status.set(S_STATES.ERROR, error.pformat())
 
                     output.fprint(
                         self.outfile,

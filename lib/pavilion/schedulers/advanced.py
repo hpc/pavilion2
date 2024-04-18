@@ -542,7 +542,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             job_name += ' ...'
         script = self._create_kickoff_script_stub(pav_cfg, job_name, job.kickoff_log,
                                                   base_sched_config, nodes=picked_nodes,
-                                                  node_range=node_range)
+                                                  node_range=node_range,
+                                                  shebang=base_test.shebang)
 
         # Run each test via pavilion
         script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
@@ -607,7 +608,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                node_range=node_range)
+                node_range=node_range,
+                shebang=test.shebang)
 
             script.command('pav _run {t.full_id}'.format(t=test))
             script.write(job.kickoff_path)
@@ -701,7 +703,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                nodes=picked_nodes)
+                nodes=picked_nodes,
+                shebang=test.shebang)
 
             script.command('pav _run {t.full_id}'.format(t=test))
             script.write(job.kickoff_path)

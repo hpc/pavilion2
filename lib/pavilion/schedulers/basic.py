@@ -102,7 +102,8 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                node_range=node_range)
+                node_range=node_range,
+                shebang=test.shebang)
 
             test_ids = ' '.join(test.full_id for test in tests)
             script.command('pav _run {}'.format(test_ids))
