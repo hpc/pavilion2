@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pavilion import result
 from pavilion import schedulers
-from pavilion.errors import TestRunError, ResultError
+from pavilion.errors import TestRunError, ResultError, TestBuilderError
 from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
@@ -77,8 +77,8 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     if not test.build():
-                        fprint(sys.stdout, "Test {} failed to build.".format(test.full_id))
-
+                        fprint(sys.stdout, "Test {} build failed.".format(test.full_id))
+                        raise TestBuilderError("Unknown build error.")
             except Exception:
                 test.status.set(
                     STATES.BUILD_ERROR,
