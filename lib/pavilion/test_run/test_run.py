@@ -194,6 +194,16 @@ class TestRun(TestAttributes):
             raise TestRunError("Invalid run timeout value '{}' for test {}"
                                .format(run_timeout, self.name))
 
+        # Make sure the concurrent value is reasonable.
+        self.concurrent = self.config.get('run', {}).get('concurrent', 1)
+        try:
+            self.concurrent = int(self.concurrent)
+            if self.concurrent < 1:
+                raise ValueError()
+        except ValueError:
+            raise TestRunError("The run.concurrent test config key must be a positive integer. "
+                               "Test '{}' got '{}'".format(self.full_id, self.concurrent))
+
         self.run_log = self.path/'run.log'
         self.build_log = self.path/'build.log'
         self.results_log = self.path/'results.log'
@@ -459,6 +469,8 @@ class TestRun(TestAttributes):
             self.config['run'],
             self.config.get('module_wrappers', {})
         )
+
+        self.status.set(STATES.FINALIZED, "Test Run Finalized.")
 
     @staticmethod
     def make_name(config):

@@ -107,6 +107,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         'distributed': node_selection.distributed,
     }
 
+    # Schedule config attributes that, if all equal, mean that two tests can share the same jobs.
+    # These can be dotted dictionary references 'slurm.foo'
+    JOB_SHARE_KEY_ATTRS = []
+
     def __init__(self, name, description, priority=PRIO_CORE):
         """Scheduler plugin that is expected to be overriden by subclasses.
         The plugin will populate a set of expected 'sched' variables."""
@@ -533,10 +537,40 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         plural = 's' if len(tests) > 1 else ''
 
+        status_msg = 'Job kickoff failed:\n{}'.format(orig_err.pformat())
+
         return SchedulerPluginError(
             "Error kicking off test{} '{}' under the '{}' scheduler."
             .format(plural, test_names, self.name),
             prior_error=orig_err, tests=tests)
+
+    def gen_job_share_key(self, sched_config, min_nodes, max_nodes) -> Tuple:
+        """Generate a job sharing key - Tests with the same key are considered eligable
+        to share a job with each other.
+
+        This always depends on the min and max nodes (which will always be the first and second
+        values, plus whatever keys a the scheduler plugin gives in JOB_SHARE_KEY_ATTRS.
+        """
+
+        def convert_lists_to_tuples(obj):
+            """Replace any lists in the given ubject with tuples."""
+
+            if isinstance(obj, list):
+                return tuple(convert_lists_to_tuples(item) for item in obj)
+
+        key_parts = [min_nodes, max_nodes]
+
+        # Check that each of the scheduling options that would change the allocations
+        # configuration are the same.
+        for opt_name in self.JOB_SHARE_KEY_ATTRS:
+            opt = sched_config
+            for part in opt_name.split('.'):
+                if opt is not None and isinstance(opt, dict):
+                    opt = opt.get(part)
+            opt = convert_lists_to_tuples(opt)
+            key_parts.append(opt)
+
+        return tuple(key_parts)
 
 
 def __reset():

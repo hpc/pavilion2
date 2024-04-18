@@ -1,0 +1,22 @@
+main:
+  scheduler: raw
+  variables:
+    conc: [1, 3, 2, 3, 5, 4, 2, 6, 6, 7, 7, 3]
+  permute_on: conc
+  run:
+    concurrent: '{{ conc }}'
+    cmds:
+      - mkdir -p /tmp/pav_concurrent
+      - fn=/tmp/pav_concurrent/$RANDOM
+      - touch $fn
+      - for i in $(seq 10); do
+      - '  if [[ $(ls -1 /tmp/pav_concurrent | wc -l) > {{ conc }} ]]; then'
+      -       ls /tmp/pav_concurrent
+      -       echo "Too many files"
+      -       rm $fn
+      -       exit 1
+      -     fi
+      -     ls -1 /tmp/pav_concurrent | wc -l >> /tmp/pav_concurrent.count
+      -     sleep 0.01
+      - done
+      - rm $fn
