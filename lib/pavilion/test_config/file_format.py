@@ -591,9 +591,12 @@ expected to be added to by various plugins.
                               'commands.'),
                 yc.ListElem(
                     'copy_files', sub_elem=yc.StrElem(),
-                    help_text="When attaching the build to a test run, copy "
-                              "these files instead of creating a symlink. "
-                              "They may include path glob wildcards, "
+                    help_text="Make these files editable by test runs. "
+                              "Normally files in a test run's build/run directory are "
+                              "symlinks to read-only files in the shared build. "
+                              "Files listed here will be fully copied for each test "
+                              "run instead, and set with user/group write permissions. "
+                              "You may include path glob wildcards, "
                               "including the recursive '**'."),
                 PathCategoryElem(
                     'create_files',
