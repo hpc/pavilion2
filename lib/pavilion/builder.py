@@ -99,7 +99,9 @@ class TestBuilder:
 
         self.path = working_dir/'builds'/self.name  # type: Path
 
-        if not self.path.exists():
+        current_status = status.current()
+
+        if not self.path.exists() and "ERROR" not in current_status.state:
             status.set(state=STATES.BUILD_CREATED, note="Builder created.")
 
         self.tmp_log_path = self.path.with_suffix('.log')

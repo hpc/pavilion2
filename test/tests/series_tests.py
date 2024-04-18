@@ -111,6 +111,34 @@ class SeriesTests(PavTestCase):
                 self.assertLessEqual(last_ended, started)
             last_ended = ended
 
+    def test_series_test_set_simultaneous(self):
+        """Test to see if simultaneous in the test_set overrides the simultaneous at full series"""
+        series_sec_cfg = OrderedDict()
+        series_sec_cfg['set1'] = {
+                'tests': ['echo_test.b', 'echo_test.b', 'echo_test.b'],
+                'simultaneous': 1
+                }
+
+        series_cfg = series_config.make_config({
+                'test_sets': series_sec_cfg,
+                'modes':        ['smode2'],
+                'simultaneous': '3',
+                'ignore_errors': False,
+            })
+
+        test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
+        test_series_obj.run()
+        test_series_obj.wait(timeout=10)
+
+        last_ended = None
+        for test_id in sorted(test_series_obj.tests):
+            test_obj = test_series_obj.tests[test_id]
+            started = test_obj.results['started']
+            ended = test_obj.results['finished']
+            if last_ended is not None:
+                self.assertLessEqual(last_ended, started)
+            last_ended = ended
+
     def test_series_modes(self):
         """Test if modes and host are applied correctly."""
 
