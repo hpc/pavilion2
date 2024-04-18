@@ -207,6 +207,8 @@ class TestRun(TestAttributes):
 
         self.permute_vars = self._get_permute_vars()
 
+        self.shebang = self.config.get('shebang', '#!/usr/bin/bash')
+
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
 
@@ -1019,7 +1021,8 @@ be set by the scheduler plugin as soon as it's known."""
         :param module_wrappers: The module wrappers definition.
         """
 
-        script = scriptcomposer.ScriptComposer()
+        header = scriptcomposer.ScriptHeader(shebang=self.shebang)
+        script = scriptcomposer.ScriptComposer(header=header)
 
         verbose = config.get('verbose', 'false').lower() == 'true'
 
@@ -1128,14 +1131,13 @@ be set by the scheduler plugin as soon as it's known."""
     def _get_permute_vars(self):
         """Return the permute var values in a dictionary."""
 
-        var_names = self.config.get('permute_on', [])
-        if var_names:
-            var_dict = self.var_man.as_dict()
-            return {
-                key: var_dict.get(key) for key in var_names
-            }
-        else:
-            return {}
+        permute_on = {}
+        var_dict = self.var_man.as_dict()
+        for pvar in self.config.get('permute_on', []):
+            var_set, var, _, sub_var = self.var_man.resolve_key(pvar)
+            permute_on[pvar] = var_dict[var_set][var][0]
+
+        return permute_on
 
     def skip(self, reason: str):
         """Set the test as skipped with the given reason, and save the test

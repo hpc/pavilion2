@@ -81,7 +81,8 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                node_range=node_range)
+                node_range=node_range,
+                shebang=test.shebang)
 
             script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
             script.write(job.kickoff_path)

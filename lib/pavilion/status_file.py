@@ -304,7 +304,7 @@ could be wrong with the file format."""
             except ValueError:
                 try:
                     when = datetime.datetime.strptime(
-                        parts.pop(0), self.info_class.TIME_FORMAT).timestamp()
+                        time_part, self.info_class.TIME_FORMAT).timestamp()
                 except ValueError:
                     # Use the beginning of time on errors
                     when = datetime.datetime(0, 0, 0)
