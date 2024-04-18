@@ -212,6 +212,8 @@ each test right before it runs on an allocation in order to un-defer values.
     @var_method
     def concurrent_default(self):
         """The default level of concurrency for the scheduler."""
+        _ = self
+
         return 1
 
     @var_method
