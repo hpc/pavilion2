@@ -207,6 +207,8 @@ class TestRun(TestAttributes):
 
         self.permute_vars = self._get_permute_vars()
 
+        self.shebang = self.config.get('shebang', '#!/usr/bin/bash')
+
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
 
@@ -1019,7 +1021,8 @@ be set by the scheduler plugin as soon as it's known."""
         :param module_wrappers: The module wrappers definition.
         """
 
-        script = scriptcomposer.ScriptComposer()
+        header = scriptcomposer.ScriptHeader(shebang=self.shebang)
+        script = scriptcomposer.ScriptComposer(header=header)
 
         verbose = config.get('verbose', 'false').lower() == 'true'
 

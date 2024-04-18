@@ -1,10 +1,12 @@
 from __future__ import print_function
 
+from pavilion import errors
 from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 from pavilion.config import PavilionConfigLoader
 from pavilion import resolver
-from pavilion import errors
+from pavilion import schedulers
+from pavilion import test_run
 import tempfile
 
 
@@ -43,6 +45,36 @@ class TestConfig(PavTestCase):
             reloaded = PavilionConfigLoader().load(cfg_file)
 
         self.assertEqual(cfg, reloaded)
+
+    def test_shebang(self):
+        """Make sure the shebang option correctly sets the shebang in all scripts."""
+
+        shebang = '#!/usr/bin/bash -x'
+
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='this', op_sys='this')
+        # This test suite should exercise every possible way bash scripts are written.
+        ptests = rslvr.load(['shebang'])
+        tests_by_sched = {'raw': [], 'dummy': []}
+        tests = []
+        for ptest in ptests:
+            test = test_run.TestRun(self.pav_cfg, ptest.config, ptest.var_man)
+            test.save()
+            tests_by_sched[test.scheduler].append(test)
+            tests.append(test)
+
+        for sched_name in 'raw', 'dummy':
+            sched = schedulers.get_plugin(sched_name)
+            sched.schedule_tests(self.pav_cfg, tests_by_sched[sched_name])
+
+
+        for test in tests:
+            test.finalize(new_vars = test.var_man)
+            for file in ('run.sh', 'run.tmpl', 'build.sh', 'job/kickoff'):
+                path = test.path/file
+                with path.open() as file:
+                    lines = file.readlines()
+
+                self.assertEqual(lines[0], shebang + '\n')
 
     def test_default_vars(self):
         """Make sure variable defaults work as intended."""
