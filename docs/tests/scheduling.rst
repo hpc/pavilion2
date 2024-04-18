@@ -227,13 +227,17 @@ Job Sharing
 -----------
 
 On an advanced scheduler, when two tests have the same job parameters, they are automatically
-scheduled together in the same job allocation. The kickoff script for that job will start the
-tests serially, and the result of each test run does not effect the others.
+scheduled together in the same job allocation. The kickoff script for that job will run the tests
+concurrently up to the limit set by ``run.concurrent`` for each test.
 
 Job sharing makes the most sense for short tests that cover a wide range of nodes - such tests
-often take longer to set up the allocation than they do to run.
+often take longer to set up the allocation than they do to run. By default (when
+``schedule.share_allocation`` is set to ``true``), Pavilion will try to balance the sharing with
+the number of nodes available - effectively distributing the test runs into jobs that span the
+nodes.
 
-This is enabled by default. It can be disabled through the ``schedule.share_allocation`` option.
+With ``schedule.share_allocation`` set to ``max``, Pavilion forces as many test runs into the same
+job as possible.
 
 .. _tests.scheduling.chunking:
 
@@ -340,7 +344,7 @@ wrapper command before actually running the intended command.
                 # It will run `valgrind ./supermagic -a` on the allocation
                 - '{{sched.test_cmd}} ./supermagic -a'
 
-When using the ``raw`` scheduler, the ``{{sched.test_cmd}}`` normally returns an empty string. You can 
+When using the ``raw`` scheduler, the ``{{sched.test_cmd}}`` normally returns an empty string. You can
 use the wrapper setting to control a different scheduler directly.
 
 .. code-block:: yaml
