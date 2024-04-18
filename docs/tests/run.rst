@@ -120,7 +120,7 @@ that more than one test can run concurrently with others. By default, tests sche
 cluster schedulers (slurm/flux) have this set to 1 - forcing tests to run serially. The raw scheduler, in
 contrast, sets it to more (see ``pav show sched raw --config``).
 
-For more about shared allocations, see  :ref:`_tests.scheduling.job_sharing`.
+For more about shared allocations, see  :ref:`tests.scheduling.job_sharing`.
 
 .. code-block:: yaml
 
