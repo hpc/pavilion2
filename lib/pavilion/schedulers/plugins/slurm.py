@@ -238,9 +238,9 @@ class Slurm(SchedulerPluginAdvanced):
             'slurm',
             "Schedules tests via the Slurm scheduler.")
 
-    # Add sbatch extra to the values to consider when deciding what tests can be
+    # Add sbatch extra slurm features to the values to consider when deciding what tests can be
     # allocated together.
-    ALLOC_ACQUIRE_OPTIONS = SchedulerPluginAdvanced.ALLOC_ACQUIRE_OPTIONS + \
+    JOB_SHARE_KEY_ATTRS = SchedulerPluginAdvanced.JOB_SHARE_KEY_ATTRS + \
         ['slurm.sbatch_extra', 'slurm.features']
 
     MPI_CMD_SRUN = 'srun'

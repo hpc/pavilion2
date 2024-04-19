@@ -15,7 +15,9 @@ import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
+from pavilion import resolver
 from pavilion import result
+from pavilion import test_run
 from pavilion import utils
 from pavilion.result import base
 from pavilion.errors import ResultError
@@ -355,6 +357,35 @@ class ResultParserTests(PavTestCase):
             self.assertIsNotNone(
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
+
+    def test_permute_results(self):
+        """Check that we get the right permutation values in our results."""
+
+        # We really need to do this end-to-end to make sure it's not broken
+        # at any step of the process.
+
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='this', op_sys='this')
+        ptests = rslvr.load(['permute_on.test'])
+
+        self.assertEqual(len(ptests), 4)
+
+        answers = [
+            {'foo': 'a', 'bar': {'a': '1', 'b': '2'}},
+            {'foo': 'a', 'bar': {'a': '3', 'b': '4'}},
+            {'foo': 'b', 'bar': {'a': '1', 'b': '2'}},
+            {'foo': 'b', 'bar': {'a': '3', 'b': '4'}},
+        ]
+
+        all_results = []
+
+        for ptest in ptests:
+            test = test_run.TestRun(self.pav_cfg, ptest.config, ptest.var_man)
+            test.save()
+            test.build()
+            test.finalize(new_vars=ptest.var_man)
+            test.run()
+            results = test.gather_results(0)
+            self.assertIn(results['permute_on'], answers)
 
     def test_json_parser(self):
         """Check that JSON parser returns expected results."""

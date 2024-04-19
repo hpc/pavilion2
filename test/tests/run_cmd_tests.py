@@ -1,4 +1,6 @@
 import io
+import os
+import shutil
 
 from pavilion import arguments
 from pavilion import commands
@@ -212,3 +214,35 @@ class RunCmdTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_concurrent(self):
+        """Check that concurrency works."""
+
+        arg_parser = arguments.get_parser()
+
+        try:
+            shutil.rmtree('/tmp/pav_concurrent')
+            os.unlink('/tmp/pav_concurrent.count')
+        except OSError:
+            pass
+
+        # pass a collection name to -f (not an absolute path)
+        args = arg_parser.parse_args(['run', 'concurrent'])
+        run_cmd = commands.get_command(args.command_name)
+        out, err = run_cmd.clear_output()
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0, msg=out+err)
+
+        run_cmd.last_series.wait()
+
+        # The test fails if it ever catches more tests running than its concurrency limit
+        for test in run_cmd.last_tests:
+            self.assertEqual(test.result, 'PASS')
+
+        # Ensure than more than one test is running simultaniously at some point.
+        with open('/tmp/pav_concurrent.count') as f:
+            lines = f.readlines()
+        counts = [int(c) for c in lines if c]
+        self.assertGreater(max(counts), 1)
+
+        shutil.rmtree('/tmp/pav_concurrent')
+        os.unlink('/tmp/pav_concurrent.count')

@@ -15,7 +15,7 @@ from pavilion.build_tracker import MultiBuildTracker
 from pavilion.errors import TestRunError, TestConfigError, TestSetError, ResultError
 from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
-from pavilion.test_run import TestRun
+from pavilion.test_run import TestRun, mass_status_update
 from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
@@ -233,8 +233,11 @@ class TestSet:
                     "Error loading test configs for test set '{}'".format(self.name))
 
                 for error in cfg_resolver.errors:
-                    self.status.set(S_STATES.ERROR,
-                                    '{} - {}'.format(error.request.request, error.pformat()))
+                    if error.request is not None:
+                        self.status.set(S_STATES.ERROR,
+                                        '{} - {}'.format(error.request.request, error.pformat()))
+                    else:
+                        self.status.set(S_STATES.ERROR, error.pformat())
 
                     output.fprint(
                         self.outfile,
@@ -576,6 +579,11 @@ class TestSet:
                             "Kicking off {} tests under scheduler {}"
                             .format(len(sched_tests), sched_name))
             sched_errors = scheduler.schedule_tests(self.pav_cfg, sched_tests)
+
+            # Update the status of each test with any errors received from the scheduler.
+            for err in sched_errors:
+                mass_status_update(err.tests, STATES.SCHED_ERROR,
+                                   err.pformat(), set_complete=True)
 
             # We rely on the scheduler to tell us which tests failed.
             err_tests = []

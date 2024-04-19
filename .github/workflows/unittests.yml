@@ -2,9 +2,9 @@ name: unitests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ develop ]
   pull_request:
-    branches: [ master ]
+    branches: [ develop ]
 
 jobs:
   # The debug job is meant for debugging CI related issues.
@@ -18,12 +18,12 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-      
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
         python-version: "3.10"
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -31,23 +31,23 @@ jobs:
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
         pip install coverage
-        
+
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         #echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         #./test/utils/spack_setup test
-    
+
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
-      run: | 
+      run: |
         ./test/run_tests
 
     - name: zip_working_dir
       if: always()
       run: |
-        # If we don't zip this ourselves, it will run infinitely due to 
+        # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd test
         ./utils/make_symlinks_relative working_dir
@@ -66,12 +66,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
         python-version: "3.10"
-    
+
     - name: setup_via_venv
       run: |
         mv .git .not-git
@@ -90,12 +90,12 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-      
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
         python-version: "3.10"
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -108,9 +108,9 @@ jobs:
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-         
+
     - name: run_tests
-      run: | 
+      run: |
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style -o debug_prints"
 
   docs:
@@ -120,12 +120,12 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-      
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
         python-version: "3.10"
-    
+
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
@@ -137,13 +137,13 @@ jobs:
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-         
+
     - name: run_tests
       run: ./test/run_tests -o 'doc*' -q
 
   unittests-3_6:
     runs-on: ubuntu-20.04
-    needs: 
+    needs:
         - style
         - docs
 
@@ -151,12 +151,12 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-      
+
     - name: Set up Python 3.6
       uses: actions/setup-python@v2
       with:
         python-version: 3.6
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -167,23 +167,23 @@ jobs:
         sphinx-build --version
         pylint --version
 
-        
+
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
-        
+
     - name: run_tests
-      run: | 
-        ./test/run_tests 
+      run: |
+        ./test/run_tests
         #coverage xml
 
     - name: zip_working_dir
       if: failure()
       run: |
-        # If we don't zip this ourselves, it will run infinitely due to 
+        # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd test
         ./utils/make_symlinks_relative working_dir
@@ -201,10 +201,10 @@ jobs:
 #      with:
 #        fail_ci_if_error: true
 #        token: c1100f28-f36f-4b92-8ba5-ec907a1bfea6
- 
+
   unittests-3_10:
     runs-on: ubuntu-latest
-    needs: 
+    needs:
         - style
         - docs
 
@@ -212,34 +212,34 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-      
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
         python-version: "3.10"
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
-    
+
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
-        
+
     - name: run_tests
-      run: | 
+      run: |
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
 
     - name: zip_working_dir
       if: failure()
       run: |
-        # If we don't zip this ourselves, it will run infinitely due to 
+        # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd test
         ./utils/make_symlinks_relative working_dir
