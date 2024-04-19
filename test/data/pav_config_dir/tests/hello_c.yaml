@@ -7,6 +7,6 @@ hello_c:
             - echo 'Compiling hello_world.c...'
             - gcc -o hello hello_world.c
     run:
-        commands:
+        cmds:
             - echo 'Running hello...' 
             - './hello'
