@@ -53,7 +53,7 @@ def sopt(val: Union[str, List[str]], option_str: str) -> str:
     for each value in the list."""
 
     if isinstance(val, list):
-        return " ".join(map(lambda x: f"{option_str}='{x}'", list))
+        return " ".join(map(lambda x: f"{option_str}='{x}'", val))
     else:
         if val.lower() in {'null', 'none'}:
             return ''
@@ -84,6 +84,23 @@ class Opt:
 
         self.sub_spec = sub_spec
 
+    def __str__(self):
+        return f"Opt({self.sub_spec})"
+
+class UnionSpec:
+    """An arg spec that can take on one of several types. Each of the possible types is checked."""
+
+    def __init__(self, *sub_spec: List[Any]):
+        """
+        :param sub_spect: The list of argument specs to accept.
+                          Ex: Union([str, [str]]) or Union([str, int])
+        """
+
+        self.sub_spec = sub_spec
+
+    def __str__(self):
+        return f"UnionSpec({self.sub_spec})"
+
 class FunctionPlugin(IPlugin.IPlugin):
     """Plugin base class for math functions.
 
@@ -100,6 +117,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         bool,
         num,
         Opt,
+        UnionSpec,
         None
     )
 
@@ -194,6 +212,10 @@ class FunctionPlugin(IPlugin.IPlugin):
 
         if isinstance(arg, Opt):
             self._validate_arg_spec(arg.sub_spec)
+
+        elif isinstance(arg, UnionSpec):
+            for a in arg.sub_spec:
+                self._validate_arg_spec(a)
 
         elif isinstance(arg, list):
             if len(arg) != 1:
@@ -308,6 +330,15 @@ class FunctionPlugin(IPlugin.IPlugin):
 
         if isinstance(spec, Opt):
             return self._validate_arg(arg, spec.sub_spec)
+
+        if isinstance(spec, UnionSpec):
+            for a in spec.sub_spec:
+                try:
+                    return self._validate_arg(arg, a)
+                except (ValueError, FunctionPluginError):
+                    continue
+
+            raise FunctionPluginError("Invalid {} ({})".format(spec, arg))
 
         if isinstance(spec, list):
             if not isinstance(arg, list):

@@ -6,7 +6,7 @@ import random
 import re
 from typing import List, Dict, Union
 
-from .base import FunctionPlugin, num, opt, sopt, Opt
+from .base import FunctionPlugin, num, opt, sopt, Opt, UnionSpec
 from ..errors import FunctionPluginError, FunctionArgError
 
 
@@ -519,12 +519,12 @@ class SoptPlugin(CoreFunctionPlugin):
     def __init__(self):
         super().__init__(
             'sopt',
-            arg_specs=([str], str)
+            arg_specs=(UnionSpec(str, [str]), str)
         )
 
     @staticmethod
     def sopt(val: Union[str, List[str]], opt_str: str) -> str:
-        return opt(val, opt_str)
+        return sopt(val, opt_str)
 
 class OptPlugin(CoreFunctionPlugin):
     """Convert a config option into a UNIX-style option string. If the option is
@@ -532,9 +532,9 @@ class OptPlugin(CoreFunctionPlugin):
     def __init__(self):
         super().__init__(
             'opt',
-            arg_specs=([str], str, str)
+            arg_specs=(UnionSpec(str, [str]), str, str)
         )
 
     @staticmethod
     def opt(val: Union[str, List[str]], opt_str: str, delimiter: str = ',') -> str:
-        return sopt(val, opt_str, delimiter)
+        return opt(val, opt_str, delimiter)
