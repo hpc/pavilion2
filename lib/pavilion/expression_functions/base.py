@@ -66,6 +66,7 @@ def opt(val: Union[str, List[str]], option_str: str, delimiter=',') -> str:
     by concatenating the values in the list."""
 
     if isinstance(val, list):
+        val = map(lambda x: f"'{x}'", val)
         return f"{option_str}={delimiter.join(val)}"
     else:
         if val.lower() in {'null', 'none'}:
@@ -90,16 +91,47 @@ class Opt:
 class UnionSpec:
     """An arg spec that can take on one of several types. Each of the possible types is checked."""
 
-    def __init__(self, *sub_spec: List[Any]):
+    def __init__(self, *sub_specs: List[Any]) -> None:
         """
-        :param sub_spect: The list of argument specs to accept.
-                          Ex: Union([str, [str]]) or Union([str, int])
+        :param sub_specs: The list of argument specs to accept.
+                          Ex: UnionSpec([str, [str]]) or UnionSpec([str, int])
         """
 
-        self.sub_spec = sub_spec
+        self.sub_specs = sub_specs
+
+    def validate(self) -> None:
+        if len(self.sub_specs) == 0:
+            raise FunctionPluginError("UnionSpec must have at least one member.")
+        for spec in self.sub_specs:
+            if isinstance(spec, UnionSpec):
+                raise FunctionPluginError("UnionSpec objects may not be nested.")
+            elif isinstance(spec, Opt):
+                raise FunctionPluginError("UnionSpec objects may not contain specs of type Opt")
+
+    def resolve(self, arg: Any) -> Any:
+        for spec in self.sub_specs:
+            if self.isinstance_list(arg, spec):
+                return spec
+            elif isinstance(spec, type) and isinstance(arg, spec):
+                return spec
+
+    @staticmethod
+    def isinstance_list(arg: Any, spec: Any) -> bool:
+        if not (isinstance(arg, list) and isinstance(spec, list)):
+            return False
+        if len(arg) == 0:
+            # Any empty list is valid for any list spec
+            return True
+        if isinstance(arg[0], spec[0]):
+            return True
+
+        return False
+
+    def __contains__(self, arg: Any) -> bool:
+        return type(Any) in self.sub_spec
 
     def __str__(self):
-        return f"UnionSpec({self.sub_spec})"
+        return f"UnionSpec({self.sub_specs})"
 
 class FunctionPlugin(IPlugin.IPlugin):
     """Plugin base class for math functions.
@@ -190,7 +222,7 @@ class FunctionPlugin(IPlugin.IPlugin):
 
         super().__init__()
 
-    def _validate_arg_spec(self, arg):
+    def _validate_arg_spec(self, arg: Any) -> None:
         """Recursively validate the argument spec, to make sure plugin
         creators are using this right.
         :param arg: A valid arg spec is a structure of lists and
@@ -214,8 +246,10 @@ class FunctionPlugin(IPlugin.IPlugin):
             self._validate_arg_spec(arg.sub_spec)
 
         elif isinstance(arg, UnionSpec):
-            for a in arg.sub_spec:
-                self._validate_arg_spec(a)
+            arg.validate()
+
+            for spec in arg.sub_specs:
+                self._validate_arg_spec(spec)
 
         elif isinstance(arg, list):
             if len(arg) != 1:
@@ -318,7 +352,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         else:
             return spec.__name__
 
-    def _validate_arg(self, arg, spec):
+    def _validate_arg(self, arg, spec) -> Any:
         """Ensure that the argument is of the structure specified by 'spec',
         and convert all contained values accordingly.
 
@@ -332,13 +366,13 @@ class FunctionPlugin(IPlugin.IPlugin):
             return self._validate_arg(arg, spec.sub_spec)
 
         if isinstance(spec, UnionSpec):
-            for a in spec.sub_spec:
-                try:
-                    return self._validate_arg(arg, a)
-                except (ValueError, FunctionPluginError):
-                    continue
+            # Check that arg is valid for at least one member of the Union
+            sub_spec = spec.resolve(arg)
 
-            raise FunctionPluginError("Invalid {} ({})".format(spec, arg))
+            if sub_spec is None:
+                raise FunctionPluginError("Invalid {} ({})".format(spec, arg))
+
+            return self._validate_arg(arg, sub_spec)
 
         if isinstance(spec, list):
             if not isinstance(arg, list):
