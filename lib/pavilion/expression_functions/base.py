@@ -131,7 +131,16 @@ class UnionSpec:
         return type(Any) in self.sub_spec
 
     def __str__(self):
-        return f"UnionSpec({self.sub_specs})"
+
+        def to_str(sub):
+            if isinstance(sub, type):
+                return sub.__name__
+            elif isinstance(sub, list):
+                return f'[{sub[0].__name__}]'
+
+        spec_str = ", ".join(map(to_str, self.sub_specs))
+
+        return f"UnionSpec({spec_str})"
 
 class FunctionPlugin(IPlugin.IPlugin):
     """Plugin base class for math functions.
@@ -347,6 +356,8 @@ class FunctionPlugin(IPlugin.IPlugin):
             return {k: self._spec_to_desc(v) for k, v in spec.items()}
         elif isinstance(spec, Opt):
             return self._spec_to_desc(spec.sub_spec) + '?'
+        elif isinstance(spec, UnionSpec):
+            return str(spec)
         elif spec is None:
             return 'Any'
         else:
