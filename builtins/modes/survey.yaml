@@ -37,14 +37,14 @@ run:
 schedule:
     wrapper: >-
         survey {{ opt(survey_counters, "--counters") }}
-        {{ flag(survey.disable-papi-multiplex, "--disable-papi-multiplex") }} 
-        {{ flag(survey.disable-papi, "--disable-papi") }} 
-        {{ flag(survey.disable-io, "--disable-io") }} 
-        {{ flag(survey.disable-mpi, "--disable-mpi") }} 
-        {{ flag(survey.disable-ompt, "--disable-ompt") }} 
-        {{ flag(survey.disable-kokkos, "--disable-kokkos") }} 
-        {{ flag(survey.use-survey-omp-rt "--user-survey-omp-rt") }} 
-        {{ flag(survey.enable-kokkos, "--enable-kokkos") }} 
-        {{ flag(survey.enable-mem, "--enable-mem") }} 
-        {{ flag(survey.enable-mem-gotcha, "--enable-mem") }} 
+        {{ flag(survey.disable_papi_multiplex, "--disable-papi-multiplex") }} 
+        {{ flag(survey.disable_papi, "--disable-papi") }} 
+        {{ flag(survey.disable_io, "--disable-io") }} 
+        {{ flag(survey.disable_mpi, "--disable-mpi") }} 
+        {{ flag(survey.disable_ompt, "--disable-ompt") }} 
+        {{ flag(survey.disable_kokkos, "--disable-kokkos") }} 
+        {{ flag(survey.use_survey_omp_rt "--user-survey-omp-rt") }} 
+        {{ flag(survey.enable_kokkos, "--enable-kokkos") }} 
+        {{ flag(survey.enable_mem, "--enable-mem") }} 
+        {{ flag(survey.enable_mem_gotcha, "--enable-mem") }} 
         --json-only
