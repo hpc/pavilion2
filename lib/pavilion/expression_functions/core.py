@@ -6,7 +6,7 @@ import random
 import re
 from typing import List, Dict, Union
 
-from .base import FunctionPlugin, num, opt, sopt, Opt, UnionSpec
+from .base import FunctionPlugin, num, opt, sopt, flag, Opt, UnionSpec
 from ..errors import FunctionPluginError, FunctionArgError
 
 
@@ -511,6 +511,20 @@ class Outliers(CoreFunctionPlugin):
                 deviations[names[i]] = dev
 
         return deviations
+
+class FlagPlugin(CoreFunctionPlugin):
+    """Convert a boolean(-ish) config option into a UNIX-style flag.
+    """
+
+    def __init__(self):
+        super().__init__(
+            'flag',
+            arg_specs=(str, str) # Should this first arg be a str or a bool?
+        )
+
+    @staticmethod
+    def flag(val: str, flag_str: str):
+        return flag(val, flag_str)
 
 class SoptPlugin(CoreFunctionPlugin):
     """Convert a config option into a UNIX-style option string. If the
