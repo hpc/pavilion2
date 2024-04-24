@@ -74,6 +74,7 @@ class ExprFuncTests(PavTestCase):
                                  (({'a': {'i': 1}, 'b': {'i': 2}}, 1.5, 'i'), {'b': {'i': 2}})],
             'low_pass_filter': [(({'a': 1, 'b': 2, 'c': 3}, 2), {'a': 1}),
                                 (({'a': {'i': 1}, 'b': {'i': 2}}, 1.5, 'i'), {'a': {'i': 1}})],
+            'flag': [(('True', '--foo'), '--foo'), (('False', '--foo'), '')],
             'opt': [((['a', 'b', 'c'], '--foo'), "--foo='a','b','c'"), (('a', '--foo'), "--foo='a'"),
                 (('none', '--foo'), '')],
             'sopt': [((['a', 'b', 'c'], '--foo'), "--foo='a' --foo='b' --foo='c'"),
