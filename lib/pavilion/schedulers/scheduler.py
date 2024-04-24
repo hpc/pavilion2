@@ -33,14 +33,15 @@ class KickoffScriptHeader(ScriptHeader):
 
     def __init__(self, job_name: str, sched_config: dict,
                  nodes: Union[NodeList, None] = None,
-                 node_range: Union[Tuple[int, int], None] = None):
+                 node_range: Union[Tuple[int, int], None] = None,
+                 shebang = None):
         """Initialize the script header.
 
         The arguments are the same, and should be treated the same, as the
         'SchedulerPlugin._kickoff()' method's arguments.
         """
 
-        super().__init__()
+        super().__init__(shebang=shebang)
 
         self._job_name = job_name
         self._config = sched_config
@@ -105,6 +106,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         'rand_dist':   node_selection.rand_dist,
         'distributed': node_selection.distributed,
     }
+
+    # Schedule config attributes that, if all equal, mean that two tests can share the same jobs.
+    # These can be dotted dictionary references 'slurm.foo'
+    JOB_SHARE_KEY_ATTRS = []
 
     def __init__(self, name, description, priority=PRIO_CORE):
         """Scheduler plugin that is expected to be overriden by subclasses.
@@ -415,7 +420,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
                                     sched_config: dict,
                                     nodes: Union[NodeList, None] = None,
-                                    node_range: Union[Tuple[int, int], None] = None)\
+                                    node_range: Union[Tuple[int, int], None] = None,
+                                    shebang: str = None)\
             -> ScriptComposer:
         """Generate the kickoff script essentials preamble common to all scheduled
         tests.
@@ -430,7 +436,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
         elif not (nodes or node_range):
             raise RuntimeError("One of 'nodes' and 'node_range' must be provided.")
 
-        header = self._get_kickoff_script_header(job_name, sched_config, nodes, node_range)
+        header = self._get_kickoff_script_header(
+            job_name=job_name,
+            sched_config=sched_config,
+            nodes=nodes,
+            node_range=node_range,
+            shebang=shebang)
 
         script = ScriptComposer(header=header)
         script.comment("Redirect all output to the kickoff log.")
@@ -454,7 +465,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def _get_kickoff_script_header(self, job_name: str, sched_config: dict,
                                    nodes: Union[None, NodeList],
-                                   node_range: Union[Tuple[int, int], None]) \
+                                   node_range: Union[Tuple[int, int], None],
+                                   shebang: str = None) \
             -> KickoffScriptHeader:
         """Get a script header object for the kickoff script.  The nodes are those
         picked specifically for this job (if empty, the choice is left to the scheduler). The
@@ -465,6 +477,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
             sched_config=sched_config,
             nodes=nodes,
             node_range=node_range,
+            shebang=shebang,
         )
 
     @staticmethod
@@ -524,10 +537,40 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         plural = 's' if len(tests) > 1 else ''
 
+        status_msg = 'Job kickoff failed:\n{}'.format(orig_err.pformat())
+
         return SchedulerPluginError(
             "Error kicking off test{} '{}' under the '{}' scheduler."
             .format(plural, test_names, self.name),
             prior_error=orig_err, tests=tests)
+
+    def gen_job_share_key(self, sched_config, min_nodes, max_nodes) -> Tuple:
+        """Generate a job sharing key - Tests with the same key are considered eligable
+        to share a job with each other.
+
+        This always depends on the min and max nodes (which will always be the first and second
+        values, plus whatever keys a the scheduler plugin gives in JOB_SHARE_KEY_ATTRS.
+        """
+
+        def convert_lists_to_tuples(obj):
+            """Replace any lists in the given ubject with tuples."""
+
+            if isinstance(obj, list):
+                return tuple(convert_lists_to_tuples(item) for item in obj)
+
+        key_parts = [min_nodes, max_nodes]
+
+        # Check that each of the scheduling options that would change the allocations
+        # configuration are the same.
+        for opt_name in self.JOB_SHARE_KEY_ATTRS:
+            opt = sched_config
+            for part in opt_name.split('.'):
+                if opt is not None and isinstance(opt, dict):
+                    opt = opt.get(part)
+            opt = convert_lists_to_tuples(opt)
+            key_parts.append(opt)
+
+        return tuple(key_parts)
 
 
 def __reset():
