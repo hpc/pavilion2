@@ -128,7 +128,7 @@ class UnionSpec:
         return False
 
     def __contains__(self, arg: Any) -> bool:
-        return type(Any) in self.sub_spec
+        return self.resolve(arg) is not None
 
     def __str__(self):
 
