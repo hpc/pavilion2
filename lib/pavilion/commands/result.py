@@ -247,7 +247,7 @@ class ResultsCommand(Command):
                 fields=fields,
                 rows=flat_sorted_results,
                 title=title_str,
-                default_format=lambda x: format_numeric(x)
+                default_format=format_numeric
             )
 
         if args.show_log:
