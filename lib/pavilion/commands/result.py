@@ -36,33 +36,11 @@ def _num_digits(n: int) -> int: # pylint: disable=invalid-name
     return floor(log10(n)) + 1
 
 
-def format_numeric(value: Any, digits: Optional[int]) -> str:
-    if digits is None:
-        return str(value)
-
-    sci_fmt = '{' + f':.{digits-1}e' + '}'
-
-    if isinstance(value, int):
-        if _num_digits(value) > digits:
-            res = sci_fmt.format(value)
-        else:
-            res = str(value)
-    elif isinstance(value, float):
-        if abs(value) < 10**-(digits - 1):
-            res = sci_fmt.format(value)
-        else:
-            res = str(round(value, digits - 1))
+def format_numeric(value: Any) -> str:
+    if isinstance(value, int) or isinstance(value, float):
+        return "{:g}".format(value)
     else:
         return str(value)
-
-    # Remove leading zeros in exponent, as well as + sign, if present
-    pos_regex = 'e\+0*'
-    neg_regex = 'e-0*'
-
-    res = re.sub(pos_regex, "e", res)
-    res = re.sub(neg_regex, "e-", res)
-
-    return res
 
 
 class ResultsCommand(Command):
@@ -140,13 +118,6 @@ class ResultsCommand(Command):
                  " series you ran on this machine. Use 'all' to get results of all tests. By "
                  "default, 'all' will only display tests newer than 1 day ago, but setting any "
                  "filter argument will override that."
-        )
-        parser.add_argument(
-            '-d', '--max-digits', dest="max_digits", default=5,
-            help="The maximum number of digits to display when formatting floating point values. If"
-                 " set, numbers much larger or much smaller than 1 are displayed in scientific "
-                 "notation with the specified precision, and numbers near 1 are truncated. "
-                 "Defaults to 5 digits."""
         )
         filters.add_test_filter_args(parser)
 
@@ -276,7 +247,7 @@ class ResultsCommand(Command):
                 fields=fields,
                 rows=flat_sorted_results,
                 title=title_str,
-                default_format=lambda x: format_numeric(x, args.max_digits)
+                default_format=lambda x: format_numeric(x)
             )
 
         if args.show_log:
