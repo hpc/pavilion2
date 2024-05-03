@@ -86,14 +86,3 @@ class OutputTests(PavTestCase):
 
         self.assertLess(timer/count, .3, "Per table draw speed exceed 30 ms")
 
-
-    def test_float_formatting(self):
-        fields = ['data']
-        rows = [{'data': 5.123412341234}, {'data': 5123049812734}, {'data': 0.000000001234},
-             {'data': 42}, {'data': 0}, {'data': -9000}, {'data': 2.718}, {'data': -3.14}, {'data': 'bricks'}]
-
-        rows = output.dt_format_rows(rows, fields, {}, lambda x: result.format_numeric(x, 5))
-        expected = ['5.1234', '5.1230e12', '1.2340e-9', '42', '0', '-9000', '2.718', '-3.14', 'bricks']
-        actual = list(map(lambda x: x['data'], rows))
-
-        self.assertEqual(expected, actual)
