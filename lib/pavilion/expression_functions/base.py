@@ -88,59 +88,14 @@ class Opt:
     def __str__(self):
         return f"Opt({self.sub_spec})"
 
-class UnionSpec:
-    """An arg spec that can take on one of several types. Each of the possible types is checked."""
+class MaybeList:
+    "An arg spec that can be either some type, or a list of that same type."
 
-    def __init__(self, *sub_specs: List[Any]) -> None:
-        """
-        :param sub_specs: The list of argument specs to accept.
-                          Ex: UnionSpec([str, [str]]) or UnionSpec([str, int])
-        """
-
-        self.sub_specs = sub_specs
-
-    def validate(self) -> None:
-        if len(self.sub_specs) == 0:
-            raise FunctionPluginError("UnionSpec must have at least one member.")
-        for spec in self.sub_specs:
-            if isinstance(spec, UnionSpec):
-                raise FunctionPluginError("UnionSpec objects may not be nested.")
-            elif isinstance(spec, Opt):
-                raise FunctionPluginError("UnionSpec objects may not contain specs of type Opt")
-
-    def resolve(self, arg: Any) -> Any:
-        for spec in self.sub_specs:
-            if self.isinstance_list(arg, spec):
-                return spec
-            elif isinstance(spec, type) and isinstance(arg, spec):
-                return spec
-
-    @staticmethod
-    def isinstance_list(arg: Any, spec: Any) -> bool:
-        if not (isinstance(arg, list) and isinstance(spec, list)):
-            return False
-        if len(arg) == 0:
-            # Any empty list is valid for any list spec
-            return True
-        if isinstance(arg[0], spec[0]):
-            return True
-
-        return False
-
-    def __contains__(self, arg: Any) -> bool:
-        return self.resolve(arg) is not None
+    def __init__(self, sub_spec: Any):
+        self.sub_spec = sub_spec
 
     def __str__(self):
-
-        def to_str(sub):
-            if isinstance(sub, type):
-                return sub.__name__
-            elif isinstance(sub, list):
-                return f'[{sub[0].__name__}]'
-
-        spec_str = ", ".join(map(to_str, self.sub_specs))
-
-        return f"UnionSpec({spec_str})"
+        return f"MaybeList({self.sub_spec})"
 
 class FunctionPlugin(IPlugin.IPlugin):
     """Plugin base class for math functions.
@@ -158,7 +113,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         bool,
         num,
         Opt,
-        UnionSpec,
+        MaybeList,
         None
     )
 
@@ -251,14 +206,8 @@ class FunctionPlugin(IPlugin.IPlugin):
         :raises FunctionPluginError: On a bad arg spec.
         """
 
-        if isinstance(arg, Opt):
+        if isinstance(arg, (Opt, MaybeList)):
             self._validate_arg_spec(arg.sub_spec)
-
-        elif isinstance(arg, UnionSpec):
-            arg.validate()
-
-            for spec in arg.sub_specs:
-                self._validate_arg_spec(spec)
 
         elif isinstance(arg, list):
             if len(arg) != 1:
@@ -356,7 +305,7 @@ class FunctionPlugin(IPlugin.IPlugin):
             return {k: self._spec_to_desc(v) for k, v in spec.items()}
         elif isinstance(spec, Opt):
             return self._spec_to_desc(spec.sub_spec) + '?'
-        elif isinstance(spec, UnionSpec):
+        elif isinstance(spec, MaybeList):
             return str(spec)
         elif spec is None:
             return 'Any'
@@ -373,17 +322,8 @@ class FunctionPlugin(IPlugin.IPlugin):
         :return: The validated, auto-converted argument.
         """
 
-        if isinstance(spec, Opt):
+        if isinstance(spec, (Opt, MaybeList)):
             return self._validate_arg(arg, spec.sub_spec)
-
-        if isinstance(spec, UnionSpec):
-            # Check that arg is valid for at least one member of the Union
-            sub_spec = spec.resolve(arg)
-
-            if sub_spec is None:
-                raise FunctionPluginError("Invalid {} ({})".format(spec, arg))
-
-            return self._validate_arg(arg, sub_spec)
 
         if isinstance(spec, list):
             if not isinstance(arg, list):

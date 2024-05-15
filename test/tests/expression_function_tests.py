@@ -1,29 +1,10 @@
 from pavilion import expression_functions
-from pavilion.expression_functions.base import UnionSpec
 from pavilion.unittest import PavTestCase
 from pavilion.errors import FunctionPluginError
 
 
 class ExprFuncTests(PavTestCase):
     """Check each of the expression functions."""
-
-    def test_union_spec(self):
-        spec = UnionSpec(int, float, [str])
-
-        self.assertEqual(spec.sub_specs, (int, float, [str]))
-        self.assertEqual(spec.resolve(5), int)
-        self.assertEqual(spec.resolve('foo'), None)
-        self.assertEqual(spec.resolve(['foo', 'bar']), [str])
-
-        spec = UnionSpec(int, UnionSpec())
-
-        with self.assertRaises(FunctionPluginError):
-            spec.validate()
-
-        spec = UnionSpec()
-
-        with self.assertRaises(FunctionPluginError):
-            spec.validate()
 
     def test_core_functions(self):
         """Check core expression functions."""

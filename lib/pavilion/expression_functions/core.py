@@ -6,7 +6,7 @@ import random
 import re
 from typing import List, Dict, Union
 
-from .base import FunctionPlugin, num, opt, sopt, flag, Opt, UnionSpec
+from .base import FunctionPlugin, num, opt, sopt, flag, Opt, MaybeList
 from ..errors import FunctionPluginError, FunctionArgError
 
 
@@ -533,7 +533,7 @@ class SoptPlugin(CoreFunctionPlugin):
     def __init__(self):
         super().__init__(
             'sopt',
-            arg_specs=(UnionSpec(str, [str]), str)
+            arg_specs=(MaybeList(str), str)
         )
 
     @staticmethod
@@ -546,7 +546,7 @@ class OptPlugin(CoreFunctionPlugin):
     def __init__(self):
         super().__init__(
             'opt',
-            arg_specs=(UnionSpec(str, [str]), str, str)
+            arg_specs=(MaybeList(str), str, str)
         )
 
     @staticmethod
