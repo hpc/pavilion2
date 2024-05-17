@@ -94,6 +94,15 @@ class MaybeList:
     def __init__(self, sub_spec: Any):
         self.sub_spec = sub_spec
 
+    def resolve(self, arg) -> Any:
+        if isinstance(arg, list):
+            if len(arg) == 0 or isinstance(arg[0], self.sub_spec):
+                return [self.sub_spec]
+        elif isinstance(arg, self.sub_spec):
+            return self.sub_spec
+        else:
+            raise FunctionPluginError(f"Cannot resolve {self} for argument {arg}")
+
     def __str__(self):
         return f"MaybeList({self.sub_spec})"
 
@@ -322,8 +331,11 @@ class FunctionPlugin(IPlugin.IPlugin):
         :return: The validated, auto-converted argument.
         """
 
-        if isinstance(spec, (Opt, MaybeList)):
+        if isinstance(spec, Opt):
             return self._validate_arg(arg, spec.sub_spec)
+
+        elif isinstance(spec, MaybeList):
+            return self._validate_arg(arg, spec.resolve(arg))
 
         if isinstance(spec, list):
             if not isinstance(arg, list):
