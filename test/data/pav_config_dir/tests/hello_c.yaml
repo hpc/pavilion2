@@ -4,9 +4,8 @@ hello_c:
         source_path: hello.c
         modules: []
         cmds:
-            - echo 'Compiling hello_world.c...'
             - gcc -o hello hello.c
+    scheduler: raw
     run:
         cmds:
-            - echo 'Running hello...' 
-            - './hello'
+            - '{{sched.test_cmd}} ./hello'
