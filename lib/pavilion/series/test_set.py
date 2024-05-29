@@ -187,8 +187,8 @@ class TestSet:
 
         return test_sets
 
-    def make_iter(self, build_only=False, rebuild=False, local_builds_only=False) \
-                  -> Iterator[List[TestRun]]:
+    def make_iter(self, build_only: bool = False, rebuild: bool = False,
+         local_builds_only: bool = False) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).

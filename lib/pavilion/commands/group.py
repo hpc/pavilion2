@@ -122,7 +122,7 @@ class GroupCommand(Command):
 
         return self._run_sub_command(pav_cfg, args)
 
-    def _get_group(self, pav_cfg, group_name: str) -> TestGroup:
+    def _get_group(self, pav_cfg: config.PavConfig, group_name: str) -> TestGroup:
         """Get the requested group, and print a standard error message on failure."""
 
         try:
@@ -130,7 +130,8 @@ class GroupCommand(Command):
         except TestGroupError as err:
             fprint(self.errfile, "Error loading group '{}'", color=output.RED)
             fprint(self.errfile, err.pformat())
-            return None
+
+            raise err
 
         if not group.exists():
             fprint(self.errfile,

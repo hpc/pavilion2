@@ -8,7 +8,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import List, TextIO, Union
+from typing import List, TextIO, Union, Optional
 from collections import defaultdict
 
 from pavilion import config
@@ -156,7 +156,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     if not args.tests:
         args.tests.append('last')
 
-    test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
+    test_paths = test_list_to_paths(pav_cfg, args.tests)
 
     return dir_db.select_from(
         pav_cfg,
@@ -284,7 +284,7 @@ def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
     return None
 
 
-def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
+def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List, errfile: Optional[Path] = None) -> List[Path]:
     """Given a list of raw test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by

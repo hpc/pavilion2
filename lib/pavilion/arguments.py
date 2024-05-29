@@ -83,6 +83,10 @@ def get_parser():
         '--profile-count', default=PROFILE_COUNT_DEFAULT, action='store', type=int,
         help="Number of rows in the profile table.")
 
+    parser.add_argument(
+        '--show-tracebacks', dest='show_tracebacks', action='store_true',
+        help="Display full traceback when printing error messages.")
+
     _PAV_PARSER = parser
     _PAV_SUB_PARSER = parser.add_subparsers(dest='command_name')
 

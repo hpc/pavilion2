@@ -153,7 +153,7 @@ class RunSeries(Command):
         state_p.add_argument('series', default='last', nargs='?',
                              help="The series to print status history for.")
 
-    def _find_series(self, pav_cfg, series_name):
+    def _find_series(self, pav_cfg: config.PavConfig, series_name: int):
         """Grab the series based on the series name, if one was given."""
 
         if series_name == 'last':

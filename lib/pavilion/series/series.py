@@ -468,7 +468,8 @@ differentiate it from test ids."""
         # Completion will be set when looked for.
 
 
-    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
+    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool,
+         local_builds_only: bool):
         """Run all requested tests in the given test set."""
 
         # Track which builds we've already marked as deprecated, when doing rebuilds.

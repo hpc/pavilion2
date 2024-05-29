@@ -5,6 +5,7 @@ import re
 import pprint
 import textwrap
 import shutil
+import traceback
 
 import lark
 
