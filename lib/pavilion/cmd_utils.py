@@ -8,7 +8,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import List, TextIO, Union, Iterator
+from typing import List, TextIO, Union, Optional, Iterator
 from collections import defaultdict
 
 from pavilion import config
