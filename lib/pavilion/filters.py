@@ -9,6 +9,7 @@ import fnmatch
 import re
 from functools import partial
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Dict, Any, Callable, List, Union
 
 from pavilion import series
@@ -49,6 +50,16 @@ OP_GT  = '>'
 OP_OR  = '|'
 OP_AND = ' '
 OP_NOT = '!'
+
+OP_FUNCS = {
+    OP_EQ = lambda x, y: x == y,
+    OP_NEQ = lambda x, y: x != y,
+    OP_LT = lambda x, y: x < y,
+    OP_GT = lambda x, y: x > y,
+    OP_OR = lambda x, y: x or y,
+    OP_AND = lambda x, y: x and y,
+    OP_NOT = lambda x: not x
+}
 
 STATE = "state"
 HAS_STATE = "has_state"
@@ -423,6 +434,9 @@ def nodes(attrs: Union[Dict, series.SeriesInfo], val: str):
     else:
         return False
 
+def all_finished(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
+    return True
+
 def num_nodes(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
     """Return whether 'num_nodes' status of a test is greater or less than a given number
 
@@ -508,6 +522,7 @@ SERIES_FUNCS = {
     'sys_name': [sys_name, ('=', '!=')],
     'partition': [partition, ('=')],
     'nodes': [nodes, ('=')],
+    'all_started': [all_started, ()]
 }
 
 TEST_FUNCS = {
@@ -588,7 +603,12 @@ def remove_extra_spaces(target: str) -> str:
 
     return new_target
 
-def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
+@dataclass
+class QueryNode:
+    operator: Optional[Callable] = None
+    values: Tuple = ()
+
+def parse_target(target: str, filter_funcs: Dict) -> FilterQuery:
     """Parse the key, operand, and value apart. If there is not an
        operand or value, return the target
 
@@ -596,12 +616,32 @@ def parse_target(target: str) -> (str, Union[str, None], Union[str, None]):
 
     :return: the key, operand, and value if applicable, otherwise the target
     """
-    for operator in [OP_NEQ, OP_EQ, OP_LT, OP_GT]:
-        if operator in target:
-            key, val = target.split(operator, 1)
-            return (key.lower(), operator, val)
+    if target is None:
+        return FilterQuery(operator=lambda _: True)
 
-    return (target.lower(), '', '')
+    target = remove_extra_spaces(target)
+
+    if target == '':
+        return FilterQuery(operator=lambda _: True)
+
+    for op in [OP_AND, OP_OR]:
+        if op in target:
+            return QueryNode(
+                operator=OP_FUNCS[OP_AND],
+                values=tuple(map(lambda x: parse_target(x, filter_funcs), target.split(op, 1)))
+            )
+
+    for op in [OP_NEQ, OP_EQ, OP_LT, OP_GT, OP_NOT]:
+        if op in target:
+            return QueryNode(
+                operator=OP_FUNCS[OP_AND],
+                values=tuple(map(lambda x: parse_target(x, filter_funcs), target.split(op, 1)))
+            )
+
+    for func in filter_funcs.keys():
+        if func
+
+    return QueryNode()
 
 def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, target: str) -> bool:
     """Main logic of the filter. Evaluate arguments and apply any operations to them.
@@ -613,37 +653,18 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
     :return: whether a particular test passes the filter query requirements
     """
 
-    if target is None:
-        return True
-    else:
-        target = remove_extra_spaces(target)
-        if target == '':
-            return True
+    query = parse_target(target, filter_funcs)
 
-    if OP_AND in target:
-        op1, op2 = target.split(OP_AND, 1)
-        return AND(op1, op2, test_attrs, filter_funcs)
-
-    elif OP_OR in target:
-        op1, op2 = target.split(OP_OR, 1)
-        return OR(op1, op2, test_attrs, filter_funcs)
-
-    else:
-        key, operator, val = parse_target(target)
-
-        if OP_NOT in key:
-            return NOT(target, test_attrs, filter_funcs)
-
-        elif key in filter_funcs:
-            if operator in filter_funcs[key][OPS]:
-                if operator == OP_NEQ:
-                    return NOT(target, test_attrs, filter_funcs)
-                else:
-                    return filter_funcs[key][FUNC](test_attrs, val)
+    if key in filter_funcs:
+        if operator in filter_funcs[key][OPS]:
+            if operator == OP_NEQ:
+                return NOT(target, test_attrs, filter_funcs)
             else:
-                raise ValueError(
-                    "Operator {} not valid for {}."
-                    .format(operator, key))
+                return filter_funcs[key][FUNC](test_attrs, val)
+        else:
+            raise ValueError(
+                "Operator {} not valid for {}."
+                .format(operator, key))
 
         elif key == CREATED:
             return created(test_attrs, operator, val)
