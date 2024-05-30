@@ -48,3 +48,8 @@ schedule:
         # {{ flag(survey.enable_mem, "--enable-mem") }} 
         # {{ flag(survey.enable_mem_gotcha, "--enable-mem") }}
         # --json-only
+
+result_parse:
+    json:
+        survey:
+            files: '*-report.json'
