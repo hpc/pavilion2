@@ -9,7 +9,7 @@ import fnmatch
 import re
 from functools import partial
 from pathlib import Path
-from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, Any, Callable, List, Union
 
 from pavilion import series
@@ -20,7 +20,7 @@ from pavilion import sys_vars
 from pavilion.test_run import TestRun
 from pavilion import variables
 
-from lark import Lark
+from lark import Lark, Transformer
 
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
@@ -54,13 +54,13 @@ OP_AND = ' '
 OP_NOT = '!'
 
 OP_FUNCS = {
-    OP_EQ = lambda x, y: x == y,
-    OP_NEQ = lambda x, y: x != y,
-    OP_LT = lambda x, y: x < y,
-    OP_GT = lambda x, y: x > y,
-    OP_OR = lambda x, y: x or y,
-    OP_AND = lambda x, y: x and y,
-    OP_NOT = lambda x: not x
+    OP_EQ: lambda x, y: x == y,
+    OP_NEQ: lambda x, y: x != y,
+    OP_LT: lambda x, y: x < y,
+    OP_GT: lambda x, y: x > y,
+    OP_OR: lambda x, y: x or y,
+    OP_AND: lambda x, y: x and y,
+    OP_NOT: lambda x: not x
 }
 
 STATE = "state"
@@ -109,7 +109,14 @@ HELP_TEXT = (
             "                       presented by the sys.sys_name pavilion variable. \n"
             "  user=USER          Include only {} started by this user. \n")
 
-filter_parser = Lark.open("filters.lark")
+filter_parser = Lark.open("filters.lark", start="expression")
+
+class FilterTransformer(Transformer):
+    def expression(self, expression):
+        return expression
+
+    def partial_iso(self, iso):
+        return datetime.fromisoformat(iso)
 
 def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
@@ -613,10 +620,13 @@ def remove_extra_spaces(target: str) -> str:
 
     return new_target
 
-@dataclass
 class QueryNode:
     operator: Optional[Callable] = None
     values: Tuple = ()
+
+    def __init__(self, operator=None, values=()):
+        self.operator = operator
+        self.values = values
 
 def parse_target(target: str, filter_funcs: Dict) -> FilterQuery:
     """Parse the key, operand, and value apart. If there is not an
