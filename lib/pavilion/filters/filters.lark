@@ -1,11 +1,11 @@
-expression: ESCAPED_STRING
-          | ESCAPED_STRING str_comparator ESCAPED_STRING
-          | ESCAPED_STRING num_comparator num_value
+expression: WORD
+          | WORD str_comparator WORD
+          | WORD num_comparator num_value
           | unary_connective expression
           | expression binary_connective expression
 
 num_value: time
-     | ESCAPED_STRING
+     | WORD
      | NUMBER
 
 binary_connective: WS | "|"
@@ -14,16 +14,22 @@ unary_connective: "!"
 
 str_comparator: "=="
 
-num_comparator: "<" | ">" | "<=" | ">=" | "=="
+num_comparator: "<" -> lt
+              | ">" -> gt
+              | "<=" -> lteq
+              | ">=" -> gteq
+              | "==" -> eq
 
 time: partial_iso
-    | INT [WS] _duration ["s"]
+    | duration
 
-partial_iso: _partial_iso_date [("T" _partial_iso_time)]
+duration: INT [WS] unit ["s"]
 
-_partial_iso_date: _iso_year [(("-" _iso_month) [("-" _iso_day)])]
+partial_iso: partial_iso_date ("T" partial_iso_time)?
 
-_partial_iso_time: _iso_hour [((":" _iso_minutes) [(":" _iso_seconds)])]
+partial_iso_date: _iso_year [(("-" _iso_month) [("-" _iso_day)])]
+
+partial_iso_time: _iso_hour [((":" _iso_minutes) [(":" _iso_seconds)])]
 
 _iso_year: /\d{4}/
 
@@ -37,13 +43,14 @@ _iso_minutes: /\d{2}/
 
 _iso_seconds: /\d{2}/
     
-_duration: "second" 
-    |     "minute"
-    |     "hour"
-    |     "day"
-    |     "year"
+unit: "second" -> second
+         | "minute" -> minute
+         | "hour" -> hour
+         | "day" -> day
+         | "month" -> month
+         | "year" -> year
 
-%import common.ESCAPED_STRING
+%import common.WORD
 %import common.INT
 %import common.NUMBER
 %import common.WS
