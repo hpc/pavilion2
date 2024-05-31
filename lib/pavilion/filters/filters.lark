@@ -1,0 +1,49 @@
+expression: ESCAPED_STRING
+          | ESCAPED_STRING str_comparator ESCAPED_STRING
+          | ESCAPED_STRING num_comparator num_value
+          | unary_connective expression
+          | expression binary_connective expression
+
+num_value: time
+     | ESCAPED_STRING
+     | NUMBER
+
+binary_connective: WS | "|"
+
+unary_connective: "!"
+
+str_comparator: "=="
+
+num_comparator: "<" | ">" | "<=" | ">=" | "=="
+
+time: partial_iso
+    | INT [WS] _duration ["s"]
+
+partial_iso: _partial_iso_date [("T" _partial_iso_time)]
+
+_partial_iso_date: _iso_year [(("-" _iso_month) [("-" _iso_day)])]
+
+_partial_iso_time: _iso_hour [((":" _iso_minutes) [(":" _iso_seconds)])]
+
+_iso_year: /\d{4}/
+
+_iso_month: /\d{2}/
+
+_iso_day: /\d{2}/
+
+_iso_hour: /\d{2}/
+
+_iso_minutes: /\d{2}/
+
+_iso_seconds: /\d{2}/
+    
+_duration: "second" 
+    |     "minute"
+    |     "hour"
+    |     "day"
+    |     "year"
+
+%import common.ESCAPED_STRING
+%import common.INT
+%import common.NUMBER
+%import common.WS

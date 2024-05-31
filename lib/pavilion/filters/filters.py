@@ -20,6 +20,8 @@ from pavilion import sys_vars
 from pavilion.test_run import TestRun
 from pavilion import variables
 
+from lark import Lark
+
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
     'sort_by': '-created',
@@ -106,6 +108,8 @@ HELP_TEXT = (
             "  sys_name=SYS_NAME  Include only {} that match the given system name, as \n"
             "                       presented by the sys.sys_name pavilion variable. \n"
             "  user=USER          Include only {} started by this user. \n")
+
+filter_parser = Lark.open("filters.lark")
 
 def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
@@ -515,6 +519,12 @@ def state(attrs: Union[Dict, series.SeriesInfo], key: str, val: str, status_file
 
     return True
 
+FILTER_FUNCS = {
+    'created': created,
+    'finished': finished,
+    'num_nodes': num_nodes
+}
+
 SERIES_FUNCS = {
     'complete': [complete, ''],
     'name': [name, ('=', '!=')],
@@ -622,7 +632,13 @@ def parse_target(target: str, filter_funcs: Dict) -> FilterQuery:
     target = remove_extra_spaces(target)
 
     if target == '':
-        return FilterQuery(operator=lambda _: True)
+        return QueryNode(operator=lambda _: True)
+
+    if target in SERIES_STATES:
+        return QueryNode(operator=lambda x: x[target])
+
+    if target in FILTER_FUNCS:
+        return QueryNode(operator=FILTER_FUNCS.get(target))
 
     for op in [OP_AND, OP_OR]:
         if op in target:
@@ -631,6 +647,13 @@ def parse_target(target: str, filter_funcs: Dict) -> FilterQuery:
                 values=tuple(map(lambda x: parse_target(x, filter_funcs), target.split(op, 1)))
             )
 
+    if target.startswith(HAS_STATE + OP_EQ):
+        target = target.removeprefix(HAS_STATE + OP_EQ)
+
+        return QueryNode(
+            operator=lambda x: has_state(x, target)
+        )
+
     for op in [OP_NEQ, OP_EQ, OP_LT, OP_GT, OP_NOT]:
         if op in target:
             return QueryNode(
@@ -638,8 +661,6 @@ def parse_target(target: str, filter_funcs: Dict) -> FilterQuery:
                 values=tuple(map(lambda x: parse_target(x, filter_funcs), target.split(op, 1)))
             )
 
-    for func in filter_funcs.keys():
-        if func
 
     return QueryNode()
 
@@ -655,41 +676,21 @@ def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, t
 
     query = parse_target(target, filter_funcs)
 
-    if key in filter_funcs:
-        if operator in filter_funcs[key][OPS]:
-            if operator == OP_NEQ:
-                return NOT(target, test_attrs, filter_funcs)
-            else:
-                return filter_funcs[key][FUNC](test_attrs, val)
-        else:
-            raise ValueError(
-                "Operator {} not valid for {}."
-                .format(operator, key))
+    if key.upper() in STATES.list() and filter_funcs == TEST_FUNCS:
+        return state(test_attrs, STATE, key, TestStatusFile)
 
-        elif key == CREATED:
-            return created(test_attrs, operator, val)
+    elif key in SERIES_STATES.list() and filter_funcs == SERIES_FUNCS:
+        return state(test_attrs, STATE, key, SeriesStatusFile)
 
-        elif key == FINISHED:
-            return finished(test_attrs, operator, val)
+    elif key == HAS_STATE and filter_funcs == TEST_FUNCS:
+        return state(test_attrs, HAS_STATE, val, TestStatusFile)
 
-        elif key == NUM_NODES:
-            return num_nodes(test_attrs, operator, val)
+    elif key == HAS_STATE and filter_funcs == SERIES_FUNCS:
+        return state(test_attrs, HAS_STATE, val, SeriesStatusFile)
 
-        elif key.upper() in STATES.list() and filter_funcs == TEST_FUNCS:
-            return state(test_attrs, STATE, key, TestStatusFile)
-
-        elif key in SERIES_STATES.list() and filter_funcs == SERIES_FUNCS:
-            return state(test_attrs, STATE, key, SeriesStatusFile)
-
-        elif key == HAS_STATE and filter_funcs == TEST_FUNCS:
-            return state(test_attrs, HAS_STATE, val, TestStatusFile)
-
-        elif key == HAS_STATE and filter_funcs == SERIES_FUNCS:
-            return state(test_attrs, HAS_STATE, val, SeriesStatusFile)
-
-        else:
-            raise ValueError(
-                "Keyword {} not recognized.".format(key))
+    else:
+        raise ValueError(
+            "Keyword {} not recognized.".format(key))
 
 def make_test_run_filter(target: str) -> Callable[[Dict], bool]:
     """Generate a filter function for use by dir_db.select and similar
