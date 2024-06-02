@@ -1,10 +1,10 @@
-expression: WORD
+?expression: WORD
           | WORD str_comparator WORD
           | WORD num_comparator num_value
           | unary_connective expression
           | expression binary_connective expression
 
-num_value: time
+?num_value: time
      | WORD
      | NUMBER
 

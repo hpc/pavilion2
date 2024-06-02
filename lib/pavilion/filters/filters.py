@@ -10,7 +10,7 @@ import re
 from functools import partial
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Callable, List, Union
+from typing import Dict, Any, Callable, List, Union, Optional
 
 from pavilion import series
 from pavilion import utils
@@ -281,7 +281,13 @@ def get_sort_opts(
 
     return sortf, sort_ascending
 
-def complete(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
+def get_state(status: TestStatusFile) -> str:
+    return status.current().state
+
+def has_state(status: TestStatusFile, state: str) -> bool:
+    return status.has_state(state.upper())
+
+def is_complete(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
     """Return "complete" status of a test
 
     :param attrs: attributes of a given test or series
@@ -448,178 +454,17 @@ def nodes(attrs: Union[Dict, series.SeriesInfo], val: str):
 def all_finished(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
     return True
 
-def num_nodes(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
-    """Return whether 'num_nodes' status of a test is greater or less than a given number
+def get_num_nodes(attrs: Union[Dict, series.SeriesInfo]) -> int:
+    return int(attrs['results']['sched']['test_nodes'])
 
-    :param attrs: attributes of a given test or series
-    :param op: the operator of the filter query
-    :param val: the value of the filter query
-
-    :return: result of the test or series 'num_nodes' greater or less than a given number
-    """
-    if 'results' in attrs and 'sched' in attrs['results']:
-        if 'test_nodes' in attrs['results']['sched']:
-            try:
-                int_val = int(val)
-            except ValueError:
-                return False
-
-            test_nodes = int(attrs['results']['sched']['test_nodes'])
-
-            if operator == OP_GT:
-                return test_nodes > int_val
-            elif operator == OP_LT:
-                return test_nodes < int_val
-            elif operator == OP_EQ:
-                return test_nodes == int_val
-            else:
-                raise ValueError(
-                            "Operator {} not recognized.".format(operator))
-
-
-def finished(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
-    """Return whether 'finished' status of a test is greater or less than a given time
-
-    :param attrs: attributes of a given test or series
-    :param op: the operator of the filter query
-    :param val: the value of the filter query
-
-    :return: result of the test or series 'finished' before or after a given time
-    """
-
-    time_val = utils.hr_cutoff_to_ts(val, dt.datetime.now())
-
-    if attrs.get('finished') is None:
-        return False
-
-    if operator == OP_GT:
-        return attrs.get('finished', False) < time_val
-    elif operator == OP_LT:
-        return attrs.get('finished', False) > time_val
-    else:
-        raise ValueError(
-                    "Operator {} not recognized.".format(operator))
-
-def state(attrs: Union[Dict, series.SeriesInfo], key: str, val: str, status_file) -> bool:
-    """Return "state" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the state query
-    :param val: status file function of either the series or the test
-
-    :return: result of the test or series "state"
-    """
-    if status_file is TestStatusFile:
-        status_path = Path(attrs['path'])/TestRun.STATUS_FN
-    else:
-        status_path = Path(attrs['path'])/series.STATUS_FN
-
-    try:
-        status = status_file(status_path)
-    except StatusError:
-        return False
-
-    if key == STATE and val.upper() != status.current().state:
-        return False
-    elif key == HAS_STATE and not status.has_state(val.upper()):
-        return False
-
-    return True
+def get_finished_time(attrs: Union[Dict, series.SeriesInfo]) -> Optional[datetime]:
+    return attrs.get('finished')
 
 FILTER_FUNCS = {
     'created': created,
     'finished': finished,
     'num_nodes': num_nodes
 }
-
-SERIES_FUNCS = {
-    'complete': [complete, ''],
-    'name': [name, ('=', '!=')],
-    'user': [user, ('=', '!=')],
-    'sys_name': [sys_name, ('=', '!=')],
-    'partition': [partition, ('=')],
-    'nodes': [nodes, ('=')],
-    'all_started': [all_started, ()]
-}
-
-TEST_FUNCS = {
-    'complete': [complete, ''],
-    'name': [name, ('=', '!=')],
-    'user': [user, ('=', '!=')],
-    'sys_name': [sys_name, ('=', '!=')],
-    'partition': [partition, ('=')],
-    'nodes': [nodes, ('=')],
-    'result_error': [result_error, ''],
-    'passed': [passed, ''],
-    'failed': [failed, ''],
-}
-
-def NOT(op: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
-    """Perform a not operation
-
-    :param op: target operand
-    :param attrs: attributes of a given test or series
-    :param funcs: respective functions for tests or series
-
-    :return: result of the not evaluation on the operand
-    """
-    if OP_NEQ in op:
-        op = op.replace('!=', '=')
-        print(op)
-        return not filter_run(attrs, funcs, op)
-
-    return not filter_run(attrs, funcs, op.strip(OP_NOT))
-
-def OR(op1: str, op2: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
-    """Perform an or operation
-
-    :param op1: first target operand
-    :param op2: second target operand
-    :param attrs: attributes of a given test or series
-    :param funcs: respective functions for tests or series
-
-    :return: result of the or evaluation on the operands
-    """
-    if op1 and op2:
-        return filter_run(attrs, funcs, op1) or filter_run(attrs, funcs, op2)
-    else:
-        raise SyntaxError("Incorrect '|' operator syntax")
-
-def AND(op1: str, op2: str, attrs: Union[Dict, series.SeriesInfo], funcs: Dict) -> bool:
-    """Perform an and operation
-
-    :param op1: first target operand
-    :param op2: second target operand
-    :param attrs: attributes of a given test or series
-    :param funcs: respective functions for tests or series
-
-    :return: result of the and evaluation on the operands
-    """
-    return filter_run(attrs, funcs, op1) and filter_run(attrs, funcs, op2)
-
-def remove_extra_spaces(target: str) -> str:
-    """Remove excess spaces from the target
-
-    :param target: filter query string
-
-    :return: the whitespace-trimmed query
-    """
-    new_target = re.sub(r' *([|!=<>]) *', r'\1', target).strip(' ')
-
-    if FINISHED in new_target or CREATED in new_target:
-        new_target = re.sub(r'(created[<>]|finished[<>])'
-                            r'(\d+(?:\.\d+)?)\s*'
-                            r'(second|minute|hour|day|week|year([s])?)', r'\1\2\3', new_target)
-        new_target = re.sub(r'(created[<>]|finished[<>])'
-                            r'(\d{4})'
-                            r'(-\d{1,2})?'
-                            r'(-\d{1,2})?'
-                            r'(?:[T ](\d{1,2}))?'
-                            r'(:\d{1,2})?'
-                            r'(:\d{1,2})?(?:\.\d+)?', r'\1\2\3\4T\5\6\7', new_target)
-
-    return new_target
-
 class QueryNode:
     operator: Optional[Callable] = None
     values: Tuple = ()
