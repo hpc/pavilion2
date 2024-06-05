@@ -1,12 +1,32 @@
-?expression: WORD
-          | WORD str_comparator WORD
-          | WORD num_comparator num_value
+?expression: special
+          | argument_binding
+          | CNAME str_comparator CNAME
+          | CNAME num_comparator num_value
           | unary_connective expression
           | expression binary_connective expression
 
-?num_value: time
-     | WORD
-     | NUMBER
+argument_binding: parameter "=" CNAME
+
+special: "COMPLETE" -> complete
+        | "ALL_STARTED" -> all_started
+
+parameter: "has_state" -> has_state
+        | "name" -> name
+        | "partition" -> partition
+        | "nodes" -> nodes
+        | "sys_name" -> sys_name
+        | "user" -> user
+
+property: "created" -> created
+        | "finished" -> finished
+        | "num_nodes" -> num_nodes
+
+?num_value: time | NUMBER
+
+selector: "HAS_STATE:" CNAME
+        | "NODES:" range
+
+range : "[" INT ["-" INT] "]"
 
 binary_connective: WS | "|"
 
@@ -50,7 +70,7 @@ unit: "second" -> second
          | "month" -> month
          | "year" -> year
 
-%import common.WORD
+%import common.CNAME
 %import common.INT
 %import common.NUMBER
 %import common.WS

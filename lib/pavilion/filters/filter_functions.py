@@ -53,5 +53,7 @@ FILTER_FUNCS = {
     'state': lambda x: x.current.state(),
     'has_state': lambda x: x.has_state(x.upper()),
     'num_nodes': lambda x: int(x['results']['sched']['test_nodes']),
-    'name': name
+    'name': name,
+    'all_started': lambda _: True,
+    'complete': lambda _: True
 }

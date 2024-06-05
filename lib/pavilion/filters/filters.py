@@ -62,7 +62,7 @@ HELP_TEXT = (
             "  NOT                denoted by a '!'. \n\n"
             "List of accepted arguments: \n"
             "  COMPLETE           Include only completed test runs. \n"
-            "  has_state=STATE    Include only {} who have had the \n"
+            "  has_state:STATE    Include only {} who have had the \n"
             "                       given state at some point. \n"
             "  name=NAME          Include only tests/series that match this name. \n"
             "                       Globbing wildcards are allowed. \n"
@@ -79,7 +79,7 @@ HELP_TEXT = (
             "                       Both < and > comparators are accepted. \n"
             "  partition=PARTITION \n"
             "                     Include only {} that match this partition. \n"
-            "  nodes=NODES        Include only {} that match NODES. Wildcards and ranges defined \n"
+            "  nodes:NODES        Include only {} that match NODES. Wildcards and ranges defined \n"
             "                       by brackets (i.e., node[001-005]) are allowed. \n"
             "  num_nodes>NUM_NODES \n"
             "                     Include only {} that have greater or less than NUM_NODES. \n"
@@ -370,4 +370,10 @@ def nodes(attrs: Union[Dict, series.SeriesInfo], val: str):
 def parse_query(query: str) -> Callable[[Dict], bool]:
     tree = filter_parser.parse(query)
 
-    return filter_trans.transform(tree)
+    # import pdb; pdb.set_trace()
+
+    res = filter_trans.transform(tree)
+
+    # import pdb; pdb.set_trace()
+
+    return res
