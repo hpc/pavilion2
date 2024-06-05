@@ -1,16 +1,15 @@
 from datetime import date, time, datetime, timedelta
+from typing import Any
 
-# from pavilion.status_file import SERIES_STATES
-# from filters import FILTER_FUNCS
+from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile
+from filters import FILTER_FUNCS
 
 from lark import Transformer, Discard
 
+
 class FilterTransformer(Transformer):
-
-    def __init__(self, ):
-        ...
-
-    def partial_iso_date(self, iso):
+    
+    def partial_iso_date(self, iso) -> date:
         iso = tuple(map(int, iso))
 
         month = 1
@@ -25,41 +24,57 @@ class FilterTransformer(Transformer):
 
         return date(year, month, day)
 
-    def partial_iso_time(self, iso):
+    def partial_iso_time(self, iso) -> time:
         iso = tuple(map(int, iso))
 
         return time(*iso)
 
-    def INT(self, INT):
+    def INT(self, INT) -> int:
         return int(INT)
 
     def WS(self, ws):
         return Discard
 
-    def duration(self, duration):
+    def duration(self, duration) -> datetime:
         duration = tuple(duration)
         num, unit = duration
         num = int(num)
         unit = str(unit.data) + 's'
 
-        print((num, unit))
-
         return datetime.now() - timedelta(**{unit: num})
 
-    def eq(self, eq):
-        return lambda x, y: x == y
+    def eq(self, eq) -> Callable[[Any], bool]:
+        f = eq.children[0]
+        g = eq.children[1]
 
-    def lt(self, lt):
-        return lambda x, y: x < y
+        return lambda x: f(x) == g(x)
 
-    def gt(self, gt):
-        return lambda x, y: x > y
+    def lt(self, lt) -> Callable[[Any], bool]:
+        f = eq.children[0]
+        g = eq.children[1]
 
-    def lteq(self, lteq):
-        return lambda x, y: x <= y
+        return lambda x: f(x) < g(x)
 
-    def gteq(self, lteq):
-        return lambda x, y: x >= y
+    def gt(self, gt) -> Callable[[Any], bool]:
+        f = eq.children[0]
+        g = eq.children[1]
 
-    def WORD(self, word):
-        return str(word)
+        return lambda x: f(x) > g(x)
+
+    def lteq(self, lteq) -> Callable[[Any], bool]:
+        f = eq.children[0]
+        g = eq.children[1]
+
+        return lambda x: f(x) <= g(x)
+
+    def gteq(self, lteq) -> Callable[[Any], bool]:
+        f = eq.children[0]
+        g = eq.children[1]
+
+        return lambda x: f(x) >= g(x)
+
+    def WORD(self, word) -> Callable[[str], Any]:
+        if word in FILTER_FUNCS:
+            return FILTER_FUNCS[word]
+
+        return lambda x: x.get(word)
