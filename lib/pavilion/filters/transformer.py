@@ -77,7 +77,9 @@ class FilterTransformer(Transformer):
     def argument_binding(self, arg_bind) -> Callable[[Dict], bool]:
         ffunc, val = arg_bind
 
-        return lambda x: FILTER_FUNCS[str(ffunc)](str(val), x)
+        import pdb; pdb.set_trace()
+
+        return lambda x: FILTER_FUNCS[ffunc.data](x, str(val))
 
     def all_started(self, special):
         return FILTER_FUNCS['all_started']

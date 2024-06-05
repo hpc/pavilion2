@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, Union
 
 from pavilion.status_file import TestStatusFile
@@ -51,9 +52,9 @@ def name(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
 
 FILTER_FUNCS = {
     'state': lambda x: x.current.state(),
-    'has_state': lambda x: x.has_state(x.upper()),
+    'has_state': lambda x, y: x.has_state(y.upper()),
     'num_nodes': lambda x: int(x['results']['sched']['test_nodes']),
     'name': name,
-    'all_started': lambda _: True,
-    'complete': lambda _: True
+    'all_started': lambda x: series.get_all_started(Path(x.get('path'))) if x.get('path') else False,
+    'complete': lambda _: True,
 }
