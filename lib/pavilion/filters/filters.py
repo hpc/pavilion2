@@ -20,7 +20,11 @@ from pavilion import sys_vars
 from pavilion.test_run import TestRun
 from pavilion import variables
 
-from lark import Lark, Transformer
+from .transformer import FilterTransformer
+
+from lark import Lark
+
+GRAMMAR_PATH = Path(__file__).parent / 'filters.lark'
 
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
@@ -38,29 +42,6 @@ SERIES_FILTER_DEFAULTS = {
 SORT_KEYS = {
     "TEST": ["created", "finished", "name", "started", "user", "id", ],
     "SERIES": ["created", "id", "status_when"]
-}
-
-# used to index functions and their valid operators in filter queries
-FUNC = 0
-OPS  = 1
-
-# accepted operators in filter queries
-OP_EQ  = '='
-OP_NEQ = '!='
-OP_LT  = '<'
-OP_GT  = '>'
-OP_OR  = '|'
-OP_AND = ' '
-OP_NOT = '!'
-
-OP_FUNCS = {
-    OP_EQ: lambda x, y: x == y,
-    OP_NEQ: lambda x, y: x != y,
-    OP_LT: lambda x, y: x < y,
-    OP_GT: lambda x, y: x > y,
-    OP_OR: lambda x, y: x or y,
-    OP_AND: lambda x, y: x and y,
-    OP_NOT: lambda x: not x
 }
 
 STATE = "state"
@@ -109,14 +90,8 @@ HELP_TEXT = (
             "                       presented by the sys.sys_name pavilion variable. \n"
             "  user=USER          Include only {} started by this user. \n")
 
-filter_parser = Lark.open("filters.lark", start="expression")
-
-class FilterTransformer(Transformer):
-    def expression(self, expression):
-        return expression
-
-    def partial_iso(self, iso):
-        return datetime.fromisoformat(iso)
+filter_parser = Lark.open(GRAMMAR_PATH, start="expression")
+filter_trans = FilterTransformer()
 
 def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
@@ -281,65 +256,6 @@ def get_sort_opts(
 
     return sortf, sort_ascending
 
-def get_state(status: TestStatusFile) -> str:
-    return status.current().state
-
-def has_state(status: TestStatusFile, state: str) -> bool:
-    return status.has_state(state.upper())
-
-def is_complete(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "complete" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "complete" attribute
-    """
-    return attrs.get('complete', False)
-
-def name(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "name" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "name" attribute
-    """
-    name_parse = re.compile(r'^([a-zA-Z0-9_*?\[\]-]+)'  # The test suite name.
-                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
-                            r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?$'  # The permutation name.
-                            )
-    test_name = attrs.get('name') or ''
-    filter_match = name_parse.match(val)
-    name_match = name_parse.match(test_name)
-
-    suite = '*'
-    test = '*'
-    perm = '*'
-
-    if filter_match is not None:
-        suite, test, perm = filter_match.groups()
-
-    if name_match is not None:
-        _, _, test_perm = name_match.groups()
-
-        # allows permutation glob filters to match tests without permutations
-        # e.g., name=suite.test.* will match suite.test
-        if not test_perm:
-            test_name = test_name + '.*'
-
-    if suite is None:
-        suite = '*'
-
-    if test is None:
-        test = '*'
-
-    if perm is None:
-        perm = '*'
-
-    new_val = '.'.join([suite, test, perm])
-    return fnmatch.fnmatch(test_name, new_val)
-
 def user(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
     """Return "user" status of a test
 
@@ -451,130 +367,7 @@ def nodes(attrs: Union[Dict, series.SeriesInfo], val: str):
     else:
         return False
 
-def all_finished(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    return True
+def parse_query(query: str) -> Callable[[Dict], bool]:
+    tree = filter_parser.parse(query)
 
-def get_num_nodes(attrs: Union[Dict, series.SeriesInfo]) -> int:
-    return int(attrs['results']['sched']['test_nodes'])
-
-def get_finished_time(attrs: Union[Dict, series.SeriesInfo]) -> Optional[datetime]:
-    return attrs.get('finished')
-
-FILTER_FUNCS = {
-    'created': created,
-    'finished': finished,
-    'num_nodes': num_nodes
-}
-class QueryNode:
-    operator: Optional[Callable] = None
-    values: Tuple = ()
-
-    def __init__(self, operator=None, values=()):
-        self.operator = operator
-        self.values = values
-
-def parse_target(target: str, filter_funcs: Dict) -> FilterQuery:
-    """Parse the key, operand, and value apart. If there is not an
-       operand or value, return the target
-
-    :param target: filter query keyword argument
-
-    :return: the key, operand, and value if applicable, otherwise the target
-    """
-    if target is None:
-        return FilterQuery(operator=lambda _: True)
-
-    target = remove_extra_spaces(target)
-
-    if target == '':
-        return QueryNode(operator=lambda _: True)
-
-    if target in SERIES_STATES:
-        return QueryNode(operator=lambda x: x[target])
-
-    if target in FILTER_FUNCS:
-        return QueryNode(operator=FILTER_FUNCS.get(target))
-
-    for op in [OP_AND, OP_OR]:
-        if op in target:
-            return QueryNode(
-                operator=OP_FUNCS[OP_AND],
-                values=tuple(map(lambda x: parse_target(x, filter_funcs), target.split(op, 1)))
-            )
-
-    if target.startswith(HAS_STATE + OP_EQ):
-        target = target.removeprefix(HAS_STATE + OP_EQ)
-
-        return QueryNode(
-            operator=lambda x: has_state(x, target)
-        )
-
-    for op in [OP_NEQ, OP_EQ, OP_LT, OP_GT, OP_NOT]:
-        if op in target:
-            return QueryNode(
-                operator=OP_FUNCS[OP_AND],
-                values=tuple(map(lambda x: parse_target(x, filter_funcs), target.split(op, 1)))
-            )
-
-
-    return QueryNode()
-
-def filter_run(test_attrs: Union[Dict, series.SeriesInfo], filter_funcs: Dict, target: str) -> bool:
-    """Main logic of the filter. Evaluate arguments and apply any operations to them.
-
-    :param test_attrs: attributes of a given test or series
-    :param filter_funcs: respective functions for tests or series
-    :param target: filter query string
-
-    :return: whether a particular test passes the filter query requirements
-    """
-
-    query = parse_target(target, filter_funcs)
-
-    if key.upper() in STATES.list() and filter_funcs == TEST_FUNCS:
-        return state(test_attrs, STATE, key, TestStatusFile)
-
-    elif key in SERIES_STATES.list() and filter_funcs == SERIES_FUNCS:
-        return state(test_attrs, STATE, key, SeriesStatusFile)
-
-    elif key == HAS_STATE and filter_funcs == TEST_FUNCS:
-        return state(test_attrs, HAS_STATE, val, TestStatusFile)
-
-    elif key == HAS_STATE and filter_funcs == SERIES_FUNCS:
-        return state(test_attrs, HAS_STATE, val, SeriesStatusFile)
-
-    else:
-        raise ValueError(
-            "Keyword {} not recognized.".format(key))
-
-def make_test_run_filter(target: str) -> Callable[[Dict], bool]:
-    """Generate a filter function for use by dir_db.select and similar
-    functions. This operates on TestAttribute objects, so make sure to
-    pass the TestAttribute class as the transform to dir_db functions.
-
-    :param target: Filter query string, contains all filter requirements
-
-    :return: a partial function that takes a set of test attributes
-    """
-    filter_func = partial(
-        filter_run,
-        filter_funcs=TEST_FUNCS,
-        target=target)
-
-    return filter_func
-
-def make_series_filter(target: str) -> Callable[[Dict], bool]:
-    """Generate a filter for using with dir_db functions to filter series. This
-    is expected to operate on series.SeriesInfo objects, so make sure to pass
-    Series info as the dir_db transform function.
-
-    :param target: Filter query string, contains all filter requirements
-
-    :return: a partial function that takes a set of test attributes
-    """
-    filter_func = partial(
-        filter_run,
-        filter_funcs=SERIES_FUNCS,
-        target=target)
-
-    return filter_func
+    return filter_trans.transform(tree)
