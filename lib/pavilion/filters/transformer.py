@@ -1,8 +1,9 @@
 from datetime import date, time, datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 
 from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile
-from filters import FILTER_FUNCS
+
+from .filter_functions import FILTER_FUNCS
 
 from lark import Transformer, Discard
 

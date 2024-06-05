@@ -87,14 +87,14 @@ class FiltersTest(PavTestCase):
         ]
 
         for opt in match_sets:
-            series_filter = filters.make_series_filter(opt[1])
+            series_filter = filters.parse_query(opt[1])
 
             self.assertTrue(series_filter(opt[0]),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
         for opt in never_match_sets:
-            series_filter = filters.make_series_filter(opt[1])
+            series_filter = filters.parse_query(opt[1])
 
             self.assertFalse(series_filter(opt[0]),
                             msg="Failed on opt ({})"
@@ -118,14 +118,14 @@ class FiltersTest(PavTestCase):
         ]
 
         for opt in match_sets:
-            test_run_filter = filters.make_test_run_filter(opt[1])
+            test_run_filter = filters.parse_query(opt[1])
 
             self.assertTrue(test_run_filter(opt[0]),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
         for opt in never_match_sets:
-            test_run_filter = filters.make_test_run_filter(opt[1])
+            test_run_filter = filters.parse_query(opt[1])
 
             self.assertFalse(test_run_filter(opt[0]),
                             msg="Failed on opt ({})"
@@ -167,7 +167,7 @@ class FiltersTest(PavTestCase):
         ]
 
         for opt in opt_set:
-            series_filter = filters.make_series_filter(opt)
+            series_filter = filters.parse_query(opt)
 
             self.assertTrue(series_filter(always_match_series),
                             msg="Failed on opt ({})"
@@ -177,7 +177,7 @@ class FiltersTest(PavTestCase):
                              .format(opt))
 
         for opt in inv_opt_set:
-            series_filter = filters.make_series_filter(opt)
+            series_filter = filters.parse_query(opt)
 
             self.assertFalse(series_filter(always_match_series),
                             msg="Failed on opt ({})"
@@ -230,7 +230,7 @@ class FiltersTest(PavTestCase):
         ]
 
         for opt in opt_set:
-            tr_filter = filters.make_test_run_filter(opt)
+            tr_filter = filters.parse_query(opt)
 
             self.assertTrue(tr_filter(always_match_test),
                             msg="Failed on opt ({})\n{}"
@@ -240,7 +240,7 @@ class FiltersTest(PavTestCase):
                              .format(opt, never_match_test))
 
         for opt in inv_opt_set:
-            tr_filter = filters.make_test_run_filter(opt)
+            tr_filter = filters.parse_query(opt)
 
             self.assertFalse(tr_filter(always_match_test),
                              msg="Failed on opt ({})\n{}"
@@ -259,11 +259,11 @@ class FiltersTest(PavTestCase):
         test2 = self._quick_test()
         test2.run()
 
-        t_filter = filters.make_test_run_filter("RUN_DONE")
+        t_filter = filters.parse_query("RUN_DONE")
         self.assertFalse(t_filter(test.attr_dict()))
         self.assertTrue(t_filter(test2.attr_dict()))
 
-        t_filter2 = filters.make_test_run_filter("has_state=RUNNING")
+        t_filter2 = filters.parse_query("has_state=RUNNING")
         self.assertFalse(t_filter2(test.attr_dict()))
         self.assertTrue(t_filter2(test2.attr_dict()))
 
@@ -281,8 +281,8 @@ class FiltersTest(PavTestCase):
         series2.add_test_set_config('test', test_names=['hello_world'])
         series2_info = series2.info().attr_dict()
 
-        state_filter = filters.make_series_filter("ALL_STARTED")
-        has_state_filter = filters.make_series_filter("has_state=SET_MAKE")
+        state_filter = filters.parse_query("ALL_STARTED")
+        has_state_filter = filters.parse_query("has_state=SET_MAKE")
 
         self.assertTrue(state_filter(series_info))
         self.assertFalse(state_filter(series2_info))
