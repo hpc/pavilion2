@@ -1,5 +1,5 @@
 from datetime import date, time, datetime, timedelta
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Union
 
 from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile
 
@@ -74,8 +74,21 @@ class FilterTransformer(Transformer):
 
         return lambda x: f(x) >= g(x)
 
-    def WORD(self, word) -> Callable[[str], Any]:
-        if word in FILTER_FUNCS:
-            return FILTER_FUNCS[word]
+    def argument_binding(self, arg_bind) -> Callable[[Dict], bool]:
+        ffunc, val = arg_bind
 
-        return lambda x: x.get(word)
+        return lambda x: FILTER_FUNCS[str(ffunc)](str(val), x)
+
+    def all_started(self, special):
+        return FILTER_FUNCS['all_started']
+
+    def complete(self, completed):
+        return FILTER_FUNCS['complete']
+
+    def CNAME(self, word) -> Union[Callable[[Any], Any], str]:
+        word = str(word)
+
+        if word in FILTER_FUNCS:
+            return FILTER_FUNCS[word.lower()]
+
+        return word
