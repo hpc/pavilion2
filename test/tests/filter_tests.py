@@ -4,14 +4,18 @@ import argparse
 import random
 import time
 from datetime import timedelta, datetime
+from pathlib import Path
 
 from pavilion import dir_db
 from pavilion import filters
+from pavilion import schedulers
 from pavilion.series import TestSeries
 from pavilion.status_file import STATES, SERIES_STATES
-from pavilion.test_run import TestRun, test_run_attr_transform
+from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
-
+from pavilion.variables import VariableSetManager
+from pavilion.status_file import TestStatusFile, SeriesStatusFile
+from pavilion.filters import FilterAggregator
 
 class FiltersTest(PavTestCase):
 
@@ -270,24 +274,35 @@ class FiltersTest(PavTestCase):
     def test_filter_series_states(self):
         """Check series filtering."""
 
-        from pavilion import schedulers
         series = TestSeries(self.pav_cfg, None)
         series.add_test_set_config('test', test_names=['hello_world'])
         dummy = schedulers.get_plugin('dummy')
         series.run()
+
         series_info = series.info().attr_dict()
+        path = Path(series_info.get('path'))
+        test_attrs = TestAttributes(path)
+        status_file = SeriesStatusFile(path)
+
+        agg1 = FilterAggregator(test_attrs, series_info, status_file, VariableSetManager).aggregate()
 
         series2 = TestSeries(self.pav_cfg, None)
         series2.add_test_set_config('test', test_names=['hello_world'])
-        series2_info = series2.info().attr_dict()
+
+        series_info = series.info().attr_dict()
+        path = series_info.get('path')
+        test_attrs = TestAttributes(path)
+        status_file = SeriesStatusFile(path)
+
+        agg2 = FilterAggregator(test_attrs, series_info, status_file, VariableSetManager).aggregate()
 
         state_filter = filters.parse_query("ALL_STARTED")
         has_state_filter = filters.parse_query("has_state=SET_MAKE")
 
-        self.assertTrue(state_filter(series_info))
-        self.assertFalse(state_filter(series2_info))
-        self.assertTrue(has_state_filter(series_info))
-        self.assertFalse(has_state_filter(series2_info))
+        self.assertTrue(state_filter(agg1))
+        self.assertFalse(state_filter(agg2))
+        self.assertTrue(has_state_filter(agg1))
+        self.assertFalse(has_state_filter(agg2))
 
     def test_get_sort_opts(self):
         """Check the sort operation manager."""
