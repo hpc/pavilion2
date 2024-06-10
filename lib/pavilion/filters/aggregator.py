@@ -1,10 +1,11 @@
 from pathlib import path
-from enum import Enum, Auto
 from typing import List, Dict, Union, Optional, Any
 
 from pavilion.test_run import TestRun
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
 from pavilion.series import SeriesInfo
+from pavilion.variables import VariableSetManager
+
 
 # These functions tell the aggregator how to get or compute the various
 # properties relevant to filtering
@@ -19,11 +20,6 @@ INFO_KEYS = {
     'finished': lambda x: x.get('finished'),
     'node_list': get_node_list
     }
-
-
-class TargetType(Enum):
-    TEST = auto()
-    SERIES = auto()
 
 
 class MaybeDict:
@@ -54,12 +50,6 @@ class StateAggregate:
     """Lightweight object containing all information relevant to test
     and series filters."""
     
-    def is_test(self) -> bool:
-        return self.type == TEST
-
-    def is_series(self) -> bool:
-        return self.test == SERIES
-
     def num_nodes(self) -> int:
         if self.node_list is None:
             return 0
@@ -95,20 +85,15 @@ class StateAggregate:
 
 
 class FilterAggregator:
-    def __init__(self, path: Path, target_type: TargetType):
-        self.path = path
-        self.type = target_type
-
-        self.attrs = TestAttributes(path, load=False)
-        self.info = SeriesInfo(..., path) # TODO: figure out what needs to be passed in as pav_cfg
-
-        if target_type == TargetType.TEST
-            self.status_file = TestStatusFile(path)
-        else
-            self.status_file = SeriesStatusFile(path)
+    def __init__(attrs: TestAttributes, info: SeriesInfo, status_file: TestStatusFile,
+                    var_mgr: VariableSetManager):
+            self.attrs = attrs
+            self.info = info
+            self.status_file = status_file
+            self.var_mgr = var_mgr
 
     def _load_node_list(self) -> Optional[List[str]]:
-        var_dict = variables.VariableSetManager.load(self.path / 'variables')
+        var_dict = self.var_mgr.load(self.path / 'variables')
         var_dict = MaybeDict(vars.as_dict())
 
         return var_dict.get('sched').get('test_node_list').resolve()
