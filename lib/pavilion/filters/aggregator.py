@@ -1,4 +1,7 @@
 from pathlib import path
+from enum import Enum, auto
+import fnmatch
+import re
 from typing import List, Dict, Union, Optional, Any
 
 from pavilion.test_run import TestRun
@@ -20,6 +23,11 @@ INFO_KEYS = {
     'finished': lambda x: x.get('finished'),
     'node_list': get_node_list
     }
+
+
+class TargetType(Enum):
+    TEST = auto()
+    SERIES = auto()
 
 
 class MaybeDict:
@@ -56,14 +64,48 @@ class StateAggregate:
 
         return len(self.node_list)
 
-    def name_matches(self) -> bool:
-        ...
+    def name_matches(self, name: str) -> bool:
+        name_parse = re.compile(r'^([a-zA-Z0-9_*?\[\]-]+)'  # The test suite name.
+                                r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
+                                r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?$'  # The permutation name.
+                                )
+        test_name = attrs.get('name') or ''
+        filter_match = name_parse.match(name)
+        name_match = name_parse.match(test_name)
 
-    def user_matches(self) -> bool:
-        ...
+        if filter_match is not None:
+            suite, test, perm = tuple(map(lambda x: '*' if x is None else x, filter_match.groups()))
+
+        if name_match is not None:
+            _, _, test_perm = name_match.groups()
+
+            # allows permutation glob filters to match tests without permutations
+            # e.g., name=suite.test.* will match suite.test
+            if test_perm is not None:
+                test_name = test_name + '.*'
+
+        new_val = '.'.join([suite, test, perm])
+
+        return fnmatch.fnmatch(test_name, new_val)
+
+    def user_matches(self, user: str) -> bool:
+        if self.user is None:
+            return False
+
+        return self.user == user
 
     def sys_name_matches(self, sys_name: str) -> bool:
-        ...
+        if self.sys_name is None:
+            return False
+
+        return self.sys_name == sys_name
+
+    def nodes_match(self, node_range: str) -> bool:
+        for node in self.node_list:
+            if not fnmatch.fnmatch(node, node_range):
+                return False
+
+        return True
 
     def passed(self) -> bool:
         if self.result is None:
@@ -117,3 +159,21 @@ class FilterAggregator:
             setattr(agg, 'node_list', self._load_node_list())
 
         return agg
+
+
+def aggregate_transform(path: Path, target_type: TargetType) -> StateAggregate:
+    """Transform the given path into a StateAggregate object. Intended to be
+    passed as a transform to dir_db functions (partially applied to the
+    appropriate target type)."""
+
+    attrs = TestAttributes(path)
+    info = SeriesInfo(..., path)
+
+    if target_type == TargetType.TEST 
+        status_file = TestStatusFile(path)
+    else:
+        status_file = SeriesStatusFile(path)
+
+    agg = FilterAggregator(attrs, info, status_file, VariableSetManager)
+
+    return agg.aggregate()

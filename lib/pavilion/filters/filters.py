@@ -1,8 +1,6 @@
 """This module contains functions to generate filter functions for handing
 to dir_db commands."""
 
-# pylint: disable=invalid-name
-
 import argparse
 import datetime as dt
 import fnmatch
@@ -255,117 +253,6 @@ def get_sort_opts(
     sortf = partial(sort_func, choice=sort_key)
 
     return sortf, sort_ascending
-
-def user(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "user" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "user" attribute
-    """
-    return attrs.get('user', False) == val
-
-def sys_name(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "sys_name" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "sys_name" attribute
-    """
-
-    return attrs.get('sys_name', False) == val
-
-def passed(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "passed" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "passed" attribute
-    """
-    return attrs.get('result', False) == TestRun.PASS
-
-def failed(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "failed" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "failed" attribute
-    """
-    return attrs.get('result', False) == TestRun.FAIL
-
-def result_error(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "result_error" status of a test
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "result_error" attribute
-    """
-    return attrs.get('result', False) == TestRun.ERROR
-
-def created(attrs: Union[Dict, series.SeriesInfo], operator: str, val: str) -> bool:
-    """Return whether 'created' status of a test is greater or less than a given time
-
-    :param attrs: attributes of a given test or series
-    :param op: the operator of the filter query
-    :param val: the value of the filter query
-
-    :return: result of the test or series 'created' before or after a given time
-    """
-
-    time_val = utils.hr_cutoff_to_ts(val, dt.datetime.now())
-
-    if attrs.get('created') is None:
-        return False
-
-    if operator == OP_GT:
-        return attrs.get('created') < time_val
-    elif operator == OP_LT:
-        return attrs.get('created') > time_val
-    else:
-        raise ValueError(
-                    "Operator {} not recognized.".format(operator))
-
-def partition(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
-    """Return "partition" status
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "partition" attribute
-    """
-    return attrs.get('partition', False) == val
-
-def nodes(attrs: Union[Dict, series.SeriesInfo], val: str):
-    """Return "partition" status
-
-    :param attrs: attributes of a given test or series
-    :param val: the value of the filter query
-
-    :return: result of the test or series "partition" attribute
-    """
-    if 'results' in attrs and 'sched' in attrs['results']:
-        if 'test_node_list' not in attrs['results']['sched']:
-            node_var = variables.VariableSetManager.load(Path(attrs.get('path')) / 'variables')
-
-            if 'sched' in node_var.as_dict() and 'test_node_list' in node_var.as_dict()['sched']:
-                attrs['results']['sched']['test_node_list'] \
-                    = node_var.as_dict()['sched']['test_node_list']
-
-            else:
-                return False
-
-        for node in attrs['results']['sched']['test_node_list']:
-            if not fnmatch.fnmatch(node, val):
-                return False
-
-            return True
-    else:
-        return False
 
 def parse_query(query: str) -> Callable[[Dict], bool]:
     tree = filter_parser.parse(query)
