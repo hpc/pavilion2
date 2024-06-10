@@ -1,13 +1,24 @@
-from pathlib import path
+from pathlib import Path
 from enum import Enum, auto
 import fnmatch
 import re
 from typing import List, Dict, Union, Optional, Any
 
-from pavilion.test_run import TestRun
+from pavilion.test_run import TestRun, TestAttributes
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
 from pavilion.series import SeriesInfo
 from pavilion.variables import VariableSetManager
+
+
+class TargetType(Enum):
+    TEST = auto()
+    SERIES = auto()
+
+
+def get_node_list(info: Union[Dict, SeriesInfo]) -> Optional[List[str]]:
+   info = MaybeDict(info)
+
+   return info.get('results').get('sched').get('test_node_list').resolve()
 
 
 # These functions tell the aggregator how to get or compute the various
@@ -23,12 +34,7 @@ INFO_KEYS = {
     'finished': lambda x: x.get('finished'),
     'node_list': get_node_list
     }
-
-
-class TargetType(Enum):
-    TEST = auto()
-    SERIES = auto()
-
+    
 
 class MaybeDict:
     """Utility class for getting values from a nested dict. This
@@ -46,12 +52,6 @@ class MaybeDict:
 
     def resolve(self) -> Any:
         return self.value
-
-
-def get_node_list(info: Union[Dict, SeriesInfo]) -> Optional[List[str]]:
-   info = MaybeDict(info)
-
-   return info.get('results').get('sched').get('test_node_list').resolve()
 
 
 class StateAggregate:
@@ -127,7 +127,7 @@ class StateAggregate:
 
 
 class FilterAggregator:
-    def __init__(attrs: TestAttributes, info: SeriesInfo, status_file: TestStatusFile,
+    def __init__(self, attrs: TestAttributes, info: SeriesInfo, status_file: TestStatusFile,
                     var_mgr: VariableSetManager):
             self.attrs = attrs
             self.info = info
@@ -169,7 +169,7 @@ def aggregate_transform(path: Path, target_type: TargetType) -> StateAggregate:
     attrs = TestAttributes(path)
     info = SeriesInfo(..., path)
 
-    if target_type == TargetType.TEST 
+    if target_type == TargetType.TEST:
         status_file = TestStatusFile(path)
     else:
         status_file = SeriesStatusFile(path)
