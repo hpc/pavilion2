@@ -13,9 +13,8 @@ from pavilion.series import TestSeries
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
-from pavilion.variables import VariableSetManager
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.filters import FilterAggregator
+from pavilion.filters import FilterAggregator, TargetType
 
 class FiltersTest(PavTestCase):
 
@@ -284,17 +283,17 @@ class FiltersTest(PavTestCase):
         test_attrs = TestAttributes(path)
         status_file = SeriesStatusFile(path)
 
-        agg1 = FilterAggregator(test_attrs, series_info, status_file, VariableSetManager).aggregate()
+        agg1 = FilterAggregator(test_attrs, series_info, status_file, TargetType.SERIES).aggregate()
 
         series2 = TestSeries(self.pav_cfg, None)
         series2.add_test_set_config('test', test_names=['hello_world'])
 
         series_info = series.info().attr_dict()
-        path = series_info.get('path')
+        path = Path(series_info.get('path'))
         test_attrs = TestAttributes(path)
         status_file = SeriesStatusFile(path)
 
-        agg2 = FilterAggregator(test_attrs, series_info, status_file, VariableSetManager).aggregate()
+        agg2 = FilterAggregator(test_attrs, series_info, status_file, TargetType.SERIES).aggregate()
 
         state_filter = filters.parse_query("ALL_STARTED")
         has_state_filter = filters.parse_query("has_state=SET_MAKE")

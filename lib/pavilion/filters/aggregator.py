@@ -6,7 +6,7 @@ from typing import List, Dict, Union, Optional, Any
 
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.series import SeriesInfo
+from pavilion.series import SeriesInfo, get_all_started
 from pavilion.variables import VariableSetManager
 
 
@@ -32,7 +32,8 @@ INFO_KEYS = {
     'created': lambda x: x.get('created'),
     'partition': lambda x: x.get('partition'),
     'finished': lambda x: x.get('finished'),
-    'node_list': get_node_list
+    'node_list': get_node_list,
+    'all_started': lambda x: get_all_started(Path(x.get('path')))
     }
     
 
@@ -41,13 +42,17 @@ class MaybeDict:
     prevents having to repeatedly check whether each key exists
     in the underlying dictionary."""
 
-    def __init__(self, mdict: Any):
+    def __init__(self, mdict: Any, default: Any = None):
         self.value = mdict
+        self.default = default
 
     def get(self, key) -> 'MaybeDict':
-        if isinstance(self.value, mdict):
-            return MaybeDict(self.value.get())
+        if isinstance(self.value, dict):
+            return MaybeDict(self.value.get(key, self.default))
 
+        # Note: this could cause some unexpected behavior when
+        # assigning new values, but deep copying and creating
+        # a new MaybeDict is potentially expensive
         return self
 
     def resolve(self) -> Any:
@@ -57,6 +62,15 @@ class MaybeDict:
 class StateAggregate:
     """Lightweight object containing all information relevant to test
     and series filters."""
+
+    def __init__(self):
+        self.path = None
+        self.type = None
+        self.state = None
+        self.state_history = None
+
+        for attr in INFO_KEYS:
+            self.__dict__[attr] = None
     
     def num_nodes(self) -> int:
         if self.node_list is None:
@@ -128,17 +142,23 @@ class StateAggregate:
 
 class FilterAggregator:
     def __init__(self, attrs: TestAttributes, info: SeriesInfo, status_file: TestStatusFile,
-                    var_mgr: VariableSetManager):
+                    target_type: TargetType):
             self.attrs = attrs
             self.info = info
             self.status_file = status_file
-            self.var_mgr = var_mgr
+            self.type = target_type
+            self.path = Path(self.info.get('path'))
 
     def _load_node_list(self) -> Optional[List[str]]:
-        var_dict = self.var_mgr.load(self.path / 'variables')
-        var_dict = MaybeDict(vars.as_dict())
+        var_path = self.path / 'variables'
 
-        return var_dict.get('sched').get('test_node_list').resolve()
+        if var_path.exists():
+            var_dict = VariableSetManager.load(self.path / 'variables')
+            var_dict = MaybeDict(vars.as_dict())
+
+            return var_dict.get('sched').get('test_node_list').resolve()
+
+        return None
 
     def aggregate(self) -> StateAggregate:
         """Aggregate all information relevant to filters from disparate
@@ -149,7 +169,7 @@ class FilterAggregator:
         setattr(agg, 'path', self.path)
         setattr(agg, 'type', self.type)
 
-        for key, func in INFO_KEYS:
+        for key, func in INFO_KEYS.items():
             setattr(agg, key, func(self.info))
 
         setattr(agg, 'state', self.status_file.current().state)
