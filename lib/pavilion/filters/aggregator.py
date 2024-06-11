@@ -6,7 +6,7 @@ from typing import List, Dict, Union, Optional, Any
 
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.series import SeriesInfo, get_all_started
+from pavilion.series import SeriesInfo, get_all_started, STATUS_FN
 from pavilion.variables import VariableSetManager
 
 
@@ -67,7 +67,7 @@ class StateAggregate:
         self.path = None
         self.type = None
         self.state = None
-        self.state_history = None
+        self.state_history = []
 
         for attr in INFO_KEYS:
             self.__dict__[attr] = None
@@ -139,6 +139,8 @@ class StateAggregate:
 
         return self.result == TestRun.ERROR
 
+    def has_state(self, state: str) -> bool:
+        return state in map(lambda x: x.state, self.state_history)
 
 class FilterAggregator:
     def __init__(self, attrs: TestAttributes, info: SeriesInfo, status_file: TestStatusFile,
