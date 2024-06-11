@@ -256,11 +256,6 @@ def get_sort_opts(
 
 def parse_query(query: str) -> Callable[[Dict], bool]:
     tree = filter_parser.parse(query)
-
-    # import pdb; pdb.set_trace()
-
     res = filter_trans.transform(tree)
-
-    # import pdb; pdb.set_trace()
 
     return res

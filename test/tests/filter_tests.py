@@ -9,7 +9,7 @@ from pathlib import Path
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import schedulers
-from pavilion.series import TestSeries
+from pavilion.series import TestSeries, STATUS_FN
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
@@ -281,12 +281,12 @@ class FiltersTest(PavTestCase):
         series_info = series.info().attr_dict()
         path = Path(series_info.get('path'))
         test_attrs = TestAttributes(path)
-        status_file = SeriesStatusFile(path)
+        status_file = SeriesStatusFile(path / STATUS_FN)
 
         agg1 = FilterAggregator(test_attrs, series_info, status_file, TargetType.SERIES).aggregate()
 
-        series2 = TestSeries(self.pav_cfg, None)
-        series2.add_test_set_config('test', test_names=['hello_world'])
+        series = TestSeries(self.pav_cfg, None)
+        series.add_test_set_config('test', test_names=['hello_world'])
 
         series_info = series.info().attr_dict()
         path = Path(series_info.get('path'))
@@ -300,6 +300,7 @@ class FiltersTest(PavTestCase):
 
         self.assertTrue(state_filter(agg1))
         self.assertFalse(state_filter(agg2))
+
         self.assertTrue(has_state_filter(agg1))
         self.assertFalse(has_state_filter(agg2))
 
