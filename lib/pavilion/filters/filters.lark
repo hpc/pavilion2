@@ -1,13 +1,15 @@
-?expression: special
-          | argument_binding
-          | CNAME str_comparator CNAME
-          | CNAME num_comparator num_value
-          | unary_connective expression
-          | expression binary_connective expression
+?query: keyword
+    |  argument_binding
+    |  expression
+
+?expression: CNAME str_comparator CNAME
+          |  CNAME num_comparator num_value
+          |  unary_connective expression
+          |  expression binary_connective expression
 
 argument_binding: parameter "=" CNAME
 
-special: "COMPLETE" -> complete
+keyword: "COMPLETE" -> complete
         | "ALL_STARTED" -> all_started
 
 parameter: "has_state" -> has_state
@@ -32,7 +34,7 @@ binary_connective: WS | "|"
 
 unary_connective: "!"
 
-str_comparator: "=="
+str_comparator: "==" -> eq
 
 num_comparator: "<" -> lt
               | ">" -> gt

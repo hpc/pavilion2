@@ -23,15 +23,15 @@ class FilterTransformer(Transformer):
         if len(iso) > 2:
             day = iso[2] 
 
-        return date(year, month, day)
+        return lambda _: date(year, month, day)
 
     def partial_iso_time(self, iso) -> time:
         iso = tuple(map(int, iso))
 
-        return time(*iso)
+        return lambda _: time(*iso)
 
     def INT(self, INT) -> int:
-        return int(INT)
+        return lambda _: int(INT)
 
     def WS(self, ws):
         return Discard
@@ -42,42 +42,28 @@ class FilterTransformer(Transformer):
         num = int(num)
         unit = str(unit.data) + 's'
 
-        return datetime.now() - timedelta(**{unit: num})
+        return lambda _: datetime.now() - timedelta(**{unit: num})
 
-    def eq(self, eq) -> Callable[[Any], bool]:
-        f = eq.children[0]
-        g = eq.children[1]
+    def expression(self, exp) -> Callable[[Dict], bool]:
+        operand1, operation, operand2 = tuple(exp)
 
-        return lambda x: f(x) == g(x)
+        operation = operation.data
 
-    def lt(self, lt) -> Callable[[Any], bool]:
-        f = eq.children[0]
-        g = eq.children[1]
-
-        return lambda x: f(x) < g(x)
-
-    def gt(self, gt) -> Callable[[Any], bool]:
-        f = eq.children[0]
-        g = eq.children[1]
-
-        return lambda x: f(x) > g(x)
-
-    def lteq(self, lteq) -> Callable[[Any], bool]:
-        f = eq.children[0]
-        g = eq.children[1]
-
-        return lambda x: f(x) <= g(x)
-
-    def gteq(self, lteq) -> Callable[[Any], bool]:
-        f = eq.children[0]
-        g = eq.children[1]
-
-        return lambda x: f(x) >= g(x)
+        if operation == 'eq':
+            return lambda x: operand1(x) == operand2(x)
+        elif operation == 'lt':
+            return lambda x: operand1(x) < operand2(x)
+        elif operation == 'gt':
+            return lambda x: operand1(x) > operand2(x)
+        elif operation == 'lteq':
+            return lambda x: operand1(x) <= operand2(x)
+        elif operation == 'gteq':
+            return lambda x: operand(x) >= operand2(x)
 
     def argument_binding(self, arg_bind) -> Callable[[Dict], bool]:
         ffunc, val = arg_bind
 
-        return lambda x: FILTER_FUNCS[ffunc.data](x, str(val))
+        return lambda x: FILTER_FUNCS[ffunc.data](x, val(x))
 
     def all_started(self, special):
         return FILTER_FUNCS['all_started']
@@ -85,10 +71,10 @@ class FilterTransformer(Transformer):
     def complete(self, completed):
         return FILTER_FUNCS['complete']
 
-    def CNAME(self, word) -> Union[Callable[[Any], Any], str]:
+    def CNAME(self, word) -> Union[Callable[[Any], Any]]:
         word = str(word)
 
         if word in FILTER_FUNCS:
             return FILTER_FUNCS[word.lower()]
 
-        return word
+        return lambda _: word
