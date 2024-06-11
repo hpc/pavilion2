@@ -262,13 +262,23 @@ class FiltersTest(PavTestCase):
         test2 = self._quick_test()
         test2.run()
 
-        t_filter = filters.parse_query("RUN_DONE")
-        self.assertFalse(t_filter(test.attr_dict()))
-        self.assertTrue(t_filter(test2.attr_dict()))
+        t_filter = filters.parse_query("state==RUN_DONE")
+
+        info = SeriesInfo(test.path)
+        status_file = TestStatusFile(test.path)
+        agg1 = FilterAggregator(test, info, status_file, TargetType.TEST)
+
+        self.assertFalse(agg1)
+
+        info = SeriesInfo(test2.path)
+        status_file = TestStatusFile(test2.path)
+        agg2 = FilterAggregator(test2, info, status_file, TargetType.TEST)
+
+        self.assertTrue(t_filter(agg2))
 
         t_filter2 = filters.parse_query("has_state=RUNNING")
-        self.assertFalse(t_filter2(test.attr_dict()))
-        self.assertTrue(t_filter2(test2.attr_dict()))
+        self.assertFalse(t_filter2(agg1))
+        self.assertTrue(t_filter2(agg2))
 
     def test_filter_series_states(self):
         """Check series filtering."""
