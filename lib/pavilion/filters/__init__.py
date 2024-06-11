@@ -1,2 +1,2 @@
 from .filters import parse_query
-from .aggregator import FilterAggregator
+from .aggregator import FilterAggregator, TargetType

@@ -51,10 +51,10 @@ def name(attrs: Union[Dict, series.SeriesInfo], val: str) -> bool:
     
 
 FILTER_FUNCS = {
-    'state': lambda x: x.current.state(),
+    'state': lambda x: x.state,
     'has_state': lambda x, y: x.has_state(y.upper()),
-    'num_nodes': lambda x: int(x['results']['sched']['test_nodes']),
+    'num_nodes': lambda x: x.num_nodes,
     'name': name,
-    'all_started': lambda x: series.get_all_started(Path(x.get('path'))) if x.get('path') else False,
-    'complete': lambda _: True,
+    'all_started': lambda x: x.all_started,
+    'complete': lambda x: x.complete,
 }
