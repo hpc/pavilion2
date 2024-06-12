@@ -6,7 +6,7 @@ from typing import List, Dict, Union, Optional, Any
 
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.series import SeriesInfo, get_all_started, STATUS_FN
+from pavilion.series import SeriesInfoBase, get_all_started, STATUS_FN
 from pavilion.variables import VariableSetManager
 
 
@@ -15,7 +15,7 @@ class TargetType(Enum):
     SERIES = auto()
 
 
-def get_node_list(info: Union[Dict, SeriesInfo]) -> Optional[List[str]]:
+def get_node_list(info: Union[Dict, SeriesInfoBase]) -> Optional[List[str]]:
    info = MaybeDict(info)
 
    return info.get('results').get('sched').get('test_node_list').resolve()
@@ -143,7 +143,7 @@ class StateAggregate:
         return state in map(lambda x: x.state, self.state_history)
 
 class FilterAggregator:
-    def __init__(self, attrs: TestAttributes, info: SeriesInfo, status_file: TestStatusFile,
+    def __init__(self, attrs: TestAttributes, info: SeriesInfoBase, status_file: TestStatusFile,
                     target_type: TargetType):
             self.attrs = attrs
             self.info = info
@@ -189,7 +189,7 @@ def aggregate_transform(path: Path, target_type: TargetType) -> StateAggregate:
     appropriate target type)."""
 
     attrs = TestAttributes(path)
-    info = SeriesInfo(..., path)
+    info = SeriesInfo(..., path) # TODO: Figure out what needs to be passed here
 
     if target_type == TargetType.TEST:
         status_file = TestStatusFile(path)
