@@ -66,7 +66,7 @@ class _RunCommand(Command):
             except PavilionError as err:
                 fprint(self.outfile, "Error finalizing test run '{}'".format(test.full_id))
                 fprint(self.outfile, err.pformat())
-                test.status.set(STATES.RUN_ERROR, "Error finalizing test: {}".foramt(err))
+                test.status.set(STATES.RUN_ERROR, "Error finalizing test: {}".format(err))
                 test.set_run_complete()
                 continue
 
