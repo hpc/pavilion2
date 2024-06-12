@@ -9,7 +9,7 @@ from pathlib import Path
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import schedulers
-from pavilion.series import TestSeries, STATUS_FN
+from pavilion.series import TestSeries, STATUS_FN, SeriesInfo
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
@@ -264,15 +264,15 @@ class FiltersTest(PavTestCase):
 
         t_filter = filters.parse_query("state==RUN_DONE")
 
-        info = SeriesInfo(test.path)
+        info = SeriesInfo(test._pav_cfg, test.path) # Is this kosher?
         status_file = TestStatusFile(test.path)
-        agg1 = FilterAggregator(test, info, status_file, TargetType.TEST)
+        agg1 = FilterAggregator(test, info, status_file, TargetType.TEST).aggregate()
 
-        self.assertFalse(agg1)
+        self.assertFalse(t_filter(agg1))
 
-        info = SeriesInfo(test2.path)
+        info = SeriesInfo(test._pav_cfg, test2.path)
         status_file = TestStatusFile(test2.path)
-        agg2 = FilterAggregator(test2, info, status_file, TargetType.TEST)
+        agg2 = FilterAggregator(test2, info, status_file, TargetType.TEST).aggregate()
 
         self.assertTrue(t_filter(agg2))
 
