@@ -26,6 +26,8 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
 
+from pavilion.output import dbg_print
+
 class TestBuilder:
     """Manages a test build and their organization.
 
@@ -640,7 +642,6 @@ class TestBuilder:
         :param tracker: Build tracker for this build.
         :return: None
         """
-
         umask = os.umask(0)
         os.umask(umask)
 
@@ -668,18 +669,23 @@ class TestBuilder:
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
+            # FRANCINE: add option to symlink everything recursively rather than copy
             tracker.update(
                 state=STATES.BUILDING,
                 note=("Copying source directory {} for build {} "
                       "as the build directory."
                       .format(src_path, dest)))
 
-            utils.copytree(
-                src_path.as_posix(),
-                dest.as_posix(),
-                copy_function=shutil.copyfile,
-                copystat=utils.make_umask_filtered_copystat(umask),
-                symlinks=True)
+            source_copy = self._config.get('source_copy')
+            if source_copy.lower() == 'true':
+                utils.copytree(
+                    src_path.as_posix(),
+                    dest.as_posix(),
+                    copy_function=shutil.copyfile,
+                    copystat=utils.make_umask_filtered_copystat(umask),
+                    symlinks=True)
+            else:
+                utils.symlinktree(src_path, dest)
 
         elif src_path.is_file():
             category, subtype = utils.get_mime_type(src_path)
