@@ -35,6 +35,16 @@ INFO_KEYS = {
     'node_list': get_node_list,
     'all_started': lambda x: get_all_started(Path(x.get('path')))
     }
+
+
+# Additonal test attributes to be defined on the StateAggregate
+# object, and their associated defaul values
+ADDITIONAL_ATTRS = {
+    'path': None,
+    'type': None,
+    'state': None,
+    'state_history': [],
+}
     
 
 class MaybeDict:
@@ -64,10 +74,8 @@ class StateAggregate:
     and series filters."""
 
     def __init__(self):
-        self.path = None
-        self.type = None
-        self.state = None
-        self.state_history = []
+        for attr, default in ADDITIONAL_ATTRS.items():
+            self.__dict__[attr] = default
 
         for attr in INFO_KEYS:
             self.__dict__[attr] = None
@@ -141,6 +149,12 @@ class StateAggregate:
 
     def has_state(self, state: str) -> bool:
         return state in map(lambda x: x.state, self.state_history)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
+    def __contains__(self, item: Any) -> bool:
+        return item in INFO_KEYS or item in ADDITIONAL_ATTRS
 
 class FilterAggregator:
     def __init__(self, attrs: TestAttributes, info: SeriesInfoBase, status_file: TestStatusFile,

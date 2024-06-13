@@ -157,8 +157,8 @@ class FiltersTest(PavTestCase):
         # but never ok for the 'never' pass test.
         opt_set = [
             'complete',
-            'user=bob',
-            'sys_name=this',
+            'user==bob',
+            'sys_name==this',
             'created>{}'.format((now - timedelta(minutes=2)).isoformat()),
         ]
 
