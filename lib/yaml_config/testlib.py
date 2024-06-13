@@ -37,6 +37,8 @@ class YCTestCase(TestCaseEx):
                 "properties", help_text="Pet properties", elements=[
                 yaml_config.scalars.StrElem(
                     "description", help_text="General pet description."),
+                yaml_config.scalars.StrElem(
+                    'fuzzy_*', help_text="I accept all sorts of keys."),
                 yaml_config.scalars.RegexElem(
                     "greeting", regex=r'hello \w+$',
                     help_text="A regex of some sort."),
