@@ -9,24 +9,21 @@
 
 argument_binding: parameter "=" CNAME
 
-keyword: "COMPLETE" -> complete
-        | "ALL_STARTED" -> all_started
+keyword: "COMPLETE"i -> complete
+        | "ALL_STARTED"i -> all_started
 
-parameter: "has_state" -> has_state
-        | "name" -> name
-        | "partition" -> partition
-        | "nodes" -> nodes
-        | "sys_name" -> sys_name
-        | "user" -> user
+parameter: "has_state"i -> has_state
+        | "name"i -> name
+        | "partition"i -> partition
+        | "nodes"i -> nodes
+        | "sys_name"i -> sys_name
+        | "user"i -> user
 
 property: "created" -> created
         | "finished" -> finished
         | "num_nodes" -> num_nodes
 
 ?num_value: time | NUMBER
-
-selector: "HAS_STATE:" CNAME
-        | "NODES:" range
 
 range : "[" INT ["-" INT] "]"
 

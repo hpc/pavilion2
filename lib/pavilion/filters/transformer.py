@@ -4,11 +4,16 @@ from typing import Any, Callable, Dict, Union
 from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile
 
 from .filter_functions import FILTER_FUNCS
+from .aggregator import StateAggregate
 
 from lark import Transformer, Discard
 
 
 class FilterTransformer(Transformer):
+
+    def __init__(self, agg: Union[StateAggregate, Dict]):
+        super().__init__()
+        self.aggregate = agg
     
     def partial_iso_date(self, iso) -> date:
         iso = tuple(map(int, iso))
@@ -23,17 +28,17 @@ class FilterTransformer(Transformer):
         if len(iso) > 2:
             day = iso[2] 
 
-        return lambda _: date(year, month, day)
+        return date(year, month, day)
 
     def partial_iso_time(self, iso) -> time:
         iso = tuple(map(int, iso))
 
-        return lambda _: time(*iso)
+        return time(*iso)
 
     def INT(self, INT) -> int:
-        return lambda _: int(INT)
+        return int(INT)
 
-    def WS(self, ws):
+    def WS(self, ws) -> Discard:
         return Discard
 
     def duration(self, duration) -> datetime:
@@ -42,39 +47,40 @@ class FilterTransformer(Transformer):
         num = int(num)
         unit = str(unit.data) + 's'
 
-        return lambda _: datetime.now() - timedelta(**{unit: num})
+        datetime.now() - timedelta(**{unit: num})
 
-    def expression(self, exp) -> Callable[[Dict], bool]:
+    def expression(self, exp) -> bool:
         operand1, operation, operand2 = tuple(exp)
 
         operation = operation.data
 
         if operation == 'eq':
-            return lambda x: operand1(x) == operand2(x)
+            return operand1 == operand2
         elif operation == 'lt':
-            return lambda x: operand1(x) < operand2(x)
+            return operand1 < operand2
         elif operation == 'gt':
-            return lambda x: operand1(x) > operand2(x)
+            return operand1 > operand2
         elif operation == 'lteq':
-            return lambda x: operand1(x) <= operand2(x)
+            return operand1 <= operand2
         elif operation == 'gteq':
-            return lambda x: operand(x) >= operand2(x)
+            return operand >= operand2
 
-    def argument_binding(self, arg_bind) -> Callable[[Dict], bool]:
+    def argument_binding(self, arg_bind) -> bool:
         ffunc, val = arg_bind
 
-        return lambda x: FILTER_FUNCS[ffunc.data](x, val(x))
+        FILTER_FUNCS[ffunc.data](self.aggregate, val)
 
-    def all_started(self, special):
-        return FILTER_FUNCS['all_started']
+    def all_started(self, _) -> bool:
+        return self.aggregate.get('all_started')
 
-    def complete(self, completed):
-        return FILTER_FUNCS['complete']
+    def complete(self, _) -> bool:
+        return self.aggregate.get('complete')
 
     def CNAME(self, word) -> Union[Callable[[Any], Any]]:
         word = str(word)
 
         if word in FILTER_FUNCS:
-            return FILTER_FUNCS[word.lower()]
+            return FILTER_FUNCS[word.lower()](self.aggregate)
 
-        return lambda _: word
+        # if not a recognized property, treat it as a literal string
+        return self.aggregate.get(word, word)

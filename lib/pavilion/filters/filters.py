@@ -10,6 +10,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Callable, List, Union, Optional
 
+from lark import Lark
+
 from pavilion import series
 from pavilion import utils
 from pavilion.status_file import TestStatusFile, SeriesStatusFile, StatusError, \
@@ -19,8 +21,7 @@ from pavilion.test_run import TestRun
 from pavilion import variables
 
 from .transformer import FilterTransformer
-
-from lark import Lark
+from .aggregator import StateAggregate
 
 GRAMMAR_PATH = Path(__file__).parent / 'filters.lark'
 
@@ -89,7 +90,6 @@ HELP_TEXT = (
             "  user=USER          Include only {} started by this user. \n")
 
 filter_parser = Lark.open(GRAMMAR_PATH, start="query")
-filter_trans = FilterTransformer()
 
 def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
@@ -254,8 +254,7 @@ def get_sort_opts(
 
     return sortf, sort_ascending
 
-def parse_query(query: str) -> Callable[[Dict], bool]:
+def parse_query(query: str) -> Callable[[Union[Dict, StateAggregate]], bool]:
     tree = filter_parser.parse(query)
-    res = filter_trans.transform(tree)
 
-    return res
+    return lambda x: FilterTransformer(x).transform(tree)
