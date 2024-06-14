@@ -92,7 +92,7 @@ class StateAggregate:
                                 r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
                                 r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?$'  # The permutation name.
                                 )
-        test_name = attrs.get('name') or ''
+        test_name = self.get('name') or ''
         filter_match = name_parse.match(name)
         name_match = name_parse.match(test_name)
 
@@ -130,12 +130,14 @@ class StateAggregate:
 
         return True
 
+    @property
     def passed(self) -> bool:
         if self.result is None:
             return False
         
         return self.result == TestRun.PASS
 
+    @property
     def failed(self) -> bool:
         if self.result is None:
             return False
@@ -150,6 +152,15 @@ class StateAggregate:
 
     def has_state(self, state: str) -> bool:
         return state in map(lambda x: x.state, self.state_history)
+
+    @staticmethod
+    def from_dict(state_dict: Dict) -> 'StateAggregate':
+        agg = StateAggregate()
+
+        for k, v in state_dict.items():
+            setattr(agg, k, v)
+
+        return agg
 
     def get(self, key: str, default: Any = None) -> Any:
         return getattr(self, key, default)

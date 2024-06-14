@@ -3,13 +3,20 @@ from typing import Any, Callable, Dict, Union, List
 
 from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile
 
-from .filter_functions import FILTER_FUNCS
 from .aggregator import StateAggregate
 
 from lark import Transformer, Discard, Token
 
 
 MICROSECS_PER_SEC = 10**6
+
+
+FILTER_FUNCS = {
+    'has_state': lambda x, y: x.has_state(y.upper()),
+    'name': lambda x, y: x.name_matches(y),
+    'user': lambda x, y: x.user_matches(y),
+    'sys_name': lambda x, y: x.sys_name_matches(y),
+}
 
 
 class FilterTransformer(Transformer):
@@ -93,13 +100,16 @@ class FilterTransformer(Transformer):
     def argument_binding(self, arg_bind) -> bool:
         ffunc, val = arg_bind
 
-        FILTER_FUNCS[ffunc.data](self.aggregate, val)
+        return FILTER_FUNCS[ffunc.data](self.aggregate, str(val))
 
-    def all_started(self, _) -> bool:
-        return self.aggregate.get('all_started')
+    def passed(self, _) -> bool:
+        return self.aggregate.get("passed")
 
     def complete(self, _) -> bool:
-        return self.aggregate.get('complete')
+        return self.aggregate.get("complete")
+
+    def all_started(self, _) -> bool:
+        return self.aggregate.get("all_started")
 
     def CNAME(self, word) -> Union[Callable[[Any], Any]]:
         word = str(word)
