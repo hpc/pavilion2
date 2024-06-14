@@ -14,7 +14,7 @@ from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.filters import FilterAggregator, TargetType
+from pavilion.filters import FilterAggregator, TargetType, StateAggregate
 
 class FiltersTest(PavTestCase):
 
@@ -139,26 +139,26 @@ class FiltersTest(PavTestCase):
 
         now = datetime.now()
 
-        always_match_series = {
+        always_match_series = StateAggregate.from_dict({
             'complete': True,
-            'created': datetime.fromtimestamp(now.timestamp() - 1*60),
+            'created': now - timedelta(minutes=1),
             'sys_name': 'this',
             'user': 'bob',
-        }
+        })
 
-        never_match_series = {
+        never_match_series = StateAggregate.from_dict({
             'complete': False,
-            'created': datetime.fromtimestamp(now.timestamp() - 5*60),
+            'created': now - timedelta(minutes=5),
             'sys_name': 'that',
             'user': 'gary',
-        }
+        })
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
         opt_set = [
             'complete',
-            'user==bob',
-            'sys_name==this',
+            'user=bob',
+            'sys_name=this',
             'created>{}'.format((now - timedelta(minutes=2)).isoformat()),
         ]
 
@@ -194,23 +194,23 @@ class FiltersTest(PavTestCase):
 
         now = datetime.now()
 
-        always_match_test = {
+        always_match_test = StateAggregate.from_dict({
             'complete': True,
-            'created':  now.timestamp() - timedelta(minutes=5).total_seconds(),
+            'created':  now - timedelta(minutes=1),
             'name':     'mytest.always_match',
             'result':   TestRun.PASS,
             'sys_name': 'this',
             'user':     'bob',
-        }
+        })
 
-        never_match_test = {
+        never_match_test = StateAggregate.from_dict({
             'complete': False,
-            'created':  now.timestamp() - timedelta(minutes=1).total_seconds(),
+            'created':  now - timedelta(minutes=5),
             'name':     'yourtest.never_match',
             'result':   TestRun.FAIL,
             'sys_name': 'that',
             'user':     'dave',
-        }
+        })
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
@@ -263,6 +263,7 @@ class FiltersTest(PavTestCase):
         test2.run()
 
         t_filter = filters.parse_query("state==RUN_DONE")
+        t_filter2 = filters.parse_query("has_state=RUNNING")
 
         info = SeriesInfo(test._pav_cfg, test.path) # Is this kosher?
         status_file = TestStatusFile(test.path)
@@ -270,13 +271,12 @@ class FiltersTest(PavTestCase):
 
         self.assertFalse(t_filter(agg1))
 
-        info = SeriesInfo(test._pav_cfg, test2.path)
+        info = SeriesInfo(test2._pav_cfg, test2.path)
         status_file = TestStatusFile(test2.path)
         agg2 = FilterAggregator(test2, info, status_file, TargetType.TEST).aggregate()
 
         self.assertTrue(t_filter(agg2))
 
-        t_filter2 = filters.parse_query("has_state=RUNNING")
         self.assertFalse(t_filter2(agg1))
         self.assertTrue(t_filter2(agg2))
 

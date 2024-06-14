@@ -13,10 +13,13 @@
 
 ?unary_expression: unary_connective expression
 
-argument_binding: parameter "=" CNAME
+argument_binding: parameter "=" regex
+
+?regex: /.+/
 
 keyword: "COMPLETE"i -> complete
         | "ALL_STARTED"i -> all_started
+        | "PASSED"i -> passed
 
 parameter: "has_state"i -> has_state
         | "name"i -> name
