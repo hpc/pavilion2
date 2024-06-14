@@ -15,16 +15,19 @@ import threading
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Union, Dict
+from typing import Union, Dict, Optional
+from contextlib import ExitStack
 
 import pavilion.config
 import pavilion.errors
 from pavilion import extract, lockfile, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
+from pavilion.lockfile import FuzzyLock
 from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
+
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -383,6 +386,48 @@ class TestBuilder:
                 "Source location '{}' points to something unusable."
                 .format(found_src_path))
 
+    def _remove_existing_path(self, tracker: BuildTracker) -> bool:
+        """Attempt to remove the path associated with the build,
+        and report, as a boolean, whether the removal was successful."""
+
+        tracker.warn(
+            "Build lock acquired, but build exists that was "
+            "not marked as finished. Deleting...")
+        try:
+            shutil.rmtree(self.path)
+        except OSError as err:
+            tracker.error(
+                "Could not remove unfinished build.\n{}"
+                .format(err))
+
+            return False
+
+        return True
+
+    def _name_failed_path(self, cancel_event: Optional[threading.Event],
+         tracker: BuildTracker) -> None:
+        """Rename the path associated with the build to indicate build failure,
+        and cancel other threads or processes working on the same build."""
+
+        try:
+            self.path.rename(self.fail_path)
+        except FileNotFoundError as err:
+            tracker.error(
+                "Failed to move build {} from {} to "
+                "failure path {}"
+                .format(self.name, self.path,
+                        self.fail_path), err)
+            try:
+                self.fail_path.mkdir()
+            except OSError as err2:
+                tracker.error(
+                    "Could not create fail directory for "
+                    "build {} at {}"
+                    .format(self.name, self.fail_path, err2))
+
+        if cancel_event is not None:
+            cancel_event.set()
+
     def build(self, test_id: str, tracker: BuildTracker,
               cancel_event: threading.Event = None):
         """Perform the build if needed, do a soft-link copy of the build
@@ -397,8 +442,6 @@ class TestBuilder:
         :return: True if these steps completed successfully.
         """
 
-        mb_tracker = tracker.tracker
-
         if not self.finished_path.exists():
             # Make sure another test doesn't try to do the build at
             # the same time.
@@ -410,67 +453,46 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
 
-            timed_lock = mb_tracker.make_lock_context(self.build_hash)
-            with timed_lock as acquired:
+            mb_tracker = tracker.tracker
+            locks = [mb_tracker.make_lock_context(self.build_hash)]
+
+            # Only use FuzzyLock if building on nodes
+            if self._pav_cfg.get('build', {}).get('on_nodes', 'false').lower() == 'true':
+                locks.append(FuzzyLock(self.path.parent / f"{self.name}.lock"))
+
+            # Allows for variable number of locks
+            with ExitStack() as stack:
+                for lock in locks:
+                    stack.enter_context(lock)
+
                 # Make sure the build wasn't created while we waited for
                 # the lock.
+                if not self.finished_path.exists():
+                    tracker.update(
+                        state=STATES.BUILDING,
+                        note="Starting build {}.".format(self.name))
 
-                if acquired:
-                    if not self.finished_path.exists():
-                        tracker.update(
-                            state=STATES.BUILDING,
-                            note="Starting build {}.".format(self.name))
-
-                        # If the build directory exists, we're assuming there was
-                        # an incomplete build at this point.
-
-                        if self.path.exists():
-                            tracker.warn(
-                                "Build lock acquired, but build exists that was "
-                                "not marked as finished. Deleting...")
-                            try:
-                                shutil.rmtree(self.path)
-                            except OSError as err:
-                                tracker.error(
-                                    "Could not remove unfinished build.\n{}"
-                                    .format(err))
-                                return False
-
-                        if not self._build(self.path, cancel_event, test_id, tracker):
-
-                            try:
-                                self.path.rename(self.fail_path)
-                            except FileNotFoundError as err:
-                                tracker.error(
-                                    "Failed to move build {} from {} to "
-                                    "failure path {}"
-                                    .format(self.name, self.path,
-                                            self.fail_path), err)
-                                try:
-                                    self.fail_path.mkdir()
-                                except OSError as err2:
-                                    tracker.error(
-                                        "Could not create fail directory for "
-                                        "build {} at {}"
-                                        .format(self.name, self.fail_path, err2))
-                            if cancel_event is not None:
-                                cancel_event.set()
-
+                    # If the build directory exists, we're assuming there was
+                    # an incomplete build at this point.
+                    if self.path.exists():
+                        if not self._remove_existing_path(tracker):
                             return False
 
-                        try:
-                            self.finished_path.touch()
-                        except OSError:
-                            tracker.warn("Could not touch '<build>.finished' file.")
+                    if not self._build(self.path, cancel_event, test_id, tracker):
+                        self._name_failed_path(cancel_event, tracker)
+                        return False
 
-                    else:
-                        tracker.update(
-                            state=STATES.BUILD_REUSED,
-                            note="Build {s.name} created while waiting for build "
-                                "lock.".format(s=self))
+                    try:
+                        self.finished_path.touch()
+                    except OSError:
+                        tracker.warn("Could not touch '<build>.finished' file.")
+
                 else:
-                    tracker.warn("Timed out when attempting to acquire lock")
-                    return False
+                    tracker.update(
+                        state=STATES.BUILD_REUSED,
+                        note="Build {s.name} created while waiting for build "
+                            "lock.".format(s=self))
+
         else:
             tracker.update(
                 note=("Build {s.name} is being reused.".format(s=self)),
