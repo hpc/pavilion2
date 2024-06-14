@@ -3,7 +3,7 @@
 import inspect
 import logging
 import re
-from typing import Any
+from typing import List, Union, Any
 
 from yapsy import IPlugin
 from ..errors import FunctionPluginError
@@ -36,6 +36,43 @@ def num(val):
 
     raise RuntimeError("Invalid value '{}' given to num.".format(val))
 
+def flag(val: str, flag_str: str) -> str:
+    """Return a flag string for a boolean variable, if
+    the variable is set, or an empty string otherwise."""
+
+    if val.lower() in {'true', 'on', 'yes'}:
+        return flag_str
+    elif val.lower() in {'false', 'off', 'no'}:
+        return ''
+    else:
+        raise ValueError(f'Could not convert {val} into boolean-like.')
+
+def sopt(val: Union[str, List[str]], option_str: str) -> str:
+    """Return an option string for a variable, if it has a non-null value,
+    or an empty string otherwise. For a list, create separate option string
+    for each value in the list."""
+
+    if isinstance(val, list):
+        return " ".join(map(lambda x: f"{option_str}='{x}'", val))
+    else:
+        if val.lower() in {'null', 'none'}:
+            return ''
+        else:
+            return f"{option_str}='{val}'"
+
+def opt(val: Union[str, List[str]], option_str: str, delimiter=',') -> str:
+    """Return an option string for a variable, if it has a non-null value,
+    or an empty string otherwise. For a list, create a single option string
+    by concatenating the values in the list."""
+
+    if isinstance(val, list):
+        val = map(lambda x: f"'{x}'", val)
+        return f"{option_str}={delimiter.join(val)}"
+    else:
+        if val.lower() in {'null', 'none'}:
+            return ''
+        else:
+            return f"{option_str}='{val}'"
 
 class Opt:
     """An optional arg spec, the contained spec is checked if the value is given."""
@@ -48,6 +85,26 @@ class Opt:
 
         self.sub_spec = sub_spec
 
+    def __str__(self):
+        return f"Opt({self.sub_spec})"
+
+class MaybeList:
+    "An arg spec that can be either some type, or a list of that same type."
+
+    def __init__(self, sub_spec: Any):
+        self.sub_spec = sub_spec
+
+    def resolve(self, arg) -> Any:
+        if isinstance(arg, list):
+            if len(arg) == 0 or isinstance(arg[0], self.sub_spec):
+                return [self.sub_spec]
+        elif isinstance(arg, self.sub_spec):
+            return self.sub_spec
+        else:
+            raise FunctionPluginError(f"Cannot resolve {self} for argument {arg}")
+
+    def __str__(self):
+        return f"MaybeList({self.sub_spec})"
 
 class FunctionPlugin(IPlugin.IPlugin):
     """Plugin base class for math functions.
@@ -65,6 +122,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         bool,
         num,
         Opt,
+        MaybeList,
         None
     )
 
@@ -137,7 +195,7 @@ class FunctionPlugin(IPlugin.IPlugin):
 
         super().__init__()
 
-    def _validate_arg_spec(self, arg):
+    def _validate_arg_spec(self, arg: Any) -> None:
         """Recursively validate the argument spec, to make sure plugin
         creators are using this right.
         :param arg: A valid arg spec is a structure of lists and
@@ -157,7 +215,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         :raises FunctionPluginError: On a bad arg spec.
         """
 
-        if isinstance(arg, Opt):
+        if isinstance(arg, (Opt, MaybeList)):
             self._validate_arg_spec(arg.sub_spec)
 
         elif isinstance(arg, list):
@@ -256,12 +314,14 @@ class FunctionPlugin(IPlugin.IPlugin):
             return {k: self._spec_to_desc(v) for k, v in spec.items()}
         elif isinstance(spec, Opt):
             return self._spec_to_desc(spec.sub_spec) + '?'
+        elif isinstance(spec, MaybeList):
+            return str(spec)
         elif spec is None:
             return 'Any'
         else:
             return spec.__name__
 
-    def _validate_arg(self, arg, spec):
+    def _validate_arg(self, arg, spec) -> Any:
         """Ensure that the argument is of the structure specified by 'spec',
         and convert all contained values accordingly.
 
@@ -273,6 +333,9 @@ class FunctionPlugin(IPlugin.IPlugin):
 
         if isinstance(spec, Opt):
             return self._validate_arg(arg, spec.sub_spec)
+
+        elif isinstance(spec, MaybeList):
+            return self._validate_arg(arg, spec.resolve(arg))
 
         if isinstance(spec, list):
             if not isinstance(arg, list):

@@ -236,12 +236,14 @@ class TestSet:
                     if error.request is not None:
                         self.status.set(S_STATES.ERROR,
                                         '{} - {}'.format(error.request.request, error.pformat()))
+                        output.fprint(
+                            self.outfile,
+                            "{} - {}".format(error.request.request, error.pformat()))
                     else:
                         self.status.set(S_STATES.ERROR, error.pformat())
-
-                    output.fprint(
-                        self.outfile,
-                        "{} - {}".format(error.request.request, error.pformat()))
+                        output.fprint(
+                            self.outfile,
+                            "{}".format(error.pformat()))
 
                 if not self.ignore_errors:
                     raise TestSetError("Error creating tests for test set {}.".format(self.name),

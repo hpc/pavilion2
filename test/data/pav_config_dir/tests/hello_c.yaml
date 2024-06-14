@@ -1,0 +1,11 @@
+hello_c:
+    summary: Minimal C program.
+    build:
+        source_path: hello.c
+        modules: []
+        cmds:
+            - gcc -o hello hello.c
+    scheduler: raw
+    run:
+        cmds:
+            - '{{sched.test_cmd}} ./hello'
