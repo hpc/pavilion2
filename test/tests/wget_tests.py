@@ -16,6 +16,7 @@ WGET_MISSING_LIBS = wget.missing_libs()
 class TestWGet(PavTestCase):
 
     GET_TARGET = "https://github.com/lanl/Pavilion/raw/master/README.md"
+    GET_TARGET2 = "https://github.com/lanl/Pavilion/raw/master/RELEASE.txt"
     TARGET_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 
     _logger = logging.getLogger(__file__)
@@ -73,8 +74,6 @@ class TestWGet(PavTestCase):
         # It should update the file if the info file isn't there and the
         # sizes don't match.
         ctime = dest_fn.stat().st_ctime
-        with dest_fn.open('ab') as dest_file:
-            dest_file.write(b'a')
         info_fn.unlink()
         try:
             wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
@@ -86,7 +85,6 @@ class TestWGet(PavTestCase):
 
         # We'll muck up the info file data, to force an update.
         db_data = {
-            'ETag': 'nope',
             'Content-Length': '-1'
         }
         with info_fn.open('w') as info_file:
@@ -98,5 +96,21 @@ class TestWGet(PavTestCase):
         new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)
 
-        dest_fn.stat()
-        info_fn.stat()
+        ctime = new_ctime
+        # Checking if a remote file change forces an update
+        try:
+            wget.update(self.pav_cfg, self.GET_TARGET2, dest_fn)
+        except pavilion.errors.WGetError as err:
+            self.fail("Failed with: {}".format(err.args[0]))
+        new_ctime = dest_fn.stat().st_ctime
+        self.assertNotEqual(new_ctime, ctime)
+
+        ctime = new_ctime
+        # Make sure no updates happen if everything is the same
+        try:
+            wget.update(self.pav_cfg, self.GET_TARGET2, dest_fn)
+        except pavilion.errors.WGetError as err:
+            self.fail("Failed with: {}".format(err.args[0]))
+        new_ctime = dest_fn.stat().st_ctime
+        self.assertEqual(new_ctime, ctime)
+
