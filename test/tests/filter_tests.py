@@ -141,14 +141,14 @@ class FiltersTest(PavTestCase):
 
         always_match_series = {
             'complete': True,
-            'created': now.timestamp() - 5*60,
+            'created': datetime.fromtimestamp(now.timestamp() - 1*60),
             'sys_name': 'this',
             'user': 'bob',
         }
 
         never_match_series = {
             'complete': False,
-            'created': now.timestamp() - 1*60,
+            'created': datetime.fromtimestamp(now.timestamp() - 5*60),
             'sys_name': 'that',
             'user': 'gary',
         }

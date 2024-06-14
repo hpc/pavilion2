@@ -1,12 +1,15 @@
 from datetime import date, time, datetime, timedelta
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, Union, List
 
 from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile
 
 from .filter_functions import FILTER_FUNCS
 from .aggregator import StateAggregate
 
-from lark import Transformer, Discard
+from lark import Transformer, Discard, Token
+
+
+MICROSECS_PER_SEC = 10**6
 
 
 class FilterTransformer(Transformer):
@@ -15,7 +18,7 @@ class FilterTransformer(Transformer):
         super().__init__()
         self.aggregate = agg
     
-    def partial_iso_date(self, iso) -> date:
+    def partial_iso_date(self, iso: List[Token]) -> date:
         iso = tuple(map(int, iso))
 
         month = 1
@@ -30,18 +33,29 @@ class FilterTransformer(Transformer):
 
         return date(year, month, day)
 
-    def partial_iso_time(self, iso) -> time:
+    def partial_iso_time(self, iso: List[Token]) -> time:
+        if len(iso) == 3:
+            hrs, mins, secs = tuple(iso)
+            microsecs = (float(secs) - int(secs)) * MICROSECS_PER_SEC
+            iso.append(microsecs)
+
         iso = tuple(map(int, iso))
 
         return time(*iso)
 
-    def INT(self, INT) -> int:
+    def partial_iso(self, iso: List[Union[date, time]]) -> Union[date, time, datetime]:
+        if len(iso) == 2:
+            return datetime.combine(iso[0], iso[1])
+
+        return iso[0]
+
+    def INT(self, INT: Token) -> int:
         return int(INT)
 
     def WS(self, ws) -> Discard:
         return Discard
 
-    def duration(self, duration) -> datetime:
+    def duration(self, duration: List[Token]) -> datetime:
         duration = tuple(duration)
         num, unit = duration
         num = int(num)
@@ -49,7 +63,18 @@ class FilterTransformer(Transformer):
 
         datetime.now() - timedelta(**{unit: num})
 
-    def expression(self, exp) -> bool:
+    def unary_expression(self, exp: List) -> bool:
+        return not exp[1]
+
+    def binary_expression(self, exp: List) -> bool:
+        operand1, connective, operand2 = tuple(exp)
+
+        if connective == f_and:
+            return operand1 and operand2
+        elif connective == f_or:
+            return operand1 or operand2
+
+    def comp_expression(self, exp: List) -> bool:
         operand1, operation, operand2 = tuple(exp)
 
         operation = operation.data
@@ -84,3 +109,6 @@ class FilterTransformer(Transformer):
 
         # if not a recognized property, treat it as a literal string
         return self.aggregate.get(word, word)
+
+    def NUMBER(self, num: Token) -> float:
+        return float(num)
