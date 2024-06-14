@@ -2,6 +2,7 @@ from pathlib import Path
 from enum import Enum, auto
 import fnmatch
 import re
+from datetime import datetime
 from typing import List, Dict, Union, Optional, Any
 
 from pavilion.test_run import TestRun, TestAttributes
@@ -29,7 +30,7 @@ INFO_KEYS = {
     'user': lambda x: x.get('user'),
     'sys_name': lambda x: x.get('sys_name'),
     'result': lambda x: x.get('result'),
-    'created': lambda x: x.get('created'),
+    'created': lambda x: datetime.fromtimestamp(x.get('created')),
     'partition': lambda x: x.get('partition'),
     'finished': lambda x: x.get('finished'),
     'node_list': get_node_list,

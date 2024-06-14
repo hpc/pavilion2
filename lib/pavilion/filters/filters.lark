@@ -1,11 +1,17 @@
-?query: keyword
-    |  argument_binding
+?query: argument_binding
     |  expression
 
-?expression: CNAME str_comparator CNAME
+?expression: comp_expression
+        |    binary_expression
+        |    unary_expression
+        |    keyword
+
+?comp_expression: CNAME str_comparator CNAME
           |  CNAME num_comparator num_value
-          |  unary_connective expression
-          |  expression binary_connective expression
+
+?binary_expression: expression binary_connective expression
+
+?unary_expression: unary_connective expression
 
 argument_binding: parameter "=" CNAME
 
@@ -27,9 +33,10 @@ property: "created" -> created
 
 range : "[" INT ["-" INT] "]"
 
-binary_connective: WS | "|"
+binary_connective: WS -> f_and
+                |  "|" -> f_or
 
-unary_connective: "!"
+unary_connective: "!" -> f_not
 
 str_comparator: "==" -> eq
 
@@ -39,7 +46,7 @@ num_comparator: "<" -> lt
               | ">=" -> gteq
               | "==" -> eq
 
-time: partial_iso
+?time: partial_iso
     | duration
 
 duration: INT [WS] unit ["s"]
@@ -60,7 +67,7 @@ _iso_hour: /\d{2}/
 
 _iso_minutes: /\d{2}/
 
-_iso_seconds: /\d{2}/
+_iso_seconds: NUMBER
     
 unit: "second" -> second
          | "minute" -> minute
