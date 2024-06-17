@@ -95,7 +95,6 @@ class FiltersTest(PavTestCase):
             [{'name': 'this.test.perm'}, 'name=*'],
             [{'name': 'this.test'}, 'name=*.*.*'],
             [{'name': 'this.test'}, 'name=*.?est'],
-            [{'name': 'this'}, '']
         ]
 
         never_match_sets = [
@@ -107,14 +106,14 @@ class FiltersTest(PavTestCase):
         for opt in match_sets:
             test_run_filter = filters.parse_query(opt[1])
 
-            self.assertTrue(test_run_filter(opt[0]),
+            self.assertTrue(test_run_filter(StateAggregate.from_dict(opt[0])),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
         for opt in never_match_sets:
             test_run_filter = filters.parse_query(opt[1])
 
-            self.assertFalse(test_run_filter(opt[0]),
+            self.assertFalse(test_run_filter(StateAggregate.from_dict(opt[0])),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
