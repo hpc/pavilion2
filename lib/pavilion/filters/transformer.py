@@ -105,6 +105,12 @@ class FilterTransformer(Transformer):
     def passed(self, _) -> bool:
         return self.aggregate.get("passed")
 
+    def failed(self, _) -> bool:
+        return self.aggregate.get("failed")
+
+    def result_error(self, _) -> bool:
+        return self.aggregate.has_error()
+
     def complete(self, _) -> bool:
         return self.aggregate.get("complete")
 
