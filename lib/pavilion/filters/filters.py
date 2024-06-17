@@ -255,10 +255,7 @@ def get_sort_opts(
     return sortf, sort_ascending
 
 def parse_query(query: str) -> Callable[[Union[Dict, StateAggregate]], bool]:
-    try:
-        tree = filter_parser.parse(query)
-    except Exception as e:
-        foo = e
-        import pdb; pdb.set_trace()
+    # TODO: Handle parse failures
+    tree = filter_parser.parse(query)
 
     return lambda x: FilterTransformer(x).transform(tree)
