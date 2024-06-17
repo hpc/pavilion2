@@ -20,6 +20,8 @@ argument_binding: parameter "=" regex
 keyword: "COMPLETE"i -> complete
         | "ALL_STARTED"i -> all_started
         | "PASSED"i -> passed
+        | "FAILED"i -> failed
+        | "RESULT_ERROR"i -> result_error
 
 parameter: "has_state"i -> has_state
         | "name"i -> name

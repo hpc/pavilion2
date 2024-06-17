@@ -1,7 +1,7 @@
 from pathlib import Path
 from enum import Enum, auto
-import fnmatch
-import re
+from itertools import starmap
+from fnmatch import fnmatchcase
 from datetime import datetime
 from typing import List, Dict, Union, Optional, Any
 
@@ -87,29 +87,13 @@ class StateAggregate:
 
         return len(self.node_list)
 
-    def name_matches(self, name: str) -> bool:
-        name_parse = re.compile(r'^([a-zA-Z0-9_*?\[\]-]+)'  # The test suite name.
-                                r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
-                                r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?$'  # The permutation name.
-                                )
-        test_name = self.get('name') or ''
-        filter_match = name_parse.match(name)
-        name_match = name_parse.match(test_name)
+    def name_matches(self, pattern: str) -> bool:
+        test_name = self.get('name', '').split('.')
+        name_patterns = pattern.split('.')
 
-        if filter_match is not None:
-            suite, test, perm = tuple(map(lambda x: '*' if x is None else x, filter_match.groups()))
+        are_matches = starmap(fnmatchcase, zip(test_name, name_patterns))
 
-        if name_match is not None:
-            _, _, test_perm = name_match.groups()
-
-            # allows permutation glob filters to match tests without permutations
-            # e.g., name=suite.test.* will match suite.test
-            if test_perm is not None:
-                test_name = test_name + '.*'
-
-        new_val = '.'.join([suite, test, perm])
-
-        return fnmatch.fnmatch(test_name, new_val)
+        return all(are_matches)
 
     def user_matches(self, user: str) -> bool:
         if self.user is None:
