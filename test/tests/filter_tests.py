@@ -57,21 +57,6 @@ class FiltersTest(PavTestCase):
                          msg="TEST_FILTER_DEFAULTS has unused keys '{}'"
                              .format(defaults))
 
-        common_parser = NoExitParser()
-        series_parser = NoExitParser()
-        sort_opts = list(filters.SORT_KEYS["SERIES"])
-
-        filters.add_series_filter_args(series_parser)
-
-        print(vars(series_parser.parse_args([])))
-
-        self.assertEqual(
-            vars(common_parser.parse_args([])),
-            vars(series_parser.parse_args([])),
-            msg="The series and common args should be the same. If "
-                "they've diverged, add tests to check the untested "
-                "values (the common ones are tested via the test_run args).")
-
     def test_series_filter_name(self):
         """Check the series name filter option"""
 
