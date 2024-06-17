@@ -249,14 +249,16 @@ class FiltersTest(PavTestCase):
         t_filter2 = filters.parse_query("has_state=RUNNING")
 
         info = SeriesInfo(test._pav_cfg, test.path) # Is this kosher?
-        status_file = TestStatusFile(test.path)
+        status_file = TestStatusFile(Path(test.path) / 'status')
         agg1 = FilterAggregator(test, info, status_file, TargetType.TEST).aggregate()
 
         self.assertFalse(t_filter(agg1))
 
         info = SeriesInfo(test2._pav_cfg, test2.path)
-        status_file = TestStatusFile(test2.path)
+        status_file = TestStatusFile(Path(test2.path) / 'status')
         agg2 = FilterAggregator(test2, info, status_file, TargetType.TEST).aggregate()
+
+        # import pdb; pdb.set_trace()
 
         self.assertTrue(t_filter(agg2))
 
