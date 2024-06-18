@@ -570,8 +570,8 @@ expected to be added to by various plugins.
                 ),
                 yc.structures.AnyElem(
                     'packages',
-                    help_text='This packages definition section'
-                              'defines preferences, requirements,'
+                    help_text='This packages definition section '
+                              'defines preferences, requirements, '
                               'and providers for Spack.'
                 ),
                 yc.CategoryElem(

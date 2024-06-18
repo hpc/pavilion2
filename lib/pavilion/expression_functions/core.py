@@ -4,6 +4,7 @@ loading."""
 import math
 import random
 import re
+from itertools import count, takewhile
 from typing import List, Dict, Union, Tuple
 
 from .base import FunctionPlugin, num, Opt
@@ -211,7 +212,7 @@ class FactorsPlugin(CoreFunctionPlugin):
         )
 
     @staticmethod
-    def factors(val: int) -> Tuple[int]:
+    def factors(val: int) -> Tuple[int, ...]:
         """Get the factors of the given positive integer."""
         factors = []
         if val == 1:
@@ -238,7 +239,7 @@ class MidFactorsPlugin(CoreFunctionPlugin):
         )
 
     @staticmethod
-    def midfactors(val: int) -> Tuple[int]:
+    def midfactors(val: int) -> Tuple[int, int]:
         """Get the middle factors of val.
         Will always return a list of 2 ints."""
         factors = FactorsPlugin.factors(val)
@@ -268,12 +269,10 @@ class MultipleOfTwoPlugin(CoreFunctionPlugin):
         """Provide a list of values from 1 to val where
         each value is double the previous value until the
         provided value is reached."""
-        val_list = [1]
 
-        while val_list[-1] != val:
-            val_list.append(val_list[-1]*2 if val_list[-1]*2 < val else val)
+        mults = map(lambda x: 2**x, count())
 
-        return val_list
+        return list(takewhile(lambda x: x <= val, mults))
 
 
 class LenPlugin(CoreFunctionPlugin):
