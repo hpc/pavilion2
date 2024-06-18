@@ -3,12 +3,16 @@ utilize the YamlConfig library to define the config structure. Because of the
 dynamic nature of test configs, there are a few extra complications this module
 handles that are documented below.
 """
+
+# pylint: disable=too-many-lines
+
 import collections
 import copy
 import re
 from collections import OrderedDict
 from typing import Union
 
+import yc_yaml as yaml
 import yaml_config as yc
 from pavilion.errors import TestConfigError
 
@@ -564,6 +568,12 @@ expected to be added to by various plugins.
                               'search through for packages before '
                               'attempting to build.'
                 ),
+                yc.structures.AnyElem(
+                    'packages',
+                    help_text='This packages definition section'
+                              'defines preferences, requirements,'
+                              'and providers for Spack.'
+                ),
                 yc.CategoryElem(
                     'upstreams', sub_elem=yc.KeyedElem(
                         elements=[
@@ -673,6 +683,13 @@ expected to be added to by various plugins.
                 ),
                 yc.KeyedElem(
                     'spack', elements=[
+                        yc.KeyedElem(
+                            'config', elements=[
+                                yc.StrElem('install_tree'),
+                                yc.StrElem('build_jobs', default=6),
+                                yc.StrElem('install_path_scheme')
+                            ]
+                        ),
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
@@ -682,6 +699,20 @@ expected to be added to by various plugins.
                             'load', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
                                       'loaded.'
+                        ),
+                        yc.CategoryElem(
+                            'mirrors', sub_elem=yc.StrElem()
+                        ),
+                        yc.structures.AnyElem(
+                            'packages',
+                            ),
+                        yc.ListElem(
+                            'repos', sub_elem=yc.StrElem()
+                        ),
+                        yc.CategoryElem(
+                            'upstreams', sub_elem=yc.KeyedElem(
+                                elements=[yc.StrElem('install_tree')]
+                            )
                         ),
                     ],
                     help_text='Spack package build configs.'),
