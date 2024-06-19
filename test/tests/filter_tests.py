@@ -14,7 +14,7 @@ from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.filters import FilterAggregator, TargetType, StateAggregate
+from pavilion.filters import FilterAggregator, TargetType, StateAggregate, FilterParseError
 
 class FiltersTest(PavTestCase):
 
@@ -332,3 +332,8 @@ class FiltersTest(PavTestCase):
             transform=test_run_attr_transform,
             order_func=sort, order_asc=ascending).data
         self.assertEqual([t['id'] for t in sorted_tests], list(reversed(ids)))
+
+    def test_error_on_bad_query(self):
+        with self.assertRaises(FilterParseError):
+            test_filter = filters.parse_query("garbage")
+            

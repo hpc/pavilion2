@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Callable, List, Union, Optional
 
 from lark import Lark
+from lark.exceptions import UnexpectedEOF
 
 from pavilion import series
 from pavilion import utils
@@ -42,14 +43,6 @@ SORT_KEYS = {
     "TEST": ["created", "finished", "name", "started", "user", "id", ],
     "SERIES": ["created", "id", "status_when"]
 }
-
-STATE = "state"
-HAS_STATE = "has_state"
-
-CREATED = "created"
-FINISHED = "finished"
-
-NUM_NODES = "num_nodes"
 
 HELP_TEXT = (
             "Filter requirements for tests and series.\n"
@@ -88,6 +81,12 @@ HELP_TEXT = (
             "  sys_name=SYS_NAME  Include only {} that match the given system name, as \n"
             "                       presented by the sys.sys_name pavilion variable. \n"
             "  user=USER          Include only {} started by this user. \n")
+
+
+class FilterParseError(Exception):
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
 
 filter_parser = Lark.open(GRAMMAR_PATH, start="query")
 
@@ -255,7 +254,9 @@ def get_sort_opts(
     return sortf, sort_ascending
 
 def parse_query(query: str) -> Callable[[Union[Dict, StateAggregate]], bool]:
-    # TODO: Handle parse failures
-    tree = filter_parser.parse(query)
+    try:
+        tree = filter_parser.parse(query)
+    except UnexpectedEOF:
+        raise FilterParseError(f"Invalid syntax in filter query: {query}")
 
     return lambda x: FilterTransformer(x).transform(tree)
