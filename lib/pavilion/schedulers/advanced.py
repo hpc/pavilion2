@@ -336,11 +336,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for node in include_nodes:
             if node in nodes:
                 nodes.remove(node)
-        chunk_size = chunk_size - len(include_nodes)
 
         if len(nodes) == chunk_size:
             chunks = include_nodes
         else:
+            chunk_size = chunk_size - len(include_nodes)
             chunks = []
 
             for i in range(len(nodes)//chunk_size):
