@@ -14,7 +14,8 @@ from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.filters import FilterAggregator, TargetType, StateAggregate, FilterParseError
+from pavilion.filters import (FilterAggregator, TargetType, StateAggregate,
+    FilterParseError, validate_int, validate_glob, validate_glob_list)
 
 class FiltersTest(PavTestCase):
 
@@ -337,3 +338,41 @@ class FiltersTest(PavTestCase):
         with self.assertRaises(FilterParseError):
             test_filter = filters.parse_query("garbage")
             
+    def test_decorators(self):
+        
+        @validate_int
+        def ret_int(_):
+            return 42
+
+        @validate_glob
+        def ret_str(_):
+            return "The quick brown fox"
+
+        @validate_glob_list
+        def ret_list(_):
+            return ["cat", "car", "cad", "cam"]
+
+        self.assertTrue(ret_int(None, "=", "42"))
+        self.assertFalse(ret_int(None, "=", "40"))
+        self.assertTrue(ret_int(None, ">=", "0"))
+        
+        with self.assertRaises(FilterParseError):
+            ret_int(None, "!", "57")
+
+        with self.assertRaises(FilterParseError):
+            ret_int(None, "=", "batman")
+
+        self.assertTrue(ret_str(None, "=", "the Quick brown Fox"))
+        self.assertTrue(ret_str(None, "=", "The*"))
+        self.assertFalse(ret_str(None, "=", "The hairy yellow sloth"))
+        self.assertTrue(ret_str(None, "!=", "The slippery blue whale"))
+
+        with self.assertRaises(FilterParseError):
+            ret_str(None, "%", "The quick brown fox")
+
+        self.assertTrue(ret_list(None, "=", "ca?"))
+        self.assertFalse(ret_list(None, "=", "cat"))
+        self.assertFalse(ret_list(None, "=", "cab"))
+
+        with self.assertRaises(FilterParseError):
+            ret_list(None, "&", "*")

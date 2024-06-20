@@ -22,8 +22,8 @@ def validate_int(func: Callable[[object], Any]) -> Callable[[object, str, str], 
     def ifunc(self, comp: str, rval: str) -> bool:
         try:
             rval = int(rval)
-        except TypeError:
-            raise FilterParseError(f"Invalid value {rval} for operator {lval}")
+        except ValueError:
+            raise FilterParseError(f"Invalid value {rval} for integer operation")
 
         lval = func(self)
 
@@ -53,7 +53,8 @@ def validate_glob(func: Callable[[object], str]) -> Callable[[object, str, str],
     not specify a valid comparison operation, raises a FilterParseError."""
     
     def gfunc(self, comp: str, rval: str) -> bool:
-        lval = func(self)
+        lval = func(self).lower()
+        rval = rval.lower()
 
         if comp == '=':
             return fnmatch(lval, rval)
@@ -74,9 +75,10 @@ def validate_glob_list(func: Callable[[object], List[str]]) -> Callable[[object,
 
     def glfunc(self, comp: str, rval: str) -> bool:
         lval = func(self)
+        rval = rval.lower()
 
         if comp == '=':
-            return all(map(lambda x: fnmatch(x, rval), lval))
+            return all(map(lambda x: fnmatch(x.lower(), rval), lval))
         else:
             raise FilterParseError(f"Invalid comparator for type str: {comp}")
 
