@@ -549,10 +549,11 @@ def auto_type_convert(value):
         return value
 
     # Probably a string?
-    try:
-        return float(value)
-    except ValueError:
-        pass
+    if '.' in value:
+        try:
+            return float(value)
+        except ValueError:
+            pass
 
     try:
         return int(value)
