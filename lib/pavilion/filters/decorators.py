@@ -83,3 +83,16 @@ def validate_glob_list(func: Callable[[object], List[str]]) -> Callable[[object,
             raise FilterParseError(f"Invalid comparator for type str: {comp}")
 
     return glfunc
+
+def validate_str_list(func: Callable[[object], List[str]]) -> Callable[[object, str, str], bool]:
+    
+    def slfunc(self, comp: str, rval: str) -> bool:
+        lval = map(lambda x: x.lower(), func(self))
+
+        if comp == '=':
+            return any(map(lambda x: x == rval.lower(), lval))
+        else:
+            raise FilterParseError(f"Invalid comparator for type str: {comp}")
+
+    return slfunc
+

@@ -3,11 +3,11 @@ from enum import Enum, auto
 from itertools import starmap
 from fnmatch import fnmatchcase
 from datetime import datetime
-from typing import List, Dict, Union, Optional, Any
+from typing import List, Dict, Union, Optional, Any, Callable
 
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.series import SeriesInfoBase, get_all_started, STATUS_FN
+from pavilion.series import SeriesInfoBase, SeriesInfo, get_all_started, STATUS_FN
 from pavilion.variables import VariableSetManager
 
 
@@ -17,7 +17,7 @@ class TargetType(Enum):
 
 
 def get_node_list(info: Union[Dict, SeriesInfoBase]) -> Optional[List[str]]:
-   info = MaybeDict(info)
+   info = MonadicDict(info)
 
    return info.get('results').get('sched').get('test_node_list').resolve()
 
@@ -48,7 +48,7 @@ ADDITIONAL_ATTRS = {
 }
     
 
-class MaybeDict:
+class MonadicDict:
     """Utility class for getting values from a nested dict. This
     prevents having to repeatedly check whether each key exists
     in the underlying dictionary."""
@@ -57,13 +57,13 @@ class MaybeDict:
         self.value = mdict
         self.default = default
 
-    def get(self, key) -> 'MaybeDict':
+    def get(self, key: Any) -> 'MonadicDict':
         if isinstance(self.value, dict):
-            return MaybeDict(self.value.get(key, self.default))
+            return MonadicDict(self.value.get(key, self.default))
 
         # Note: this could cause some unexpected behavior when
         # assigning new values, but deep copying and creating
-        # a new MaybeDict is potentially expensive
+        # a new MonadicDict is potentially expensive
         return self
 
     def resolve(self) -> Any:
@@ -87,52 +87,35 @@ class StateAggregate:
 
         return len(self.node_list)
 
-    def name_matches(self, pattern: str) -> bool:
-        test_name = self.get('name', '').split('.')
-        name_patterns = pattern.split('.')
+    def name_matches(self, name_glob: str) -> bool:
+        name_comps = self.get('name', '').split('.')
+        glob_comps = name_glob.split('.')
 
-        are_matches = starmap(fnmatchcase, zip(test_name, name_patterns))
+        matches = starmap(fnmatchcase, zip(name_comps, glob_comps))
 
-        return all(are_matches)
+        return all(matches)
 
-    def user_matches(self, user: str) -> bool:
-        if self.user is None:
-            return False
-
-        return self.user == user
+    def user_matches(self, user_glob: str) -> bool:
+        return self.user is not None and fnmatchcase(self.user, user_glob)
 
     def sys_name_matches(self, sys_name: str) -> bool:
-        if self.sys_name is None:
-            return False
+        return self.user is not None and self.sys_name == sys_name
 
-        return self.sys_name == sys_name
+    def nodes_match(self, node_glob: str) -> bool:
+        matches = map(lambda x: fnmatchcase(x, node_glob), self.node_list)
 
-    def nodes_match(self, node_range: str) -> bool:
-        for node in self.node_list:
-            if not fnmatch.fnmatch(node, node_range):
-                return False
-
-        return True
+        return any(matches)
 
     @property
     def passed(self) -> bool:
-        if self.result is None:
-            return False
-        
-        return self.result == TestRun.PASS
+        return self.result is not None and self.result == TestRun.PASS
 
     @property
     def failed(self) -> bool:
-        if self.result is None:
-            return False
-
-        return self.result == TestRun.FAIL
+        return self.result is not None and self.result == TestRun.FAIL
 
     def has_error(self) -> bool:
-        if self.result is None:
-            return False
-
-        return self.result == TestRun.ERROR
+        return self.result is not None and self.result == TestRun.ERROR
 
     def has_state(self, state: str) -> bool:
         return state in map(lambda x: x.state, self.state_history)
@@ -159,14 +142,14 @@ class FilterAggregator:
             self.info = info
             self.status_file = status_file
             self.type = target_type
-            self.path = Path(self.info.get('path'))
+            self.path = Path(self.info.get("path"))
 
     def _load_node_list(self) -> Optional[List[str]]:
         var_path = self.path / 'variables'
 
         if var_path.exists():
             var_dict = VariableSetManager.load(self.path / 'variables')
-            var_dict = MaybeDict(vars.as_dict())
+            var_dict = MonadicDict(vars.as_dict())
 
             return var_dict.get('sched').get('test_node_list').resolve()
 
@@ -193,19 +176,26 @@ class FilterAggregator:
         return agg
 
 
-def aggregate_transform(path: Path, target_type: TargetType) -> StateAggregate:
+def aggregate_transform(path: Path, status_class: TestStatusFile) -> StateAggregate:
     """Transform the given path into a StateAggregate object. Intended to be
     passed as a transform to dir_db functions (partially applied to the
     appropriate target type)."""
 
     attrs = TestAttributes(path)
-    info = SeriesInfo(..., path) # TODO: Figure out what needs to be passed here
+    status_file = status_class(path)
 
-    if target_type == TargetType.TEST:
-        status_file = TestStatusFile(path)
-    else:
-        status_file = SeriesStatusFile(path)
-
-    agg = FilterAggregator(attrs, info, status_file, VariableSetManager)
+    agg = FilterAggregator(attrs, status_file, VariableSetManager)
 
     return agg.aggregate()
+
+
+def make_aggregate_transform(target_type: TargetType) -> Callable[[Path], StateAggregate]:
+    if target_type == TargetType.TEST:
+       status_file = TestStatusFile 
+    else:
+        status_file = SeriesStatusFile
+
+    def path_to_aggregate(path: Path) -> StateAggregate:
+        return aggregate_transform(path, status_file)
+
+    return path_to_aggregate
