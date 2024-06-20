@@ -2,16 +2,14 @@
 to dir_db commands."""
 
 import argparse
-import datetime as dt
 import fnmatch
-import re
 from functools import partial
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Callable, List, Union, Optional
 
 from lark import Lark
-from lark.exceptions import UnexpectedEOF
+from lark.exceptions import UnexpectedInput
 
 from pavilion import series
 from pavilion import utils
@@ -54,7 +52,7 @@ HELP_TEXT = (
             "  NOT                denoted by a '!'. \n\n"
             "List of accepted arguments: \n"
             "  COMPLETE           Include only completed test runs. \n"
-            "  has_state:STATE    Include only {} who have had the \n"
+            "  has_state=STATE    Include only {} who have had the \n"
             "                       given state at some point. \n"
             "  name=NAME          Include only tests/series that match this name. \n"
             "                       Globbing wildcards are allowed. \n"
@@ -71,7 +69,7 @@ HELP_TEXT = (
             "                       Both < and > comparators are accepted. \n"
             "  partition=PARTITION \n"
             "                     Include only {} that match this partition. \n"
-            "  nodes:NODES        Include only {} that match NODES. Wildcards and ranges defined \n"
+            "  nodes=NODES        Include only {} that match NODES. Wildcards and ranges defined \n"
             "                       by brackets (i.e., node[001-005]) are allowed. \n"
             "  num_nodes>NUM_NODES \n"
             "                     Include only {} that have greater or less than NUM_NODES. \n"
@@ -253,10 +251,10 @@ def get_sort_opts(
 
     return sortf, sort_ascending
 
-def parse_query(query: str) -> Callable[[Union[Dict, StateAggregate]], bool]:
+def parse_query(query: str) -> Callable[[StateAggregate], bool]:
     try:
         tree = filter_parser.parse(query)
-    except UnexpectedEOF:
+    except UnexpectedInput:
         raise FilterParseError(f"Invalid syntax in filter query: {query}")
 
     return lambda x: FilterTransformer(x).transform(tree)

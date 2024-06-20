@@ -75,11 +75,12 @@ _iso_minutes: /\d{2}/
 _iso_seconds: NUMBER
     
 unit: "second" -> second
-         | "minute" -> minute
-         | "hour" -> hour
-         | "day" -> day
-         | "month" -> month
-         | "year" -> year
+    | "minute" -> minute
+    | "hour" -> hour
+    | "day" -> day
+    | "week" -> week
+    | "month" -> month
+    | "year" -> year
 
 %import common.CNAME
 %import common.INT

@@ -15,7 +15,8 @@ from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
 from pavilion.filters import (FilterAggregator, TargetType, StateAggregate,
-    FilterParseError, validate_int, validate_glob, validate_glob_list)
+    FilterParseError, validate_int, validate_glob, validate_glob_list,
+    validate_str_list)
 
 class FiltersTest(PavTestCase):
 
@@ -349,8 +350,12 @@ class FiltersTest(PavTestCase):
             return "The quick brown fox"
 
         @validate_glob_list
-        def ret_list(_):
+        def ret_glob_list(_):
             return ["cat", "car", "cad", "cam"]
+
+        @validate_str_list
+        def ret_str_list(_):
+            return ["Kings", "play", "chess", "on", "fine", "glass", "sets"]
 
         self.assertTrue(ret_int(None, "=", "42"))
         self.assertFalse(ret_int(None, "=", "40"))
@@ -370,9 +375,15 @@ class FiltersTest(PavTestCase):
         with self.assertRaises(FilterParseError):
             ret_str(None, "%", "The quick brown fox")
 
-        self.assertTrue(ret_list(None, "=", "ca?"))
-        self.assertFalse(ret_list(None, "=", "cat"))
-        self.assertFalse(ret_list(None, "=", "cab"))
+        self.assertTrue(ret_glob_list(None, "=", "ca?"))
+        self.assertFalse(ret_glob_list(None, "=", "cat"))
+        self.assertFalse(ret_glob_list(None, "=", "cab"))
 
         with self.assertRaises(FilterParseError):
-            ret_list(None, "&", "*")
+            ret_glob_list(None, "&", "*")
+
+        self.assertTrue(ret_str_list(None, "=", "CHESS"))
+        self.assertFalse(ret_str_list(None, "=", "parcheesi"))
+        
+        with self.assertRaises(FilterParseError):
+            ret_str_list(None, "💩", "glass") 
