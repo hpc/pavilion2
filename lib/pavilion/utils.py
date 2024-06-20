@@ -550,12 +550,12 @@ def auto_type_convert(value):
 
     # Probably a string?
     try:
-        return int(value)
+        return float(value)
     except ValueError:
         pass
 
     try:
-        return float(value)
+        return int(value)
     except ValueError:
         pass
 
