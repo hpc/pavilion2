@@ -247,7 +247,7 @@ class FiltersTest(PavTestCase):
         test2 = self._quick_test()
         test2.run()
 
-        t_filter = filters.parse_query("state==RUN_DONE")
+        t_filter = filters.parse_query("state=RUN_DONE")
         t_filter2 = filters.parse_query("has_state=RUNNING")
 
         info = SeriesInfo(test._pav_cfg, test.path) # Is this kosher?

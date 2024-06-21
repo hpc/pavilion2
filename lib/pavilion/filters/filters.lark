@@ -1,55 +1,39 @@
-?query: argument_binding
-    |  expression
-
 ?expression: comp_expression
         |    binary_expression
         |    unary_expression
         |    keyword
 
-?comp_expression: CNAME str_comparator CNAME
-          |  CNAME num_comparator num_value
+?comp_expression: lval comparator rval
 
 ?binary_expression: expression binary_connective expression
 
 ?unary_expression: unary_connective expression
 
-argument_binding: parameter "=" regex
-
-?regex: /.+/
+arbitrary_string: /.+/
 
 keyword: "COMPLETE"i -> complete
-        | "ALL_STARTED"i -> all_started
-        | "PASSED"i -> passed
-        | "FAILED"i -> failed
-        | "RESULT_ERROR"i -> result_error
+    |    "ALL_STARTED"i -> all_started
+    |    "PASSED"i -> passed
+    |    "FAILED"i -> failed
+    |    "RESULT_ERROR"i -> result_error
 
-parameter: "has_state"i -> has_state
-        | "name"i -> name
-        | "partition"i -> partition
-        | "nodes"i -> nodes
-        | "sys_name"i -> sys_name
-        | "user"i -> user
+lval: CNAME
 
-property: "created" -> created
-        | "finished" -> finished
-        | "num_nodes" -> num_nodes
+?rval: num_value | arbitrary_string
 
-?num_value: time | NUMBER
-
-range : "[" INT ["-" INT] "]"
+?num_value: time | INT
 
 binary_connective: WS -> f_and
                 |  "|" -> f_or
 
 unary_connective: "!" -> f_not
 
-str_comparator: "==" -> eq
-
-num_comparator: "<" -> lt
-              | ">" -> gt
-              | "<=" -> lteq
-              | ">=" -> gteq
-              | "==" -> eq
+comparator: "<" -> lt
+          | ">" -> gt
+          | "<=" -> lte
+          | ">=" -> gte
+          | "=" -> eq
+          | "!=" -> neq
 
 ?time: partial_iso
     | duration
@@ -82,7 +66,7 @@ unit: "second" -> second
     | "month" -> month
     | "year" -> year
 
-%import common.CNAME
 %import common.INT
 %import common.NUMBER
 %import common.WS
+%import common.CNAME

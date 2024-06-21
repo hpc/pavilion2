@@ -21,6 +21,7 @@ from pavilion import variables
 
 from .transformer import FilterTransformer
 from .aggregator import StateAggregate
+from .errors import FilterParseError
 
 GRAMMAR_PATH = Path(__file__).parent / 'filters.lark'
 
@@ -81,12 +82,8 @@ HELP_TEXT = (
             "  user=USER          Include only {} started by this user. \n")
 
 
-class FilterParseError(Exception):
-    def __init__(self, msg: str):
-        super().__init__(msg)
+filter_parser = Lark.open(GRAMMAR_PATH, start="expression")
 
-
-filter_parser = Lark.open(GRAMMAR_PATH, start="query")
 
 def sort_func(test, choice):
     """Use partial to reduce inputs and use as key in sort function.
@@ -96,6 +93,7 @@ def sort_func(test, choice):
     """
 
     return test[choice]
+
 
 def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                          default_overrides: Dict[str, Any] = None,
@@ -227,6 +225,7 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
                   .format(defaults['sort_by']))
         )
 
+
 def get_sort_opts(
         sort_name: str,
         stype: str) -> (Callable[[Path], Any], bool):
@@ -250,6 +249,7 @@ def get_sort_opts(
     sortf = partial(sort_func, choice=sort_key)
 
     return sortf, sort_ascending
+
 
 def parse_query(query: str) -> Callable[[StateAggregate], bool]:
     try:
