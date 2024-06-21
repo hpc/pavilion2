@@ -339,7 +339,7 @@ class FiltersTest(PavTestCase):
         with self.assertRaises(FilterParseError):
             test_filter = filters.parse_query("garbage")
             
-    def test_decorators(self):
+    def test_validators(self):
         
         @validate_int
         def ret_int(_):
