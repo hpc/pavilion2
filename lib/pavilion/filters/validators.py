@@ -2,9 +2,10 @@
 and determining which functions to dispatch"""
 
 from fnmatch import fnmatch
+from itertools import starmap
 from typing import Callable, List, TypeVar
 
-from .filters import FilterParseError
+from .errors import FilterParseError
 
 
 T = TypeVar("T")
@@ -36,7 +37,7 @@ def make_validator(rtype: Callable[[str], T],
     return validate
 
 
-def comp_int(lval: int, comp: str, rval: int) -> bool:
+def comp_num(lval: int, comp: str, rval: int) -> bool:
     if comp == '=':
         return lval == rval
     if comp == '!=':
@@ -50,7 +51,7 @@ def comp_int(lval: int, comp: str, rval: int) -> bool:
     if comp == '>=':
         return lval >= rval
 
-    raise FilterParseError(f"Invalid comparator {comp} for type int.")
+    raise FilterParseError(f"Invalid comparator {comp} for numerical type.")
 
 
 def comp_glob(lval: str, comp: str, rval: str) -> bool:
@@ -89,7 +90,37 @@ def comp_str_list(lval: List[str], comp: str, rval: str) -> bool:
     return rval in lval
 
 
-validate_int = make_validator(int, comp_int)
+def comp_str(lval: str, comp: str, rval: str) -> bool:
+    if comp == '=':
+        return lval == rval
+    if comp == '!=':
+        return lval != rval
+
+    raise FilterParseError(f"Invalid comparator {comp} for type str.")
+
+
+def comp_name_glob(lval: str, comp: str, rval: str) -> bool:
+    
+    if comp not in ("=", "!="):
+        raise FilterParseError(f"Invalid comparator {comp} for name glob.")
+
+    lval = lval.upper() # fnmatch is case sensitive, despite docs
+    rval = rval.upper()
+
+    name_comps = lval.split(".")
+    pattern_comps = rval.split(".")
+
+    matches = starmap(fnmatch, zip(name_comps, pattern_comps))
+
+    if comp == "=":
+        return all(matches)
+    else:
+        return not all(matches)
+
+validate_int = make_validator(int, comp_num)
 validate_glob = make_validator(ID, comp_glob)
 validate_glob_list = make_validator(ID, comp_glob_list)
 validate_str_list = make_validator(ID, comp_str_list)
+validate_datetime = make_validator(ID, comp_num)
+validate_str = make_validator(ID, comp_str)
+validate_name_glob = make_validator(ID, comp_name_glob)

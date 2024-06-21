@@ -1,9 +1,12 @@
 from datetime import date, time, datetime, timedelta
 from typing import Any, Callable, Dict, Union, List
 
-from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile
+from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile, TestStatusInfo
 
 from .aggregator import StateAggregate
+from .validators import (validate_int, validate_glob, validate_glob_list, validate_str_list,
+    validate_datetime, validate_str, validate_name_glob)
+from .errors import FilterParseError
 
 from lark import Transformer, Discard, Token
 
@@ -11,12 +14,21 @@ from lark import Transformer, Discard, Token
 MICROSECS_PER_SEC = 10**6
 
 
-FILTER_FUNCS = {
-    'has_state': lambda x, y: x.has_state(y.upper()),
-    'name': lambda x, y: x.name_matches(y),
-    'user': lambda x, y: x.user_matches(y),
-    'sys_name': lambda x, y: x.sys_name_matches(y),
-}
+def comp_str_to_symbol(comp_str: str) -> str:
+    """Convert an alphabetic name for a comparator into the corresponding symbol."""
+
+    if comp_str == 'eq':
+        return '='
+    if comp_str == 'neq':
+        return '!='
+    if comp_str == 'lt':
+        return '<'
+    if comp_str == 'gt':
+        return '>'
+    if comp_str == 'lte':
+        return '<='
+    if comp_str == 'gte':
+        return '>='
 
 
 class FilterTransformer(Transformer):
@@ -81,27 +93,6 @@ class FilterTransformer(Transformer):
         elif connective == f_or:
             return operand1 or operand2
 
-    def comp_expression(self, exp: List) -> bool:
-        operand1, operation, operand2 = tuple(exp)
-
-        operation = operation.data
-
-        if operation == 'eq':
-            return operand1 == operand2
-        elif operation == 'lt':
-            return operand1 < operand2
-        elif operation == 'gt':
-            return operand1 > operand2
-        elif operation == 'lteq':
-            return operand1 <= operand2
-        elif operation == 'gteq':
-            return operand >= operand2
-
-    def argument_binding(self, arg_bind) -> bool:
-        ffunc, val = arg_bind
-
-        return FILTER_FUNCS[ffunc.data](self.aggregate, str(val))
-
     def passed(self, _) -> bool:
         return self.aggregate.get("passed")
 
@@ -117,14 +108,57 @@ class FilterTransformer(Transformer):
     def all_started(self, _) -> bool:
         return self.aggregate.get("all_started")
 
-    def CNAME(self, word) -> Union[Callable[[Any], Any]]:
-        word = str(word)
+    def lval(self, val: List[str]) -> Callable:
+        func_name = f"_{val[0]}"
 
-        if word in FILTER_FUNCS:
-            return FILTER_FUNCS[word.lower()](self.aggregate)
+        if not hasattr(self, func_name):
+            raise FilterParseError(f"Invalid selector: {val[0]}")
 
-        # if not a recognized property, treat it as a literal string
-        return self.aggregate.get(word, word)
+        return getattr(self, func_name)
+
+    def comp_expression(self, exp: List) -> bool:
+        func, comp, rval = tuple(exp)
+        comp = comp_str_to_symbol(comp.data)
+
+        return func(comp, rval)
+
+    def arbitrary_string(self, astr: List[Token]) -> str:
+        return str(astr[0])
+
+    def CNAME(self, cname: Token) -> str:
+        return str(cname)
 
     def NUMBER(self, num: Token) -> float:
         return float(num)
+
+    @validate_int
+    def _num_nodes(self) -> int:
+        return self.aggregate.num_nodes
+
+    @validate_name_glob
+    def _name(self) -> str:
+        return self.aggregate.get("name")
+
+    @validate_glob
+    def _user(self) -> str:
+        return self.aggregate.get("user")
+
+    @validate_glob
+    def _sys_name(self) -> str:
+        return self.aggregate.get("sys_name")
+
+    @validate_glob_list
+    def _nodes(self) -> List[str]:
+        return self.aggregate.get("nodes")
+
+    @validate_str_list
+    def _has_state(self) -> List[TestStatusInfo]:
+        return map(lambda x: x.state, self.aggregate.get("state_history"))
+
+    @validate_datetime
+    def _created(self) -> datetime:
+        return self.aggregate.get("created")
+
+    @validate_str
+    def _state(self) -> str:
+        return self.aggregate.get("state")
