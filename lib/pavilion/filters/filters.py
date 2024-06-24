@@ -82,7 +82,7 @@ HELP_TEXT = (
             "  user=USER          Include only {} started by this user. \n")
 
 
-filter_parser = Lark.open(GRAMMAR_PATH, start="expression")
+filter_parser = Lark.open(GRAMMAR_PATH, start="expr")
 
 
 def sort_func(test, choice):

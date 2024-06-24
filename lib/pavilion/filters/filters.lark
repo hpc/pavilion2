@@ -1,39 +1,30 @@
-?expression: comp_expression
-        |    binary_expression
-        |    unary_expression
-        |    keyword
+?expr: or_expr
 
-?comp_expression: lval comparator rval
+or_expr: and_expr ( OR and_expr )*
+and_expr: not_expr ( AND not_expr )*
+not_expr: NOT? (comp_expr | special)
+comp_expr: keyword (LT | GT | LT_EQ | GT_EQ | EQ | NOT_EQ) literal
 
-?binary_expression: expression binary_connective expression
+special: COMPLETE
+       | ALL_STARTED
+       | PASSED
+       | FAILED
+       | RESULT_ERROR
 
-?unary_expression: unary_connective expression
+keyword: NAME
+       | STATE
+       | USER
+       | SYS_NAME
+       | HAS_STATE
+       | CREATED
+       | FINISHED
+       | PARTITION
+       | NODES
+       | NUM_NODES
 
-arbitrary_string: /.+/
-
-keyword: "COMPLETE"i -> complete
-    |    "ALL_STARTED"i -> all_started
-    |    "PASSED"i -> passed
-    |    "FAILED"i -> failed
-    |    "RESULT_ERROR"i -> result_error
-
-lval: CNAME
-
-?rval: num_value | arbitrary_string
-
-?num_value: time | INT
-
-binary_connective: WS -> f_and
-                |  "|" -> f_or
-
-unary_connective: "!" -> f_not
-
-comparator: "<" -> lt
-          | ">" -> gt
-          | "<=" -> lte
-          | ">=" -> gte
-          | "=" -> eq
-          | "!=" -> neq
+?literal: time
+       | INT
+       | GLOB
 
 ?time: partial_iso
     | duration
@@ -66,7 +57,36 @@ unit: "second" -> second
     | "month" -> month
     | "year" -> year
 
+LT: "<"
+GT: ">"
+LT_EQ: "<="
+GT_EQ: ">="
+EQ: "="
+NOT_EQ: "!="
+
+AND: "AND"i
+OR: "OR"i
+NOT: "NOT"i
+
+COMPLETE: "COMPLETE"i
+ALL_STARTED: "ALL_STARTED"i
+PASSED: "PASSED"i
+FAILED: "FAILED"i
+RESULT_ERROR: "RESULT_ERROR"i
+
+NAME: "NAME"i
+STATE: "STATE"i
+USER: "USER"i
+SYS_NAME: "SYS_NAME"i
+HAS_STATE: "HAS_STATE"i
+CREATED: "CREATED"i
+FINISHED: "FINISHED"i
+PARTITION: "PARTITION"i
+NODES: "NODES"i
+NUM_NODES: "NUM_NODES"i
+
+GLOB: /.+/
+
 %import common.INT
 %import common.NUMBER
 %import common.WS
-%import common.CNAME

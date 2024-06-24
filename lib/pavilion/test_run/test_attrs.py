@@ -34,7 +34,7 @@ class TestAttributes:
 
     **WARNING**
 
-    This object is not thread or any sort of multi-processing safe. It relies
+    This object is not thread or multi-processing safe (for writes). It relies
     on the expectation that the test lifecycle should generally mean there's
     only one instance of a test around that might change these values at any
     given time. The upside is that it's so unsafe, problems reveal themselves

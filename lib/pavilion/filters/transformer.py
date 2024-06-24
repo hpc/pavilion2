@@ -13,22 +13,9 @@ from lark import Transformer, Discard, Token
 
 MICROSECS_PER_SEC = 10**6
 
-
-def comp_str_to_symbol(comp_str: str) -> str:
-    """Convert an alphabetic name for a comparator into the corresponding symbol."""
-
-    if comp_str == 'eq':
-        return '='
-    if comp_str == 'neq':
-        return '!='
-    if comp_str == 'lt':
-        return '<'
-    if comp_str == 'gt':
-        return '>'
-    if comp_str == 'lte':
-        return '<='
-    if comp_str == 'gte':
-        return '>='
+SPECIAL_FUNCS = {
+    'RESULT_ERROR': lambda x: x.has_error()
+}
 
 
 class FilterTransformer(Transformer):
@@ -36,6 +23,46 @@ class FilterTransformer(Transformer):
     def __init__(self, agg: Union[StateAggregate, Dict]):
         super().__init__()
         self.aggregate = agg
+
+    def or_expr(self, expr: List[Any]) -> bool:
+        if len(expr) == 1:
+            return expr[0]
+
+        return expr[0] or expr[2]
+
+    def and_expr(self, expr: List[Any]) -> bool:
+        if len(expr) == 1:
+            return expr[0]
+
+        return expr[0] and expr[2]
+
+    def not_expr(self, expr: List[Any]) -> bool:
+        if len(expr) == 1:
+            return expr[0]
+
+        return not expr[1]
+
+    def comp_expr(self, expr: List[Any]) -> bool:
+        func_name, operator, rval = tuple(expr)
+
+        return getattr(self, func_name)(operator, rval)
+
+    def special(self, special: List[Token]) -> bool:
+        name = str(special[0])
+        func = SPECIAL_FUNCS.get(name, lambda x: getattr(x, name))
+
+        return func(self.aggregate)
+
+    def keyword(self, kw: List[Token]) -> str:
+        return f"_{str(kw[0]).lower()}"
+
+    def duration(self, duration: List[Token]) -> datetime:
+        duration = tuple(duration)
+        num, unit = duration
+        num = int(num)
+        unit = str(unit.data) + 's'
+
+        datetime.now() - timedelta(**{unit: num})
     
     def partial_iso_date(self, iso: List[Token]) -> date:
         iso = tuple(map(int, iso))
@@ -68,68 +95,35 @@ class FilterTransformer(Transformer):
 
         return iso[0]
 
-    def INT(self, INT: Token) -> int:
-        return int(INT)
+    def GLOB(self, glob: Token) -> str:
+        return str(glob)
+
+    def NUMBER(self, num: Token) -> float:
+        return float(num)
+
+    def INT(self, num: Token) -> int:
+        return int(num)
 
     def WS(self, ws) -> Discard:
         return Discard
 
-    def duration(self, duration: List[Token]) -> datetime:
-        duration = tuple(duration)
-        num, unit = duration
-        num = int(num)
-        unit = str(unit.data) + 's'
+    def LT(self, _) -> str:
+        return "<"
 
-        datetime.now() - timedelta(**{unit: num})
+    def GT(self, _) -> str:
+        return ">"
 
-    def unary_expression(self, exp: List) -> bool:
-        return not exp[1]
+    def LT_EQ(self, _) -> str:
+        return "<="
 
-    def binary_expression(self, exp: List) -> bool:
-        operand1, connective, operand2 = tuple(exp)
+    def GT_EQ(self, _) -> str:
+        return ">="
 
-        if connective == f_and:
-            return operand1 and operand2
-        elif connective == f_or:
-            return operand1 or operand2
+    def EQ(self, _) -> str:
+        return  "="
 
-    def passed(self, _) -> bool:
-        return self.aggregate.get("passed")
-
-    def failed(self, _) -> bool:
-        return self.aggregate.get("failed")
-
-    def result_error(self, _) -> bool:
-        return self.aggregate.has_error()
-
-    def complete(self, _) -> bool:
-        return self.aggregate.get("complete")
-
-    def all_started(self, _) -> bool:
-        return self.aggregate.get("all_started")
-
-    def lval(self, val: List[str]) -> Callable:
-        func_name = f"_{val[0]}"
-
-        if not hasattr(self, func_name):
-            raise FilterParseError(f"Invalid selector: {val[0]}")
-
-        return getattr(self, func_name)
-
-    def comp_expression(self, exp: List) -> bool:
-        func, comp, rval = tuple(exp)
-        comp = comp_str_to_symbol(comp.data)
-
-        return func(comp, rval)
-
-    def arbitrary_string(self, astr: List[Token]) -> str:
-        return str(astr[0])
-
-    def CNAME(self, cname: Token) -> str:
-        return str(cname)
-
-    def NUMBER(self, num: Token) -> float:
-        return float(num)
+    def NOT_EQ(self, _) -> str:
+        return "!="
 
     @validate_int
     def _num_nodes(self) -> int:
