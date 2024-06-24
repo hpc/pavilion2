@@ -6,14 +6,15 @@ from itertools import starmap
 from typing import Callable, List, TypeVar
 
 from .errors import FilterParseError
+from .parse_time import parse_time
 
 
 T = TypeVar("T")
 ID = lambda x: x
 
 
-def make_validator(rtype: Callable[[str], T],
-    comp_func: Callable[[T, str, T], bool]) -> Callable[[object, str, str], bool]:
+def make_validator(comp_func: Callable[[T, str, T], bool],
+                    rtype: Callable[[str], T] = ID) -> Callable[[object, str, str], bool]:
     """Makes a decorator that validates a comparison expression, ensuring that its
     righthand operand is of type rtype, produces the lefthand operand by calling
     the decorated function (intended to be a method of FilterTransform), then
@@ -117,10 +118,11 @@ def comp_name_glob(lval: str, comp: str, rval: str) -> bool:
     else:
         return not all(matches)
 
-validate_int = make_validator(int, comp_num)
-validate_glob = make_validator(ID, comp_glob)
-validate_glob_list = make_validator(ID, comp_glob_list)
-validate_str_list = make_validator(ID, comp_str_list)
-validate_datetime = make_validator(ID, comp_num)
-validate_str = make_validator(ID, comp_str)
-validate_name_glob = make_validator(ID, comp_name_glob)
+
+validate_int = make_validator(comp_num, int)
+validate_glob = make_validator(comp_glob)
+validate_glob_list = make_validator(comp_glob_list)
+validate_str_list = make_validator(comp_str_list)
+validate_datetime = make_validator(comp_num, parse_time)
+validate_str = make_validator(comp_str)
+validate_name_glob = make_validator(comp_name_glob)
