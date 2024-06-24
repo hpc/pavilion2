@@ -16,7 +16,7 @@ from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
 from pavilion.filters import (FilterAggregator, TargetType, StateAggregate,
     FilterParseError, validate_int, validate_glob, validate_glob_list,
-    validate_str_list)
+    validate_str_list, validate_datetime)
 
 class FiltersTest(PavTestCase):
 
@@ -357,6 +357,10 @@ class FiltersTest(PavTestCase):
         def ret_str_list(_):
             return ["Kings", "play", "chess", "on", "fine", "glass", "sets"]
 
+        @validate_datetime
+        def ret_datetime(_):
+            return datetime.now()
+
         self.assertTrue(ret_int(None, "=", "42"))
         self.assertFalse(ret_int(None, "=", "40"))
         self.assertTrue(ret_int(None, ">=", "0"))
@@ -387,3 +391,13 @@ class FiltersTest(PavTestCase):
         
         with self.assertRaises(FilterParseError):
             ret_str_list(None, "💩", "glass") 
+
+        self.assertTrue(ret_datetime(None, ">", "1945-09-06"))
+        self.assertFalse(ret_datetime(None, "<", "1945-11-11T11:00"))
+        self.assertTrue(ret_datetime(None, ">", "5 minutes"))
+        self.assertTrue(ret_datetime(None, ">=", "2seconds"))
+        self.assertFalse(ret_datetime(None, "=", "-17weeks"))
+        self.assertTrue(ret_datetime(None,  "!=", "0 days"))
+
+        with self.assertRaises(FilterParseError):
+            ret_datetime(None, "=", "Long ago in a distant land...")

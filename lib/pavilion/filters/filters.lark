@@ -22,40 +22,8 @@ keyword: NAME
        | NODES
        | NUM_NODES
 
-?literal: time
-       | INT
-       | GLOB
-
-?time: partial_iso
-    | duration
-
-duration: INT [WS] unit ["s"]
-
-partial_iso: partial_iso_date ("T" partial_iso_time)?
-
-partial_iso_date: _iso_year [(("-" _iso_month) [("-" _iso_day)])]
-
-partial_iso_time: _iso_hour [((":" _iso_minutes) [(":" _iso_seconds)])]
-
-_iso_year: /\d{4}/
-
-_iso_month: /\d{2}/
-
-_iso_day: /\d{2}/
-
-_iso_hour: /\d{2}/
-
-_iso_minutes: /\d{2}/
-
-_iso_seconds: NUMBER
-    
-unit: "second" -> second
-    | "minute" -> minute
-    | "hour" -> hour
-    | "day" -> day
-    | "week" -> week
-    | "month" -> month
-    | "year" -> year
+?literal: INT
+        | GLOB
 
 LT: "<"
 GT: ">"

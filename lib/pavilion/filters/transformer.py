@@ -56,45 +56,6 @@ class FilterTransformer(Transformer):
     def keyword(self, kw: List[Token]) -> str:
         return f"_{str(kw[0]).lower()}"
 
-    def duration(self, duration: List[Token]) -> datetime:
-        duration = tuple(duration)
-        num, unit = duration
-        num = int(num)
-        unit = str(unit.data) + 's'
-
-        datetime.now() - timedelta(**{unit: num})
-    
-    def partial_iso_date(self, iso: List[Token]) -> date:
-        iso = tuple(map(int, iso))
-
-        month = 1
-        day = 1
-
-        year = iso[0]
-        
-        if len(iso) > 1:
-            month = iso[1]
-        if len(iso) > 2:
-            day = iso[2] 
-
-        return date(year, month, day)
-
-    def partial_iso_time(self, iso: List[Token]) -> time:
-        if len(iso) == 3:
-            hrs, mins, secs = tuple(iso)
-            microsecs = (float(secs) - int(secs)) * MICROSECS_PER_SEC
-            iso.append(microsecs)
-
-        iso = tuple(map(int, iso))
-
-        return time(*iso)
-
-    def partial_iso(self, iso: List[Union[date, time]]) -> Union[date, time, datetime]:
-        if len(iso) == 2:
-            return datetime.combine(iso[0], iso[1])
-
-        return iso[0]
-
     def GLOB(self, glob: Token) -> str:
         return str(glob)
 
