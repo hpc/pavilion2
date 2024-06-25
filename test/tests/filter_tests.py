@@ -150,7 +150,7 @@ class FiltersTest(PavTestCase):
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
         inv_opt_set = [
-            '!complete',
+            'not complete',
             'created<{}'.format((now - timedelta(minutes=2)).isoformat()),
         ]
 
@@ -211,7 +211,7 @@ class FiltersTest(PavTestCase):
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
         inv_opt_set = [
-            '!complete',
+            'not complete',
             'failed',
             'result_error',
             'created<{}'.format((now - timedelta(minutes=2)).isoformat())

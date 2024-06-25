@@ -14,7 +14,7 @@ from lark import Transformer, Discard, Token
 MICROSECS_PER_SEC = 10**6
 
 SPECIAL_FUNCS = {
-    'RESULT_ERROR': lambda x: x.has_error()
+    'result_error': lambda x: x.has_error()
 }
 
 
@@ -48,7 +48,7 @@ class FilterTransformer(Transformer):
         return getattr(self, func_name)(operator, rval)
 
     def special(self, special: List[Token]) -> bool:
-        name = str(special[0])
+        name = str(special[0]).lower()
         func = SPECIAL_FUNCS.get(name, lambda x: getattr(x, name))
 
         return func(self.aggregate)
