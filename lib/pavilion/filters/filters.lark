@@ -58,3 +58,6 @@ GLOB: /.+/
 %import common.INT
 %import common.NUMBER
 %import common.WS
+
+// Ignore all whitespace between tokens. 
+%ignore  / +(?=[^.])/
