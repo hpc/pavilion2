@@ -6,7 +6,7 @@ from typing import Callable, Any
 from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion.errors import TestRunError
-from pavilion.status_file import TestStatusInfo
+from pavilion.status_file import TestStatusInfo, TestStatusFile
 
 
 # pylint: disable=protected-access
@@ -330,6 +330,12 @@ class TestAttributes:
 
         if self.status is not None:
             return self.status.current()
+
+    def _get_status_file(self) -> TestStatusFile:
+        """Returns the test's status file. Defined to present an interface
+        consistent with that of SeriesInfo, for the purpose of filtering."""
+
+        return self.status
 
     build_only = basic_attr(
         name='build_only',
