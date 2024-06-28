@@ -24,7 +24,7 @@ class AttributeGetter:
     ALL_KEYS = SERIES_KEYS | TEST_KEYS
 
     GETTERS = {
-        'state_history': lambda x: x.status.history()
+        'state_history': lambda x: x._get_status_file().history()
     }
 
     KEY_TRANSFORMS = {
