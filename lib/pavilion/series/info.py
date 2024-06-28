@@ -341,6 +341,10 @@ class SeriesInfo(SeriesInfoBase):
 
         return test_info.sys_name
 
+    @property
+    def all_started(self):
+        return common.get_all_started(self.path)
+
     @classmethod
     def load(cls, pav_cfg: config.PavConfig, sid: str):
         """Find and load a series info object from a series id."""
