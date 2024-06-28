@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Union, List
 from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile, TestStatusInfo
 from pavilion.test_run import TestRun
 
-from .aggregator import AttributeGetter
+from .attr_getter import AttributeGetter
 from .validators import (validate_int, validate_glob, validate_glob_list, validate_str_list, validate_datetime, validate_str, validate_name_glob)
 from .errors import FilterParseError
 

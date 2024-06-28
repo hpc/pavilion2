@@ -20,7 +20,7 @@ from pavilion.test_run import TestRun
 from pavilion import variables
 
 from .transformer import FilterTransformer
-from .aggregator import AttributeGetter
+from .attr_getter import AttributeGetter
 from .errors import FilterParseError
 
 GRAMMAR_PATH = Path(__file__).parent / 'filters.lark'
