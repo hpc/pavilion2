@@ -15,7 +15,7 @@ from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
 from pavilion.filters import (AttributeGetter, FilterParseError, validate_int,
-    validate_glob, validate_glob_list, validate_str_list, validate_datetime)
+    validate_glob, validate_glob_list, validate_str_list, validate_datetime, parse_query)
 
 class FiltersTest(PavTestCase):
 
@@ -385,3 +385,11 @@ class FiltersTest(PavTestCase):
 
         with self.assertRaises(FilterParseError):
             ret_datetime(None, "=", "Long ago in a distant land...")
+
+    def test_filter_errors_on_bad_input(self):
+        with self.assertRaises(FilterParseError):
+            parse_query("")
+
+        with self.assertRaises(FilterParseError):
+            parse_query("sudo rm -rf /")
+
