@@ -20,7 +20,7 @@ from pavilion.test_run import TestRun
 from pavilion import variables
 
 from .transformer import FilterTransformer
-from .aggregator import StateAggregate
+from .aggregator import AttributeGetter
 from .errors import FilterParseError
 
 GRAMMAR_PATH = Path(__file__).parent / 'filters.lark'
@@ -251,7 +251,7 @@ def get_sort_opts(
     return sortf, sort_ascending
 
 
-def parse_query(query: str) -> Callable[[StateAggregate], bool]:
+def parse_query(query: str) -> Callable[[AttributeGetter], bool]:
     try:
         tree = filter_parser.parse(query)
     except UnexpectedInput:

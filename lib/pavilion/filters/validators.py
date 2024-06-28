@@ -7,14 +7,14 @@ from typing import Callable, List, TypeVar
 
 from .errors import FilterParseError
 from .parse_time import parse_time
+from .common import identity
 
 
 T = TypeVar("T")
-ID = lambda x: x
 
 
 def make_validator(comp_func: Callable[[T, str, T], bool],
-                    rtype: Callable[[str], T] = ID) -> Callable[[object, str, str], bool]:
+                    rtype: Callable[[str], T] = identity) -> Callable[[object, str, str], bool]:
     """Makes a decorator that validates a comparison expression, ensuring that its
     righthand operand is of type rtype, produces the lefthand operand by calling
     the decorated function (intended to be a method of FilterTransform), then

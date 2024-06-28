@@ -6,6 +6,7 @@ from typing import Callable, Any
 from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion.errors import TestRunError
+from pavilion.status_file import TestStatusInfo
 
 
 # pylint: disable=protected-access
@@ -69,7 +70,8 @@ class TestAttributes:
 
         self._complete = False
 
-        self._status_file = None
+        # This will be overwritten by TestRun
+        self.status = None
 
         self.results_path = self.path/'results.json'
         self._results = None
@@ -187,7 +189,7 @@ class TestAttributes:
 
         return attrs
 
-    LIST_ATTRS_EXCEPTIONS = ['complete']
+    LIST_ATTRS_EXCEPTIONS = ['complete', 'state']
 
     @classmethod
     def list_attrs(cls):
@@ -323,8 +325,11 @@ class TestAttributes:
             return '{}.{}'.format(self.cfg_label, self.id)
 
     @property
-    def state(self) -> str:
+    def state(self) -> TestStatusInfo:
         """Returns the current state of the test."""
+
+        if self.status is not None:
+            return self.status.current()
 
     build_only = basic_attr(
         name='build_only',
@@ -379,6 +384,9 @@ class TestAttributes:
         """Add the given message to the warning attributes"""
         if msg not in self._attrs['warnings']:
             self._attrs['warnings'].append(msg)
+
+    def get(self, key: str) -> Any:
+        return getattr(self, key)
 
 
 def test_run_attr_transform(path):

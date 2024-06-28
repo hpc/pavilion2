@@ -2,10 +2,10 @@ from datetime import date, time, datetime, timedelta
 from typing import Any, Callable, Dict, Union, List
 
 from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile, TestStatusInfo
+from pavilion.test_run import TestRun
 
-from .aggregator import StateAggregate
-from .validators import (validate_int, validate_glob, validate_glob_list, validate_str_list,
-    validate_datetime, validate_str, validate_name_glob)
+from .aggregator import AttributeGetter
+from .validators import (validate_int, validate_glob, validate_glob_list, validate_str_list, validate_datetime, validate_str, validate_name_glob)
 from .errors import FilterParseError
 
 from lark import Transformer, Discard, Token
@@ -14,15 +14,16 @@ from lark import Transformer, Discard, Token
 MICROSECS_PER_SEC = 10**6
 
 SPECIAL_FUNCS = {
-    'result_error': lambda x: x.has_error()
+    'passed': lambda x: x.get('result') == TestRun.PASS,
+    'failed': lambda x: x.get('result') == TestRun.FAIL,
+    'has_error': lambda x: x.get('result') == TestRun.ERROR,
 }
 
 
 class FilterTransformer(Transformer):
 
-    def __init__(self, agg: Union[StateAggregate, Dict]):
-        super().__init__()
-        self.aggregate = agg
+    def __init__(self, attrs: AttributeGetter):
+        self.attrs = attrs
 
     def or_expr(self, expr: List[Any]) -> bool:
         if len(expr) == 1:
@@ -49,9 +50,9 @@ class FilterTransformer(Transformer):
 
     def special(self, special: List[Token]) -> bool:
         name = str(special[0]).lower()
-        func = SPECIAL_FUNCS.get(name, lambda x: getattr(x, name))
+        func = SPECIAL_FUNCS.get(name, lambda x: x.get(name))
 
-        return func(self.aggregate)
+        return func(self.attrs)
 
     def keyword(self, kw: List[Token]) -> str:
         return f"_{str(kw[0]).lower()}"
@@ -88,32 +89,32 @@ class FilterTransformer(Transformer):
 
     @validate_int
     def _num_nodes(self) -> int:
-        return self.aggregate.num_nodes
+        return len(self.attrs.get("nodes"))
 
     @validate_name_glob
     def _name(self) -> str:
-        return self.aggregate.get("name")
+        return self.attrs.get("name")
 
     @validate_glob
     def _user(self) -> str:
-        return self.aggregate.get("user")
+        return self.attrs.get("user")
 
     @validate_glob
     def _sys_name(self) -> str:
-        return self.aggregate.get("sys_name")
+        return self.attrs.get("sys_name")
 
     @validate_glob_list
     def _nodes(self) -> List[str]:
-        return self.aggregate.get("nodes")
+        return self.attrs.get("nodes")
 
     @validate_str_list
-    def _has_state(self) -> List[TestStatusInfo]:
-        return map(lambda x: x.state, self.aggregate.get("state_history"))
+    def _has_state(self) -> List[str]:
+        return map(lambda x: x.state, self.attrs.get("state_history"))
 
     @validate_datetime
     def _created(self) -> datetime:
-        return self.aggregate.get("created")
+        return self.attrs.get("created")
 
     @validate_str
     def _state(self) -> str:
-        return self.aggregate.get("state")
+        return self.attrs.get("state").state
