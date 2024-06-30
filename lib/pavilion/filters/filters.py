@@ -79,14 +79,15 @@ HELP_TEXT = (
 filter_parser = Lark.open(GRAMMAR_PATH, start="expr")
 
 
-def sort_func(test, choice):
+def sort_func(test_attrs: AttributeGetter, key: str) -> Any:
     """Use partial to reduce inputs and use as key in sort function.
     Sort by default key if given key is invalid at this stage.
+
     :param test: Dict within list to sort on.
     :param choice: Key in dict to sort by.
     """
 
-    return test[choice]
+    return test_attrs.get(key)
 
 
 def add_test_filter_args(arg_parser: argparse.ArgumentParser,
@@ -240,7 +241,7 @@ def get_sort_opts(
         sort_ascending = False
         sort_key = sort_key[1:]
 
-    sortf = partial(sort_func, choice=sort_key)
+    sortf = partial(sort_func, key=sort_key)
 
     return sortf, sort_ascending
 
@@ -261,6 +262,7 @@ def parse_query(query: str) -> Callable[[AttributeGetter], bool]:
 def test_transform(path: Path) -> AttributeGetter:
     return AttributeGetter(TestAttributes(path))
 
-def series_transform(path: Path, pav_cfg: PavConfig) -> AttributeGetter:
-    # TODO: Figure out how to actually construct this
-    return AttributeGetter(TestAttributes(SeriesInfo(pav_cfg, path)))
+def make_series_transform(pav_cfg: PavConfig) -> Callable[[Path], AttributeGetter]:
+
+    def series_transform(path: Path) -> AttributeGetter:
+        return AttributeGetter(TestAttributes(SeriesInfo(pav_cfg, path)))

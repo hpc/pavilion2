@@ -10,6 +10,7 @@ from pavilion import lockfile
 from pavilion import utils
 from pavilion.builder import TestBuilder
 from pavilion.test_run import test_run_attr_transform
+from pavilion.filters import test_transform
 
 
 def delete_tests(pav_cfg, id_dir: Path, filter_func, verbose: bool = False):
@@ -18,7 +19,7 @@ def delete_tests(pav_cfg, id_dir: Path, filter_func, verbose: bool = False):
     if filter_func is None:
         filter_func = dir_db.default_filter
     return dir_db.delete(pav_cfg, id_dir, filter_func,
-                         transform=test_run_attr_transform,
+                         transform=test_transform,
                          verbose=verbose)
 
 

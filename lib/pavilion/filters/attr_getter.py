@@ -1,10 +1,46 @@
 from datetime import datetime
-from typing import Dict, Union, Any, Hashable
+from functools import wraps
+from typing import Dict, Union, Any, Hashable, Callable, Mapping
 
 from pavilion.test_run import TestAttributes
 from pavilion.series import SeriesInfo
 
-from .transform_mapping import transform
+from .common import identity
+
+
+Transform = Callable[[Any], Any]
+TransformMap = Mapping[Hashable, Transform] 
+GetterMethod = Callable[[object, Hashable, Any], Any]
+
+
+def transform_getter(transforms: TransformMap, 
+              default_transform: Transform = identity) -> Callable[[GetterMethod], GetterMethod]:
+    """Given a transform map, returns a decorator for a getter method which first calls
+    the getter method with the provided key, then applies to the returned value the
+    transfrom associated in the map with the same key. For example, if the wrapped getter
+    method encodes the following mapping:
+
+    'foo' -> 7
+
+    and the transform map contains:
+
+    'foo' -> lambda x: x*x
+
+    then the wrapped method will return 49 when called with the key 'foo'.
+
+    """
+
+    def f(func: GetterMethod) -> GetterMethod:
+    
+        @wraps(func)
+        def get_and_transform(self: object, key: Hashable, **kwargs) -> Any:
+            tform = transforms.get(key, default_transform)
+            
+            return tform(func(self, key, **kwargs))
+
+        return get_and_transform
+
+    return f
 
 
 class AttributeGetter:
@@ -27,14 +63,14 @@ class AttributeGetter:
     def __init__(self, attrs: Union[TestAttributes, SeriesInfo, Dict]):
         self.target = attrs
 
-    @transform(KEY_TRANSFORMS)
-    def get(self, key: Hashable) -> Any:
+    @transform_getter(KEY_TRANSFORMS)
+    def get(self, key: Hashable, default: Any = None) -> Any:
         if self._validate_key(key):
             getter = self.GETTERS.get(key, lambda x: x.get(key))
 
             return getter(self.target)
-        else:
-            raise KeyError(f"Invalid key {key} for AttributeGetter[{type(self.target)}].")
+
+        return default
 
     def __get__(self, key: Hashable) -> Any:
         return self.get(key)
@@ -50,3 +86,5 @@ class AttributeGetter:
             return key in self.ALL_KEYS
 
         raise ValueError(f"Unsupported type {type(target)} for AttributeError")
+
+
