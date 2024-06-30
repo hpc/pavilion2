@@ -2,22 +2,16 @@
 to dir_db commands."""
 
 import argparse
-import fnmatch
 from functools import partial
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, Callable, List, Union, Optional
+from enum import Enum, auto
+from typing import Dict, Any, Callable, List
 
 from lark import Lark
 from lark.exceptions import UnexpectedInput
 
-from pavilion import series
-from pavilion import utils
-from pavilion.status_file import TestStatusFile, SeriesStatusFile, StatusError, \
-    STATES, SERIES_STATES
-from pavilion import sys_vars
-from pavilion.test_run import TestRun
-from pavilion import variables
+from pavilion.test_run import TestAttributes
+from pavilion.config import PavConfig
 
 from .transformer import FilterTransformer
 from .attr_getter import AttributeGetter
@@ -251,6 +245,11 @@ def get_sort_opts(
     return sortf, sort_ascending
 
 
+class TargetType(Enum):
+    TEST = auto()
+    SERIES = auto()
+
+
 def parse_query(query: str) -> Callable[[AttributeGetter], bool]:
     try:
         tree = filter_parser.parse(query)
@@ -258,3 +257,10 @@ def parse_query(query: str) -> Callable[[AttributeGetter], bool]:
         raise FilterParseError(f"Invalid syntax in filter query: {query}")
 
     return lambda x: FilterTransformer(x).transform(tree)
+
+def test_transform(path: Path) -> AttributeGetter:
+    return AttributeGetter(TestAttributes(path))
+
+def series_transform(path: Path, pav_cfg: PavConfig) -> AttributeGetter:
+    # TODO: Figure out how to actually construct this
+    return AttributeGetter(TestAttributes(SeriesInfo(pav_cfg, path)))
