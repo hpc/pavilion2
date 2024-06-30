@@ -21,7 +21,8 @@ from pavilion import sys_vars
 from pavilion import utils
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
-from pavilion.test_run import TestRun, test_run_attr_transform, load_tests
+from pavilion.test_run import TestRun, load_tests
+from pavilion.filters import test_transform
 from pavilion.types import ID_Pair
 
 LOGGER = logging.getLogger(__name__)
@@ -117,7 +118,10 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                            (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
                            sys_vars.get_vars(defer=True).get('sys_name'))
 
-    filter_func = filters.make_test_run_filter(target=args.filter)
+    if args.filter is None:
+        filter_func = filters.const(True) # Always return True
+    else:
+        filter_func = filters.parse_query(args.filter)
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
@@ -130,7 +134,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
             matching_tests = dir_db.select(
                 pav_cfg,
                 id_dir=working_dir / 'test_runs',
-                transform=test_run_attr_transform,
+                transform=test_transform,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=order_asc,
@@ -150,7 +154,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     return dir_db.select_from(
         pav_cfg,
         paths=test_paths,
-        transform=test_run_attr_transform,
+        transform=test_transform,
         filter_func=filter_func,
         order_func=order_func,
         order_asc=order_asc,
@@ -198,7 +202,10 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         elif sid == 'all':
             order_func, order_asc = filters.get_sort_opts(args.sort_by, 'SERIES')
 
-            filter_func = filters.make_series_filter(target=args.filter)
+            if args.filter is None:
+                filter_func = filters.const(True)  # Always return True
+            else:
+                filter_func = filters.parse_query(args.filter)
 
             found_series.extend(dir_db.select(
                 pav_cfg=pav_cfg,

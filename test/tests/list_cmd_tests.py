@@ -60,7 +60,7 @@ class ListCmdTest(PavTestCase):
         all_out_fields = ','.join(TestAttributes.list_attrs())
         args = parser.parse_args(
             ['list', '--out-fields={}'.format(all_out_fields),
-             'test_runs', '--filter', 'complete name=*.list_cmd_tests_*'])
+             'test_runs', '--filter', 'complete and name=*.list_cmd_tests_*'])
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         lines = out.strip().splitlines()
@@ -76,7 +76,7 @@ class ListCmdTest(PavTestCase):
 
         args = parser.parse_args(
             ['list', '--csv', '--out-fields={}'.format(all_out_fields),
-             'test_runs', '--filter', 'passed name=*.list_cmd_tests_*'])
+             'test_runs', '--filter', 'passed and name=*.list_cmd_tests_*'])
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         rows = [line.split(",") for line in out.strip().splitlines()]

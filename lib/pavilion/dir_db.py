@@ -218,7 +218,7 @@ def index(pav_cfg,
 
                 all_seen_ids.add(id_)
 
-                if id_ in idx and idx[id_].get(complete_key, False):
+                if id_ in idx and idx[id_].get(complete_key, default=False):
                     continue
                 update_id_pairs.append((id_, path))
 
