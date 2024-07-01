@@ -93,7 +93,7 @@ class FilterTransformer(Transformer):
 
     @validate_name_glob
     def _name(self) -> str:
-        return self.attrs.get("name", "")
+        return self.attrs.get("name", default="")
 
     @validate_glob
     def _user(self) -> str:

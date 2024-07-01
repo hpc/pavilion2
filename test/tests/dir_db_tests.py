@@ -4,15 +4,17 @@ import io
 import json
 import shutil
 from pathlib import Path
+from typing import Dict
 
 from pavilion import dir_db
 from pavilion import unittest
+from pavilion.filters import AttributeGetter
 
 
-def entry_transform(path: Path):
+def entry_transform(path: Path) -> Dict:
     """Our entires are some json written to the data file. Just load it."""
     with open((path/'data').as_posix()) as file:
-        return json.load(file)
+        return AttributeGetter(json.load(file))
 
 
 class DirDBTests(unittest.PavTestCase):
