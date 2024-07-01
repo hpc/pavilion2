@@ -1,6 +1,6 @@
 from datetime import datetime
 from functools import wraps
-from typing import Dict, Union, Any, Hashable, Callable, Mapping
+from typing import Dict, Union, Any, Hashable, Callable, Mapping, Iterator, Tuple
 
 from pavilion.test_run import TestAttributes
 from pavilion.series import SeriesInfo
@@ -72,9 +72,14 @@ class AttributeGetter:
 
         return default
 
-    def __get__(self, key: Hashable) -> Any:
-        return self.get(key)
-        
+    @transform_getter(KEY_TRANSFORMS)
+    def _get(self, key: Hashable, default: Any = None):
+        """Unvalidated variant of get."""
+
+        getter = self.GETTERS.get(key, lambda x: x.get(key))
+
+        return getter(self.target)
+
     def _validate_key(self, key: Hashable) -> bool:
         if key in self.COMMON_KEYS:
             return True
@@ -86,5 +91,16 @@ class AttributeGetter:
             return key in self.ALL_KEYS
 
         raise ValueError(f"Unsupported type {type(target)} for AttributeError")
+
+    def items(self) -> Iterator[Tuple[Hashable, Any]]:
+        if isinstance(self.target, TestAttributes):
+            keys = self.TEST_KEYS
+        elif isinstance(self.target, SeriesInfo):
+            keys = self.SERIES_KEYS
+        else:
+            keys = self.ALL_KEYS
+
+        return ((key, self._get(key)) for key in keys)
+            
 
 
