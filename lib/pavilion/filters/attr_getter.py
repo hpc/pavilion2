@@ -1,6 +1,8 @@
 from datetime import datetime
 from functools import wraps
-from typing import Dict, Union, Any, Hashable, Callable, Mapping, Iterator, Tuple
+from numbers import Number
+from typing import (Dict, Union, Any, Hashable, Callable, Mapping, Iterator,
+    Tuple, Optional, List)
 
 from pavilion.test_run import TestAttributes
 from pavilion.series import SeriesInfo
@@ -11,6 +13,7 @@ from .common import identity
 Transform = Callable[[Any], Any]
 TransformMap = Mapping[Hashable, Transform] 
 GetterMethod = Callable[[object, Hashable, Any], Any]
+Filterable = Union[TestAttributes, SeriesInfo, Dict]
 
 
 def transform_getter(transforms: TransformMap, 
@@ -43,32 +46,49 @@ def transform_getter(transforms: TransformMap,
     return f
 
 
+def get_history(target: Filterable) -> Optional[List]:
+    if isinstance(target, dict):
+        return target.get('state_history')
+
+    status_file = target._get_status_file()
+
+    if status_file is None:
+        return None
+
+    return status_file.history()
+
+
+def transform_created(created: Union[int, datetime]) -> Optional[datetime]:
+    if isinstance(created, (int, float)):
+        return datetime.fromtimestamp(created)
+
+    return created
+
+
 class AttributeGetter:
     """Provides a common interface for accessing attributes on TestAttributes
     and SeriesInfo objects, as well as dicts, which serve as mocks for testing."""
 
-    SERIES_KEYS = {'complete', 'name', 'user', 'sys_name', 'created', 'finished', 'all_started', 'state_history'}
-    TEST_KEYS = {'created', 'finished', 'result', 'sys_name', 'user', 'partition', 'node_list', 'result', 'complete', 'state', 'name', 'sys_name', 'state_history'}
+    SERIES_KEYS = {'complete', 'name', 'user', 'sys_name', 'created', 'finished', 'all_started', 'state_history'} | set(SeriesInfo.list_attrs())
+    # TODO: Implement 'partition' and 'node_list' keys
+    TEST_KEYS = {'created', 'finished', 'result', 'sys_name', 'user', 'result', 'complete', 'state', 'name', 'sys_name', 'state_history'} | set(TestAttributes.list_attrs())
     COMMON_KEYS = SERIES_KEYS & TEST_KEYS
     ALL_KEYS = SERIES_KEYS | TEST_KEYS
 
     GETTERS = {
-        'state_history': lambda x: x._get_status_file().history()
+        'state_history': get_history
     }
 
     KEY_TRANSFORMS = {
-        'created': lambda x: x if isinstance(x, datetime) else datetime.fromtimestamp(x),
+        'created': transform_created
     }
 
-    def __init__(self, attrs: Union[TestAttributes, SeriesInfo, Dict]):
+    def __init__(self, attrs: Filterable):
         self.target = attrs
 
-    @transform_getter(KEY_TRANSFORMS)
     def get(self, key: Hashable, default: Any = None) -> Any:
         if self._validate_key(key):
-            getter = self.GETTERS.get(key, lambda x: x.get(key))
-
-            return getter(self.target)
+            return self._get(key, default=default)
 
         return default
 
@@ -101,6 +121,13 @@ class AttributeGetter:
             keys = self.ALL_KEYS
 
         return ((key, self._get(key)) for key in keys)
-            
 
+    def __getitem__(self, key: Hashable) -> Any:
+        return self.get(key)
 
+    def __delitem__(self, key: Hashable) -> None:
+        pass
+
+    def __eq__(self, other: "AttributeGetter") -> bool:
+        # Convert to sets, since order of items is indeterminate
+        return set(self.items()) == set(other.items())

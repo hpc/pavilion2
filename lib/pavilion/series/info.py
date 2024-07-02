@@ -2,7 +2,7 @@
 import datetime as dt
 import json
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, Optional
 
 from pavilion import config
 from pavilion import dir_db
@@ -310,7 +310,7 @@ class SeriesInfo(SeriesInfoBase):
             return None
         return self._status.when
 
-    def _get_status_file(self) -> status_file.SeriesStatusFile:
+    def _get_status_file(self) -> Optional[status_file.SeriesStatusFile]:
         """Get the series status file object."""
 
         if self._status_file is None:

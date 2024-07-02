@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 
 from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
@@ -331,7 +331,7 @@ class TestAttributes:
         if self.status is not None:
             return self.status.current()
 
-    def _get_status_file(self) -> TestStatusFile:
+    def _get_status_file(self) -> Optional[TestStatusFile]:
         """Returns the test's status file. Defined to present an interface
         consistent with that of SeriesInfo, for the purpose of filtering."""
 

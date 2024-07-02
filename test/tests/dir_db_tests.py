@@ -43,6 +43,7 @@ class DirDBTests(unittest.PavTestCase):
 
         self.assertEqual(set(idx.keys()), set(entries.keys()),
                          msg="Errors: \n{}".format(output.getvalue()))
+
         for key in idx:
             self.assertEqual(idx[key], entries[key],
                              msg="Errors: \n{}".format(output.getvalue()))
@@ -101,4 +102,4 @@ class DirDBTests(unittest.PavTestCase):
         with (path / 'data').open('w') as data_file:
             json.dump(value, data_file)
 
-        return value
+        return AttributeGetter(value)
