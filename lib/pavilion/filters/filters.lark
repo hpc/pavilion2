@@ -1,4 +1,4 @@
-?expr: or_expr
+expr: or_expr
 
 or_expr: and_expr ( OR and_expr )*
 and_expr: not_expr ( AND not_expr )*
@@ -24,6 +24,18 @@ keyword: NAME
 
 ?literal: INT
         | GLOB
+        | TIMESTAMP
+        | duration
+
+duration: INT [WS] unit ["s"]
+
+unit: SECOND
+    | MINUTE
+    | HOUR
+    | DAY
+    | WEEK
+    | MONTH
+    | YEAR
 
 LT: "<"
 GT: ">"
@@ -53,7 +65,16 @@ PARTITION: "PARTITION"i
 NODES: "NODES"i
 NUM_NODES: "NUM_NODES"i
 
-GLOB: /.+/
+SECOND: "SECOND"i
+MINUTE: "MINUTE"i
+HOUR: "HOUR"i
+DAY: "DAY"i
+WEEK: "WEEK"i
+MONTH: "MONTH"i
+YEAR: "YEAR"i
+
+GLOB: /[^\d][^\s]*/
+TIMESTAMP: /\d+[\.\dT\-:]*/
 
 %import common.INT
 %import common.NUMBER

@@ -46,14 +46,14 @@ def transform_getter(transforms: TransformMap,
     return f
 
 
-def get_history(target: Filterable) -> Optional[List]:
+def get_history(target: Filterable) -> List:
     if isinstance(target, dict):
         return target.get('state_history')
 
     status_file = target._get_status_file()
 
     if status_file is None:
-        return None
+        return []
 
     return status_file.history()
 
@@ -83,22 +83,40 @@ class AttributeGetter:
         'created': transform_created
     }
 
+    DEFAULTS = {
+        'complete': False,
+        'name': '',
+        'user': '',
+        'sys_name': '',
+        'all_started': False,
+        'state_history': [],
+        'result': {},
+        'partition': '',
+        'node_list': [],
+    }
+
     def __init__(self, attrs: Filterable):
         self.target = attrs
 
-    def get(self, key: Hashable, default: Any = None) -> Any:
+    def get(self, key: Hashable) -> Any:
         if self._validate_key(key):
-            return self._get(key, default=default)
+            return self._get(key)
 
-        return default
+        raise KeyError(f"Invalid key {key} for object of type {type(self.target)}")
 
     @transform_getter(KEY_TRANSFORMS)
-    def _get(self, key: Hashable, default: Any = None):
+    def _get(self, key: Hashable):
         """Unvalidated variant of get."""
 
-        getter = self.GETTERS.get(key, lambda x: x.get(key))
+        if key in self.GETTERS:
+            getter = self.GETTERS.get(key)
+        else:
+            getter = lambda x: x.get(key, self.DEFAULTS.get(key))
 
-        return getter(self.target)
+        try:
+            return getter(self.target)
+        except:
+            import pdb; pdb.set_trace()
 
     def _validate_key(self, key: Hashable) -> bool:
         if key in self.COMMON_KEYS:

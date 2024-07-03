@@ -393,3 +393,27 @@ class FiltersTest(PavTestCase):
         with self.assertRaises(FilterParseError):
             parse_query("sudo rm -rf /")
 
+
+    def test_filter_boolean_logic(self):
+        """Test that the filter's three-valued logic works as expected."""
+        
+        test_dict = {
+            'name': None,
+            'user': 'Batman',
+            'created': None,
+        }
+
+        attrs = AttributeGetter(test_dict)
+
+        ff1 = parse_query("created<1 day or name=foo")
+        ff2 = parse_query("created<1 day and name=foo")
+        ff3 = parse_query("created<1 day and user=Batman")
+        ff4 = parse_query("created<1 day or user=Batman")
+        ff5 = parse_query("not created<1 day")
+
+        self.assertFalse(ff1(attrs))
+        self.assertFalse(ff2(attrs))
+        self.assertFalse(ff3(attrs))
+        self.assertTrue(ff4(attrs))
+        self.assertFalse(ff5(attrs))
+

@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Any, Callable, TypeVar, Union
 
 
+ThreeValue = Union[bool, None]
+
 T = TypeVar('T')
 
 def identity(x: T) -> T:

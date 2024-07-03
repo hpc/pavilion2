@@ -391,8 +391,11 @@ class TestAttributes:
         if msg not in self._attrs['warnings']:
             self._attrs['warnings'].append(msg)
 
-    def get(self, key: str) -> Any:
-        return getattr(self, key)
+    def get(self, key: str, default: Any = None) -> Any:
+        if hasattr(self, key):
+            return getattr(self, key)
+
+        return default
 
 
 def test_run_attr_transform(path):

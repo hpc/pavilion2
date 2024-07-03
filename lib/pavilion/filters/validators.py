@@ -7,14 +7,14 @@ from typing import Callable, List, TypeVar
 
 from .errors import FilterParseError
 from .parse_time import parse_time
-from .common import identity
+from .common import identity, ThreeValue
 
 
 T = TypeVar("T")
 
 
 def make_validator(comp_func: Callable[[T, str, T], bool],
-                    rtype: Callable[[str], T] = identity) -> Callable[[object, str, str], bool]:
+                    rtype: Callable[[str], T] = identity) -> Callable[[object, str, str], ThreeValue]:
     """Makes a decorator that validates a comparison expression, ensuring that its
     righthand operand is of type rtype, produces the lefthand operand by calling
     the decorated function (intended to be a method of FilterTransform), then
@@ -27,9 +27,12 @@ def make_validator(comp_func: Callable[[T, str, T], bool],
             try:
                 rval = rtype(rval)
             except ValueError:
-                raise FilterParseError(f"Invalid value {rval} for type {rtype}.")
+                raise FilterParseError(f"Invalid value {rval} for function {rtype.__name__}.")
 
             lval = func(self)
+
+            if lval is None:
+                return None
 
             return comp_func(lval, comp, rval)
 
