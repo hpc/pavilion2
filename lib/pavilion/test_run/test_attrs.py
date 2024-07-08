@@ -1,7 +1,8 @@
 import json
 import os
 from pathlib import Path
-from typing import Callable, Any, Optional
+from collections.abc import Mapping
+from typing import Callable, Any, Optional, Iterator
 
 from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
@@ -24,7 +25,7 @@ def basic_attr(name, doc):
     return prop
 
 
-class TestAttributes:
+class TestAttributes(Mapping):
     """A object for accessing test attributes. TestRuns
     inherit from this, but it can be used by itself to access test
     information with less overhead.
@@ -392,10 +393,25 @@ class TestAttributes:
             self._attrs['warnings'].append(msg)
 
     def get(self, key: str, default: Any = None) -> Any:
-        if hasattr(self, key):
-            return getattr(self, key)
+        if key in self:
+            return self[key]
 
         return default
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self:
+            return getattr(self, key)
+
+        raise KeyError(str(key))
+
+    def __iter__(self) -> Iterator[str]:
+        attr_list = self.list_attrs() + self.LIST_ATTRS_EXCEPTIONS
+        attr_list.append('path')
+
+        return iter(attr_list)
+
+    def __len__(self) -> int:
+        return len(list(iter(self)))
 
 
 def test_run_attr_transform(path):

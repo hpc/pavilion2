@@ -2,7 +2,8 @@
 import datetime as dt
 import json
 from pathlib import Path
-from typing import Union, List, Optional
+from collections.abc import Mapping
+from typing import Union, List, Optional, Any, Iterator
 
 from pavilion import config
 from pavilion import dir_db
@@ -13,7 +14,7 @@ from pavilion.test_run import TestRun, TestAttributes
 from . import common
 
 
-class SeriesInfoBase:
+class SeriesInfoBase(Mapping):
     """Shared base class for series info and test set info."""
 
     def __init__(self, pav_cfg: config.PavConfig, path: Path):
@@ -221,37 +222,27 @@ class SeriesInfoBase:
         self._test_info[test_path] = test_info
         return test_info
 
-    def __getitem__(self, item):
-        """Dictionary like access."""
-
-        if not isinstance(item, str) or item.startswith('_'):
-            raise KeyError("Invalid key in SeriesInfo (bad key): {}".format(item))
-
-        if hasattr(self, item):
-            attr = getattr(self, item)
-            if callable(attr):
-                raise KeyError("Invalid key in SeriesInfo (callable): {}".format(item))
-            return attr
-
-        else:
-            raise KeyError("Unknown key in SeriesInfo: {}".format(item))
-
-    def __contains__(self, item) -> bool:
-        """Provide dictionary like 'contains' checks."""
-
-        if isinstance(item, str) and not item.startswith('_'):
-            attr = getattr(self, item, None)
-            return not callable(attr) and attr is not None
-
-        return False
-
-    def get(self, item, default=None):
-        """Provided dictionary like get access."""
+    def get(self, key: str, default: Any = None) -> Any:
+        """Provide dictionary like get access."""
 
         if item in self:
             return self[item]
-        else:
-            return default
+
+        return default
+
+    def __getitem__(self, key: str) -> Any:
+        """Dictionary like access."""
+
+        if not key in self:
+            raise KeyError("Unknown key in SeriesInfo: {}".format(item))
+
+        return getattr(self, key)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.list_attrs())
+
+    def __len__(self) -> int:
+        return len(iter(self))
 
 
 class SeriesInfo(SeriesInfoBase):
