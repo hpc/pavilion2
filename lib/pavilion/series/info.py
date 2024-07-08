@@ -242,7 +242,7 @@ class SeriesInfoBase(Mapping):
         return iter(self.list_attrs())
 
     def __len__(self) -> int:
-        return len(iter(self))
+        return len(list(iter(self)))
 
 
 class SeriesInfo(SeriesInfoBase):
