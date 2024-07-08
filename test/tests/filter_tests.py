@@ -436,19 +436,19 @@ class FiltersTest(PavTestCase):
         attrs = AttributeGetter(test_dict)
 
         ff1 = parse_query("not all_started and complete")
-        ff2 = parse_query("not (complete and all_started)")
-        ff3 = parse_query("(complete)")
-        ff4 = parse_query("((all_started))")
+        ff2 = parse_query("(complete)")
+        ff3 = parse_query("((all_started))")
+        ff4 = parse_query("not (complete and all_started)")
 
         self.assertFalse(ff1(attrs))
-        self.assertTrue(ff2(attrs))
-        self.assertTrue(ff3(attrs))
-        self.assertFalse(ff4(attrs))
+        self.assertFalse(ff2(attrs))
+        self.assertFalse(ff3(attrs))
+        self.assertTrue(ff4(attrs))
 
-        with self.assertRaises("FilterParseError"):
+        with self.assertRaises(FilterParseError):
             parse_query("(complete")
 
-        with self.assertRaises("FilterParseError"):
+        with self.assertRaises(FilterParseError):
             parse_query(")complete)")
 
 

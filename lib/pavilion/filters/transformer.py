@@ -32,6 +32,9 @@ class FilterTransformer(Transformer):
 
         return expr[0]
 
+    def paren_expr(self, expr: List[ThreeValue]) -> bool:
+        return expr[0]
+
     def or_expr(self, expr: List[Any]) -> ThreeValue:
         if len(expr) == 1:
             # No 'or' is actually involved here
