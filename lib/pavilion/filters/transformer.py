@@ -1,11 +1,10 @@
-from datetime import date, time, datetime, timedelta
-from typing import Any, Callable, Dict, Union, List, Optional
+from datetime import datetime
+from typing import Any, List, Optional, Mapping
 
-from pavilion.status_file import STATES, SERIES_STATES, TestStatusFile, TestStatusInfo
 from pavilion.test_run import TestRun
 
-from .attr_getter import AttributeGetter
-from .validators import (validate_int, validate_glob, validate_glob_list, validate_str_list, validate_datetime, validate_str, validate_name_glob)
+from .validators import (validate_int, validate_glob, validate_glob_list,
+    validate_str_list, validate_datetime, validate_str, validate_name_glob)
 from .errors import FilterParseError
 from .common import ThreeValue
 
@@ -23,7 +22,7 @@ SPECIAL_FUNCS = {
 
 class FilterTransformer(Transformer):
 
-    def __init__(self, attrs: AttributeGetter):
+    def __init__(self, attrs: Mapping):
         self.attrs = attrs
 
     def expr(self, expr: List[ThreeValue]) -> bool:

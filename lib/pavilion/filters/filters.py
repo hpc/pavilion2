@@ -5,16 +5,15 @@ import argparse
 from functools import partial
 from pathlib import Path
 from enum import Enum, auto
-from typing import Dict, Any, Callable, List
+from typing import Dict, Any, Callable, List, Mapping
 
 from lark import Lark
 from lark.exceptions import UnexpectedInput
 
-from pavilion.test_run import TestAttributes
+from pavilion.series import SeriesInfo
 from pavilion.config import PavConfig
 
 from .transformer import FilterTransformer
-from .attr_getter import AttributeGetter
 from .errors import FilterParseError
 
 GRAMMAR_PATH = Path(__file__).parent / 'filters.lark'
@@ -79,7 +78,7 @@ HELP_TEXT = (
 filter_parser = Lark.open(GRAMMAR_PATH, start="expr")
 
 
-def sort_func(test_attrs: AttributeGetter, key: str) -> Any:
+def sort_func(test_attrs: Mapping, key: str) -> Any:
     """Use partial to reduce inputs and use as key in sort function.
     Sort by default key if given key is invalid at this stage.
 
@@ -251,7 +250,7 @@ class TargetType(Enum):
     SERIES = auto()
 
 
-def parse_query(query: str) -> Callable[[AttributeGetter], bool]:
+def parse_query(query: str) -> Callable[[Mapping], bool]:
     try:
         tree = filter_parser.parse(query)
     except UnexpectedInput:
@@ -259,10 +258,8 @@ def parse_query(query: str) -> Callable[[AttributeGetter], bool]:
 
     return lambda x: FilterTransformer(x).transform(tree)
 
-def test_transform(path: Path) -> AttributeGetter:
-    return AttributeGetter(TestAttributes(path))
 
-def make_series_transform(pav_cfg: PavConfig) -> Callable[[Path], AttributeGetter]:
+def make_series_transform(pav_cfg: PavConfig) -> Callable[[Path], SeriesInfo]:
 
-    def series_transform(path: Path) -> AttributeGetter:
-        return AttributeGetter(TestAttributes(SeriesInfo(pav_cfg, path)))
+    def series_transform(path: Path) -> SeriesInfo:
+        return SeriesInfo(pav_cfg, path)

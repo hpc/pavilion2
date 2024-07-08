@@ -21,8 +21,7 @@ from pavilion import sys_vars
 from pavilion import utils
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
-from pavilion.test_run import TestRun, load_tests
-from pavilion.filters import test_transform
+from pavilion.test_run import TestRun, load_tests, TestAttributes
 from pavilion.types import ID_Pair
 
 LOGGER = logging.getLogger(__name__)
@@ -134,7 +133,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
             matching_tests = dir_db.select(
                 pav_cfg,
                 id_dir=working_dir / 'test_runs',
-                transform=test_transform,
+                transform=TestAttributes,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=order_asc,
@@ -154,7 +153,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     return dir_db.select_from(
         pav_cfg,
         paths=test_paths,
-        transform=test_transform,
+        transform=TestAttributes,
         filter_func=filter_func,
         order_func=order_func,
         order_asc=order_asc,

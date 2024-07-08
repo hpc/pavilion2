@@ -5,8 +5,8 @@ from typing import Any, Callable, TypeVar, Union
 
 
 ThreeValue = Union[bool, None]
-
 T = TypeVar('T')
+
 
 def identity(x: T) -> T:
     """The identity function. Returns its input unchanged."""

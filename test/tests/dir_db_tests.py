@@ -8,13 +8,12 @@ from typing import Dict
 
 from pavilion import dir_db
 from pavilion import unittest
-from pavilion.filters import AttributeGetter
 
 
 def entry_transform(path: Path) -> Dict:
     """Our entires are some json written to the data file. Just load it."""
     with open((path/'data').as_posix()) as file:
-        return AttributeGetter(json.load(file))
+        return json.load(file)
 
 
 class DirDBTests(unittest.PavTestCase):
@@ -102,4 +101,4 @@ class DirDBTests(unittest.PavTestCase):
         with (path / 'data').open('w') as data_file:
             json.dump(value, data_file)
 
-        return AttributeGetter(value)
+        return value
