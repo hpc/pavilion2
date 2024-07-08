@@ -395,7 +395,9 @@ class FiltersTest(PavTestCase):
 
 
     def test_filter_boolean_logic(self):
-        """Test that the filter's three-valued logic works as expected."""
+        """Test that the filter's three-valued logic works as expected
+        (as specified by Paul). See transformer.py for detailed
+        specification."""
         
         test_dict = {
             'name': None,
@@ -405,10 +407,15 @@ class FiltersTest(PavTestCase):
 
         attrs = AttributeGetter(test_dict)
 
+        # None or None should be None -> False
         ff1 = parse_query("created<1 day or name=foo")
+        # None and None should be False
         ff2 = parse_query("created<1 day and name=foo")
+        # None and True should be False
         ff3 = parse_query("created<1 day and user=Batman")
+        # None or True should be True
         ff4 = parse_query("created<1 day or user=Batman")
+        # not None should be None -> False
         ff5 = parse_query("not created<1 day")
 
         self.assertFalse(ff1(attrs))
@@ -416,4 +423,32 @@ class FiltersTest(PavTestCase):
         self.assertFalse(ff3(attrs))
         self.assertTrue(ff4(attrs))
         self.assertFalse(ff5(attrs))
+
+    def test_filter_parentheses(self):
+        """Test that parentheses are parsed correctly, and that they behave
+        as expected."""
+
+        test_dict = {
+            'complete': False,
+            'all_started': False
+        }
+
+        attrs = AttributeGetter(test_dict)
+
+        ff1 = parse_query("not all_started and complete")
+        ff2 = parse_query("not (complete and all_started)")
+        ff3 = parse_query("(complete)")
+        ff4 = parse_query("((all_started))")
+
+        self.assertFalse(ff1(attrs))
+        self.assertTrue(ff2(attrs))
+        self.assertTrue(ff3(attrs))
+        self.assertFalse(ff4(attrs))
+
+        with self.assertRaises("FilterParseError"):
+            parse_query("(complete")
+
+        with self.assertRaises("FilterParseError"):
+            parse_query(")complete)")
+
 
