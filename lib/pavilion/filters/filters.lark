@@ -1,9 +1,10 @@
 expr: or_expr
 
-or_expr: and_expr ( OR and_expr )*
-and_expr: not_expr ( AND not_expr )*
-not_expr: NOT? (comp_expr | special)
+or_expr: and_expr (OR and_expr)*
+and_expr: not_expr (AND not_expr)*
+not_expr: NOT? (comp_expr | special | paren_expr)
 comp_expr: keyword (LT | GT | LT_EQ | GT_EQ | EQ | NOT_EQ) literal
+paren_expr: "(" not_expr ")"
 
 special: COMPLETE
        | ALL_STARTED
@@ -73,7 +74,7 @@ WEEK: "WEEK"i
 MONTH: "MONTH"i
 YEAR: "YEAR"i
 
-GLOB: /[^\d][^\s]*/
+GLOB: /[^\d][^\s\(\)]*/
 TIMESTAMP: /\d+[\.\dT\-:]*/
 
 %import common.INT

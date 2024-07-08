@@ -113,10 +113,7 @@ class AttributeGetter:
         else:
             getter = lambda x: x.get(key, self.DEFAULTS.get(key))
 
-        try:
-            return getter(self.target)
-        except:
-            import pdb; pdb.set_trace()
+        return getter(self.target)
 
     def _validate_key(self, key: Hashable) -> bool:
         if key in self.COMMON_KEYS:
