@@ -3,7 +3,7 @@ import datetime as dt
 import json
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Union, List, Optional, Any, Iterator
+from typing import List, Optional, Any, Iterator
 
 from pavilion import config
 from pavilion import dir_db
@@ -99,7 +99,7 @@ class SeriesInfoBase(Mapping):
         return self.path.stat().st_mtime
 
     @property
-    def finished(self) -> Union[float, None]:
+    def finished(self) -> Optional[float]:
         """When the series completion file was created."""
 
         complete_fn = self.path/common.COMPLETE_FN
@@ -207,7 +207,7 @@ class SeriesInfoBase(Mapping):
 
         return total
 
-    def test_info(self, test_path) -> Union[TestAttributes, None]:
+    def test_info(self, test_path) -> Optional[TestAttributes]:
         """Return the test info object for the given test path.
         If the test doesn't exist, return None."""
 
@@ -275,7 +275,7 @@ class SeriesInfo(SeriesInfoBase):
         return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None
 
     @property
-    def status(self) -> Union[str, None]:
+    def status(self) -> Optional[str]:
         """The last status message from the series status file."""
 
         status = self._get_status()
@@ -284,7 +284,7 @@ class SeriesInfo(SeriesInfoBase):
         return self._status.state
 
     @property
-    def status_note(self) -> Union[str, None]:
+    def status_note(self) -> Optional[str]:
         """Return the series status note."""
 
         status = self._get_status()
@@ -293,13 +293,22 @@ class SeriesInfo(SeriesInfoBase):
         return self._status.note
 
     @property
-    def status_when(self) -> Union[dt.datetime, None]:
+    def status_when(self) -> Optional[dt.datetime]:
         """Return the most recent status update time."""
 
         status = self._get_status()
         if status is None:
             return None
         return self._status.when
+
+    @property
+    def state_history(self) -> List[status_file.SeriesStatusInfo]:
+        st_file = self._get_status_file()
+
+        if st_file is None:
+            return []
+
+        return self._get_status_file().history()
 
     def _get_status_file(self) -> Optional[status_file.SeriesStatusFile]:
         """Get the series status file object."""
@@ -320,7 +329,7 @@ class SeriesInfo(SeriesInfoBase):
         return self._status
 
     @property
-    def sys_name(self) -> Union[str, None]:
+    def sys_name(self) -> Optional[str]:
         """The sys_name the series ran on."""
 
         if not self._tests:

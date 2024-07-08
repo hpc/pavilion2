@@ -14,7 +14,7 @@ from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
-from pavilion.filters import (AttributeGetter, FilterParseError, validate_int,
+from pavilion.filters import (FilterParseError, validate_int,
     validate_glob, validate_glob_list, validate_str_list, validate_datetime, parse_query)
 
 class FiltersTest(PavTestCase):
@@ -77,14 +77,14 @@ class FiltersTest(PavTestCase):
         for opt in match_sets:
             series_filter = filters.parse_query(opt[1])
 
-            self.assertTrue(series_filter(AttributeGetter(opt[0])),
+            self.assertTrue(series_filter(opt[0]),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
         for opt in never_match_sets:
             series_filter = filters.parse_query(opt[1])
 
-            self.assertFalse(series_filter(AttributeGetter(opt[0])),
+            self.assertFalse(series_filter(opt[0]),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
@@ -107,14 +107,14 @@ class FiltersTest(PavTestCase):
         for opt in match_sets:
             test_run_filter = filters.parse_query(opt[1])
 
-            self.assertTrue(test_run_filter(AttributeGetter(opt[0])),
+            self.assertTrue(test_run_filter(opt[0]),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
         for opt in never_match_sets:
             test_run_filter = filters.parse_query(opt[1])
 
-            self.assertFalse(test_run_filter(AttributeGetter(opt[0])),
+            self.assertFalse(test_run_filter(opt[0]),
                             msg="Failed on opt ({})"
                             .format(opt[1]))
 
@@ -123,19 +123,19 @@ class FiltersTest(PavTestCase):
 
         now = datetime.now()
 
-        always_match_series = AttributeGetter({
+        always_match_series = {
             'complete': True,
             'created': now - timedelta(minutes=1),
             'sys_name': 'this',
             'user': 'bob',
-        })
+        }
 
-        never_match_series = AttributeGetter({
+        never_match_series = {
             'complete': False,
             'created': now - timedelta(minutes=5),
             'sys_name': 'that',
             'user': 'gary',
-        })
+        }
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
@@ -178,23 +178,23 @@ class FiltersTest(PavTestCase):
 
         now = datetime.now()
 
-        always_match_test = AttributeGetter({
+        always_match_test = {
             'complete': True,
             'created':  now - timedelta(minutes=1),
             'name':     'mytest.always_match',
             'result':   TestRun.PASS,
             'sys_name': 'this',
             'user':     'bob',
-        })
+        }
 
-        never_match_test = AttributeGetter({
+        never_match_test = {
             'complete': False,
             'created':  now - timedelta(minutes=5),
             'name':     'yourtest.never_match',
             'result':   TestRun.FAIL,
             'sys_name': 'that',
             'user':     'dave',
-        })
+        }
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
@@ -249,13 +249,12 @@ class FiltersTest(PavTestCase):
         t_filter = filters.parse_query("state=RUN_DONE")
         t_filter2 = filters.parse_query("has_state=RUNNING")
 
-        agg1 = AttributeGetter(test) 
+        agg1 = test 
 
         self.assertFalse(t_filter(agg1))
 
-        agg2 = AttributeGetter(test2) 
+        agg2 = test2
 
-        # import pdb; pdb.set_trace()
         self.assertTrue(t_filter(agg2))
 
         self.assertFalse(t_filter2(agg1))
@@ -269,12 +268,12 @@ class FiltersTest(PavTestCase):
         dummy = schedulers.get_plugin('dummy')
         series.run()
 
-        agg1 = AttributeGetter(series.info())
+        agg1 = series.info()
 
         series = TestSeries(self.pav_cfg, None)
         series.add_test_set_config('test', test_names=['hello_world'])
 
-        agg2 = AttributeGetter(series.info())
+        agg2 = series.info()
 
         state_filter = filters.parse_query("ALL_STARTED")
         has_state_filter = filters.parse_query("has_state=SET_MAKE")
@@ -405,7 +404,7 @@ class FiltersTest(PavTestCase):
             'created': None,
         }
 
-        attrs = AttributeGetter(test_dict)
+        attrs = test_dict
 
         # None or None should be None -> False
         ff1 = parse_query("created<1 day or name=foo")
@@ -433,7 +432,7 @@ class FiltersTest(PavTestCase):
             'all_started': False
         }
 
-        attrs = AttributeGetter(test_dict)
+        attrs = test_dict
 
         ff1 = parse_query("not all_started and complete")
         ff2 = parse_query("(complete)")

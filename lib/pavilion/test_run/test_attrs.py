@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Callable, Any, Optional, Iterator
+from typing import Callable, Any, Optional, Iterator, List
 
 from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
@@ -190,7 +190,7 @@ class TestAttributes(Mapping):
 
         return attrs
 
-    LIST_ATTRS_EXCEPTIONS = ['complete', 'state']
+    LIST_ATTRS_EXCEPTIONS = ['complete', 'state', 'state_history']
 
     @classmethod
     def list_attrs(cls):
@@ -326,11 +326,18 @@ class TestAttributes(Mapping):
             return '{}.{}'.format(self.cfg_label, self.id)
 
     @property
-    def state(self) -> TestStatusInfo:
+    def state(self) -> Optional[TestStatusInfo]:
         """Returns the current state of the test."""
 
         if self.status is not None:
             return self.status.current()
+
+    @property
+    def state_history(self) -> List[TestStatusInfo]:
+        if self.status is not None:
+            return self.status.history()
+
+        return []
 
     def _get_status_file(self) -> Optional[TestStatusFile]:
         """Returns the test's status file. Defined to present an interface
