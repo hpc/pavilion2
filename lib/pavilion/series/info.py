@@ -225,16 +225,16 @@ class SeriesInfoBase(Mapping):
     def get(self, key: str, default: Any = None) -> Any:
         """Provide dictionary like get access."""
 
-        if item in self:
-            return self[item]
+        if key in self:
+            return self[key]
 
         return default
 
     def __getitem__(self, key: str) -> Any:
         """Dictionary like access."""
 
-        if not key in self:
-            raise KeyError("Unknown key in SeriesInfo: {}".format(item))
+        if not key in self.list_attrs():
+            raise KeyError("Unknown key in SeriesInfo: {}".format(key))
 
         return getattr(self, key)
 

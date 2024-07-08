@@ -399,7 +399,7 @@ class TestAttributes(Mapping):
         return default
 
     def __getitem__(self, key: str) -> Any:
-        if key in self:
+        if key in iter(self):
             return getattr(self, key)
 
         raise KeyError(str(key))
@@ -413,6 +413,11 @@ class TestAttributes(Mapping):
     def __len__(self) -> int:
         return len(list(iter(self)))
 
+    def __hash__(self) -> int:
+        return id(self)
+
+    def __eq__(self, other: 'TestAttributes') -> bool:
+        return id(self) == id(other)
 
 def test_run_attr_transform(path):
     """A dir_db transformer to convert a test_run path into a dict of test
