@@ -167,6 +167,24 @@ class SeriesInfoBase(Mapping):
 
         return errors
 
+    def _get_status_file(self) -> status_file.SeriesStatusFile:
+        """Get the series status file object."""
+
+        if self._status_file is None:
+            status_fn = self.path/common.STATUS_FN
+            if status_fn.exists():
+                self._status_file = status_file.SeriesStatusFile(status_fn)
+
+        return self._status_file
+
+    def _get_status(self) -> status_file.SeriesStatusInfo:
+        """Get the latest test state from the series status file."""
+
+        if self._status is None:
+            status_file = self._get_status_file()
+            self._status = status_file.current()
+        return self._status
+
     def _get_test_statuses(self) -> List[str]:
         """Return a dict of the current status for each test."""
 
@@ -309,24 +327,6 @@ class SeriesInfo(SeriesInfoBase):
             return []
 
         return self._get_status_file().history()
-
-    def _get_status_file(self) -> Optional[status_file.SeriesStatusFile]:
-        """Get the series status file object."""
-
-        if self._status_file is None:
-            status_fn = self.path/common.STATUS_FN
-            if status_fn.exists():
-                self._status_file = status_file.SeriesStatusFile(status_fn)
-
-        return self._status_file
-
-    def _get_status(self) -> status_file.SeriesStatusInfo:
-        """Get the latest test state from the series status file."""
-
-        if self._status is None:
-            status_file = self._get_status_file()
-            self._status = status_file.current()
-        return self._status
 
     @property
     def sys_name(self) -> Optional[str]:
