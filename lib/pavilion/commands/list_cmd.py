@@ -2,7 +2,7 @@
 undefined) bits."""
 
 import errno
-from typing import List
+from typing import List, Dict, Mapping
 
 from pavilion import arguments
 from pavilion import cmd_utils
@@ -231,14 +231,14 @@ class ListCommand(Command):
 
         test_runs = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).data
 
-        for run in test_runs:
-            for key, value in list(run.items()):
-                if value in [None, '']:
-                    del run[key]
+        def remove_nones(run: Mapping) -> Dict:
+            return { k: v for k, v in run.items() if v not in [None, ''] }
+
+        noneless = map(remove_nones, test_runs)
 
         self.write_output(
             mode=mode,
-            rows=test_runs,
+            rows=noneless,
             fields=fields,
             header=args.header,
             vsep=args.vsep,

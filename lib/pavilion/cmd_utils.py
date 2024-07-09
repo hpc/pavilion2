@@ -47,10 +47,7 @@ def set_arg_defaults(args):
     """Set typical argument defaults, but don't override any given."""
 
     # Don't assume these actually exist.
-    def_filter = 'user={} created<{} sys_name={}'.format(
-                  utils.get_login(),
-                  (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
-                  sys_vars.get_vars(defer=True).get('sys_name'))
+    def_filter = make_filter_query()
     args.filter = getattr(args, 'filter', def_filter)
 
 
@@ -112,10 +109,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
                                    "created less than 1 day ago.", color=output.CYAN)
-            args.filter = 'user={} created<{} sys_name={}'.format(
-                           utils.get_login(),
-                           (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
-                           sys_vars.get_vars(defer=True).get('sys_name'))
+            args.filter = make_filter_query()
 
     if args.filter is None:
         filter_func = filters.const(True) # Always return True
@@ -161,7 +155,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     )
 
 
-def make_series_filter_query() -> str:
+def make_filter_query() -> str:
     template = 'user={} and created<{}'
 
     user = utils.get_login()
@@ -197,7 +191,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
                                    "created less than 1 day ago.", color=output.CYAN)
-            args.filter = make_series_filter_query()
+            args.filter = make_filter_query()
 
     seen_sids = []
     found_series = []
