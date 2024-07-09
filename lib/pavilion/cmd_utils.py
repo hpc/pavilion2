@@ -224,7 +224,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                 use_index=False,
                 verbose=verbose,
                 limit=limit,
-            ).data)
+            ).data
         else:
             found_series.append(series.SeriesInfo.load(pav_cfg, sid))
 
