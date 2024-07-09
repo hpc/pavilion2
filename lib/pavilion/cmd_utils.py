@@ -161,6 +161,22 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     )
 
 
+def make_series_filter_query() -> str:
+    template = 'user={} and created<{}'
+
+    user = utils.get_login()
+    time = (dt.datetime.now() - dt.timedelta(days=1)).isoformat()
+    sysname = sys_vars.get_vars(defer=True).get('sys_name')
+
+    fargs = [user, time]
+
+    if sysname is not None and len(sysname) > 0:
+        template += ' and sys_name={}'
+        fargs.append(sysname)
+
+    return template.format(*fargs)
+
+
 def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
                         verbose: TextIO = None) -> List[series.SeriesInfo]:
     """Return a list of SeriesInfo objects based on the args.series attribute. When args.series is
@@ -181,10 +197,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
         else:
             output.fprint(verbose, "Using default search filters: The current system, user, and "
                                    "created less than 1 day ago.", color=output.CYAN)
-            args.filter = 'user={} created<{} sys_name={}'.format(
-                           utils.get_login(),
-                           (dt.datetime.now() - dt.timedelta(days=1)).isoformat(),
-                           sys_vars.get_vars(defer=True).get('sys_name'))
+            args.filter = make_series_filter_query()
 
     seen_sids = []
     found_series = []

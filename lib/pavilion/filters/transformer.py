@@ -143,7 +143,12 @@ class FilterTransformer(Transformer):
 
     @validate_datetime
     def _created(self) -> Optional[datetime]:
-        return self.attrs.get("created")
+        created = self.attrs.get('created')
+
+        if isinstance(created, float):
+            return datetime.fromtimestamp(created)
+
+        return created
 
     @validate_str
     def _state(self) -> Optional[str]:
