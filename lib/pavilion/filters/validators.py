@@ -14,7 +14,8 @@ T = TypeVar("T")
 
 
 def make_validator(comp_func: Callable[[T, str, T], bool],
-                    rtype: Callable[[str], T] = identity) -> Callable[[object, str, str], ThreeValue]:
+                    rtype: Callable[[str], T] = identity
+                    ) -> Callable[[object, str, str], ThreeValue]:
     """Makes a decorator that validates a comparison expression, ensuring that its
     righthand operand is of type rtype, produces the lefthand operand by calling
     the decorated function (intended to be a method of FilterTransform), then
@@ -84,7 +85,7 @@ def comp_glob_list(lval: List[str], comp: str, rval: str) -> bool:
 
 
 def comp_str_list(lval: List[str], comp: str, rval: str) -> bool:
-    
+
     if comp != '=':
         raise FilterParseError(f"Invalid comparator {comp} for (List[str], str).")
 
@@ -104,7 +105,7 @@ def comp_str(lval: str, comp: str, rval: str) -> bool:
 
 
 def comp_name_glob(lval: str, comp: str, rval: str) -> bool:
-    
+
     if comp not in ("=", "!="):
         raise FilterParseError(f"Invalid comparator {comp} for name glob.")
 

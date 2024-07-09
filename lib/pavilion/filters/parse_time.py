@@ -25,7 +25,7 @@ def parse_iso(rval: str) -> Union[date, datetime]:
     else:
         date = parse_iso_date(iso_comps[0])
         time = datetime.min.time()
-    
+
     return datetime.combine(date, time)
 
 
@@ -76,14 +76,14 @@ def parse_iso_time(rval: str) -> time:
     iso = tuple(map(int, time_comps))
 
     return time(*iso)
-    
+
 
 def split_duration(rval: str) -> Tuple[str, str]:
     if " " in rval:
         return tuple(rval.split())
 
-    for i, e in enumerate(rval):
-        if e.isalpha():
+    for i, elem in enumerate(rval):
+        if elem.isalpha():
             return rval[:i], rval[i:]
 
     return rval

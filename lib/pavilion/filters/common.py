@@ -1,3 +1,5 @@
+# pylint: disable=invalid-name
+
 """Miscellaneous functions for use with filters."""
 
 from datetime import datetime

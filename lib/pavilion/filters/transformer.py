@@ -1,5 +1,10 @@
+# pylint: disable=no-self-use
+# pylint: disable=invalid-name
+
 from datetime import datetime
 from typing import Any, List, Optional, Mapping
+
+from lark import Transformer, Discard, Token
 
 from pavilion.test_run import TestRun
 
@@ -7,8 +12,6 @@ from .validators import (validate_int, validate_glob, validate_glob_list,
     validate_str_list, validate_datetime, validate_str, validate_name_glob)
 from .errors import FilterParseError
 from .common import ThreeValue
-
-from lark import Transformer, Discard, Token
 
 
 MICROSECS_PER_SEC = 10**6
@@ -23,6 +26,7 @@ SPECIAL_FUNCS = {
 class FilterTransformer(Transformer):
 
     def __init__(self, attrs: Mapping):
+        super().__init__()
         self.attrs = attrs
 
     def expr(self, expr: List[ThreeValue]) -> bool:
@@ -152,7 +156,7 @@ class FilterTransformer(Transformer):
 
     @validate_str
     def _state(self) -> Optional[str]:
-        state = self.attrs.get("state") 
+        state = self.attrs.get("state")
 
         if state is not None:
             return self.attrs.get("state").state
