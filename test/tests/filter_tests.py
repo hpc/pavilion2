@@ -402,6 +402,7 @@ class FiltersTest(PavTestCase):
             'name': None,
             'user': 'Batman',
             'created': None,
+            'sys_name': 'batcave',
         }
 
         attrs = test_dict
@@ -416,12 +417,21 @@ class FiltersTest(PavTestCase):
         ff4 = parse_query("created<1 day or user=Batman")
         # not None should be None -> False
         ff5 = parse_query("not created<1 day")
+        # Boolean logic goes beyond two items in the implementation
+        ff6 = parse_query("user=Mr_Freeze or user=Captain_Cold or user=Killer_Frost or user=Batman")
+        ff7 = parse_query("user=Batman and sys_name=batcave and name=Puppet_Master")
+        ff8 = parse_query("created < 1 year or user=Mr_Freeze or sys_name=batcave")
+        ff9 = parse_query("user=Batman and sys_name=batcave and created > 1 year")
 
         self.assertFalse(ff1(attrs))
         self.assertFalse(ff2(attrs))
         self.assertFalse(ff3(attrs))
-        self.assertTrue(ff4(attrs))
+        self.assertTrue(ff4(attrs)))
         self.assertFalse(ff5(attrs))
+        self.assertTrue(ff6(attrs)))
+        self.assertFalse(ff7(attrs)))
+        self.assertTrue(ff8(attrs)))
+        self.assertFalse(ff9(attrs)))
 
     def test_filter_parentheses(self):
         """Test that parentheses are parsed correctly, and that they behave
