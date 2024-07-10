@@ -12,10 +12,10 @@ def parse_time(rval: str) -> datetime:
     try:
         return parse_duration(rval)
     except ValueError:
-        return parse_iso(rval)
+        return parse_iso_timestamp(rval)
 
 
-def parse_iso(rval: str) -> Union[date, datetime]:
+def parse_iso_timestamp(rval: str) -> Union[date, datetime]:
     iso_comps = rval.split("T")
 
     if len(iso_comps) == 2:

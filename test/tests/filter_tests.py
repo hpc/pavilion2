@@ -460,4 +460,20 @@ class FiltersTest(PavTestCase):
         with self.assertRaises(FilterParseError):
             parse_query(")complete)")
 
+    def test_filter_large_query(self):
+        """Test that the parser doesn't fail for large query strings"""
 
+        test_dict = {}
+
+        q_str = ("name=foo and (sys_name=button or sys_name=bolt) or "
+        "(finished < 2024-03-17T18:43:03 and PASSED) and not (FAILED "
+        "or COMPLETE or not has_state=MEGALODON and "
+        "(sys_name=chicken or started = 1 year))")
+
+        self.assertFalse(parse_query(q_str)(test_dict))
+
+        q_str = " and ".join(["name=foo"]*1000)
+
+        self.assertFalse(parse_query(q_str)(test_dict))
+
+        # TODO: Add some more really nasty queries

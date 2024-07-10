@@ -39,25 +39,18 @@ class FilterTransformer(Transformer):
         return expr[0]
 
     def or_expr(self, expr: List[Any]) -> ThreeValue:
-        if len(expr) == 1:
-            # No 'or' is actually involved here
-            return expr[0]
+        bools = list(filter(lambda x: isinstance(x, bool), expr))
 
-        if expr[0] is None:
-            return expr[2]
-        if expr[2] is None:
-            return expr[0]
-
-        return expr[0] or expr[2]
+        if len(bools) > 0:
+            return any(bools)
 
     def and_expr(self, expr: List[Any]) -> bool:
-        if len(expr) == 1:
-            return expr[0]
-
-        if expr[0] is None or expr[2] is None:
+        if None in expr:
             return False
 
-        return expr[0] and expr[2]
+        bools = filter(lambda x: isinstance(x, bool), expr)
+
+        return all(bools)
 
     def not_expr(self, expr: List[Any]) -> ThreeValue:
         if len(expr) == 1:
@@ -143,7 +136,9 @@ class FilterTransformer(Transformer):
 
     @validate_str_list
     def _has_state(self) -> List[str]:
-        return map(lambda x: x.state, self.attrs.get("state_history"))
+        history = self.attrs.get("state_history", [])
+
+        return map(lambda x: x.state, history)
 
     @validate_datetime
     def _created(self) -> Optional[datetime]:
@@ -160,3 +155,21 @@ class FilterTransformer(Transformer):
 
         if state is not None:
             return self.attrs.get("state").state
+
+    @validate_datetime
+    def _started(self) -> Optional[datetime]:
+        started = self.attrs.get('started')
+
+        if isinstance(started, float):
+            return datetime.fromtimestamp(started)
+
+        return started
+
+    @validate_datetime
+    def _finished(self) -> Optional[datetime]:
+        finished = self.attrs.get('finished')
+
+        if isinstance(finished, float):
+            return datetime.fromtimestamp(finished)
+
+        return finished
