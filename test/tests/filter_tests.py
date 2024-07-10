@@ -426,12 +426,12 @@ class FiltersTest(PavTestCase):
         self.assertFalse(ff1(attrs))
         self.assertFalse(ff2(attrs))
         self.assertFalse(ff3(attrs))
-        self.assertTrue(ff4(attrs)))
+        self.assertTrue(ff4(attrs))
         self.assertFalse(ff5(attrs))
-        self.assertTrue(ff6(attrs)))
-        self.assertFalse(ff7(attrs)))
-        self.assertTrue(ff8(attrs)))
-        self.assertFalse(ff9(attrs)))
+        self.assertTrue(ff6(attrs))
+        self.assertFalse(ff7(attrs))
+        self.assertTrue(ff8(attrs))
+        self.assertFalse(ff9(attrs))
 
     def test_filter_parentheses(self):
         """Test that parentheses are parsed correctly, and that they behave
