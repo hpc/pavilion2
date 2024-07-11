@@ -41,7 +41,7 @@ base:
             - "{{mpis}}"
 
         cmds:
-            - "{{sched.test_cmd}} ./supermagic"
+            - "{{sched.launch}} ./supermagic"
 
     result_parse:
         regex:

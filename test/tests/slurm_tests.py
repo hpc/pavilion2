@@ -297,7 +297,7 @@ class SlurmTests(PavTestCase):
 
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
-        cfg['run']['cmds'] = ['{{sched.test_cmd}} sleep 10']
+        cfg['run']['cmds'] = ['{{sched.launch}} sleep 10']
         cfg.update(self.slurm_mode)
         cfg['schedule']['nodes'] = '5'
         cfg['scheduler'] = 'slurm'
@@ -320,7 +320,7 @@ class SlurmTests(PavTestCase):
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
-        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['cmds'] = ['{{sched.launch}} hostname']
         cfg['schedule']['nodes'] = '5'
         cfg['schedule']['slurm'] = {
             'sbatch_extra': ['--comment "Hiya!"'],
@@ -344,7 +344,7 @@ class SlurmTests(PavTestCase):
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
-        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['cmds'] = ['{{sched.launch}} hostname']
         cfg['schedule']['nodes'] = '3'
         cfg['schedule']['node_state'] = 'available'
         cfg['schedule']['share_allocation'] = 'max'
@@ -380,7 +380,7 @@ class SlurmTests(PavTestCase):
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
-        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['cmds'] = ['{{sched.launch}} hostname']
         cfg['schedule']['nodes'] = 'all'
         cfg['schedule']['chunking'] = {'size': '3'}
         cfg['schedule']['share_allocation'] = 'False'
@@ -412,7 +412,7 @@ class SlurmTests(PavTestCase):
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
-        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['cmds'] = ['{{sched.launch}} hostname']
         cfg['schedule']['nodes'] = '3'
         cfg['schedule']['share_allocation'] = 'False'
         cfg['chunk'] = '0'
@@ -447,7 +447,7 @@ class SlurmTests(PavTestCase):
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
-        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['cmds'] = ['{{sched.launch}} hostname']
         cfg['run']['modules'] = ['gcc', 'openmpi']
         cfg['schedule']['nodes'] = '5'
         cfg['schedule']['slurm'] = {
@@ -470,7 +470,7 @@ class SlurmTests(PavTestCase):
         slurm = pavilion.schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg.update(self.slurm_mode)
-        cfg['run']['cmds'] = ['{{sched.test_cmd}} hostname']
+        cfg['run']['cmds'] = ['{{sched.launch}} hostname']
         cfg['run']['modules'] = ['gcc', 'openmpi']
         cfg['schedule']['nodes'] = '1'
         cfg['schedule']['slurm'] = {'mpi_cmd': 'mpirun'}

@@ -44,4 +44,4 @@ base:
 
         cmds:
             - cd src_c
-            - "{{sched.test_cmd}} ./IMB-MPI1 -npmin {{sched.alloc_cpu_total}} -mem 50 alltoall"
+            - "{{sched.launch}} ./IMB-MPI1 -npmin {{sched.alloc_cpu_total}} -mem 50 alltoall"

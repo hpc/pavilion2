@@ -46,7 +46,7 @@ not Python3 code.**
             cmds:
                 # In the simple case, expressions are often just a variable
                 # reference.
-                - "{{sched.test_cmds}} ./my_cmd"
+                - "{{sched.launch}} ./my_cmd"
 
 Types of Expressions
 ^^^^^^^^^^^^^^^^^^^^

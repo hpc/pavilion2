@@ -329,7 +329,7 @@ depends on the **per\_file** attribute for the result parser.
             cmds:
                 # Use the srun --output option to specify that results are
                 # to be written to separate files.
-                - {{sched.test_cmd}} --output="%N.out" env
+                - {{sched.launch}} --output="%N.out" env
 
         result_parse:
             regex:

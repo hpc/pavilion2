@@ -110,7 +110,7 @@ base:
     # Run commands.
     cmds:
       - 'cd pynamic-pyMPI-2.6a1'
-      - '{{sched.test_cmd}} ./pynamic-mpi4py $(date +%s)'
+      - '{{sched.launch}} ./pynamic-mpi4py $(date +%s)'
 
   result_parse:
     regex:

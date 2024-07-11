@@ -25,7 +25,7 @@ base:
 
     run:
       modules: ["{{compilers}}", "{{mpis}}"]
-      cmds: "{{sched.test_cmd}} ./bin/xhpcg"
+      cmds: "{{sched.launch}} ./bin/xhpcg"
 
     result_parse:
       regex:

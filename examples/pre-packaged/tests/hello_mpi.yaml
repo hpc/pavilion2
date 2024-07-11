@@ -44,4 +44,4 @@ base:
       - "{{mpis}}"
     cmds:
       - "set -x"
-      - "{{sched.test_cmd}} ./mpi_hello"
+      - "{{sched.launch}} ./mpi_hello"
