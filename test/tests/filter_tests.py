@@ -9,6 +9,7 @@ from pathlib import Path
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import schedulers
+from pavilion import commands, arguments
 from pavilion.series import TestSeries, STATUS_FN, SeriesInfo
 from pavilion.status_file import STATES, SERIES_STATES
 from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
@@ -477,9 +478,6 @@ class FiltersTest(PavTestCase):
 
         self.assertFalse(parse_query(q_str)(test_dict))
 
-        # TODO: Add some more really nasty queries
-
-
     def test_parse_duration(self):
         """Test that parsing relative durations behaves as expected."""
 
@@ -514,6 +512,8 @@ class FiltersTest(PavTestCase):
         self.assertTrue(parsed.date() == expected)
 
     def test_filter_keywords_implemented(self):
+        """Test that the various keywords are actually implemented."""
+
         queries = {'name=foo', 'state=passed', 'user=dsylvete', 'sys_name=nostalgia',
             'has_state=started', 'created=3 weeks', 'finished=3 seconds', 'partition=west',
             'nodes=[1-4]', 'num_nodes=7', 'started=1 day'}
@@ -523,8 +523,19 @@ class FiltersTest(PavTestCase):
             ff({})
 
     def test_filter_specials_implemented(self):
+        "Test that the special values are implemented."""
+
         specials = {'complete', 'all_started', 'passed', 'failed', 'result_error'}
 
         for sp in specials:
             ff = parse_query(sp)
             ff({})
+
+    def test_filter_cli(self):
+        """Test that the CLI interface for filters is implemented, and that it
+        works."""
+
+        list_cmd = commands.get_command('list')
+        list_cmd.silence()
+
+        args = arguments.get_parser().parse_args(['list', 'test_runs', '--filter=user=sunstealer and sys_name=nostalgia'])
