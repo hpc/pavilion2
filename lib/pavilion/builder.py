@@ -429,7 +429,7 @@ class TestBuilder:
             cancel_event.set()
 
     def build(self, test_id: str, tracker: BuildTracker,
-              cancel_event: threading.Event = None):
+              cancel_event: threading.Event = None) -> bool:
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.

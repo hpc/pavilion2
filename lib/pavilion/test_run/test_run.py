@@ -96,8 +96,8 @@ class TestRun(TestAttributes):
     BUILD_TEMPLATE_DIR = 'templates'
     """Directory that holds build templates."""
 
-    def __init__(self, pav_cfg: PavConfig, config, var_man=None,
-                 _id=None, rebuild=False, build_only=False):
+    def __init__(self, pav_cfg: PavConfig, config: Dict, var_man: VariableSetManager = None,
+                 _id: int = None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -225,7 +225,7 @@ class TestRun(TestAttributes):
         self.run_tmpl_path = self.path/'run.tmpl'
         self.run_script_path = self.path/'run.sh'
 
-        if not new_test:
+        if not new_test and self._build_needed():
             self.builder = self._make_builder()
 
         # This will be set by the scheduler
@@ -235,6 +235,21 @@ class TestRun(TestAttributes):
 
         self.skip_reasons = self._evaluate_skip_conditions()
         self.skipped = len(self.skip_reasons) != 0
+
+    def _build_needed(self) -> bool:
+        """Check whether it's actually necessary to perform the full
+        build process. The build process should be skipped if no build commands,
+        Spack build instructions, source files, templates, or create_files are
+        present in the test config."""
+
+        build_section = self.config.get('build', {})
+        sections = ['cmds', 'create_files', 'templates', 'extra_files', 'source_path',
+            'source_url', 'source_download', 'spack']
+
+        def is_empty(section: str) -> bool:
+            return self.config.get('build', {}).get(section) is None
+
+        return not all(map(is_empty, sections))
 
     @property
     def id_pair(self) -> ID_Pair:
@@ -279,14 +294,20 @@ class TestRun(TestAttributes):
         self.status.set(STATES.CREATED,
                         "Test directory and status file created.")
 
-        self._write_script(
-            'build',
-            path=self.build_script_path,
-            config=self.config.get('build', {}),
-            module_wrappers=self.config.get('module_wrappers', {}))
+        if self._build_needed():
+            self._write_script(
+                'build',
+                path=self.build_script_path,
+                config=self.config.get('build', {}),
+                module_wrappers=self.config.get('module_wrappers', {}))
 
-        self.builder = self._make_builder()
-        self.build_name = self.builder.name
+            self.builder = self._make_builder()
+            self.build_name = self.builder.name
+        else:
+            # If no build needs to be performed, skip the expensive
+            # process of creating a builder.
+            build_path = self.working_dir / 'build' / self.name
+            build_path.touch()
 
         self._write_script(
             'run',
@@ -613,6 +634,9 @@ class TestRun(TestAttributes):
 
         if cancel_event is None:
             cancel_event = threading.Event()
+
+        if self.builder is None:
+            return True
 
         if self.builder.build(self.full_id, tracker=tracker,
                               cancel_event=cancel_event):
