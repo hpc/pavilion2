@@ -7,6 +7,10 @@ UNITS = ('seconds', 'minutes', 'hours', 'days', 'weeks')
 
 
 def parse_time(rval: str) -> datetime:
+    """Parse a string as a time, which may be either a (partial) ISO 8601 timestamp
+    or a relative duration (e.g. '3 weeks'), which is interpreted as a time in the past
+    (i.e. '3 weeks ago')."""
+
     rval = rval.strip()
 
     try:
@@ -15,7 +19,15 @@ def parse_time(rval: str) -> datetime:
         return parse_iso_timestamp(rval)
 
 
-def parse_iso_timestamp(rval: str) -> Union[date, datetime]:
+def parse_iso_timestamp(rval: str) -> datetime:
+    """Parse a string as a (partial) ISO 8601 timestamp. Timetamps
+    that do not include all components (month, date, year, etc.) are
+    valid, but if a timestamp includes a component, it must also include
+    all components of larger magnitude as well. That is, if it includes
+    a value for the day of the month, it must also include values
+    for month and year. If time is included, all time values (hours,
+    minutes, and seconds) must be present."""
+
     iso_comps = rval.split("T")
 
     if len(iso_comps) == 2:
@@ -30,6 +42,11 @@ def parse_iso_timestamp(rval: str) -> Union[date, datetime]:
 
 
 def parse_duration(rval: str) -> datetime:
+    """Parse a string as a duration relative to the current date and time,
+    specified in natural language. A duration consists of an integer magnitude
+    and a unit (e.g. 'weeks'), which is optionally plural. A space may optionally
+    be included between the magnitude and unit."""
+
     dur_comps = split_duration(rval)
 
     if len(dur_comps) == 2:
@@ -48,6 +65,10 @@ def parse_duration(rval: str) -> datetime:
 
 
 def parse_iso_date(rval: str) -> date:
+    """Parse and ISO date format, which has the form YYYY-MM-DD. The month
+    and day are optional, and default to January and the first of the month
+    respectively if not provided."""
+
     date_comps = tuple(map(int, rval.split("-")))
 
     month = 1
@@ -64,6 +85,11 @@ def parse_iso_date(rval: str) -> date:
 
 
 def parse_iso_time(rval: str) -> time:
+    """Parse the ISO time format, which is a colon-separated triple
+    of hours, minutes, and seconds, where hours and minutes are integers,
+    and seconds is a floating-point value. Unlike the date, all values
+    are required."""
+
     time_comps = rval.split(":")
 
     if len(time_comps) == 3:
@@ -79,6 +105,9 @@ def parse_iso_time(rval: str) -> time:
 
 
 def split_duration(rval: str) -> Tuple[str, str]:
+    """Split a relative duration into its magnitude
+    and unit components."""
+
     if " " in rval:
         return tuple(rval.split())
 
@@ -90,6 +119,10 @@ def split_duration(rval: str) -> Tuple[str, str]:
 
 
 def normalize(unit: str) -> str:
+    """Normalize a unit string (e.g. weeks, months,
+    years) by depluralizing it and converting it to
+    lower case."""
+
     unit = unit.lower()
 
     if unit[-1] != "s":

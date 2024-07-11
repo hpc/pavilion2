@@ -16,7 +16,7 @@ T = TypeVar("T")
 def make_validator(comp_func: Callable[[T, str, T], bool],
                     rtype: Callable[[str], T] = identity
                     ) -> Callable[[object, str, str], ThreeValue]:
-    """Makes a decorator that validates a comparison expression, ensuring that its
+    """Make a decorator that validates a comparison expression, ensuring that its
     righthand operand is of type rtype, produces the lefthand operand by calling
     the decorated function (intended to be a method of FilterTransform), then
     compares the lefthand and righthand operands using comp_func, which also
@@ -43,6 +43,9 @@ def make_validator(comp_func: Callable[[T, str, T], bool],
 
 
 def comp_num(lval: int, comp: str, rval: int) -> bool:
+    """Compare two integer values according to the provided
+    operator string."""
+
     if comp == '=':
         return lval == rval
     if comp == '!=':
@@ -60,6 +63,11 @@ def comp_num(lval: int, comp: str, rval: int) -> bool:
 
 
 def comp_glob(lval: str, comp: str, rval: str) -> bool:
+    """Determine whether the provided glob (passed as the righthand
+    value) matches the string (passed as the lefthandvalue). The match
+    can be inverted by passing '!=' as the operator rather than '='.
+    Uses case-insensitive matching."""
+
     lval = lval.upper() # fnmatch is case sensitive, despite docs
     rval = rval.upper()
 
@@ -72,6 +80,9 @@ def comp_glob(lval: str, comp: str, rval: str) -> bool:
 
 
 def comp_glob_list(lval: List[str], comp: str, rval: str) -> bool:
+    """Determine whether every element in the provided list matches the
+    provided glob. The only valid comparison operator is '=' (since '!='
+    would be ambiguous here). Uses case-insensitive matching."""
 
     if comp != '=':
         raise FilterParseError(f"Invalid comparator {comp} for (List[str], glob).")
@@ -85,6 +96,8 @@ def comp_glob_list(lval: List[str], comp: str, rval: str) -> bool:
 
 
 def comp_str_list(lval: List[str], comp: str, rval: str) -> bool:
+    """Determine whether the given string is in the list. Uses case-insensitive
+    matching."""
 
     if comp != '=':
         raise FilterParseError(f"Invalid comparator {comp} for (List[str], str).")
@@ -94,8 +107,14 @@ def comp_str_list(lval: List[str], comp: str, rval: str) -> bool:
 
     return rval in lval
 
-
 def comp_str(lval: str, comp: str, rval: str) -> bool:
+    """Determine whether the two strings match exactly. The match may
+    be inverted by passing '!=' as the operator. Uses case-insensitive
+    matching."""
+
+    lval = lval.upper()
+    rval = rval.upper()
+
     if comp == '=':
         return lval == rval
     if comp == '!=':
@@ -105,6 +124,11 @@ def comp_str(lval: str, comp: str, rval: str) -> bool:
 
 
 def comp_name_glob(lval: str, comp: str, rval: str) -> bool:
+    """Determine whether the three-part test name (passed as the lefthand argument)
+    matches the name glob (passed as the righthand argument. The operation
+    behaves slightly differently than standard globbing, in that it performs
+    a component-wise match, where components are separated by periods. Unspecified
+    components are treated as wildcards for the purposes of matching."""
 
     if comp not in ("=", "!="):
         raise FilterParseError(f"Invalid comparator {comp} for name glob.")
@@ -123,6 +147,8 @@ def comp_name_glob(lval: str, comp: str, rval: str) -> bool:
         return not all(matches)
 
 
+# Create all the validators
+# Procedural abstraction FTW!
 validate_int = make_validator(comp_num, int)
 validate_glob = make_validator(comp_glob)
 validate_glob_list = make_validator(comp_glob_list)

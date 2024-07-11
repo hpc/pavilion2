@@ -18,7 +18,6 @@ from .errors import FilterParseError
 
 GRAMMAR_PATH = Path(__file__).parent / 'filters.lark'
 
-LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
     'sort_by': '-created',
     'limit': None,
@@ -39,40 +38,43 @@ SORT_KEYS = {
 HELP_TEXT = (
             "Filter requirements for tests and series.\n"
             "Example: pav status -F \"name=suite.test.* user=bob|user=jim complete\" \n"
-            "Default filter: {} \n"
+            "Default filter: Always True \n"
             "List of accepted operators: \n"
-            "  AND                denoted by a space. \n"
-            "  OR                 denoted by a '|'. \n"
-            "  NOT                denoted by a '!'. \n\n"
+            "  AND                denoted by 'and'. \n"
+            "  OR                 denoted by 'or'. \n"
+            "  NOT                denoted by 'not'. \n\n"
             "List of accepted arguments: \n"
             "  COMPLETE           Include only completed test runs. \n"
-            "  has_state=STATE    Include only {} who have had the \n"
+            "  has_state=STATE    Include only tests/series who have had the \n"
             "                       given state at some point. \n"
             "  name=NAME          Include only tests/series that match this name. \n"
             "                       Globbing wildcards are allowed. \n"
-            "  created<TIME       Include only {} that have been created before or after TIME. \n"
+            "  created<TIME       Include only tests/series that have been created before \n"
+            "                     or after TIME. \n"
             "                       Both < and > comparators are accepted. \n"
-            "                       date or a time period given relative to the current date. \n"
             "                       This can be in the format a partial ISO 8601 timestamp \n"
             "                       (YYYY-MM-DDTHH:MM:SS), such as \n"
             "                       '2018', '1999-03-21', or '2020-05-03 14:32:02' \n"
-            "                       Additionally, you can give an integer time distance into the \n"
-            "                       past, such as '1 hour', '3months', or '2years'. \n"
+            "                       Additionally, you can give a duration (into the past) \n"
+            "                       relative to the current date and time, such as '1 hour', \n"
+            "                       '3months', or '2years'. \n"
             "                       (Whitespace between the number and unit is optional). \n"
-            "  finished<TIME      Include only {} that have finished before or after TIME. \n"
+            "  finished<TIME      Include only tests/series that have finished before or after \n"
+            "                     TIME. \n"
             "                       Both < and > comparators are accepted. \n"
             "  partition=PARTITION \n"
-            "                     Include only {} that match this partition. \n"
-            "  nodes=NODES        Include only {} that match NODES. Wildcards and ranges defined \n"
-            "                       by brackets (i.e., node[001-005]) are allowed. \n"
+            "                     Include only tests/series that match this partition. \n"
+            "  nodes=NODES        Include only tests/series that match NODES. Wildcards and \n"
+            "                     ranges defined by brackets (i.e., node[001-005]) are allowed. \n"
             "  num_nodes>NUM_NODES \n"
-            "                     Include only {} that have greater or less than NUM_NODES. \n"
-            "                       Comparators <, >, and = are accepted. \n"
-            "  STATE              Include only {} whose most recent state is the one given. \n"
+            "                     Include only tests/series that have greater or less than \n"
+            "                     NUM_NODES. Comparators <, >, and = are accepted. \n"
+            "  STATE              Include only tests/series whose most recent state is the one \n"
+            "                     given. \n"
             "                       States can be listed with 'pav show states' \n"
-            "  sys_name=SYS_NAME  Include only {} that match the given system name, as \n"
+            "  sys_name=SYS_NAME  Include only tests/series that match the given system name, as \n"
             "                       presented by the sys.sys_name pavilion variable. \n"
-            "  user=USER          Include only {} started by this user. \n")
+            "  user=USER          Include only tests/series started by this user. \n")
 
 
 filter_parser = Lark.open(GRAMMAR_PATH, start="expr")
@@ -245,12 +247,13 @@ def get_sort_opts(
     return sortf, sort_ascending
 
 
-class TargetType(Enum):
-    TEST = auto()
-    SERIES = auto()
-
-
 def parse_query(query: str) -> Callable[[Mapping], bool]:
+    """Parse the filter query, and return a function
+    that can be called on any mapping (including TestAttributes,
+    SeriesInfo, and dict). The resultant function returns True
+    if a particular mapping satisfies the filter conditions,
+    or False otherwise."""
+
     try:
         tree = filter_parser.parse(query)
     except UnexpectedInput:
@@ -260,6 +263,9 @@ def parse_query(query: str) -> Callable[[Mapping], bool]:
 
 
 def make_series_transform(pav_cfg: PavConfig) -> Callable[[Path], SeriesInfo]:
+    """Given a Pavilion configuration object, returns a new function that
+    takes a path and returns a SeriesInfo object constructed using that path.
+    Intended for use with dir_db functions."""
 
     def series_transform(path: Path) -> SeriesInfo:
         return SeriesInfo(pav_cfg, path)
