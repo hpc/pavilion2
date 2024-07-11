@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Iterator, Union, TextIO
 from typing import List, Dict
 
+from pavilion.output import dbg_print
+
 
 def glob_to_re(glob):
     """Translate the given glob to one that is compatible with (extended) grep.
@@ -191,6 +193,21 @@ def path_is_external(path: Path):
     up_refs = path.parts.count('..')
     not_up_refs = len([part for part in path.parts if part != '..'])
     return not_up_refs - up_refs <= 0
+
+
+def symlinktree(source_directory, destination_directory):
+    """Recursively create symlinks from test source directory to builds directory in working_dir"""
+
+    for root, dirs, files in os.walk(source_directory):
+        for file in files:
+            src_path = os.path.join(root, file)
+            rel_path = os.path.relpath(src_path, source_directory)
+            dst_path = os.path.join(destination_directory, rel_path)
+
+            # Create parent dir if it doesn't already exist
+            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+            # Create the symlink
+            os.symlink(src_path, dst_path)
 
 
 def flat_walk(path, *args, **kwargs) -> Iterator[Path]:
