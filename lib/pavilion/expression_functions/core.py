@@ -4,9 +4,10 @@ loading."""
 import math
 import random
 import re
-from typing import List
+from itertools import count, takewhile
+from typing import List, Dict, Union, Tuple
 
-from .base import FunctionPlugin, num
+from .base import FunctionPlugin, num, Opt
 from ..errors import FunctionPluginError, FunctionArgError
 
 
@@ -199,6 +200,81 @@ class AvgPlugin(CoreFunctionPlugin):
         return sum(vals)/len(vals)
 
 
+class FactorsPlugin(CoreFunctionPlugin):
+    """Get the factors of the given positive integer."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="factors",
+            arg_specs=(int,)
+        )
+
+    @staticmethod
+    def factors(val: int) -> Tuple[int, ...]:
+        """Get the factors of the given positive integer."""
+        factors = []
+        if val == 1:
+            return (1,)
+        for i in range(1, val+1):
+            if val % i == 0:
+                factors.append(i)
+
+        return tuple(factors)
+
+
+class MidFactorsPlugin(CoreFunctionPlugin):
+    """Get the two middle factors of the given number.
+    For example, if the number provided is 28, which
+    has the factors [1, 2, 4, 7, 14, 28], the middle
+    two factors of that list would be [4, 7]."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="midfactors",
+            arg_specs=(int,)
+        )
+
+    @staticmethod
+    def midfactors(val: int) -> Tuple[int, int]:
+        """Get the middle factors of val.
+        Will always return a list of 2 ints."""
+        factors = FactorsPlugin.factors(val)
+
+        i = len(factors) // 2
+        val1 = factors[i]
+        val2 = val // val1
+
+        return min(val1, val2), max(val1, val2)
+
+
+class MultipleOfTwoPlugin(CoreFunctionPlugin):
+    """Given a number, produce a list of integers from 1
+    to that number (inclusive), scaling by factors of 2
+    until the final value is reached."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="multiples_of_two",
+            arg_specs=(int,)
+        )
+
+    @staticmethod
+    def multiples_of_two(val: int) -> List[int]:
+        """Provide a list of values from 1 to val where
+        each value is double the previous value until the
+        provided value is reached."""
+
+        mults = map(lambda x: 2**x, count())
+
+        return list(takewhile(lambda x: x <= val, mults))
+
+
 class LenPlugin(CoreFunctionPlugin):
     """Return the length of the given item, where item can be a string,
     list, or dict."""
@@ -253,17 +329,8 @@ class KeysPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name='keys',
-            arg_specs=None,
+            arg_specs=({},),
         )
-
-    signature = "keys(dict)"
-
-    def _validate_arg(self, arg, spec):
-        if not isinstance(arg, dict):
-            raise FunctionPluginError(
-                "The dicts function only accepts dicts. Got {} of type {}."
-                .format(arg, type(arg).__name__))
-        return arg
 
     @staticmethod
     def keys(arg):
@@ -368,6 +435,114 @@ class Sqrt(CoreFunctionPlugin):
         """Take a square root."""
 
         return value ** 0.5
+
+
+class HighPassFilter(CoreFunctionPlugin):
+    """Given the 'value_dict', return a new dictionary that contains only
+    items that exceed 'limit'. For dicts of dicts, you must specify an item_key
+    to check limit against.
+
+    Examples:
+     Given dict 'data={a: 1, b: 2, c: 3, d: 4}',
+     `high_pass_filter(data, 3)` would return a dict with
+     the 'c' and 'd' keys removed.
+
+     Given dict 'data={foo: {a: 5}, bar: {a: 100}}, baz: {a: 20}}'
+     `high_pass_filter(data, 20, 'a')` would return a dict containing
+     only key 'foo' and its value/s."""
+
+    def __init__(self):
+        super().__init__(
+            'high_pass_filter',
+            arg_specs=({}, num, Opt(str)))
+
+    @staticmethod
+    def high_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
+        """Return only items > limit"""
+
+        new_dict = {}
+        for key, values in value_dict.items():
+            if isinstance(values, dict):
+                if item_key is None:
+                    raise FunctionArgError("value_dict contained a dict, but no key was specified.")
+
+                value = values.get(item_key)
+            else:
+                if item_key is not None:
+                    raise FunctionArgError(
+                        "value_dict contained a non-dictionary, but a key was specified.")
+
+                value = values
+
+            if isinstance(value, (int, float, str)):
+                value = num(value)
+            else:
+                continue
+
+            if value > limit:
+                new_dict[key] = values
+
+        return new_dict
+
+
+class LowPassFilter(CoreFunctionPlugin):
+    """Given the 'value_dict', return a new dictionary that contains only
+    items that are less than 'limit'. For dicts of dicts, you must specify
+    a sub-key to check 'limit' against. See 'high_pass_filter' for examples."""
+
+    def __init__(self):
+        super().__init__(
+            'low_pass_filter',
+            arg_specs=({}, num, Opt(str)))
+
+    @staticmethod
+    def low_pass_filter(value_dict: Dict, limit: Union[int, float], item_key: str = None) -> Dict:
+        """Return only items > limit"""
+
+        new_dict = {}
+        for key, values in value_dict.items():
+            if isinstance(values, dict):
+                if item_key is None:
+                    raise FunctionArgError("value_dict contained a dict, but no key was specified.")
+
+                value = values.get(item_key)
+            else:
+                if item_key is not None:
+                    raise FunctionArgError(
+                        "value_dict contained a non-dictionary, but a key was specified.")
+
+                value = values
+
+            if isinstance(value, (int, float, str)):
+                value = num(value)
+            else:
+                continue
+
+            if value < limit:
+                new_dict[key] = values
+
+        return new_dict
+
+
+class Range(CoreFunctionPlugin):
+    """Return a list of numbers from a..b, not inclusive of b."""
+
+    def __init__(self):
+        super().__init__(
+            'range',
+            arg_specs=(int, int),
+            )
+
+    @staticmethod
+    def range(start, end):
+        """Calculate the range."""
+
+        vals = []
+        while start < end:
+            vals.append(start)
+            start += 1
+
+        return vals
 
 
 class Outliers(CoreFunctionPlugin):

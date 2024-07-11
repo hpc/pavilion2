@@ -42,13 +42,15 @@ class ScheduleConfig(yc.KeyedElem):
                       "allocated."),
         yc.StrElem(
             'share_allocation',
-            help_text="If true, share the allocation with other tests in the same "
-                      "chunk. The allocation will have a number of nodes equal to "
-                      "the test that needs the most. Tests started with "
-                      "{{sched.run_cmd}} will start with the right number of nodes. "
-                      "Tests are run one at a time within the allocation. This is "
-                      "great for large tests over a many/all nodes, especially on "
-                      "large systems where node setup/cleanup takes a while."),
+            help_text="If not false (default), share the allocation with other tests that have "
+                      "identical scheduler configurations and nodes/chunks selected. "
+                      "Tests are run serially by default (see run.parallel).\n"
+                      "Values: \n"
+                      "  true - Share allocations dynamically according to the number of \n"
+                      "         nodes required and available. Effectively, if more jobs want \n"
+                      "         share than there are nodes for them, they will share jobs. \n"
+                      "  false - Don't share jobs. \n"
+                      "  max - Place as many tests in each job as possible."),
         yc.StrElem(
             'tasks',
             help_text="The total number of tasks to run, across all nodes. How this "

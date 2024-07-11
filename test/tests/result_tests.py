@@ -15,7 +15,9 @@ import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
+from pavilion import resolver
 from pavilion import result
+from pavilion import test_run
 from pavilion import utils
 from pavilion.result import base
 from pavilion.errors import ResultError
@@ -355,6 +357,35 @@ class ResultParserTests(PavTestCase):
             self.assertIsNotNone(
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
+
+    def test_permute_results(self):
+        """Check that we get the right permutation values in our results."""
+
+        # We really need to do this end-to-end to make sure it's not broken
+        # at any step of the process.
+
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='this', op_sys='this')
+        ptests = rslvr.load(['permute_on.test'])
+
+        self.assertEqual(len(ptests), 4)
+
+        answers = [
+            {'foo': 'a', 'bar': {'a': '1', 'b': '2'}},
+            {'foo': 'a', 'bar': {'a': '3', 'b': '4'}},
+            {'foo': 'b', 'bar': {'a': '1', 'b': '2'}},
+            {'foo': 'b', 'bar': {'a': '3', 'b': '4'}},
+        ]
+
+        all_results = []
+
+        for ptest in ptests:
+            test = test_run.TestRun(self.pav_cfg, ptest.config, ptest.var_man)
+            test.save()
+            test.build()
+            test.finalize(new_vars=ptest.var_man)
+            test.run()
+            results = test.gather_results(0)
+            self.assertIn(results['permute_on'], answers)
 
     def test_json_parser(self):
         """Check that JSON parser returns expected results."""
@@ -800,7 +831,8 @@ class ResultParserTests(PavTestCase):
 
         for test in run_cmd.last_tests:
             # Each of these tests should have a 'FAIL' as the result.
-            self.assertEqual(test.results['result'], TestRun.FAIL)
+            self.assertEqual(test.results['result'], TestRun.FAIL, 
+                             msg='Should be FAIL {}'.format(test.results))
 
         # Make sure we can re-run results, even with permutations.
         # Check that the changed results are what we expected.
@@ -850,6 +882,44 @@ class ResultParserTests(PavTestCase):
         out, err = result_cmd.clear_output()
         self.assertIn(bad_test.full_id, err)
 
+    def test_result_cmd_by_key(self):
+        """Check the by-key and by-key-compat options."""
+
+        arg_parser = arguments.get_parser()
+
+        result_cmd = commands.get_command('result')
+        result_cmd.silence()
+        run_cmd = commands.get_command('run')
+        run_cmd.silence()
+
+        run_args = arg_parser.parse_args(['run', 'result_tests.complex'])
+        if run_cmd.run(self.pav_cfg, run_args) != 0:
+            cmd_out, cmd_err = run_cmd.clear_output()
+            self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
+        for test in run_cmd.last_tests:
+            test.wait(10)
+ 
+        res_args = arg_parser.parse_args(
+            ('result', '--by-key-compat', run_cmd.last_tests[0].full_id))
+        rslt = result_cmd.run(self.pav_cfg, res_args)
+        cmd_out, cmd_err = result_cmd.clear_output()
+        self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
+                                  .format(cmd_out, cmd_err))
+
+        self.assertIn('data', cmd_out)
+
+        res_args = arg_parser.parse_args(
+            ('result', '--by-key=data', run_cmd.last_tests[0].full_id))
+        rslt = result_cmd.run(self.pav_cfg, res_args)
+        cmd_out, cmd_err = result_cmd.clear_output()
+        self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
+                                   .format(cmd_out, cmd_err))
+
+
+        self.assertIn('A | B | C', cmd_out)
+        self.assertIn('3 | 4 | 5', cmd_out)
+
+
     def test_result_cmd_all_passed(self):
         """Check that the '--all-passed' option works."""
 
@@ -893,7 +963,7 @@ class ResultParserTests(PavTestCase):
         """Check basic re functionality."""
 
         answers = {
-            'hello': '33',
+            'hello': 33,
             'ip': '127.33.123.43',
             'all_escapes': r'.^$*\+?\{}\[]|'
         }

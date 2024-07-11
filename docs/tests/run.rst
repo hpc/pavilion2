@@ -112,6 +112,25 @@ including to such large numbers that your test will never time out.
 
 .. _tests.run.extending_commands:
 
+concurrent
+^^^^^^^^^^
+
+When tests are running in the same allocation (under the same batch script), you can specify
+that more than one test can run concurrently with others. By default, tests scheduled through
+cluster schedulers (slurm/flux) have this set to 1 - forcing tests to run serially. The raw scheduler, in
+contrast, sets it to more (see ``pav show sched raw --config``).
+
+For more about shared allocations, see  :ref:`tests.scheduling.job_sharing`.
+
+.. code-block:: yaml
+
+   base:
+     run:
+       # This test is ok with running alongside up to four other tests in an allocation.
+       concurrent: 5
+       cmds:
+         - ..
+
 Extending Commands
 ~~~~~~~~~~~~~~~~~~
 

@@ -30,3 +30,18 @@ permuted:
         result: 'world < {{var2}}'
         other: 'world * {{var1}} + {{var2}}'
 
+complex:
+  run:
+    cmds:
+      - echo "foo1 1 2 3"
+      - echo "foo2 3 4 5"
+      - echo "foo3 6 7 8"
+
+  result_parse:
+    table:
+      data:
+        for_lines_matching: 'foo1'
+        col_names: ['a', 'b', 'c']
+
+  result_evaluate:
+    result: 'False'

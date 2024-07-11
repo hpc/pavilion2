@@ -163,7 +163,8 @@ def section_values(component: Union[Dict, List, str],
                 key_parts=key_parts + (key,))
             if isinstance(val, str) and isinstance(resolved_val, list):
                 # We probably got back a list, which is only valid when dealing with a list
-                full_key = '.'.join(key_parts + (key,))
+                #full_key = '.'.join(key_parts + (key,))
+                full_key = '.'.join(list(map(str, key_parts)) + [str(key)])
                 raise TestConfigError(
                     "Key '{}' was set to '{}' which resolved to list '{}'. This key does not "
                     "accept lists.".format(full_key, val, resolved_val))

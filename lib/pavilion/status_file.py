@@ -119,6 +119,8 @@ class TestStatesStruct(StatesStruct):
     # the help stored elsewhere.
     CREATED = "The test object/directory is being created."
     ABORTED = "Aborted, through no fault of it's own."
+    FINALIZED = "Configuration of this test run has been finalized "\
+                "(typically on an allocation)."
     CREATION_ERROR = "The test object/directory could not be created."
     SCHEDULED = "The test has been scheduled with a scheduler."
     SCHED_CANCELLED = "Cancelled by the scheduler or external to Pavilion."
@@ -142,6 +144,8 @@ class TestStatesStruct(StatesStruct):
     ENV_FAILED = "Unable to load the environment requested by the test."
     PREPPING_RUN = "Performing final (on node) steps before the test run."
     RUNNING = "For when we're currently running the test."
+    RUN_READY = "The test is ready to run in an allocation, but is waiting "\
+                "based on concurrency settings."
     RUN_TIMEOUT = "The test run went long without any output."
     RUN_ERROR = "An unexpected error has occurred when setting up the test run."
     RUN_USER = "Jobs can report extra status using pav set_status and " \
@@ -304,7 +308,7 @@ could be wrong with the file format."""
             except ValueError:
                 try:
                     when = datetime.datetime.strptime(
-                        parts.pop(0), self.info_class.TIME_FORMAT).timestamp()
+                        time_part, self.info_class.TIME_FORMAT).timestamp()
                 except ValueError:
                     # Use the beginning of time on errors
                     when = datetime.datetime(0, 0, 0)
