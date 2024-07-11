@@ -4,7 +4,8 @@ loading."""
 import math
 import random
 import re
-from typing import List, Dict, Union
+from itertools import count, takewhile
+from typing import List, Dict, Union, Tuple
 
 from .base import FunctionPlugin, num, Opt
 from ..errors import FunctionPluginError, FunctionArgError
@@ -197,6 +198,81 @@ class AvgPlugin(CoreFunctionPlugin):
         """Get the average of vals. Will always return a float."""
 
         return sum(vals)/len(vals)
+
+
+class FactorsPlugin(CoreFunctionPlugin):
+    """Get the factors of the given positive integer."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="factors",
+            arg_specs=(int,)
+        )
+
+    @staticmethod
+    def factors(val: int) -> Tuple[int, ...]:
+        """Get the factors of the given positive integer."""
+        factors = []
+        if val == 1:
+            return (1,)
+        for i in range(1, val+1):
+            if val % i == 0:
+                factors.append(i)
+
+        return tuple(factors)
+
+
+class MidFactorsPlugin(CoreFunctionPlugin):
+    """Get the two middle factors of the given number.
+    For example, if the number provided is 28, which
+    has the factors [1, 2, 4, 7, 14, 28], the middle
+    two factors of that list would be [4, 7]."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="midfactors",
+            arg_specs=(int,)
+        )
+
+    @staticmethod
+    def midfactors(val: int) -> Tuple[int, int]:
+        """Get the middle factors of val.
+        Will always return a list of 2 ints."""
+        factors = FactorsPlugin.factors(val)
+
+        i = len(factors) // 2
+        val1 = factors[i]
+        val2 = val // val1
+
+        return min(val1, val2), max(val1, val2)
+
+
+class MultipleOfTwoPlugin(CoreFunctionPlugin):
+    """Given a number, produce a list of integers from 1
+    to that number (inclusive), scaling by factors of 2
+    until the final value is reached."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="multiples_of_two",
+            arg_specs=(int,)
+        )
+
+    @staticmethod
+    def multiples_of_two(val: int) -> List[int]:
+        """Provide a list of values from 1 to val where
+        each value is double the previous value until the
+        provided value is reached."""
+
+        mults = map(lambda x: 2**x, count())
+
+        return list(takewhile(lambda x: x <= val, mults))
 
 
 class LenPlugin(CoreFunctionPlugin):

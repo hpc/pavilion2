@@ -97,3 +97,17 @@ def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestR
                               color=output.YELLOW)
 
     return tests
+
+
+def mass_status_update(tests: List[TestRun], state: str, message: str,
+                       set_complete=False):
+    """Update the status of all the given tests with the state and message."""
+
+    def do_update(test):
+        test.status.set(state, message)
+
+        if set_complete:
+            test.set_run_complete()
+
+    pool = ThreadPoolExecutor(max_workers=16)
+    pool.map(do_update, tests)

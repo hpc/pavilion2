@@ -99,7 +99,7 @@ class PavilionError(RuntimeError):
                 try:
                     with open(ctx_mark.name) as yaml_file:
                         file_lines = yaml_file.readlines()
-                except OSError:
+                except (OSError, AttributeError):
                     lines.append(indent + str(next_exc.problem))
                     break
 
@@ -319,3 +319,6 @@ class WGetError(RuntimeError):
 
 class TestGroupError(PavilionError):
     """Errors thrown when managing test groups."""
+
+class LockfileError(PavilionError):
+    """Errors relating to lockfiles."""
