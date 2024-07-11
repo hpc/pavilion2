@@ -512,3 +512,19 @@ class FiltersTest(PavTestCase):
         parsed = parse_duration('1 months', now)
         expected = date(year=now.year, month=now.month - 1, day=now.day)
         self.assertTrue(parsed.date() == expected)
+
+    def test_filter_keywords_implemented(self):
+        queries = {'name=foo', 'state=passed', 'user=dsylvete', 'sys_name=nostalgia',
+            'has_state=started', 'created=3 weeks', 'finished=3 seconds', 'partition=west',
+            'nodes=[1-4]', 'num_nodes=7', 'started=1 day'}
+
+        for query in queries:
+            ff = parse_query(query)
+            ff({})
+
+    def test_filter_specials_implemented(self):
+        specials = {'complete', 'all_started', 'passed', 'failed', 'result_error'}
+
+        for sp in specials:
+            ff = parse_query(sp)
+            ff({})

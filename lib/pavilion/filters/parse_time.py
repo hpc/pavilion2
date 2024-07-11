@@ -63,7 +63,7 @@ def parse_duration(rval: str, now: datetime) -> datetime:
 
     if unit == 'years':
         return now.replace(year=now.year - mag)
-    
+
     if unit == 'months':
         dyear, dmonth = divmod(mag, MONTHS_PER_YEAR)
 

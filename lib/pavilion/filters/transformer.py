@@ -2,7 +2,7 @@
 # pylint: disable=invalid-name
 
 from datetime import datetime
-from typing import Any, List, Optional, Mapping
+from typing import Any, List, Optional, Mapping, Iterator
 
 from lark import Transformer, Discard, Token
 
@@ -174,22 +174,22 @@ class FilterTransformer(Transformer):
     def _num_nodes(self) -> int:
         """Fetch the number of nodes on which the test or series ran."""
 
-        return len(self.attrs.get("node_list"))
+        return len(self.attrs.get("node_list", []))
 
     @validate_name_glob
-    def _name(self) -> str:
+    def _name(self) -> Optional[str]:
         """Fetch the name of the test or series."""
 
         return self.attrs.get("name")
 
     @validate_glob
-    def _user(self) -> str:
+    def _user(self) -> Optional[str]:
         """Fetch the name of the user who ran the test or series."""
 
         return self.attrs.get("user")
 
     @validate_glob
-    def _sys_name(self) -> str:
+    def _sys_name(self) -> Optional[str]:
         """Fetch the name of the host on which the test or series ran."""
 
         return self.attrs.get("sys_name")
@@ -198,10 +198,10 @@ class FilterTransformer(Transformer):
     def _nodes(self) -> List[str]:
         """Fetch the list of nodes on which the test or series ran."""
 
-        return self.attrs.get("node_list")
+        return self.attrs.get("node_list", [])
 
     @validate_str_list
-    def _has_state(self) -> List[str]:
+    def _has_state(self) -> Iterator[str]:
         """Fetch the state history of the test or series."""
 
         history = self.attrs.get("state_history", [])
@@ -251,3 +251,9 @@ class FilterTransformer(Transformer):
             return datetime.fromtimestamp(finished)
 
         return finished
+
+    @validate_glob
+    def _partition(self) -> Optional[str]:
+        """Fetch the partition on which the test or series ran."""
+
+        return self.attrs.get('partition')
