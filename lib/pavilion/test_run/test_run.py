@@ -140,7 +140,7 @@ class TestRun(TestAttributes):
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
-            self.builder = None
+            self.builder: builder.TestBuilder = None
             self.build_name = None
 
             # Set basic attributes
@@ -309,6 +309,9 @@ class TestRun(TestAttributes):
             build_path = self.working_dir / 'build' / self.name
             build_path.touch()
 
+            finished_path = build_path.with_suffix(builder.TestBuilder.FINISHED_SUFFIX)
+            finished_path.touch()
+
         self._write_script(
             'run',
             path=self.run_tmpl_path,
@@ -320,7 +323,7 @@ class TestRun(TestAttributes):
 
         self.saved = True
 
-    def _make_builder(self):
+    def _make_builder(self) -> builder.TestBuilder:
 
         spack_config = (self.config.get('spack_config', {}) if self.spack_enabled()
                         else None)
