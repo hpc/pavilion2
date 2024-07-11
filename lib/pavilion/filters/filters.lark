@@ -29,6 +29,7 @@ keyword: NAME
         | TIMESTAMP
         | duration
 
+// Lark's INTs are restricted to non-negative values
 duration: INT [WS] unit ["s"]
 
 unit: SECOND

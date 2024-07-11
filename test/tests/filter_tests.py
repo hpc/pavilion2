@@ -3,7 +3,7 @@
 import argparse
 import random
 import time
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 from pathlib import Path
 
 from pavilion import dir_db
@@ -15,7 +15,8 @@ from pavilion.test_run import TestRun, TestAttributes, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
 from pavilion.filters import (FilterParseError, validate_int,
-    validate_glob, validate_glob_list, validate_str_list, validate_datetime, parse_query)
+    validate_glob, validate_glob_list, validate_str_list, validate_datetime,
+    parse_query, parse_duration)
 
 class FiltersTest(PavTestCase):
 
@@ -477,3 +478,37 @@ class FiltersTest(PavTestCase):
         self.assertFalse(parse_query(q_str)(test_dict))
 
         # TODO: Add some more really nasty queries
+
+
+    def test_parse_duration(self):
+        """Test that parsing relative durations behaves as expected."""
+
+        now = datetime.now()
+
+        # Check that these are actually implemented at all
+        parse_duration('60 Seconds', now)
+        parse_duration('4 MINUTES', now)
+        parse_duration('127hours', now)
+        parse_duration('500 days', now)
+        parse_duration('28 weeks', now)
+        parse_duration('6 months', now)
+        parse_duration('12 years', now)
+
+        self.assertTrue(parse_duration('0 days', now) == now)
+        self.assertTrue(parse_duration('0days', now) == now)
+
+        # The parsing grammar (which we're bypassing here) should prevent
+        # negative values from being passed, but we'll test it anyways
+        self.assertTrue(parse_duration('-0days', now) == now)
+
+        parsed = parse_duration('13 months', now)
+        expected = date(year=now.year - 1, month=now.month - 1, day=now.day)
+        self.assertTrue(parsed.date() == expected)
+
+        parsed = parse_duration('12 months', now)
+        expected = date(year=now.year - 1, month=now.month, day=now.day)
+        self.assertTrue(parsed.date() == expected)
+
+        parsed = parse_duration('1 months', now)
+        expected = date(year=now.year, month=now.month - 1, day=now.day)
+        self.assertTrue(parsed.date() == expected)

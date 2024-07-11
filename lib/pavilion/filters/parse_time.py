@@ -3,7 +3,8 @@ from typing import Tuple, Union
 
 
 MICROSECS_PER_SEC = 10**6
-UNITS = ('seconds', 'minutes', 'hours', 'days', 'weeks')
+MONTHS_PER_YEAR = 12
+UNITS = ('seconds', 'minutes', 'hours', 'days', 'weeks', 'months', 'years')
 
 
 def parse_time(rval: str) -> datetime:
@@ -14,7 +15,7 @@ def parse_time(rval: str) -> datetime:
     rval = rval.strip()
 
     try:
-        return parse_duration(rval)
+        return parse_duration(rval, datetime.now())
     except ValueError:
         return parse_iso_timestamp(rval)
 
@@ -41,7 +42,7 @@ def parse_iso_timestamp(rval: str) -> datetime:
     return datetime.combine(date, time)
 
 
-def parse_duration(rval: str) -> datetime:
+def parse_duration(rval: str, now: datetime) -> datetime:
     """Parse a string as a duration relative to the current date and time,
     specified in natural language. A duration consists of an integer magnitude
     and a unit (e.g. 'weeks'), which is optionally plural. A space may optionally
@@ -60,8 +61,15 @@ def parse_duration(rval: str) -> datetime:
     if unit not in UNITS:
         raise ValueError(f"Invalid unit {unit} for duration")
 
-    # TODO: Implement logic for months and years (timedelta does not support)
-    return datetime.now() - timedelta(**{unit: mag})
+    if unit == 'years':
+        return now.replace(year=now.year - mag)
+    
+    if unit == 'months':
+        dyear, dmonth = divmod(mag, MONTHS_PER_YEAR)
+
+        return now.replace(year=now.year - dyear, month=now.month - dmonth)
+
+    return now - timedelta(**{unit: mag})
 
 
 def parse_iso_date(rval: str) -> date:
@@ -120,7 +128,7 @@ def split_duration(rval: str) -> Tuple[str, str]:
 
 def normalize(unit: str) -> str:
     """Normalize a unit string (e.g. weeks, months,
-    years) by depluralizing it and converting it to
+    years) by pluralizing it and converting it to
     lower case."""
 
     unit = unit.lower()
