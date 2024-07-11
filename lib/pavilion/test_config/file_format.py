@@ -3,12 +3,16 @@ utilize the YamlConfig library to define the config structure. Because of the
 dynamic nature of test configs, there are a few extra complications this module
 handles that are documented below.
 """
+
+# pylint: disable=too-many-lines
+
 import collections
 import copy
 import re
 from collections import OrderedDict
 from typing import Union
 
+import yc_yaml as yaml
 import yaml_config as yc
 from pavilion.errors import TestConfigError
 
@@ -484,6 +488,11 @@ expected to be added to by various plugins.
             'permute_base', hidden=True,
             help_text="Set by pavilion. An id to identify the base config shared by "
                       "a set of permutations."),
+        yc.StrElem(
+            'shebang', default='#!/usr/bin/bash',
+            help_text="The shebang to put at the top of build/run/kickoff scripts. "
+                      "Should always point to 'bash', but the path and options may vary "
+                      "per-system."),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
             help_text="Variables for this test section. These can be "
@@ -559,6 +568,12 @@ expected to be added to by various plugins.
                               'search through for packages before '
                               'attempting to build.'
                 ),
+                yc.structures.AnyElem(
+                    'packages',
+                    help_text='This packages definition section '
+                              'defines preferences, requirements, '
+                              'and providers for Spack.'
+                ),
                 yc.CategoryElem(
                     'upstreams', sub_elem=yc.KeyedElem(
                         elements=[
@@ -586,9 +601,12 @@ expected to be added to by various plugins.
                               'commands.'),
                 yc.ListElem(
                     'copy_files', sub_elem=yc.StrElem(),
-                    help_text="When attaching the build to a test run, copy "
-                              "these files instead of creating a symlink. "
-                              "They may include path glob wildcards, "
+                    help_text="Make these files editable by test runs. "
+                              "Normally files in a test run's build/run directory are "
+                              "symlinks to read-only files in the shared build. "
+                              "Files listed here will be fully copied for each test "
+                              "run instead, and set with user/group write permissions. "
+                              "You may include path glob wildcards, "
                               "including the recursive '**'."),
                 PathCategoryElem(
                     'create_files',
@@ -665,6 +683,13 @@ expected to be added to by various plugins.
                 ),
                 yc.KeyedElem(
                     'spack', elements=[
+                        yc.KeyedElem(
+                            'config', elements=[
+                                yc.StrElem('install_tree'),
+                                yc.StrElem('build_jobs', default=6),
+                                yc.StrElem('install_path_scheme')
+                            ]
+                        ),
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
@@ -674,6 +699,20 @@ expected to be added to by various plugins.
                             'load', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
                                       'loaded.'
+                        ),
+                        yc.CategoryElem(
+                            'mirrors', sub_elem=yc.StrElem()
+                        ),
+                        yc.structures.AnyElem(
+                            'packages',
+                            ),
+                        yc.ListElem(
+                            'repos', sub_elem=yc.StrElem()
+                        ),
+                        yc.CategoryElem(
+                            'upstreams', sub_elem=yc.KeyedElem(
+                                elements=[yc.StrElem('install_tree')]
+                            )
                         ),
                     ],
                     help_text='Spack package build configs.'),
@@ -789,6 +828,13 @@ expected to be added to by various plugins.
                     default='True',
                     help_text='If True, test will fail if any of its run commands '
                               'fail, rather than just the last command.'),
+                yc.StrElem(
+                    'concurrent', default='{{sched.concurrent_default}}',
+                    help_text='Total tests that can run concurrently including this one in a '
+                              'shared allocation. The default is 1 for most schedulers, '
+                              'but may vary. '
+                              '(In particular, the \'raw\' scheduler has a much higher limit.) '
+                              'Tests that use MPI should use this cautiously.'),
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "

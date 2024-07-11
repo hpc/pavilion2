@@ -210,6 +210,13 @@ each test right before it runs on an allocation in order to un-defer values.
             return tasks
 
     @var_method
+    def concurrent_default(self):
+        """The default level of concurrency for the scheduler."""
+        _ = self
+
+        return 1
+
+    @var_method
     def chunk_ids(self):
         """A list of indices of the available chunks."""
         return list(range(len(self._chunks)))

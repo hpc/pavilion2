@@ -2,9 +2,9 @@ name: demo_configs
 
 on:
   push:
-    branches: [ master ]
+    branches: [ develop  ]
   pull_request:
-    branches: [ master ]
+    branches: [ develop ]
 
 jobs:
   demo_runs:
@@ -13,18 +13,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
         python-version: "3.10"
-    
+
     - name: install-deps
       run: sudo apt install gcc
 
-    - name: 
+    - name:
       run: |
         source examples/demo/activate.sh
         pav run -v QUIET demo advanced buildit
-        pav wait 
+        pav wait
         pav results --all-passed

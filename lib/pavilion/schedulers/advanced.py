@@ -425,7 +425,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     # These allow us to form sharable groups given a specific nodelist - jobs with
     # different nodelists will never be shared.
     # This can be modified by subclasses. Separate multipart keys with a '.'.
-    ALLOC_ACQUIRE_OPTIONS = ['partition', 'reservation', 'account', 'qos']
+    JOB_SHARE_KEY_ATTRS = ['partition', 'reservation', 'account', 'qos']
 
     def _schedule_chunk(self, pav_cfg, chunk: NodeSet, tests: List[TestRun],
                         sched_configs: Dict[str, dict]) -> List[SchedulerPluginError]:
@@ -458,38 +458,26 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 # same. This greatly simplifies how tests need to request nodes during their
                 # run scripts.
                 min_nodes, max_nodes = calc_node_range(sched_config, len(chunk))
-
-                acq_opts = [(min_nodes, max_nodes)]
-
-                # Check that each of the scheduling options that would change the allocations
-                # configuration are the same.
-                for opt_name in self.ALLOC_ACQUIRE_OPTIONS:
-                    opt = sched_config
-                    for part in opt_name.split('.'):
-                        if opt is not None and isinstance(opt, dict):
-                            opt = opt.get(part)
-                    opt = convert_lists_to_tuples(opt)
-                    acq_opts.append(opt)
-
-                acq_opts = tuple(acq_opts)
-                share_groups[acq_opts].append(test)
+                job_share_key = self.gen_job_share_key(sched_config, min_nodes, max_nodes)
+                share_groups[job_share_key].append(test)
 
         # Pull out any 'shared' tests that would have run by themselves anyway.
-        for acq_opts, tests in list(share_groups.items()):
+        for job_share_key, tests in list(share_groups.items()):
             if len(tests) == 1:
                 test = tests[0]
                 if sched_configs[test.full_id]['chunking']['size'] in (0, None):
                     flex_tests.append(test)
                 else:
                     indi_tests.append(test)
-                del share_groups[acq_opts]
+                del share_groups[job_share_key]
 
-        for acq_opts, tests in share_groups.items():
+        for job_share_key, tests in share_groups.items():
             chunking_enabled = sched_configs[tests[0].full_id]['chunking']['size'] not in (0, None)
             # If the user really wants to use the same nodes even if other nodes are available,
             # setting share_allocation to max will allow that.
             use_same_nodes = True if sched_config['share_allocation'] == 'max' else False
-            _, max_nodes = node_range = acq_opts[0]
+            node_range = tuple(job_share_key[:2])
+            max_nodes = node_range[1]
             # Schedule all these tests in one allocation. Chunked tests are already spread across
             # chunks, and these non-chunked tests are explicitly set to use one allocation.
             if chunking_enabled or use_same_nodes or max_nodes is None:
@@ -554,14 +542,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             job_name += ' ...'
         script = self._create_kickoff_script_stub(pav_cfg, job_name, job.kickoff_log,
                                                   base_sched_config, nodes=picked_nodes,
-                                                  node_range=node_range)
+                                                  node_range=node_range,
+                                                  shebang=base_test.shebang)
 
-        for test in tests:
-            # Run each test via pavilion
-            script.command('echo "Starting test {t.id} - $(date)"'.format(t=test))
-            script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
-            script.command('echo "Finished test {t.id} - $(date)"'.format(t=test))
-            script.newline()
+        # Run each test via pavilion
+        script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
+        script.command('pav _run {}'.format(" ".join(test.full_id for test in tests)))
 
         script.write(job.kickoff_path)
 
@@ -622,9 +608,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                node_range=node_range)
+                node_range=node_range,
+                shebang=test.shebang)
 
-            script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
+            script.command('pav _run {t.full_id}'.format(t=test))
             script.write(job.kickoff_path)
 
             test.job = job
@@ -716,9 +703,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 job_name=job_name,
                 log_path=job.kickoff_log,
                 sched_config=sched_config,
-                nodes=picked_nodes)
+                nodes=picked_nodes,
+                shebang=test.shebang)
 
-            script.command('pav _run {t.working_dir} {t.id}'.format(t=test))
+            script.command('pav _run {t.full_id}'.format(t=test))
             script.write(job.kickoff_path)
 
             test.job = job
@@ -743,10 +731,3 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 .format(self.name, len(test_chunk)))
 
         return errors
-
-
-def convert_lists_to_tuples(obj):
-    """Replace any lists in the given ubject with tuples."""
-
-    if isinstance(obj, list):
-        return tuple(convert_lists_to_tuples(item) for item in obj)
