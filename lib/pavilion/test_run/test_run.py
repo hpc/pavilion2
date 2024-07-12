@@ -271,18 +271,19 @@ class TestRun(TestAttributes):
             return 's{}'.format(series)
         else:
             return None
-    
-    def _build_null(self) -> None:
+
+    def _build_trivial(self) -> None:
         """Skip the actual build step, but create the correct files and directories,
         as if it had been performed."""
 
-        build_path = self.working_dir / 'build' / self.name
-        build_path.touch()
+        build_dir = self.build_path / self.name
 
-        finished_path = build_path.with_suffix(builder.TestBuilder.FINISHED_SUFFIX)
+        build_dir.mkdir(parents=True)
+
+        finished_path = build_dir.with_suffix(builder.TestBuilder.FINISHED_SUFFIX)
         finished_path.touch()
 
-        self.status.set(STATES.BUILD_DONE)
+        self.status.set(STATES.BUILD_SKIPPED, "No build action required.")
 
     def save(self) -> None:
         """Save the test configuration to file and create the builder. This
@@ -318,7 +319,7 @@ class TestRun(TestAttributes):
         else:
             # If no build needs to be performed, skip the expensive
             # process of creating and using a builder.
-            self._build_null()
+            self._build_trivial()
 
         self._write_script(
             'run',
@@ -630,7 +631,7 @@ class TestRun(TestAttributes):
         :returns: True if build successful
         """
 
-        if tracker is None:
+        if tracker is None and self.builder is not None:
             tracker = MultiBuildTracker().register(self)
 
         if not self.saved:
@@ -647,6 +648,8 @@ class TestRun(TestAttributes):
             cancel_event = threading.Event()
 
         if self.builder is None:
+            # This will only be the case if _build_needed previously
+            # evaluated to true
             return True
 
         if self.builder.build(self.full_id, tracker=tracker,

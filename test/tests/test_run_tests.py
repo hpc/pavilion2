@@ -209,8 +209,8 @@ class TestRunTests(PavTestCase):
         config = self._quick_test_cfg()
         del config['build']
 
-        run = TestRun(self.pav_cfg, config)
-        run.save()
-        self.assertTrue(run.status.has_state('BUILD_SKIPPED'))
-        run.run()
-        self.assertTrue(run.status.has_state('COMPLETE'))
+        test = TestRun(self.pav_cfg, config)
+        test.save()
+        self.assertTrue(test.status.has_state('BUILD_SKIPPED'))
+        test.finalize(VariableSetManager())
+        self.assertEqual(test.run(), 0)
