@@ -271,8 +271,20 @@ class TestRun(TestAttributes):
             return 's{}'.format(series)
         else:
             return None
+    
+    def _build_null(self) -> None:
+        """Skip the actual build step, but create the correct files and directories,
+        as if it had been performed."""
 
-    def save(self):
+        build_path = self.working_dir / 'build' / self.name
+        build_path.touch()
+
+        finished_path = build_path.with_suffix(builder.TestBuilder.FINISHED_SUFFIX)
+        finished_path.touch()
+
+        self.status.set(STATES.BUILD_DONE)
+
+    def save(self) -> None:
         """Save the test configuration to file and create the builder. This
         essentially separates out a filesystem operations from creating a test,
         with the exception of creating the initial id directory. This
@@ -305,12 +317,8 @@ class TestRun(TestAttributes):
             self.build_name = self.builder.name
         else:
             # If no build needs to be performed, skip the expensive
-            # process of creating a builder.
-            build_path = self.working_dir / 'build' / self.name
-            build_path.touch()
-
-            finished_path = build_path.with_suffix(builder.TestBuilder.FINISHED_SUFFIX)
-            finished_path.touch()
+            # process of creating and using a builder.
+            self._build_null()
 
         self._write_script(
             'run',
