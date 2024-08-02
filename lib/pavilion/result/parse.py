@@ -249,7 +249,7 @@ def process_file(args: Tuple[Path, List[KeySet]]) -> \
         for key_set in key_sets:
             parser = get_plugin(key_set.parser_name)
 
-            log("Parsing results for key '{}'".format(key_set.key))
+            log("Parsing results for key '{}' using {} parser".format(key_set.key, key_set.parser_name))
 
             # Seek to the beginning of the file for each parse action.
             file.seek(0)
@@ -350,6 +350,8 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
 
     matches = []
 
+    log(f"Using position regexes: {pos_regexes}")
+
     # Find the next position that matches our position regexes.
     next_pos = advance_file(file, pos_regexes)
 
@@ -359,7 +361,8 @@ def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
                 .format(file.tell()))
         try:
             # Apply to the parser to that file starting on that line.
-            res = parser(file, **parser_args)
+            res, plog = parser(file, **parser_args)
+            log.indent(plog)
         except (ValueError, LookupError, OSError) as err:
             log("Error calling result parser {}.".format(parser.name))
             log(traceback.format_exc())
