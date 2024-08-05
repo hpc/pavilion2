@@ -96,7 +96,7 @@ class Table(ResultParser):
                  col_names=None, by_column=True, lstrip=False,
                  table_end_re=None, has_row_labels=False,
                  row_ignore_re=None) -> Tuple[Dict, utils.IndentedLog]:
-        log = IndentedLog()
+        log = utils.IndentedLog()
 
         lines = []
         # Record the first non-empty line we find as a point of reference
