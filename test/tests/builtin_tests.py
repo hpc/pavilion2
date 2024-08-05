@@ -4,9 +4,6 @@ from pavilion import commands, plugins, arguments
 from pavilion.unittest import PavTestCase
 
 
-TIMEOUT = 5.0
-SLEEP_TIME = 0.2
-
 class BuiltinTests(PavTestCase):
     """Test Pavilion builtins."""
 
@@ -32,11 +29,7 @@ class BuiltinTests(PavTestCase):
         test_dir = last_test.path
         survey_outfile = test_dir / 'build' / 'hello-survey-report.json'
 
-        total_time = 0
-
-        while not last_test.complete and total_time < TIMEOUT:
-            sleep(SLEEP_TIME)
-            total_time += SLEEP_TIME
+        last_test.wait()
 
         self.assertTrue(survey_outfile.exists())
 
@@ -56,12 +49,8 @@ class BuiltinTests(PavTestCase):
         self.assertEqual(ret, 0)
 
         last_test = run_cmd.last_tests[-1]
-
-        total_time = 0
-
-        while not last_test.complete and total_time < TIMEOUT:
-            sleep(SLEEP_TIME)
-            total_time += SLEEP_TIME
+        
+        last_test.wait()
 
         self.assertTrue('survey' in last_test.results)
         self.assertTrue(len(last_test.results['survey']) > 0)
