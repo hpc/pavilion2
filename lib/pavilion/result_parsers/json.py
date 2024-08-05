@@ -2,6 +2,7 @@
 
 import json
 import re
+from typing import Dict, Tuple, Optional
 
 import yaml_config as yc
 from . import base_classes
@@ -43,7 +44,7 @@ class Json(base_classes.ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, include_only=None, exclude=None, stop_at=None):
+    def __call__(self, file, include_only=None, exclude=None, stop_at=None) -> Tuple[Optional[Dict], IndentedLog]:
         log = IndentedLog()
 
         if include_only is None:
@@ -55,7 +56,7 @@ class Json(base_classes.ResultParser):
         json_object = self.parse_json(file, stop_at, log)
 
         if json_object is None:
-            return None
+            return None, log
 
         if len(exclude) > 0:
             log(f"Excluding keys: {exclude}")

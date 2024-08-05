@@ -1,5 +1,8 @@
 """Return a constant."""
 
+from typing import Tuple, Any
+
+from pavilion.utils import IndentedLog
 import yaml_config as yc
 from .base_classes import ResultParser
 
@@ -29,5 +32,6 @@ class Constant(ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, const=None):
-        return const
+    def __call__(self, file, const=None) -> Tuple[Any, IndentedLog]:
+        log = IndentedLog()
+        return const, log

@@ -1,6 +1,7 @@
 """Parse values from tables."""
 
 import re
+from typing import Tuple, Dict
 
 import yaml_config as yc
 from pavilion import utils
@@ -94,7 +95,8 @@ class Table(ResultParser):
     def __call__(self, file, delimiter_re=None,
                  col_names=None, by_column=True, lstrip=False,
                  table_end_re=None, has_row_labels=False,
-                 row_ignore_re=None):
+                 row_ignore_re=None) -> Tuple[Dict, utils.IndentedLog]:
+        log = IndentedLog()
 
         lines = []
         # Record the first non-empty line we find as a point of reference
@@ -193,6 +195,6 @@ class Table(ResultParser):
                     col[row_name] = col_val
                     col_table[col_name] = col
 
-            return col_table
+            return col_table, log
         else:
-            return table
+            return table, log

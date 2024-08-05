@@ -1,5 +1,8 @@
+from typing import Tuple
+
 from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
+from pavilion.utils import IndentedLog
 
 
 class Filecheck(base_classes.ResultParser):
@@ -28,6 +31,8 @@ class Filecheck(base_classes.ResultParser):
         return super().check_args(**kwargs)
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, filename=None):
+    def __call__(self, file, filename=None) -> Tuple[bool, IndentedLog]:
         """Simply return True. The file exists if this is called."""
-        return True
+        log = IndentedLog()
+
+        return True, log

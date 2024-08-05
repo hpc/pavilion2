@@ -1,5 +1,9 @@
 """Split line by a substring."""
 
+from typing import Tuple, List
+
+from pavilion.utils import IndentedLog
+
 import yaml_config as yc
 from pavilion.result_parsers import base_classes
 
@@ -20,11 +24,13 @@ class Split(base_classes.ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, sep=None):
+    def __call__(self, file, sep=None) -> Tuple[List, IndentedLog]:
         """Simply use the split string method to split"""
+
+        log = IndentedLog()
 
         sep = None if sep == '' else sep
 
         line = file.readline().strip()
 
-        return [part.strip() for part in line.split(sep)]
+        return [part.strip() for part in line.split(sep)], log

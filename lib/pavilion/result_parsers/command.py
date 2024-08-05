@@ -1,9 +1,11 @@
 """Execute a command and get its output or return value."""
 import subprocess
+from typing import Tuple
 
 import yaml_config as yc
 from pavilion import errors
 from pavilion.result_parsers import base_classes
+from pavilion.utils import IndentedLog
 
 
 class Command(base_classes.ResultParser):
@@ -43,7 +45,9 @@ class Command(base_classes.ResultParser):
 
     # pylint: disable=arguments-differ
     def __call__(self, file, command=None, output_type=None,
-                 stderr_dest=None):
+                 stderr_dest=None) -> Tuple[int, IndentedLog]:
+
+        log = IndentedLog()
 
         # where to redirect stderr
         if stderr_dest == 'null':
@@ -66,6 +70,6 @@ class Command(base_classes.ResultParser):
         out, err = proc.communicate()
 
         if output_type == "stdout":
-            return out
+            return out, log
         else:
-            return proc.returncode
+            return proc.returncode, log

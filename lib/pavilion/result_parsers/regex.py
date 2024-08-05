@@ -2,6 +2,9 @@
 
 import re
 import sre_constants
+from typing import Tuple, List
+
+from pavilion.utils import IndentedLog
 
 import yaml_config as yc
 from .base_classes import ResultParser
@@ -52,7 +55,9 @@ class Regex(ResultParser):
         return kwargs
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, regex=None):
+    def __call__(self, file, regex=None) -> Tuple[List, IndentedLog]:
+
+        log = IndentedLog()
 
         cregex = re.compile(regex)
 
@@ -60,11 +65,11 @@ class Regex(ResultParser):
         match = cregex.search(line)
 
         if match is None:
-            return None
+            return None, log
 
         if cregex.groups == 0:
-            return match.group()
+            return match.group(), log
         elif cregex.groups == 1:
-            return match.groups()[0]
+            return match.groups()[0], log
         else:
-            return list(match.groups())
+            return list(match.groups()), log
