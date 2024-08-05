@@ -3,9 +3,9 @@
 from typing import Tuple, List
 
 from pavilion.utils import IndentedLog
+from pavilion.result_parsers import base_classes
 
 import yaml_config as yc
-from pavilion.result_parsers import base_classes
 
 
 class Split(base_classes.ResultParser):

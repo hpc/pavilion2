@@ -4,10 +4,10 @@ import json
 import re
 from typing import Dict, Tuple, Optional
 
+from pavilion.utils import IndentedLog
+
 import yaml_config as yc
 from . import base_classes
-
-from pavilion.utils import IndentedLog
 
 
 class Json(base_classes.ResultParser):
@@ -44,7 +44,8 @@ class Json(base_classes.ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, include_only=None, exclude=None, stop_at=None) -> Tuple[Optional[Dict], IndentedLog]:
+    def __call__(self, file, include_only=None, exclude=None,
+                    stop_at=None) -> Tuple[Optional[Dict], IndentedLog]:
         log = IndentedLog()
 
         if include_only is None:
@@ -77,7 +78,7 @@ class Json(base_classes.ResultParser):
 
             try:
                 res = json.load(file)
-                
+
                 log(f"Read JSON object with {len(res)} key(s)")
 
                 return res
@@ -87,11 +88,13 @@ class Json(base_classes.ResultParser):
         else:
             log(f"Reading until regex: {stop_at}")
             lines = []
-            for lc, line in enumerate(file):
+
+            for line_count, line in enumerate(file):
                 if re.search(stop_at, line):
-                    log("Encountered stop regex (read {lc} lines)")
+                    log("Encountered stop regex (read {line_count} lines)")
                     break
                 lines.append(line)
+
             json_string = ''.join(lines)
 
             try:
