@@ -523,8 +523,8 @@ class FlagPlugin(CoreFunctionPlugin):
         )
 
     @staticmethod
-    def flag(val: str, flag_str: str):
-        return flag(val, flag_str)
+    def flag(flag_str: str, val: str):
+        return flag(flag_str, val)
 
 class SoptPlugin(CoreFunctionPlugin):
     """Convert a config option into a UNIX-style option string. If the
@@ -533,12 +533,12 @@ class SoptPlugin(CoreFunctionPlugin):
     def __init__(self):
         super().__init__(
             'sopt',
-            arg_specs=(MaybeList(str), str)
+            arg_specs=(str, MaybeList(str))
         )
 
     @staticmethod
-    def sopt(val: Union[str, List[str]], opt_str: str) -> str:
-        return sopt(val, opt_str)
+    def sopt(opt_str: str, val: Union[str, List[str]]) -> str:
+        return sopt(opt_str, val)
 
 class OptPlugin(CoreFunctionPlugin):
     """Convert a config option into a UNIX-style option string. If the option is
@@ -546,9 +546,9 @@ class OptPlugin(CoreFunctionPlugin):
     def __init__(self):
         super().__init__(
             'opt',
-            arg_specs=(MaybeList(str), str, str)
+            arg_specs=(str, MaybeList(str), Opt(str))
         )
 
     @staticmethod
-    def opt(val: Union[str, List[str]], opt_str: str, delimiter: str = ',') -> str:
-        return opt(val, opt_str, delimiter)
+    def opt(opt_str: str, val: Union[str, List[str]], delimiter: str = ',') -> str:
+        return opt(opt_str, val, delimiter)

@@ -55,11 +55,11 @@ class ExprFuncTests(PavTestCase):
                                  (({'a': {'i': 1}, 'b': {'i': 2}}, 1.5, 'i'), {'b': {'i': 2}})],
             'low_pass_filter': [(({'a': 1, 'b': 2, 'c': 3}, 2), {'a': 1}),
                                 (({'a': {'i': 1}, 'b': {'i': 2}}, 1.5, 'i'), {'a': {'i': 1}})],
-            'flag': [(('True', '--foo'), '--foo'), (('False', '--foo'), '')],
-            'opt': [((['a', 'b', 'c'], '--foo'), "--foo='a','b','c'"), (('a', '--foo'), "--foo='a'"),
-                (('none', '--foo'), '')],
-            'sopt': [((['a', 'b', 'c'], '--foo'), "--foo='a' --foo='b' --foo='c'"),
-                (('a', '--foo'), "--foo='a'"), (('none', '--foo'), '')]
+            'flag': [(('--foo', 'True'), '--foo'), (('--foo', 'False'), '')],
+            'opt': [(('--foo', ['a', 'b', 'c']), "--foo=a,b,c"), (('--foo', 'a'), "--foo=a"),
+                (('--foo', 'none'), ''), (('--foo', []), '')],
+            'sopt': [(('--foo', ['a', 'b', 'c']), "--foo=a --foo=b --foo=c"),
+                (('--foo', 'a'), "--foo=a"), (('--foo', 'none'), ''), (('--foo', []), '')]
         }
 
         exp_funcs = expression_functions.list_plugins()

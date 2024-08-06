@@ -36,7 +36,7 @@ def num(val):
 
     raise RuntimeError("Invalid value '{}' given to num.".format(val))
 
-def flag(val: str, flag_str: str) -> str:
+def flag(flag_str: str, val: str) -> str:
     """Return a flag string for a boolean variable, if
     the variable is set, or an empty string otherwise."""
 
@@ -47,32 +47,39 @@ def flag(val: str, flag_str: str) -> str:
     else:
         raise ValueError(f'Could not convert {val} into boolean-like.')
 
-def sopt(val: Union[str, List[str]], option_str: str) -> str:
+def sopt(option_str: str, val: Union[str, List[str]]) -> str:
     """Return an option string for a variable, if it has a non-null value,
     or an empty string otherwise. For a list, create separate option string
     for each value in the list."""
 
     if isinstance(val, list):
-        return " ".join(map(lambda x: f"{option_str}='{x}'", val))
+        if len(val) == 0:
+            return ''
+
+        return " ".join(map(lambda x: f"{option_str}={x}", val))
     else:
         if val.lower() in {'null', 'none'}:
             return ''
         else:
-            return f"{option_str}='{val}'"
+            return f"{option_str}={val}"
 
-def opt(val: Union[str, List[str]], option_str: str, delimiter=',') -> str:
+def opt(option_str: str, val: Union[str, List[str]], delimiter=',') -> str:
     """Return an option string for a variable, if it has a non-null value,
     or an empty string otherwise. For a list, create a single option string
     by concatenating the values in the list."""
 
     if isinstance(val, list):
-        val = map(lambda x: f"'{x}'", val)
+        if len(val) == 0:
+            return ''
+
+        val = map(lambda x: f"{x}", val)
+
         return f"{option_str}={delimiter.join(val)}"
     else:
         if val.lower() in {'null', 'none'}:
             return ''
         else:
-            return f"{option_str}='{val}'"
+            return f"{option_str}={val}"
 
 class Opt:
     """An optional arg spec, the contained spec is checked if the value is given."""
