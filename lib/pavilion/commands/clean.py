@@ -6,6 +6,7 @@ from pavilion import clean
 from pavilion.config import PavConfig
 from pavilion import filters
 from pavilion import output
+from pavilion.filters import const
 from .base_classes import Command
 
 
@@ -41,18 +42,10 @@ class CleanCommand(Command):
 
         filter_func = None
         if not args.all:
-            filter_func = filters.make_test_run_filter(
-                complete=args.complete,
-                failed=args.failed,
-                incomplete=args.incomplete,
-                name=args.name,
-                newer_than=args.newer_than,
-                older_than=args.older_than,
-                passed=args.passed,
-                result_error=args.result_error,
-                sys_name=args.sys_name,
-                user=args.user
-            )
+            if args.filter is None:
+                filter_func = const(True)
+            else:
+                filter_func = filters.parse_query(args.filter)
 
         end = '\n' if args.verbose else '\r'
 

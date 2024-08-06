@@ -89,7 +89,10 @@ class Command(IPlugin.IPlugin):
         self.description = description
         self.short_help = short_help
         self.aliases = aliases
-        self.formatter_class = formatter_class
+        if formatter_class:
+            self.formatter_class = formatter_class
+        else:
+            self.formatter_class = arguments.WrappedFormatter
 
         # These are to allow tests to redirect output as needed.
         self.outfile = sys.stdout
@@ -156,24 +159,12 @@ case that includes:
         # Add the short help, or not. A quirk of argparse is that if 'help'
         # is set, the subcommand is listed regardless of whether the
         # help is None. If we don't want that, we have to init without 'help'.
-        if self.short_help is not None and self.formatter_class is not None:
+        if self.short_help is not None:
             parser = sub_parser.add_parser(self.name,
                                            aliases=self.aliases,
                                            description=self.description,
                                            help=self.short_help,
-                                           formatter_class=self.formatter_class)
-
-        elif self.short_help is None and self.formatter_class is not None:
-            parser = sub_parser.add_parser(self.name,
-                                           aliases=self.aliases,
-                                           description=self.description,
-                                           formatter_class=self.formatter_class)
-
-        elif self.short_help is not None and self.formatter_class is None:
-            parser = sub_parser.add_parser(self.name,
-                                           aliases=self.aliases,
-                                           description=self.description,
-                                           help=self.short_help)
+                                           formatter_class=arguments.WrappedFormatter)
         else:
             parser = sub_parser.add_parser(self.name,
                                            aliases=self.aliases,

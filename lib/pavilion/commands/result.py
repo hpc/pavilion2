@@ -142,7 +142,7 @@ class ResultsCommand(Command):
                  "filter argument will override that."
         )
         parser.add_argument(
-            '-d', '--max-digits', dest="max_digits", default=5,
+            '-d', '--max-digits', dest="max_digits", default=5, type=int,
             help="The maximum number of digits to display when formatting floating point values. If"
                  " set, numbers much larger or much smaller than 1 are displayed in scientific "
                  "notation with the specified precision, and numbers near 1 are truncated. "

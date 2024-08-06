@@ -2,7 +2,8 @@
 import datetime as dt
 import json
 from pathlib import Path
-from typing import Union, List
+from collections.abc import Mapping
+from typing import List, Optional, Any, Iterator
 
 from pavilion import config
 from pavilion import dir_db
@@ -13,7 +14,7 @@ from pavilion.test_run import TestRun, TestAttributes
 from . import common
 
 
-class SeriesInfoBase:
+class SeriesInfoBase(Mapping):
     """Shared base class for series info and test set info."""
 
     def __init__(self, pav_cfg: config.PavConfig, path: Path):
@@ -98,7 +99,7 @@ class SeriesInfoBase:
         return self.path.stat().st_mtime
 
     @property
-    def finished(self) -> Union[float, None]:
+    def finished(self) -> Optional[float]:
         """When the series completion file was created."""
 
         complete_fn = self.path/common.COMPLETE_FN
@@ -166,6 +167,24 @@ class SeriesInfoBase:
 
         return errors
 
+    def _get_status_file(self) -> status_file.SeriesStatusFile:
+        """Get the series status file object."""
+
+        if self._status_file is None:
+            status_fn = self.path/common.STATUS_FN
+            if status_fn.exists():
+                self._status_file = status_file.SeriesStatusFile(status_fn)
+
+        return self._status_file
+
+    def _get_status(self) -> status_file.SeriesStatusInfo:
+        """Get the latest test state from the series status file."""
+
+        if self._status is None:
+            status_file = self._get_status_file()
+            self._status = status_file.current()
+        return self._status
+
     def _get_test_statuses(self) -> List[str]:
         """Return a dict of the current status for each test."""
 
@@ -206,7 +225,7 @@ class SeriesInfoBase:
 
         return total
 
-    def test_info(self, test_path) -> Union[TestAttributes, None]:
+    def test_info(self, test_path) -> Optional[TestAttributes]:
         """Return the test info object for the given test path.
         If the test doesn't exist, return None."""
 
@@ -215,43 +234,33 @@ class SeriesInfoBase:
 
         try:
             test_info = TestAttributes(test_path)
-        except (OSError, TestRunError):
+        except (TestRunError, FileNotFoundError):
             test_info = None
 
         self._test_info[test_path] = test_info
         return test_info
 
-    def __getitem__(self, item):
+    def get(self, key: str, default: Any = None) -> Any:
+        """Provide dictionary like get access."""
+
+        if key in self:
+            return self[key]
+
+        return default
+
+    def __getitem__(self, key: str) -> Any:
         """Dictionary like access."""
 
-        if not isinstance(item, str) or item.startswith('_'):
-            raise KeyError("Invalid key in SeriesInfo (bad key): {}".format(item))
+        if not key in self.list_attrs():
+            raise KeyError("Unknown key in SeriesInfo: {}".format(key))
 
-        if hasattr(self, item):
-            attr = getattr(self, item)
-            if callable(attr):
-                raise KeyError("Invalid key in SeriesInfo (callable): {}".format(item))
-            return attr
+        return getattr(self, key)
 
-        else:
-            raise KeyError("Unknown key in SeriesInfo: {}".format(item))
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.list_attrs())
 
-    def __contains__(self, item) -> bool:
-        """Provide dictionary like 'contains' checks."""
-
-        if isinstance(item, str) and not item.startswith('_'):
-            attr = getattr(self, item, None)
-            return not callable(attr) and attr is not None
-
-        return False
-
-    def get(self, item, default=None):
-        """Provided dictionary like get access."""
-
-        if item in self:
-            return self[item]
-        else:
-            return default
+    def __len__(self) -> int:
+        return len(list(iter(self)))
 
 
 class SeriesInfo(SeriesInfoBase):
@@ -284,7 +293,7 @@ class SeriesInfo(SeriesInfoBase):
         return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None
 
     @property
-    def status(self) -> Union[str, None]:
+    def status(self) -> Optional[str]:
         """The last status message from the series status file."""
 
         status = self._get_status()
@@ -293,7 +302,7 @@ class SeriesInfo(SeriesInfoBase):
         return self._status.state
 
     @property
-    def status_note(self) -> Union[str, None]:
+    def status_note(self) -> Optional[str]:
         """Return the series status note."""
 
         status = self._get_status()
@@ -302,7 +311,7 @@ class SeriesInfo(SeriesInfoBase):
         return self._status.note
 
     @property
-    def status_when(self) -> Union[dt.datetime, None]:
+    def status_when(self) -> Optional[dt.datetime]:
         """Return the most recent status update time."""
 
         status = self._get_status()
@@ -310,26 +319,17 @@ class SeriesInfo(SeriesInfoBase):
             return None
         return self._status.when
 
-    def _get_status_file(self) -> status_file.SeriesStatusFile:
-        """Get the series status file object."""
+    @property
+    def state_history(self) -> List[status_file.SeriesStatusInfo]:
+        st_file = self._get_status_file()
 
-        if self._status_file is None:
-            status_fn = self.path/common.STATUS_FN
-            if status_fn.exists():
-                self._status_file = status_file.SeriesStatusFile(status_fn)
+        if st_file is None:
+            return []
 
-        return self._status_file
-
-    def _get_status(self) -> status_file.SeriesStatusInfo:
-        """Get the latest test state from the series status file."""
-
-        if self._status is None:
-            status_file = self._get_status_file()
-            self._status = status_file.current()
-        return self._status
+        return self._get_status_file().history()
 
     @property
-    def sys_name(self) -> Union[str, None]:
+    def sys_name(self) -> Optional[str]:
         """The sys_name the series ran on."""
 
         if not self._tests:
@@ -340,6 +340,10 @@ class SeriesInfo(SeriesInfoBase):
             return None
 
         return test_info.sys_name
+
+    @property
+    def all_started(self):
+        return common.get_all_started(self.path)
 
     @classmethod
     def load(cls, pav_cfg: config.PavConfig, sid: str):

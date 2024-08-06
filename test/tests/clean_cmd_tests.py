@@ -63,7 +63,7 @@ class CancelCmdTests(PavTestCase):
 
         self.assertEqual(clean_cmd.run(self.pav_cfg, args), 0)
 
-    def test_clean_with_older_than_flag(self):
+    def test_clean_with_created_flag(self):
         """Test clean command with multiple date formats."""
 
         arg_parser = arguments.get_parser()
@@ -79,7 +79,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'clean',
-            '--older-than', '5 weeks'
+            '--filter', 'created>5 weeks'
         ])
 
         clean_cmd = commands.get_command(args.command_name)

@@ -51,7 +51,7 @@ class CmdUtilsTests(unittest.PavTestCase):
         for argset, count in [
                 (('status', series1.sid, series2.sid), 6),
                 (('status', '{}-{}'.format(series1.sid, series2.sid)), 6),
-                (('status', 'all', '--name=arg_filtered.*'), 3),
+                (('status', 'all', '--filter', 'name=arg_filtered.*'), 3),
                 (('status', ) + tuple(tests1), 3),
                 ]:
 

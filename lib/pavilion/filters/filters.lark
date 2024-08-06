@@ -1,0 +1,88 @@
+expr: or_expr
+
+or_expr: and_expr (OR and_expr)*
+and_expr: not_expr (AND not_expr)*
+not_expr: NOT? (comp_expr | special | paren_expr)
+comp_expr: keyword (LT | GT | LT_EQ | GT_EQ | EQ | NOT_EQ) literal
+paren_expr: "(" expr ")"
+
+special: COMPLETE
+       | ALL_STARTED
+       | PASSED
+       | FAILED
+       | RESULT_ERROR
+
+keyword: NAME
+       | STATE
+       | USER
+       | SYS_NAME
+       | HAS_STATE
+       | CREATED
+       | FINISHED
+       | PARTITION
+       | NODES
+       | NUM_NODES
+       | STARTED
+
+?literal: INT
+        | GLOB
+        | TIMESTAMP
+        | duration
+
+// Lark's INTs are restricted to non-negative values
+duration: INT [WS] unit ["s"]
+
+unit: SECOND
+    | MINUTE
+    | HOUR
+    | DAY
+    | WEEK
+    | MONTH
+    | YEAR
+
+LT: "<"
+GT: ">"
+LT_EQ: "<="
+GT_EQ: ">="
+EQ: "="
+NOT_EQ: "!="
+
+AND: "AND"i
+OR: "OR"i
+NOT: "NOT"i
+
+COMPLETE: "COMPLETE"i
+ALL_STARTED: "ALL_STARTED"i
+PASSED: "PASSED"i
+FAILED: "FAILED"i
+RESULT_ERROR: "RESULT_ERROR"i
+
+NAME: "NAME"i
+STATE: "STATE"i
+USER: "USER"i
+SYS_NAME: "SYS_NAME"i
+HAS_STATE: "HAS_STATE"i
+CREATED: "CREATED"i
+FINISHED: "FINISHED"i
+PARTITION: "PARTITION"i
+NODES: "NODES"i
+NUM_NODES: "NUM_NODES"i
+STARTED: "STARTED"i
+
+SECOND: "SECOND"i
+MINUTE: "MINUTE"i
+HOUR: "HOUR"i
+DAY: "DAY"i
+WEEK: "WEEK"i
+MONTH: "MONTH"i
+YEAR: "YEAR"i
+
+GLOB: /[^\d][^\s\(\)]*/
+TIMESTAMP: /\d+[\.\dT\-:]*/
+
+%import common.INT
+%import common.NUMBER
+%import common.WS
+
+// Ignore all whitespace between tokens. 
+%ignore  / +(?=[^.])/

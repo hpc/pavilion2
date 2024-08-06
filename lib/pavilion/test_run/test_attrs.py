@@ -1,11 +1,13 @@
 import json
 import os
 from pathlib import Path
-from typing import Callable, Any
+from collections.abc import Mapping
+from typing import Callable, Any, Optional, Iterator, List
 
 from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion.errors import TestRunError
+from pavilion.status_file import TestStatusInfo, TestStatusFile
 
 
 # pylint: disable=protected-access
@@ -23,7 +25,7 @@ def basic_attr(name, doc):
     return prop
 
 
-class TestAttributes:
+class TestAttributes(Mapping):
     """A object for accessing test attributes. TestRuns
     inherit from this, but it can be used by itself to access test
     information with less overhead.
@@ -34,7 +36,7 @@ class TestAttributes:
 
     **WARNING**
 
-    This object is not thread or any sort of multi-processing safe. It relies
+    This object is not thread or multi-processing safe (for writes). It relies
     on the expectation that the test lifecycle should generally mean there's
     only one instance of a test around that might change these values at any
     given time. The upside is that it's so unsafe, problems reveal themselves
@@ -69,7 +71,8 @@ class TestAttributes:
 
         self._complete = False
 
-        self._status_file = None
+        # This will be overwritten by TestRun
+        self.status = None
 
         self.results_path = self.path/'results.json'
         self._results = None
@@ -187,7 +190,7 @@ class TestAttributes:
 
         return attrs
 
-    LIST_ATTRS_EXCEPTIONS = ['complete']
+    LIST_ATTRS_EXCEPTIONS = ['complete', 'state', 'state_history']
 
     @classmethod
     def list_attrs(cls):
@@ -323,8 +326,24 @@ class TestAttributes:
             return '{}.{}'.format(self.cfg_label, self.id)
 
     @property
-    def state(self) -> str:
+    def state(self) -> Optional[TestStatusInfo]:
         """Returns the current state of the test."""
+
+        if self.status is not None:
+            return self.status.current()
+
+    @property
+    def state_history(self) -> List[TestStatusInfo]:
+        if self.status is not None:
+            return self.status.history()
+
+        return []
+
+    def _get_status_file(self) -> Optional[TestStatusFile]:
+        """Returns the test's status file. Defined to present an interface
+        consistent with that of SeriesInfo, for the purpose of filtering."""
+
+        return self.status
 
     build_only = basic_attr(
         name='build_only',
@@ -380,6 +399,32 @@ class TestAttributes:
         if msg not in self._attrs['warnings']:
             self._attrs['warnings'].append(msg)
 
+    def get(self, key: str, default: Any = None) -> Any:
+        if key in self:
+            return self[key]
+
+        return default
+
+    def __getitem__(self, key: str) -> Any:
+        if key in iter(self):
+            return getattr(self, key)
+
+        raise KeyError(str(key))
+
+    def __iter__(self) -> Iterator[str]:
+        attr_list = self.list_attrs() + self.LIST_ATTRS_EXCEPTIONS
+        attr_list.append('path')
+
+        return iter(attr_list)
+
+    def __len__(self) -> int:
+        return len(list(iter(self)))
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def __eq__(self, other: 'TestAttributes') -> bool:
+        return id(self) == id(other)
 
 def test_run_attr_transform(path):
     """A dir_db transformer to convert a test_run path into a dict of test

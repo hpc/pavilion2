@@ -1045,6 +1045,8 @@ be set by the scheduler plugin as soon as it's known."""
 
         pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
+        script.command(f'echo "(pav) Starting {stype} script"')
+
         # If we include this directly, it breaks build hashing.
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
@@ -1063,6 +1065,7 @@ be set by the scheduler plugin as soon as it's known."""
         if stype == 'build' and not self.build_local:
             script.comment('To be built in an allocation.')
 
+        script.command(f'echo "(pav) Setting up {stype} environment."')
         modules = config.get('modules', [])
         if modules:
             script.newline()
@@ -1088,6 +1091,7 @@ be set by the scheduler plugin as soon as it's known."""
             script.command("declare -p")
 
         if self.spack_enabled():
+            script.command(f'echo "(pav) Setting up Spack."')
             spack_commands = config.get('spack', {})
             install_packages = spack_commands.get('install', [])
             load_packages = spack_commands.get('load', [])
@@ -1121,6 +1125,7 @@ be set by the scheduler plugin as soon as it's known."""
                     script.command('spack load {} || exit 1'
                                    .format(package))
 
+        script.command(f'echo "(pav) Executing {stype} commands."')
         script.newline()
         cmds = config.get('cmds', [])
         if cmds:
@@ -1134,6 +1139,8 @@ be set by the scheduler plugin as soon as it's known."""
                     script.command(split_line)
         else:
             script.comment('No commands given for this script.')
+
+        script.command(f'echo "(pav) Test {stype} commands completed without error."')
 
         script.write(path)
 

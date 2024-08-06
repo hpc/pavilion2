@@ -1007,3 +1007,93 @@ class DerivedElem(ConfigElement):
 
     def set_default(self, dotted_key, value):
         raise RuntimeError("You can't set defaults on derived elements.")
+
+
+class AnyElem(ConfigElement):
+    """A generic, unchecked config element that can contain arbitrary YAML."""
+
+    class NoType:
+        """Never match this type in the normalize method."""
+
+    def _represent(self, value):
+        """ We use the built in yaml representation system to 'serialize'
+        scalars.
+        :returns (value, tag)"""
+        # Use the representer from yaml to handle this properly.
+        node = self._representer.represent_data(value)
+        return node.value, node.tag
+
+    def str_converter(self, value):
+        """Convert an arbitrary structure of lists/dicts into the same structure with
+        all leaf elements converted into strings."""
+
+        if isinstance(value, dict):
+            norm_dict = {}
+            for key, subval in value.items():
+                norm_dict[str(key)] = self.str_converter(subval)
+            return norm_dict
+        elif isinstance(value, (list, tuple)):
+            return [self.str_converter(item) for item in value]
+        else:
+            return str(value)
+
+    type = NoType
+    type_converter = str_converter
+    _type_name = 'Arbitrary-YAML'
+
+    def yaml_events(self, value, show_comments, show_choices):
+        """Convert value to a list of yaml events."""
+
+        events = list()
+        if isinstance(value, (list, tuple)):
+            events.append(yaml.SequenceStartEvent(
+                anchor=None,
+                tag=None,
+                implicit=True,
+                flow_style=False,
+            ))
+
+            if show_comments:
+                comment = self._sub_elem.make_comment(
+                    show_choices=show_choices,
+                    recursive=True,
+                )
+                events.append(yaml.CommentEvent(value=comment))
+
+            if not value:
+                value = []
+
+            # Value is expected to be a list of items at this point.
+            for val in value:
+                events.extend(
+                    self.yaml_events(
+                        value=val,
+                        show_comments=False,
+                        show_choices=False))
+
+            events.append(yaml.SequenceEndEvent())
+
+        elif isinstance(value, dict):
+            if value is None:
+                value = dict()
+
+            events.append(yaml.MappingStartEvent(anchor=None, tag=None,
+                                                 implicit=True))
+            for key, val in value.items():
+                # Add the mapping key
+                events.append(yaml.ScalarEvent(value=key, anchor=None,
+                                               tag=None, implicit=(True, True)))
+                # Add the mapping value
+                events.extend(self.yaml_events(val,
+                                               show_comments=False,
+                                               show_choices=False))
+            events.append(yaml.MappingEndEvent())
+        else:
+            tag = None
+            if value is not None:
+                value, tag = self._represent(value)
+
+            events.append(yaml.ScalarEvent(value=value, anchor=None, tag=tag,
+                                           implicit=(True, True)))
+
+        return events
