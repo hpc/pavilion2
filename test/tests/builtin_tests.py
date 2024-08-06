@@ -31,6 +31,8 @@ class BuiltinTests(PavTestCase):
 
         last_test.wait()
 
+        sleep(0.2)
+
         self.assertTrue(survey_outfile.exists())
 
     def test_survey_results_parsing(self):
@@ -51,6 +53,8 @@ class BuiltinTests(PavTestCase):
         last_test = run_cmd.last_tests[-1]
         
         last_test.wait()
+
+        sleep(0.2)
 
         self.assertTrue('survey' in last_test.results)
         self.assertTrue(len(last_test.results['survey']) > 0)
