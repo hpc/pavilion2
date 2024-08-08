@@ -11,11 +11,13 @@ import stat
 import sys
 from collections import OrderedDict
 from pathlib import Path
+from itertools import product, starmap
 from typing import List, Union, Dict, NewType
 
 import yaml_config as yc
 from pavilion import output
 from pavilion import errors
+from pavilion.common import enforce_list, first
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -182,6 +184,7 @@ class PavConfigDict:
 
         return adict
 
+Pathlike = Union[str, Path]
 
 class PavConfig(PavConfigDict):
     """Define types and attributes for Pavilion config options."""
@@ -217,14 +220,15 @@ class PavConfig(PavConfigDict):
 
         super().__init__(set_attrs)
 
-    def find_file(self, file: Path, sub_dir: Union[str, Path] = None) \
+
+    def find_file(self, file: Path, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
             -> Union[Path, None]:
         """Look for the given file and return a full path to it. Relative paths
         are searched for in all config directories under 'sub_dir', if it exists.
 
     :param file: The path to the file.
-    :param sub_dir: The subdirectory in each config directory in which to
-        search.
+    :param sub_dirs: The subdirectory (or list of subdirectories) in which to
+        search in each directory.
     :returns: The full path to the found file, or None if no such file
         could be found."""
 
@@ -234,17 +238,21 @@ class PavConfig(PavConfigDict):
             else:
                 return None
 
-        # Assemble a potential location from each config dir.
-        for config in self.configs.values():
-            path = config['path']
-            if sub_dir is not None:
-                path = path/sub_dir
-            path = path/file
+        sub_dirs = enforce_list(sub_dirs)
 
-            if path.exists():
-                return path
+        cfg_paths = map(lambda x: x.get('path'), self.configs.values())
+        path_comps = product(cfg_paths, sub_dirs, [file])
 
-        return None
+        def make_path(path: Path, subdir: Pathlike, file: Path) -> Path:
+            if subdir is None:
+                return path / file
+
+            return path / subdir / file
+
+        paths = starmap(make_path, path_comps)
+
+        # Return the first path to the file that exists (or None)
+        return first(lambda x: x.exists(), paths)
 
 
 class ExPathElem(yc.PathElem):

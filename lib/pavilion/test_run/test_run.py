@@ -304,7 +304,11 @@ class TestRun(TestAttributes):
         spack_config = (self.config.get('spack_config', {}) if self.spack_enabled()
                         else None)
         if self.suite_path != Path('..') and self.suite_path is not None:
-            download_dest = self.suite_path.parents[1] / 'test_src'
+            download_dest = self.suite_path.parents[1] / 'suites'
+
+            # Check the deprecated directory
+            if not download_dest.exists():
+                download_dest = self.suite_path.parents[1] / 'test_src'
         else:
             download_dest = None
 

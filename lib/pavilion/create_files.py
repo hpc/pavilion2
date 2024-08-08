@@ -64,11 +64,12 @@ def resolve_template(pav_cfg: pavilion.config.PavConfig, template: str,
                      var_man: variables.VariableSetManager) -> List[str]:
     """Resolve each of the template files specified in the test config."""
 
-    tmpl_path = pav_cfg.find_file(Path(template), 'test_src')
+    tmpl_path = pav_cfg.find_file(Path(template), ['suites', 'test_src'])
+
     if tmpl_path is None:
         raise TestConfigError("Template file '{}' from 'templates' does not exist in "
-                              "any 'test_src' dir (Note that it must be in a Pavilion config "
-                              "area's test_src directory - NOT the build directory.)"
+                              "any 'suites' dir (Note that it must be in a Pavilion config "
+                              "area's suites directory - NOT the build directory.)"
                               .format(template))
 
     try:

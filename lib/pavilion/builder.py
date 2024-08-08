@@ -223,7 +223,7 @@ class TestBuilder:
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
-            full_path = self._pav_cfg.find_file(extra_file, Path('test_src'))
+            full_path = self._pav_cfg.find_file(extra_file, [Path('suites'), Path('test_src')])
 
             if full_path is None:
                 raise TestBuilderError(
@@ -317,7 +317,7 @@ class TestBuilder:
                 "The source path must be a valid unix path, either relative "
                 "or absolute, got '{}'".format(src_path), err)
 
-        found_src_path = self._pav_cfg.find_file(src_path, 'test_src')
+        found_src_path = self._pav_cfg.find_file(src_path, ['suites', 'test_src'])
 
         src_url = self._config.get('source_url')
         src_download = self._config.get('source_download')
@@ -670,7 +670,7 @@ class TestBuilder:
         if raw_src_path is None:
             src_path = None
         else:
-            src_path = self._pav_cfg.find_file(Path(raw_src_path), 'test_src')
+            src_path = self._pav_cfg.find_file(Path(raw_src_path), ['suites', 'test_src'])
             if src_path is None:
                 raise TestBuilderError("Could not find source file '{}'"
                                        .format(raw_src_path))
@@ -777,7 +777,7 @@ class TestBuilder:
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            path = self._pav_cfg.find_file(extra, 'test_src')
+            path = self._pav_cfg.find_file(extra, ['test_src', 'suites'])
             final_dest = dest / path.name
             try:
                 if path.is_dir():
