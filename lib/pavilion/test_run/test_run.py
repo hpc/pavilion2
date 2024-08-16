@@ -36,6 +36,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
+from pavilion.func_utils import get_nested
 from .test_attrs import TestAttributes
 
 
@@ -96,7 +97,7 @@ class TestRun(TestAttributes):
     BUILD_TEMPLATE_DIR = 'templates'
     """Directory that holds build templates."""
 
-    def __init__(self, pav_cfg: PavConfig, config, var_man=None,
+    def __init__(self, pav_cfg: PavConfig, config: Dict, var_man=None,
                  _id=None, rebuild=False, build_only=False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
@@ -337,9 +338,10 @@ class TestRun(TestAttributes):
     def _create_build_templates(self) -> Dict[Path, Path]:
         """Generate templated files for the builder to use."""
 
-        templates = self.config.get('build', {}).get('templates', {})
+        templates = get_nested(['build', 'templates'], self.config)
         tmpl_dir = self.path/self.BUILD_TEMPLATE_DIR
-        if templates:
+
+        if templates != {}:
             if not tmpl_dir.exists():
                 try:
                     tmpl_dir.mkdir(exist_ok=True)
@@ -347,6 +349,7 @@ class TestRun(TestAttributes):
                     raise TestRunError("Could not create build template directory", err)
 
         tmpl_paths = {}
+
         for tmpl_src, tmpl_dest in templates.items():
             if not (tmpl_dir/tmpl_dest).exists():
                 try:
@@ -354,6 +357,7 @@ class TestRun(TestAttributes):
                     create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
                 except TestConfigError as err:
                     raise TestRunError("Error resolving Build template files", err)
+
             tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
 
         return tmpl_paths

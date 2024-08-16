@@ -1,24 +1,15 @@
-from typing import List, Union, TypeVar, Iterator, Iterable, Callable, Optional
+from typing import TypeVar, Optional
 
 T = TypeVar("T")
 
+def set_default(val: Optional[T], default: T) -> T:
+    """Set the input value to its default, if it is None."""
 
-def enforce_list(val: Union[T, List[T]]) -> List[T]:
-    if isinstance(val, list):
-        return val
+    if val is None:
+        return default
 
-    return list(val)
+    return val
 
-def replace(lst: Iterable[T], old: T, new: T) -> Iterator[T]:
-    return map(lambda x: new if x == old else x, lst)
-
-def remove_none(lst: Iterable[T]) -> Iterator[T]:
-    return filter(lambda x: x is not None, lst)
-
-def first(pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[T]:
-    filtered = list(filter(pred, lst))
-
-    if len(filtered) > 0:
-        return filtered[0]
-
-    return None
+def get_nested(keys: Iterable[Hashable], dict: Dict) -> Dict:
+    """Safely get the hierarchical sequence of keys off the
+    dictionary. Guaranteed to return a dictionary."""

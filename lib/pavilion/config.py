@@ -12,12 +12,12 @@ import sys
 from collections import OrderedDict
 from pathlib import Path
 from itertools import product, starmap
-from typing import List, Union, Dict, NewType
+from typing import List, Union, Dict, NewType, Iterator
 
 import yaml_config as yc
 from pavilion import output
 from pavilion import errors
-from pavilion.common import enforce_list, first
+from pavilion.func_utils import first, flatten
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -220,7 +220,33 @@ class PavConfig(PavConfigDict):
 
         super().__init__(set_attrs)
 
+    @property
+    def cfg_paths(self) -> Iterator[Path]:
+        """Return an iterator of paths to all config directories"""
+        return (Path(cfg['path']) for cfg in self.configs.values())
 
+    @property
+    def suites_dirs(self) -> Iterator[Path]:
+        """Return an iterator of paths to all suites directories"""
+        return (path / 'suites' for path in self.cfg_paths)
+
+    @property
+    def suite_paths(self) -> Iterator[Path]:
+        """Return an iterator of paths to all test suites"""
+        return flatten(path.iterdir() for path in self.suites_dirs)
+
+    @property
+    def suite_names(self) -> Iterator[str]:
+        """Return an iterator of suite names"""
+
+        def is_suite(file: Path) -> bool:
+            return file.exists() and file.is_file() and file.suffix == '.yaml'
+
+        test_files = map(is_suite, self.suite_paths)
+
+        return map(lambda x: x.stem, self.suite_paths)
+
+        
     def find_file(self, file: Path, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
             -> Union[Path, None]:
         """Look for the given file and return a full path to it. Relative paths
@@ -238,10 +264,9 @@ class PavConfig(PavConfigDict):
             else:
                 return None
 
-        sub_dirs = enforce_list(sub_dirs)
+        sub_dirs = list(sub_dirs)
 
-        cfg_paths = map(lambda x: x.get('path'), self.configs.values())
-        path_comps = product(cfg_paths, sub_dirs, [file])
+        path_comps = product(self.cfg_paths, sub_dirs, list(file))
 
         def make_path(path: Path, subdir: Pathlike, file: Path) -> Path:
             if subdir is None:
