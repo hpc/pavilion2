@@ -55,6 +55,6 @@ def apply_to_first(func: Callable[[T], U], pred: Callable[[T], bool], lst: Itera
 
 def get_nested(keys: Iterable[Hashable], nested_dict: Dict) -> Dict:
     for key in keys:
-        nested_dict = nested_dict.get(key)
+        nested_dict = nested_dict.get(key, {})
 
     return nested_dict

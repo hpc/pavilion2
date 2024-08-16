@@ -247,7 +247,7 @@ class PavConfig(PavConfigDict):
         return map(lambda x: x.stem, self.suite_paths)
 
         
-    def find_file(self, file: Path, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
+    def find_file(self, file: Pathlike, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
             -> Union[Path, None]:
         """Look for the given file and return a full path to it. Relative paths
         are searched for in all config directories under 'sub_dir', if it exists.
@@ -258,6 +258,8 @@ class PavConfig(PavConfigDict):
     :returns: The full path to the found file, or None if no such file
         could be found."""
 
+        file = Path(file)
+
         if file.is_absolute():
             if file.exists():
                 return file
@@ -266,7 +268,7 @@ class PavConfig(PavConfigDict):
 
         sub_dirs = list(sub_dirs)
 
-        path_comps = product(self.cfg_paths, sub_dirs, list(file))
+        path_comps = product(self.cfg_paths, sub_dirs, [file])
 
         def make_path(path: Path, subdir: Pathlike, file: Path) -> Path:
             if subdir is None:

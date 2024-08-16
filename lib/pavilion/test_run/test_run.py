@@ -238,6 +238,11 @@ class TestRun(TestAttributes):
         self.skipped = len(self.skip_reasons) != 0
 
     @property
+    def suite_name(self) -> str:
+        """Return the name of the suite associated with the test."""
+        return self.suite_path.stem
+
+    @property
     def id_pair(self) -> ID_Pair:
         """Returns an ID_pair (a tuple of the working dir and test id)."""
         return ID_Pair((self.working_dir, self.id))

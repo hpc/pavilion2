@@ -62,18 +62,18 @@ def verify_path(dest, rel_path) -> Path:
     return file_path
 
 
-def resolve_template(pav_cfg: PavConfig, template: Path, var_man: VariableSetManager) -> Any:
+def resolve_template(pav_cfg: PavConfig, template_fname: str, var_man: VariableSetManager) -> Any:
     """Resolve a single template file specified in the test config. Return a resolved
     component."""
 
     # TODO: This needs to be the test-specific suites directory
-    tmpl_path = pav_cfg.find_file(template, ['suites', 'test_src'])
+    tmpl_path = pav_cfg.find_file(template_fname, ['suites', 'test_src'])
 
     if tmpl_path is None:
         raise TestConfigError("Template file '{}' from 'templates' does not exist in "
                               "any 'suites' dir (Note that it must be in a Pavilion config "
                               "area's suites directory - NOT the build directory.)"
-                              .format(template))
+                              .format(template_fname))
 
     try:
         with tmpl_path.open() as tmpl_file:

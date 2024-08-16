@@ -77,7 +77,7 @@ class TestBuilder:
         self._download_dest = download_dest
         self._templates: Dict[Path, Path] = templates or {}
         self._build_hash = None
-
+        
         try:
             self._timeout = parse_timeout(config.get('timeout'))
         except ValueError:
@@ -98,7 +98,6 @@ class TestBuilder:
             self.name = build_name
 
         self.path = working_dir/'builds'/self.name  # type: Path
-        self.suite_dir = Path('suites') / self.name
 
         current_status = status.current()
 
@@ -134,6 +133,15 @@ class TestBuilder:
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad destination path '{}'"
                                        .format(dest), err)
+
+    @property
+    def suite_path(self) -> Path:
+        spath = self._config.get('suite_path')
+
+        if spath in (None, '<no suite>'):
+            return Path('..').resolve()
+
+        return Path(spath)
 
     def exists(self):
         """Return True if the given build exists."""
@@ -224,7 +232,7 @@ class TestBuilder:
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
-            full_path = self._pav_cfg.find_file(extra_file, [self.suite_dir, Path('test_src')])
+            full_path = self._pav_cfg.find_file(extra_file, [self.suite_path, Path('test_src')])
 
             if full_path is None:
                 raise TestBuilderError(
@@ -318,7 +326,7 @@ class TestBuilder:
                 "The source path must be a valid unix path, either relative "
                 "or absolute, got '{}'".format(src_path), err)
 
-        found_src_path = self._pav_cfg.find_file(src_path, [self.suite_dir, Path('test_src')])
+        found_src_path = self._pav_cfg.find_file(src_path, [self.suite_path, Path('test_src')])
 
         src_url = self._config.get('source_url')
         src_download = self._config.get('source_download')
@@ -671,7 +679,7 @@ class TestBuilder:
         if raw_src_path is None:
             src_path = None
         else:
-            src_path = self._pav_cfg.find_file(Path(raw_src_path), [self.suite_dir, Path('test_src')])
+            src_path = self._pav_cfg.find_file(Path(raw_src_path), [self.suite_path, Path('test_src')])
             if src_path is None:
                 raise TestBuilderError("Could not find source file '{}'"
                                        .format(raw_src_path))
@@ -778,7 +786,7 @@ class TestBuilder:
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            path = self._pav_cfg.find_file(extra, [self.suite_dir, Path('test_src')])
+            path = self._pav_cfg.find_file(extra, [self.suite_path, Path('test_src')])
             final_dest = dest / path.name
             try:
                 if path.is_dir():
