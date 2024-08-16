@@ -44,7 +44,8 @@ def first(pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[T]:
     for item in filter(pred, lst):
         return item
 
-def apply_to_first(func: Callable[[T], U], pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[U]:
+def apply_to_first(func: Callable[[T], U], pred: Callable[[T], bool],
+                    lst: Iterable[T]) -> Optional[U]:
     """Apply the function to the first element of the list that satisfies
     the given predicate. If no element satisfies the predicate, return None."""
 

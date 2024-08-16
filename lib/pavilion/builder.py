@@ -77,7 +77,7 @@ class TestBuilder:
         self._download_dest = download_dest
         self._templates: Dict[Path, Path] = templates or {}
         self._build_hash = None
-        
+
         try:
             self._timeout = parse_timeout(config.get('timeout'))
         except ValueError:
@@ -679,7 +679,7 @@ class TestBuilder:
         if raw_src_path is None:
             src_path = None
         else:
-            src_path = self._pav_cfg.find_file(Path(raw_src_path), [self.suite_path, Path('test_src')])
+            src_path = self._pav_cfg.find_file(raw_src_path, [self.suite_path, Path('test_src')])
             if src_path is None:
                 raise TestBuilderError("Could not find source file '{}'"
                                        .format(raw_src_path))

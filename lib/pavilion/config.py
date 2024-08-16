@@ -246,7 +246,6 @@ class PavConfig(PavConfigDict):
 
         return map(lambda x: x.stem, self.suite_paths)
 
-        
     def find_file(self, file: Pathlike, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
             -> Union[Path, None]:
         """Look for the given file and return a full path to it. Relative paths
