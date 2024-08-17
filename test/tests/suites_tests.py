@@ -13,13 +13,28 @@ class SuitesTests(PavTestCase):
 
     def test_run_from_suite_directory(self):
         """Test that Pavilion can find and run a test from
-        suites directory."""
+        a named suites directory."""
 
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
             'basic_suite_test'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_run_from_bare_yaml(self):
+        """Test that Pavilion can find and run a test from
+        a bare yaml file in the suites directory."""
+
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'bare_yaml'
         ])
 
         run_cmd = commands.get_command(args.command_name)

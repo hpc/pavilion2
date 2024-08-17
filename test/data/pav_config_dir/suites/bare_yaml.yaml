@@ -1,0 +1,4 @@
+bare_yaml:
+    scheduler: raw
+    run:
+        cmds: 'echo Hello!'
