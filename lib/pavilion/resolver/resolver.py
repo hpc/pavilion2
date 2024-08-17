@@ -36,7 +36,7 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
-from pavilion.func_utils import apply_to_first
+from pavilion.func_utils import first
 from yaml_config import RequiredError
 
 from .proto_test import RawProtoTest, ProtoTest
@@ -103,7 +103,7 @@ class TestConfigResolver:
         self._suites: Dict[Dict] = {}
 
     CONF_TYPE_DIRNAMES = {
-        'suite': ['suites', 'tests'], # Still check tests until removal
+        'suite': 'tests',
         'series': 'series',
         'OS': 'os',
         'host': 'hosts',
@@ -111,6 +111,11 @@ class TestConfigResolver:
         'mode': 'modes',
         'modes': 'modes',
     }
+
+    def _make_suite_paths(self, config: Dict, conf_name: str) -> List[Path]:
+        root = config['path'] / 'suites'
+
+        return [root / f'{conf_name}.yaml', root / conf_name / 'suite.yaml']
 
     def find_config(self, conf_type: str, conf_name: str) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
@@ -121,14 +126,16 @@ class TestConfigResolver:
         :return: A tuple of the config label under which a matching config was found
             and the path to that config. If nothing was found, returns (None, None).
         """
-
-        conf_type = list(self.CONF_TYPE_DIRNAMES[conf_type])
-
-        def make_path(conf_type: str) -> Path:
-            return config['path']/conf_type/'{}.yaml'.format(conf_name)
+        conf_dir = self.CONF_TYPE_DIRNAMES[conf_type]
 
         for label, config in self.pav_cfg.configs.items():
-            path = apply_to_first(make_path, lambda x: make_path(x).exists(), conf_type)
+            cfg_path = config['path']/conf_type/'{}.yaml'.format(conf_name)
+            cfg_paths = [cfg_path]
+
+            if conf_type == 'suite':
+                cfg_paths.extend(self._make_suite_paths(config, conf_name))
+
+            path = first(lambda x: x.exists(), cfg_paths)
 
             if path is not None:
                 return label, path
@@ -138,12 +145,13 @@ class TestConfigResolver:
     def find_similar_configs(self, conf_type, conf_name) -> List[str]:
         """Find configs with a name similar to the one specified."""
 
-        conf_type = list(self.CONF_TYPE_DIRNAMES[conf_type])
+        # TODO: modify this for new suites directory
 
-        def make_path(conf_type: str) -> Path:
-            return config['path']/conf_type
+        conf_dir = self.CONF_TYPE_DIRNAMES[conf_type]
 
         for label, config in self.pav_cfg.configs.items():
+            conf_dirs = [conf_dir]
+
             type_path = apply_to_first(make_path, lambda x: make_path(x).exists(), conf_type)
 
             names = []
