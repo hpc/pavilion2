@@ -36,6 +36,7 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
+from pavilion.func_utils import apply_to_first
 from yaml_config import RequiredError
 
 from .proto_test import RawProtoTest, ProtoTest
@@ -102,7 +103,7 @@ class TestConfigResolver:
         self._suites: Dict[Dict] = {}
 
     CONF_TYPE_DIRNAMES = {
-        'suite': 'tests',
+        'suite': ['suites', 'tests'], # Still check tests until removal
         'series': 'series',
         'OS': 'os',
         'host': 'hosts',
@@ -111,7 +112,7 @@ class TestConfigResolver:
         'modes': 'modes',
     }
 
-    def find_config(self, conf_type, conf_name) -> Tuple[str, Path]:
+    def find_config(self, conf_type: str, conf_name: str) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
         given type and name.
 
@@ -121,11 +122,15 @@ class TestConfigResolver:
             and the path to that config. If nothing was found, returns (None, None).
         """
 
-        conf_type = self.CONF_TYPE_DIRNAMES[conf_type]
+        conf_type = list(self.CONF_TYPE_DIRNAMES[conf_type])
+
+        def make_path(conf_type: str) -> Path:
+            return config['path']/conf_type/'{}.yaml'.format(conf_name)
 
         for label, config in self.pav_cfg.configs.items():
-            path = config['path']/conf_type/'{}.yaml'.format(conf_name)
-            if path.exists():
+            path = apply_to_first(make_path, lambda x: make_path(x).exists(), conf_type)
+
+            if path is not None:
                 return label, path
 
         return '', None
@@ -133,13 +138,16 @@ class TestConfigResolver:
     def find_similar_configs(self, conf_type, conf_name) -> List[str]:
         """Find configs with a name similar to the one specified."""
 
-        conf_type = self.CONF_TYPE_DIRNAMES[conf_type]
+        conf_type = list(self.CONF_TYPE_DIRNAMES[conf_type])
+
+        def make_path(conf_type: str) -> Path:
+            return config['path']/conf_type
 
         for label, config in self.pav_cfg.configs.items():
-            type_path = config['path']/conf_type
+            type_path = apply_to_first(make_path, lambda x: make_path(x).exists(), conf_type)
 
             names = []
-            if type_path.exists():
+            if type_path is not None and type_path.exists():
                 for file in type_path.iterdir():
                     if file.name.endswith('.yaml') and not file.is_dir():
                         names.append(file.name[:-5])
