@@ -36,7 +36,7 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
-from pavilion.func_utils import first
+from pavilion.func_utils import first, apply_to_first
 from yaml_config import RequiredError
 
 from .proto_test import RawProtoTest, ProtoTest
@@ -126,10 +126,11 @@ class TestConfigResolver:
         :return: A tuple of the config label under which a matching config was found
             and the path to that config. If nothing was found, returns (None, None).
         """
+
         conf_dir = self.CONF_TYPE_DIRNAMES[conf_type]
 
         for label, config in self.pav_cfg.configs.items():
-            cfg_path = config['path']/conf_type/'{}.yaml'.format(conf_name)
+            cfg_path = config['path'] / conf_dir /'{}.yaml'.format(conf_name)
             cfg_paths = [cfg_path]
 
             if conf_type == 'suite':
@@ -142,7 +143,7 @@ class TestConfigResolver:
 
         return '', None
 
-    def find_similar_configs(self, conf_type, conf_name) -> List[str]:
+    def find_similar_configs(self, conf_type: str, conf_name: str) -> List[str]:
         """Find configs with a name similar to the one specified."""
 
         # TODO: modify this for new suites directory
@@ -150,11 +151,10 @@ class TestConfigResolver:
         conf_dir = self.CONF_TYPE_DIRNAMES[conf_type]
 
         for label, config in self.pav_cfg.configs.items():
-            conf_dirs = [conf_dir]
-
-            type_path = apply_to_first(make_path, lambda x: make_path(x).exists(), conf_type)
+            type_path = config['path'] / conf_type
 
             names = []
+
             if type_path is not None and type_path.exists():
                 for file in type_path.iterdir():
                     if file.name.endswith('.yaml') and not file.is_dir():
