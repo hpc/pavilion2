@@ -112,10 +112,19 @@ class TestConfigResolver:
         'modes': 'modes',
     }
 
-    def _make_suite_paths(self, config: Dict, conf_name: str) -> List[Path]:
-        root = config['path'] / 'suites'
+    def _get_conf_paths(self, config_path: Path, conf_type: str, conf_name: str) -> List[Path]:
+        """Return a list of all locations in which the given config type could
+        potentially be, given a particular config path."""
 
-        return [root / f'{conf_name}.yaml', root / conf_name / 'suite.yaml']
+        suite_dir = config_path / 'suites' / conf_name
+        conf_dir = config_path / self.CONF_TYPE_DIRNAMES[conf_type]
+
+        paths = [suite_dir / f'{conf_type}.yaml', conf_dir / f'{conf_name}.yaml']
+
+        if conf_type == 'suite':
+            paths.insert(0, config_path / 'suites' / f'{conf_name}.yaml')
+
+        return paths
 
     def find_config(self, conf_type: str, conf_name: str) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
@@ -127,16 +136,9 @@ class TestConfigResolver:
             and the path to that config. If nothing was found, returns (None, None).
         """
 
-        conf_dir = self.CONF_TYPE_DIRNAMES[conf_type]
-
         for label, config in self.pav_cfg.configs.items():
-            cfg_path = config['path'] / conf_dir /'{}.yaml'.format(conf_name)
-            cfg_paths = [cfg_path]
-
-            if conf_type == 'suite':
-                cfg_paths.extend(self._make_suite_paths(config, conf_name))
-
-            path = first(lambda x: x.exists(), cfg_paths)
+            path = first(lambda x: x.exists(),
+                         self._get_conf_paths(config['path'], conf_type, conf_name))
 
             if path is not None:
                 return label, path
