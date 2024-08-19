@@ -61,8 +61,6 @@ class SuitesTests(PavTestCase):
 
         last_test = run_cmd.last_tests[0]
 
-        import pdb; pdb.set_trace()
-
         self.assertTrue(False)
 
     def test_suites_mode_config(self):

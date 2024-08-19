@@ -18,7 +18,7 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO
+from typing import List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO, Optional
 
 import similarity
 import yc_yaml
@@ -115,7 +115,7 @@ class TestConfigResolver:
     def _get_suite_dir(self, config_path: Path, suite_name: str) -> Path:
         """Return the path to the individual suite."""
 
-    def _get_conf_paths(self, config_path: Path, suite_name: str, conf_type: str, conf_name: str) -> List[Path]:
+    def _get_conf_paths(self, config_path: Path, suite_name: Optional[str], conf_type: str, conf_name: str) -> List[Path]:
         """Return a list of all locations in which the given config type could
         potentially be, given a particular config path."""
 
@@ -124,21 +124,22 @@ class TestConfigResolver:
         conf_dir_name = self.CONF_TYPE_DIRNAMES[conf_type]
 
         conf_dir_path = config_path / conf_dir_name
-        suite_dir = config_path / "suites" / suite_name
 
-        paths.append(suite_dir / f"{conf_type}.yaml")
+        if suite_name is not None:
+            suite_dir = config_path / "suites" / suite_name
+            paths.append(suite_dir / f"{conf_type}.yaml")
 
-        if conf_dir_name in ('hosts', 'modes', 'os'):
-            paths.append(suite_dir / f"{conf_dir_name}.yaml")
-        elif conf_type == 'suite':
-            paths.append(suite_dir / 'suite.yaml')
+            if conf_dir_name in ('hosts', 'modes', 'os'):
+                paths.append(suite_dir / f"{conf_dir_name}.yaml")
+            elif conf_type == 'suite':
+                paths.append(suite_dir / 'suite.yaml')
 
         # Old suite path (deprecated)
         paths.append(conf_dir_path / f"{conf_name}.yaml")
 
         return paths
 
-    def find_config(self, suite_name: str, conf_type: str, conf_name: str) -> Tuple[str, Path]:
+    def find_config(self, conf_type: str, conf_name: str, suite_name: str = None) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
         given type and name.
 
@@ -547,7 +548,7 @@ class TestConfigResolver:
 
         return multiplied_tests
 
-    def _load_raw_config(self, name: str, config_type: str, optional=False) \
+    def _load_raw_config(self, config_name: str, config_type: str, suite_name: str = None, optional=False) \
             -> Tuple[Dict, Union[Path, None], Union[str, None]]:
         """Load the given raw test config file. It can be a host, mode, or suite file.
         Returns a tuple of the config, path, and config label (name of the config area).
@@ -560,30 +561,30 @@ class TestConfigResolver:
         else:
             raise RuntimeError("Unknown config type: '{}'".format(config_type))
 
-        cfg_label, path = self.find_config(config_type, name)
+        cfg_label, path = self.find_config(config_type, config_name, suite_name)
         if path is None:
 
             if optional:
                 return None, None, None
 
             # Give a special message if it looks like they got their commands mixed up.
-            if config_type == 'suite' and name == 'log':
+            if config_type == 'suite' and config_name == 'log':
                 raise TestConfigError(
                     "Could not find test suite 'log'. Were you trying to run `pav log run`?")
 
-            similar = self.find_similar_configs(config_type, name)
+            similar = self.find_similar_configs(config_type, config_name)
             show_type = 'test' if config_type == 'suite' else config_type
             if similar:
                 raise TestConfigError(
                     "Could not find {} config {}.yaml.\n"
                     "Did you mean one of these? {}"
-                    .format(config_type, name, ', '.join(similar)))
+                    .format(config_type, config_name, ', '.join(similar)))
             else:
                 raise TestConfigError(
                     "Could not find {0} config file '{1}.yaml' in any of the "
                     "Pavilion config directories.\n"
                     "Run `pav show {2}` to get a list of available {0} files."
-                    .format(config_type, name, show_type))
+                    .format(config_type, config_name, show_type))
         try:
             with path.open() as cfg_file:
                 raw_cfg = loader.load_raw(cfg_file)
@@ -666,7 +667,7 @@ class TestConfigResolver:
 
             # Apply modes.
             try:
-                test_cfg = self.apply_modes(test_cfg, modes)
+                test_cfg = self.apply_modes(test_cfg, modes, request.suite)
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
@@ -764,13 +765,13 @@ class TestConfigResolver:
         base_config = self.apply_os(base_config, op_sys)
         return self.apply_host(base_config, host)
 
-    def _load_suite_tests(self, suite: str):
+    def _load_suite_tests(self, suite_name: str):
         """Load the suite config, with standard info applied to """
 
-        if suite in self._suites:
-            return self._suites[suite]
+        if suite_name in self._suites:
+            return self._suites[suite_name]
 
-        raw_suite_cfg, suite_path, cfg_label = self._load_raw_config(suite, 'suite')
+        raw_suite_cfg, suite_path, cfg_label = self._load_raw_config(suite_name, 'suite', suite_name)
         # Make sure each test has a dict as contents.
         for test_name, raw_test in raw_suite_cfg.items():
             if raw_test is None:
@@ -786,12 +787,12 @@ class TestConfigResolver:
             test_cfg['cfg_label'] = cfg_label
             working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
             test_cfg['working_dir'] = working_dir.as_posix()
-            test_cfg['suite'] = suite
+            test_cfg['suite'] = suite_name
             test_cfg['suite_path'] = suite_path.as_posix()
             test_cfg['host'] = self._host
             test_cfg['os'] = self._os
 
-        self._suites[suite] = suite_tests
+        self._suites[suite_name] = suite_tests
         return suite_tests
 
     def _reset_schedulers(self):
@@ -907,7 +908,7 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging configuration for OS '{}'".format(os))
 
-    def apply_modes(self, test_cfg, modes: List[str]):
+    def apply_modes(self, test_cfg, modes: List[str], suite_name: str):
         """Apply each of the mode files to the given test config.
 
         :param test_cfg: The raw test configuration.
@@ -917,7 +918,7 @@ class TestConfigResolver:
         loader = self._loader
 
         for mode in modes:
-            raw_mode_cfg, mode_cfg_path, _ = self._load_raw_config(mode, 'mode')
+            raw_mode_cfg, mode_cfg_path, _ = self._load_raw_config(mode, 'mode', suite_name)
             try:
                 mode_cfg = loader.normalize(
                     raw_mode_cfg,
