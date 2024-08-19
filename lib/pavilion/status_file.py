@@ -138,6 +138,7 @@ class TestStatesStruct(StatesStruct):
     BUILD_DONE = "The build is complete and in place."
     BUILD_WAIT = "Waiting for the build lock."
     BUILD_REUSED = "The build was reused from a prior step."
+    BUILD_SKIPPED = "No action was required, and the build was skipped."
     CANCELLED = "The test was cancelled."
     INFO = "This is for logging information about a test, and can occur" \
            "within any state."

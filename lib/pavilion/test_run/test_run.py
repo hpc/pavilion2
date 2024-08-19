@@ -96,8 +96,8 @@ class TestRun(TestAttributes):
     BUILD_TEMPLATE_DIR = 'templates'
     """Directory that holds build templates."""
 
-    def __init__(self, pav_cfg: PavConfig, config, var_man=None,
-                 _id=None, rebuild=False, build_only=False):
+    def __init__(self, pav_cfg: PavConfig, config: Dict, var_man: VariableSetManager = None,
+                 _id: int = None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -140,7 +140,7 @@ class TestRun(TestAttributes):
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
-            self.builder = None
+            self.builder: builder.TestBuilder = None
             self.build_name = None
 
             # Set basic attributes
@@ -225,7 +225,7 @@ class TestRun(TestAttributes):
         self.run_tmpl_path = self.path/'run.tmpl'
         self.run_script_path = self.path/'run.sh'
 
-        if not new_test:
+        if not new_test and self._build_needed():
             self.builder = self._make_builder()
 
         # This will be set by the scheduler
@@ -235,6 +235,21 @@ class TestRun(TestAttributes):
 
         self.skip_reasons = self._evaluate_skip_conditions()
         self.skipped = len(self.skip_reasons) != 0
+
+    def _build_needed(self) -> bool:
+        """Check whether it's actually necessary to perform the full
+        build process. The build process should be skipped if no build commands,
+        Spack build instructions, source files, templates, or create_files are
+        present in the test config."""
+
+        build_section = self.config.get('build', {})
+        sections = ['cmds', 'create_files', 'templates', 'extra_files', 'source_path',
+            'source_url', 'source_download', 'spack']
+
+        def is_empty(section: str) -> bool:
+            return self.config.get('build', {}).get(section) is None
+
+        return not all(map(is_empty, sections))
 
     @property
     def id_pair(self) -> ID_Pair:
@@ -257,7 +272,20 @@ class TestRun(TestAttributes):
         else:
             return None
 
-    def save(self):
+    def _build_trivial(self) -> None:
+        """Skip the actual build step, but create the correct files and directories,
+        as if it had been performed."""
+
+        build_dir = self.build_path / self.name
+
+        build_dir.mkdir(parents=True)
+
+        finished_path = build_dir.with_suffix(builder.TestBuilder.FINISHED_SUFFIX)
+        finished_path.touch()
+
+        self.status.set(STATES.BUILD_SKIPPED, "No build action required.")
+
+    def save(self) -> None:
         """Save the test configuration to file and create the builder. This
         essentially separates out a filesystem operations from creating a test,
         with the exception of creating the initial id directory. This
@@ -279,14 +307,19 @@ class TestRun(TestAttributes):
         self.status.set(STATES.CREATED,
                         "Test directory and status file created.")
 
-        self._write_script(
-            'build',
-            path=self.build_script_path,
-            config=self.config.get('build', {}),
-            module_wrappers=self.config.get('module_wrappers', {}))
+        if self._build_needed():
+            self._write_script(
+                'build',
+                path=self.build_script_path,
+                config=self.config.get('build', {}),
+                module_wrappers=self.config.get('module_wrappers', {}))
 
-        self.builder = self._make_builder()
-        self.build_name = self.builder.name
+            self.builder = self._make_builder()
+            self.build_name = self.builder.name
+        else:
+            # If no build needs to be performed, skip the expensive
+            # process of creating and using a builder.
+            self._build_trivial()
 
         self._write_script(
             'run',
@@ -299,7 +332,7 @@ class TestRun(TestAttributes):
 
         self.saved = True
 
-    def _make_builder(self):
+    def _make_builder(self) -> builder.TestBuilder:
 
         spack_config = (self.config.get('spack_config', {}) if self.spack_enabled()
                         else None)
@@ -598,7 +631,7 @@ class TestRun(TestAttributes):
         :returns: True if build successful
         """
 
-        if tracker is None:
+        if tracker is None and self.builder is not None:
             tracker = MultiBuildTracker().register(self)
 
         if not self.saved:
@@ -613,6 +646,11 @@ class TestRun(TestAttributes):
 
         if cancel_event is None:
             cancel_event = threading.Event()
+
+        if self.builder is None:
+            # This will only be the case if _build_needed previously
+            # evaluated to true
+            return True
 
         if self.builder.build(self.full_id, tracker=tracker,
                               cancel_event=cancel_event):

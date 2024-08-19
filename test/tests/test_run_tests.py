@@ -202,3 +202,15 @@ class TestRunTests(PavTestCase):
         cmp_file = self.TEST_DATA_ROOT / 'create_files_results' / 'tmpl1.txt'
         self.assertTrue(test_file.is_symlink())
         self.assertEqual(test_file.open().read(), cmp_file.open().read())
+
+    def test_skip_build(self):
+        """Test that the build process is skipped when no build actions are required."""
+
+        config = self._quick_test_cfg()
+        del config['build']
+
+        test = TestRun(self.pav_cfg, config)
+        test.save()
+        self.assertTrue(test.status.has_state('BUILD_SKIPPED'))
+        test.finalize(VariableSetManager())
+        self.assertEqual(test.run(), 0)
