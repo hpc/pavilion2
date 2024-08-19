@@ -47,14 +47,11 @@ def main():
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()
 
-    # Just need the show_tracebacks flag here
-    partial_args, _ = parser.parse_known_args()
-
     # Get the Pavilion config
     try:
         pav_cfg = config.find_pavilion_config()
     except Exception as err:
-        if not partial_args.show_tracebacks:
+        if not '--show-tracebacks' in sys.argv:
             output.fprint(sys.stderr, "Error getting config, exiting.", err, color=output.RED)
         else:
             print(traceback.format_exc())
