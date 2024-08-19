@@ -122,17 +122,17 @@ class TestConfigResolver:
         paths = []
 
         conf_dir_name = self.CONF_TYPE_DIRNAMES[conf_type]
-
         conf_dir_path = config_path / conf_dir_name
+        suites_cfg_dir = config_path / "suites"
 
         if suite_name is not None:
-            suite_dir = config_path / "suites" / suite_name
+            suite_dir = suites_cfg_dir / suite_name
             paths.append(suite_dir / f"{conf_type}.yaml")
 
             if conf_dir_name in ('hosts', 'modes', 'os'):
                 paths.append(suite_dir / f"{conf_dir_name}.yaml")
             elif conf_type == 'suite':
-                paths.append(suite_dir / 'suite.yaml')
+                paths.append(suites_cfg_dir / f"{suite_name}.yaml")
 
         # Old suite path (deprecated)
         paths.append(conf_dir_path / f"{conf_name}.yaml")
@@ -151,6 +151,7 @@ class TestConfigResolver:
 
         for label, config in self.pav_cfg.configs.items():
             potential_paths = self._get_conf_paths(config['path'], suite_name, conf_type, conf_name)
+
             path = first(lambda x: x.exists(), potential_paths)
 
             if path is not None:
