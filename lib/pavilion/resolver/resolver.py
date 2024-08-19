@@ -112,21 +112,33 @@ class TestConfigResolver:
         'modes': 'modes',
     }
 
-    def _get_conf_paths(self, config_path: Path, conf_type: str, conf_name: str) -> List[Path]:
+    def _get_suite_dir(self, config_path: Path, suite_name: str) -> Path:
+        """Return the path to the individual suite."""
+
+    def _get_conf_paths(self, config_path: Path, suite_name: str, conf_type: str, conf_name: str) -> List[Path]:
         """Return a list of all locations in which the given config type could
         potentially be, given a particular config path."""
 
-        suite_dir = config_path / 'suites' / conf_name
-        conf_dir = config_path / self.CONF_TYPE_DIRNAMES[conf_type]
+        paths = []
 
-        paths = [suite_dir / f'{conf_type}.yaml', conf_dir / f'{conf_name}.yaml']
+        conf_dir_name = self.CONF_TYPE_DIRNAMES[conf_type]
 
-        if conf_type == 'suite':
-            paths.insert(0, config_path / 'suites' / f'{conf_name}.yaml')
+        conf_dir_path = config_path / conf_dir_name
+        suite_dir = config_path / "suites" / suite_name
+
+        paths.append(suite_dir / f"{conf_type}.yaml")
+
+        if conf_dir_name in ('hosts', 'modes', 'os'):
+            paths.append(suite_dir / f"{conf_dir_name}.yaml")
+        elif conf_type == 'suite':
+            paths.append(suite_dir / 'suite.yaml')
+
+        # Old suite path (deprecated)
+        paths.append(conf_dir_path / f"{conf_name}.yaml")
 
         return paths
 
-    def find_config(self, conf_type: str, conf_name: str) -> Tuple[str, Path]:
+    def find_config(self, suite_name: str, conf_type: str, conf_name: str) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
         given type and name.
 
@@ -137,8 +149,8 @@ class TestConfigResolver:
         """
 
         for label, config in self.pav_cfg.configs.items():
-            path = first(lambda x: x.exists(),
-                         self._get_conf_paths(config['path'], conf_type, conf_name))
+            potential_paths = self._get_conf_paths(config['path'], suite_name, conf_type, conf_name)
+            path = first(lambda x: x.exists(), potential_paths)
 
             if path is not None:
                 return label, path
@@ -536,7 +548,7 @@ class TestConfigResolver:
         return multiplied_tests
 
     def _load_raw_config(self, name: str, config_type: str, optional=False) \
-            -> Tuple[Any, Union[Path, None], Union[str, None]]:
+            -> Tuple[Dict, Union[Path, None], Union[str, None]]:
         """Load the given raw test config file. It can be a host, mode, or suite file.
         Returns a tuple of the config, path, and config label (name of the config area).
         """

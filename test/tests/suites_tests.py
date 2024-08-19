@@ -9,6 +9,7 @@ class SuitesTests(PavTestCase):
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
         run_cmd = commands.get_command('run')
+        build_cmd = commands.get_command('build')
         # run_cmd.silence()
 
     def test_suite_run_from_suite_directory(self):
@@ -44,6 +45,23 @@ class SuitesTests(PavTestCase):
     def test_suites_host_config(self):
         """Test that Pavilion loads host configs from the
         suites directory"""
+
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'host1',
+            'hosts_suite_test'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        # How do I resolve the configs without building the test?
+        ret = run_cmd.run(self.pav_cfg, args)
+
+        self.assertEqual(ret, 0)
+
+        last_test = run_cmd.last_tests[0]
+
+        import pdb; pdb.set_trace()
 
         self.assertTrue(False)
 
