@@ -37,7 +37,7 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
 from pavilion.func_utils import first, apply_to_first
-from yaml_config import RequiredError
+from yaml_config import RequiredError, YamlConfigLoader
 
 from .proto_test import RawProtoTest, ProtoTest
 from .request import TestRequest
@@ -111,9 +111,6 @@ class TestConfigResolver:
         'mode': 'modes',
         'modes': 'modes',
     }
-
-    def _get_suite_dir(self, config_path: Path, suite_name: str) -> Path:
-        """Return the path to the individual suite."""
 
     def _get_conf_paths(self, config_path: Path, suite_name: Optional[str], conf_type: str, conf_name: str) -> List[Path]:
         """Return a list of all locations in which the given config type could
@@ -349,10 +346,6 @@ class TestConfigResolver:
         if overrides is None:
             overrides = []
 
-
-        if overrides is None:
-            overrides = []
-
         if conditions is None:
             conditions = {}
 
@@ -549,20 +542,28 @@ class TestConfigResolver:
 
         return multiplied_tests
 
+    def _get_loader(self, cfg_path: Optional[Path], cfg_type: str) -> YamlConfigLoader:
+        """Return the appropriate loader for the given path and config type."""
+
+        if cfg_type == 'suite':
+            return TestSuiteLoader()
+        elif cfg_type.lower() in ('host', 'os', 'mode'):
+            if cfg_path is not None and cfg_path.parents[1].stem == 'suites':
+                return TestSuiteLoader()
+
+            return self._loader
+        else:
+            raise RuntimeError("Unknown config type: '{}'".format(config_type))
+
     def _load_raw_config(self, config_name: str, config_type: str, suite_name: str = None, optional=False) \
             -> Tuple[Dict, Union[Path, None], Union[str, None]]:
         """Load the given raw test config file. It can be a host, mode, or suite file.
         Returns a tuple of the config, path, and config label (name of the config area).
         """
 
-        if config_type in ('host', 'OS', 'mode'):
-            loader = self._loader
-        elif config_type == 'suite':
-            loader = TestSuiteLoader()
-        else:
-            raise RuntimeError("Unknown config type: '{}'".format(config_type))
-
         cfg_label, path = self.find_config(config_type, config_name, suite_name)
+        loader = self._get_loader(path, config_type)
+
         if path is None:
 
             if optional:
@@ -669,6 +670,8 @@ class TestConfigResolver:
             # Apply modes.
             try:
                 test_cfg = self.apply_modes(test_cfg, modes, request.suite)
+                test_cfg = self.apply_host(test_cfg, self._host, request.suite)
+                test_cfg = self.apply_os(test_cfg, self._os, request.suite)
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
@@ -863,12 +866,13 @@ class TestConfigResolver:
                 "Incompatible with pavilion version '{}', compatible versions "
                 "'{}'.".format(PavVars()['version'], comp_versions))
 
-    def apply_host(self, test_cfg, host):
+    def apply_host(self, test_cfg, host, suite_name: str = None):
         """Apply the host configuration to the given config."""
 
-        loader = self._loader
+        raw_host_cfg, host_cfg_path, _ = self._load_raw_config(host, 'host', suite_name, optional=True)
 
-        raw_host_cfg, host_cfg_path, _ = self._load_raw_config(host, 'host', optional=True)
+        loader = self._get_loader(host_cfg_path, 'host')
+
         if raw_host_cfg is None:
             return test_cfg
 
@@ -886,12 +890,12 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging host configuration for host '{}'".format(host))
 
-    def apply_os(self, test_cfg, op_sys):
+    def apply_os(self, test_cfg, op_sys, suite_name: str = None):
         """Apply the OS configuration to the given config."""
 
         loader = self._loader
 
-        raw_os_cfg, os_cfg_path, _ = self._load_raw_config(op_sys, 'OS', optional=True)
+        raw_os_cfg, os_cfg_path, _ = self._load_raw_config(op_sys, 'OS', suite_name, optional=True)
         if raw_os_cfg is None:
             return test_cfg
 
@@ -901,7 +905,7 @@ class TestConfigResolver:
                 root_name=f"the top level of the OS file.")
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                f"Error loading host config '{op_sys}' from file '{os_cfg_path}'.")
+                f"Error loading host config '{op_sys}' from file '{os_cfg_path}'")
 
         try:
             return loader.merge(test_cfg, os_cfg)
