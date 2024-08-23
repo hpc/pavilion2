@@ -59,3 +59,8 @@ def get_nested(keys: Iterable[Hashable], nested_dict: Dict) -> Dict:
         nested_dict = nested_dict.get(key, {})
 
     return nested_dict
+
+def listmap(func: Callable[[T], U], lst: Iterable[T]) -> List[U]:
+    """Map a function over an iterable, but return a list instead
+    of an iterator."""
+    return list(map(func, lst))

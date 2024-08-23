@@ -36,7 +36,7 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
-from pavilion.func_utils import first, apply_to_first
+from pavilion.func_utils import first, apply_to_first, listmap
 from yaml_config import RequiredError, YamlConfigLoader
 
 from .proto_test import RawProtoTest, ProtoTest
@@ -72,6 +72,7 @@ class TestConfigResolver:
         self._outfile = io.StringIO() if outfile is None else outfile
         self._verbosity = verbosity
         self._loader = TestConfigLoader()
+        self._suite_loader = TestSuiteLoader()
         self.errors = []
 
         self._base_var_man = variables.VariableSetManager()
@@ -113,29 +114,24 @@ class TestConfigResolver:
         'modes': 'modes',
     }
 
-    def _get_cfg_paths(self, config_path: Path, suite_name: Optional[str], conf_type: str, conf_name: str) -> List[Path]:
-        """Return a list of all locations in which the given config type could
-        potentially be, given a particular config path."""
+    @property
+    def config_paths(self) -> Iterator[Path]:
+        return map(lambda x: x["path"], self.pav_cfg.configs.values())
 
+    @property
+    def suites_dirs(self) -> Iterator[Path]:
+        return map(lambda x: x / "suites", self.config_paths)
+
+    def _cfg_path_from_suite(self, suite_name: str, conf_type: str) -> Optional[Path]:
         paths = []
 
-        conf_dir_name = self.CONF_TYPE_DIRNAMES[conf_type]
-        conf_dir_path = config_path / conf_dir_name
-        suites_cfg_dir = config_path / "suites"
+        if conf_type == 'suite':
+            paths.append(listmap(lambda x: x / f"{suite_name}.yaml", self.suites_dirs))
 
-        if suite_name is not None:
-            suite_dir = suites_cfg_dir / suite_name
-            paths.append(suite_dir / f"{conf_type}.yaml")
+        cfg_name = self._normalize_cfg_type(conf_type)
+        paths.append(listmap(lambda x: x / suite_name / f"{cfg_name}.yaml"))
 
-            if conf_dir_name in ('hosts', 'modes', 'os'):
-                paths.append(suite_dir / f"{conf_dir_name}.yaml")
-            elif conf_type == 'suite':
-                paths.append(suites_cfg_dir / f"{suite_name}.yaml")
-
-        # Old suite path (deprecated)
-        paths.append(conf_dir_path / f"{conf_name}.yaml")
-
-        return paths
+        return first(paths)
 
     def find_config(self, conf_type: str, conf_name: str, suite_name: str = None) -> Tuple[str, Path]:
         """Search all of the known configuration directories for a config of the
@@ -147,10 +143,11 @@ class TestConfigResolver:
             and the path to that config. If nothing was found, returns (None, None).
         """
 
+        suite_path = first(lambda x: x.exists(), self.suites_dirs)
+
         for label, config in self.pav_cfg.configs.items():
             potential_paths = self._get_cfg_paths(config['path'], suite_name, conf_type, conf_name)
 
-            path = first(lambda x: x.exists(), potential_paths)
 
             if path is not None:
                 return label, path
@@ -228,7 +225,7 @@ class TestConfigResolver:
                 # may have been written to require a real host/mode file.
                 with file.open('r') as suite_file:
                     try:
-                        suite_cfg = TestSuiteLoader().load(suite_file, partial=True)
+                        suite_cfg = self._suite_loader.load(suite_file, partial=True)
                     except (TypeError,
                             KeyError,
                             ValueError,
@@ -777,9 +774,7 @@ class TestConfigResolver:
             return self._suites[suite_name]
 
         suite_cfg_path = self.find_config(suite_name, "suite", suite_name)
-        loader = TestSuiteLoader()
-
-        raw_suite_cfg, = self._load_raw_config(suite_cfg_path, "suite")
+        raw_suite_cfg = self._load_raw_config(suite_cfg_path, "suite")
 
         # Make sure each test has a dict as contents.
         for test_name, raw_test in raw_suite_cfg.items():
@@ -876,9 +871,9 @@ class TestConfigResolver:
         """Given a suite_name, return the appropriate loader."""
 
         if suite_name is None:
-            return TestConfigLoader()
+            return self._loader
 
-        return loader = TestSuiteLoader()
+        return self._suite_loader
 
     def apply_host(self, test_cfg, host, suite_name: str = None):
         """Apply the host configuration to the given config."""
