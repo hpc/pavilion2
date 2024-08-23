@@ -51,6 +51,7 @@ LOGGER = logging.getLogger('pav.' + __name__)
 
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
+TestConfig = Dict
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
@@ -541,24 +542,19 @@ class TestConfigResolver:
             resolved_tests = remaining
 
         return multiplied_tests
+    
+    def _normalize_cfg_type(self, cfg_type: str) -> str:
+        cfg_type = cfg_type.lower()
 
-    def _load_raw_config(self, cfg_path: Optional[Path], cfg_type: str, loader: yc.YamlConfigLoader) -> Dict:
-        # TODO: docstring
+        if not cfg_type[-1] != 's' and cfg_type != 'os':
+            cfg_type += 's'
 
-        if path is None:
-            similar = self.find_similar_configs(cfg_type, config_name)
+        return cfg_type
 
-            if similar:
-                raise TestConfigError(
-                    "Could not find {} config {}.yaml.\n"
-                    "Did you mean one of these? {}"
-                    .format(cfg_type, config_name, ', '.join(similar)))
-            else:
-                raise TestConfigError(
-                    "Could not find {0} config file '{1}.yaml' in any of the "
-                    "Pavilion config directories.\n"
-                    "Run `pav show {2}` to get a list of available {0} files."
-                    .format(cfg_type, config_name, cfg_type))
+    def _safe_load_config(self, path: Path, loader: yc.YamlConfigLoader) -> TestConfig:
+        """Given a path to a config, load the config, and raise an appropriate
+        error if it can't be loaded"""
+
         try:
             with path.open() as cfg_file:
                 raw_cfg = loader.load_raw(cfg_file)
@@ -577,7 +573,6 @@ class TestConfigResolver:
             raise TestConfigError(
                 "{} config '{}' has a YAML Error"
                 .format(cfg_type.capitalize(), path), prior_error=err)
-
         except TypeError as err:
             raise TestConfigError(
                 "Structural issue with {} config '{}'"
@@ -585,6 +580,39 @@ class TestConfigResolver:
 
         return raw_cfg
 
+    def _load_from_suite(self, suite_dir: Path, cfg_type: str, cfg_name: str, loader: yc.YamlConfigLoader) -> TestConfig:
+        cfg_type = self._normalize_cfg_type(cfg_type)
+        cfg_path = suite_dir / f"{cfg_type}.yaml"
+
+        raw_cfg = self._safe_load_config(cfg_path)
+
+        try:
+            return raw_cfg[cfg_name]
+        except KeyError:
+            short_path = f"{cfg_path.parents[0].name}/{cfg_path.name}"
+            raise TestConfigError(
+                f"Config name {cfg_name} not found in {short_path}"
+            )
+
+    def _load_raw_config(self, cfg_path: Optional[Path], cfg_type: str, loader: yc.YamlConfigLoader) -> TestConfig:
+        # TODO: docstring
+
+        if path is None:
+            similar = self.find_similar_configs(cfg_type, config_name)
+
+            if similar:
+                raise TestConfigError(
+                    "Could not find {} config {}.yaml.\n"
+                    "Did you mean one of these? {}"
+                    .format(cfg_type, config_name, ', '.join(similar)))
+            else:
+                raise TestConfigError(
+                    "Could not find {0} config file '{1}.yaml' in any of the "
+                    "Pavilion config directories.\n"
+                    "Run `pav show {2}` to get a list of available {0} files."
+                    .format(cfg_type, config_name, cfg_type))
+
+        return self._safe_load_config(cfg_path)
 
     def _load_raw_configs(self, request: TestRequest, modes: List[str],
                           conditions: Dict, overrides: List[str]) \
@@ -912,7 +940,7 @@ class TestConfigResolver:
         loader = self._get_loader(suite_name)
 
         for mode in modes:
-            mode_cfg_path = self._find_config(mode, "mode", suite_name)
+            mode_cfg_path = self.find_config(mode, "mode", suite_name)
             raw_mode_cfg  = self._load_raw_config(mode_cfg_path, loader)
 
             try:
