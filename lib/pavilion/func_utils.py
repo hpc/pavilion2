@@ -1,5 +1,6 @@
 """A collection of utilities defined using functional methods"""
 
+from pathlib import Path
 from typing import (List, Union, TypeVar, Iterator, Iterable, Callable, Optional,
                     Hashable, Dict, Tuple)
 
@@ -64,3 +65,19 @@ def listmap(func: Callable[[T], U], lst: Iterable[T]) -> List[U]:
     """Map a function over an iterable, but return a list instead
     of an iterator."""
     return list(map(func, lst))
+
+def exists(path: Path) -> bool:
+    """Wraps Path.exists, which obviates the need for
+    a lambda function when mapping it."""
+
+    return path.exists()
+
+def append_path(suffix: Path) -> Callable[[Path], Path]:
+    """Constructs a function that appends the given suffix
+    to path. Intended for use with map."""
+
+    def f(path: Path) -> Path:
+        return path / suffix
+
+    return f
+    
