@@ -1,4 +1,4 @@
-mode_suite_test:
+modes_suite_test:
     scheduler: raw
     run:
         cmds: 'echo Hello!'
