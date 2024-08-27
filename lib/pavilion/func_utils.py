@@ -72,7 +72,10 @@ def exists(path: Path) -> bool:
 
     return path.exists()
 
-def append_path(suffix: Path) -> Callable[[Path], Path]:
+
+Pathlike = Union[Path, str]
+
+def append_path(suffix: Pathlike) -> Callable[[Path], Path]:
     """Constructs a function that appends the given suffix
     to path. Intended for use with map."""
 

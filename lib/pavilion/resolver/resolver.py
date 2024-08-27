@@ -115,6 +115,7 @@ class TestConfigResolver:
 
     def _get_config_dirname(self, cfg_type: str, use_suites_dir: bool = False) -> str:
         """Returns the canonical config directory name for a given config type."""
+
         dirname = cfg_type.lower()
 
         if cfg_type == "suite" and not use_suites_dir:
@@ -124,6 +125,17 @@ class TestConfigResolver:
             dirname += 's'
 
         return dirname
+
+    def _get_config_fname(self, cfg_type: str) -> str:
+        """Given a config type, returns the name of the file in the
+        suites directory corresponding to that type."""
+
+        fname = cfg_type.lower()
+
+        if fname in ("host", "mode"):
+            fname += 's'
+
+        return f"{fname}.yaml"
 
     @property
     def config_paths(self) -> Iterator[Path]:
@@ -164,16 +176,13 @@ class TestConfigResolver:
         paths = []
         labels = list(self.config_labels)
 
-        if conf_type in ("host", "mode"):
-            cfg_fname = conf_type + 's'
-        else:
-            cfg_fname = conf_type
+        cfg_fname = self._get_config_fname(conf_type)
     
         if conf_type == "suite":
             paths.extend(listmap(append_path(f"{suite_name}.yaml"), self.suites_dirs))
             labels *= 2
 
-        paths.extend(listmap(append_path(f"{suite_name}/{cfg_fname}.yaml"), self.suites_dirs))
+        paths.extend(listmap(append_path(f"{suite_name}/{cfg_fname}"), self.suites_dirs))
 
         pairs = zip(labels, paths)
 
@@ -810,6 +819,7 @@ class TestConfigResolver:
         # Get the base, empty config, then apply the host config on top of it.
         base_config = self._loader.load_empty()
         base_config = self.apply_os(base_config, op_sys)
+
         return self.apply_host(base_config, host)
 
     def _load_suite_tests(self, suite_name: str):
@@ -963,7 +973,7 @@ class TestConfigResolver:
             label, os_cfg_path = self._get_test_config_path(op_sys, "OS")
             loader = self._loader
 
-        cfg_info = ConfigInfo(op_sys, "OS", os_cfg_path, from_suite)
+        cfg_info = ConfigInfo(op_sys, "OS", os_cfg_path, label, from_suite)
 
         raw_os_cfg = self._load_raw_config(cfg_info, loader, optional=True)
 
@@ -971,7 +981,7 @@ class TestConfigResolver:
             return test_cfg
 
         try:
-            os_cfg = loader.normalize(
+            os_cfg = self._loader.normalize(
                 raw_os_cfg,
                 root_name=f"the top level of the OS file.")
         except (KeyError, ValueError) as err:
@@ -979,7 +989,7 @@ class TestConfigResolver:
                 f"Error loading host config '{op_sys}' from file '{os_cfg_path}'")
 
         try:
-            return loader.merge(test_cfg, os_cfg)
+            return self._loader.merge(test_cfg, os_cfg)
         except (KeyError, ValueError) as err:
             raise TestConfigError(
                 "Error merging configuration for OS '{}'".format(os))
@@ -991,12 +1001,26 @@ class TestConfigResolver:
         :param modes: A list of mode names.
         """
 
+        if suite_name is not None:
+            from_suite = True
+            loader = self._suite_loader
+        else:
+            from_suite = False
+            loader = self._loader
+
         for mode in modes:
-            cfg_info = self.find_config("mode", mode, suite_name)
+            
+            if from_suite:
+                label, mode_cfg_path = self._config_path_from_suite(suite_name, "mode")
+            else:
+                label, mode_cfg_path = self._get_test_config_path(mode, "mode")
+            
+            cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, from_suite)
+                
             raw_mode_cfg = self._load_raw_config(cfg_info, loader)
 
             try:
-                mode_cfg = loader.normalize(
+                mode_cfg = self._loader.normalize(
                     raw_mode_cfg,
                     root_name=f"the top level of the OS file.")
             except (KeyError, ValueError) as err:
@@ -1004,7 +1028,7 @@ class TestConfigResolver:
                     f"Error loading host config '{mode}' from file '{mode_cfg_path}'.")
 
             try:
-                test_cfg = loader.merge(test_cfg, mode_cfg)
+                test_cfg = self._loader.merge(test_cfg, mode_cfg)
             except (KeyError, ValueError) as err:
                 raise TestConfigError(
                     "Error merging mode configuration for mode '{}'".format(mode))
