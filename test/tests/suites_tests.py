@@ -65,7 +65,7 @@ class SuitesTests(PavTestCase):
         
         variables = last_test.config["variables"]
 
-        self.assertEqual(variables.get("host1"), True)
+        self.assertEqual(variables.get("host1")[0].get(None), "True")
 
     def test_suites_mode_config(self):
         """Test that Pavilion loads mode configs from the
@@ -90,7 +90,7 @@ class SuitesTests(PavTestCase):
         
         variables = last_test.config["variables"]
 
-        self.assertEqual(variables.get("mode1"), True)
+        self.assertEqual(variables.get("mode1")[0].get(None), "True")
 
     def test_suites_os_config(self):
         """Test that Pavilion loads OS configs from the
@@ -115,7 +115,7 @@ class SuitesTests(PavTestCase):
         
         variables = last_test.config["variables"]
 
-        self.assertEqual(variables.get("os1"), True)
+        self.assertEqual(variables.get("os1")[0].get(None), "True")
 
     def test_suites_build_hash(self):
         """Test that Pavilion ignores config files in the

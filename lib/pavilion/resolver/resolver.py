@@ -163,12 +163,18 @@ class TestConfigResolver:
 
         paths = []
         labels = list(self.config_labels)
+
+        if conf_type in ("host", "mode"):
+            cfg_fname = conf_type + 's'
+        else:
+            cfg_fname = conf_type
     
         if conf_type == "suite":
             paths.extend(listmap(append_path(f"{suite_name}.yaml"), self.suites_dirs))
             labels *= 2
 
-        paths.extend(listmap(append_path(f"{suite_name}/{conf_type}.yaml"), self.suites_dirs))
+        paths.extend(listmap(append_path(f"{suite_name}/{cfg_fname}.yaml"), self.suites_dirs))
+
         pairs = zip(labels, paths)
 
         res = first(lambda x: x[1].exists(), pairs)
@@ -639,7 +645,17 @@ class TestConfigResolver:
                     "Run `pav show {2}` to get a list of available {0} files."
                     .format(cfg_info.type, cfg_info.name, cfg_info.type))
 
-        return self._safe_load_config(cfg_info.path, loader)
+        raw_cfg = self._safe_load_config(cfg_info.path, loader)
+
+        if cfg_info.from_suite and cfg_info.type is not "suite":
+            raw_cfg = raw_cfg.get(cfg_info.name)
+
+        if raw_cfg is None:
+            raise TestConfigError(
+                f"Could not find {cfg_info.type} config with name {cfg_info.type}"
+                "in file {cfg_info.path}.")
+
+        return raw_cfg
 
     def _load_raw_configs(self, request: TestRequest, modes: List[str],
                           conditions: Dict, overrides: List[str]) \
@@ -697,6 +713,8 @@ class TestConfigResolver:
             # Apply modes.
             try:
                 test_cfg = self.apply_modes(test_cfg, modes, request.suite)
+                test_cfg = self.apply_host(test_cfg, self._host, request.suite)
+                test_cfg = self.apply_os(test_cfg, self._os, request.suite)
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
@@ -920,18 +938,18 @@ class TestConfigResolver:
             return test_cfg
 
         try:
-            host_cfg = loader.normalize(
+            host_cfg = self._loader.normalize(
                 raw_host_cfg,
                 root_name=f"the top level of the host file.")
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                f"Error loading host config '{host}' from file '{host_cfg_path}'.")
+                f"Error loading host config '{hostname}' from file '{host_cfg_path}'.")
 
         try:
-            return loader.merge(test_cfg, host_cfg)
+            return self._loader.merge(test_cfg, host_cfg)
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                "Error merging host configuration for host '{}'".format(host))
+                "Error merging host configuration for host '{}'".format(hostname))
 
     def apply_os(self, test_cfg: TestConfig, op_sys: str, suite_name: str = None) -> TestConfig:
         """Apply the OS configuration to the given config."""
@@ -974,10 +992,8 @@ class TestConfigResolver:
         """
 
         for mode in modes:
-            mode_cfg_path = self.find_config(mode, "mode", suite_name)
-
-            cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, True if suite_name is not None else False)
-            raw_mode_cfg  = self._load_raw_config(cfg_info, loader)
+            cfg_info = self.find_config("mode", mode, suite_name)
+            raw_mode_cfg = self._load_raw_config(cfg_info, loader)
 
             try:
                 mode_cfg = loader.normalize(
