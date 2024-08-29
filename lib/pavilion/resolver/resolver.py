@@ -54,6 +54,7 @@ TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 TestConfig = Dict
 
+
 class ConfigInfo:
     def __init__(self, name: str, type: str, path: Path, label: str = None, from_suite: bool = False):
         self.name = name
@@ -61,6 +62,7 @@ class ConfigInfo:
         self.label = label
         self.path = path
         self.from_suite = from_suite
+
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
@@ -994,7 +996,7 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging configuration for OS '{}'".format(os))
 
-    def apply_modes(self, test_cfg, modes: List[str], loader: yc.YamlConfigLoader, suite_name: str = None):
+    def apply_modes(self, test_cfg, modes: List[str], suite_name: str = None):
         """Apply each of the mode files to the given test config.
 
         :param test_cfg: The raw test configuration.
@@ -1014,8 +1016,8 @@ class TestConfigResolver:
                 label, mode_cfg_path = self._config_path_from_suite(suite_name, "mode")
             else:
                 label, mode_cfg_path = self._get_test_config_path(mode, "mode")
-            
-            cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, from_suite)
+
+            cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, label, from_suite)
                 
             raw_mode_cfg = self._load_raw_config(cfg_info, loader)
 
