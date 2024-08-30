@@ -160,7 +160,7 @@ class TestSetTests(PavTestCase):
         ts1.make()
         ts1.build()
         self.assertEqual(len(ts1.kickoff()[0]), 10)
-        ts1.wait(wait_for_all=True)
+        ts1.wait(wait_for_all=True, timeout=10)
 
         # It shouldn't hurt to kickoff when there aren't any tests.
         ts1.kickoff()
@@ -183,7 +183,7 @@ class TestSetTests(PavTestCase):
             start_names.sort()
             exp_names.sort()
             self.assertEqual(start_names, exp_names)
-            ts2.wait(wait_for_all=True)
+            ts2.wait(wait_for_all=True, timeout=10)
 
         self.assertEqual(expected, [])
 
@@ -192,7 +192,7 @@ class TestSetTests(PavTestCase):
         ts3.make()
         ts3.build()
         self.assertEqual(len(ts3.kickoff()[0]), 0)
-        ts3.wait(wait_for_all=True)
+        ts3.wait(wait_for_all=True, timeout=10)
 
     def test_wait(self):
         """Checking that we can wait for partial results."""
@@ -201,7 +201,7 @@ class TestSetTests(PavTestCase):
         ts1.make()
         ts1.build()
         ts1.kickoff()
-        self.assertNotEqual(ts1.wait(), 3)
+        self.assertNotEqual(ts1.wait(timeout=10), 3)
 
     def test_all_passed(self):
         """Make sure we properly verify pass/fail status."""
@@ -210,14 +210,14 @@ class TestSetTests(PavTestCase):
         ts1.make()
         ts1.build()
         ts1.kickoff()
-        ts1.wait(wait_for_all=True)
+        ts1.wait(wait_for_all=True, timeout=10)
         self.assertFalse(ts1.all_passed)
 
         ts2 = TestSet(self.pav_cfg, "test_all_passed2", ["pass_fail.pass"] * 2)
         ts2.make()
         ts2.build()
         ts2.kickoff()
-        ts2.wait(wait_for_all=True)
+        ts2.wait(wait_for_all=True, timeout=10)
         self.assertTrue(ts2.all_passed, msg=[test.result for test in ts2.tests])
 
     def test_cancel(self):
@@ -227,7 +227,7 @@ class TestSetTests(PavTestCase):
         ts1.build()
         ts1.kickoff()
         ts1.cancel("Testing cancelation.")
-        ts1.wait(wait_for_all=True)
+        ts1.wait(wait_for_all=True, timeout=10)
         for test in ts1.tests:
             self.assertEqual(test.status.current().state,
                              test.status.states.CANCELLED,
@@ -265,7 +265,7 @@ class TestSetTests(PavTestCase):
         ts1.make()
         ts1.build()
         ts1.kickoff()
-        ts1.wait(wait_for_all=True)
+        ts1.wait(wait_for_all=True, timeout=10)
         self.assertTrue(ts2.should_run)
         self.assertFalse(ts2_pmp.should_run)
         self.assertFalse(ts3.should_run)
@@ -290,7 +290,7 @@ class TestSetTests(PavTestCase):
         ts1.make()
         ts1.build()
         ts1.kickoff()
-        ts1.wait(wait_for_all=True)
+        ts1.wait(wait_for_all=True, timeout=10)
         self.assertTrue(ts2.should_run)
         self.assertTrue(ts2_pmp.should_run)
         self.assertTrue(ts3.should_run)
