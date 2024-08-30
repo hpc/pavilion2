@@ -605,9 +605,12 @@ class TestConfigResolver:
 
         return multiplied_tests
     
-    def _safe_load_config(self, path: Path, loader: yc.YamlConfigLoader) -> TestConfig:
+    def _safe_load_config(self, cfg: ConfigInfo, loader: yc.YamlConfigLoader) -> TestConfig:
         """Given a path to a config, load the config, and raise an appropriate
         error if it can't be loaded"""
+
+        path = cfg.path
+        cfg_type = cfg.type
 
         try:
             with path.open() as cfg_file:
@@ -656,7 +659,7 @@ class TestConfigResolver:
                     "Run `pav show {2}` to get a list of available {0} files."
                     .format(cfg_info.type, cfg_info.name, cfg_info.type))
 
-        raw_cfg = self._safe_load_config(cfg_info.path, loader)
+        raw_cfg = self._safe_load_config(cfg_info, loader)
 
         if cfg_info.from_suite and cfg_info.type is not "suite":
             raw_cfg = raw_cfg.get(cfg_info.name)
