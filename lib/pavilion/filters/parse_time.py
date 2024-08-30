@@ -1,4 +1,5 @@
 from datetime import date, time, datetime, timedelta
+from calendar import monthrange
 from typing import Tuple, Union
 
 
@@ -61,15 +62,27 @@ def parse_duration(rval: str, now: datetime) -> datetime:
     if unit not in UNITS:
         raise ValueError(f"Invalid unit {unit} for duration")
 
+    if unit not in ("years", "months"):
+        return now - timedelta(**{unit: mag})
+
+    new_day = now.day
+
     if unit == 'years':
-        return now.replace(year=now.year - mag)
+        new_year = now.year - mag
+        new_month = now.month
 
     if unit == 'months':
         dyear, dmonth = divmod(mag, MONTHS_PER_YEAR)
+        new_year = now.year - dyear
+        new_month = (now.month - dmonth) % MONTHS_PER_YEAR
 
-        return now.replace(year=now.year - dyear, month=now.month - dmonth)
+    max_day = monthrange(new_year, new_month)[1]
 
-    return now - timedelta(**{unit: mag})
+    if new_day > max_day:
+        new_day = max_day
+
+    return now.replace(year=new_year, month=new_month, day=new_day)
+
 
 
 def parse_iso_date(rval: str) -> date:
