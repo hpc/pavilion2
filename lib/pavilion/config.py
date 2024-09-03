@@ -17,7 +17,7 @@ from typing import List, Union, Dict, NewType, Iterator
 import yaml_config as yc
 from pavilion import output
 from pavilion import errors
-from pavilion.func_utils import first, flatten
+from pavilion.micro import first, flatten
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]

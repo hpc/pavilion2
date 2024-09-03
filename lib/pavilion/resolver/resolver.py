@@ -37,7 +37,8 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
-from pavilion.func_utils import first, listmap, append_path
+from pavilion.micro import first, listmap
+from pavilion.path_utils import append_path
 from yaml_config import RequiredError, YamlConfigLoader
 
 from .proto_test import RawProtoTest, ProtoTest
@@ -666,8 +667,8 @@ class TestConfigResolver:
 
         if raw_cfg is None:
             raise TestConfigError(
-                f"Could not find {cfg_info.type} config with name {cfg_info.type}"
-                "in file {cfg_info.path}.")
+                f"Could not find {cfg_info.type} config with name {cfg_info.name}"
+                f" in file {cfg_info.path}.")
 
         return raw_cfg
 

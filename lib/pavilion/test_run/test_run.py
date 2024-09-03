@@ -36,7 +36,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
-from pavilion.func_utils import get_nested
+from pavilion.micro import get_nested
 from .test_attrs import TestAttributes
 
 
