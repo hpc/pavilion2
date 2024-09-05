@@ -308,7 +308,7 @@ class TestBuilder:
 
         dep_path.touch()
 
-    def _update_src(self):
+    def _update_src(self) -> Optional[Path]:
         """Retrieve and/or check the existence of the files needed for the
             build. This can include pulling from URL's.
         :returns: src_path, extra_files
