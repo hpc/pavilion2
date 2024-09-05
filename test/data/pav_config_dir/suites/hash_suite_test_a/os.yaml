@@ -1,0 +1,3 @@
+hash_os:
+    variables:
+        foo: True

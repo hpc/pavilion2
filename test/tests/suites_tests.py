@@ -121,4 +121,32 @@ class SuitesTests(PavTestCase):
         """Test that Pavilion ignores config files in the
         suites directory when computing the build hash."""
 
-        self.assertTrue(False)
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run',
+            'hash_suite_test_a'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        ret = run_cmd.run(self.pav_cfg, args)
+
+        self.assertEqual(ret, 0)
+
+        last_test = run_cmd.last_tests[0]
+        hash_a = last_test.builder().build_hash
+
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run',
+            'hash_suite_test_b'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        ret = run_cmd.run(self.pav_cfg, args)
+
+        self.assertEqual(ret, 0)
+
+        last_test = run_cmd.last_tests[0]
+        hash_b = last_test.builder().build_hash
+
+        self.assertEqual(hash_a, hash_b)
