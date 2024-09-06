@@ -38,6 +38,9 @@ SUPPORTED_MAJOR_VERSION = 3
 def main():
     """Setup Pavilion and run a command."""
 
+    with open("/tmp/hwikle/pav.debug", "a") as fout:
+        fout.write("Running main...\n")
+
     # Pavilion is compatible with python >= 3.4
     if (sys.version_info[0] != SUPPORTED_MAJOR_VERSION
             or sys.version_info[1] < MIN_SUPPORTED_MINOR_VERSION):

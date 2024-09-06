@@ -59,6 +59,7 @@ class SeriesCmdTests(PavTestCase):
         self.assertEqual(run_result, 0)
 
         series_obj = run_cmd.last_run_series
+        # import pdb; pdb.set_trace()
         series_obj.wait(5)
         self.assertEqual(series_obj.complete, True)
         self.assertEqual(series_obj.info().passed, 1)

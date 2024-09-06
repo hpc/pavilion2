@@ -60,6 +60,10 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
         errors = []
         job_bins = defaultdict(list)
         job_bin_sched_configs = {}
+
+        with open("/tmp/hwikle/pav.debug", 'a') as fout:
+            fout.write(f"Scheduling tests: {[test.name for test in tests]}\n")
+
         for test in tests:
             try:
                 sched_config = validate_config(test.config['schedule'])
@@ -106,6 +110,10 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 shebang=test.shebang)
 
             test_ids = ' '.join(test.full_id for test in tests)
+
+            with open("/tmp/hwikle/pav.debug", 'a') as fout:
+                fout.write(f"Kicking off tests: {test_ids}\n")
+
             script.command('pav _run {}'.format(test_ids))
             script.write(job.kickoff_path)
 

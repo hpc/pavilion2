@@ -84,10 +84,13 @@ class ListElem(ConfigElement):
         else:
             return False
 
-    def normalize(self, value, root_name=None):
+    def normalize(self, value, root_name=None, debug: bool = False):
         """Lists with a value of None remain as None, and empty lists stay
         empty. Single values, however, become a list of that value. All
         contained value are recursively normalized."""
+
+        if debug:
+            import pdb; pdb.set_trace()
 
         if root_name is not None:
             name = root_name
@@ -483,7 +486,7 @@ class KeyedElem(_DictElem):
 
         return '\n'.join(msg)
 
-    def normalize(self, value, root_name=None):
+    def normalize(self, value, root_name=None, debug: bool = False):
         """None remains None. Everything else is recursively normalized
         by their element objects. Unknown keys and non-dict 'values'
         result in an error.
@@ -492,6 +495,9 @@ class KeyedElem(_DictElem):
         :raises KeyError: For unknown keys.
         :raises TypeError: if values isn't a dict.
         """
+
+        if debug:
+            import pdb; pdb.set_trace()
 
         name = root_name if root_name is not None else self.name
 
@@ -701,9 +707,12 @@ class CategoryElem(_DictElem):
                                            key_case=key_case,
                                            default=defaults, **kwargs)
 
-    def normalize(self, value: dict, root_name=None):
+    def normalize(self, value: dict, root_name: str = None, debug: bool = False):
         """Make sure values is a dict, and recursively normalize the contained
         keys. Returns None if values is None."""
+
+        if debug:
+            import pdb; pdb.set_trace()
 
         if value is None:
             return None

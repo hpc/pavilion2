@@ -580,6 +580,10 @@ class TestSet:
             self.status.set(S_STATES.SET_KICKOFF,
                             "Kicking off {} tests under scheduler {}"
                             .format(len(sched_tests), sched_name))
+
+            with open("/tmp/hwikle/pav.debug", 'a') as fout:
+                fout.write(f"Scheduling tests: {[test.full_id for test in sched_tests]}\n")
+
             sched_errors = scheduler.schedule_tests(self.pav_cfg, sched_tests)
 
             # Update the status of each test with any errors received from the scheduler.

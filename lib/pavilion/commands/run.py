@@ -135,6 +135,10 @@ class RunCommand(Command):
         # Note: We have to get a few arguments this way because this code
         # is reused between the build and run commands, and the don't quite have the
         # same arguments.
+
+        with open("/tmp/hwikle/pav.debug", 'a') as fout:
+            fout.write("Running run command...\n")
+
         if args.name:
             series_name = args.name
         else:

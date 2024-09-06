@@ -41,11 +41,19 @@ class _RunCommand(Command):
         """Load and run an already prepped test."""
 
         tests = []
+
+        debug = Path("/tmp/hwikle")
+        debug.mkdir(parents=True, exist_ok=True)
+
+        with open("/tmp/hwikle/pav.debug", "a") as fout:
+            fout.write("Running _run command...\n")
+            fout.write(f"Test IDS: {list(args.test_ids)}\n")
+
         for test_id in args.test_ids:
             try:
                 tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))
             except PavilionError as err:
-                fprint(self.outfile, "Error loading test '{}'".format(args.test_id))
+                fprint(self.outfile, "Error loading test '{}'".format(test_id))
                 fprint(self.outfile, err.pformat())
 
         # Filter out cancelled tests

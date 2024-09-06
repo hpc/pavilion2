@@ -175,6 +175,10 @@ class RunSeries(Command):
     def _run_cmd(self, pav_cfg, args):
         """Gets called when `pav series <series_name>` is executed. """
 
+        with open("/tmp/hwikle/pav.debug", "a") as fout:
+            fout.write("Running series command...\n")
+            fout.write(f"Series name: {args.series_name}\n")
+
         if args.skip_verify:
             series_cfg = series_config.load_series_config(pav_cfg, args.series_name)
 
@@ -206,7 +210,6 @@ class RunSeries(Command):
             output.fprint(self.errfile, "Error creating test series '{}'"
                           .format(args.series_name), err, color=output.RED)
             return errno.EINVAL
-
 
         if args.group:
             try:

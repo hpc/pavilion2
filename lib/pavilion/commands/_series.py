@@ -29,6 +29,10 @@ class AutoSeries(Command):
     def run(self, pav_cfg, args):
         """Loads series object from directory and runs series."""
 
+        with open("/tmp/hwikle/pav.debug", 'a') as fout:
+            fout.write("Running _series command...\n")
+            fout.write(f"Series ID: {args.series_id}\n")
+
         # load series obj
         try:
             series_obj = series.TestSeries.load(

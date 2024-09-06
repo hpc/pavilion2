@@ -526,17 +526,19 @@ differentiate it from test ids."""
 
     WAIT_INTERVAL = 0.5
 
-    def wait(self, timeout=None):
+    def wait(self, timeout: float = None) -> None:
         """Wait for the series to be complete or the timeout to expire. """
 
         if timeout is None:
             end = math.inf
         else:
             end = time.time() + timeout
+
         while time.time() < end:
             if self.complete:
                 return
-            time.sleep(2)
+
+            time.sleep(self.WAIT_INTERVAL)
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))

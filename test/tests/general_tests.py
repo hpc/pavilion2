@@ -31,11 +31,9 @@ class GeneralTests(PavTestCase):
         if not candidates:
             self.orig_group = None
             self.alt_group = None
-            self.alt_group2 = None
         else:
             self.orig_group = grp.getgrgid(def_gid).gr_name
             self.alt_group = candidates[0]  # type: grp.struct_group
-            self.alt_group2 = candidates[1]  # type: grp.struct_group
 
         self.umask = 0o007
 

@@ -416,6 +416,7 @@ class TestConfigResolver:
         requests = [TestRequest(req) for req in tests]
 
         raw_tests = []
+
         for request in requests:
             # Convert each request into a list of RawProtoTest objects.
             try:
@@ -464,7 +465,7 @@ class TestConfigResolver:
                     raw_tests.append(raw_test)
 
                 ready_to_resolve.extend(permutations)
-
+            
             # Now resolve all the string syntax and variables those tests at once.
             new_resolved_tests = []
             for ptest in self._resolve_escapes(ready_to_resolve):
@@ -1007,19 +1008,20 @@ class TestConfigResolver:
         :param modes: A list of mode names.
         """
 
-        if suite_name is not None:
-            from_suite = True
-            loader = self._suite_loader
-        else:
-            from_suite = False
-            loader = self._loader
+        # import pdb; pdb.set_trace()
 
         for mode in modes:
+            mode_cfg_path = None
             
-            if from_suite:
+            if suite_name is not None:
                 label, mode_cfg_path = self._config_path_from_suite(suite_name, "mode")
-            else:
+            if mode_cfg_path is None:
+                from_suite = False
                 label, mode_cfg_path = self._get_test_config_path(mode, "mode")
+                loader = self._loader
+            else:
+                from_suite = True
+                loader = self._suite_loader
 
             cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, label, from_suite)
                 
