@@ -149,21 +149,30 @@ class SeriesInfoBase(Mapping):
 
         status_obj = self._get_status_file()
 
+        error_values = [
+            'ERROR',
+            'CANCELLED',
+            'TIMEOUT',
+            ]
+
         errors = 0
         for status in status_obj.history():
-            if status.state in (status_file.SERIES_STATES.ERROR,
-                                status_file.SERIES_STATES.BUILD_ERROR,
-                                status_file.SERIES_STATES.CREATION_ERROR,
-                                status_file.SERIES_STATES.KICKOFF_ERROR):
-                errors += 1
+            for error_val in error_values:
+                if error_val in status.state:
+                    errors += 1
+                    break
 
         for test_path in self._tests:
             test_info = self.test_info(test_path)
             if test_info is None:
                 continue
 
-            if test_info.result == TestRun.ERROR:
-                errors += 1
+            # Look for any bad test states
+            for error_val in error_values:
+                for state in test_info.state_history:
+                    if error_val in state.state:
+                        errors += 1
+                        break
 
         return errors
 
