@@ -234,9 +234,12 @@ class _RunCommand(Command):
         except TestRunError as err:
             # An unexpected TestRunError
             test.status.set(STATES.RUN_ERROR, err)
+            return
         except TimeoutError:
             # This is expected
-            pass
+            test.status.set(STATES.RUN_ERROR,
+                            f"Timed out waiting for test {test.name} to complete.")
+            return
         except Exception:
             # Some other unexpected exception.
             test.status.set(
