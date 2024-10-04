@@ -36,7 +36,7 @@ class SeriesCmdTests(PavTestCase):
             run_result = run_cmd.run(self.pav_cfg, args)
             self.assertEqual(run_result, 0)
 
-            run_cmd.last_run_series.wait()
+            run_cmd.last_run_series.wait(timeout=10)
             self.assertEqual(run_cmd.last_run_series.complete, True)
             self.assertEqual(run_cmd.last_run_series.info().passed, 1)
 
@@ -59,7 +59,7 @@ class SeriesCmdTests(PavTestCase):
         self.assertEqual(run_result, 0)
 
         series_obj = run_cmd.last_run_series
-        series_obj.wait(5)
+        series_obj.wait(timeout=10)
         self.assertEqual(series_obj.complete, True)
         self.assertEqual(series_obj.info().passed, 1)
 
@@ -86,7 +86,7 @@ class SeriesCmdTests(PavTestCase):
         self.assertEqual(run_result, 0)
 
         series_obj = run_cmd.last_run_series
-        series_obj.wait(5)
+        series_obj.wait(timeout=10)
         self.assertEqual(series_obj.complete, True)
         self.assertEqual(series_obj.info().passed, 1)
 
@@ -128,7 +128,7 @@ class SeriesCmdTests(PavTestCase):
 
         args = arg_parser.parse_args(['series', 'run', 'multi'])
         self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
-        series_cmd.last_run_series.wait()
+        series_cmd.last_run_series.wait(timeout=10)
         sid = series_cmd.last_run_series.sid
 
         arg_lists = [

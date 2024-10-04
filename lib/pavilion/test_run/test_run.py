@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import TextIO, Union, Dict
+from typing import TextIO, Union, Dict, Optional
 import yc_yaml as yaml
 
 from pavilion.config import PavConfig
@@ -36,6 +36,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
+from pavilion.micro import get_nested
 from .test_attrs import TestAttributes
 
 
@@ -152,10 +153,12 @@ class TestRun(TestAttributes):
             self.rebuild = rebuild
             self.cfg_label = config.get('cfg_label', self.NO_LABEL)
             suite_path = config.get('suite_path')
-            if suite_path == '<no_suite>' or suite_path is None:
-                self.suite_path = Path('..')
+
+            if suite_path is None or suite_path == '<no_suite>':
+                self.suite_path = None
             else:
                 self.suite_path = Path(suite_path)
+
             self.user = utils.get_login()
             self.uuid = str(uuid.uuid4())
 
@@ -252,6 +255,12 @@ class TestRun(TestAttributes):
         return not all(map(is_empty, sections))
 
     @property
+    def suite_name(self) -> Optional[str]:
+        """Return the name of the suite associated with the test."""
+        if self.suite_path is not None:
+            return self.suite_path.stem
+
+    @property
     def id_pair(self) -> ID_Pair:
         """Returns an ID_pair (a tuple of the working dir and test id)."""
         return ID_Pair((self.working_dir, self.id))
@@ -336,17 +345,27 @@ class TestRun(TestAttributes):
 
         spack_config = (self.config.get('spack_config', {}) if self.spack_enabled()
                         else None)
-        if self.suite_path != Path('..') and self.suite_path is not None:
-            download_dest = self.suite_path.parents[1] / 'test_src'
+
+        if self.suite_path is not None:
+            download_dest = self.suite_path
+
+            # Check the deprecated directory
+            if not download_dest.exists() or not download_dest.is_dir():
+                download_dest = self.suite_path.parents[1] / 'test_src'
         else:
             download_dest = None
 
         templates = self._create_build_templates()
 
+        config = self.config.get('build', {})
+
+        if self.suite_name is not None:
+            config['suite_name'] = self.suite_name
+
         try:
             test_builder = builder.TestBuilder(
                 pav_cfg=self._pav_cfg,
-                config=self.config.get('build', {}),
+                config=config,
                 script=self.build_script_path,
                 spack_config=spack_config,
                 status=self.status,
@@ -366,9 +385,10 @@ class TestRun(TestAttributes):
     def _create_build_templates(self) -> Dict[Path, Path]:
         """Generate templated files for the builder to use."""
 
-        templates = self.config.get('build', {}).get('templates', {})
+        templates = get_nested(['build', 'templates'], self.config)
         tmpl_dir = self.path/self.BUILD_TEMPLATE_DIR
-        if templates:
+
+        if templates != {}:
             if not tmpl_dir.exists():
                 try:
                     tmpl_dir.mkdir(exist_ok=True)
@@ -376,6 +396,7 @@ class TestRun(TestAttributes):
                     raise TestRunError("Could not create build template directory", err)
 
         tmpl_paths = {}
+
         for tmpl_src, tmpl_dest in templates.items():
             if not (tmpl_dir/tmpl_dest).exists():
                 try:
@@ -383,6 +404,7 @@ class TestRun(TestAttributes):
                     create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
                 except TestConfigError as err:
                     raise TestRunError("Error resolving Build template files", err)
+
             tmpl_paths[tmpl_dir/tmpl_dest] = tmpl_dest
 
         return tmpl_paths

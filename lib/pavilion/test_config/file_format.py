@@ -623,7 +623,7 @@ expected to be added to by various plugins.
                     sub_elem=yc.StrElem(),
                     help_text="Template files to resolve using Pavilion test variables. The "
                               "key is the path to the template file (typically with a "
-                              "'.pav' extension), in the 'test_src' directory. The value is the "
+                              "'.pav' extension), in the 'suites' directory. The value is the "
                               "output file location, relative to the test's build/run "
                               "directory."),
                 EnvCatElem(
@@ -657,7 +657,7 @@ expected to be added to by various plugins.
                               "uncompressed archive (zip/tar), and is handled "
                               "according to the internal (file-magic) type. "
                               "For relative paths Pavilion looks in the "
-                              "test_src directory "
+                              "suites directory "
                               "within all known config directories. If this "
                               "is left blank, Pavilion will always assume "
                               "there is no source to build."),
@@ -669,7 +669,7 @@ expected to be added to by various plugins.
                               'can\'t otherwise be found. You must give a '
                               'source path so Pavilion knows where to store '
                               'the file (relative paths will be stored '
-                              'relative to the local test_src directory.'),
+                              'relative to the local suites directory.'),
                 yc.StrElem(
                     'source_download', choices=['never', 'missing', 'latest'],
                     default='missing',
@@ -773,7 +773,7 @@ expected to be added to by various plugins.
                               "file. Pavilion test variables will be resolved in this lines "
                               "before they are written."),
 
-                # Note - Template have to come from the test_src directory (or elsewhere on
+                # Note - Template have to come from the suites directory (or elsewhere on
                 #        the filesystem, because we have to be able to process them before
                 #        we can create a build hash.
                 PathCategoryElem(
@@ -782,7 +782,7 @@ expected to be added to by various plugins.
                     sub_elem=yc.StrElem(),
                     help_text="Template files to resolve using Pavilion test variables. The "
                               "key is the path to the template file (typically with a "
-                              "'.pav' extension), in the 'test_src' directory. The value is the "
+                              "'.pav' extension), in the 'suites' directory. The value is the "
                               "output file location, relative to the test's build/run "
                               "directory."),
                 EnvCatElem(

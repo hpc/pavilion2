@@ -11,11 +11,15 @@ import stat
 import sys
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Union, Dict, NewType
+from itertools import product, starmap
+from typing import List, Union, Dict, NewType, Iterator, Tuple
 
 import yaml_config as yc
 from pavilion import output
 from pavilion import errors
+from pavilion.micro import first, flatten, remove_none, set_default
+from pavilion.path_utils import Pathlike, append_to_path, append_suffix, exists, path_product
+from pavilion.status_file import STATES
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -182,7 +186,6 @@ class PavConfigDict:
 
         return adict
 
-
 class PavConfig(PavConfigDict):
     """Define types and attributes for Pavilion config options."""
 
@@ -217,16 +220,77 @@ class PavConfig(PavConfigDict):
 
         super().__init__(set_attrs)
 
-    def find_file(self, file: Path, sub_dir: Union[str, Path] = None) \
+    @property
+    def config_paths(self) -> Iterator[Path]:
+        """Return an iterator of paths to all config directories"""
+        return (Path(cfg['path']) for cfg in self.configs.values())
+
+    @property
+    def tests_dirs(self) -> Iterator[Path]:
+        """Return an iterator of paths to all test directories."""
+        return (path / 'tests' for path in self.config_paths)
+
+    @property
+    def suites_dirs(self) -> Iterator[Path]:
+        """Return an iterator of paths to all suites directories"""
+        return (path / 'suites' for path in self.config_paths)
+
+    @property
+    def suite_paths(self) -> Iterator[Path]:
+        """Return an iterator of paths to all test suites"""
+        return flatten(path.iterdir() for path in self.suites_dirs)
+
+    @property
+    def suite_names(self) -> Iterator[str]:
+        """Return an iterator of suite names"""
+
+        def is_suite(file: Path) -> bool:
+            return file.exists() and file.is_file() and file.suffix == '.yaml'
+
+        test_files = map(is_suite, self.suite_paths)
+
+        return map(lambda x: x.stem, self.suite_paths)
+
+    @property
+    def suite_info(self) -> List[Tuple[str, str, Path]]:
+        """Get the label, name, and path for every suite the config
+        knows about."""
+
+        suite_infos = []
+
+        for label, cfg in self.configs.items():
+            tests_dir = Path(cfg['path']) / 'tests'
+            suites_dir = Path(cfg['path']) / 'suites'
+
+            if tests_dir.exists():
+                tests = [file for file in tests_dir.iterdir() if file.suffix.lower() == ".yaml"]
+                names = [test.name for test in tests]
+                labels = [label] * len(tests)
+
+                suite_infos.extend(zip(labels, names, tests))
+
+            if suites_dir.exists():
+                suites = [sdir / "suite.yaml" for sdir in suites_dir.iterdir()]
+                suites = list(filter(exists, suites))
+                names = [suite.parent.name for suite in suites]
+                labels = [label] * len(suites)
+
+                suite_infos.extend(zip(labels, names, suites))
+
+        return suite_infos
+
+    def find_file(self, file: Pathlike, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
             -> Union[Path, None]:
         """Look for the given file and return a full path to it. Relative paths
         are searched for in all config directories under 'sub_dir', if it exists.
 
     :param file: The path to the file.
-    :param sub_dir: The subdirectory in each config directory in which to
-        search.
+    :param sub_dirs: The subdirectory (or list of subdirectories) in which to
+        search in each directory.
     :returns: The full path to the found file, or None if no such file
         could be found."""
+
+        file = Path(file)
 
         if file.is_absolute():
             if file.exists():
@@ -234,18 +298,18 @@ class PavConfig(PavConfigDict):
             else:
                 return None
 
-        # Assemble a potential location from each config dir.
-        for config in self.configs.values():
-            path = config['path']
-            if sub_dir is not None:
-                path = path/sub_dir
-            path = path/file
+        sub_dirs = set_default(sub_dirs, [])
+        sub_dirs = list(remove_none(list(sub_dirs)))
 
-            if path.exists():
-                return path
+        if len(sub_dirs) > 0:
+            paths = list(path_product(self.config_paths, sub_dirs))
+        else:
+            paths = list(self.config_paths)
 
-        return None
+        files = list(map(append_to_path(file), paths))
 
+        # Return the first path to the file that exists (or None)
+        return first(exists, files)
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""

@@ -1,12 +1,14 @@
 """Functions to dynamically generate test files."""
 
 from pathlib import Path
-from typing import List, Union, TextIO
+from typing import List, Union, TextIO, Any
 
 import pavilion.config
 from pavilion import resolve
 from pavilion import utils
 from pavilion import variables
+from pavilion.config import PavConfig
+from pavilion.variables import VariableSetManager
 from pavilion.errors import TestConfigError
 
 
@@ -60,16 +62,18 @@ def verify_path(dest, rel_path) -> Path:
     return file_path
 
 
-def resolve_template(pav_cfg: pavilion.config.PavConfig, template: str,
-                     var_man: variables.VariableSetManager) -> List[str]:
-    """Resolve each of the template files specified in the test config."""
+def resolve_template(pav_cfg: PavConfig, template_fname: str, var_man: VariableSetManager) -> Any:
+    """Resolve a single template file specified in the test config. Return a resolved
+    component."""
 
-    tmpl_path = pav_cfg.find_file(Path(template), 'test_src')
+    # TODO: This needs to be the test-specific suites directory
+    tmpl_path = pav_cfg.find_file(template_fname, ['suites', 'test_src'])
+
     if tmpl_path is None:
         raise TestConfigError("Template file '{}' from 'templates' does not exist in "
-                              "any 'test_src' dir (Note that it must be in a Pavilion config "
-                              "area's test_src directory - NOT the build directory.)"
-                              .format(template))
+                              "any 'suites' dir (Note that it must be in a Pavilion config "
+                              "area's suites directory - NOT the build directory.)"
+                              .format(template_fname))
 
     try:
         with tmpl_path.open() as tmpl_file:

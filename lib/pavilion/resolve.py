@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Union, Tuple, Any
 
 from pavilion import parsers
 from pavilion import variables
@@ -132,7 +132,7 @@ def section_values(component: Union[Dict, List, str],
                    var_man: variables.VariableSetManager,
                    allow_deferred: bool = False,
                    deferred_only: bool = False,
-                   key_parts: Union[None, Tuple[str]] = None):
+                   key_parts: Union[None, Tuple[str]] = None) -> Any:
     """Recursively resolve the given config component's value strings
     using a variable manager.
 

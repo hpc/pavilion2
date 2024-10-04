@@ -15,7 +15,7 @@ import threading
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Union, Dict, Optional
+from typing import Union, Dict, Optional, List, IO
 from contextlib import ExitStack
 
 import pavilion.config
@@ -27,7 +27,9 @@ from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
+from pavilion.micro import set_default, remove_none
 
+CONFIG_FNAMES = ("suite.yaml", "hosts.yaml", "modes.yaml", "os.yaml")
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -134,6 +136,16 @@ class TestBuilder:
                 raise TestBuilderError("build.create_file has bad destination path '{}'"
                                        .format(dest), err)
 
+    @property
+    def suite_subdir(self) -> Optional[Path]:
+        sname = self._config.get('suite_name')
+
+        if sname is not None:
+            return Path(f"suites/{sname}/")
+
+        self.status.set(STATES.WARNING,
+                        "Unable to determine name of test suite. Suite directory is unknown.")
+
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
@@ -195,6 +207,8 @@ class TestBuilder:
         #  - All of the build's 'extra_files'
         #  - All files needed to be created at build time 'create_files'
 
+        self.status.set(STATES.INFO, "Creating build hash.")
+
         hash_obj = hashlib.sha256()
 
         # Update the hash with the contents of the build script.
@@ -208,13 +222,17 @@ class TestBuilder:
 
         if src_path is not None:
             if src_path.is_file():
+                self.status.set(STATES.INFO, f"Hashing file {src_path}.")
                 hash_obj.update(self._hash_file(src_path))
             elif src_path.is_dir():
-                hash_obj.update(self._hash_dir(src_path))
+                self.status.set(STATES.INFO, f"Hashing directory {src_path}.")
+                hash_obj.update(self._hash_dir(src_path, exclude=CONFIG_FNAMES))
             else:
                 raise TestBuilderError(
                     "Invalid src location {}."
                     .format(src_path))
+        else:
+            self.status.set(STATES.INFO, "No files to hash.")
 
         # Hash all the given template files.
         for tmpl_src in sorted(self._templates.keys()):
@@ -223,7 +241,8 @@ class TestBuilder:
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
-            full_path = self._pav_cfg.find_file(extra_file, Path('test_src'))
+            sub_dirs = [self.suite_subdir, Path('test_src')]
+            full_path = self._pav_cfg.find_file(extra_file, sub_dirs)
 
             if full_path is None:
                 raise TestBuilderError(
@@ -233,7 +252,7 @@ class TestBuilder:
                 hash_obj.update(self._hash_file(full_path))
             elif full_path.is_dir():
                 self._date_dir(full_path)
-                hash_obj.update(self._hash_dir(full_path))
+                hash_obj.update(self._hash_dir(full_path, exclude=CONFIG_NAMES))
             else:
                 raise TestBuilderError(
                     "Extra file '{}' must be a regular file or directory."
@@ -299,16 +318,18 @@ class TestBuilder:
 
         dep_path.touch()
 
-    def _update_src(self):
+    def _update_src(self) -> Optional[Path]:
         """Retrieve and/or check the existence of the files needed for the
             build. This can include pulling from URL's.
         :returns: src_path, extra_files
         """
 
+        self.status.set(STATES.INFO, "Updating source.")
+
         src_path = self._config.get('source_path')
+
         if src_path is None:
-            # There is no source to do anything with.
-            return None
+            return
 
         try:
             src_path = Path(src_path)
@@ -317,7 +338,8 @@ class TestBuilder:
                 "The source path must be a valid unix path, either relative "
                 "or absolute, got '{}'".format(src_path), err)
 
-        found_src_path = self._pav_cfg.find_file(src_path, 'test_src')
+        sub_dirs = [self.suite_subdir, Path('test_src')]
+        found_src_path = self._pav_cfg.find_file(src_path, sub_dirs)
 
         src_url = self._config.get('source_url')
         src_download = self._config.get('source_download')
@@ -654,7 +676,7 @@ class TestBuilder:
         'x-lzma',
     )
 
-    def _setup_build_dir(self, dest, tracker: BuildTracker):
+    def _setup_build_dir(self, dest: Path, tracker: BuildTracker) -> None:
         """Setup the build directory, by extracting or copying the source
             and any extra files.
         :param dest: Path to the intended build directory. This is generally a
@@ -663,31 +685,46 @@ class TestBuilder:
         :return: None
         """
 
+        tracker.update(state=STATES.BUILDING, note="Setting up build directory.")
+
         umask = os.umask(0)
         os.umask(umask)
 
+        src_path = None
         raw_src_path = self._config.get('source_path')
-        if raw_src_path is None:
-            src_path = None
-        else:
-            src_path = self._pav_cfg.find_file(Path(raw_src_path), 'test_src')
+
+        if raw_src_path is not None:
+            tracker.update(state=STATES.BUILDING, note=f"Looking for source path: {raw_src_path}.")
+            sub_dirs = [Path('test_src')]
+            src_path = self._pav_cfg.find_file(raw_src_path, sub_dirs)
+
+            # Only raise an error if a path that is explicitly identified is missing
             if src_path is None:
                 raise TestBuilderError("Could not find source file '{}'"
                                        .format(raw_src_path))
-
-            # Resolve any softlinks to get the real file.
-            src_path = src_path.resolve()
+        else:
+            # Default to the suite directory, which may or may not exist
+            # If it doesn't exist, we should just continue without raising an error.
+            if self.suite_subdir is not None:
+                tracker.update(state=STATES.BUILDING,
+                               note=f"No source path given. Defaulting to {self.suite_subdir}.")
+                src_path = self._pav_cfg.find_file(self.suite_subdir)
 
         umask = int(self._pav_cfg['umask'], 8)
 
         # All of the file extraction functions return an error message on failure, None on success.
         extract_error = None
 
+        if src_path is not None:
+            # Resolve any softlinks to get the real file.
+            src_path = src_path.resolve()
+
         if src_path is None:
+            tracker.update(state=STATES.BUILDING,
+                           note=f"No source path found. Creating empty build directory.")
             # If there is no source archive or data, just make the build
             # directory.
             dest.mkdir()
-
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
             tracker.update(
@@ -701,7 +738,9 @@ class TestBuilder:
                 dest.as_posix(),
                 copy_function=shutil.copyfile,
                 copystat=utils.make_umask_filtered_copystat(umask),
-                symlinks=True)
+                symlinks=True,
+                ignore=shutil.ignore_patterns("*.yaml")
+                )
 
         elif src_path.is_file():
             category, subtype = utils.get_mime_type(src_path)
@@ -777,7 +816,8 @@ class TestBuilder:
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            path = self._pav_cfg.find_file(extra, 'test_src')
+            sub_dirs = [self.suite_subdir, Path('test_src')]
+            path = self._pav_cfg.find_file(extra, sub_dirs)
             final_dest = dest / path.name
             try:
                 if path.is_dir():
@@ -952,7 +992,7 @@ class TestBuilder:
         return file_hash
 
     @classmethod
-    def _hash_io(cls, contents):
+    def _hash_io(cls, contents: IO) -> bytes:
         """Hash the given file in IOString format.
         :param IOString contents: file name (as relative path to build
                                   directory) and file contents to hash."""
@@ -965,17 +1005,38 @@ class TestBuilder:
 
         return hash_obj.digest()
 
-    @staticmethod
-    def _hash_dir(path):
-        """Instead of hashing the files within a directory, we just create a
-            'hash' based on it's name and mtime, assuming we've run _date_dir
-            on it before hand. This produces an arbitrary string, not a hash.
-        :param Path path: The path to the directory.
-        :returns: The 'hash'
+    @classmethod
+    def _hash_dir(cls, path: Path, exclude: List[str] = None) -> str:
+        """Recursively hash the files in the given directory, optionally excluding files with
+        the given names.
+
+        Returns the hexadecimal hash digest of all files in the directory, as a UTF-8 string.
         """
 
-        dir_stat = path.stat()
-        return '{} {:0.5f}'.format(path, dir_stat.st_mtime).encode()
+        exclude = set_default(exclude, [])
+
+        try:
+            # Order is indeterminate, so sort the files
+            files = sorted(path.rglob('*'))
+        except OSError:
+            # This will typically be caught earlier by _date_dir
+            raise TestBuilderError(f"Unable to hash directory: {path}. Possible circular symlink.")
+
+        files = filter(lambda x: x.name not in exclude, files)
+
+        hash_obj = hashlib.sha256()
+
+        for file in files:
+            if file.is_dir():
+            # This has the effect of flattening directories,
+            # thus ignoring the structure of the directory.
+            # This might not be what we want.
+                continue
+
+            with open(file, 'rb') as fin:
+                hash_obj.update(cls._hash_io(fin))
+
+        return hash_obj.hexdigest().encode("utf-8")
 
     @staticmethod
     def _isurl(url):
@@ -998,8 +1059,8 @@ class TestBuilder:
                 dir_stat = path.stat()
             except OSError as err:
                 raise TestBuilderError(
-                    "Could not stat file in test source dir '{}'"
-                    .format(base_path), err)
+                    (f"Could not stat file in test source dir '{base_path}'. "
+                     "Possible circular symlink."), err)
             if dir_stat.st_mtime > latest:
                 latest = dir_stat.st_mtime
 

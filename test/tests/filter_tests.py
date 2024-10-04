@@ -17,7 +17,7 @@ from pavilion.unittest import PavTestCase
 from pavilion.status_file import TestStatusFile, SeriesStatusFile
 from pavilion.filters import (FilterParseError, validate_int,
     validate_glob, validate_glob_list, validate_str_list, validate_datetime,
-    parse_query, parse_duration)
+    parse_query, parse_duration, safe_update)
 
 class FiltersTest(PavTestCase):
 
@@ -500,15 +500,15 @@ class FiltersTest(PavTestCase):
         self.assertTrue(parse_duration('-0days', now) == now)
 
         parsed = parse_duration('13 months', now)
-        expected = date(year=now.year - 1, month=now.month - 1, day=now.day)
+        expected = safe_update(now, year=now.year - 1, month=now.month - 1).date()
         self.assertTrue(parsed.date() == expected)
 
         parsed = parse_duration('12 months', now)
-        expected = date(year=now.year - 1, month=now.month, day=now.day)
+        expected = safe_update(now, year=now.year - 1).date()
         self.assertTrue(parsed.date() == expected)
 
         parsed = parse_duration('1 months', now)
-        expected = date(year=now.year, month=now.month - 1, day=now.day)
+        expected = safe_update(now, month=now.month - 1).date()
         self.assertTrue(parsed.date() == expected)
 
     def test_filter_keywords_implemented(self):

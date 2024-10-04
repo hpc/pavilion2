@@ -5,6 +5,7 @@ import io
 import os
 import threading
 import time
+import math
 from collections import defaultdict
 from io import StringIO
 from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple
@@ -19,6 +20,7 @@ from pavilion.test_run import TestRun, mass_status_update
 from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
+from pavilion.micro import set_default
 
 S_STATES = SERIES_STATES
 
@@ -713,7 +715,8 @@ class TestSet:
 
     TEST_WAIT_PERIOD = 0.5
 
-    def wait(self, wait_for_all=False, wait_period: int = TEST_WAIT_PERIOD) -> int:
+    def wait(self, wait_for_all=False, wait_period: int = TEST_WAIT_PERIOD,
+             timeout: int = None) -> int:
         """Wait for tests to complete. Returns the number of jobs that completed for this
         call to wait.
 
@@ -722,14 +725,22 @@ class TestSet:
         :return: The number of completed tests
         """
 
+        timeout = set_default(timeout, math.inf)
+
         # No tests to wait for
         if not self.started_tests:
             return 0
 
         completed_tests = self.mark_completed()
 
+        start = time.time()
+
         while ((wait_for_all and self.started_tests) or
                (not wait_for_all and completed_tests == 0)):
+
+            if time.time() - start > timeout:
+                raise TimeoutError("Timed out waiting for test set to complete.")
+
             time.sleep(wait_period)
             completed_tests += self.mark_completed()
 

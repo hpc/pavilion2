@@ -45,7 +45,7 @@ class _RunCommand(Command):
             try:
                 tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))
             except PavilionError as err:
-                fprint(self.outfile, "Error loading test '{}'".format(args.test_id))
+                fprint(self.outfile, "Error loading test '{}'".format(test_id))
                 fprint(self.outfile, err.pformat())
 
         # Filter out cancelled tests

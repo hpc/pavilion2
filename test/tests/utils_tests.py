@@ -58,6 +58,7 @@ class UtilsTests(unittest.PavTestCase):
         """Check that the owner function works."""
 
         path = Path(tempfile.mktemp())
+
         with path.open('w') as file:
             file.write('hi there')
 

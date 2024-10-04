@@ -283,7 +283,7 @@ class SeriesTests(PavTestCase):
         series_obj = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         series_obj.run()
 
-        series_obj.wait()
+        series_obj.wait(timeout=10)
 
         for test in series_obj.tests.values():
             if test.name in ['test_set_errors.good', 'hello_world.hello']:

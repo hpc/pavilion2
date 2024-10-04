@@ -1,0 +1,4 @@
+hosts_suite_test:
+    scheduler: raw
+    run:
+        cmds: 'echo Hello!'

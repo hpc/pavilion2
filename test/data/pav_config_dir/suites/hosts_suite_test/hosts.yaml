@@ -1,0 +1,7 @@
+host1:
+    variables:
+        host1: True
+
+host2:
+    variables:
+        host2: True

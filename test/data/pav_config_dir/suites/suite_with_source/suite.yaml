@@ -1,0 +1,6 @@
+suite_with_source:
+    scheduler: raw
+    build:
+        cmds: "gcc -o hello hello.c"
+    run:
+        cmds: "{{sched.test_cmd}} ./hello"

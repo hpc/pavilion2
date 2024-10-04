@@ -1,0 +1,7 @@
+circular_symlink:
+    summary: Build for which the directory contains circular symlinks.
+    scheduler: raw
+    build:
+        source_path: "."
+    run:
+        cmds: "echo hello"

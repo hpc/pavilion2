@@ -232,7 +232,7 @@ class RunCmdTests(PavTestCase):
         out, err = run_cmd.clear_output()
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0, msg=out+err)
 
-        run_cmd.last_series.wait()
+        run_cmd.last_series.wait(timeout=10)
 
         # The test fails if it ever catches more tests running than its concurrency limit
         for test in run_cmd.last_tests:

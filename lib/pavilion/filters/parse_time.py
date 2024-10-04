@@ -1,4 +1,5 @@
 from datetime import date, time, datetime, timedelta
+from calendar import monthrange
 from typing import Tuple, Union
 
 
@@ -62,12 +63,16 @@ def parse_duration(rval: str, now: datetime) -> datetime:
         raise ValueError(f"Invalid unit {unit} for duration")
 
     if unit == 'years':
-        return now.replace(year=now.year - mag)
+        return safe_update(now, year=now.year - mag)
 
     if unit == 'months':
         dyear, dmonth = divmod(mag, MONTHS_PER_YEAR)
 
-        return now.replace(year=now.year - dyear, month=now.month - dmonth)
+        new_day = now.day
+        new_month = now.month - dmonth
+        new_year = now.year - dyear
+
+        return safe_update(now, year=new_year, month=new_month, day=new_day)
 
     return now - timedelta(**{unit: mag})
 
@@ -137,3 +142,28 @@ def normalize(unit: str) -> str:
         return unit + "s"
 
     return unit
+
+
+def safe_update(date: datetime, year: int = None, month: int = None, day: int = None) -> datetime:
+    """Update the datetime object with the given year, month, and day, ensuring that the final
+    day is valid for the month and year, returning the modified datetime object. For instance, we
+    want to guard against February 30th. This function is necessary because datetime.timedelta
+    can't handle variable-size units of time (i.e. months and years).
+    """
+
+    if year is None:
+        year = date.year
+    if month is None:
+        month = date.month
+    if day is None:
+        day = date.day
+
+    max_day = monthrange(year, month)[1]
+
+    # If the day is too large, adjust it to be the last day
+    # of the new month. This might not be the best solution,
+    # but it's a reasonable way to handle it.
+    if day > max_day:
+        day = max_day
+
+    return date.replace(year=year, month=month, day=day)

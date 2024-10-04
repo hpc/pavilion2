@@ -492,7 +492,9 @@ class ShowCommand(Command):
         """Show the variables of a config, each variable is displayed as a
         table."""
 
-        _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
+        cfg_info = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
+        file = cfg_info.path
+
         if file is None:
             output.fprint(
                 self.errfile,
@@ -604,7 +606,9 @@ class ShowCommand(Command):
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
         """Show the full config of a given os/host/mode."""
 
-        _, file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
+        cfg_info = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
+        file = cfg_info.path
+
         config_data = None
         if file is not None:
             with file.open() as config_file:

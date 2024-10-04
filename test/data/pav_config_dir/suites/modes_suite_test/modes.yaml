@@ -1,0 +1,7 @@
+mode1:
+    variables:
+        mode1: True
+
+mode2:
+    variables:
+        mode2: True

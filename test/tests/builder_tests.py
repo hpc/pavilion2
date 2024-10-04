@@ -9,15 +9,18 @@ import unittest
 import uuid
 from pathlib import Path
 
-from pavilion import builder
-from pavilion import wget
+from pavilion import builder, arguments, wget, plugins, commands
 from pavilion.build_tracker import MultiBuildTracker, DummyTracker
-from pavilion.errors import TestRunError
+from pavilion.errors import TestRunError, TestBuilderError
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
 
 
 class BuilderTests(PavTestCase):
+    def setUp(self):
+        plugins.initialize_plugins(self.pav_cfg)
+        build_cmd = commands.get_command('run')
+        build_cmd.silence()
 
     def test_build_locking(self):
         """Make sure multiple builds of the same hash lock each other out."""
@@ -451,3 +454,24 @@ class BuilderTests(PavTestCase):
 
         with self.assertRaises(TestRunError):
             self._quick_test(cfg)
+
+    def test_hash_circular_symlinks(self):
+        """Test that the builder errors out when trying to hash a directory
+        containing circular symlinks."""
+
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'circular_symlinks'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        run_cmd.run(self.pav_cfg, args)
+
+        last_series = run_cmd.last_series
+
+        last_series.wait()
+
+        self.assertEqual(last_series.status.current().state, "ERROR")
