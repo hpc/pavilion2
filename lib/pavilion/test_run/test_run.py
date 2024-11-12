@@ -128,12 +128,10 @@ class TestRun(TestAttributes):
 
         self.config = config
         self._validate_config()
-        self.build_only = build_only
-        self.rebuild = rebuild
 
         # Get an id for the test, if we weren't given one.
         if new_test:
-            self._setup_new(tests_path)
+            self._setup_new(tests_path, var_man)
         else:
             # Load the test info from the given id path.
             super().__init__(path=dir_db.make_id_path(tests_path, _id))
@@ -150,6 +148,9 @@ class TestRun(TestAttributes):
             except VariableError as err:
                 raise TestRunError("Error loading variable set for test {}".format(self.id),
                                    err)
+
+        self.build_only = build_only
+        self.rebuild = rebuild
 
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
@@ -208,7 +209,7 @@ class TestRun(TestAttributes):
         self.skip_reasons = self._evaluate_skip_conditions()
         self.skipped = len(self.skip_reasons) != 0
 
-    def _setup_new(self, tests_path: Path) -> None:
+    def _setup_new(self, tests_path: Path, var_man: VariableSetManager) -> None:
         """Setup a brand new test."""
 
         # These will be set by save() or on load.
@@ -230,9 +231,9 @@ class TestRun(TestAttributes):
         self.id = id_tmp  # pylint: disable=invalid-name
         self._complete = False
         self.created = time.time()
-        self.name = self.make_name(config)
-        self.cfg_label = config.get('cfg_label', self.NO_LABEL)
-        suite_path = config.get('suite_path')
+        self.name = self.make_name(self.config)
+        self.cfg_label = self.config.get('cfg_label', self.NO_LABEL)
+        suite_path =self.config.get('suite_path')
 
         if suite_path is None or suite_path == '<no_suite>':
             self.suite_path = None
