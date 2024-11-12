@@ -36,7 +36,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
-from pavilion.micro import get_nested
+from pavilion.micro import get_nested, set_default
 from .test_attrs import TestAttributes
 
 
@@ -128,43 +128,12 @@ class TestRun(TestAttributes):
 
         self.config = config
         self._validate_config()
+        self.build_only = build_only
+        self.rebuild = rebuild
 
         # Get an id for the test, if we weren't given one.
         if new_test:
-            # These will be set by save() or on load.
-            try:
-                id_tmp, run_path = dir_db.create_id_dir(tests_path)
-            except (OSError, TimeoutError) as err:
-                raise TestRunError("Could not create test id directory at '{}'"
-                                   .format(tests_path), err)
-            super().__init__(path=run_path, load=False)
-            self._variables_path = self.path / 'variables'
-            self.var_man = None
-            self.status = None
-            self.builder: builder.TestBuilder = None
-            self.build_name = None
-
-            # Set basic attributes
-            self.id = id_tmp  # pylint: disable=invalid-name
-            self.build_only = build_only
-            self._complete = False
-            self.created = time.time()
-            self.name = self.make_name(config)
-            self.rebuild = rebuild
-            self.cfg_label = config.get('cfg_label', self.NO_LABEL)
-            suite_path = config.get('suite_path')
-
-            if suite_path is None or suite_path == '<no_suite>':
-                self.suite_path = None
-            else:
-                self.suite_path = Path(suite_path)
-
-            self.user = utils.get_login()
-            self.uuid = str(uuid.uuid4())
-
-            if var_man is None:
-                var_man = VariableSetManager()
-            self.var_man = var_man
+            self._setup_new(tests_path)
         else:
             # Load the test info from the given id path.
             super().__init__(path=dir_db.make_id_path(tests_path, _id))
@@ -238,6 +207,46 @@ class TestRun(TestAttributes):
 
         self.skip_reasons = self._evaluate_skip_conditions()
         self.skipped = len(self.skip_reasons) != 0
+
+    def _setup_new(self, tests_path: Path) -> None:
+        """Setup a brand new test."""
+
+        # These will be set by save() or on load.
+        try:
+            id_tmp, run_path = dir_db.create_id_dir(tests_path)
+        except (OSError, TimeoutError) as err:
+            raise TestRunError("Could not create test id directory at '{}'"
+                               .format(tests_path), err)
+
+        super().__init__(path=run_path, load=False)
+
+        self._variables_path = self.path / 'variables'
+        self.var_man = None
+        self.status = None
+        self.builder = None
+        self.build_name = None
+
+        # Set basic attributes
+        self.id = id_tmp  # pylint: disable=invalid-name
+        self._complete = False
+        self.created = time.time()
+        self.name = self.make_name(config)
+        self.cfg_label = config.get('cfg_label', self.NO_LABEL)
+        suite_path = config.get('suite_path')
+
+        if suite_path is None or suite_path == '<no_suite>':
+            self.suite_path = None
+        else:
+            self.suite_path = Path(suite_path)
+
+        self.user = utils.get_login()
+        self.uuid = str(uuid.uuid4())
+
+        self.var_man = set_default(var_man, VariableSetManager())
+
+
+    def _load_from_id(self) -> None:
+        ...
 
     def _build_needed(self) -> bool:
         """Check whether it's actually necessary to perform the full
