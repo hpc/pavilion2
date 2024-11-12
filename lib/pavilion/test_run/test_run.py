@@ -130,12 +130,20 @@ class TestRun(TestAttributes):
         self._validate_config()
 
         if new_test:
-            self._setup_new(tests_path, var_man)
-        else:
-            self._load_from_id(_id, tests_path)
+            try:
+                id_tmp, run_path = dir_db.create_id_dir(tests_path)
+            except (OSError, TimeoutError) as err:
+                raise TestRunError("Could not create test id directory at '{}'"
+                                   .format(tests_path), err)
 
-        self.build_only = build_only
-        self.rebuild = rebuild
+            super().__init__(path=run_path, load=False)
+
+            self._setup_new(id_tmp, var_man)
+            self.build_only = build_only
+            self.rebuild = rebuild
+        else:
+            super().__init__(path=dir_db.make_id_path(tests_path, _id))
+            self._load_from_id()
 
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
@@ -195,18 +203,10 @@ class TestRun(TestAttributes):
         self.skip_reasons = self._evaluate_skip_conditions()
         self.skipped = len(self.skip_reasons) != 0
 
-    def _setup_new(self, tests_path: Path, var_man: VariableSetManager) -> None:
+    def _setup_new(self, id_tmp: int, var_man: VariableSetManager) -> None:
         """Setup a brand new test."""
 
         # These will be set by save() or on load.
-        try:
-            id_tmp, run_path = dir_db.create_id_dir(tests_path)
-        except (OSError, TimeoutError) as err:
-            raise TestRunError("Could not create test id directory at '{}'"
-                               .format(tests_path), err)
-
-        super().__init__(path=run_path, load=False)
-
         self._variables_path = self.path / 'variables'
         self.var_man = None
         self.status = None
@@ -232,10 +232,9 @@ class TestRun(TestAttributes):
         self.var_man = set_default(var_man, VariableSetManager())
 
 
-    def _load_from_id(self, test_id: str, tests_path: Path) -> None:
+    def _load_from_id(self) -> None:
         """Given a test a ID, load the existing test with that ID."""
 
-        super().__init__(path=dir_db.make_id_path(tests_path, test_id))
 
         if not self.path.is_dir():
             raise TestRunNotFoundError(
