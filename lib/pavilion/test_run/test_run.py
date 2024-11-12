@@ -129,25 +129,10 @@ class TestRun(TestAttributes):
         self.config = config
         self._validate_config()
 
-        # Get an id for the test, if we weren't given one.
         if new_test:
             self._setup_new(tests_path, var_man)
         else:
-            # Load the test info from the given id path.
-            super().__init__(path=dir_db.make_id_path(tests_path, _id))
-            if not self.path.is_dir():
-                raise TestRunNotFoundError(
-                    "No test with id '{}' could be found.".format(self.id))
-
-            self._variables_path = self.path / 'variables'
-            self.status = TestStatusFile(self.path / self.STATUS_FN)
-            self.suite_path = self.suite_path
-
-            try:
-                self.var_man = VariableSetManager.load(self._variables_path)
-            except VariableError as err:
-                raise TestRunError("Error loading variable set for test {}".format(self.id),
-                                   err)
+            self._load_from_id(_id, tests_path)
 
         self.build_only = build_only
         self.rebuild = rebuild
@@ -161,6 +146,7 @@ class TestRun(TestAttributes):
                                  .get('on_nodes', 'false').lower() != 'true'
 
         run_timeout = config.get('run', {}).get('timeout', '300')
+
         try:
             self.run_timeout = parse_timeout(run_timeout)
         except ValueError:
@@ -246,8 +232,25 @@ class TestRun(TestAttributes):
         self.var_man = set_default(var_man, VariableSetManager())
 
 
-    def _load_from_id(self) -> None:
-        ...
+    def _load_from_id(self, test_id: str, tests_path: Path) -> None:
+        """Given a test a ID, load the existing test with that ID."""
+
+        super().__init__(path=dir_db.make_id_path(tests_path, test_id))
+
+        if not self.path.is_dir():
+            raise TestRunNotFoundError(
+                "No test with id '{}' could be found.".format(self.id))
+
+        self._variables_path = self.path / 'variables'
+        self.status = TestStatusFile(self.path / self.STATUS_FN)
+        self.suite_path = self.suite_path
+
+        try:
+            self.var_man = VariableSetManager.load(self._variables_path)
+        except VariableError as err:
+            raise TestRunError("Error loading variable set for test {}".format(self.id),
+                               err)
+
 
     def _build_needed(self) -> bool:
         """Check whether it's actually necessary to perform the full
