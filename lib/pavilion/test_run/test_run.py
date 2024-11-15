@@ -140,10 +140,11 @@ class TestRun(TestAttributes):
 
             self._setup_new(id_tmp, var_man)
             self.build_only = build_only
-            self.rebuild = rebuild
         else:
             super().__init__(path=dir_db.make_id_path(tests_path, _id))
             self._load_from_id()
+
+        self.rebuild = rebuild
 
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
