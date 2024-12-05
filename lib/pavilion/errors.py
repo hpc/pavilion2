@@ -56,7 +56,7 @@ class PavilionError(RuntimeError):
     def _wrap_lines(lines: List[str], width: int) -> List[str]:
         """Given a list of lines, produce a new list of lines wrapped to the specified width."""
 
-        lines = map(lambda x: textwrap.wrap(x, width=width), lines) 
+        lines = map(lambda x: textwrap.wrap(x, width=width), lines)
 
         return list(flatten(lines))
 

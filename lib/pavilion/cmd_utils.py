@@ -321,7 +321,8 @@ def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
     return None
 
 
-def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List, errfile: Optional[Path] = None) -> List[Path]:
+def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List,
+                        errfile: Optional[Path] = None) -> List[Path]:
     """Given a list of raw test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by

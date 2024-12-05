@@ -238,11 +238,15 @@ class TestSet:
                 for error in cfg_resolver.errors:
                     if error.request is not None:
                         self.status.set(S_STATES.ERROR,
-                                        '{} - {}'.format(error.request.request, error.pformat(show_tracebacks)))
+                                        '{} - {}'.format(
+                                                    error.request.request,
+                                                    error.pformat(show_tracebacks)))
 
                         output.fprint(
                             self.outfile,
-                            "{} - {}".format(error.request.request, error.pformat(show_tracebacks)))
+                            "{} - {}".format(
+                                        error.request.request,
+                                        error.pformat(show_tracebacks)))
                     else:
                         self.status.set(S_STATES.ERROR, error.pformat())
                         output.fprint(
