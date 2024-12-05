@@ -7,9 +7,14 @@ import textwrap
 import shutil
 import traceback
 
+from traceback import format_exception
+from typing import List
+
 import lark
 
 import yc_yaml
+
+from pavilion.micro import flatten
 
 
 class PavilionError(RuntimeError):
@@ -47,12 +52,31 @@ class PavilionError(RuntimeError):
         else:
             return self.msg
 
-    def pformat(self) -> str:
-        """Specially format the exception for printing."""
+    @staticmethod
+    def _wrap_lines(lines: List[str], width: int) -> List[str]:
+        """Given a list of lines, produce a new list of lines wrapped to the specified width."""
+
+        lines = map(lambda x: textwrap.wrap(x, width=width), lines) 
+
+        return list(flatten(lines))
+
+
+    def pformat(self, traceback: bool = False) -> str:
+        """Specially format the exception for printing. If traceback is True, return the full
+        traceback associated with the error. Otherwise, return a summary of the error."""
+
+        width = shutil.get_terminal_size((80, 80)).columns
+
+        if traceback:
+            lines = self._wrap_lines(format_exception(self))
+
+            # Remove newlines, for consistency with textwrap.wrap
+            map(lambda x: x.rstrip("\n"), lines)
+
+            return "\n".join(lines)
 
         lines = []
         next_exc = self.prior_error
-        width = shutil.get_terminal_size((80, 80)).columns
         tab_level = 0
         for line in str(self.msg).split('\n'):
             lines.extend(textwrap.wrap(line, width=width))

@@ -54,7 +54,7 @@ def main():
         if not '--show-tracebacks' in sys.argv:
             output.fprint(sys.stderr, "Error getting config, exiting.", err, color=output.RED)
         else:
-            print(traceback.format_exc())
+            PavilionError(err).pformat(traceback=True)
 
         sys.exit(-1)
 
@@ -68,7 +68,7 @@ def main():
         if not partial_args.show_tracebacks:
             output.fprint(sys.stderr, "Error initializing plugins.", err, color=output.RED)
         else:
-            print(traceback.format_exc())
+            PavilionError(err).pformat(traceback=True)
 
         sys.exit(-1)
 
