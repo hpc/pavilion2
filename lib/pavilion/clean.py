@@ -8,6 +8,7 @@ from pavilion import dir_db
 from pavilion import groups
 from pavilion import lockfile
 from pavilion import utils
+from pavilion import config
 from pavilion.builder import TestBuilder
 from pavilion.test_run import test_run_attr_transform, TestAttributes
 
