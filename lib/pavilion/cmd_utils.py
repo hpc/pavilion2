@@ -180,7 +180,7 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
     if not args.tests:
         args.tests.append('last')
 
-    test_paths = test_list_to_paths(pav_cfg, args.tests)
+    test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
 
     return dir_db.select_from(
         pav_cfg,
@@ -339,7 +339,7 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List,
 
     test_paths = []
     for raw_id in req_tests:
-
+        
         if raw_id == 'last':
             raw_id = series.load_user_series_id(pav_cfg, errfile)
             if raw_id is None:
@@ -360,10 +360,12 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List,
 
             test_path = test_wd/TestRun.RUN_DIR/str(_id)
             test_paths.append(test_path)
+
             if not test_path.exists():
                 output.fprint(errfile,
                               "Test run with id '{}' could not be found.".format(raw_id),
                               color=output.YELLOW)
+
         elif raw_id[0] == 's' and utils.is_int(raw_id[1:]):
             # A series.
             try:
