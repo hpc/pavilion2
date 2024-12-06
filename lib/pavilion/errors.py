@@ -23,6 +23,9 @@ class PavilionError(RuntimeError):
     SPLIT_RE = re.compile(': *\n? *')
     TAB_LEVEL = '  '
 
+    # Set traceback behavior for all instances
+    show_tracebacks = False
+
     def __init__(self, msg, prior_error=None, data=None):
         """These take a new message and whatever prior error caused the problem.
 
@@ -61,13 +64,13 @@ class PavilionError(RuntimeError):
         return list(flatten(lines))
 
 
-    def pformat(self, traceback: bool = False) -> str:
+    def pformat(self) -> str:
         """Specially format the exception for printing. If traceback is True, return the full
         traceback associated with the error. Otherwise, return a summary of the error."""
 
         width = shutil.get_terminal_size((80, 80)).columns
 
-        if traceback:
+        if PavilionError.show_tracebacks:
             lines = self._wrap_lines(format_exception(self))
 
             # Remove newlines, for consistency with textwrap.wrap
