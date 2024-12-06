@@ -339,7 +339,6 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List,
 
     test_paths = []
     for raw_id in req_tests:
-        
         if raw_id == 'last':
             raw_id = series.load_user_series_id(pav_cfg, errfile)
             if raw_id is None:
