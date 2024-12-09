@@ -30,7 +30,7 @@ from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
 from pavilion.micro import partition
-from pavilion.limiter import TimeLimiter
+from pavilion.timing import TimeLimiter
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet

@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 import uuid
+import os
 from pathlib import Path
 from typing import TextIO, Union, Dict, Optional
 import yc_yaml as yaml
@@ -38,6 +39,7 @@ from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
 from pavilion.micro import get_nested
+from pavilion.timing import wait
 from .test_attrs import TestAttributes
 
 
@@ -847,10 +849,20 @@ class TestRun(TestAttributes):
         # run.
         complete_path = self.path/self.COMPLETE_FN
         complete_tmp_path = complete_path.with_suffix('.tmp')
+
         with complete_tmp_path.open('w') as run_complete:
             json.dump(
                 {'complete': time.time()},
                 run_complete)
+
+            # Ensure that the filesystem is updated before proceeding
+            run_complete.flush()
+            os.fsync(run_complete.fileno())
+
+        # Wait for the file to be written to disk before proceeding
+        wait(complete_tmp_path.exists, interval=0.2, timeout=2)
+
+        # Finalize the written file
         complete_tmp_path.rename(complete_path)
 
         self._complete = True

@@ -1,6 +1,10 @@
+"""Functions and objects related to controlling the timing of code execution."""
+
 import time
 import math
 from typing import Callable, Tuple, Any
+
+from pavilion.micro import set_default
 
 
 class TimeLimiter:
@@ -26,3 +30,20 @@ class TimeLimiter:
             return (True, res)
 
         return (False, None)
+
+
+def wait(cond: Callable[[], bool], interval: float, timeout: float = None) -> None:
+    """Waits until the given condition becomes true before continuing execution,
+    optionally timing out after the given duration."""
+
+    timeout = set_default(timeout, math.inf)
+
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        if cond():
+            return
+
+        time.sleep(interval)
+
+    raise TimeoutError(f"Timeout exceeded while waiting for condition {cond} to become true.")
