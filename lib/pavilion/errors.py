@@ -39,6 +39,7 @@ class PavilionError(RuntimeError):
         self.data = data
         super().__init__(msg)
 
+
     @property
     def msg(self):
         """Just return msg. This exists to be overridden in order to allow for

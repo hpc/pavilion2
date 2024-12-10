@@ -7,6 +7,8 @@ import traceback
 
 import pavilion.commands
 import pavilion.errors
+
+from pavilion.errors import PavilionError
 from . import arguments
 from . import commands
 from . import config
@@ -41,8 +43,7 @@ def main():
     # Pavilion is compatible with python >= 3.4
     if (sys.version_info[0] != SUPPORTED_MAJOR_VERSION
             or sys.version_info[1] < MIN_SUPPORTED_MINOR_VERSION):
-        output.fprint(sys.stderr, "Pavilion requires python 3.6 or higher.", color=output.RED)
-        sys.exit(-1)
+        raise PavilionError("Pavilion requires python 3.6 or higher.")
 
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()
@@ -51,12 +52,7 @@ def main():
     try:
         pav_cfg = config.find_pavilion_config()
     except Exception as err:
-        if not '--show-tracebacks' in sys.argv:
-            output.fprint(sys.stderr, "Error getting config, exiting.", err, color=output.RED)
-        else:
-            PavilionError(err).pformat(traceback=True)
-
-        sys.exit(-1)
+        raise PavilionError("Error getting config, exiting.") from err
 
     # Setup all the loggers for Pavilion
     log_output = log_setup.setup_loggers(pav_cfg)
@@ -65,12 +61,7 @@ def main():
     try:
         plugins.initialize_plugins(pav_cfg)
     except pavilion.errors.PluginError as err:
-        if not partial_args.show_tracebacks:
-            output.fprint(sys.stderr, "Error initializing plugins.", err, color=output.RED)
-        else:
-            PavilionError(err).pformat(traceback=True)
-
-        sys.exit(-1)
+        raise PavilionError("Error initializing plugins.") from err
 
     # Partially parse the arguments. All we really care about is the subcommand.
     partial_args, _ = parser.parse_known_args()
@@ -186,7 +177,14 @@ def profile_main():
 
 
 if __name__ == '__main__':
-    if '--profile' in sys.argv:
-        profile_main()
-    else:
-        main()
+    if '--show-tracebacks' in sys.argv:
+        PavilionError.show_tracebacks = True
+
+    try:
+        if '--profile' in sys.argv:
+            profile_main()
+        else:
+            main()
+    except PavilionError as err:
+        err.pformat()
+        exit(-1)
