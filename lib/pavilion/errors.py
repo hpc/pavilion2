@@ -72,7 +72,7 @@ class PavilionError(RuntimeError):
         width = shutil.get_terminal_size((80, 80)).columns
 
         if PavilionError.show_tracebacks:
-            lines = self._wrap_lines(format_exception(self))
+            lines = self._wrap_lines(format_exception(PavilionError, self, tb=None), width)
 
             # Remove newlines, for consistency with textwrap.wrap
             map(lambda x: x.rstrip("\n"), lines)
