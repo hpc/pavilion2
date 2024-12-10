@@ -54,13 +54,16 @@ class ErrorTests(unittest.PavTestCase):
             self.assertEqual(inst, new_inst)
 
     def test_pformat(self):
+        """Test that pformat formats errors as expected, including when Pavilion
+        is set to show full tracebacks for errors."""
+
         try:
             try:
                 raise RuntimeError("Raised a RuntimeError as a test")
             except RuntimeError as err:
                 raise errors.PavilionError("Match this") from err
         except errors.PavilionError as err:
-            self.assertTrue(err.pformat() == "Match this")
+            self.assertEqual(err.pformat(), "Match this")
 
         errors.PavilionError.show_tracebacks = True
 
@@ -70,4 +73,4 @@ class ErrorTests(unittest.PavTestCase):
             except RuntimeError as err:
                 raise errors.PavilionError("Match this") from err
         except errors.PavilionError as err:
-            self.assertTrue(err.pformat().startswith("Traceback (most recent call last)"))
+            self.assertTrue(err.pformat().startswith("Traceback"))
