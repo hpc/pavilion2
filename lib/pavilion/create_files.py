@@ -15,7 +15,6 @@ from pavilion.errors import TestConfigError
 def create_file(dest: Union[str, Path], rel_path: Path, contents: List[str],
                 newlines='\n'):
     """Create a file from the given content lines."""
-
     dest = verify_path(dest, rel_path)
 
     # Create file parent directory(ies).

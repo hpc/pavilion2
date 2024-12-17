@@ -111,12 +111,13 @@ class TestRun(TestAttributes):
         TestRun.load)."""
 
         self.saved = False
-
-        new_test = _id is None
-
-        # Just about every method needs this
         self._pav_cfg = pav_cfg
         self.scheduler = config['scheduler']
+        self.test_version = config.get("test_version")
+
+        # Mark the run to build locally.
+        self.build_local = config.get('build', {}) \
+                                 .get('on_nodes', 'false').lower() != 'true'
 
         # Get the working dir specific to where this test came from.
         if config.get('working_dir', NO_WORKING_DIR) == NO_WORKING_DIR:
@@ -124,35 +125,39 @@ class TestRun(TestAttributes):
         else:
             self.working_dir = Path(config['working_dir'])
 
-        tests_path = self.working_dir/self.RUN_DIR
+        tests_path = self.working_dir / self.RUN_DIR
 
         self.config = config
         self._validate_config()
 
+        new_test = _id is None
+        load_test = True
+
         if new_test:
+            # Create a new directory and ID for the test 
             try:
                 id_tmp, run_path = dir_db.create_id_dir(tests_path)
             except (OSError, TimeoutError) as err:
                 raise TestRunError("Could not create test id directory at '{}'"
                                    .format(tests_path), err)
 
-            super().__init__(path=run_path, load=False)
+            load_test = False
 
-            self._setup_new(id_tmp, var_man)
-            self.build_only = build_only
         else:
-            super().__init__(path=dir_db.make_id_path(tests_path, _id))
-            self._load_from_id()
+            # Load the test from an existing directory
+            run_path = dir_db.make_id_path(tests_path, _id)
+
+        super().__init__(path=run_path, load=load_test)
 
         self.rebuild = rebuild
 
+        if new_test:
+            self._setup_new(id_tmp, var_man)
+            self.build_only = build_only
+        else:
+            self._load_from_id()
+
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
-
-        self.test_version = config.get('test_version')
-
-        # Mark the run to build locally.
-        self.build_local = config.get('build', {}) \
-                                 .get('on_nodes', 'false').lower() != 'true'
 
         run_timeout = config.get('run', {}).get('timeout', '300')
 
@@ -738,7 +743,7 @@ class TestRun(TestAttributes):
     RUN_WAIT_MAX = 1
     # The maximum wait time before checking things like test cancellation
 
-    def run(self):
+    def run(self) -> Optional[bool]:
         """Run the test.
 
         :rtype: bool
