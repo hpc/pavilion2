@@ -48,7 +48,7 @@ class StatusCommand(Command):
 
         filters.add_test_filter_args(parser)
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg: "PavConfig", args: "Namespace") -> int:
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
         try:

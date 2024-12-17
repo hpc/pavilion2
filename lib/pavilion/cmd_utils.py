@@ -194,7 +194,7 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
 
 
 def make_filter_query() -> str:
-    template = 'user={} and created<{}'
+    template = 'user={} and created>{}'
 
     user = utils.get_login()
     time = (dt.datetime.now() - dt.timedelta(days=1)).isoformat()
