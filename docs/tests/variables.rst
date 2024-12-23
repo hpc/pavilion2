@@ -14,7 +14,7 @@ where those values come from.
 Variable Sets
 -------------
 
-Variables can come several different variable sets. Each set has a
+Variables can come from several different variable sets. Each set has a
 category name ('var', 'sys', 'pav', 'sched') that is used in the
 variable reference to remove ambiguity about the source of the variable,
 but is otherwise optional. This ordering of variable sets also
@@ -45,11 +45,10 @@ and mode configuration files.
 System Variables (sys)
 ^^^^^^^^^^^^^^^^^^^^^^
 
-System variables are provided via system plugins. These are designed to
-be easy to write, and provide a way for people working with Pavilion to
-provide extra information about the system or cluster that Pavilion is
-currently running on. The values may be
-:ref:`tests.variables.deferred`.
+System variables are provided via system plugins. These plugins are
+designed to be easy to write, and provide a way for people working with
+Pavilion to provide extra information about the system or cluster that
+Pavilion is currently running on. The values may be :ref:`tests.variables.deferred`.
 
 Use ``pav show sys_vars`` to list the system variables.
 
