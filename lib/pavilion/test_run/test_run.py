@@ -860,7 +860,8 @@ class TestRun(TestAttributes):
             os.fsync(run_complete.fileno())
 
         # Wait for the file to be written to disk before proceeding
-        wait(complete_tmp_path.exists, interval=0.2, timeout=2)
+        wait(complete_tmp_path.exists, interval=0.2, timeout=2,
+                msg="Temporary complete file was not created.")
 
         # Finalize the written file
         complete_tmp_path.rename(complete_path)

@@ -32,11 +32,16 @@ class TimeLimiter:
         return (False, None)
 
 
-def wait(cond: Callable[[], bool], interval: float, timeout: float = None) -> None:
+def wait(cond: Callable[[], bool], interval: float,
+            timeout: float = None, msg: str = None) -> None:
     """Waits until the given condition becomes true before continuing execution,
     optionally timing out after the given duration."""
 
     timeout = set_default(timeout, math.inf)
+    msg = set_default(
+                msg,
+                f"Timeout exceeded while waiting for condition \"{cond.__name__}\" to become true"
+                )
 
     start_time = time.time()
 
@@ -46,4 +51,4 @@ def wait(cond: Callable[[], bool], interval: float, timeout: float = None) -> No
 
         time.sleep(interval)
 
-    raise TimeoutError(f"Timeout exceeded while waiting for condition {cond} to become true.")
+    raise TimeoutError(msg)
