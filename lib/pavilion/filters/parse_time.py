@@ -155,6 +155,8 @@ def safe_update(date: datetime, year: int = None, month: int = None, day: int = 
         year = date.year
     if month is None:
         month = date.month
+    else:
+        month = (month - 1) % 12 + 1
     if day is None:
         day = date.day
 
