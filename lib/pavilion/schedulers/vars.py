@@ -146,15 +146,6 @@ each test right before it runs on an allocation in order to un-defer values.
 
         return min_val
 
-    @var_method
-    def partition(self):
-        """This variable provides extra status info for a test. It
-        is particularly meant to be overridden by plugins."""
-
-        _ = self
-
-        return self._sched_config['partition'] or ''
-
     def _test_cmd(self):
         """The command to prepend to a line to kick it off under the scheduler.
 
@@ -176,38 +167,14 @@ each test right before it runs on an allocation in order to un-defer values.
 
         return ''
 
+    # Everything after this point should be an var_methods or dfr_var_methods,
+    # in alphabetical order
+
     @var_method
-    def test_cmd(self):
-        """Calls the actual test command and then wraps the result with the wrapper
-        provided in the schedule section of the configuration."""
+    def account(self):
+        """The scheduler account as defined in the scheduler configs."""
 
-        # Removes all the None values to avoid getting a TypeError while trying to
-        # join two commands
-        return ''.join(filter(lambda item: item is not None, [self._test_cmd(),
-                              self._sched_config['wrapper']]))
-
-    @dfr_var_method
-    def tasks_per_node(self) -> int:
-        """The number of tasks to create per node. If the scheduler does not support
-        node info, just returns 1."""
-
-        tasks_per_node = self._sched_config['tasks_per_node']
-        min_tasks = self._sched_config['min_tasks_per_node']
-
-        if isinstance(tasks_per_node, int):
-            if tasks_per_node == 0:
-                tasks = self.min_cpus()
-            else:
-                tasks = tasks_per_node
-        else:  # Should be a float
-            if self._nodes:
-                tasks = max(math.floor(tasks_per_node * int(self.min_cpus())), 1)
-            else:
-                tasks = 1
-        if min_tasks and min_tasks > tasks:
-            return min_tasks
-        else:
-            return tasks
+        return self._sched_config['account'] or ''
 
     @var_method
     def concurrent_default(self):
@@ -290,6 +257,80 @@ each test right before it runs on an allocation in order to un-defer values.
             return NodeList(list(self._nodes.keys()))
         else:
             return NodeList([])
+
+    @var_method
+    def partition(self):
+        """This variable provides extra status info for a test. It
+        is particularly meant to be overridden by plugins."""
+
+        return self._sched_config['partition'] or ''
+
+    @var_method
+    def qos(self) -> str:
+        """Return the QOS as defined in the scheduler config."""
+
+        return self._sched_config['qos'] or ''
+
+    @var_method
+    def reservation(self) -> str:
+        """Return the reservation as defined in the scheduler config."""
+
+        return self._sched_config['reservation'] or ''
+
+    @dfr_var_method
+    def srun_args(self) -> str:
+        """A composed list of arguments for srun, based on the test's scheduler
+        configuration. These are generally meant for use with the 'raw' scheduler
+        to make allocations. It only accounts for nodes, account, partition, qos,
+        and reservation."""
+
+        args = {
+            '--account': self.account(),
+            '--partition': self.partition(),
+            '--qos': self.qos(),
+            '--reservation': self.reservation(),
+            '--nodes': str(self.nodes())}
+
+        arg_list = []
+
+        for arg, value in args.items():
+            if value:
+                arg_list.append(f'{arg}="{value}"')
+
+        return ' '.join(arg_list)
+
+    @dfr_var_method
+    def tasks_per_node(self) -> int:
+        """The number of tasks to create per node. If the scheduler does not support
+        node info, just returns 1."""
+
+        tasks_per_node = self._sched_config['tasks_per_node']
+        min_tasks = self._sched_config['min_tasks_per_node']
+
+        if isinstance(tasks_per_node, int):
+            if tasks_per_node == 0:
+                tasks = self.min_cpus()
+            else:
+                tasks = tasks_per_node
+        else:  # Should be a float
+            if self._nodes:
+                tasks = max(math.floor(tasks_per_node * int(self.min_cpus())), 1)
+            else:
+                tasks = 1
+        if min_tasks and min_tasks > tasks:
+            return min_tasks
+        else:
+            return tasks
+
+    @var_method
+    def test_cmd(self):
+        """Calls the actual test command and then wraps the result with the wrapper
+        provided in the schedule section of the configuration."""
+
+        # Removes all the None values to avoid getting a TypeError while trying to
+        # join two commands
+        return ''.join(filter(lambda item: item is not None, [self._test_cmd(),
+                              self._sched_config['wrapper']]))
 
     @dfr_var_method
     def test_nodes(self) -> int:
