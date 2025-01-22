@@ -1,3 +1,8 @@
+import os
+import socket
+
+from pathlib import Path
+
 import pavilion.schedulers
 from pavilion.unittest import PavTestCase
 from pavilion.deferred import DeferredVariable
@@ -56,5 +61,40 @@ class RawSchedTests(PavTestCase):
             self.assertEqual(val, exp_val,
                 msg=f"Raw sched var '{key}' does not match expected value: '{val}' != '{exp_val}'")
 
-        # Get these and check them.
-        fvars = raw_sched.get_final_vars()
+        fvars = raw_sched.get_final_vars(test)
+
+        memlines = []
+
+        # Get the total amount of memory
+        with Path('/proc/meminfo').open() as meminfo_file:
+            memlines = meminfo_file.readlines()
+
+        memlines = map(lambda x: x.split(), filter(lambda x: x.startswith("MemTotal:"), memlines))
+        memlines = filter(lambda x: len(x) > 2, memlines)
+
+        mem = None
+
+        for line in memlines:
+            try:
+                mem = int(line[1])//1024**2
+            except ValueError:
+                pass
+
+        hostname = socket.gethostname()
+
+        expected['tasks_total'] = '1'
+        expected['test_node_list'] = [hostname]
+        expected['node_list'] = [hostname]
+        expected['test_min_mem'] = str(mem)
+        expected['min_mem'] = str(mem)
+        expected['test_nodes'] = '1'
+        expected['srun_args'] = '--partition="fake-partition" --qos="fake-qos" --nodes="1"'
+        expected['test_min_cpus'] = str(os.cpu_count())
+        expected['min_cpus'] = str(os.cpu_count())
+        expected['tasks_per_node'] = '1'
+
+        for key, val in fvars.items():
+            self.assertIn(key, expected, msg=f"Raw sched var '{key}' does not have a testable value.")
+            exp_val = expected[key]
+            self.assertEqual(val, exp_val,
+                msg=f"Raw sched var '{key}' does not match expected value: '{val}' != '{exp_val}'")
