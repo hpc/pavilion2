@@ -47,6 +47,7 @@ each test right before it runs on an allocation in order to un-defer values.
         'test_min_cpus': '4',
         'test_min_mem': '32',
         'tasks_total': '180',
+        'srun_args': '--account=myaccount --partition=mypart --qos=myqos ...'
     }
 
     # Scheduler variable errors are deferred. We'll handle them later we we create

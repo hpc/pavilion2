@@ -74,24 +74,28 @@ class SchedTests(PavTestCase):
                   NodeSet(frozenset(['node05', 'node06', 'node07']))]
 
         expected = {
-            'test_cmd': '',
-            'tasks_per_node': '1',
+            'account': '',
             'chunk_ids': ['0', '1'],
             'chunk_size': '3',
             'concurrent_default': '1',
             'errors': [],
-            'node_list_id': '5',
             'min_cpus': '5',
             'min_mem': '10',
-            'nodes': str(len(nodes)),
             'node_list': [str(key) for key in nodes.keys()],
+            'node_list_id': '5',
+            'nodes': str(len(nodes)),
             'partition': '',
+            'qos': '',
             'requested_nodes': '1',
-            'test_nodes': str(len(nodes)),
-            'test_node_list': [str(key) for key in nodes.keys()],
+            'reservation': '',
+            'srun_args': f'--nodes="{len(nodes)}"',
+            'tasks_per_node': '1',
+            'tasks_total': str(len(nodes)),
+            'test_cmd': '',
             'test_min_cpus': '5',
             'test_min_mem': '10',
-            'tasks_total': str(len(nodes)),
+            'test_node_list': [str(key) for key in nodes.keys()],
+            'test_nodes': str(len(nodes)),
         }
 
         sched_vars = schedulers.SchedulerVariables(
@@ -128,24 +132,28 @@ class SchedTests(PavTestCase):
         chunks = None
 
         expected = {
-            'test_cmd': '',
-            'tasks_per_node': '1',
+            'account': '',
             'chunk_ids': [],
             'chunk_size': '',
             'concurrent_default': '1',
             'errors': [],
-            'node_list_id': '5',
             'min_cpus': '4',
             'min_mem': str(8*1024**3),
-            'nodes': '50',
             'node_list': [],
+            'node_list_id': '5',
+            'nodes': '50',
             'partition': '',
+            'qos': '',
             'requested_nodes': '',
-            'test_nodes': '0',
+            'reservation': '',
+            'srun_args': '--nodes="50"',
+            'tasks_per_node': '1',
+            'tasks_total': str(len(nodes)),
+            'test_cmd': '',
             'test_node_list': [],
+            'test_nodes': '0',
             'test_min_cpus': '4',
             'test_min_mem': str(8*1024**3),
-            'tasks_total': str(len(nodes)),
         }
 
         sched_vars = schedulers.SchedulerVariables(
