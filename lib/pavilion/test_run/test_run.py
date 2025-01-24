@@ -860,8 +860,13 @@ class TestRun(TestAttributes):
             os.fsync(run_complete.fileno())
 
         # Wait for the file to be written to disk before proceeding
-        wait(complete_tmp_path.exists, interval=0.2, timeout=2,
-                msg="Temporary complete file was not created.")
+        try:
+            wait(complete_tmp_path.exists, interval=0.2, timeout=2,
+                    msg="Temporary complete file was not created.")
+        except TimeoutError:
+            self.status.set(STATES.CREATION_ERROR,
+                            f"Timed out waiting for {self.COMPLETE_FN} file to be written.")
+            raise TestRunError(f"Timed out waiting for {self.COMPLETE_FN} file to be written.")
 
         # Finalize the written file
         complete_tmp_path.rename(complete_path)
