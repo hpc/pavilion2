@@ -832,10 +832,11 @@ class TestRun(TestAttributes):
 
         return ret
 
-    def _create_complete_file(self, complete_tmp_path: Path) -> None:
+    @staticmethod
+    def _create_complete_file(complete_tmp_path: Path) -> None:
         """Create the RUN_COMPLETE file for the test, ensuring that it is written
         to NFS."""
-    
+
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
@@ -848,7 +849,8 @@ class TestRun(TestAttributes):
             run_complete.flush()
             os.fsync(run_complete.fileno())
 
-    def _finalize_complete_file(self, complete_path: Path, complete_tmp_path: Path, status: TestStatusFile) -> None:
+    def _finalize_complete_file(self, complete_path: Path, complete_tmp_path: Path,
+                                status: TestStatusFile) -> None:
         """Ensure that the temporary RUN_COMPLETE file has been successfully created and that it
         exists on the current system. If it exists, rename it to reflect that it is finalized.
         If it does not exist, try to force a cache refresh, and if that doesn't work, symlink to
@@ -867,7 +869,7 @@ class TestRun(TestAttributes):
 
             if not complete_tmp_path.exists():
                 status.set(STATES.WARNING,
-                                f"File {self.COMPLETE_FN} does not yet exist on local file"
+                                f"File {self.COMPLETE_FN} does not yet exist on local file "
                                 "system. Falling back on symlink to temporary file location.")
                 complete_path.symlink_to(complete_tmp_path)
 
