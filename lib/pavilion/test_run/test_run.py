@@ -38,7 +38,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
-from pavilion.micro import get_nested
+from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
 from .test_attrs import TestAttributes
 
@@ -860,16 +860,22 @@ class TestRun(TestAttributes):
             os.fsync(run_complete.fileno())
 
         # Wait for the file to be written to disk before proceeding
-        try:
-            wait(complete_tmp_path.exists, interval=0.2, timeout=30,
-                    msg="Temporary complete file was not created.")
-        except TimeoutError:
-            self.status.set(STATES.CREATION_ERROR,
-                            f"Timed out waiting for {self.COMPLETE_FN} file to be written.")
-            raise TestRunError(f"Timed out waiting for {self.COMPLETE_FN} file to be written.")
 
-        # Finalize the written file
-        complete_tmp_path.rename(complete_path)
+        if complete_tmp_path.exists():
+            # Finalize the written file
+            complete_tmp_path.rename(complete_path)
+        else:
+            self.status.set(STATES.INFO,
+                            (f"File {self.COMPLETE_FN} does not yet exist on local file system. ",
+                            "Attempting to force NFS cache refresh."))
+            # Force an NFS cache update
+            consume(complete_tmp_path.parent.iterdir())
+
+            if not complete_tmp_path.exists():
+                self.status.set(STATES.WARNING,
+                                (f"File {self.COMPLETE_FN} does not yet exist on local file",
+                                "system. Falling back on symlink to temporary file location."))
+                complete_path.symlink_to(complete_tmp_path)
 
         self._complete = True
 
