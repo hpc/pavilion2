@@ -861,7 +861,7 @@ class TestRun(TestAttributes):
 
         # Wait for the file to be written to disk before proceeding
         try:
-            wait(complete_tmp_path.exists, interval=0.2, timeout=2,
+            wait(complete_tmp_path.exists, interval=0.2, timeout=30,
                     msg="Temporary complete file was not created.")
         except TimeoutError:
             self.status.set(STATES.CREATION_ERROR,
