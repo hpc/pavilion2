@@ -60,8 +60,7 @@ class TestBuilder:
                  script: Path, status: TestStatusFile, download_dest: Path,
                  templates: Dict[Path, Path] = None,
                  spack_config: dict = None, build_name=None):
-        """Initialize the build object.
-
+        """
         :param pav_cfg: The Pavilion config object
         :param working_dir: The working directory where this build should go.
         :param config: The build configuration.
@@ -87,29 +86,20 @@ class TestBuilder:
                                    "got '{}'".format(config.get('timeout')))
 
         self.status = status
-
         self._timeout_file = config.get('timeout_file')
-
         self._fix_source_path()
-
         self._version = 1
-
-        if build_name is None:
-            self.name = self.name_build()
-        else:
-            self.name = build_name
-
-        self.path = working_dir/'builds'/self.name  # type: Path
-
+        self.name = set_default(build_name, self.name_build())
+        self.path = working_dir/'builds'/self.name
         current_status = status.current()
 
+        # Codesmell: using `in` to test state - HW
         if not self.path.exists() and "ERROR" not in current_status.state:
             status.set(state=STATES.BUILD_CREATED, note="Builder created.")
 
         self.tmp_log_path = self.path.with_suffix('.log')
-        self.log_path = self.path/self.LOG_NAME
-        fail_name = 'fail.{}.{}'.format(self.name, time.time())
-        self.fail_path = self.path.parent/fail_name
+        self.log_path = self.path / self.LOG_NAME
+        self.fail_path = self.path.parent / f"fail.{self.name}.{time.time()}"
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
         if self._timeout_file is not None:
@@ -117,12 +107,21 @@ class TestBuilder:
         else:
             self._timeout_file = self.tmp_log_path
 
-        # Verify template and file creation destinations
+        self._verify_create_paths()
+        self._verify_template_paths()
+
+
+    def _verify_create_paths(self) -> None:
+        """Verify file creation destinations."""
+
         for file in self._config.get('create_files', {}).keys():
             try:
                 create_files.verify_path(file, self.path)
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad path '{}'".format(file), err)
+
+    def _verify_template_paths(self) -> None:
+        """Verify template paths."""
 
         for tmpl, dest in self._config.get('templates', {}).items():
             try:
