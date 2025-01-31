@@ -404,7 +404,7 @@ class ModuleWrapperViaConfig(ModuleWrapper):
                 actions.append(ModuleLoad(module_name=mod_name, version=mod_vers))
 
         env_vars = collections.OrderedDict()
-        vers_var_name = '{}_VERSION'.format(self.name.replace('*', 'any'))
+        vers_var_name = '{}_VERSION'.format(self.name.replace('*', 'any').replace('-', '_'))
         if version:
             env_vars[vers_var_name] = version
         else:
