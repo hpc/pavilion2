@@ -293,7 +293,7 @@ class ModWrapperTests(PavTestCase):
             'module load gcc',
             'module swap $old_module gcc',
             'export gcc_VERSION="$(module_loaded_version \'gcc\')"',
-            '''export openmpi-any_VERSION="$(module_loaded_version 'openmpi-.*')"''',
+            '''export openmpi_any_VERSION="$(module_loaded_version 'openmpi-.*')"''',
             'module load openmpi-bar',
         ])
 
