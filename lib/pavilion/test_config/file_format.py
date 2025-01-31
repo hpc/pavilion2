@@ -395,7 +395,7 @@ class TestCatElem(yc.CategoryElem):
 class ModuleWrapperCatElem(yc.CategoryElem):
     """Allow glob wildcards in key names."""
 
-    _NAME_RE = re.compile(r'^[a-zA-Z*?+][a-zA-Z0-9_*+?-]*$')
+    _NAME_RE = re.compile(r'^[a-zA-Z*?+][a-zA-Z0-9_*+?-]*(/[a-zA-Z0-9._-]+)?$')
     type=OrderedDict
 
 
