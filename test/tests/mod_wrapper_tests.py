@@ -286,7 +286,7 @@ class ModWrapperTests(PavTestCase):
             'export CPP=BAZ-${gcc_VERSION}',
             'module load openmpi-bar/11.10',
             'export MPICC=mpicc',
-            'export openmpi-any_VERSION=11.10'
+            'export openmpi_any_VERSION=11.10'
             ])
 
         check_test(tests_by_name['test-no-vers'], [
