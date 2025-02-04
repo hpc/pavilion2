@@ -861,16 +861,20 @@ class TestRun(TestAttributes):
             complete_tmp_path.rename(complete_path)
         else:
             status.set(STATES.INFO,
-                            f"File {self.COMPLETE_FN} does not yet exist on local file system. "
+                            f"File {self.COMPLETE_FN}.tmp does not yet exist on local file system. "
                             "Attempting to force NFS cache refresh.")
 
             # Force an NFS cache update
             consume(complete_tmp_path.parent.iterdir())
 
-            if not complete_tmp_path.exists():
+            if complete_tmp_path.exists():
+                complete_tmp_path.rename(complete_path)
+            else:
                 status.set(STATES.WARNING,
-                                f"File {self.COMPLETE_FN} does not yet exist on local file "
-                                "system. Falling back on symlink to temporary file location.")
+                                f"Forced cache refresh failed for{self.COMPLETE_FN}.tmp. Falling "
+                                "back on symlink to temporary file location.")
+
+                # Symlink with the expectation that the temp file will be there eventually
                 complete_path.symlink_to(complete_tmp_path)
 
         self._complete = True
