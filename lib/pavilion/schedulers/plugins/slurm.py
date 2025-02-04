@@ -602,7 +602,7 @@ class Slurm(SchedulerPluginAdvanced):
 
         return results
 
-    def _scontrol_show(self, *args, timeout=10) -> List[Dict]:
+    def _scontrol_show(self, *args, timeout=30) -> List[Dict]:
         """Run scontrol show and return the parsed output.
 
         :param list(str) args: Additional args to scontrol.
