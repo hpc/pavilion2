@@ -264,7 +264,7 @@ class PavConfig(PavConfigDict):
 
             if tests_dir.exists():
                 tests = [file for file in tests_dir.iterdir() if file.suffix.lower() == ".yaml"]
-                names = [test.name for test in tests]
+                names = [test.stem for test in tests]
                 labels = [label] * len(tests)
 
                 suite_infos.extend(zip(labels, names, tests))
