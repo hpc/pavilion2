@@ -692,10 +692,16 @@ class Slurm(SchedulerPluginAdvanced):
 
         try:
             job_data = self._scontrol_show('job', job_info['id'])
-        except (ValueError, TimeoutError) as err:
+        except ValueError as err:
             return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
                 note=str(err),
+                when=time.time()
+            )
+        except TimeoutError:
+            return TestStatusInfo(
+                state=STATES.SCHED_WARNING,
+                note=f"Timed out waiting for scontrol (job {job_info['id']})",
                 when=time.time()
             )
 
