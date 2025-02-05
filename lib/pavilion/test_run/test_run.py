@@ -38,7 +38,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
-from pavilion.micro import get_nested
+from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
 from .test_attrs import TestAttributes
 
@@ -832,24 +832,14 @@ class TestRun(TestAttributes):
 
         return ret
 
-    def set_run_complete(self):
-        """Write a file in the test directory that indicates that the test
-    has completed a run, one way or another. This should only be called
-    when we're sure their won't be any more status changes."""
-
-        if self.complete:
-            return
-
-        if not self.saved:
-            raise RuntimeError("You must call the .save() method before run {} "
-                               "can be marked complete.".format(self.full_id))
+    @staticmethod
+    def _create_complete_file(complete_tmp_path: Path) -> None:
+        """Create the RUN_COMPLETE file for the test, ensuring that it is written
+        to NFS."""
 
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        complete_path = self.path/self.COMPLETE_FN
-        complete_tmp_path = complete_path.with_suffix('.tmp')
-
         with complete_tmp_path.open('w') as run_complete:
             json.dump(
                 {'complete': time.time()},
@@ -859,14 +849,53 @@ class TestRun(TestAttributes):
             run_complete.flush()
             os.fsync(run_complete.fileno())
 
-        # Wait for the file to be written to disk before proceeding
-        wait(complete_tmp_path.exists, interval=0.2, timeout=2,
-                msg="Temporary complete file was not created.")
+    def _finalize_complete_file(self, complete_path: Path, complete_tmp_path: Path,
+                                status: TestStatusFile) -> None:
+        """Ensure that the temporary RUN_COMPLETE file has been successfully created and that it
+        exists on the current system. If it exists, rename it to reflect that it is finalized.
+        If it does not exist, try to force a cache refresh, and if that doesn't work, symlink to
+        the expected location."""
 
-        # Finalize the written file
-        complete_tmp_path.rename(complete_path)
+        if complete_tmp_path.exists():
+            # Finalize the written file
+            complete_tmp_path.rename(complete_path)
+        else:
+            status.set(STATES.INFO,
+                            f"File {self.COMPLETE_FN}.tmp does not yet exist on local file system. "
+                            "Attempting to force NFS cache refresh.")
+
+            # Force an NFS cache update
+            consume(complete_tmp_path.parent.iterdir())
+
+            if complete_tmp_path.exists():
+                complete_tmp_path.rename(complete_path)
+            else:
+                status.set(STATES.WARNING,
+                                f"Forced cache refresh failed for{self.COMPLETE_FN}.tmp. Falling "
+                                "back on symlink to temporary file location.")
+
+                # Symlink with the expectation that the temp file will be there eventually
+                complete_path.symlink_to(complete_tmp_path)
 
         self._complete = True
+
+    def set_run_complete(self) -> None:
+        """Write a file in the test directory that indicates that the test
+        has completed a run, one way or another. This should only be called
+        when we're sure their won't be any more status changes."""
+
+        if self.complete:
+            return
+
+        if not self.saved:
+            raise RuntimeError("You must call the .save() method before run {} "
+                               "can be marked complete.".format(self.full_id))
+
+        complete_path = self.path/self.COMPLETE_FN
+        complete_tmp_path = complete_path.with_suffix('.tmp')
+
+        self._create_complete_file(complete_tmp_path)
+        self._finalize_complete_file(complete_path, complete_tmp_path, self.status)
 
     def cancel(self, reason: str):
         """Create the cancellation file for the test, and denote in its status that it was
