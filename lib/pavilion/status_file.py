@@ -162,7 +162,7 @@ class TestStatesStruct(StatesStruct):
     RESULTS_ERROR = "A result parser raised an error."
     SKIPPED = "The test has been skipped due to an invalid condition."
     COMPLETE = "For when the test is completely complete."
-    
+
     def __init__(self):
         super().__init__()
 
