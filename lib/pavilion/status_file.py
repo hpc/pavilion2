@@ -71,6 +71,7 @@ Known States:
         """Validate all of the constants."""
 
         self._help = {}
+        self._fatal_states = {self.STATUS_ERROR}
 
         # Validate the built-in states
         for key in dir(self):
@@ -108,6 +109,11 @@ Known States:
     def list(self):
         """List all the known state names."""
         return self._help.keys()
+
+    def is_fatal(self, state) -> bool:
+        """Determine whether the given state is fatal."""
+
+        return state in self._fatal_states
 
 
 class TestStatesStruct(StatesStruct):
@@ -157,6 +163,15 @@ class TestStatesStruct(StatesStruct):
     SKIPPED = "The test has been skipped due to an invalid condition."
     COMPLETE = "For when the test is completely complete."
 
+    def __init__(self):
+        super().__init__()
+
+        self._fatal_states = self._fatal_states.union(
+                                    {self.ABORTED, self.CREATION_ERROR, self.SCHED_CANCELLED,
+                                    self.SCHED_ERROR, self.BUILD_FAILED, self.BUILD_TIMEOUT,
+                                    self.BUILD_ERROR, self.CANCELLED, self.ENV_FAILED,
+                                    self.RUN_TIMEOUT, self.RUN_ERROR, self.RESULTS_ERROR})
+
 
 class SeriesStatesStruct(StatesStruct):
     """States for series objects."""
@@ -182,6 +197,13 @@ class SeriesStatesStruct(StatesStruct):
     CANCELED = "Series was canceled by the user."
     ERROR = "General (fatal) error status."
     COMPLETE = "For when the test is completely complete."
+
+    def __init__(self):
+        super().__init__()
+
+        self._fatal_states = self._fatal_states.union(
+                                    {self.CREATION_ERROR, self.BUILD_ERROR, self.KICKOFF_ERROR,
+                                    self.ERROR})
 
 
 # There is one predefined, global status object defined at module load time.
