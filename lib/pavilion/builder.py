@@ -103,7 +103,7 @@ class TestBuilder:
 
         current_status = status.current()
 
-        if not self.path.exists() and "ERROR" not in current_status.state:
+        if not self.path.exists() and not STATES.is_fatal(current_status.state):
             status.set(state=STATES.BUILD_CREATED, note="Builder created.")
 
         self.tmp_log_path = self.path.with_suffix('.log')

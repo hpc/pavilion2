@@ -630,7 +630,7 @@ class TestSet:
 
         for test in tests:
             if (test.status.current().state not in
-                    (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
+                    (STATES.BUILD_FAILED, STATES.BUILD_ERROR, STATES.ABORTED)):
                 test.status.set(
                     STATES.ABORTED,
                     "Run aborted due to failures in other builds.")
