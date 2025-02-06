@@ -875,7 +875,14 @@ class TestRun(TestAttributes):
                                 "back on symlink to temporary file location.")
 
                 # Symlink with the expectation that the temp file will be there eventually
-                complete_path.symlink_to(complete_tmp_path)
+                try:
+                    complete_path.symlink_to(complete_tmp_path)
+                except FileExistsError:
+                    # This shouldn't happen during regular use, but happens during at least one
+                    # unit test, so we still need to handle it.
+                    status.set(STATES.WARNING, f"File {self.COMPLETE_FN} already exists. Test "
+                                                "appears to have been marked complete more than "
+                                                "once.")
 
         self._complete = True
 
