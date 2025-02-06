@@ -61,6 +61,7 @@ class Command(base_classes.ResultParser):
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=err,
+                encoding="utf-8"
             )
         except subprocess.CalledProcessError as err:
             raise errors.ResultError(
