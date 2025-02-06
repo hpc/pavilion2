@@ -131,6 +131,7 @@ class TestStatesStruct(StatesStruct):
     SCHEDULED = "The test has been scheduled with a scheduler."
     SCHED_CANCELLED = "Cancelled by the scheduler or external to Pavilion."
     SCHED_ERROR = "There was a scheduler related error."
+    SCHED_WARNING = "The schedule encountered a non-fatal issue."
     SCHED_STARTUP = "The scheduler job has started, but not the test."
     SCHED_RUNNING = "DEPRECATED - Should be converted to SCHED_STARTUP"
     BUILDING = "The test is currently being built."

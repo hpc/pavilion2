@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 import time
-from typing import List, Union, Any, Tuple
+from typing import List, Union, Any, Tuple, Dict
 
 import hostlist
 import yaml_config as yc
@@ -555,7 +555,7 @@ class Slurm(SchedulerPluginAdvanced):
     SCONTROL_KEY_RE = re.compile(r'(?:^|\s+)([A-Z][a-zA-Z0-9:/]*)=')
     SCONTROL_WS_RE = re.compile(r'\s+')
 
-    def _scontrol_parse(self, section):
+    def _scontrol_parse(self, section: str) -> Dict[str, str]:
 
         # NOTE: Because slurm administrators can essentially add whatever
         # they want to scontrol variables, they may break the parsing of
@@ -602,7 +602,7 @@ class Slurm(SchedulerPluginAdvanced):
 
         return results
 
-    def _scontrol_show(self, *args, timeout=10):
+    def _scontrol_show(self, *args, timeout=30) -> List[Dict]:
         """Run scontrol show and return the parsed output.
 
         :param list(str) args: Additional args to scontrol.
@@ -618,7 +618,7 @@ class Slurm(SchedulerPluginAdvanced):
         try:
             stdout, stderr = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
-            return []
+            raise TimeoutError("Timed out waiting for scontrol.")
 
         stdout = stdout.decode('utf8')
         stderr = stderr.decode('utf8')
@@ -698,8 +698,14 @@ class Slurm(SchedulerPluginAdvanced):
                 note=str(err),
                 when=time.time()
             )
+        except TimeoutError:
+            return TestStatusInfo(
+                state=STATES.SCHED_WARNING,
+                note=f"Timed out waiting for scontrol (job {job_info['id']})",
+                when=time.time()
+            )
 
-        if not job_data:
+        if len(job_data) == 0:
             return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
                 note="Could not find job {}".format(job_info['id']),
@@ -708,7 +714,7 @@ class Slurm(SchedulerPluginAdvanced):
 
         # scontrol show returns a list. There should only be one item in that
         # list though.
-        if job_data:
+        if len(job_data) > 0:
             job_data = job_data.pop(0)
         else:
             return TestStatusInfo(
