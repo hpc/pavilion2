@@ -426,8 +426,9 @@ class TestRun(TestAttributes):
         """Parse a raw test run id and return the label, working_dir, and id
         for that test. The test run need not exist, but the label must."""
 
-        parts = raw_test_id.split('.', 1)
-        if not parts:
+        parts = raw_test_id.parts
+
+        if len(parts) == 0:
             raise TestRunNotFoundError("Blank test run id given")
         elif len(parts) == 1:
             cfg_label = 'main'
@@ -435,9 +436,7 @@ class TestRun(TestAttributes):
         else:
             cfg_label, test_id = parts
 
-        try:
-            test_id = int(test_id)
-        except ValueError:
+        if not raw_test_id.is_int():
             raise TestRunNotFoundError("Invalid test id with label '{}': '{}'"
                                        .format(cfg_label, test_id))
 
@@ -655,7 +654,6 @@ class TestRun(TestAttributes):
 
         :returns: True if build successful
         """
-
         if tracker is None and self.builder is not None:
             tracker = MultiBuildTracker().register(self)
 
