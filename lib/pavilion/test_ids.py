@@ -12,16 +12,20 @@ class ID:
     def __init__(self, id_str: str):
         self.id_str = id_str
 
+    # pylint: disable=no-self-argument
     @abstractmethod
     def is_valid_id(id_str: str) -> bool:
         """Determine whether the given string constitutes a valid ID."""
         ...
 
-    def __str__(self):
-        return f"{type(self).__name__}({self.id_str})"
+    def __str__(self) -> str:
+        return self.id_str
 
     def __eq__(self, other: "ID") -> bool:
         return self.id_str == other.id_str
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.id_str})"
 
 
 class TestID(ID):
@@ -36,7 +40,6 @@ class TestID(ID):
     def is_int(self):
         """Determine whether the test ID is an integer value."""
 
-        import pdb; pdb.set_trace()
         return is_int(self.id_str)
 
     def as_int(self):
@@ -47,7 +50,7 @@ class TestID(ID):
         except:
             raise ValueError(f"Test with ID {self.id_str} cannot be converted to an integer.")
 
-    @property 
+    @property
     def parts(self) -> List[str]:
         """Return a list of components of the test ID, where components are separated by
         periods."""
@@ -68,7 +71,7 @@ class SeriesID(ID):
     def is_int(self):
         """Determine whether the series ID is an integer value."""
 
-        return is_int(self.id_str)
+        return len(self.id_str) > 0 and is_int(self.id_str[1:])
 
     def as_int(self):
         """Convert the series ID into an integer, if possible."""
@@ -96,7 +99,7 @@ class GroupID(ID):
     def is_valid_id(id_str: str) -> bool:
         """Determine whether the given string constitutes a valid group ID."""
         return not (TestID.is_valid_id(id_str) or SeriesID.is_valid_id(id_str))
-    
+
 
 class Range:
     """Represents a contiguous sequence of IDs."""
@@ -105,11 +108,13 @@ class Range:
         self.start = start
         self.end = end
 
+    # pylint: disable=no-self-argument
     @abstractmethod
     def is_valid_range_str(rng_str: str) -> bool:
         """Determine whether the given string constitutes a valid range."""
         ...
 
+    # pylint: disable=no-self-argument
     @abstractmethod
     def from_str(rng_str: str) -> "Range":
         """Produce a new range object from a string."""
@@ -120,7 +125,11 @@ class Range:
         """Get the sequence of all values in the range."""
         ...
 
-    def __str__(self):
+    @abstractmethod
+    def __str__(self) -> str:
+        ...
+
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({self.start}, {self.end})"
 
 
@@ -153,6 +162,9 @@ class TestRange(Range):
 
         return map(TestID(map(str, range(self.start, self.end + 1))))
 
+    def __str__(self) -> str:
+        return f"{self.start}-{self.end}"
+
 
 class SeriesRange(Range):
     """Represents a contiguous sequence of series IDs."""
@@ -184,23 +196,26 @@ class SeriesRange(Range):
     def expand(self) -> Iterator["TestRange"]:
         """Get the sequence of all series IDs in the range."""
 
-        return map(SeriesID, map(str, range(self.start, self.end + 1)))
+        return map(SeriesID, map(lambda x: f"s{x}", range(self.start, self.end + 1)))
+
+    def __str__(self) -> str:
+        return f"s{self.start}-s{self.end}"
 
 
-def multi_convert(s: str) -> Union[List[TestID], List[SeriesID], List[GroupID]]:
+def multi_convert(id_str: str) -> Union[List[TestID], List[SeriesID], List[GroupID]]:
     """Convert a string into a list (possibly a singleton list) of either a TestID, SeriesID,
     or GroupID as appropriate."""
 
-    if TestRange.is_valid_range_str(s):
-        return list(TestRange.from_str(s).expand())
-    if SeriesRange.is_valid_range_str(s):
-        return list(SeriesRange.from_str(s).expand())
-    if TestID.is_valid_id(s):
-        return [TestID(s)]
-    if SeriesID.is_valid_id(s):
-        return [SeriesID(s)]
-    
-    return [GroupID(s)]
+    if TestRange.is_valid_range_str(id_str):
+        return list(TestRange.from_str(id_str).expand())
+    if SeriesRange.is_valid_range_str(id_str):
+        return list(SeriesRange.from_str(id_str).expand())
+    if TestID.is_valid_id(id_str):
+        return [TestID(id_str)]
+    if SeriesID.is_valid_id(id_str):
+        return [SeriesID(id_str)]
+
+    return [GroupID(id_str)]
 
 
 def resolve_ids(ids: Iterable[str]) -> List[Union[TestID, SeriesID, GroupID]]:
@@ -210,7 +225,7 @@ def resolve_ids(ids: Iterable[str]) -> List[Union[TestID, SeriesID, GroupID]]:
 
     if "all" in ids:
         return [SeriesID("all")]
-        
+
     ids = (i for i in ids if i != "all")
 
     return list(flatten(map(multi_convert, ids)))
