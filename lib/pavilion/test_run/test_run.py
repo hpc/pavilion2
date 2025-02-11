@@ -422,7 +422,7 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def parse_raw_id(cls, pav_cfg, raw_test_id: str) -> ID_Pair:
+    def parse_raw_id(cls, pav_cfg, raw_test_id: "TestID") -> ID_Pair:
         """Parse a raw test run id and return the label, working_dir, and id
         for that test. The test run need not exist, but the label must."""
 
@@ -436,7 +436,9 @@ class TestRun(TestAttributes):
         else:
             cfg_label, test_id = parts
 
-        if not raw_test_id.is_int():
+        try:
+            test_id = int(test_id)
+        except ValueError:
             raise TestRunNotFoundError("Invalid test id with label '{}': '{}'"
                                        .format(cfg_label, test_id))
 
@@ -450,7 +452,7 @@ class TestRun(TestAttributes):
         return ID_Pair((working_dir, test_id))
 
     @classmethod
-    def load_from_raw_id(cls, pav_cfg, raw_test_id: str) -> 'TestRun':
+    def load_from_raw_id(cls, pav_cfg, raw_test_id: "TestID") -> 'TestRun':
         """Load a test given a raw test id string, in the form
         [label].test_id. The optional label will allow us to look up the config
         path for the test."""

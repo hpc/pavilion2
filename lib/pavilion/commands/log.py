@@ -10,6 +10,7 @@ from pavilion import errors
 from pavilion import output
 from pavilion import series, series_config
 from pavilion.test_run import TestRun
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 
@@ -145,7 +146,7 @@ class LogCommand(Command):
             cmd_name = args.log_cmd
 
         if cmd_name == 'states':
-            return self._states(pav_cfg, args.id, raw=args.raw, raw_time=args.raw_time)
+            return self._states(pav_cfg, TestID(args.id), raw=args.raw, raw_time=args.raw_time)
 
         if cmd_name in ['global', 'all_results', 'allresults', 'all-results']:
             if 'results' in cmd_name:
@@ -158,7 +159,7 @@ class LogCommand(Command):
                 if cmd_name == 'series':
                     test = series.TestSeries.load(pav_cfg, args.id)
                 else:
-                    test = TestRun.load_from_raw_id(pav_cfg, args.id)
+                    test = TestRun.load_from_raw_id(pav_cfg, TestID(args.id))
             except errors.TestRunError as err:
                 output.fprint(self.errfile, "Error loading test.", err, color=output.RED)
                 return 1
@@ -219,7 +220,7 @@ class LogCommand(Command):
                 break
         return 0
 
-    def _states(self, pav_cfg, test_id: str, raw: bool = False, raw_time: bool = False):
+    def _states(self, pav_cfg, test_id: TestID, raw: bool = False, raw_time: bool = False):
         """Print the states for a test."""
 
         try:

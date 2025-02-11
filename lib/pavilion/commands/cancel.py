@@ -12,7 +12,8 @@ from pavilion import series
 from pavilion.errors import TestSeriesError
 from pavilion.test_run import TestRun
 from pavilion.config import PavConfig
-from pavilion.micro import partition
+from pavilion.test_ids import TestID, SeriesID
+from pavilion.micro import partition, listmap
 from .base_classes import Command
 from ..errors import TestRunError
 
@@ -53,10 +54,10 @@ class CancelCommand(Command):
                 args.tests.append(series_id)
 
         # Separate out into tests and series
-        series_ids, test_ids = partition(cmd_utils.is_series_id, args.tests)
+        series_ids, test_ids = partition(SeriesID.is_valid_id, args.tests)
 
-        args.tests = test_ids
-        args.series = series_ids
+        args.tests = list(test_ids)
+        args.series = list(series_ids)
 
         # Get TestRun and TestSeries objects
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths

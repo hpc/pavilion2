@@ -18,7 +18,7 @@ class ID:
         ...
 
     def __str__(self):
-        return f"{type(self).__name__}(self.id_str)"
+        return f"{type(self).__name__}({self.id_str})"
 
     def __eq__(self, other: "ID") -> bool:
         return self.id_str == other.id_str
@@ -36,6 +36,7 @@ class TestID(ID):
     def is_int(self):
         """Determine whether the test ID is an integer value."""
 
+        import pdb; pdb.set_trace()
         return is_int(self.id_str)
 
     def as_int(self):
@@ -183,7 +184,7 @@ class SeriesRange(Range):
     def expand(self) -> Iterator["TestRange"]:
         """Get the sequence of all series IDs in the range."""
 
-        return map(seriesID(map(str, range(self.start, self.end + 1))))
+        return map(SeriesID, map(str, range(self.start, self.end + 1)))
 
 
 def multi_convert(s: str) -> Union[List[TestID], List[SeriesID], List[GroupID]]:
@@ -208,8 +209,8 @@ def resolve_ids(ids: Iterable[str]) -> List[Union[TestID, SeriesID, GroupID]]:
     ids = list(ids)
 
     if "all" in ids:
-        return SeriesID("all")
+        return [SeriesID("all")]
         
     ids = (i for i in ids if i != "all")
 
-    return flatten(map(multi_convert, ids))
+    return list(flatten(map(multi_convert, ids)))
