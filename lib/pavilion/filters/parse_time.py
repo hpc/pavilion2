@@ -69,7 +69,7 @@ def parse_duration(rval: str, now: datetime) -> datetime:
         dyear, dmonth = divmod(mag, MONTHS_PER_YEAR)
 
         new_day = now.day
-        new_month = now.month - dmonth
+        new_month = (now.month - dmonth) % 12
         new_year = now.year - dyear
 
         return safe_update(now, year=new_year, month=new_month, day=new_day)
