@@ -430,19 +430,19 @@ def get_tests_by_id(pav_cfg, ids: List['str'], errfile: TextIO,
     :return: List of test objects
     """
 
-    ids = test_ids.resolve_ids(ids.copy())
+    tids = test_ids.resolve_ids(ids)
 
-    if len(ids) == 0:
+    if len(tids) == 0:
         # Get the last series ran by this user
         series_id = series.load_user_series_id(pav_cfg)
         if series_id is not None:
-            ids.append(series_id.id_str)
+            tids.append(SeriesID(seriesid))
         else:
             raise CommandError("No tests specified and no last series was found.")
 
     # Convert series and test ids into test paths.
     test_id_pairs = []
-    for raw_id in ids:
+    for raw_id in tids:
         if SeriesID.is_valid_id(raw_id.id_str):
             try:
                 series_obj = series.TestSeries.load(pav_cfg, raw_id.id_str)
