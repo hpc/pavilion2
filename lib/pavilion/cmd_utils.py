@@ -436,7 +436,7 @@ def get_tests_by_id(pav_cfg, ids: List['str'], errfile: TextIO,
         # Get the last series ran by this user
         series_id = series.load_user_series_id(pav_cfg)
         if series_id is not None:
-            tids.append(SeriesID(seriesid))
+            tids.append(SeriesID(series_id))
         else:
             raise CommandError("No tests specified and no last series was found.")
 
