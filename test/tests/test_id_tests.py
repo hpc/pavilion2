@@ -84,3 +84,22 @@ class TestIDTests(PavTestCase):
 
         series_range = SeriesRange(1, 1)
         self.assertEqual(list(series_range.expand()), [SeriesID("s1")])
+
+    def test_resolve_ids(self):
+        """Test that heterogeneous lists of tests, series, and range strings are resolved to
+        the correct objects."""
+
+        inputs = [
+            ["1"], ["1-3"], ["s1"], ["s1-s3"], ["all"], ["last"], ["1", "2", "all"],
+            ["1", "s3", "s4-s6", "2-3"], []
+        ]
+        expected = [
+            [TestID("1")], [TestID("1"), TestID("2"), TestID("3")], [SeriesID("s1")],
+            [SeriesID("s1"), SeriesID("s2"), SeriesID("s3")], [SeriesID("all")],
+            [SeriesID("last")], [SeriesID("all")],
+            [TestID("1"), SeriesID("s3"), SeriesID("s4"), SeriesID("s5"), SeriesID("s6"),
+                TestID("2"), TestID("3")], []
+        ]
+
+        for inp, exp in zip(inputs, expected):
+            self.assertEqual(resolve_ids(inp), exp)
