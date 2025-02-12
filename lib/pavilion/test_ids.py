@@ -131,7 +131,7 @@ class Range:
         if not isinstance(other, type(self)):
             return False
 
-        return self.start == other.start and self.end == other.end  
+        return self.start == other.start and self.end == other.end
 
     @abstractmethod
     def __str__(self) -> str:
