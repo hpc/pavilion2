@@ -35,7 +35,7 @@ class TestID(ID):
     def is_valid_id(id_str: str) -> bool:
         """Determine whether the given string constitutes a valid test ID."""
 
-        return '.' in id_str or is_int(id_str)
+        return '.' in id_str or (is_int(id_str) and int(id_str) > 0)
 
     def is_int(self):
         """Determine whether the test ID is an integer value."""
@@ -66,7 +66,7 @@ class SeriesID(ID):
         """Determine whether the given string constitutes a valid series ID."""
 
         return id_str == 'all' or id_str == 'last' or (len(id_str) > 0 and id_str[0] == 's' \
-            and is_int(id_str[1:]))
+            and is_int(id_str[1:]) and int(id_str[1:]) > 0)
 
     def is_int(self):
         """Determine whether the series ID is an integer value."""
@@ -98,7 +98,7 @@ class GroupID(ID):
     @staticmethod
     def is_valid_id(id_str: str) -> bool:
         """Determine whether the given string constitutes a valid group ID."""
-        return not (TestID.is_valid_id(id_str) or SeriesID.is_valid_id(id_str))
+        return len(id_str) > 0 and not (TestID.is_valid_id(id_str) or SeriesID.is_valid_id(id_str))
 
 
 class Range:
@@ -147,7 +147,13 @@ class TestRange(Range):
 
         start, end = rng_str
 
-        return is_int(start) and is_int(end)
+        if not (is_int(start) and is_int(end)):
+            return False
+        if not (int(start) > 0 and int(end) > 0):
+            return False
+
+        # Allow degenerate ranges
+        return int(end) - int(start) >= 0
 
     @staticmethod
     def from_str(rng_str: str) -> "TestRange":
@@ -178,12 +184,13 @@ class SeriesRange(Range):
 
         start, end = rng_str
 
-        if len(start) == 0 or len(end) == 0:
+        if not (is_int(start[1:]) and is_int(end[1:])):
             return False
-        if not start[0] == 's' or not end[0] == 's':
+        if not (int(start[1:]) > 0 and int(end[1:]) > 0):
             return False
 
-        return is_int(start[1:]) and is_int(end[1:])
+        # Allow degenerate ranges
+        return int(end[1:]) - int(start[1:]) >= 0
 
     @staticmethod
     def from_str(rng_str: str) -> "SeriesRange":
