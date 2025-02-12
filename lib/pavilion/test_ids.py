@@ -1,8 +1,7 @@
 from typing import Union, Tuple, List, NewType, Iterator, TypeVar, Iterable
 from abc import abstractmethod
 
-# from pavilion.micro import flatten
-from pavilion.micro import flatten, listmap
+from pavilion.micro import flatten
 from pavilion.utils import is_int
 
 
@@ -117,13 +116,22 @@ class Range:
     # pylint: disable=no-self-argument
     @abstractmethod
     def from_str(rng_str: str) -> "Range":
-        """Produce a new range object from a string."""
+        """Produce a new range object from a string.
+
+        NOTE: This method should not perform validation. It assumes that validation has been
+        performed prior to being called."""
         ...
 
     @abstractmethod
     def expand(self) -> Iterator:
         """Get the sequence of all values in the range."""
         ...
+
+    def __eq__(self, other: "Range") -> bool:
+        if not isinstance(other, type(self)):
+            return False
+
+        return self.start == other.start and self.end == other.end  
 
     @abstractmethod
     def __str__(self) -> str:
@@ -157,7 +165,8 @@ class TestRange(Range):
 
     @staticmethod
     def from_str(rng_str: str) -> "TestRange":
-        """Produce a new test range object from a string."""
+        """Produce a new test range object from a string. Assumes validation has been performed
+        prior to being called."""
 
         start, end = rng_str.split('-')
 
@@ -166,7 +175,7 @@ class TestRange(Range):
     def expand(self) -> Iterator["TestRange"]:
         """Get the sequence of all series IDs in the range."""
 
-        return map(TestID(map(str, range(self.start, self.end + 1))))
+        return map(TestID, map(str, range(self.start, self.end + 1)))
 
     def __str__(self) -> str:
         return f"{self.start}-{self.end}"
@@ -194,7 +203,8 @@ class SeriesRange(Range):
 
     @staticmethod
     def from_str(rng_str: str) -> "SeriesRange":
-        """Produce a new series range object from a string."""
+        """Produce a new series range object from a string. Assumes validation has been performed
+        prior to being called."""
 
         start, end = rng_str.split('-')
 
