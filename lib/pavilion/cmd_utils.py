@@ -8,7 +8,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import List, TextIO, Union, Iterator, Optional
+from typing import List, TextIO, Union, Optional, Callable, Iterable, Hashable, Dict
 from collections import defaultdict
 
 from pavilion import config
@@ -29,8 +29,76 @@ from pavilion.micro import listmap
 
 LOGGER = logging.getLogger(__name__)
 
+class ArgFilteredOptions:
+    def __init__(self, tests: List[Union["TestIDs", "SeriesIDs"]], limit: Optional[int],
+                    sys_name: str, sort_by: str, primary_filter: str, secondary_filters: Dict,
+                    order_func: Callable, order_asc: bool, verbose: bool = False):
+        self.tests = tests
+        self.limit = limit
+        self.sys_name = sys_name
+        self.sort_by = sort_by
+        self.pfilter = primary_filter
+        self.sfilters = secondary_filters
+        self.filter_func = None
+        self.order_func = None
+        self.order_asc = None
+        self.verbose = verbose
 
-def load_last_series(pav_cfg, errfile: TextIO) -> Optional[series.TestSeries]:
+    @staticmethod
+    def from_args(args: "Namespace", defaults: Dict,
+                    verbose: bool = False) -> "ArgFilteredOptions":
+        """Extract the relevant arguments and parse them."""
+
+        tests = test_ids.resolve_ids(args.tests)
+        limit = getattr(args, "limit", defaults["limit"])
+        sys_name = getattr(args, 'sys_name', sys_vars.get_vars(defer=True).get('sys_name'))
+        sort_by = getattr(args, 'sort_by', 'created')
+        pfilter = args.filter
+        sfilters =  extract_args(args, defaults)
+
+        order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
+        opts = ArgFilteredOptions(tests, limit, sys_name, sort_by, pfilter, sfilters, order_func,
+                                    order_asc, verbose)
+
+        opts._resolve_filter(defaults)
+
+        return opts
+
+    def _resolve_filter(self, defaults: Dict) -> Callable: 
+        """Resolve the filter string into a callable filter object."""
+
+        test_filter = self.pfilter
+
+        if SeriesID('all') in self.tests:
+            test_filter = self._get_default_filter(self.pfilter, self.sfilters, defaults)
+
+        if test_filter is None:
+            self.filter_func = filters.const(True) # Always return True
+        else:
+            self.filter_func = filters.parse_query(test_filter)
+
+    def _get_default_filter(self, pfilter: str, sfilters: Dict, defaults: Dict) -> str:
+        """Get the default filter, if it is needed. Otherwise return None."""
+
+        if self._filter_specified(sfilters, defaults):
+            return pfilter
+        else:
+            output.fprint(self.verbose, "Using default search filters: The current system, user, and "
+                                   "created less than 1 day ago.", color=output.CYAN)
+            return make_filter_query()
+
+    @staticmethod
+    def _filter_specified(sfilters: Dict, defaults: Dict) -> bool:
+        """Check whether any non-default filter is specified."""
+
+        for arg, default in defaults.items():
+            if hasattr(sfilters, arg) and default != getattr(sfilters, arg):
+                return True
+
+        return False
+
+
+def load_last_series(pav_cfg: "PavConfig", errfile: TextIO) -> Optional[series.TestSeries]:
     """Load the series object for the last series run by this user on this system."""
 
     try:
@@ -49,12 +117,11 @@ def load_last_series(pav_cfg, errfile: TextIO) -> Optional[series.TestSeries]:
         return None
 
 
-def set_arg_defaults(args):
-    """Set typical argument defaults, but don't override any given."""
+def extract_args(args: "Namespace", targets: Iterable[Hashable]) -> Dict:
+    res = {}
 
-    # Don't assume these actually exist.
-    def_filter = make_filter_query()
-    args.filter = getattr(args, 'filter', def_filter)
+    for tgt in targets:
+        res[tgt] = getattr(args, tgt)
 
 
 def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
@@ -82,31 +149,11 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
     :return: A list of test paths.
     """
 
-    limit = getattr(args, 'limit', filters.TEST_FILTER_DEFAULTS['limit'])
-    verbose = verbose or io.StringIO()
-    sys_name = getattr(args, 'sys_name', sys_vars.get_vars(defer=True).get('sys_name'))
-    sort_by = getattr(args, 'sort_by', 'created')
+    options = ArgFilteredOptions.from_args(args, filters.TEST_FILTER_DEFAULTS, verbose)
 
-    ids = test_ids.resolve_ids(args.tests)
-    test_filter = args.filter
+    import pdb; pdb.set_trace()
 
-    if SeriesID('all') in ids:
-        for arg, default in filters.TEST_FILTER_DEFAULTS.items():
-            if hasattr(args, arg) and default != getattr(args, arg):
-                break
-        else:
-            output.fprint(verbose, "Using default search filters: The current system, user, and "
-                                   "created less than 1 day ago.", color=output.CYAN)
-            test_filter = make_filter_query()
-
-    if test_filter is None:
-        filter_func = filters.const(True) # Always return True
-    else:
-        filter_func = filters.parse_query(test_filter)
-
-    order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
-
-    if SeriesID('all') in ids:
+    if SeriesID('all') in options.tests:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
@@ -116,30 +163,30 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
                 pav_cfg,
                 id_dir=working_dir / 'test_runs',
                 transform=TestAttributes,
-                filter_func=filter_func,
-                order_func=order_func,
-                order_asc=order_asc,
-                verbose=verbose,
-                limit=limit)
+                filter_func=options.filter_func,
+                order_func=options.order_func,
+                order_asc=options.order_asc,
+                verbose=options.verbose,
+                limit=options.limit)
 
             tests.data.extend(matching_tests.data)
             tests.paths.extend(matching_tests.paths)
 
         return tests
 
-    if len(ids) == 0:
-        ids.append(SeriesID('last'))
+    if len(options.tests) == 0:
+        options.tests.append(SeriesID('last'))
 
-    test_paths = test_list_to_paths(pav_cfg, ids, verbose)
+    test_paths = test_list_to_paths(pav_cfg, options.tests, verbose)
 
     return dir_db.select_from(
         pav_cfg,
         paths=test_paths,
         transform=TestAttributes,
-        filter_func=filter_func,
-        order_func=order_func,
-        order_asc=order_asc,
-        limit=limit
+        filter_func=options.filter_func,
+        order_func=options.order_func,
+        order_asc=options.order_asc,
+        limit=options.limit
     )
 
 
