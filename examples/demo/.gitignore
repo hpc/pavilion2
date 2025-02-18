@@ -1,3 +1,4 @@
 test_src/gzip*
 test_src/.gzip*
 working_dir
+*.hash
