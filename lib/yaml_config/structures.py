@@ -410,6 +410,9 @@ class KeyedElem(_DictElem):
 
     def merge(self, old, new):
 
+        if old is None:
+            return new
+
         base = old.copy()
 
         if new is None:
@@ -422,7 +425,7 @@ class KeyedElem(_DictElem):
                                                old[key], value)
             elif value is not None:
                 try:
-                    base[key] = self.config_elems[key].merge(old[key], new[key])
+                    base[key] = self.config_elems[key].merge(old.get(key), new[key])
                 except:
                     raise
 
@@ -788,6 +791,10 @@ class CategoryElem(_DictElem):
         return out_dict
 
     def merge(self, old, new):
+
+        if old is None:
+            return new
+
         base = old.copy()
 
         if new is None:
