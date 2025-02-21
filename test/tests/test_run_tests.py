@@ -217,23 +217,18 @@ class TestRunTests(PavTestCase):
         test.finalize(VariableSetManager())
         self.assertEqual(test.run(), 0)
 
-    def test_complete_file_fallback(self):
-        """Test that the the fallback mechanism is correctly executed when the RUN_COMPLETE file
-        is missing on the local filesystem after it is created."""
+    def test_complete_file_race_condition(self):
+        """Test that race conditions when creating the temporary run complete file are
+        handled gracefully."""
 
-        # 1. Create a temporary directory, and pass that to the test as its working directory
         cfg = self._quick_test_cfg()
         test = TestRun(self.pav_cfg, cfg)
 
-        # 2. Let the test run create the complete file, then delete it.
         complete_path = test.path / test.COMPLETE_FN
-        tmp_complete_path = complete_path.with_suffix(".tmp")
-        test._create_complete_file(tmp_complete_path)
-        tmp_complete_path.unlink()
 
-        # 3. Run _validate_complete_file to ensure it behaves correctly
-        status = TestStatusFile(test.path / test.STATUS_FN)
-        test._finalize_complete_file(complete_path, tmp_complete_path, status)
+        # Fake a race condition
+        tmp_path1 = test._create_complete_file(complete_path)
+        tmp_path2 = test._create_complete_file(complete_path)
 
-        self.assertTrue(complete_path.is_symlink())
-        self.assertTrue(status.has_state("WARNING"))
+        test._finalize_complete_file(complete_path, tmp_path1)
+        test._finalize_complete_file(complete_path, tmp_path2)

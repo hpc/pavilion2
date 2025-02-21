@@ -833,58 +833,28 @@ class TestRun(TestAttributes):
         return ret
 
     @staticmethod
-    def _create_complete_file(complete_tmp_path: Path) -> None:
-        """Create the RUN_COMPLETE file for the test, ensuring that it is written
-        to NFS."""
+    def _create_complete_file(complete_path: Path) -> Path:
+        """Create a temporary RUN_COMPLETE file for the test. This exists as a separate function
+        for the purposes of unit testing."""
 
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
+        complete_tmp_path = complete_path.with_suffix(f".{uuid.uuid4()}.tmp")
+
         with complete_tmp_path.open('w') as run_complete:
             json.dump(
                 {'complete': time.time()},
                 run_complete)
 
-            # Ensure that the filesystem is updated before proceeding
-            run_complete.flush()
-            os.fsync(run_complete.fileno())
+        return complete_tmp_path
 
-    def _finalize_complete_file(self, complete_path: Path, complete_tmp_path: Path,
-                                status: TestStatusFile) -> None:
-        """Ensure that the temporary RUN_COMPLETE file has been successfully created and that it
-        exists on the current system. If it exists, rename it to reflect that it is finalized.
-        If it does not exist, try to force a cache refresh, and if that doesn't work, symlink to
-        the expected location."""
+    @staticmethod
+    def _finalize_complete_file(complete_path: Path, complete_tmp_path: Path) -> None:
+        """Rename the temporary complete file to reflect the fact that it has been finalized.
+        This exists as a separate function for the purposes of unit testing."""
 
-        if complete_tmp_path.exists():
-            # Finalize the written file
-            complete_tmp_path.rename(complete_path)
-        else:
-            status.set(STATES.INFO,
-                            f"File {self.COMPLETE_FN}.tmp does not yet exist on local file system. "
-                            "Attempting to force NFS cache refresh.")
-
-            # Force an NFS cache update
-            consume(complete_tmp_path.parent.iterdir())
-
-            if complete_tmp_path.exists():
-                complete_tmp_path.rename(complete_path)
-            else:
-                status.set(STATES.WARNING,
-                                f"Forced cache refresh failed for{self.COMPLETE_FN}.tmp. Falling "
-                                "back on symlink to temporary file location.")
-
-                # Symlink with the expectation that the temp file will be there eventually
-                try:
-                    complete_path.symlink_to(complete_tmp_path)
-                except FileExistsError:
-                    # This shouldn't happen during regular use, but happens during at least one
-                    # unit test, so we still need to handle it.
-                    status.set(STATES.WARNING, f"File {self.COMPLETE_FN} already exists. Test "
-                                                "appears to have been marked complete more than "
-                                                "once.")
-
-        self._complete = True
+        complete_tmp_path.rename(complete_path)
 
     def set_run_complete(self) -> None:
         """Write a file in the test directory that indicates that the test
@@ -899,10 +869,11 @@ class TestRun(TestAttributes):
                                "can be marked complete.".format(self.full_id))
 
         complete_path = self.path/self.COMPLETE_FN
-        complete_tmp_path = complete_path.with_suffix('.tmp')
 
-        self._create_complete_file(complete_tmp_path)
-        self._finalize_complete_file(complete_path, complete_tmp_path, self.status)
+        tmp_path = self._create_complete_file(complete_path)
+        self._finalize_complete_file(complete_path, tmp_path)
+
+        self._complete = True
 
     def cancel(self, reason: str):
         """Create the cancellation file for the test, and denote in its status that it was
