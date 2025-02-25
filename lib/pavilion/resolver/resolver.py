@@ -71,7 +71,7 @@ class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
 
-    def __init__(self, pav_cfg, op_sys: str = None, host: str = None,
+    def __init__(self, pav_cfg, platform: str = None, host: str = None,
                  outfile: TextIO = None, verbosity: int = Verbose.QUIET):
         """Initialize the resolver.
 
@@ -105,15 +105,15 @@ class TestConfigResolver:
         )
 
         self._host = self._base_var_man['sys.sys_name'] if host is None else host
-        if op_sys is None:
+        if platform is None:
             os_name = self._base_var_man['sys.sys_os.name']
             os_vers = self._base_var_man['sys.sys_os.version']
-            self._os = f"{os_name}-{os_vers}"
+            self._platform = f"{os_name}-{os_vers}"
         else:
-            self._os = op_sys
+            self._platform = platform
 
         # This may throw an exception. It's expected to be caught by the caller.
-        self._base_config = self._load_base_config(self._os, self._host)
+        self._base_config = self._load_base_config(self._platform, self._host)
 
         # Raw loaded test suites
         self._suites: Dict[Dict] = {}
@@ -139,7 +139,7 @@ class TestConfigResolver:
 
         fname = cfg_type.lower()
 
-        if fname in ("host", "mode"):
+        if fname in ("host", "mode", "platform"):
             fname += 's'
 
         return f"{fname}.yaml"
@@ -205,7 +205,7 @@ class TestConfigResolver:
         """Search all of the known configuration directories for a config of the
         given type and name, and report whether it was found in the suites directory.
 
-        :param str conf_type: 'host', 'os', 'mode', or 'test/suite'
+        :param str conf_type: 'host', 'platform', 'mode', or 'test/suite'
         :param str conf_name: The name of the config (without a file extension).
         :return: A tuple of the path to that config, if it exists, and a boolean
             indicating whether it was found in the suites directory (True) or not (False).
@@ -723,9 +723,9 @@ class TestConfigResolver:
                     test_cfg['not_if'], conditions['not_if']
                 )
 
-            # Apply modes.
+            # Apply downstream configs.
             try:
-                test_cfg = self.apply_os(test_cfg, self._os, request.suite)
+                test_cfg = self.apply_platform(test_cfg, self._platform, request.suite)
                 test_cfg = self.apply_host(test_cfg, self._host, request.suite)
                 test_cfg = self.apply_modes(test_cfg, modes, request.suite)
             except TestConfigError as err:
@@ -817,12 +817,12 @@ class TestConfigResolver:
 
         return test_cfg
 
-    def _load_base_config(self, op_sys: str, host: str) -> TestConfig:
+    def _load_base_config(self, platform: str, host: str) -> TestConfig:
         """Load the base configuration for the given host.  This is done once and saved."""
 
         # Get the base, empty config, then apply the host config on top of it.
         base_config = self._loader.load_empty()
-        base_config = self.apply_os(base_config, op_sys)
+        base_config = self.apply_platform(base_config, platform)
 
         return self.apply_host(base_config, host)
 
@@ -858,7 +858,7 @@ class TestConfigResolver:
             test_cfg['working_dir'] = working_dir.as_posix()
             test_cfg['suite'] = suite_name
             test_cfg['host'] = self._host
-            test_cfg['os'] = self._os
+            test_cfg['platform'] = self._platform
 
             if cfg_info.from_suite:
                 test_cfg['suite_path'] = cfg_info.path.parent.as_posix()
@@ -969,38 +969,38 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging host configuration for host '{}'".format(hostname))
 
-    def apply_os(self, test_cfg: TestConfig, op_sys: str, suite_name: str = None) -> TestConfig:
-        """Apply the OS configuration to the given config."""
+    def apply_platform(self, test_cfg: TestConfig, platform: str, suite_name: str = None) -> TestConfig:
+        """Apply the platform configuration to the given config."""
 
         if suite_name is not None:
             from_suite = True
-            label, os_cfg_path = self._config_path_from_suite(suite_name, "OS")
+            label, platform_cfg_path = self._config_path_from_suite(suite_name, "platform")
             loader = self._suite_loader
         else:
             from_suite = False
-            label, os_cfg_path = self._get_test_config_path(op_sys, "OS")
+            label, platform_cfg_path = self._get_test_config_path(platform, "platform")
             loader = self._loader
 
-        cfg_info = ConfigInfo(op_sys, "OS", os_cfg_path, label, from_suite)
+        cfg_info = ConfigInfo(op_sys, "platform", platform_cfg_path, label, from_suite)
 
-        raw_os_cfg = self._load_raw_config(cfg_info, loader, optional=True)
+        raw_platform_cfg = self._load_raw_config(cfg_info, loader, optional=True)
 
-        if raw_os_cfg is None:
+        if raw_platform_cfg is None:
             return test_cfg
 
         try:
-            os_cfg = self._loader.normalize(
-                raw_os_cfg,
-                root_name=f"the top level of the OS file.")
+            platform_cfg = self._loader.normalize(
+                raw_platform_cfg,
+                root_name=f"the top level of the platform file.")
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                f"Error loading host config '{op_sys}' from file '{os_cfg_path}'")
+                f"Error loading host config '{platform}' from file '{platform_cfg_path}'")
 
         try:
-            return self._loader.merge(test_cfg, os_cfg)
+            return self._loader.merge(test_cfg, platform_cfg)
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                "Error merging configuration for OS '{}'".format(os))
+                "Error merging configuration for platform '{}'".format(platform))
 
     def apply_modes(self, test_cfg, modes: List[str], suite_name: str = None):
         """Apply each of the mode files to the given test config.
@@ -1150,7 +1150,7 @@ class TestConfigResolver:
 
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path',
-                       'base_name', 'host', 'os', 'modes']
+                       'base_name', 'host', 'platform', 'modes']
 
     def apply_overrides(self, test_cfg, overrides) -> Dict:
         """Apply overrides to this test.

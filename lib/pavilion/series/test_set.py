@@ -213,7 +213,7 @@ class TestSet:
 
         cfg_resolver = TestConfigResolver(
             self.pav_cfg,
-            op_sys=self.op_sys,
+            platform=self.op_sys,
             host=self.host,
             outfile=self.outfile,
             verbosity=self.verbosity)

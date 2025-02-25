@@ -92,15 +92,15 @@ class SuitesTests(PavTestCase):
 
         self.assertEqual(variables.get("mode1")[0].get(None), "True")
 
-    def test_suites_os_config(self):
-        """Test that Pavilion loads OS configs from the
+    def test_suites_platform_config(self):
+        """Test that Pavilion loads platform configs from the
         suites directory"""
 
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'run',
-            '-o', 'os1',
-            'os_suite_test'
+            '-o', 'platform1',
+            'platform_suite_test'
         ])
 
         run_cmd = commands.get_command(args.command_name)
@@ -111,11 +111,11 @@ class SuitesTests(PavTestCase):
 
         last_test = run_cmd.last_tests[0]
 
-        self.assertTrue(last_test.config["os"] == "os1")
+        self.assertTrue(last_test.config["platform"] == "platform")
         
         variables = last_test.config["variables"]
 
-        self.assertEqual(variables.get("os1")[0].get(None), "True")
+        self.assertEqual(variables.get("platform1")[0].get(None), "True")
 
     def test_suites_build_hash(self):
         """Test that Pavilion ignores config files in the
