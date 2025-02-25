@@ -7,7 +7,7 @@ specific actions to add to the script."""
 from pathlib import Path
 
 from pavilion import module_wrapper
-from pavilion.module_actions import ModuleAction
+from pavilion.module_actions import ModuleAction, ModulePurge
 
 
 class ScriptComposerError(RuntimeError):
@@ -119,6 +119,9 @@ class ScriptComposer:
         else:
             # This is not an expected error
             raise RuntimeError("Invalid Module action '{}'".format(action))
+
+        self._script_lines.extend(ModulePurge().action()
+        self._script_lines.extend(ModulePurge().verify())
 
         for act in mod_act:
             if isinstance(act, ModuleAction):

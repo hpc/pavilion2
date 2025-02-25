@@ -120,3 +120,14 @@ class ModuleSwap(ModuleAction):
                  'verify_module_removed $TEST_ID {s.old_name} {s.old_version}']
 
         return [l.format(s=self) for l in lines]
+
+
+class ModulePurge(ModuleAction):
+    def __init__(self):
+        super().__init__('')
+
+    def action(self) -> List[str]:
+        return ["module purge"]
+
+    def verify(self) -> List[str]:
+        return []
