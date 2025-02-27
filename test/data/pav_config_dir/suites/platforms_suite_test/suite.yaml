@@ -1,4 +1,4 @@
-os_suite_test:
+platforms_suite_test:
     scheduler: raw
     run:
         cmds: 'echo Hello!'

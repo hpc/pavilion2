@@ -187,10 +187,10 @@ class RunSeries(Command):
         else:
             # load series and test files
             try:
-                # Pre-verify that all the series, tests, sys_os, modes, and hosts exist.
+                # Pre-verify that all the series, tests, platform, modes, and hosts exist.
                 series_cfg = series_config.verify_configs(pav_cfg,
                                                           args.series_name,
-                                                          op_sys=args.os,
+                                                          platform=args.platform,
                                                           host=args.host,
                                                           modes=args.modes,
                                                           overrides=args.overrides)

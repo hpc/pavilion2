@@ -75,7 +75,7 @@ class TestConfigResolver:
                  outfile: TextIO = None, verbosity: int = Verbose.QUIET):
         """Initialize the resolver.
 
-        :param op_sys: The OS to configure tests for.
+        :param platform: The platform to configure tests for.
         :param host: The host to configure tests for.
         :param outfile: The file to print output to.
         :param verbosity: Determines the format of the output. (See enums.Verbose)
@@ -127,7 +127,7 @@ class TestConfigResolver:
         if cfg_type == "suite" and not use_suites_dir:
             return "tests"
 
-        if dirname[-1] != 's' and dirname != "os":
+        if dirname[-1] != 's':
             dirname += 's'
 
         return dirname
@@ -180,6 +180,8 @@ class TestConfigResolver:
         """Given a suite name, return the path to the config file of the specified
         type, if one exists. If the file does not exist in any known suites directory,
         returns None."""
+
+        # import pdb; pdb.set_trace()
 
         paths = []
         labels = list(self.config_labels)
@@ -981,7 +983,7 @@ class TestConfigResolver:
             label, platform_cfg_path = self._get_test_config_path(platform, "platform")
             loader = self._loader
 
-        cfg_info = ConfigInfo(op_sys, "platform", platform_cfg_path, label, from_suite)
+        cfg_info = ConfigInfo(platform, "platform", platform_cfg_path, label, from_suite)
 
         raw_platform_cfg = self._load_raw_config(cfg_info, loader, optional=True)
 

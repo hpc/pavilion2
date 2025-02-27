@@ -1,0 +1,7 @@
+platform1:
+    variables:
+        platform1: True
+
+platform2:
+    variables:
+        platform2: True
