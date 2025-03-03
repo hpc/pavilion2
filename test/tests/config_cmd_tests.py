@@ -49,9 +49,11 @@ class ConfigCmdTests(unittest.PavTestCase):
         self.assertTrue('main' in pav_cfg.configs)
         self.assertEqual(pav_cfg.working_dir, test_config_wd)
         # Make sure all created files exist.
-        for subfile in ['config.yaml', 'suites', 'hosts', 'modes', 'plugins',
-                        'pavilion.yaml', 'os']:
-            self.assertTrue((test_config_root / subfile).exists())
+
+        for subfile in ['config.yaml', 'suites', 'hosts', 'modes', 'plugins', 'pavilion.yaml',
+                        'platforms']:
+            file = test_config_root / subfile
+            self.assertTrue(file.exists())
         # Make sure groups are sane.
         if other_group is not None:
             for path in (test_config_root, test_config_root/'suites', test_pav_config_path,
@@ -70,8 +72,7 @@ class ConfigCmdTests(unittest.PavTestCase):
         foo_config_dir = test_config_root/'foo'
         args = arg_parser.parse_args(['config', 'create', 'foo', foo_config_dir.as_posix()])
         self.assertEqual(config_cmd.run(pav_cfg, args), 0)
-        for subfile in ['config.yaml', 'suites', 'hosts', 'modes', 'plugins',
-                        'os']:
+        for subfile in ['config.yaml', 'suites', 'hosts', 'modes', 'plugins', 'platforms']:
             self.assertTrue((foo_config_dir/subfile).exists())
 
         # Load and delete from the pavilion.yaml we created.
