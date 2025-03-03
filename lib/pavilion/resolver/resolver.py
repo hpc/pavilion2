@@ -971,7 +971,8 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging host configuration for host '{}'".format(hostname))
 
-    def apply_platform(self, test_cfg: TestConfig, platform: str, suite_name: str = None) -> TestConfig:
+    def apply_platform(self, test_cfg: TestConfig, platform: str,
+                        suite_name: str = None) -> TestConfig:
         """Apply the platform configuration to the given config."""
 
         if suite_name is not None:
