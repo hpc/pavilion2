@@ -3,7 +3,7 @@ base:
     mode_def?: test
     test_def?: test
 
-    def_os: test
+    def_platform: test
     def_host: test
     def_mode: test
     def_test?: test

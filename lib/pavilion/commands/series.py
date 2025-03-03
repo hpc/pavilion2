@@ -97,8 +97,8 @@ class RunSeries(Command):
             help="Ignore the series config file name, and rename the series to this."
         )
         run_p.add_argument(
-            '-o', '--os', action='store', default=None,
-            help='The operating system to configure this test for. If not '
+            '-p', '--platform', action='store', default=None,
+            help='The platform to configure this test for. If not '
             'specificied, the current operating system as denoted by the '
             'sys plugin \'sys_os\' is used (EX: "ubuntu-22.04").')
         run_p.add_argument(
