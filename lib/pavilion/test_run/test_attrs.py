@@ -7,7 +7,7 @@ from typing import Callable, Any, Optional, Iterator, List
 from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion.errors import TestRunError
-from pavilion.status_file import TestStatusInfo, TestStatusFile
+from pavilion.status_file import TestStatusInfo, TestStatusFile, STATES
 
 
 # pylint: disable=protected-access
@@ -261,6 +261,13 @@ class TestAttributes(Mapping):
 
         if not self._complete:
             run_complete_path = self.path / self.COMPLETE_FN
+
+            if not self.path.exists():
+                # The test directory was removed by something external to Pavilion
+                self.status.set(STATES.WARNING, f"Test directory at {self.path} is missing.")
+
+                return True
+
             # This will force a meta-data update on the directory.
             list(self.path.iterdir())
 

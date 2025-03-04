@@ -438,7 +438,7 @@ class TestBuilder:
                 "Failed to move build {} from {} to "
                 "failure path {}"
                 .format(self.name, self.path,
-                        self.fail_path), err)
+                        self.fail_path, err))
             try:
                 self.fail_path.mkdir()
             except OSError as err2:
