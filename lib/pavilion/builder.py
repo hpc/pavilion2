@@ -696,6 +696,10 @@ class TestBuilder:
         if raw_src_path is not None:
             tracker.update(state=STATES.BUILDING, note=f"Looking for source path: {raw_src_path}.")
             sub_dirs = [Path('test_src')]
+
+            if self.suite_subdir is not None:
+                sub_dirs.append(self.suite_subdir)
+
             src_path = self._pav_cfg.find_file(raw_src_path, sub_dirs)
 
             # Only raise an error if a path that is explicitly identified is missing
