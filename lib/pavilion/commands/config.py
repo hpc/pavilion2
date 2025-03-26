@@ -205,7 +205,7 @@ class ConfigCommand(Command):
 
         # This should fail if it already exists.
         try:
-            path.mkdir()
+            path.mkdir(parents=True, exist_ok=True)
         except OSError as err:
             raise ConfigCmdError("Could not create specified directory", err)
 
