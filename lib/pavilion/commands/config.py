@@ -203,7 +203,6 @@ class ConfigCommand(Command):
             raise ConfigCmdError("Given label '{}' already exists in the pav config."
                                  .format(label))
 
-        # This should fail if it already exists.
         try:
             path.mkdir(parents=True, exist_ok=True)
         except OSError as err:
