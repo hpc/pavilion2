@@ -246,7 +246,7 @@ class ConfigCommand(Command):
         for subdir in ('hosts', 'modes', 'os', 'plugins', 'collections', 'suites'):
             subdir = path/subdir
             try:
-                subdir.mkdir()
+                subdir.mkdir(exist_ok=True)
             except OSError as err:
                 shutil.rmtree(path)
                 raise ConfigCmdError("Could not make config subdir '{}'".format(subdir), err)
