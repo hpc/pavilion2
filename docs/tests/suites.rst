@@ -14,22 +14,23 @@ Suite Directories
 -----------------
 
 In addition to simple tests, Pavilion provides the option to organize suites using a directory
-structure, such that the suite directory contains not only the test config, any host, mode, and OS
-configs associated with the test, as well as test source code. This provides a convenient way of
-collecting the test code and data in a single location. This is useful, for instance, if one wishes
-to version control each test separately and use it as a Git submodule in a larger project.
+structure, such that the suite directory contains not only the test config, but any host, mode,
+and OS configs associated with the test, as well as test source code. This provides a convenient
+way of collecting the test code and data in a single location. This is useful, for instance, if the
+user wishes to version control each test separately and use it as a Git submodule in a larger
+project.
 
 .. _tests.suites.organizing_suites:
 
 Two Ways of Organizing Suites
 -----------------------------
 
-All test suites reside in the `suites` directory under the user's configuration directory. There
-are two ways of organizing these suites, depending on the user's needs and the complexity of the
-suite:
+All test suites reside in the `suites` directory under one of the user's configuration directories.
+There are two ways of organizing these suites, depending on the user's needs and the complexity of
+the suite:
 
-1. A simple suite may consist of a single suite config, `<suite_name>.yaml`, placed directly under in
-the `suites` directory.
+1. A simple suite may consist of a single suite config, `<suite_name>.yaml`, placed directly in the
+`suites` directory.
 
 2. Suites consisting of multiple files, including additional configs and test source, should be
 placed under a subdirectory of `suites`, `suites/<suite_name>/`.
@@ -43,7 +44,7 @@ first, the name of the file is the name of the suite; in the second, the file na
 .. warning:: Deprecation Warning
     Pavilion 2.4 uses the `tests` and `test_src` subdirectories to store suite configs and test
     source code respectively. As of the latest release, these directories are deprecated in favor
-    of the single `suites` directory, and support for them will eventually be removed entirely.
+    of the single `suites` directory, and support for them will eventually be removed.
 
 .. _tests.suites.auxiliary_configs:
 
@@ -52,7 +53,7 @@ Host, OS, and Mode Configs
 
 When using the first organization method, host, OS, and mode configs must be placed under their
 respective subdirectories under the user's config directory and must be named with the name of
-their associated host, operating system, or mode respectively.
+their associated host, operating system, or mode.
 
 When using the second, suite directory method of organization, auxiliary configs must be placed
 in the suite directory alongside the suite config and must be named `host.yaml`, `os.yaml`, or
@@ -60,8 +61,9 @@ in the suite directory alongside the suite config and must be named `host.yaml`,
 
 The suite directory method of organization allows for more flexibility in these auxiliary configs.
 Specifically, multiple hosts, OSs, or modes may be specified in a config file. A single host, OS,
-or mode can be selected on test invocation by passing the name of the entity to the appropriate
-flag. The following is an example of a host file containing multiple host entries:
+or mode can be selected on test invocation by passing the name of the host, OS, or mode to the
+appropriate flag (either `-H`, `-o`, or `-m`). The following is an example of a host file
+containing multiple host entries (OS and mode formats are analogous):
 
 .. code-block:: yaml
 
@@ -76,5 +78,5 @@ flag. The following is an example of a host file containing multiple host entrie
             foo: bar
 
 Note that this format differs from the format used by configs located in the `hosts`, `os`, and
-`modes` directories; in this case, individual configs within each config file are associated with
-named keys rather than deriving their names from the name of the config file.
+`modes` directories; in this case, individual configs within each config file derive their names
+from top-level keys rather than from the name of the config file.
