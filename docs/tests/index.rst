@@ -5,6 +5,7 @@
    format.rst
    run.rst
    build.rst
+   suites.rst
    env.rst
    permutations.rst
    values.rst
