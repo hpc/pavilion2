@@ -1,7 +1,7 @@
 .. _tests.suites:
 
 Suite Organization
-===========
+==================
 
 This section details the organization of test suites.
 

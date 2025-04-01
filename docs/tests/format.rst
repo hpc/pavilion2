@@ -260,9 +260,8 @@ You can specify the host config with the ``-H`` option to the
     pav run -H another_host my_tests
 
 .. note::
-
-An optional alternate format for host, OS, and mode configs exists when using suite directories.
-See the following section for an overview of this format.
+    An optional alternate format for host, OS, and mode configs exists when using suite
+    directories. See the following section for an overview of this format.
 
 Format
 ~~~~~~
