@@ -56,8 +56,8 @@ respective subdirectories under the user's config directory and must be named wi
 their associated host, operating system, or mode.
 
 When using the second, suite directory method of organization, auxiliary configs must be placed
-in the suite directory alongside the suite config and must be named `host.yaml`, `os.yaml`, or
-`mode.yaml` according to their config type.
+in the suite directory alongside the suite config and must be named `hosts.yaml`, `os.yaml`, or
+`modes.yaml` according to their config type.
 
 The suite directory method of organization allows for more flexibility in these auxiliary configs.
 Specifically, multiple hosts, OSs, or modes may be specified in a config file. A single host, OS,
