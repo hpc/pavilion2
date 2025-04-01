@@ -1,4 +1,4 @@
-.. _tests.format:
+.. _tests.suites:
 
 Suite Organization
 ===========
@@ -8,6 +8,8 @@ This section details the organization of test suites.
 .. contents::
 
 
+.. _tests.suites.suite_directories:
+
 Suite Directories
 -----------------
 
@@ -16,6 +18,8 @@ structure, such that the suite directory contains not only the test config, any 
 configs associated with the test, as well as test source code. This provides a convenient way of
 collecting the test code and data in a single location. This is useful, for instance, if one wishes
 to version control each test separately and use it as a Git submodule in a larger project.
+
+.. _tests.suites.organizing_suites:
 
 Two Ways of Organizing Suites
 -----------------------------
@@ -40,6 +44,8 @@ first, the name of the file is the name of the suite; in the second, the file na
     Pavilion 2.4 uses the `tests` and `test_src` subdirectories to store suite configs and test
     source code respectively. As of the latest release, these directories are deprecated in favor
     of the single `suites` directory, and support for them will eventually be removed entirely.
+
+.. _tests.suites.auxiliary_configs:
 
 Host, OS, and Mode Configs
 --------------------------
