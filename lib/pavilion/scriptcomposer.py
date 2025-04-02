@@ -129,6 +129,11 @@ class ScriptComposer:
 
         self.env_change(mod_env)
 
+    def module_purge(self) -> None:
+        """Add a module purge to the script."""
+
+        self._script_lines.append("module purge")
+
     def newline(self):
         """Function that just adds a newline to the script lines."""
         # This will create a blank line with just a newline.
