@@ -64,8 +64,8 @@ class RunCommand(Command):
         parser.add_argument(
             '-p', '--platform', action='store',
             help='The platform to configure this test for. If not '
-            'specified, the current operating system as denoted by the sys '
-            'plugin \'sys_os\' is used.')
+            'specified, the current platform as denoted by the sys '
+            'plugin \'platform\' is used.')
         parser.add_argument(
             '-H', '--host', action='store',
             help='The host to configure this test for. If not specified, the '

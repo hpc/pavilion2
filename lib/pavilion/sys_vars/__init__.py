@@ -18,6 +18,7 @@ _builtin_sys_plugins = [
     HostCPUs,
     HostName,
     HostOS,
+    Platform,
     SystemArch,
     SystemName,
     SystemOS,

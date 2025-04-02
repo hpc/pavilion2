@@ -106,9 +106,7 @@ class TestConfigResolver:
 
         self._host = self._base_var_man['sys.sys_name'] if host is None else host
         if platform is None:
-            os_name = self._base_var_man['sys.sys_os.name']
-            os_vers = self._base_var_man['sys.sys_os.version']
-            self._platform = f"{os_name}-{os_vers}"
+            self._platform = self._base_var_man['sys.platform']
         else:
             self._platform = platform
 
