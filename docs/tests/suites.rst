@@ -41,7 +41,9 @@ the previous section. Note the difference in file name between the two organizat
 first, the name of the file is the name of the suite; in the second, the file name is the generic
 `suite.yaml`, and Pavilion derives the suite name from its containing directory.
 
-.. warning:: Deprecation Warning
+.. admonition:: Deprecation Warning
+    :class: warning
+
     Pavilion 2.4 uses the `tests` and `test_src` subdirectories to store suite configs and test
     source code respectively. As of the latest release, these directories are deprecated in favor
     of the single `suites` directory, and support for them will eventually be removed.
