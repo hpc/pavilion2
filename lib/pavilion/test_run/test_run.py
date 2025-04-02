@@ -1148,12 +1148,13 @@ be set by the scheduler plugin as soon as it's known."""
 
         script.command(f'echo "(pav) Setting up {stype} environment."')
 
-        script.newline()
-        script.comment("Start with a fresh environment")
-        script.module_purge()
 
         modules = config.get('modules', [])
         if modules:
+            script.newline()
+            script.comment("Start with a fresh environment")
+            script.module_purge()
+
             script.newline()
             script.comment('Perform module related changes to the environment.')
 
