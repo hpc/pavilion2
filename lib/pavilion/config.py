@@ -270,6 +270,11 @@ class PavConfig(PavConfigDict):
                 suite_infos.extend(zip(labels, names, tests))
 
             if suites_dir.exists():
+                suites = [file for file in suites_dir.iterdir() if file.suffix.lower() == ".yaml"]
+                names = [suite.stem for suite in suites]
+                labels = [label] * len(suites)
+                suite_infos.extend(zip(labels, names, suites))
+
                 suites = [sdir / "suite.yaml" for sdir in suites_dir.iterdir()]
                 suites = list(filter(exists, suites))
                 names = [suite.parent.name for suite in suites]
