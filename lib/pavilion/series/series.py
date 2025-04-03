@@ -418,7 +418,7 @@ differentiate it from test ids."""
         return False
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False):
+            local_builds_only: bool = False, purge: bool = True):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -471,7 +471,7 @@ differentiate it from test ids."""
 
                 try:
                     self._run_set(test_set, build_only=build_only,
-                                  rebuild=rebuild, local_builds_only=local_builds_only)
+                                  rebuild=rebuild, local_builds_only=local_builds_only, purge=purge)
                 except TestSetError as err:
                     self.status.set(SERIES_STATES.ERROR,
                                     "Error running test set {}. See the series log "
@@ -506,7 +506,8 @@ differentiate it from test ids."""
         # Completion will be set when looked for.
 
 
-    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
+    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool,
+                 purge: bool):
         """Run all requested tests in the given test set."""
 
         # Track which builds we've already marked as deprecated, when doing rebuilds.
@@ -514,7 +515,7 @@ differentiate it from test ids."""
         failed_builds = dict()
         tests_running = 0
 
-        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only):
+        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only, purge):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)

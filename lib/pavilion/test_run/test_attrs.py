@@ -376,6 +376,9 @@ class TestAttributes(Mapping):
     name = basic_attr(
         name='name',
         doc="The full name of the test.")
+    purge = basic_attr(
+        name='purge',
+        doc="Whether or not the test will perform a module purge before building/running.")
     rebuild = basic_attr(
         name='rebuild',
         doc="Whether or not this test will rebuild it's build.")
