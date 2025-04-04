@@ -686,8 +686,8 @@ class TestConfigResolver:
         """
 
         added_tests = []
-        matched_suites = self._load_suite_tests(request):
-        if not matched suites:
+        matched_suites = self._load_suite_tests(request)
+        if not matched_suites:
             self.errors.append(TestConfigError(
                 "Could not find a test suite that matches '{}'.\n"
                 "See 'pav show suites' for a list of available test suites."
@@ -721,6 +721,8 @@ class TestConfigResolver:
         test_configs = []
         for raw_test in added_tests:
             raw_test = self._apply_test_options(raw_test, options)
+            if raw_test is None:
+                continue
 
             # Now that we've applied all general transforms to the config, make it into a ProtoTest.
             try:
@@ -766,7 +768,7 @@ class TestConfigResolver:
         except TestConfigError as err:
             err.request = request
             self.errors.append(err)
-            continue
+            return None
 
         # Save the overrides as part of the test config
         test_cfg['overrides'] = overrides
@@ -778,12 +780,13 @@ class TestConfigResolver:
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
+                return None
             except (KeyError, ValueError) as err:
                 self.errors.append(TestConfigError(
                     'Error applying overrides to test {} from suite {} at:\n{}' \
                     .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
                     request, err))
-                continue
+                return None
 
         # Result evaluations can be added to all tests at the root pavilion config level.
         result_evals = test_cfg['result_evaluate']

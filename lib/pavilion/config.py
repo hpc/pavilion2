@@ -217,7 +217,6 @@ class PavConfig(PavConfigDict):
         self.pav_vars: Dict[str, str] = {}
         self.configs: Dict[str, LocalConfig] = {}
         self.warnings: List[str] = []
-        self._suite_info = None
 
         super().__init__(set_attrs)
 
@@ -259,7 +258,7 @@ class PavConfig(PavConfigDict):
 
         suite_infos = []
 
-        if self._suite_info is not None:
+        if has_attr(self, '_suite_info'):
             return self._suite_info
 
         for label, cfg in self.configs.items():
