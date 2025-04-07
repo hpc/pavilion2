@@ -8,7 +8,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import List, TextIO, Union, Iterator
+from typing import List, TextIO, Union, Optional, Iterator
 from collections import defaultdict
 
 from pavilion import config
@@ -321,7 +321,8 @@ def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
     return None
 
 
-def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
+def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[str],
+                        errfile: Optional[Path] = None) -> List[Path]:
     """Given a list of raw test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by
@@ -338,7 +339,6 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
 
     test_paths = []
     for raw_id in req_tests:
-
         if raw_id == 'last':
             raw_id = series.load_user_series_id(pav_cfg, errfile)
             if raw_id is None:
@@ -359,10 +359,12 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
 
             test_path = test_wd/TestRun.RUN_DIR/str(_id)
             test_paths.append(test_path)
+
             if not test_path.exists():
                 output.fprint(errfile,
                               "Test run with id '{}' could not be found.".format(raw_id),
                               color=output.YELLOW)
+
         elif raw_id[0] == 's' and utils.is_int(raw_id[1:]):
             # A series.
             try:

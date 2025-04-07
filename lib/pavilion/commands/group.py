@@ -2,6 +2,7 @@
 
 import errno
 import fnmatch
+from typing import Optional
 
 from pavilion import groups
 from pavilion import config
@@ -122,7 +123,7 @@ class GroupCommand(Command):
 
         return self._run_sub_command(pav_cfg, args)
 
-    def _get_group(self, pav_cfg, group_name: str) -> TestGroup:
+    def _get_group(self, pav_cfg: config.PavConfig, group_name: str) -> Optional[TestGroup]:
         """Get the requested group, and print a standard error message on failure."""
 
         try:
@@ -130,6 +131,7 @@ class GroupCommand(Command):
         except TestGroupError as err:
             fprint(self.errfile, "Error loading group '{}'", color=output.RED)
             fprint(self.errfile, err.pformat())
+
             return None
 
         if not group.exists():
@@ -137,6 +139,7 @@ class GroupCommand(Command):
                    "Group '{}' does not exist.\n  Looked here:"
                    .format(group_name), color=output.RED)
             fprint(self.errfile, "  " + group.path.as_posix())
+
             return None
 
         return group

@@ -8,6 +8,7 @@ from pavilion import dir_db
 from pavilion import groups
 from pavilion import lockfile
 from pavilion import utils
+from pavilion import config
 from pavilion.builder import TestBuilder
 from pavilion.test_run import test_run_attr_transform, TestAttributes
 
@@ -74,7 +75,7 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
     return count, msgs
 
 
-def clean_groups(pav_cfg) -> Tuple[int, List[str]]:
+def clean_groups(pav_cfg: config.PavConfig) -> Tuple[int, List[str]]:
     """Remove members that no longer exist from groups, and delete empty groups.
     Returns the number of groups deleted and a list of error messages."""
 

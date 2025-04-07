@@ -5,10 +5,16 @@ import re
 import pprint
 import textwrap
 import shutil
+import traceback
+
+from traceback import format_exception
+from typing import List
 
 import lark
 
 import yc_yaml
+
+from pavilion.micro import flatten
 
 
 class PavilionError(RuntimeError):
@@ -16,6 +22,9 @@ class PavilionError(RuntimeError):
 
     SPLIT_RE = re.compile(': *\n? *')
     TAB_LEVEL = '  '
+
+    # Set traceback behavior for all instances
+    show_tracebacks = False
 
     def __init__(self, msg, prior_error=None, data=None):
         """These take a new message and whatever prior error caused the problem.
@@ -29,6 +38,7 @@ class PavilionError(RuntimeError):
         self.prior_error = prior_error
         self.data = data
         super().__init__(msg)
+
 
     @property
     def msg(self):
@@ -46,12 +56,28 @@ class PavilionError(RuntimeError):
         else:
             return self.msg
 
+    @staticmethod
+    def _wrap_lines(lines: List[str], width: int) -> List[str]:
+        """Given a list of lines, produce a new list of lines wrapped to the specified width."""
+
+        lines = map(lambda x: textwrap.wrap(x, width=width), lines)
+
+        return list(flatten(lines))
+
+
     def pformat(self) -> str:
-        """Specially format the exception for printing."""
+        """Specially format the exception for printing. If traceback is True, return the full
+        traceback associated with the error. Otherwise, return a summary of the error."""
+
+        width = shutil.get_terminal_size((80, 80)).columns
+
+        if PavilionError.show_tracebacks:
+            lines = format_exception(PavilionError, self, self.__traceback__)
+
+            return "".join(lines)
 
         lines = []
         next_exc = self.prior_error
-        width = shutil.get_terminal_size((80, 80)).columns
         tab_level = 0
         for line in str(self.msg).split('\n'):
             lines.extend(textwrap.wrap(line, width=width))
