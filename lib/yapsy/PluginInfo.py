@@ -11,9 +11,8 @@ API
 ===
 """
 
-
-from configparser import ConfigParser
-from packaging.version import Version
+from yapsy.compat import ConfigParser
+from distutils.version import StrictVersion
 
 
 class PluginInfo(object):
@@ -106,7 +105,7 @@ class PluginInfo(object):
 
 	
 	def __getVersion(self):
-		return Version(self.details.get("Documentation","Version"))
+		return StrictVersion(self.details.get("Documentation","Version"))
 	
 	def setVersion(self, vstring):
 		"""
@@ -115,7 +114,7 @@ class PluginInfo(object):
 		Used by subclasses to provide different handling of the
 		version number.
 		"""
-		if isinstance(vstring,Version):
+		if isinstance(vstring,StrictVersion):
 			vstring = str(vstring)
 		if not self.details.has_section("Documentation"):
 			self.details.add_section("Documentation")

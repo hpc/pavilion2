@@ -128,7 +128,7 @@ API
 
 import sys
 import os
-import importlib
+from importlib.abc import Loader as imp
 
 from yapsy import log
 from yapsy import NormalizePluginNameForModuleName
@@ -537,8 +537,6 @@ class PluginManager(object):
 					if is_correct_subclass and element is not self.categories_interfaces[category_name]:
 							current_category = category_name
 							if candidate_infofile not in self._category_file_mapping[current_category]:
-								# Fix the module name for this plugin module.
-								element.__module__ = plugin_module_name
 								# we found a new plugin: initialise it and search for the next one
 								if not plugin_info_reference:
 									try:
@@ -576,17 +574,11 @@ class PluginManager(object):
 		.. note:: Isolated and provided to be reused, but not to be reimplemented !
 		"""
 		# use imp to correctly load the plugin as a module
-		candidate_module = None
-		filepath_base = candidate_filepath.split('/')[-1]
 		if os.path.isdir(candidate_filepath):
-			location = candidate_filepath + '/__init__.py'
+			candidate_module = imp.load_module(plugin_module_name,None,candidate_filepath,("py","r",imp.PKG_DIRECTORY))
 		else:
-			location = candidate_filepath + '.py'
-		spec = importlib.util.spec_from_file_location(filepath_base, location)
-		if (spec):
-			candidate_module = importlib.util.module_from_spec(spec)
-			sys.modules[plugin_module_name] = candidate_module
-			spec.loader.exec_module(candidate_module)
+			with open(candidate_filepath+".py","r") as plugin_file:
+				candidate_module = imp.load_module(plugin_module_name,plugin_file,candidate_filepath+".py",("py","r",imp.PY_SOURCE))
 		return candidate_module
 
 	def instanciateElementWithImportInfo(self, element, element_name,

@@ -12,7 +12,7 @@ API
 """
 
 
-from packaging.version import Version
+from distutils.version import StrictVersion
 
 from yapsy.PluginInfo import PluginInfo
 from yapsy.IPlugin import IPlugin
@@ -27,11 +27,11 @@ class VersionedPluginInfo(PluginInfo):
 	
 	def __init__(self, plugin_name, plugin_path):
 		PluginInfo.__init__(self, plugin_name, plugin_path)
-		# version number is now required to be a Version object
-		self.version	= Version("0.0")
+		# version number is now required to be a StrictVersion object
+		self.version	= StrictVersion("0.0")
 
 	def setVersion(self, vstring):
-		self.version = Version(vstring)
+		self.version = StrictVersion(vstring)
 
 
 class VersionedPluginManager(PluginManagerDecorator):

@@ -55,16 +55,14 @@ API
 
 import os
 import re
-from configparser import ConfigParser
-
 from yapsy import log
+from yapsy.compat import ConfigParser, is_py2, basestring
 
 from yapsy.PluginInfo import PluginInfo
 from yapsy import PLUGIN_NAME_FORBIDEN_STRING
 from yapsy.IPluginLocator import IPluginLocator
 
 
-_BASIC_STRING_CLASSES = (str, bytes)
 
 
 class IPluginFileAnalyzer(object):
@@ -182,7 +180,10 @@ class PluginFileAnalyzerWithInfoFile(IPluginFileAnalyzer):
 		# parse the information buffer to get info about the plugin
 		config_parser = ConfigParser()
 		try:
-			config_parser.read_file(infoFileObject)
+			if is_py2:
+				config_parser.readfp(infoFileObject)
+			else:
+				config_parser.read_file(infoFileObject)
 		except Exception as e:
 			log.debug("Could not parse the plugin file '%s' (exception raised was '%s')" % (candidate_infofile,e))
 			return (None, None, None)
@@ -215,7 +216,7 @@ class PluginFileAnalyzerWithInfoFile(IPluginFileAnalyzer):
 		          and decorators.
 		"""
 		# now we can consider the file as a serious candidate
-		if not isinstance(filename, _BASIC_STRING_CLASSES):
+		if not isinstance(filename, basestring):
 			# filename is a file object: use it
 			name, moduleName, config_parser = self.getPluginNameAndModuleFromStream(filename)
 		else:
@@ -513,7 +514,7 @@ class PluginFileLocator(IPluginLocator):
 		"""
 		Set the list of directories where to look for plugin places.
 		"""
-		if isinstance(directories_list, _BASIC_STRING_CLASSES):
+		if isinstance(directories_list, basestring):
 			raise ValueError("'directories_list' given as a string, but expected to be a list or enumeration of strings")
 		if directories_list is None:
 			directories_list = [os.path.dirname(__file__)]

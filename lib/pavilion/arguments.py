@@ -7,8 +7,6 @@ import argparse
 import textwrap
 
 import pavilion.config
-from pavilion import commands
-from pavilion.utils import WrappedFormatter
 
 PROFILE_SORT_DEFAULT = 'cumtime'
 PROFILE_COUNT_DEFAULT = 20
@@ -17,9 +15,6 @@ def get_parser(add_commands: bool = True):
     """Get the main pavilion argument parser. This is generally only meant to
     be used by the main pavilion command. If the main parser hasn't yet been
     defined, this defines it.
-
-    :param add_commands: Add arguments to the parser for all commands.
-    """
 
     parser = argparse.ArgumentParser(
         prog='pav',
@@ -54,11 +49,5 @@ def get_parser(add_commands: bool = True):
         help="Number of rows in the profile table.")
 
     parser.cmd_sub_parser = parser.add_subparsers(dest='command_name')
-
-    if add_commands:
-        commands.load()
-
-    # If we don't load commands, this will end up with dummy sub parsers for builtin commands
-    commands.setup_arguments(parser)
 
     return parser

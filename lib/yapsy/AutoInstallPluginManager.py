@@ -19,7 +19,7 @@ import zipfile
 from yapsy.IPlugin import IPlugin
 from yapsy.PluginManagerDecorator import PluginManagerDecorator
 from yapsy import log
-from io import StringIO
+from yapsy.compat import StringIO, str
 
 
 class AutoInstallPluginManager(PluginManagerDecorator):

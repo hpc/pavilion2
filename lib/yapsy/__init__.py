@@ -52,7 +52,7 @@ should get you a fully working plugin management system::
 
 """
 
-__version__="2.0.0"
+__version__="1.12.2"
 
 # tell epydoc that the documentation is in the reStructuredText format
 __docformat__ = "restructuredtext en"
@@ -70,7 +70,12 @@ PLUGIN_NAME_FORBIDEN_STRING=";;"
 """
 
 import re
-RE_NON_ALPHANUM = re.compile(r"\W")
+from yapsy.compat import is_py2, str
+
+if is_py2:
+	RE_NON_ALPHANUM = re.compile("\W", re.U)
+else:
+	RE_NON_ALPHANUM = re.compile("\W")
 
 
 def NormalizePluginNameForModuleName(pluginName):
@@ -80,9 +85,13 @@ def NormalizePluginNameForModuleName(pluginName):
 	.. note:: may do a little more modifications than strictly
 	          necessary and is not optimized for speed.
 	"""
+	if is_py2:
+		pluginName = str(pluginName, 'utf-8')
 	if len(pluginName)==0:
 		return "_"
 	if pluginName[0].isdigit():
 		pluginName = "_" + pluginName
 	ret = RE_NON_ALPHANUM.sub("_",pluginName)
+	if is_py2:
+		ret = ret.encode('utf-8')
 	return ret
