@@ -1,6 +1,3 @@
-[submodule "lib/pavilion/dependencies/sub_repos/yapsy"]
-	path = lib/sub_repos/yapsy
-	url = https://github.com/tibonihoo/yapsy.git
 [submodule "lib/pavilion/dependencies/sub_repos/requests"]
 	path = lib/sub_repos/requests
 	url = https://github.com/requests/requests.git
