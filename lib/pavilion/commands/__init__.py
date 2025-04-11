@@ -5,7 +5,6 @@ its faster than searching for them and loading them as plugins."""
 import importlib
 from typing import Union
 
-from pavilion import arguments
 from pavilion import errors
 from .base_classes import Command, add_command, sub_cmd, setup_arguments
 from .base_classes import cmd_tracker as _cmd_tracker

@@ -7,36 +7,19 @@ import argparse
 import textwrap
 
 import pavilion.config
+from pavilion import commands
+from pavilion.utils import WrappedFormatter
 
 PROFILE_SORT_DEFAULT = 'cumtime'
 PROFILE_COUNT_DEFAULT = 20
 
-class WrappedFormatter(argparse.HelpFormatter):
-
-    def _split_lines(self, text, width):
-        """Preserve newlines when splitting lines."""
-        all_lines = []
-
-        lines = text.split('\n')
-        for line in lines:
-            all_lines.extend(textwrap.wrap(line, width))
-        return all_lines
-
-    def _fill_text(self, text, width, indent):
-        """Preserve newlines when filling text."""
-
-        all_lines = []
-
-        for line in text.split('\n'):
-            all_lines.extend(textwrap.wrap(line, width,
-                                           initial_indent=indent,
-                                           subsequent_indent=indent))
-        return '\n'.join(all_lines)
-
-def get_parser():
+def get_parser(add_commands: bool = True):
     """Get the main pavilion argument parser. This is generally only meant to
     be used by the main pavilion command. If the main parser hasn't yet been
-    defined, this defines it."""
+    defined, this defines it.
+
+    :param add_commands: Add arguments to the parser for all commands.
+    """
 
     parser = argparse.ArgumentParser(
         prog='pav',
@@ -71,5 +54,11 @@ def get_parser():
         help="Number of rows in the profile table.")
 
     parser.cmd_sub_parser = parser.add_subparsers(dest='command_name')
+
+    if add_commands:
+        commands.load()
+
+    # If we don't load commands, this will end up with dummy sub parsers for builtin commands
+    commands.setup_arguments(parser)
 
     return parser

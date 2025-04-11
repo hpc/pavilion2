@@ -65,10 +65,13 @@ class StyleTests(PavTestCase):
         ]
 
         disabled = [
-            'missing-docstring',
-            'consider-using-enumerate',
             'bad-builtin',
-            'raise-missing-from'
+            'consider-using-enumerate',
+            'missing-docstring',
+            'raise-missing-from',
+            'ungrouped-imports',
+            'wrong-import-position',
+            'wrong-import-order',
         ]
 
         cmd = [

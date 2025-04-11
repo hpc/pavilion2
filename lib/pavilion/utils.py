@@ -4,15 +4,40 @@ generally be used to help make Pavilion consistent across its code and
 plugins.
 """
 
+import argparse
 import datetime as dt
 import os
 import re
 import shutil
 import subprocess
+import textwrap
 import zipfile
 from pathlib import Path
 from typing import Iterator, Union, TextIO
 from typing import List, Dict
+
+
+class WrappedFormatter(argparse.HelpFormatter):
+
+    def _split_lines(self, text, width):
+        """Preserve newlines when splitting lines."""
+        all_lines = []
+
+        lines = text.split('\n')
+        for line in lines:
+            all_lines.extend(textwrap.wrap(line, width))
+        return all_lines
+
+    def _fill_text(self, text, width, indent):
+        """Preserve newlines when filling text."""
+
+        all_lines = []
+
+        for line in text.split('\n'):
+            all_lines.extend(textwrap.wrap(line, width,
+                                           initial_indent=indent,
+                                           subsequent_indent=indent))
+        return '\n'.join(all_lines)
 
 
 def glob_to_re(glob):
