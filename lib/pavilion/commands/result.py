@@ -56,8 +56,8 @@ def format_numeric(value: Any, digits: Optional[int]) -> str:
         return str(value)
 
     # Remove leading zeros in exponent, as well as + sign, if present
-    pos_regex = 'e\+0*'
-    neg_regex = 'e-0*'
+    pos_regex = r'e\+0*'
+    neg_regex = r'e-0*'
 
     res = re.sub(pos_regex, "e", res)
     res = re.sub(neg_regex, "e-", res)
