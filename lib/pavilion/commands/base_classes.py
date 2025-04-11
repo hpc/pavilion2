@@ -156,7 +156,7 @@ class Command(IPlugin.IPlugin):
                                                aliases=self.aliases,
                                                description=self.description,
                                                help=self.short_help,
-                                               formatter_class=arguments.WrappedFormatter)
+                                               formatter_class=WrappedFormatter)
         else:
             cmd_parser = sub_parser.add_parser(self.name,
                                                aliases=self.aliases,
@@ -167,7 +167,7 @@ class Command(IPlugin.IPlugin):
 
         self._setup_arguments(cmd_parser)
 
-    def _setup_arguments(self, cmd_parser):
+    def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser. This
     is handed a pre-created sub-command parser for this command. Simply
     add arguments to it like you would a base parser. ::
