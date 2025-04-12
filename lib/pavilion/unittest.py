@@ -91,7 +91,6 @@ base class.
 
     def tear_down(self):
         """Nothing to do by default."""
-        pass
 
     def make_pav_config(self, config_dirs: List[Path] = None):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
