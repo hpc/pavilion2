@@ -251,8 +251,8 @@ class ResolverTests(PavTestCase):
         for bad_request, bad_excerpt in (
                 ('wildcard.noperms.*', "doesn't have permutations at all"),
                 ('wildcard.sometest.not_me', "Available permutations:"),
-                ('wildcard.doesnt_exist', "test that matches 'doesnt_exist'"),
-                ('wildcard.[invalidfnmatch', r"test that matches '\[invalidfnmatch'")):
+                ('wildcard.doesnt_exist', "test that matches 'wildcard.doesnt_exist'"),
+                ('wildcard.[invalidfnmatch', r"test that matches 'wildcard.\[invalidfnmatch'")):
             with self.assertRaisesRegex(TestConfigError, bad_excerpt):
                 self.resolver.load([bad_request])
 
