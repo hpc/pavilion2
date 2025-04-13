@@ -707,7 +707,7 @@ class TestConfigResolver:
                     .format(
                         request.suite,
                         request.test,
-                        matched_suites.keys()[0],
+                        request.suite,
                         "\n - ".join(suite_tests.keys())),
                     request=request))
             else:
@@ -720,7 +720,7 @@ class TestConfigResolver:
 
         test_configs = []
         for raw_test in added_tests:
-            raw_test = self._apply_test_options(raw_test, options)
+            raw_test = self._apply_test_options(raw_test, options, request)
             if raw_test is None:
                 continue
 
@@ -745,38 +745,39 @@ class TestConfigResolver:
         return test_configs
 
 
-    def _apply_test_options(self, raw_test: Dict, options):
+    def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest):
 
         test_cfg = copy.deepcopy(raw_test)
 
         test_cfg['modes'] = options.modes
+        suite_name = test_cfg['suite']
 
         # Apply any additional conditions.
         if options.conditions:
             test_cfg['only_if'] = union_dictionary(
-                test_cfg['only_if'], conditions['only_if']
+                test_cfg['only_if'], options.conditions['only_if']
             )
             test_cfg['not_if'] = union_dictionary(
-                test_cfg['not_if'], conditions['not_if']
+                test_cfg['not_if'], options.conditions['not_if']
             )
 
         # Apply downstream configs.
         try:
-            test_cfg = self.apply_platform(test_cfg, self._platform, request.suite)
-            test_cfg = self.apply_host(test_cfg, self._host, request.suite)
-            test_cfg = self.apply_modes(test_cfg, options.modes, request.suite)
+            test_cfg = self.apply_platform(test_cfg, self._platform, suite_name)
+            test_cfg = self.apply_host(test_cfg, self._host, suite_name)
+            test_cfg = self.apply_modes(test_cfg, options.modes, suite_name)
         except TestConfigError as err:
             err.request = request
             self.errors.append(err)
             return None
 
         # Save the overrides as part of the test config
-        test_cfg['overrides'] = overrides
+        test_cfg['overrides'] = options.overrides
 
         # Apply overrides
         if options.overrides:
             try:
-                test_cfg = self.apply_overrides(test_cfg, overrides)
+                test_cfg = self.apply_overrides(test_cfg, options.overrides)
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
@@ -797,12 +798,13 @@ class TestConfigResolver:
 
             test_cfg['result_evaluate'][key] = '"{}"'.format(const)
 
-        return self._validate(test_name, test_cfg)
+        return self._validate(test_cfg)
 
-    def _validate(self, test_name: str, test_cfg: Dict) -> Dict:
+    def _validate(self, test_cfg: Dict) -> Dict:
         """Return the finalized, validated copy of the test config."""
 
         suite_path = test_cfg['suite_path']
+        test_name = test_cfg['name']
 
         try:
             test_cfg = self._loader.validate(test_cfg)
@@ -855,7 +857,7 @@ class TestConfigResolver:
                 suite_matches.append((label, name, path))
 
         matching_suites = {}
-        for label, name, path in suite_matches:
+        for label, suite_name, path in suite_matches:
             if name in self._suites:
                 # We've already loaded it.
                 matching_suites[name] = self._suites[name]

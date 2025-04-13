@@ -258,7 +258,7 @@ class PavConfig(PavConfigDict):
 
         suite_infos = []
 
-        if has_attr(self, '_suite_info'):
+        if hasattr(self, '_suite_info'):
             return self._suite_info
 
         for label, cfg in self.configs.items():
