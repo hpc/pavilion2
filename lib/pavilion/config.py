@@ -259,6 +259,8 @@ class PavConfig(PavConfigDict):
         suite_infos = []
 
         if hasattr(self, '_suite_info'):
+            # If we put this in __init__, the yaml_config will freak out about it.
+            # pylint: disable=access-member-before-definition
             return self._suite_info
 
         for label, cfg in self.configs.items():
@@ -285,6 +287,7 @@ class PavConfig(PavConfigDict):
 
                 suite_infos.extend(zip(labels, names, suites))
 
+        # pylint: disable=attribute-defined-outside-init
         self._suite_info = suite_infos
 
         return suite_infos
