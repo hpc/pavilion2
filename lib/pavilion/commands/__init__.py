@@ -9,9 +9,9 @@ from pavilion import errors
 from .base_classes import Command, add_command, sub_cmd, setup_arguments
 from .base_classes import cmd_tracker as _cmd_tracker
 
-# Add any new builtin commands here. The key is the module
-# name (which should match command name) and the value is the
-# command class within that module.
+# Add any new builtin commands here. The key is the command
+# name, and the value is a tuple of the module name and plugin
+# class within that module.
 _builtin_commands = {
     '_run':       ('_run', '_RunCommand'),
     '_series':    ('_series', 'AutoSeries'),
