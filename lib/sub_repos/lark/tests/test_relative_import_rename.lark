@@ -1,7 +1,0 @@
-start: N WORD
-
-%import .grammars.test.NUMBER -> N
-%import common.WORD
-%import common.WS
-%ignore WS
-

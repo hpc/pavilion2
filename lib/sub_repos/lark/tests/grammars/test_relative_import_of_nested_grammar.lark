@@ -1,4 +1,0 @@
-
-start: rule_to_import
-
-%import .test_relative_import_of_nested_grammar__grammar_to_import.rule_to_import

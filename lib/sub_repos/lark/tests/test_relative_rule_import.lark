@@ -1,7 +1,0 @@
-start: X expr Y
-
-X: "x"
-Y: "y"
-
-%import .grammars.ab.expr
-

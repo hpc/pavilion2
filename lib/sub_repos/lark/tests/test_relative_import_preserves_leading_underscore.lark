@@ -1,3 +1,0 @@
-start: c
-
-%import .grammars.leading_underscore_grammar.c
