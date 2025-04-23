@@ -1,0 +1,3 @@
+versioned/*
+packages/
+*.pyc

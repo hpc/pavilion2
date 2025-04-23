@@ -1,0 +1,166 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Grep-like utility understanding hostlists
+
+from __future__ import print_function
+
+__version__ = "#VERSION#"
+
+# Copyright (C) 2009 Kent Engström <kent@nsc.liu.se>
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+import string
+import sys
+import optparse
+import re
+
+from hostlist import expand_hostlist, collect_hostlist, numerically_sorted, BadHostlist, __version__ as library_version
+
+def die(s, exit_code = 1):
+    sys.stderr.write(s + "\n")
+    sys.exit(1)
+
+def hosts_from_line(line):
+    # --restrict option
+    if restrict_regexp:
+        try:
+            m = restrict_regexp.search(line)
+            line = m.group(1)
+        except Exception:
+            line = ""
+
+    words = set()
+    for m in finder.finditer(line):
+        word = m.group(0)
+        if not '[' in word:
+            words.add(word)
+        else:
+            try:
+                hosts = expand_hostlist(word)
+                for host in hosts:
+                    words.add(host)
+            except BadHostlist:
+                words.add(word)
+    return words
+
+def emit(line, filename, line_no):
+    if opts.line_number:
+        line = str(line_no) + ":" + line
+    if do_print_filename:
+        line = filename + ":" + line
+    sys.stdout.write(line)
+
+def search(f, filename):
+    line_no = 0
+    for line in f:
+        line_no += 1
+        words = hosts_from_line(line)
+        if opts.all:
+            does_match = search_set <= words
+        else:
+            does_match = search_set & words
+        if bool(does_match) ^ bool(opts.invert_match):
+            emit(line, filename, line_no)
+
+def compute_finder_regexp(search_set):
+    # We have always considered letters and digits to be part of potential hostnames,
+    # so we start with them and add any other characters seen
+    search_chars_set = set(string.ascii_uppercase + string.ascii_lowercase + string.digits)
+    for host in search_set:
+        search_chars_set |= set(host)
+
+    # We rely on re.escape being able to escape characters for the
+    # inside of a [...] character set, which seems to be the case.
+    search_chars = re.escape("".join(sorted(search_chars_set)))
+
+    return re.compile(r"[" + search_chars + r"]+(\[[0-9,-]+\])*")
+
+# MAIN
+
+op = optparse.OptionParser(usage="usage: %prog [OPTION]... HOSTLIST [FILES]...",
+                           add_help_option = False)
+op.add_option("--all",
+              action="store_true",
+              help="Require all hosts in the hostlist to be found in the line.")
+op.add_option("--any",
+              action="store_false", dest = "all",
+              help="Require some host in the hostlist to be found in the line (default).")
+op.add_option("-h", "--no-filename",
+              action="store_false", dest = "print_filename",
+              help="Do not show filename before match (default for <= 1 file)")
+op.add_option("-H", "--with-filename",
+              action="store_true", dest = "print_filename",
+              help="Show filename before match (default for > 1 file)")
+op.add_option("-v", "--invert-match",
+              action="store_true",
+              help="Invert the sense of matching, to select non-matching lines.")
+op.add_option("-n", "--line-number",
+              action="store_true",
+              help="Show line number before match")
+op.add_option("--restrict",
+              action="store", type="string",
+              help="Restrict host matching to the part of the line that is matched as group 1 by this regexp")
+op.add_option("--help", action="help", help="Show help")
+op.add_option("--version",
+              action="store_true",
+              help="Show version")
+(opts, args) = op.parse_args()
+
+if opts.version:
+    print("Version %s (library version %s)" % (__version__,
+                                               library_version))
+    sys.exit()
+
+if len(args) < 1:
+    die("You must specify a hostlist")
+else:
+    search_list = args[0]
+
+search_set = set(expand_hostlist(search_list))
+finder = compute_finder_regexp(search_set)
+
+if opts.print_filename in (True, False):
+    do_print_filename = opts.print_filename
+else:
+    if len(args) > 2:
+        do_print_filename = True
+    else:
+        do_print_filename = False
+
+if opts.restrict:
+    try:
+        restrict_regexp = re.compile(opts.restrict)
+    except Exception:
+        die("Bad --restrict regexp %s" % opts.restrict)
+else:
+    restrict_regexp = None
+
+try:
+    if len(args) == 1:
+        # Seach stdin
+        search(sys.stdin, "(standard input)")
+    else:
+        for filename in args[1:]:
+            f = open(filename)
+            search(f, filename)
+            f.close()
+except KeyboardInterrupt:
+    sys.exit()
+except IOError as e:
+    sys.stderr.write(e.strerror + " '" + e.filename + "'\n")
+    sys.exit(1)
