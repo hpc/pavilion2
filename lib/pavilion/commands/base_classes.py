@@ -10,11 +10,12 @@ import logging
 import sys
 from typing import List
 
-from pavilion import arguments
+from pavilion.utils import WrappedFormatter
 from pavilion import output
 from yapsy import IPlugin
 
 _COMMANDS = {}
+_ALIASES = {}
 
 
 def __reset():
@@ -22,10 +23,9 @@ def __reset():
     unittests."""
 
     global _COMMANDS
-
     _COMMANDS = {}
-
-    arguments.reset_parser()
+    global _ALIASES
+    _ALIASES = {}
 
 
 def add_command(command):
@@ -35,22 +35,37 @@ def add_command(command):
 """
 
     global _COMMANDS
+    global _ALIASES
+
+    existing_cmd = _COMMANDS.get(command.name)
+    if existing_cmd is not None and not existing_cmd.is_dummy:
+        raise RuntimeError(
+            "Multiple commands of the same name are not allowed to exist. "
+            "command.{c1.name} found at both {c1.path} and {c2.path}."
+            .format(c1=existing_cmd, c2=command))
+
+    _COMMANDS[command.name] = command
 
     for name in command.aliases:
-        if name not in _COMMANDS:
-            _COMMANDS[name] = command
-        else:
-            raise RuntimeError(
-                "Multiple commands of the same name are not allowed to exist. "
-                "command.{c1.name} found at both {c1.path} and {c2.path}."
-                .format(c1=_COMMANDS[name], c2=command))
-
+        _ALIASES[name] = command
 
 def cmd_tracker():
     """Return the command tracking object."""
 
     # We can't just import this - it gets pointed at different objects over time.
-    return _COMMANDS
+    return _ALIASES
+
+
+def setup_arguments(parser: argparse.ArgumentParser):
+    """Setup arguments for all known commands."""
+
+    global _COMMANDS
+
+    # This is dynamically added to the parser at creation time.
+    sub_parser = parser.cmd_sub_parser
+
+    for command in _COMMANDS.values():
+        command.setup_arguments(sub_parser)
 
 
 class Command(IPlugin.IPlugin):
@@ -60,7 +75,7 @@ class Command(IPlugin.IPlugin):
     """
 
     def __init__(self, name, description, short_help=None, aliases=None,
-                 sub_commands=False, formatter_class=None):
+                 sub_commands=False, formatter_class=None, is_dummy=False):
         """Initialize this command. This should be overridden by subclasses, to
         set reasonable values. Multiple commands of the same name are not
         allowed to exist.
@@ -75,6 +90,8 @@ class Command(IPlugin.IPlugin):
         :param list aliases: A list of aliases for the command.
         :param bool sub_commands: Enable the standardized way of adding sub
             commands.
+        :param is_dummy: Set to true for dummy commands (used as placeholders
+            for builtin commands).
         """
         super().__init__()
 
@@ -89,10 +106,11 @@ class Command(IPlugin.IPlugin):
         self.description = description
         self.short_help = short_help
         self.aliases = aliases
+        self.is_dummy = is_dummy
         if formatter_class:
             self.formatter_class = formatter_class
         else:
-            self.formatter_class = arguments.WrappedFormatter
+            self.formatter_class = WrappedFormatter
 
         # These are to allow tests to redirect output as needed.
         self.outfile = sys.stdout
@@ -127,17 +145,38 @@ class Command(IPlugin.IPlugin):
                 for alias in func.aliases:
                     self.sub_cmds[alias] = func
 
+    def setup_arguments(self, sub_parser):
+        """Add arguments for this command to the give argparse sub_parser."""
+
+        # Add the short help, or not. A quirk of argparse is that if 'help'
+        # is set, the subcommand is listed regardless of whether the
+        # help is None. If we don't want that, we have to init without 'help'.
+        if self.short_help is not None:
+            cmd_parser = sub_parser.add_parser(self.name,
+                                               aliases=self.aliases,
+                                               description=self.description,
+                                               help=self.short_help,
+                                               formatter_class=WrappedFormatter)
+        else:
+            cmd_parser = sub_parser.add_parser(self.name,
+                                               aliases=self.aliases,
+                                               description=self.description)
+
+        # Save the argument parser, as it can come in handy.
+        self._parser = cmd_parser
+
+        self._setup_arguments(cmd_parser)
+
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser. This
-is handed a pre-created sub-command parser for this command. Simply
-add arguments to it like you would a base parser. ::
+    is handed a pre-created sub-command parser for this command. Simply
+    add arguments to it like you would a base parser. ::
 
-    parser.add_arguemnt('-x', '--extra',
-                        action='store_true',
-                        help="Add extra stuff.")
+        parser.add_arguemnt('-x', '--extra',
+                            action='store_true',
+                            help="Add extra stuff.")
 
-:param argparse.ArgumentParser parser: The parser object.
-"""
+    :param argparse.ArgumentParser parser: The parser object."""
 
     def _setup_other(self):
         """Additional setup actions for this command at activation time.
@@ -152,29 +191,6 @@ case that includes:
 - Running the _setup_other method.
 - Adding the command to Pavilion's known commands.
 """
-
-        # Add the arguments for this command to the
-        sub_parser = arguments.get_subparser()
-
-        # Add the short help, or not. A quirk of argparse is that if 'help'
-        # is set, the subcommand is listed regardless of whether the
-        # help is None. If we don't want that, we have to init without 'help'.
-        if self.short_help is not None:
-            parser = sub_parser.add_parser(self.name,
-                                           aliases=self.aliases,
-                                           description=self.description,
-                                           help=self.short_help,
-                                           formatter_class=arguments.WrappedFormatter)
-        else:
-            parser = sub_parser.add_parser(self.name,
-                                           aliases=self.aliases,
-                                           description=self.description)
-
-        # Save the argument parser, as it can come in handy.
-        self._parser = parser
-
-        self._setup_arguments(parser)
-
         self._setup_other()
 
         add_command(self)
@@ -246,7 +262,10 @@ case that includes:
     def path(self):
         """The path to the object that defined this instance."""
 
-        return inspect.getfile(self.__class__)
+        if self.__class__ is Command:
+            return '<builtin>'
+        else:
+            return inspect.getfile(self.__class__)
 
 
 def sub_cmd(*aliases):

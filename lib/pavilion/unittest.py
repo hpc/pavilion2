@@ -79,10 +79,8 @@ base class.
 
         self.pav_cfg: config.PavConfig = self.make_pav_config()
 
-        # We have to get this to set up the base argument parser before
-        # plugins can add to it.
-        _ = arguments.get_parser()
         super().__init__(*args, **kwargs)
+
 
     def set_up(self):
         """By default, initialize plugins before every test."""
@@ -92,12 +90,7 @@ base class.
         plugins.initialize_plugins(self.pav_cfg)
 
     def tear_down(self):
-        """By default, reset plugins after every test."""
-
-        _ = self
-
-        # pylint: disable=protected-access
-        plugins._reset_plugins()
+        """Nothing to do by default."""
 
     def make_pav_config(self, config_dirs: List[Path] = None):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
@@ -154,15 +147,15 @@ though."""
 
             for file in cfiles:
                 file_path = base_dir/file
-                self.assert_(file_path.is_symlink(),
-                             "File in softlink dir '{}' is not a softlink."
-                             .format(file_path))
+                self.assertTrue(file_path.is_symlink(),
+                                "File in softlink dir '{}' is not a softlink."
+                                .format(file_path))
 
                 target_path = file_path.resolve()
-                self.assert_(target_path.exists(),
-                             "Softlink target '{}' for link '{}' does not "
-                             "exist."
-                             .format(target_path, file_path))
+                self.assertTrue(target_path.exists(),
+                                "Softlink target '{}' for link '{}' does not "
+                                "exist."
+                                .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
         """Compare the contents of two files.
@@ -212,14 +205,14 @@ though."""
                 b_path = b_dir/file
 
                 # We know the file exists in a, does it in b?
-                self.assert_(b_path.exists(),
-                             "File missing from archive b '{}'".format(b_path))
+                self.assertTrue(b_path.exists(),
+                                "File missing from archive b '{}'".format(b_path))
 
                 self._cmp_files(a_path, b_path)
 
-        self.assert_(not a_walk and not b_walk,
-                     "Left over directory contents in a or b: {}, {}"
-                     .format(a_walk, b_walk))
+        self.assertTrue(not a_walk and not b_walk,
+                        "Left over directory contents in a or b: {}, {}"
+                        .format(a_walk, b_walk))
 
     @staticmethod
     def get_hash(filename):

@@ -44,9 +44,6 @@ def main():
         output.fprint(sys.stderr, "Pavilion requires python 3.6 or higher.", color=output.RED)
         sys.exit(-1)
 
-    # This has to be done before we initialize plugins
-    parser = arguments.get_parser()
-
     # Get the Pavilion config
     try:
         pav_cfg = config.find_pavilion_config()
@@ -65,20 +62,26 @@ def main():
         sys.exit(-1)
 
     # Partially parse the arguments. All we really care about is the subcommand.
-    partial_args, _ = parser.parse_known_args()
+    # We use a dummy parser because we're only faking our argument setup for sub commands
+    # at this stage.
+    dummy_parser = arguments.get_parser(add_commands=False)
+    partial_args, _ = dummy_parser.parse_known_args()
 
     # If there is no subcommand, just print help. This also applies when the user
     # asks for help with --help/-h.  Sub-command help will trigger when we parse the full
     # args.
     if partial_args.command_name is None:
         # Load all the commands (and add their arguments) before displaying help.
-        commands.load()
+        parser = arguments.get_parser()
         parser.print_help()
         sys.exit(1)
 
     # We find the command twice. The first time module loads it if necessary
     # (builtin commands are lazily loaded).
     commands.get_command(partial_args.command_name)
+
+    # Get the real argument parser and setup command arguments.
+    parser = arguments.get_parser()
 
     # Now that we've loaded the command (which adds its subparser to the main
     # parser), we'll reparse the args for real.

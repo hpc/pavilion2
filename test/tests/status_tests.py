@@ -98,7 +98,7 @@ class StatusTests(PavTestCase):
             self.assertEqual(entry.state, STATES.RUNNING)
             # Make sure the state never bled into the note, and that the
             # note was found.
-            self.assert_(STATES.RUNNING not in entry.note)
+            self.assertNotIn(STATES.RUNNING, entry.note)
             self.assertNotEqual(entry.note, '')
             # Make sure nothing else bled into the note (namely, the timestamp)
             self.assertLess(len(entry.note), 20)

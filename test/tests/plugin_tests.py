@@ -49,17 +49,6 @@ class PluginTests(PavTestCase):
 
         plugins.initialize_plugins(pav_cfg)
 
-        created_manager = plugins._PLUGIN_MANAGER
-
-        # Make sure this can run multiple times,
-        plugins.initialize_plugins(pav_cfg)
-
-        # Make sure only one of these is ever created.
-        self.assertIs(created_manager, plugins._PLUGIN_MANAGER)
-
-        # Clean up our plugin initializations.
-        plugins._reset_plugins()
-
     def test_command_plugins(self):
         """Make sure command plugin loading is sane."""
 
