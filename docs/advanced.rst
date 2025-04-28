@@ -16,8 +16,8 @@ In addition to host config files, you can provide mode config files that
 you can apply to any test when you run it. They have the same format as
 the host configs, but multiple can be provided per test.
 
-Unlike host configs, mode configs apply _last_ in the process, overriding
-values set be host configs and the test itself.
+Unlike host configs, mode configs apply *last* in the process, overriding
+values set by host configs and the test itself.
 
 For example, the following mode file could be used to set a particular
 set of slurm vars:
@@ -38,7 +38,7 @@ Test Series
 A test series is a well defined group of tests that are designated to be
 run together. A series is created automatically whenever you use ``pav run``,
 but you can also explicitly define series using a
-``configs/series/<series_name>.yaml`` file. This allows you defined
+``configs/series/<series_name>.yaml`` file. This allows you to define
 relationships and dependencies between the tests, among other things.
 
 See :ref:`tutorials.series`.
