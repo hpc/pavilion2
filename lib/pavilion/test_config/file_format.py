@@ -747,6 +747,11 @@ expected to be added to by various plugins.
                     help_text='If True, test will fail if any of its build '
                               'commands fail, rather than just the last '
                               'command.'),
+                yc.StrElem(
+                    'purge_modules', choices=["true", "false", "True", "False"],
+                    default="True",
+                    help_text="Whether or not to perform a module purge "
+                              "before building."),
             ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
@@ -835,6 +840,11 @@ expected to be added to by various plugins.
                               'but may vary. '
                               '(In particular, the \'raw\' scheduler has a much higher limit.) '
                               'Tests that use MPI should use this cautiously.'),
+                yc.StrElem(
+                    'purge_modules', choices=["true", "false", "True", "False"],
+                    default="True",
+                    help_text="Whether or not to perform a module purge "
+                              "before running."),
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
