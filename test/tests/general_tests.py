@@ -9,6 +9,7 @@ from typing import List
 import yc_yaml as yaml
 from pavilion.test_run import TestRun
 from pavilion import utils
+from pavilion.test_ids import TestID
 from pavilion.unittest import PavTestCase
 
 
@@ -128,7 +129,7 @@ class GeneralTests(PavTestCase):
             build_dst = dst_path/build_dst
             (dst_path/'build_dir').rename(build_dst)
 
-            test = TestRun.load_from_raw_id(self.pav_cfg, run_id)
+            test = TestRun.load_from_raw_id(self.pav_cfg, TestID(run_id))
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 

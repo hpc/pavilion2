@@ -17,6 +17,7 @@ from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
 from pavilion.test_run import TestRun, mass_status_update
 from pavilion.variables import VariableSetManager
+from pavilion.test_ids import resolve_ids
 from .base_classes import Command
 
 # We need to catch pretty much all exceptions to cleanly report errors.
@@ -41,6 +42,8 @@ class _RunCommand(Command):
         """Load and run an already prepped test."""
 
         tests = []
+        args.test_ids = resolve_ids(args.test_ids)
+
         for test_id in args.test_ids:
             try:
                 tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))

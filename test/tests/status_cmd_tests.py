@@ -263,6 +263,8 @@ class StatusCmdTests(PavTestCase):
             test.RUN_SILENT_TIMEOUT = 1
 
         # Testing that summary flags return correctly
+        arg_list = ['-s']
+        args = parser.parse_args(arg_list)
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
     def test_status_history(self):
