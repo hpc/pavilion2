@@ -76,7 +76,7 @@ We recommend the following directory structure for Pavilion.
 The ``<root>/pavilion/config`` directory will contain all of your site
 specific tests, plugins, and test source files. If you organize your tests in
 separate repositories, you may check them out here, and simply link the
-appropriate files into ``config/tests`` and ``config/test_src``.
+appropriate files into ``config/suites``.
 Alternatively, you can make the entire config directory, source tarballs and
 all, its own repository.
 
