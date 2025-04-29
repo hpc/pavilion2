@@ -329,6 +329,7 @@ class RawProtoTest:
 
         sched_name = self.config['scheduler']
         sched = schedulers.get_plugin(sched_name)
+        test_name = self.config.get('name', '<no name>')
 
         # Resolve the variables that don't depend on sched, but have complicated relationships
         # we couldn't solve iteratively. If there's anything left at this point, it will
