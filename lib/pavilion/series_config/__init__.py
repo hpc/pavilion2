@@ -128,7 +128,7 @@ def verify_configs(pav_cfg, series_name: str, platform: str = None,
         raise SeriesConfigError("Cannot load series.", err)
     except TestConfigError as err:
         raise SeriesConfigError("Error loading test for series {}."
-                                .format(series_name), err)
+                                .format(series_name), prior_error=err)
 
     return series_cfg
 
