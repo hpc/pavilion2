@@ -95,7 +95,8 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
             return series_config_loader.load(series_file)
         except (ValueError, KeyError, yc_yaml.YAMLError,
                 yaml_config.RequiredError) as err:
-            raise SeriesConfigError("Error loading series '{}'".format(series_name), err)
+            raise SeriesConfigError("Error loading series '{}'".format(series_name),
+                                    prior_error=err)
 
 
 def verify_configs(pav_cfg, series_name: str, platform: str = None,
