@@ -18,8 +18,6 @@ from typing import List, Dict
 
 
 class WrappedFormatter(argparse.HelpFormatter):
-    """An argparser formatters for help strings that cleanly wraps lines."""
-
 
     def _split_lines(self, text: str, width: int):
         """Preserve newlines when splitting lines."""

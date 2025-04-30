@@ -90,6 +90,12 @@ class ResolverTests(PavTestCase):
         # Make sure this didn't get lost.
         self.assertEqual(narf_cfg['run']['cmds'], ['echo "Running World"'])
 
+    def test_loading_legacy(self):
+        """Make sure we can load tests from the old 'tests' directory."""
+
+        tests = self.resolver.load(['old_style'])
+        names = sorted([t.config['name'] for t in tests])
+
     def test_loading_hidden(self):
         """Make sure we only get hidden tests when specifically requested."""
 
@@ -225,11 +231,13 @@ class ResolverTests(PavTestCase):
         for test_request, result_count, result_unique in (
                 ('wildcard.some[tm]est', 8, 8),
                 ('wildcard.some*', 8, 8),
-                ('wildcard.*', 9, 9),
+                ('wildcard.*', 10, 10),
                 ('2*wildcard.some?est', 16, 8),
-                ('wildcard.**2', 18, 9),
-                ('wildcard', 9, 9),
-                ('wildcard._base', 1, 1)):
+                ('wildcard.**2', 20, 10),
+                ('wildcard', 10, 10),
+                ('wildcard._base', 1, 1),
+                ('wild*.by_test_name', 2, 2),
+                ):
             tests = self.resolver.load(tests=[test_request])
 
             self.assertEqual(len(tests), result_count)
@@ -251,8 +259,8 @@ class ResolverTests(PavTestCase):
         for bad_request, bad_excerpt in (
                 ('wildcard.noperms.*', "doesn't have permutations at all"),
                 ('wildcard.sometest.not_me', "Available permutations:"),
-                ('wildcard.doesnt_exist', "test that matches 'doesnt_exist'"),
-                ('wildcard.[invalidfnmatch', r"test that matches '\[invalidfnmatch'")):
+                ('wildcard.doesnt_exist', "test that matches 'wildcard.doesnt_exist'"),
+                ('wildcard.[invalidfnmatch', r"test that matches 'wildcard.\[invalidfnmatch'")):
             with self.assertRaisesRegex(TestConfigError, bad_excerpt):
                 self.resolver.load([bad_request])
 

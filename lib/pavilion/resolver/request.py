@@ -13,7 +13,7 @@ class TestRequest:
     """Represents a user request for a test. May end up being multiple tests."""
 
     REQUEST_RE = re.compile(r'^(?:(\d+) *\* *)?'       # Leading repeat pattern ('5*', '20*', ...)
-                            r'([a-zA-Z0-9_-]+)'  # The test suite name.
+                            r'([a-zA-Z0-9_*?\[\]-]+?)'  # The test suite name.
                             r'(?:\.([a-zA-Z0-9_*?\[\]-]+?))?'  # The test name.
                             r'(?:\.([a-zA-Z0-9.()@_*?\[\]-]+?))?'  # The permutation name.
                             r'(?: *\* *(\d+))?$'
@@ -53,6 +53,13 @@ class TestRequest:
 
     def __str__(self):
         return "Request: {}.{} * {}".format(self.suite, self.test, self.count)
+
+    def matches_suite_name(self, suite_name: Union[str, None]) -> bool:
+        """
+        Match a suite name against this request.
+        """
+
+        return fnmatch(suite_name, self.suite)
 
     def matches_test_name(self, test_name: Union[str, None]) -> bool:
         """
