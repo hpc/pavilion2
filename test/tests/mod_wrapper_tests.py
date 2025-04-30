@@ -330,8 +330,14 @@ class ModWrapperTests(PavTestCase):
         test_cfg['run']['cmds'] = [
             '[[ $(module -t list 2>&1) = "No modules loaded" ]] || exit 1',
         ]
+        test_cfg['run']['preamble'].append('module load test_mod1 || exit 2')
 
-        test = self._quick_test(test_cfg, purge=True)
+        test = self._quick_test(test_cfg, purge=False)
+        run_result = test.run()
+
+        self.assertEqual(run_result, 1)
+
+        test = self._quick_test(test_cfg)
         run_result = test.run()
 
         self.assertEqual(run_result, 0)

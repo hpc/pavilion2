@@ -313,7 +313,7 @@ The default config is: ::
     del __config_lines
 
     def _quick_test(self, cfg=None, name="quick_test",
-                    build=True, finalize=True, purge=False):
+                    build=True, finalize=True, purge=True):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
