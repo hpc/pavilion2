@@ -133,7 +133,8 @@ class ScriptComposer:
         """Add a module purge to the script."""
 
         self._script_lines.extend([
-            "if which module; then",
+            "# Check whether the module command exists",
+            "if declare -F | grep module; then",
             "\tmodule purge",
             "fi"
             ])

@@ -334,6 +334,7 @@ class ModWrapperTests(PavTestCase):
         test_cfg['run']['preamble'].append('module load test_mod1 || exit 2')
 
         test = self._quick_test(test_cfg)
+
         run_result = test.run()
 
         self.assertEqual(run_result, 0)
@@ -344,7 +345,7 @@ class ModWrapperTests(PavTestCase):
             '[[ $(module -t list 2>&1) = "No modules loaded" ]] || exit 1',
         ]
         test_cfg['run']['preamble'].append('module load test_mod1 || exit 2')
-        test_config["run"]["purge_modules"] = False
+        test_cfg["run"]["purge_modules"] = False
         test = self._quick_test(test_cfg)
         run_result = test.run()
 
@@ -356,12 +357,11 @@ class ModWrapperTests(PavTestCase):
         # Test that a module purge is performed by default
         test_cfg = self._quick_test_cfg()
         test_cfg['build']['cmds'] = [
-            "# This comment exists so the test hashes to a distinct value"
             '[[ $(module -t list 2>&1) = "No modules loaded" ]] || exit 1',
         ]
         test_cfg['run']['preamble'].append('module load test_mod1 || exit 2')
 
-        test = self._quick_test(test_cfg)
+        test = self._quick_test(test_cfg, build=False)
         build_result = test.build()
 
         self.assertEqual(build_result, 0)
@@ -373,7 +373,7 @@ class ModWrapperTests(PavTestCase):
         ]
         test_cfg['build']['preamble'].append('module load test_mod1 || exit 2')
         test_cfg["build"]["purge_modules"] = False
-        test = self._quick_test(test_cfg)
+        test = self._quick_test(test_cfg, build=False)
         build_result = test.build()
 
         self.assertEqual(build_result, 1)
