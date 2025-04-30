@@ -65,20 +65,22 @@ and must be named according to their associated host, operating system, or mode.
 When using the second, suite directory method of organization, suite-specific auxiliary configs may
 optionally be placed in the suite directory alongside the suite config itself. These configs may be
 used to define test-specific options and variables that vary by host or OS, without cluttering
-global host, OS, or mode configs with test-specific variables. If used, these files must be named
-``hosts.yaml``, ``os.yaml``, or ``modes.yaml``, depending on their config type. **Note that these
-file names are plural**. These configs override configs placed in the ``hosts``, ``os``, and
-``modes`` subdirectories under the configuration directories.
+global host, OS, or mode configs with test-specific variables. These configs extend, rather than
+override, configs placed in the ``hosts``, ``os``, and ``modes`` directories.
 
-This method is especially useful in combination with the submodule-based structure described above,
-since it allows host-specific test options and variables to be version controlled along with the
-suite config.
+This method is especially useful in combination with the submodule-based test structure described
+above, since it allows host-specific test options and variables to be version controlled along with
+the suite config while maintaining independence from global configs.
 
-The directory method of organization allows for more flexibility in these auxiliary configs.
-Specifically, multiple hosts, OSs, or modes may be specified in a config file. A single host, OS,
-or mode can be selected on test invocation by passing the name of the host, OS, or mode to the
-appropriate flag (either ``-H``, ``-o``, or ``-m``). The following is an example of a host file
-containing multiple host entries (OS and mode formats are analogous):
+If used, these suite-specific configs must be named ``hosts.yaml``, ``os.yaml``, or ``modes.yaml``,
+depending on their config type. **Note that these file names are plural**.
+
+The directory method of organization allows multiple hosts, OSs, or modes to be specified in a
+single config file. Pavilion discovers host and OS config files automatically based on the detected
+host and OS, but specific hosts and OSs, as well as modes, can be selected on test invocation by
+passing the name of the host, OS, or mode to ``pav run`` using the appropriate flag (either ``-H``,
+``-o``, or ``-m``). The following is an example of a host file containing multiple host entries (OS
+and mode formats are analogous):
 
 .. code-block:: yaml
 
@@ -93,5 +95,7 @@ containing multiple host entries (OS and mode formats are analogous):
             foo: bar
 
 Note that this format differs from the format used by configs located in the ``hosts``, ``os``, and
-``modes`` directories; in this case, individual configs within each config file derive their names
-from top-level keys rather than from the name of the config file.
+``modes`` directories; in this case, the config file consists of a series of key–value pairs, where
+the keys are the names of hosts (or OSs or modes) and the values are individual host configs. This
+is necessary even in configs containing only a single host, since configs derive their names from
+the top-level keys.
