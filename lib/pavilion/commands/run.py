@@ -108,11 +108,6 @@ class RunCommand(Command):
                  "under which Pavilion runs has changed."
         )
         parser.add_argument(
-            '--no-purge', action='store_false', default=True, dest='purge',
-            help="Do not perform a module purge before running tests. Modules "
-                 "are purged by default."
-        )
-        parser.add_argument(
             'tests', nargs='*', action='store', metavar='TEST_NAME',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
@@ -198,8 +193,7 @@ class RunCommand(Command):
             series_obj.run(
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
-                local_builds_only=local_builds_only,
-                purge=args.purge)
+                local_builds_only=local_builds_only)
             self.last_tests = list(series_obj.tests.values())
         except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
