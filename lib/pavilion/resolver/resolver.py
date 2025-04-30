@@ -745,7 +745,8 @@ class TestConfigResolver:
         return test_configs
 
 
-    def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest):
+    def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest) \
+            -> Optional[Dict]:
 
         test_cfg = copy.deepcopy(raw_test)
 
