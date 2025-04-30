@@ -11,7 +11,7 @@ This page contains in-depth documentation on the test format.
 Tests and Suites
 ----------------
 
-Each Suite is a yaml file (with a ``.yaml`` extension) which can contain
+Each suite is a yaml file (with a ``.yaml`` extension) which can contain
 multiple tests. Suite files must reside in ``<config_dir>/suites/``,
 where ``<config_dir>`` is one of your :ref:`config.config_dirs`. Tests
 in a suite can be run as a group or independently, and can even inherit
@@ -136,10 +136,10 @@ All Pavilion (non-structural) test config values are interpreted as
 strings.
 
 YAML provides several different data types, but Pavilion forcibly
-converts all of them to strings. The bool True becomes "True", 5 becomes
-the string "5", and so on. This done mostly because it enables Pavilion
+converts all of them to strings. The bool ``True`` becomes ``"True"``, ``5`` becomes
+the string ``"5"``, and so on. This is done mostly because it enables Pavilion
 variable substitution in any config value. Some Pavilion scheduler and
-result parser plugins ask for integer or other specific data types in
+result parser plugins ask for integers or other specific data types in
 their configs. It's up to those plugins to interpret those values and
 report errors.
 
@@ -196,7 +196,7 @@ Items in the config that can take a list can be extended by a list variable.
 Hidden Tests
 ------------
 
-Tests can be hidden by starting their name with an underscore '_' character.
+Tests can be hidden by starting their name with an underscore ``_`` character.
 This is often useful when you have a base test that others inherit from, but
 the base test is never supposed to run on its own.
 
@@ -239,6 +239,10 @@ You can specify the OS config with the ``'-o'`` option to the ``pav run``.
 
     pav run -o another_os my_tests
 
+.. note::
+    It is also possible to define host, OS, and mode configs on a per-suite
+    basis. See the :ref:`tests.suites` section for an overview of this feature.
+
 Host Configs
 ------------
 
@@ -258,10 +262,6 @@ You can specify the host config with the ``-H`` option to the
 ::
 
     pav run -H another_host my_tests
-
-.. note::
-    An optional alternate format for host, OS, and mode configs exists when using suite
-    directories. See the following section for an overview of this format.
 
 Format
 ~~~~~~
@@ -325,12 +325,12 @@ Rules of Inheritance
 ~~~~~~~~~~~~~~~~~~~~
 
 1. Every field in a test config can be inherited (except for
-   inherits\_from).
-2. A field that takes a list (modules, cmds, etc.) are completely
+   ``inherits\_from``).
+2. A field that takes a list (``modules``, ``cmds``, etc.) is completely
    overwritten by a new list by default. (In the above example, the single command
    in the fs test command list overwrites the entire original command
    list.)
-3. You can add a plus to any 'list' key to extend that list with all The
+3. You can add a plus to any list key to extend that list with all the
    given items instead.
 4. A test can inherit from a test, which inherits from a test, and so
    on.
@@ -381,17 +381,17 @@ order.
    6. Any mode configs in the order specified.
 
 2. Tests are filtered down to only those requested.
-3. Command line overrides ('-c') are applied.
+3. Command line overrides (``-c``) are applied.
 4. Permutations are resolved.
 5. Variables in the chosen scheduler config section are resolved. (You
-   should't have ``sched`` variables in these sections.)
+   shouldn't have ``sched`` variables in these sections.)
 6. Variables are resolved throughout the rest of the config.
 
 This results in the semi-final test config. :ref:`tests.variables.deferred`
 can't be resolved until we're on the allocation. Once there, we'll finish
 resolving those, and resolve any parts of the config that used them. Parts of
-the config that are required before kicking off the test (like the build and
-scheduler sections), can't use deferred variables.
+the config that are required before kicking off the test (like the ``build`` and
+``schedule`` sections) can't use deferred variables.
 
 Top Level Test Config Keys
 --------------------------
@@ -400,8 +400,8 @@ inherits\_from
 ~~~~~~~~~~~~~~
 
 Sets the test (by test base name) that this test inherits from *which must be*
-*a test from this file*. The resulting test will be composed of all
-keys in the test it inherits from, plus any specified in this test
+*a test from the same file*. The resulting test will be composed of all
+keys in the test it inherits from, plus any keys specified in this test
 config. See :ref:`tests.format.inheritance`.
 
 subtitle
@@ -436,7 +436,7 @@ list of mappings (with the same keys) of strings. See the
 scheduler
 ~~~~~~~~~
 
-Sets the scheduler for this test. Defaults to 'raw'. It's recommended to
+Sets the scheduler for this test. Defaults to ``raw``. It's recommended to
 set this in your host configs.
 
 build
@@ -474,7 +474,7 @@ These sub-sections defines conditions under which tests are skipped.
 
 See :ref:`tests.skip_conditions` for the sub-section keys and usage.
 
-<schedule>
+schedule
 ~~~~~~~~~~
 
 Settings for controlling test scheduling. See ``pav show sched --config`` for
