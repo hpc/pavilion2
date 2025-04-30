@@ -132,7 +132,11 @@ class ScriptComposer:
     def module_purge(self) -> None:
         """Add a module purge to the script."""
 
-        self._script_lines.append("module purge")
+        self._script_lines.extend([
+            "if which module; then",
+            "\tmodule purge",
+            "fi"
+            ])
 
     def newline(self):
         """Function that just adds a newline to the script lines."""

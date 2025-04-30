@@ -189,7 +189,7 @@ class TestSet:
 
         return test_sets
 
-    def make_iter(self, build_only=False, rebuild=False, local_builds_only=False, purge=True) \
+    def make_iter(self, build_only=False, rebuild=False, local_builds_only=False) \
                   -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
@@ -277,7 +277,7 @@ class TestSet:
                 try:
                     test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
                                        var_man=ptest.var_man, rebuild=rebuild,
-                                       build_only=build_only, purge=purge)
+                                       build_only=build_only)
                     if not test_run.skipped:
                         test_run.save()
                         self.tests.append(test_run)
@@ -339,12 +339,12 @@ class TestSet:
         self.all_tests_made = True
 
 
-    def make(self, build_only=False, rebuild=False, local_builds_only=False, purge=True):
+    def make(self, build_only=False, rebuild=False, local_builds_only=False):
         """As per make_iter(), but create all of the tests. This doesn't
         respect batch sizes, etc, and is entirely for simplifying unit testing."""
 
         all_tests = []
-        for test_batch in self.make_iter(build_only, rebuild, local_builds_only, purge):
+        for test_batch in self.make_iter(build_only, rebuild, local_builds_only):
             all_tests.extend(test_batch)
 
         return all_tests

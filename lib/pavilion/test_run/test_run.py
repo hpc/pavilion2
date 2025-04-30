@@ -101,8 +101,7 @@ class TestRun(TestAttributes):
     """Directory that holds build templates."""
 
     def __init__(self, pav_cfg: PavConfig, config: Dict, var_man: VariableSetManager = None,
-                 _id: int = None, rebuild: bool = False, build_only: bool = False,
-                 purge: bool = True):
+                 _id: int = None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -111,7 +110,6 @@ class TestRun(TestAttributes):
     :param bool build_only: Only build this test run, do not run it.
     :param bool rebuild: After determining the build name, deprecate it and
         select a new, non-deprecated build.
-    :param bool purge: Whether or not to perform a module purge before running/building
     :param int _id: The test id of an existing test. (You should be using
         TestRun.load)."""
 
@@ -152,7 +150,6 @@ class TestRun(TestAttributes):
             # Set basic attributes
             self.id = id_tmp  # pylint: disable=invalid-name
             self.build_only = build_only
-            self.purge = purge
             self._complete = False
             self.created = time.time()
             self.name = self.make_name(config)
@@ -1151,7 +1148,9 @@ be set by the scheduler plugin as soon as it's known."""
 
         script.command(f'echo "(pav) Setting up {stype} environment."')
 
-        if self.purge:
+        purge = config.get(stype, {}).get("purge_modules")
+
+        if purge:
             script.newline()
             script.comment("Start with a fresh environment")
             script.module_purge()
