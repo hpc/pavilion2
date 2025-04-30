@@ -12,7 +12,7 @@ pytest-freezegun==0.4.2
 flaky==3.7.0
 trustme==0.7.0
 cryptography==3.2.1;python_version<"3.6"
-cryptography==3.4.7;python_version>="3.6"
+cryptography==44.0.1;python_version>="3.6"
 gcp-devrel-py-tools==0.0.16
 
 # https://github.com/GoogleCloudPlatform/python-repo-tools/issues/23
