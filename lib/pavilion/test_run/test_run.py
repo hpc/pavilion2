@@ -1148,7 +1148,7 @@ be set by the scheduler plugin as soon as it's known."""
 
         script.command(f'echo "(pav) Setting up {stype} environment."')
 
-        purge = config.get(stype, {}).get("purge_modules")
+        purge = utils.str_bool(config.get("purge_modules"))
 
         if purge:
             script.newline()
