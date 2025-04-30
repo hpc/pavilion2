@@ -134,7 +134,7 @@ class ScriptComposer:
 
         self._script_lines.extend([
             "# Check whether the module command exists",
-            "if declare -F | grep module; then",
+            "if declare -F | grep module > /dev/null; then",
             "\tmodule purge",
             "fi"
             ])
