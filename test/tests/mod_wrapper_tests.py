@@ -351,6 +351,8 @@ class ModWrapperTests(PavTestCase):
 
         self.assertEqual(run_result, 1)
 
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
     def test_build_module_purge(self):
         """Test that a module purge is performed when building tests."""
 
