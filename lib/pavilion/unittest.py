@@ -313,7 +313,7 @@ The default config is: ::
     del __config_lines
 
     def _quick_test(self, cfg=None, name="quick_test",
-                    build=True, finalize=True):
+                    build=True, finalize=True, purge=True):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
@@ -321,6 +321,7 @@ The default config is: ::
         :param str name: The name of the test.
         :param bool build: Build this test, while we're at it.
         :param bool finalize: Finalize this test.
+        :param bool purge: Perform a module purge before building/running
         :rtype: TestRun
         """
 
@@ -328,6 +329,9 @@ The default config is: ::
             cfg = self._quick_test_cfg()
 
         cfg = copy.deepcopy(cfg)
+
+        cfg["build"]["purge_modules"] = str(purge)
+        cfg["run"]["purge_modules"] = str(purge)
 
         loader = TestConfigLoader()
         cfg = loader.validate(loader.normalize(cfg))
