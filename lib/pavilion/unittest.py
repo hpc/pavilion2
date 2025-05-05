@@ -330,13 +330,12 @@ The default config is: ::
 
         cfg = copy.deepcopy(cfg)
 
-        cfg["build"]["purge_modules"] = str(purge)
-        cfg["run"]["purge_modules"] = str(purge)
-
         loader = TestConfigLoader()
         cfg = loader.validate(loader.normalize(cfg))
 
         cfg['name'] = name
+        cfg["run"]["purge_modules"] = str(purge)
+        cfg["build"]["purge_modules"] = str(purge)
 
         var_man = VariableSetManager()
         var_man.add_var_set('var', cfg['variables'])
