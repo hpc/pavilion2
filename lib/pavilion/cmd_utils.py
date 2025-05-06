@@ -166,7 +166,10 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
     if args.filter is None:
         filter_func = filters.const(True) # Always return True
     else:
-        filter_func = filters.parse_query(args.filter)
+        try:
+            filter_func = filters.parse_query(args.filter)
+        except filters.FilterParseError:
+            raise PavilionError(f"Invalid syntax in filter query: {args.filter}")
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
@@ -263,7 +266,10 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             if args.filter is None:
                 filter_func = filters.const(True)  # Always return True
             else:
-                filter_func = filters.parse_query(args.filter)
+                try:
+                    filter_func = filters.parse_query(args.filter)
+                except filters.FilterParseError:
+                    raise PavilionError(f"Invalid syntax in filter query: {args.filter}")
 
             found_series = dir_db.select(
                 pav_cfg=pav_cfg,
