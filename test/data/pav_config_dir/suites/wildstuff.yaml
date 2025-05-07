@@ -1,0 +1,9 @@
+norun:
+  run:
+    cmds:
+      - 'echo hello'
+
+by_test_name:
+  run:
+    cmds:
+      - 'echo hello'

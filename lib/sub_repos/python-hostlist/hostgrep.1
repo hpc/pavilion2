@@ -1,0 +1,107 @@
+.TH hostgrep 1 "Version #VERSION#"
+
+.SH NAME
+hostgrep \- print lines matching hostlist
+
+.SH SYNOPSIS
+.B hostgrep
+.RI [ OPTION "]... " HOSTLIST " [" FILE ]...
+
+.SH DESCRIPTION
+Search the files for lines matching the given hostlist.
+If no files are given, search the standard input.
+
+For each line, the program tries to find all hostnames and hostlists.
+Hostlists are then expanded to hostnames. The set of hostnames in a line
+is then compared to the set of hostnames given by the 
+.I HOSTLIST
+on the command line. By default, the line is printed if any hostname
+from the
+.I HOSTLIST
+is found in the line.
+
+.SH OPTIONS
+.TP
+.B --all
+Print a line if all hostnames in the given
+.I HOSTLIST
+is found in the line.
+.TP
+.B --any
+Print a line if any hostname in the given
+.I HOSTLIST
+is found in the line (the default).
+.TP
+.B -h, --no-filename
+Do not show the filename in front of matching line. This is the default
+if at most one
+.I FILE
+is given.
+.TP
+.B -H, --with-filename
+Show the filename in front of matching lines. This is the default
+if two or more
+.I FILES
+are given.
+.TP
+.B -v, --invert-match
+Invert the sense of matching, to select non-matching lines.
+.TP
+.B -n, --line-number
+Show line number before match.
+.TP
+.BI --restrict= REGEXP
+Restrict host matching to the part of the line that is matched as group 1 by this regexp.
+
+.SH EXAMPLES
+.TP
+Search for lines in an accounting file where any of the three hosts \
+is present (as a hostname or part of a hostlist):
+.B hostgrep
+n[100-102] /var/log/slurm/accounting/2009-02-22 
+.TP
+Search for lines in the accounting files where all of the three hosts \
+are present (as a hostname or part of a hostlist). Do not show filenames:
+.B hostgrep
+-h --all
+n[100-102] /var/log/slurm/accounting/*
+.TP
+Search for lines on stdin where nodes in n[1-8] are mentioned \
+in the part of the line that comes before the first colon:
+.B hostgrep
+--restrict='^([^:]*):'
+n[1-8]
+
+.SH BUGS
+The program has a rather naive notion of what constitutes hostnames
+and hostlist.
+
+For version 1.21 and earlier, hostnames were allowed to contain
+exactly upper and lower case A-Z and the digits 0-9. This meant that
+you could not grep for names like "rack02-pos13". From version 1.22,
+the code dynamically adds additional characters from the hostlist
+provided on the command line, so that it will work to grep for
+hostnames containing those characters.
+
+.SH AUTHOR
+Written by Kent Engström <kent@nsc.liu.se>.
+
+The program is published at http://www.nsc.liu.se/~kent/python-hostlist/
+
+.SH SEE ALSO
+.I hostlist
+(1)
+
+The hostlist expression syntax is used by several programs developed at 
+.B LLNL
+(https://computing.llnl.gov/linux/), for example
+.B SLURM
+(https://computing.llnl.gov/linux/slurm/) and 
+.B Pdsh
+(https://computing.llnl.gov/linux/pdsh.html).
+
+See the
+.B HOSTLIST EXPRESSIONS
+section of the
+.BR pdsh (1)
+manual page for a short introduction to the hostlist syntax.

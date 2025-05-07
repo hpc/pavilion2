@@ -322,3 +322,6 @@ class TestGroupError(PavilionError):
 
 class LockfileError(PavilionError):
     """Errors relating to lockfiles."""
+
+class SchedConfigError(PavilionError):
+    """Raised when there's a problem with the scheduler configuration."""

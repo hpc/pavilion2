@@ -17,9 +17,9 @@ from pavilion.types import NodeList, PickedNodes
 from yapsy import IPlugin
 from . import config
 from . import node_selection
-from .config import validate_config, SchedConfigError, ScheduleConfig
+from .config import validate_config, ScheduleConfig
 from .vars import SchedulerVariables
-from ..errors import SchedulerPluginError
+from ..errors import SchedulerPluginError, SchedConfigError
 
 _SCHEDULER_PLUGINS = {}
 

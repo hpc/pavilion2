@@ -1,0 +1,136 @@
+.TH dbuck 1 "Version #VERSION#"
+
+.SH NAME
+dbuck \- format output from pdsh command or similar
+
+.SH SYNOPSIS
+.B dbuck
+.RI [ OPTIONS ]
+.BI < DATA
+.br
+.B dbuck
+.RI [ OPTIONS ]
+.B --previous
+
+.SH DESCRIPTION
+Reads data from stdin (or cache file if --previous is given) and outputs a human readable report on stdout.
+
+dbuck is similar to dshbak but is targeted at numerical data such as temperatures, power consumption, loadavg etc. Output is a bucket sorted table, a sort of histogram.
+
+Data is assumed to be N lines of column wise space separated integers or decimal numbers. By default dbuck will autodetect the column to use (picking the first valid one) and sort everything into five (linear) buckets. Any line missing numerical data at the targeted column will be ignored. A complete copy of the data will also be saved for future use (see --previous).
+
+.SH OPTIONS
+.TP
+.B -h, --help
+Print help message
+.TP
+.B -a, --anonymous
+Anonymous data, only handle data (implies --bars and allows -k to be any value including zero). See example 2 below.
+.TP
+.B -b, --bars
+Draw histogram style bars instead of list of keys. Can be scaled down to fit terminal with -S,--chop-long-lines.
+.TP
+.BI "--color=" WHEN
+Allow colors in output; WHEN can be 'always', 'never', 'auto' (default: 'auto')
+.TP
+.B --no-cache
+Do not save a copy of the data in a cache file. By default dbuck will save data in a per user per session cache file for later use with --previous.
+.TP
+.BI "--highlight=" HOSTLIST ",--highlight-hostlist=" HOSTLIST
+Highlight the specified HOSTLIST in the output table using colors.
+.TP
+.BI "-r " LOW-HI ", --range=" LOW-HI
+Explicitly specify a range from minimum value of lowest bucket to maximum value of highest bucket (default: minimum value to maximum value seen in input data). Both LOW and HI can be negative numbers (integers or decimal).
+.TP
+.BI "-k " KEY ", --key=" KEY
+Use data at position KEY (default: auto). dbuck counts from 0 but field 0 is normally reserved for index/hostname. This means that in normal mode -k can range from 1 to the number of fields while in anonymous mode (-a/--anonymous) -k can also be 0.
+.TP
+.B -z, --zero
+Make dbuck generate buckets from zero (0.0) instead of lowest value seen in indata.
+.TP
+.B -o, --show-overflow
+Include two extra buckets for overflow and underflow. This option is only valid with a custom range (--range or --zero). Default behavior is to otherwise only count the over- and underflows and present them in the statistical summary.
+.TP
+.BI "-n " NBUCKETS ", --nbuckets=" NBUCKETS
+Number of buckets to use (default: 5)
+.TP
+.B -p, --previous
+Read data from cache file instead of from stdin. Cache files are saved by default per user per session unless disabled by --no-cache.
+.TP
+.B -s, --statistics
+Output a statistical summary (min, max, mean, sum, ...)
+.TP
+.B -S, --chop-long-lines
+Chop too long lines / enforce one output line per bucket
+.TP
+.BI "-t " FIELD_SEPARATORS ", --field-separators=" FIELD_SEPARATORS
+Additional field separators, space not optional (default: "")
+.TP
+.B -v, --verbose
+Be verbose
+.TP
+.B --debug
+Output debugging information
+
+.SH EXAMPLE 1
+$ cat test/dbuck.testdata
+ n1: 139 W
+ n11: 128 W
+ n13: 127 W
+ n9: 127 W
+ ...
+.TP
+$ cat test/dbuck.testdata | ./dbuck -s -n 4 --verbose
+ Info: auto-detect unanimously selected key: 1
+ Info: Creating simple linear bucket set
+ Statistical summary
+ --------------------------------------
+ Number of values         : 30
+ Number of rejected lines : 0
+ Min value                : 115.000000
+ Max value                : 209.000000
+ Mean                     : 135.466667
+ Median                   : 127.005617
+ Standard deviation       : 25.807956
+ Sum                      : 4064.000000
+
+    LOW-    HI: CNT  HOSTLIST
+ --------------------------------------
+ 115.00-138.50:  24  n[7-30]
+ 138.50-162.00:   2  n[1,3]
+ 162.00-185.50:   1  n6
+ 185.50-209.00:   3  n[2,4-5]
+.SH EXAMPLE 2
+Process resident size and total vm size from ps using the --anonymous option. Unlike the example above there's no hostname associated with each data point so this implies --bars.
+.TP
+$ ps -eo rss,vsize | ./dbuck --anonymous --chop-long-lines --verbose
+ Info: auto-detect unanimously selected key: 0
+ Info: rejected line: "RSS    VSZ"
+       LOW-       HI: CNT  HOSTLIST
+ --------------------------------------------------------------
+      0.00-116425.60: 271  ####################################
+ 116425.60-232851.20:  16  ##
+ 232851.20-349276.80:   3  
+ 349276.80-465702.40:   3  
+ 465702.40-582128.00:   1  
+.TP
+Allowing dbuck to automatically find data, it picked up the RSS value (selected key: 0). Now we'll specify "-k 1" to select the vsize data in column 1.
+.TP
+$ ps -eo rss,vsize | ./dbuck --anonymous --chop-long-lines -k 1
+         0.00- 53763877.60: 293  ##############################
+  53763877.60-107527755.20:   0  
+ 107527755.20-161291632.80:   0  
+ 161291632.80-215055510.40:   0  
+ 215055510.40-268819388.00:   1 
+.SH AUTHOR
+Written by Peter Kjellström <cap@nsc.liu.se>.
+
+The program is published part of python-hostlist at http://www.nsc.liu.se/~kent/python-hostlist/
+
+.SH SEE ALSO
+.I hostlist
+(1)
+.I pdsh
+(1)
+.I dshbak
+(1)
