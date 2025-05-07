@@ -329,7 +329,7 @@ class TestBuilder:
         src_path = self._config.get('source_path')
 
         if src_path is None:
-            return
+            return self._pav_cfg.find_file(Path("."), [self.suite_subdir])
 
         try:
             src_path = Path(src_path)
