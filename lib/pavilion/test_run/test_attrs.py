@@ -48,12 +48,16 @@ class TestAttributes(Mapping):
 
     serializers = {
         'suite_path': lambda p: p.as_posix(),
+        'state': lambda s: s.as_dict(),
+        'state_history': lambda h: list(map(lambda x: x.as_dict(), h))
     }
 
     deserializers = {
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
         'started': utils.deserialize_datetime,
+        'state': lambda s: TestStatusInfo(**s),
+        'state_history': lambda h: list(map(lambda x: TestStatusInfo(**x), h)),
         'suite_path': lambda p: Path(p) if p is not None else None,
     }
 
@@ -190,8 +194,6 @@ class TestAttributes(Mapping):
 
         return attrs
 
-    LIST_ATTRS_EXCEPTIONS = ['complete', 'state', 'state_history']
-
     @classmethod
     def list_attrs(cls):
         """List the available attributes. This always operates on the
@@ -200,8 +202,6 @@ class TestAttributes(Mapping):
 
         attrs = []
         for key, val in TestAttributes.__dict__.items():
-            if key in cls.LIST_ATTRS_EXCEPTIONS:
-                continue
             if isinstance(val, property):
                 attrs.append(key)
         attrs.sort()
@@ -336,11 +336,21 @@ class TestAttributes(Mapping):
     def state(self) -> Optional[TestStatusInfo]:
         """Returns the current state of the test."""
 
+        saved_state = self._attrs.get("state")
+
+        if saved_state is not None:
+            return saved_state
+
         if self.status is not None:
             return self.status.current()
 
     @property
     def state_history(self) -> List[TestStatusInfo]:
+        saved_hist = self._attrs.get("state_history")
+
+        if saved_hist is not None:
+            return saved_hist
+
         if self.status is not None:
             return self.status.history()
 
@@ -419,7 +429,7 @@ class TestAttributes(Mapping):
         raise KeyError(str(key))
 
     def __iter__(self) -> Iterator[str]:
-        attr_list = self.list_attrs() + self.LIST_ATTRS_EXCEPTIONS
+        attr_list = self.list_attrs()
         attr_list.append('path')
 
         return iter(attr_list)
