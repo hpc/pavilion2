@@ -278,7 +278,7 @@ class TestStatusInfo:
 :rtype: dict
 """
         status_dict = {"state": self.state, "note": self.note,
-                       "when": self.when}
+                       "time": self.when}
 
         return status_dict
 
