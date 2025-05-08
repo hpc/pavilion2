@@ -339,15 +339,19 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         chunk_size = chunk_size - len(include_nodes)
 
         chunks = []
-        for i in range(len(nodes)//chunk_size):
-            # Apply the selection function and get our chunk nodes.
-            chunk = self.NODE_SELECTION[node_select](nodes, chunk_size)
-            # Filter out any chosen from our node list.
-            nodes = [node for node in nodes if node not in chunk]
 
-            # Add the 'include_nodes' to every chunk.
-            chunk = include_nodes + chunk
-            chunks.append(chunk)
+        if chunk_size > 0:
+            for i in range(len(nodes)//chunk_size):
+                # Apply the selection function and get our chunk nodes.
+                chunk = self.NODE_SELECTION[node_select](nodes, chunk_size)
+                # Filter out any chosen from our node list.
+                nodes = [node for node in nodes if node not in chunk]
+
+                # Add the 'include_nodes' to every chunk.
+                chunk = include_nodes + chunk
+                chunks.append(chunk)
+        else:
+            chunks.append(include_nodes.copy())
 
         if nodes and chunk_extra == BACKFILL:
             backfill = chunks[-1][:chunk_size - len(nodes)]
