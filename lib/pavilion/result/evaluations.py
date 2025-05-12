@@ -55,8 +55,8 @@ def evaluate_results(results: dict, evaluations: Dict[str, str],
         parse_evaluation_dict(evaluations, results, log)
     except StringParserError as err:
         raise ResultError("\n".join([err.message, err.context]))
-    except ValueError as err:
-        # There was a reference loop.
+    except (ValueError, TypeError) as err:
+        # This may indicate a reference loop.
         raise ResultError(err.args[0])
     finally:
         base_log.indent(log)
