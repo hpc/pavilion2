@@ -4,6 +4,7 @@ import copy
 import sys
 from typing import List, Union, Dict, Tuple
 import uuid
+import pprint
 
 from pavilion.errors import TestConfigError, SchedulerPluginError, VariableError, ResultError
 from pavilion import resolve
