@@ -47,6 +47,7 @@ class TestAttributes(Mapping):
     """
 
     serializers = {
+        "status": lambda s: s.path.as_posix(),
         'suite_path': lambda p: p.as_posix(),
     }
 
@@ -54,6 +55,7 @@ class TestAttributes(Mapping):
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
         'started': utils.deserialize_datetime,
+        "status": lambda s: TestStatusFile(Path(s)),
         'suite_path': lambda p: Path(p) if p is not None else None,
     }
 
@@ -383,6 +385,9 @@ class TestAttributes(Mapping):
     started = basic_attr(
         name='started',
         doc="The start time for this test run.")
+    status = basic_attr(
+        name='status',
+        doc="The status file associated with the test")
     suite_path = basic_attr(
         name='suite_path',
         doc="Path to the suite_file that defined this test run."

@@ -148,24 +148,23 @@ class Command(IPlugin.IPlugin):
     def setup_arguments(self, sub_parser):
         """Add arguments for this command to the give argparse sub_parser."""
 
-        # Add the short help, or not. A quirk of argparse is that if 'help'
-        # is set, the subcommand is listed regardless of whether the
-        # help is None. If we don't want that, we have to init without 'help'.
+        kwargs = {
+            'aliases': self.aliases,
+            'description': self.description,
+            'add_help': not self.is_dummy,
+        }
         if self.short_help is not None:
-            cmd_parser = sub_parser.add_parser(self.name,
-                                               aliases=self.aliases,
-                                               description=self.description,
-                                               help=self.short_help,
-                                               formatter_class=WrappedFormatter)
-        else:
-            cmd_parser = sub_parser.add_parser(self.name,
-                                               aliases=self.aliases,
-                                               description=self.description)
+            kwargs['help'] = self.short_help
+            kwargs['formatter_class'] = WrappedFormatter
+
 
         # Save the argument parser, as it can come in handy.
-        self._parser = cmd_parser
+        self._parser = sub_parser.add_parser(self.name, **kwargs)
 
-        self._setup_arguments(cmd_parser)
+        if self.is_dummy:
+            self._parser.add_argument('--help', '-h', action='store_true')
+
+        self._setup_arguments(self._parser)
 
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser. This
