@@ -3,6 +3,7 @@
    :caption: Tests Contents:
 
    format.rst
+   suites.rst
    run.rst
    build.rst
    env.rst

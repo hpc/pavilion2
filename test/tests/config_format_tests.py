@@ -51,7 +51,7 @@ class TestConfig(PavTestCase):
 
         shebang = '#!/usr/bin/bash -x'
 
-        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='this', op_sys='this')
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='this', platform='this')
         # This test suite should exercise every possible way bash scripts are written.
         ptests = rslvr.load(['shebang'])
         tests_by_sched = {'raw': [], 'dummy': []}

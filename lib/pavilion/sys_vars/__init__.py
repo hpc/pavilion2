@@ -8,6 +8,7 @@ from .host_arch import HostArch
 from .host_cpus import HostCPUs
 from .host_name import HostName
 from .host_os import HostOS
+from .platform import Platform
 from .sys_arch import SystemArch
 from .sys_host import SystemHost
 from .sys_name import SystemName
@@ -18,6 +19,7 @@ _builtin_sys_plugins = [
     HostCPUs,
     HostName,
     HostOS,
+    Platform,
     SystemArch,
     SystemName,
     SystemOS,

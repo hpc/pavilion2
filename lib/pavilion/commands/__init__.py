@@ -5,59 +5,52 @@ its faster than searching for them and loading them as plugins."""
 import importlib
 from typing import Union
 
-from pavilion import arguments
 from pavilion import errors
-from .base_classes import Command, add_command, sub_cmd
+from .base_classes import Command, add_command, sub_cmd, setup_arguments
 from .base_classes import cmd_tracker as _cmd_tracker
 
-# Add any new builtin commands here. The key is the module
-# name (which should match command name) and the value is the
-# command class within that module.
+# Add any new builtin commands here. The key is the command
+# name, and the value is a tuple of the module name and plugin
+# class within that module.
 _builtin_commands = {
-    '_run': '_RunCommand',
-    '_series': 'AutoSeries',
-    'build': 'BuildCommand',
-    'cancel': 'CancelCommand',
-    'cat': 'CatCommand',
-    'clean': 'CleanCommand',
-    'config': 'ConfigCommand',
-    'graph': 'GraphCommand',
-    'group': 'GroupCommand',
-    'list_cmd': 'ListCommand',
-    'log': 'LogCommand',
-    'ls': 'LSCommand',
-    'maint': 'MaintCommand',
-    'result': 'ResultsCommand',
-    'run': 'RunCommand',
-    'series': 'RunSeries',
-    'set_status': 'SetStatusCommand',
-    'show': 'ShowCommand',
-    'status': 'StatusCommand',
-    'view': 'ViewCommand',
-    'wait': 'WaitCommand',
+    '_run':       ('_run', '_RunCommand'),
+    '_series':    ('_series', 'AutoSeries'),
+    'build':      ('build', 'BuildCommand'),
+    'cancel':     ('cancel', 'CancelCommand'),
+    'cat':        ('cat', 'CatCommand'),
+    'clean':      ('clean', 'CleanCommand'),
+    'config':     ('config', 'ConfigCommand'),
+    'graph':      ('graph', 'GraphCommand'),
+    'group':      ('group', 'GroupCommand'),
+    'list':       ('list_cmd', 'ListCommand'),
+    'log':        ('log', 'LogCommand'),
+    'ls':         ('ls', 'LSCommand'),
+    'maint':      ('maint', 'MaintCommand'),
+    'result':     ('result', 'ResultsCommand'),
+    'run':        ('run', 'RunCommand'),
+    'series':     ('series', 'RunSeries'),
+    'set_status': ('set_status', 'SetStatusCommand'),
+    'show':       ('show', 'ShowCommand'),
+    'status':     ('status', 'StatusCommand'),
+    'view':       ('view', 'ViewCommand'),
+    'wait':       ('wait', 'WaitCommand'),
 }
 
 # Add aliases for each builtin command here.
-_aliases = {
+_builtin_aliases = {
     'set_status': ['status_set'],
     'result': ['results'],
-    'list_cmd': ['list'],
 }
 
 
 def register_core_plugins():
-    """Add all the builtin plugins and activate them."""
+    """For commands we don't actually want to load all the command modules - we'll probably only
+    need one.  We'll just put in place dummy commands """
 
-    # Add fake options for each command and their aliases.
-    subp = arguments.get_subparser()
-
-    # When we 'get' the command below, we'll replace this subparser
-    # with the real one.
-    for cmd in _builtin_commands.keys():
-        dummy_parser = subp.add_parser(cmd, aliases=_aliases.get(cmd, []),
-                                       add_help=False)
-        dummy_parser.add_argument('--help', '-h', action='store_true')
-
+    for cmd_name in _builtin_commands.keys():
+        # Make a dummy command for each of our builtin commands.
+        cmd = Command(cmd_name, '', aliases = _builtin_aliases.get(cmd_name, []), is_dummy=True)
+        add_command(cmd)
 
 # Pavilion looks for this function on the Plugin class
 Command.register_core_plugins = register_core_plugins
@@ -68,16 +61,18 @@ def get_command(command_name: str) -> Union[None, Command]:
     has already been validated as being one that exists.
     """
 
-    _commands = _cmd_tracker()
+    _aliases = _cmd_tracker()
+
+    command = _aliases.get(command_name)
 
     # If we already activated the command, just return it.
-    if command_name in _commands:
-        return _commands[command_name]
+    if command and not command.is_dummy:
+        return command
 
     # Find the real command from amongst the aliases.
     if command_name not in _builtin_commands:
-        for alias_cmd, aliases in _aliases.items():
-            if command_name in aliases:
+        for alias_cmd, cmd_aliases in _builtin_aliases.items():
+            if command_name in cmd_aliases:
                 command_name = alias_cmd
 
     if command_name not in _builtin_commands:
@@ -85,21 +80,19 @@ def get_command(command_name: str) -> Union[None, Command]:
             "Could not find command '{}'. You should always get an error from "
             "the argument parser, and never this one.".format(command_name))
 
-    command_class = _builtin_commands[command_name]
-    mod = importlib.import_module('.' + command_name, 'pavilion.commands')
+    command_module, command_class = _builtin_commands[command_name]
+    mod = importlib.import_module('.' + command_module, 'pavilion.commands')
     if not hasattr(mod, command_class):
         raise errors.CommandError(
-            "Could not find class '{}' for builtin command '{}'. If you're seeing this, "
-            "then a class was improperly registered in pavilion.commands."
+            "Could not find class '{}' for builtin command '{}' in module '{}'. "
+            "If you're seeing this, then a class was improperly registered in "
+            "'pavilion.commands.__init__.py'."
             .format(command_class, command_name))
 
-    if command_name not in _commands:
-        command: Command = getattr(mod, command_class)()
-        # If we've never seen this command, activate it.  Activation will also replace the dummy
-        # subcommand in the argument parser.
-        command.activate()
+    command: Command = getattr(mod, command_class)()
+    command.activate()
 
-    return _commands[command_name]
+    return command
 
 
 def load(*cmds: str):

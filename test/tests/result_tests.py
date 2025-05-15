@@ -364,7 +364,7 @@ class ResultParserTests(PavTestCase):
         # We really need to do this end-to-end to make sure it's not broken
         # at any step of the process.
 
-        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='this', op_sys='this')
+        rslvr = resolver.TestConfigResolver(self.pav_cfg, host='this', platform='this')
         ptests = rslvr.load(['permute_on.test'])
 
         self.assertEqual(len(ptests), 4)

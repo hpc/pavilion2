@@ -258,6 +258,11 @@ class PavConfig(PavConfigDict):
 
         suite_infos = []
 
+        if hasattr(self, '_suite_info'):
+            # If we put this in __init__, the yaml_config will freak out about it.
+            # pylint: disable=access-member-before-definition
+            return self._suite_info
+
         for label, cfg in self.configs.items():
             tests_dir = Path(cfg['path']) / 'tests'
             suites_dir = Path(cfg['path']) / 'suites'
@@ -270,12 +275,20 @@ class PavConfig(PavConfigDict):
                 suite_infos.extend(zip(labels, names, tests))
 
             if suites_dir.exists():
+                suites = [file for file in suites_dir.iterdir() if file.suffix.lower() == ".yaml"]
+                names = [suite.stem for suite in suites]
+                labels = [label] * len(suites)
+                suite_infos.extend(zip(labels, names, suites))
+
                 suites = [sdir / "suite.yaml" for sdir in suites_dir.iterdir()]
                 suites = list(filter(exists, suites))
                 names = [suite.parent.name for suite in suites]
                 labels = [label] * len(suites)
 
                 suite_infos.extend(zip(labels, names, suites))
+
+        # pylint: disable=attribute-defined-outside-init
+        self._suite_info = suite_infos
 
         return suite_infos
 

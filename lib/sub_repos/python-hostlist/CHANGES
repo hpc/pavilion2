@@ -1,0 +1,80 @@
+The CHANGES file does not seem to be updated after 1.11.
+We take the opportunity to start recording changes in
+the spec file %changelog instead.
+
+Version 1.11 (2011-02-04)
+
+    Add --collect-similar mode to pshbak.
+
+Version 1.10 (2010-10-11)
+
+    Add rewritten version of dbuck.
+
+    Add some pshbak improvements.
+
+Version 1.9 (2010-09-22)
+
+    Add pshbak, a dshbak replacement.
+
+Version 1.8 (2010-09-08)
+
+    Add dbuck man page.
+
+    Add --substitute option to hostlist.
+
+Version 1.7 (2010-07-08)
+
+    Add dbuck utility.
+
+Version 1.6 (2009-10-02)
+
+    Add --non-empty and --quiet.
+
+    Optimize numerically_sorted.
+
+Version 1.5 (2009-02-22)
+
+    Make each "-" on the command line count as one hostlist argument.
+    If multiple hostlists are given on stdin they are combined to a
+    union hostlist before being used in the way requested by the
+    options.
+
+    Add hostgrep utility to search for lines matching a hostlist.
+
+    Make the build system (used when building tar.gz and RPMs from the
+    source code held in git) smarter.
+
+Version 1.4 (2008-12-28)
+
+    Support Python 3.
+
+    Import reduce from functools if possible.
+    Use Python 2/3 installation trick from .../Demo/distutils/test2to3
+
+Version 1.3 (2008-09-30)
+
+    Add -s/--separator, -p/--prepend, -a/--append and --version
+    options contributed by Pär Andersson at NSC.
+
+    Let -e be the short form of the --expand option (-w is now
+    deprecated).
+
+    Add a manual page for hostlist(1).
+
+Version 1.2 (2008-09-18)
+
+    Add "--prefix /usr" in the installation script of the spec file
+    (needed on SUSE Linux where the default is /usr/local).
+
+Version 1.1 (2008-09-17)
+
+    Move the command line utility to a separate 'hostlist' command.
+
+    Provide a python-hostlist.spec file to build RPM packages.
+    Inspired by a contribution by Dr. Holger Obermaier at
+    Rechenzentrum, Universität Karlsruhe.
+
+Version 1.0 (2008-07-25)
+
+    Initial version.
+

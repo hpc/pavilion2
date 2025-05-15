@@ -67,15 +67,24 @@ class ConfigInfo:
         self.from_suite = from_suite
 
 
+class TestOptions:
+    """Test options from the command line or series configs."""
+
+    def __init__(self, modes: List[str], overrides: List[str], conditions: Dict):
+        self.modes = modes if modes is not None else []
+        self.overrides = overrides if overrides is not None else []
+        self.conditions = conditions if conditions is not None else {}
+
+
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
 
-    def __init__(self, pav_cfg, op_sys: str = None, host: str = None,
+    def __init__(self, pav_cfg, platform: str = None, host: str = None,
                  outfile: TextIO = None, verbosity: int = Verbose.QUIET):
         """Initialize the resolver.
 
-        :param op_sys: The OS to configure tests for.
+        :param platform: The platform to configure tests for.
         :param host: The host to configure tests for.
         :param outfile: The file to print output to.
         :param verbosity: Determines the format of the output. (See enums.Verbose)
@@ -105,15 +114,13 @@ class TestConfigResolver:
         )
 
         self._host = self._base_var_man['sys.sys_name'] if host is None else host
-        if op_sys is None:
-            os_name = self._base_var_man['sys.sys_os.name']
-            os_vers = self._base_var_man['sys.sys_os.version']
-            self._os = f"{os_name}-{os_vers}"
+        if platform is None:
+            self._platform = self._base_var_man['sys.platform']
         else:
-            self._os = op_sys
+            self._platform = platform
 
         # This may throw an exception. It's expected to be caught by the caller.
-        self._base_config = self._load_base_config(self._os, self._host)
+        self._base_config = self._load_base_config(self._platform, self._host)
 
         # Raw loaded test suites
         self._suites: Dict[Dict] = {}
@@ -127,7 +134,7 @@ class TestConfigResolver:
         if cfg_type == "suite" and not use_suites_dir:
             return "tests"
 
-        if dirname[-1] != 's' and dirname != "os":
+        if dirname[-1] != 's':
             dirname += 's'
 
         return dirname
@@ -139,7 +146,7 @@ class TestConfigResolver:
 
         fname = cfg_type.lower()
 
-        if fname in ("host", "mode"):
+        if fname in ("host", "mode", "platform"):
             fname += 's'
 
         return f"{fname}.yaml"
@@ -181,6 +188,8 @@ class TestConfigResolver:
         type, if one exists. If the file does not exist in any known suites directory,
         returns None."""
 
+        # import pdb; pdb.set_trace()
+
         paths = []
         labels = list(self.config_labels)
 
@@ -205,7 +214,7 @@ class TestConfigResolver:
         """Search all of the known configuration directories for a config of the
         given type and name, and report whether it was found in the suites directory.
 
-        :param str conf_type: 'host', 'os', 'mode', or 'test/suite'
+        :param str conf_type: 'host', 'platform', 'mode', or 'test/suite'
         :param str conf_name: The name of the config (without a file extension).
         :return: A tuple of the path to that config, if it exists, and a boolean
             indicating whether it was found in the suites directory (True) or not (False).
@@ -399,14 +408,7 @@ class TestConfigResolver:
 
         batch_size = 2**32 if batch_size is None else batch_size
 
-        if modes is None:
-            modes = []
-
-        if overrides is None:
-            overrides = []
-
-        if conditions is None:
-            conditions = {}
+        options = TestOptions(modes, overrides, conditions)
 
         requests = [TestRequest(req) for req in tests]
 
@@ -415,7 +417,7 @@ class TestConfigResolver:
         for request in requests:
             # Convert each request into a list of RawProtoTest objects.
             try:
-                raw_tests.extend(self._load_raw_configs(request, modes, conditions, overrides))
+                raw_tests.extend(self._load_raw_configs(request, options))
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
@@ -670,9 +672,7 @@ class TestConfigResolver:
 
         return raw_cfg
 
-    def _load_raw_configs(self, request: TestRequest, modes: List[str],
-                          conditions: Dict, overrides: List[str]) \
-                         -> List[RawProtoTest]:
+    def _load_raw_configs(self, request: TestRequest, options: TestOptions) -> List[RawProtoTest]:
         """Get a list of raw test configs given a host, list of modes,
         and a list of tests. Each of these configs will be lightly modified with
         a few extra variables about their name, suite, and suite_file, as well
@@ -685,86 +685,50 @@ class TestConfigResolver:
         :return: A list of RawProtoTests.
         """
 
-        try:
-            suite_tests = self._load_suite_tests(request.suite)
-        except TestConfigError as err:
-            err.request = request
-            self.errors.append(err)
-            return []
-
         added_tests = []
-        for test_name in suite_tests:
-            if request.matches_test_name(test_name):
-                added_tests.append(test_name)
+        matched_suites = self._load_suite_tests(request)
+        if not matched_suites:
+            self.errors.append(TestConfigError(
+                "Could not find a test suite that matches '{}'.\n"
+                "See 'pav show suites' for a list of available test suites."
+                .format(request.suite),
+                request=request))
+
+        for suite_name, suite_tests in matched_suites.items():
+            for test_name in suite_tests:
+                if request.matches_test_name(test_name):
+                    added_tests.append(suite_tests[test_name])
 
         if not added_tests:
-            self.errors.append(TestConfigError(
-                "Test suite '{}' does not have a test that matches '{}'.\n"
-                "Suite tests are:\n - {}\n"
-                .format(
-                    request.suite,
-                    request.test,
-                    "\n - ".join(suite_tests.keys())),
-                request=request))
+            if len(matched_suites) == 1:
+                self.errors.append(TestConfigError(
+                    "Could not find any test that matches '{}.{}'.\n"
+                    "Tests for suite '{}' are:\n - {}\n"
+                    .format(
+                        request.suite,
+                        request.test,
+                        request.suite,
+                        "\n - ".join(suite_tests.keys())),
+                    request=request))
+            else:
+                self.errors.append(TestConfigError(
+                    "Could not find any test that matches '{}.{}'.\n"
+                    "See 'pav show tests' for a list of tests across all suites."
+                    .format(request.suite, request.test),
+                    request=request))
             return []
 
         test_configs = []
-        for test_name in added_tests:
-            test_cfg = copy.deepcopy(suite_tests[test_name])
-
-            test_cfg['modes'] = modes
-
-            # Apply any additional conditions.
-            if conditions:
-                test_cfg['only_if'] = union_dictionary(
-                    test_cfg['only_if'], conditions['only_if']
-                )
-                test_cfg['not_if'] = union_dictionary(
-                    test_cfg['not_if'], conditions['not_if']
-                )
-
-            # Apply modes.
-            try:
-                test_cfg = self.apply_os(test_cfg, self._os, request.suite)
-                test_cfg = self.apply_host(test_cfg, self._host, request.suite)
-                test_cfg = self.apply_modes(test_cfg, modes, request.suite)
-            except TestConfigError as err:
-                err.request = request
-                self.errors.append(err)
+        for raw_test in added_tests:
+            raw_test = self._apply_test_options(raw_test, options, request)
+            if raw_test is None:
                 continue
-
-            # Save the overrides as part of the test config
-            test_cfg['overrides'] = overrides
-
-            # Apply overrides
-            if overrides:
-                try:
-                    test_cfg = self.apply_overrides(test_cfg, overrides)
-                except TestConfigError as err:
-                    err.request = request
-                    self.errors.append(err)
-                except (KeyError, ValueError) as err:
-                    self.errors.append(TestConfigError(
-                        'Error applying overrides to test {} from suite {} at:\n{}' \
-                        .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
-                        request, err))
-                    continue
-
-            # Result evaluations can be added to all tests at the root pavilion config level.
-            result_evals = test_cfg['result_evaluate']
-            for key, const in self.pav_cfg.default_results.items():
-                if key in result_evals:
-                    # Don't override any that are already there.
-                    continue
-
-                test_cfg['result_evaluate'][key] = '"{}"'.format(const)
-
-            test_cf = self._validate(test_name, test_cfg)
 
             # Now that we've applied all general transforms to the config, make it into a ProtoTest.
             try:
-                rproto_test = RawProtoTest(request, test_cfg, self._base_var_man)
+                rproto_test = RawProtoTest(request, raw_test, self._base_var_man)
             except TestConfigError as err:
+                err.request = request
                 self.errors.append(err)
                 continue
 
@@ -780,10 +744,68 @@ class TestConfigResolver:
 
         return test_configs
 
-    def _validate(self, test_name: str, test_cfg: Dict) -> Dict:
+
+    def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest) \
+            -> Optional[Dict]:
+
+        test_cfg = copy.deepcopy(raw_test)
+
+        test_cfg['modes'] = options.modes
+        suite_name = test_cfg['suite']
+
+        # Apply any additional conditions.
+        if options.conditions:
+            test_cfg['only_if'] = union_dictionary(
+                test_cfg['only_if'], options.conditions['only_if']
+            )
+            test_cfg['not_if'] = union_dictionary(
+                test_cfg['not_if'], options.conditions['not_if']
+            )
+
+        # Apply downstream configs.
+        try:
+            test_cfg = self.apply_platform(test_cfg, self._platform, suite_name)
+            test_cfg = self.apply_host(test_cfg, self._host, suite_name)
+            test_cfg = self.apply_modes(test_cfg, options.modes, suite_name)
+        except TestConfigError as err:
+            err.request = request
+            self.errors.append(err)
+            return None
+
+        # Save the overrides as part of the test config
+        test_cfg['overrides'] = options.overrides
+
+        # Apply overrides
+        if options.overrides:
+            try:
+                test_cfg = self.apply_overrides(test_cfg, options.overrides)
+            except TestConfigError as err:
+                err.request = request
+                self.errors.append(err)
+                return None
+            except (KeyError, ValueError) as err:
+                self.errors.append(TestConfigError(
+                    'Error applying overrides to test {} from suite {} at:\n{}' \
+                    .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
+                    request, err))
+                return None
+
+        # Result evaluations can be added to all tests at the root pavilion config level.
+        result_evals = test_cfg['result_evaluate']
+        for key, const in self.pav_cfg.default_results.items():
+            if key in result_evals:
+                # Don't override any that are already there.
+                continue
+
+            test_cfg['result_evaluate'][key] = '"{}"'.format(const)
+
+        return self._validate(test_cfg)
+
+    def _validate(self, test_cfg: Dict) -> Dict:
         """Return the finalized, validated copy of the test config."""
 
         suite_path = test_cfg['suite_path']
+        test_name = test_cfg['name']
 
         try:
             test_cfg = self._loader.validate(test_cfg)
@@ -817,57 +839,74 @@ class TestConfigResolver:
 
         return test_cfg
 
-    def _load_base_config(self, op_sys: str, host: str) -> TestConfig:
+    def _load_base_config(self, platform: str, host: str) -> TestConfig:
         """Load the base configuration for the given host.  This is done once and saved."""
 
         # Get the base, empty config, then apply the host config on top of it.
         base_config = self._loader.load_empty()
-        base_config = self.apply_os(base_config, op_sys)
+        base_config = self.apply_platform(base_config, platform)
 
         return self.apply_host(base_config, host)
 
-    def _load_suite_tests(self, suite_name: str):
+    def _load_suite_tests(self, request: TestRequest) -> Dict[str, Dict]:
         """Load the suite config, with standard info applied to """
 
-        if suite_name in self._suites:
-            return self._suites[suite_name]
+        # Look for matching suites from amongst all test suites.
+        suite_matches = []
+        for label, name, path in self.pav_cfg.suite_info:
+            if request.matches_suite_name(name):
+                suite_matches.append((label, name, path))
 
-        cfg_info = self.find_config("suite", suite_name, suite_name)
+        matching_suites = {}
+        for label, suite_name, path in suite_matches:
+            if name in self._suites:
+                # We've already loaded it.
+                matching_suites[name] = self._suites[name]
+                continue
 
-        if cfg_info.from_suite:
-            loader = self._suite_loader
-        else:
-            loader = self._loader
-
-        raw_suite_cfg = self._load_raw_config(cfg_info, loader)
-
-        # Make sure each test has a dict as contents.
-        for test_name, raw_test in raw_suite_cfg.items():
-            if raw_test is None:
-                raw_suite_cfg[test_name] = {}
-
-        suite_tests = self.resolve_inheritance(raw_suite_cfg, cfg_info.path)
-
-        # Perform essential transformations to each test config.
-        for test_cfg_name, test_cfg in list(suite_tests.items()):
-
-            # Basic information that all test configs should have.
-            test_cfg['name'] = test_cfg_name
-            test_cfg['cfg_label'] = cfg_info.label
-            working_dir = self.pav_cfg['configs'][cfg_info.label]['working_dir']
-            test_cfg['working_dir'] = working_dir.as_posix()
-            test_cfg['suite'] = suite_name
-            test_cfg['host'] = self._host
-            test_cfg['os'] = self._os
+            # We still use this because it preserves config order.
+            cfg_info = self.find_config("suite", suite_name, suite_name)
 
             if cfg_info.from_suite:
-                test_cfg['suite_path'] = cfg_info.path.parent.as_posix()
+                loader = self._suite_loader
             else:
-                test_cfg['suite_path'] = cfg_info.path.as_posix()
+                loader = self._loader
 
-        self._suites[suite_name] = suite_tests
+            try:
+                raw_suite_cfg = self._load_raw_config(cfg_info, loader)
+            except TestConfigError as err:
+                err.request = request
+                self.errors.append(err)
+                continue
 
-        return suite_tests
+            # Make sure each test has a dict as contents.
+            for test_name, raw_test in raw_suite_cfg.items():
+                if raw_test is None:
+                    raw_suite_cfg[test_name] = {}
+
+            suite_tests = self.resolve_inheritance(raw_suite_cfg, cfg_info.path)
+
+            # Perform essential transformations to each test config.
+            for test_cfg_name, test_cfg in list(suite_tests.items()):
+
+                # Basic information that all test configs should have.
+                test_cfg['name'] = test_cfg_name
+                test_cfg['cfg_label'] = cfg_info.label
+                working_dir = self.pav_cfg['configs'][cfg_info.label]['working_dir']
+                test_cfg['working_dir'] = working_dir.as_posix()
+                test_cfg['suite'] = suite_name
+                test_cfg['host'] = self._host
+                test_cfg['platform'] = self._platform
+
+                if cfg_info.from_suite:
+                    test_cfg['suite_path'] = cfg_info.path.parent.as_posix()
+                else:
+                    test_cfg['suite_path'] = cfg_info.path.as_posix()
+
+            self._suites[suite_name] = suite_tests
+            matching_suites[suite_name] = suite_tests
+
+        return matching_suites
 
     def _reset_schedulers(self):
         """Reset the cache on all scheduler plugins."""
@@ -969,38 +1008,39 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging host configuration for host '{}'".format(hostname))
 
-    def apply_os(self, test_cfg: TestConfig, op_sys: str, suite_name: str = None) -> TestConfig:
-        """Apply the OS configuration to the given config."""
+    def apply_platform(self, test_cfg: TestConfig, platform: str,
+                        suite_name: str = None) -> TestConfig:
+        """Apply the platform configuration to the given config."""
 
         if suite_name is not None:
             from_suite = True
-            label, os_cfg_path = self._config_path_from_suite(suite_name, "OS")
+            label, platform_cfg_path = self._config_path_from_suite(suite_name, "platform")
             loader = self._suite_loader
         else:
             from_suite = False
-            label, os_cfg_path = self._get_test_config_path(op_sys, "OS")
+            label, platform_cfg_path = self._get_test_config_path(platform, "platform")
             loader = self._loader
 
-        cfg_info = ConfigInfo(op_sys, "OS", os_cfg_path, label, from_suite)
+        cfg_info = ConfigInfo(platform, "platform", platform_cfg_path, label, from_suite)
 
-        raw_os_cfg = self._load_raw_config(cfg_info, loader, optional=True)
+        raw_platform_cfg = self._load_raw_config(cfg_info, loader, optional=True)
 
-        if raw_os_cfg is None:
+        if raw_platform_cfg is None:
             return test_cfg
 
         try:
-            os_cfg = self._loader.normalize(
-                raw_os_cfg,
-                root_name=f"the top level of the OS file.")
+            platform_cfg = self._loader.normalize(
+                raw_platform_cfg,
+                root_name=f"the top level of the platform file.")
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                f"Error loading host config '{op_sys}' from file '{os_cfg_path}'")
+                f"Error loading host config '{platform}' from file '{platform_cfg_path}'")
 
         try:
-            return self._loader.merge(test_cfg, os_cfg)
+            return self._loader.merge(test_cfg, platform_cfg)
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                "Error merging configuration for OS '{}'".format(os))
+                "Error merging configuration for platform '{}'".format(platform))
 
     def apply_modes(self, test_cfg, modes: List[str], suite_name: str = None):
         """Apply each of the mode files to the given test config.
@@ -1150,7 +1190,7 @@ class TestConfigResolver:
 
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path',
-                       'base_name', 'host', 'os', 'modes']
+                       'base_name', 'host', 'platform', 'modes']
 
     def apply_overrides(self, test_cfg, overrides) -> Dict:
         """Apply overrides to this test.

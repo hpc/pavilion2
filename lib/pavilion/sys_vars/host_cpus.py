@@ -13,5 +13,5 @@ class HostCPUs(SystemPlugin):
     def _get( self):
         """Base method for determining the system processor count."""
 
-        name = subprocess.check_output(['grep', '-c', '^processor\s*:\s*\d*', '/proc/cpuinfo'])
+        name = subprocess.check_output(['grep', '-c', r'^processor\s*:\s*\d*', '/proc/cpuinfo'])
         return name.strip().decode('UTF-8')

@@ -1,0 +1,7 @@
+variables:
+  platform_def?: platform
+  mode_def?: platform
+  host_def?: platform
+  test_def?: platform
+
+  def_platform?: platform

@@ -86,7 +86,7 @@ class TestRunTests(PavTestCase):
 
         test = TestRun(self.pav_cfg, config1)
         test.save()
-        self.assert_(test.build())
+        self.assertTrue(test.build())
 
         test.finalize(VariableSetManager())
 
@@ -97,7 +97,7 @@ class TestRunTests(PavTestCase):
 
         test = TestRun(self.pav_cfg, config2)
         test.save()
-        self.assert_(test.build())
+        self.assertTrue(test.build())
 
         test.finalize(VariableSetManager())
 
@@ -170,7 +170,7 @@ class TestRunTests(PavTestCase):
                 for line in lines:
                     original.write("{}\n".format(line))
 
-            self.assertEquals(original.getvalue(), created_file.read())
+            self.assertEqual(original.getvalue(), created_file.read())
             original.close()
             created_file.close()
 

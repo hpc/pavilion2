@@ -1,0 +1,8 @@
+.admonition.warning {
+    background-color: #fff8dc; /* Match warning background */
+    border: 1px solid #f0ad4e;
+}
+
+.admonition.warning > .admonition-title {
+    color: #8a6d3b;
+}

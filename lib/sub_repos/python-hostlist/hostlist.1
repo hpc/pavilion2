@@ -1,0 +1,203 @@
+.TH hostlist 1 "Version #VERSION#"
+.SH NAME
+hostlist \- handle hostlist expressions
+.SH SYNOPSIS
+.B hostlist
+.RI [ OPTION "]... [" HOSTLIST ]...
+.SH DESCRIPTION
+Perform a set operation (union, intersection, difference or symmetric
+difference) on the given hostlists. Output the result as a hostlist, 
+a count of hostnames or an expanded list of hostnames.
+
+If "-" is used instead of a hostlist argument, an arbitrary number of
+hostlists are read from stdin. The union of them is used as if it had
+been present on the command line as a single hostlist argument.
+.SH OPTIONS
+.TP
+.B -u, --union
+Compute the union of the hostlists. A hostname is present in
+the output if it is included in at least one of the hostlists. This is
+the default operation.
+.TP
+.B -i, --intersection
+Compute the intersection of the hostlists. A hostname is present in the
+output if it is included in all the hostlists.
+.TP
+.B -d, --difference
+Compute the difference of the hostlists. A hostname is present in the
+output if it is included in the first hostlist but not any of the following.
+.TP
+.B -x, --symmetric-difference
+Compute the symmetric difference of the hostlists. A hostname is present in the
+output if it is included in an odd number of the hostlists.
+.TP
+.BI "-o " OFFSET ", --offset=" OFFSET
+Filter the result to skip
+.I OFFSET
+hosts from the beginning. If
+.I OFFSET
+is not less than the number of hosts in the result, the result will
+become empty. If
+.I OFFSET
+is negative, keep
+.I -OFFSET
+hosts from the end of the result.
+The default is to skip nothing.
+.TP
+.BI "-l " LIMIT ", --limit=" LIMIT
+Filter the result to limit it to the first
+.I LIMIT
+hosts. If
+.I LIMIT
+is not less than the number of hosts in the result, this option does nothing.
+This filter is applied after the
+.B --offset
+filter (see above).
+The default is to have no limit.
+.TP
+.B -c, --collapse
+Output the result as a hostlist expression. This is the default. See the
+.B --chop
+option for splitting into multiple hostlists of a certain size.
+.TP
+.B -n, --count
+Output the number of hostnames in the result.
+.TP
+.B -e, --expand
+Output the result as an expanded list of hostnames.
+.TP
+.B -w
+Output the result as an expanded list of hostnames. This option is deprecated. Use -e or --expand instead.
+.TP
+.B -q, --quiet
+Output nothing. This option is useful together with
+.BR --non-empty .
+.TP
+.B -0, --non-empty
+Return success if the resulting hostlist is non-empty and failure if it is empty.
+.TP
+.BI "-s " SEPARATOR ", --separator=" SEPARATOR
+Use
+.I SEPARATOR
+as the separator between the hostnames in the expanded list (and between (chopped) hostlists in collapsed mode).
+The default is a newline.
+.TP
+.BI "-p " PREPEND ", --prepend=" PREPEND
+Output
+.I PREPEND
+before each hostname in the expanded list (and before each hostlist in collapsed mode).
+The default is to prepend nothing.
+.TP
+.BI "-a " APPEND ", --append=" APPEND
+Output
+.I APPEND
+after each hostname in the expanded list (and after each hostlist in collapsed mode).
+The default is to append nothing.
+.TP
+.BI "-S " FROM,TO ", --substitute=" FROM,TO
+Apply a regular expression substitution to each hostname,
+replacing all
+.I FROM
+with
+.IR TO .
+The default is to do no substitution.
+.TP
+.BI "--append-slurm-tasks=" SLURM_TASKS_PER_NODE
+Append the number of tasks parsed from the
+.I SLURM_TASKS_PER_NODE
+string. You need to use
+.B -e/--expand
+and you probably need to specify
+.B -a/--append
+and
+.B -s/--separator
+too. NOTE: The hostlist is always sorted internally by this program. The
+task counts from 
+.I SLURM_TASKS_PER_NODE
+is then applied to each hostname in the sorted list.
+.TP
+.BI "--repeat-slurm-tasks=" SLURM_TASKS_PER_NODE
+Repeat each hostname so it is listed multiple times as specified by the
+.I SLURM_TASKS_PER_NODE
+string. You need to use
+.B -e/--expand.
+NOTE: The hostlist is always sorted internally by this program. The
+task counts from
+.I SLURM_TASKS_PER_NODE
+is then applied to each hostname in the sorted list.
+.TP
+.BI "--chop=" CHUNKSIZE
+When outputting as collapsed hostlist (the default mode
+.BR --collapse )
+split into hostlists of size
+.I CHUNKSIZE
+and output each hostlist separately. The last hostlist may be smaller than the rest.
+.TP
+.B --version
+Show the version of the utility and the underlying Python library.
+.SH EXAMPLES
+.TP
+Output the union of n[10-19] and n[15-24] (which is n[10-24]):
+.B hostlist
+n[10-19] n[15-24]
+.TP
+Output the result of removing n15 and n[17-18] from n[1-20] \
+(which is n[1-14,16,19-20]):
+.B hostlist
+-d n[1-20] n15 n[17-18]
+.TP
+Output the result as an expanded list of hostnames (one hostname per line):
+.B hostlist
+-d -e n[1-20] n15 n[17-18]
+.TP
+Output the result as an expanded list of hostnames separated by commas:
+.B hostlist
+-d -e -s, n[1-20] n15 n[17-18]
+.TP
+Output the result as an expanded list of hostnames (followed by space and \
+the digit "8") separated by spaces:
+.B hostlist
+-d -e -s " " -a " 8" n[1-20] n15 n[17-18]
+.TP
+Expand a hostlist, replacing "n" with "ni":
+.B hostlist
+-e -S n,ni n[1-20]
+.TP
+Print INCLUDED as n11 is in n[10-20]:
+if 
+.B hostlist
+-q0 -i n11 n[10-20]; then echo INCLUDED; else echo NOT INCLUDED; fi
+.SH AUTHOR
+Written by Kent Engström <kent@nsc.liu.se>.
+
+The program is published at http://www.nsc.liu.se/~kent/python-hostlist/
+.SH NOTES
+The square brackets used in the hostlist expression syntax are also used in
+shell glob patterns. This may cause unwanted surprises if you have files
+in your current directory named after hosts present in the hostlist. Always
+quote the hostlist expression to avoid this problem:
+
+  % hostlist n[1-10]
+  n[1-10]
+  % touch n1
+  % hostlist n[1-10]
+  n1
+  % echo n[1-10]
+  n1
+  % hostlist "n[1-10]"
+  n[1-10]
+
+.SH SEE ALSO
+The hostlist expression syntax is used by several programs developed at 
+.B LLNL
+(https://computing.llnl.gov/linux/), for example
+.B SLURM
+(https://computing.llnl.gov/linux/slurm/) and 
+.B Pdsh
+(https://computing.llnl.gov/linux/pdsh.html).
+
+See the
+.B HOSTLIST EXPRESSIONS
+section of the
+.BR pdsh (1)
+manual page for a short introduction to the hostlist syntax.

@@ -7,6 +7,7 @@ from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
 from pavilion import status_utils
+from pavilion.errors import PavilionError
 from .base_classes import Command
 
 
@@ -53,7 +54,7 @@ class StatusCommand(Command):
         series."""
         try:
             test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
-        except ValueError as err:
+        except (ValueError, PavilionError) as err:
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EINVAL
 

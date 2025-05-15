@@ -45,7 +45,7 @@ class TestSet:
                  status: SeriesStatusFile = None,
                  modes: List[str] = None,
                  host: str = None,
-                 op_sys: str = None,
+                 platform: str = None,
                  only_if: Dict[str, List[str]] = None,
                  not_if: Dict[str, List[str]] = None,
                  overrides: List = None,
@@ -61,7 +61,7 @@ class TestSet:
         :param test_names: A list of test/suite names.
         :param iteration: Which 'repeat' iteration this test set represents.
         :param modes: Modes to apply to all tests.
-        :param op_sys: Operating system config to run under.
+        :param platform: Platform config to run under.
         :param host: Host configuration name to run under.
         :param only_if: Global 'only_if' conditions.
         :param not_if: Global 'not_if' conditions.
@@ -90,7 +90,7 @@ class TestSet:
 
         self.modes = modes or []
         self.host = host
-        self.op_sys = op_sys
+        self.platform = platform
         self.only_if = only_if or {}
         self.not_if = not_if or {}
         self.pav_cfg = pav_cfg
@@ -161,7 +161,7 @@ class TestSet:
                 status=self.status,
                 modes=self.modes,
                 host=self.host,
-                op_sys=self.op_sys,
+                platform=self.platform,
                 only_if=self.only_if,
                 not_if=self.not_if,
                 overrides=self.overrides))
@@ -213,7 +213,7 @@ class TestSet:
 
         cfg_resolver = TestConfigResolver(
             self.pav_cfg,
-            op_sys=self.op_sys,
+            platform=self.platform,
             host=self.host,
             outfile=self.outfile,
             verbosity=self.verbosity)

@@ -12,7 +12,7 @@ Tests and Suites
 ----------------
 
 Each Suite is a yaml file (with a ``.yaml`` extension) which can contain
-multiple tests. Suite files must reside in ``<config_dir>/tests/``,
+multiple tests. Suite files must reside in ``<config_dir>/suites/``,
 where ``<config_dir>`` is one of your :ref:`config.config_dirs`. Tests
 in a suite can be run as a group or independently, and can even inherit
 from one another.
@@ -227,7 +227,7 @@ OS Configs
 
 OS configs allow you to have per-OS settings. These are layered on top
 of general defaults for every test run on a particular OS. They are
-``<name>.yaml`` files that go in the ``<config_dir>>/sys_os/`` directory,
+``<name>.yaml`` files that go in the ``<config_dir>/os/`` directory,
 in any of your :ref:`config.config_dirs`.
 
 Pavilion determines your current operating system through the ``sys_os``
@@ -258,6 +258,10 @@ You can specify the host config with the ``-H`` option to the
 ::
 
     pav run -H another_host my_tests
+
+.. note::
+    An optional alternate format for host, OS, and mode configs exists when using suite
+    directories. See the following section for an overview of this format.
 
 Format
 ~~~~~~

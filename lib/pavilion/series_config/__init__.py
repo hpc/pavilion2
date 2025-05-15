@@ -95,10 +95,11 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
             return series_config_loader.load(series_file)
         except (ValueError, KeyError, yc_yaml.YAMLError,
                 yaml_config.RequiredError) as err:
-            raise SeriesConfigError("Error loading series '{}'".format(series_name), err)
+            raise SeriesConfigError("Error loading series '{}'".format(series_name),
+                                    prior_error=err)
 
 
-def verify_configs(pav_cfg, series_name: str, op_sys: str = None,
+def verify_configs(pav_cfg, series_name: str, platform: str = None,
                    host: str = None, modes: List[str] = None,
                    overrides: List[str] = None) -> dict:
     """Loads series config and checks that all tests can be loaded with all
@@ -127,14 +128,14 @@ def verify_configs(pav_cfg, series_name: str, op_sys: str = None,
         raise SeriesConfigError("Cannot load series.", err)
     except TestConfigError as err:
         raise SeriesConfigError("Error loading test for series {}."
-                                .format(series_name), err)
+                                .format(series_name), prior_error=err)
 
     return series_cfg
 
 
 def generate_series_config(
         name: str,
-        op_sys: str = None,
+        platform: str = None,
         host: str = None,
         modes: List[str] = None,
         ordered: bool = None,
@@ -149,7 +150,7 @@ def generate_series_config(
     series_cfg = SeriesConfigLoader().load_empty()
 
     series_cfg['name'] = name
-    series_cfg['os'] = op_sys
+    series_cfg['platform'] = platform
     series_cfg['modes'] = modes or []
     series_cfg['host'] = host
     if ordered is not None:

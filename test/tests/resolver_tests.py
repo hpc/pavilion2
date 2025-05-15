@@ -90,6 +90,12 @@ class ResolverTests(PavTestCase):
         # Make sure this didn't get lost.
         self.assertEqual(narf_cfg['run']['cmds'], ['echo "Running World"'])
 
+    def test_loading_legacy(self):
+        """Make sure we can load tests from the old 'tests' directory."""
+
+        tests = self.resolver.load(['old_style'])
+        names = sorted([t.config['name'] for t in tests])
+
     def test_loading_hidden(self):
         """Make sure we only get hidden tests when specifically requested."""
 
@@ -103,14 +109,14 @@ class ResolverTests(PavTestCase):
     def test_layering(self):
         """Make sure test config layering works as expected."""
 
-        for op_sys in ('that', 'layer_os'):
+        for platform in ('that', 'layer_platform'):
             for host in ('this', 'layer_host'):
                 for modes in ([], ['layer_mode']):
                     for test in ('layer_tests.layer_test',
                                  'layer_tests.layer_test_part'):
                         answer = None
-                        if op_sys == 'layer_os':
-                            answer = 'sys_os'
+                        if platform == 'layer_platform':
+                            answer = 'platform'
                         if host == 'layer_host':
                             answer = 'host'
                         if test.endswith('part'):
@@ -119,21 +125,21 @@ class ResolverTests(PavTestCase):
                             answer = 'mode'
 
                     rslvr = resolver.TestConfigResolver(self.pav_cfg,
-                                                        op_sys=op_sys,
+                                                        platform=platform,
                                                         host=host)
                     tests = rslvr.load(
                         [test],
                         modes=modes)
                     self.assertEqual(
                         tests[0].config['summary'], answer,
-                        msg="os: {}, host: {}, test: {}, modes: {}"
-                            .format(op_sys, host, test, modes))
+                        msg="platform: {}, host: {}, test: {}, modes: {}"
+                            .format(platform, host, test, modes))
 
     def test_defaulted_variables(self):
         """Make sure default variables work as expected."""
 
         rslvr = resolver.TestConfigResolver(self.pav_cfg,
-                                            op_sys='defaulted',
+                                            platform='defaulted',
                                             host='defaulted')
         tests = rslvr.load(
             tests=['defaulted'],
@@ -158,7 +164,7 @@ class ResolverTests(PavTestCase):
 
         # These make sure that setting a default only overrides the default at
         # all levels
-        self.assertEqual(test_vars['sys_os_def'], [{None: 'sys_os'}])
+        self.assertEqual(test_vars['platform_def'], [{None: 'platform'}])
         self.assertEqual(test_vars['host_def'], [{None: 'host'}])
         self.assertEqual(test_vars['mode_def'], [{None: 'mode'}])
         self.assertEqual(test_vars['test_def'], [{None: 'test'}])
@@ -168,7 +174,7 @@ class ResolverTests(PavTestCase):
         # wherever it was set. The default is set at the namesakes layer,
         # and the value is set at the test layer (except for 'def_test', which is set
         # at the host layer.)
-        self.assertEqual(test_vars['def_os'], [{None: 'test'}])
+        self.assertEqual(test_vars['def_platform'], [{None: 'test'}])
         self.assertEqual(test_vars['def_host'], [{None: 'test'}])
         self.assertEqual(test_vars['def_test'], [{None: 'host'}])
         self.assertEqual(test_vars['def_mode'], [{None: 'test'}])
@@ -225,11 +231,13 @@ class ResolverTests(PavTestCase):
         for test_request, result_count, result_unique in (
                 ('wildcard.some[tm]est', 8, 8),
                 ('wildcard.some*', 8, 8),
-                ('wildcard.*', 9, 9),
+                ('wildcard.*', 10, 10),
                 ('2*wildcard.some?est', 16, 8),
-                ('wildcard.**2', 18, 9),
-                ('wildcard', 9, 9),
-                ('wildcard._base', 1, 1)):
+                ('wildcard.**2', 20, 10),
+                ('wildcard', 10, 10),
+                ('wildcard._base', 1, 1),
+                ('wild*.by_test_name', 2, 2),
+                ):
             tests = self.resolver.load(tests=[test_request])
 
             self.assertEqual(len(tests), result_count)
@@ -251,8 +259,8 @@ class ResolverTests(PavTestCase):
         for bad_request, bad_excerpt in (
                 ('wildcard.noperms.*', "doesn't have permutations at all"),
                 ('wildcard.sometest.not_me', "Available permutations:"),
-                ('wildcard.doesnt_exist', "test that matches 'doesnt_exist'"),
-                ('wildcard.[invalidfnmatch', r"test that matches '\[invalidfnmatch'")):
+                ('wildcard.doesnt_exist', "test that matches 'wildcard.doesnt_exist'"),
+                ('wildcard.[invalidfnmatch', r"test that matches 'wildcard.\[invalidfnmatch'")):
             with self.assertRaisesRegex(TestConfigError, bad_excerpt):
                 self.resolver.load([bad_request])
 
@@ -260,7 +268,7 @@ class ResolverTests(PavTestCase):
         """Make sure extending variables works correctly."""
 
         rslvr = resolver.TestConfigResolver(self.pav_cfg,
-                                            op_sys='extended',
+                                            platform='extended',
                                             host='extended')
         tests = rslvr.load(
             tests=['extended.test'],
@@ -273,7 +281,7 @@ class ResolverTests(PavTestCase):
         long_answer = [{None: word} for word in long_answer]
         self.assertEqual(cfg['variables']['long_base'], long_answer)
         self.assertEqual(cfg['variables']['single_base'],
-                         [{None: key} for key in ['sys_os', 'host', 'test', 'mode']])
+                         [{None: key} for key in ['platform', 'host', 'test', 'mode']])
         self.assertEqual(cfg['variables']['no_base_mode'],
                          [{None: 'mode'}])
         self.assertEqual(cfg['variables']['no_base'],
@@ -831,13 +839,13 @@ class ResolverTests(PavTestCase):
             }
         }
 
-        for sys_os in ('that', 'layer_os'):
+        for platform in ('that', 'layer_platform'):
             for host in ('this', 'layer_host'):
                 for modes in ([], ['layer_mode']):
                     for test in ('cmd_inherit_extend.test1',
                                  'cmd_inherit_extend.test2',
                                  'cmd_inherit_extend.test3'):
-                        rslvr = resolver.TestConfigResolver(self.pav_cfg, op_sys=sys_os, host=host)
+                        rslvr = resolver.TestConfigResolver(self.pav_cfg, platform=platform, host=host)
 
                         tests = rslvr.load([test], modes=modes)
                         test_cfg = tests[0].config
@@ -845,7 +853,7 @@ class ResolverTests(PavTestCase):
                         for sec in ['build', 'run']:
                             self.assertEqual(test_cfg[sec]['cmds'],
                                              correct[test_name][sec]['cmds'])
-                        self.assertEqual(test_cfg['os'], sys_os)
+                        self.assertEqual(test_cfg['platform'], platform)
                         self.assertEqual(test_cfg['host'], host)
                         self.assertEqual(test_cfg['modes'], modes)
 

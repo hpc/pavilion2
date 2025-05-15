@@ -261,10 +261,6 @@ class ScheduleConfig(yc.KeyedElem):
             raise ValueError(elem)
 
 
-class SchedConfigError(ValueError):
-    """Raised when there's a problem with the scheduler configuration."""
-
-
 def min_int(name, min_val, required=True):
     """Return a callback that ensures the argument >= min_val. If not required,
     an empty value will return None."""
@@ -567,7 +563,7 @@ def _validate_config(config: Dict[str, str],
 
             except ValueError as err:
                 raise SchedConfigError("Config value for key '{}' had a validation "
-                                       "error.".format(key), err)
+                                       "error.".format(key), prior_error=err)
 
         elif isinstance(validator, (tuple, list)):
             if value not in validator:

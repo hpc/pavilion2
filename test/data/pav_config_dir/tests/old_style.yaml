@@ -1,0 +1,5 @@
+hello:
+    scheduler: raw
+    run:
+        cmds:
+            - echo "hello"

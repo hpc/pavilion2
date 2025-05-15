@@ -55,6 +55,8 @@ def initialize_plugins(pav_cfg):
     :raises RuntimeError: When you try to run this twice.
     """
 
+    _reset_plugins()
+
     global _PLUGIN_MANAGER  # pylint: disable=W0603
 
     if _PLUGIN_MANAGER is not None:

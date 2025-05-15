@@ -1,0 +1,526 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# rewrite of dshbak using python-hostlist
+
+from __future__ import print_function
+
+__version__ = "#VERSION#"
+
+# Copyright (C) 2010 Mattias Slabanja <slabanja@chalmers.se>
+#               
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+import sys
+import optparse
+import re
+
+from hostlist import collect_hostlist, expand_hostlist, __version__ as library_version
+from difflib import unified_diff, SequenceMatcher 
+from itertools import count
+
+def scan():
+    """Scan stdin, store lines by host, and return it all in a
+    dictionary indexed by host.
+
+    Input lines are expected to be on the format
+    "<hostname>:<rest of line>". Lines not matching that format
+    are added to the dictionary using None as key.
+
+    The linesplit-re is designed to match the original dshbak behavior. 
+    """
+
+    linesplitter = re.compile(r'^ *([A-Za-z0-9.-]+) *: ?(.*)$')
+    text_dict = {}
+
+    for line in sys.stdin:
+        match = linesplitter.match(line)
+        if match:
+            host, hostline = match.groups()
+        else:
+            # The linesplitter regexp did NOT match.
+            # This line will be added to text_dict[None]
+            host = None
+            hostline = line.rstrip('\n')
+
+        if host in text_dict:
+            # The groups in the linesplitter regexp does not include the trailing '\n'
+            text_dict[host] += "\n" + hostline
+        else:
+            text_dict[host] = hostline
+
+    return text_dict
+
+def collect(text_dict):
+    """Collect hosts having identical output.
+
+    Return a list of (host set, text) tuples."""
+
+    reverse_dict = {}
+    for host, text in text_dict.items():
+        if text in reverse_dict:
+            reverse_dict[text].add(host)
+        else:
+            reverse_dict[text] = set((host,))
+
+    return [(host_set, text) for text, host_set in reverse_dict.items()]
+
+
+# Colors enabled by default
+def in_red(s):
+    return '\033[91m' + s + '\033[0m'
+def in_blue(s):
+    return '\033[94m' + s + '\033[0m'
+def in_gray(s):
+    return '\033[90m' + s + '\033[0m'
+in_plain = lambda x:x
+
+def output(host_set_or_str, text, count_hosts=False):
+    """Prepend the output with a hostname framed with horizontal lines."""
+    hline = '-' * 16
+    if isinstance(host_set_or_str, str):
+        header = host_set_or_str # for the benefit of the garbage header
+    else:
+        header = collect_hostlist(host_set_or_str)
+        if count_hosts:
+            header = "%d: %s" % (len(host_set_or_str),  header)
+    print(in_gray(hline))
+    print(in_gray(header))
+    print(in_gray(hline))
+    print(text)
+
+
+class Collector:
+    """Collect relatively matching texts, find similarities and differences
+
+    Depends on SequenceMatcher. 
+    Texts being similar enough when doing a line-per-line comparison
+    to a reference text can be added with the try_add_text method.
+    When texts of interest has been added, calling the process method
+    will sort out which parts are identical (per line intersection 
+    of all matches between reference and rest of the texts)
+    and will store the individual differences.
+    The heavy part of the processing is done by
+    SequenceMatcher.get_matching_blocks called from try_add_text.
+    """
+    def __init__(self, ref_text, label=None, match_limit=0.5):
+        ref_lines = ref_text.split('\n')
+        self._N = len(ref_lines)
+        self._matchers = [SequenceMatcher(None, L, L) for L in ref_lines]
+        assert match_limit <= 1.0 and match_limit >= 0
+        self._match_limit = match_limit
+        self._lmb_pairs = [[] for i in range(self._N)]
+        self._labels = []
+        self._label_counter = count(1)
+
+        self._reset_processing_result()
+        self._add_lines(ref_lines)
+        self._push_label_name(label)
+
+    def try_add_text(self, text, label=None):
+        """Test if text is similar enough, if it is, add it
+        """
+
+        lines = text.split('\n')
+        if len(lines) != self._N:
+            return False
+
+        self._update_seq1(lines)
+
+        # The quick_ratio method is somewhat expensive
+        ratio = (1.0/self._N) * sum([mat.quick_ratio() for mat in self._matchers])
+        if ratio < self._match_limit:
+            return False
+
+        if not self.text is None:
+            self._reset_processing_result()
+        self._add_lines(lines)
+        self._push_label_name(label)
+        return True
+
+    def render_line(self, template, label=None, col_t=in_plain, col_f=in_plain):
+        """Render a line-template into a text line.
+
+        %(h)s, $(1)s, %(2)s, .. is substituted to 
+        hostname (label), diff1, diff2, ...
+        
+        percent-sign needs to be escaped by replacing them with
+        %(p)s.
+
+        If template is not a string, it is expected to be list of
+        (bool, string) tuples, where the strings will be processed
+        with col_t and col_f for True and False, respectively.
+        This is used to control the colors of the rendered line.
+        """
+
+        if type(template) is str:
+            return template % self._diffs[label]
+
+        line = []
+        for matching, ttext in template:
+            if matching:
+                line.append(col_t(ttext))
+            else:
+                line.append(col_f(ttext))
+
+        return (''.join(line)) % self._diffs[label]
+
+    def process(self, spliced_diff=False, collected_diff=False):
+        """Process the gathered texts
+
+        spliced_diff - splice in the lines that are differing
+        collected_diff - try to collect the differing lines
+        """
+
+        if not self.text is None:
+            self._reset_processing_result()
+
+        for label in self._labels:
+            self._diffs[label] = {}
+            self._diffs[label]['h'] = label
+            self._diffs[label]['p'] = '%'
+
+        lines = []
+        # For each set of lines, sort out differences
+        for lmbs in self._lmb_pairs:
+
+            line_template, N_diffs = self._process_line(lmbs)
+
+            lines.append(self.render_line(line_template, col_f=in_red))
+
+            if N_diffs > 0 and spliced_diff:
+                d = self._diffs
+                text_dict = dict([(l, self.render_line(line_template, l, 
+                                                       col_f=in_red,
+                                                       col_t=in_blue))
+                                  for l in self._labels])
+                if collected_diff:
+                    hosts_text_list = [(collect_hostlist(hs), t) 
+                                       for hs, t in collect(text_dict)]
+                else:
+                    hosts_text_list = text_dict.items()
+                for host, text in sorted(hosts_text_list, key=lambda x:x[0]):
+                    lines.append(in_gray(host) + ": " + text)
+                    
+        self.labels = self._labels
+        self.N_diffs = next(self._diff_counter)-1
+        self.diffs = self._diffs
+        self.text = '\n'.join(lines)
+
+
+    def _reset_processing_result(self):
+        self.text = None
+        self.labels = None
+        self.N_diffs = None
+        self.diffs = None
+        self._diff_counter = count(1)
+        
+        # Initialize dict for dummy diff-labels
+        self._diffs = {}
+        self._diffs[None] = {}
+        self._diffs[None].update([('h', '[HOSTNAME]'), ('p', '%')])
+
+
+    def _update_seq1(self, lines):
+        # Simply set seq1 in all SequenceMatchers
+        for L, mat in zip(lines, self._matchers):
+            mat.set_seq1(L)
+
+    def _add_lines(self, lines):
+        # Add a new set of lines, matchers seq1 must already be updated
+        for lmbs, L, mat in zip(self._lmb_pairs, lines, self._matchers):
+            lmbs.append((L, mat.get_matching_blocks())) #This is what's taking time
+        
+    def _push_label_name(self, label=None):
+        if label is None:
+            self._labels.append('text%i' % next(self._label_counter))
+        else:
+            self._labels.append(label)
+            
+    def _process_line(self, lmbs):
+        # Get non- and minimal matching blocks for a set of lines.
+        # lmbs is a list of (line, matching_blocks)-pairs, for
+        # all lines to consider.
+        #
+        # * Using a mask, construct a "minimum match"
+        # * Sort out "supremum non-match"/"minumum match" into
+        #   matching-blocks-like format and 
+        # * create a line template with escaped %-signs
+
+        ref_L, _ = lmbs[0]
+        ref_L_N = len(ref_L)
+        part_mask = [1] * (ref_L_N+1) #Extra element to indicate trailing diff
+        for _, mb in lmbs[1:]: #Next matching-block
+            ipn = jpn = 0
+            for i, j, n in mb:
+                if ((i != 0 or j != 0) and
+                    (jpn != j or ipn != i)):
+                    #There is a diff, update the partion mask
+                    for jind in range(jpn, j):
+                        part_mask[jind] = False
+                    for jind in range(j, ref_L_N+1):
+                        if part_mask[jind]:
+                            part_mask[jind] += 1
+                jpn = j + n
+                ipn = i + n
+        part_mask, end_part = part_mask[:-1], part_mask[-1]
+
+        # collect combined non and minimal matching blocks (nm_nb)
+        # between the reference line and all other lines.
+        # False = non-matching, True = matching.
+        # non-matching blocks can be 0-length (n==0).
+        # Also, when we are at it, create an affiliated line_template.
+        nm_mb = []
+        diff_idxs = []
+        line_template = []
+
+        def push_m(j, n):
+            nm_mb.append((True, j, n))
+            line_template.append((True, ref_L[j:j+n].replace('%', '%(p)s')))
+
+        def push_n(j, n):
+            nm_mb.append((False, j, n))
+            di = next(self._diff_counter)
+            line_template.append((False, '%%(%i)s' % di))
+            diff_idxs.append(di)
+        
+        opj = 0
+        op = 1
+        for j in range(0, ref_L_N):
+            if part_mask[j] is False:
+                if op is False:
+                    # Continue along non-matching block
+                    continue
+                elif j-opj > 0:
+                    # from matching to non-matching block
+                    push_m(opj, j-opj)
+            else:
+                if part_mask[j] == op:
+                    # Continue along matching block
+                    continue
+                elif op is False:
+                    # from non-matching to matching block
+                    push_n(opj, j-opj)
+                else:
+                    # go between matching (via 0-length non-matching)
+                    if j-opj > 0:
+                        push_m(opj, j-opj)
+                    push_n(j, 0)
+            op = part_mask[j]
+            opj = j
+
+        if op is False:
+            push_n(opj, ref_L_N-opj)
+        else:
+            push_m(opj, ref_L_N-opj)
+            if op != end_part:
+                push_n(ref_L_N, 0)
+
+
+        if len(diff_idxs) > 0:
+            # This line contains differences,
+            # find them and store them.
+
+            # Create dummy diffs
+            d = self._diffs[None]
+            d.update([(str(k), '[DIFF%i]'%k) for k in diff_idxs])
+
+            index = [-1]*(ref_L_N+2)
+            padded_mb = [(True, 0, 0)] + nm_mb + [(True, ref_L_N, 0)]
+            diff_i0 = diff_idxs[0]
+
+            for label, lmb in zip(self._labels, lmbs):
+                L, mb = lmb
+                index[ref_L_N] = len(L)
+                for i, j, n in mb:
+                    index[j:j+n] = range(i, i+n)
+
+                dc = count(diff_i0)
+                diffs = self._diffs[label]
+                for mb_i in range(1, len(padded_mb)-1):
+                    if padded_mb[mb_i][0] is False: # False == non-matching block
+                        _, jA, nA = padded_mb[mb_i-1]
+                        _, jB, _  = padded_mb[mb_i+1]
+                        iA = index[jA+nA-1]+1        
+                        iB = index[jB]
+                        diffs[str(next(dc))] = L[iA:iB]
+
+        return line_template, len(diff_idxs)
+
+
+
+
+# MAIN
+
+op = optparse.OptionParser(usage="usage: %prog [OPTION]...",
+                           add_help_option = False)
+
+op.add_option("-c", "--collect", action="store_true",
+              help="Collect identical output.")
+op.add_option("-C", "--collect-similar", action="store_true",
+              help="Collect similar output. Collects output that is "
+              "in relatively close proximity to each other. ")
+
+C_group = optparse.OptionGroup(op, 'Collect-similar mode options',
+                               'Options that can be used together with '
+                               'the --collect-similar mode. These options '
+                               'control if/how the "collected-part" and '
+                               'differences should be displayed.')
+C_group.add_option("", "--spliced-diff", action="store_true",
+                   help="Print differing lines, spliced into the indentical part.")
+C_group.add_option("", "--no-collected", action="store_true",
+                   help="Don't print the collected part.")
+C_group.add_option("", "--format-diff", metavar="FORMAT",
+                   help="After the collected part, print the individual "
+                   "differences for each host as specified by FORMAT. "
+                   "FORMAT is a string where $h and $1, $2, ... will be substituted "
+                   "with hostname and difference 1, 2, etc. "
+                   "E.g. --format-diff='$h: $3 $1'")
+op.add_option_group(C_group)
+
+op.add_option("-d", "--unified-diff", action="store_true",
+              help="Print the most frequent output in its full form, "
+              "and all other outputs as unified diffs "
+              "relative the most frequent output. This option implies --collect.")
+
+op.add_option("-n", "--count", action="store_true",
+              help="Show the number of hosts in the header.")
+
+op.add_option("-g", "--with-garbage", action="store_true",
+              help="Also collect and print input not conforming to the "
+              ' "host : output"-format. '
+              "Garbage output will be presented separated from host output.")
+
+op.add_option("", "--color", metavar='Y/N',
+              help="Force ANSI color usage; either y[es] or n[o]. "
+              "ANSI colors will be used by default for tty output.")
+op.add_option("-h", "--help", action="help", help="Show help")
+op.add_option("--version",
+              action="store_true",
+              help="Show version")
+
+
+(opts, args) = op.parse_args()
+
+if opts.version:
+    print("Version %s (library version %s)" % (__version__, library_version))
+    sys.exit()
+
+# Check to see if we should override use of colors (default = yes for tty)
+if opts.color:
+    if (opts.color.lower() in ["n", "no", "0"]):
+        in_red = in_blue = in_gray = in_plain
+    elif not (opts.color.lower() in ["y", "yes", "1"]):
+        sys.stderr.write('Error: expected --color y[es] or --color n[o]\n')
+        sys.exit(1)
+elif not sys.stdout.isatty():
+    in_red = in_blue = in_gray = in_plain
+
+
+try:
+    text_dict = scan()
+
+    if opts.with_garbage and None in text_dict:
+        # The user wants to see garbage-output, and it is non-empty.
+        # Print it before the host output regardless of diff/normal mode.
+        output('NON-FORMATTED OUTPUT', text_dict[None])
+    # Remove garbage lines from text_dict
+    text_dict.pop(None,None)
+
+    if opts.unified_diff:
+        # "Unified diff mode", print the most abundant output, O, in full, and all
+        # other outputs as a unified diff relative O.
+
+        hosts_text_list = collect(text_dict)
+
+        # Sort in descending order of the number of hosts
+        hosts_text_list.sort(key = lambda x: -len(x[0]))
+
+        if len(hosts_text_list) == 0:
+            sys.exit()
+
+        # The most abundant output
+        ref_host_set, ref_text = hosts_text_list.pop(0)
+        ref_hostlist = collect_hostlist(ref_host_set)
+
+        # Split into lines for use with difflib.
+        ref_lines = ref_text.split('\n')
+
+        output(ref_host_set, ref_text, opts.count)
+
+        for host_set, text in hosts_text_list:
+            output(host_set,
+                   '\n'.join(unified_diff(ref_lines,
+                                          text.split('\n'),
+                                          fromfile=ref_hostlist,
+                                          tofile=collect_hostlist(host_set),
+                                          lineterm='')),
+                   opts.count)
+
+    elif opts.collect_similar:
+
+        collects = []
+        for host, text in text_dict.items():
+            picked = False
+            for c in collects:
+                picked = c.try_add_text(text, host)
+                if picked:
+                    break
+            if not picked:
+                collects.append(Collector(text, host))
+            
+        if opts.format_diff:
+            fmt_re = re.compile(r'\$(h|[1-9][0-9]*)|\${(h|[1-9][0-9]*)}')
+
+        for c in collects:
+            c.process(opts.spliced_diff, opts.collect)
+            if not opts.no_collected:
+                output(set(c._labels), c.text, opts.count)
+                
+            if opts.format_diff and c.N_diffs > 0:
+                def fmt_fun(m):
+                    v = m.group(1) or m.group(2)
+                    if v.isdigit() and int(v) > c.N_diffs:
+                        return ''
+                    return '%%(%s)s' % v
+                fmt = fmt_re.sub(fmt_fun,
+                                 opts.format_diff.replace('%', '%(p)s'))
+
+                lines = [(h, c.render_line(fmt, h)) for h in c.labels]
+                for _, line in sorted(lines, key=lambda x:x[0]):
+                    print(line)
+                        
+    else:
+        # "Normal" mode, just print the output
+
+        if opts.collect:
+            hosts_text_list = collect(text_dict)
+        else:
+            hosts_text_list = [(set((n,)), l) for n,l in text_dict.items()]
+
+        # Sort in descending order of the number of hosts
+        hosts_text_list.sort(key = lambda x: -len(x[0]))
+
+        for host_set, text in hosts_text_list:
+            output(host_set, text, opts.count)
+
+except KeyboardInterrupt:
+    sys.exit()
+except IOError as e:
+    if e.errno == 32:
+        # IOError Broken Pipe, ignore this
+        sys.exit()
+    raise

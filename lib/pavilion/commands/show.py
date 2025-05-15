@@ -100,10 +100,10 @@ class ShowCommand(Command):
         )
 
         os_parser = subparsers.add_parser(
-            'os',
-            help="Show available operating system configs.",
+            'platform',
+            help="Show available platform configs.",
             description="Pavilion can support different default configs "
-                        "depending on the operating system."
+                        "depending on the platform."
         )
 
         os_group = os_parser.add_mutually_exclusive_group()
@@ -622,16 +622,16 @@ class ShowCommand(Command):
                                       "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
-    @sub_cmd()
-    def _os_cmd(self, pav_cfg, args):
-        """List all known os files."""
+    @sub_cmd('platform')
+    def _platforms_cmd(self, pav_cfg, args):
+        """List all known platform files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, 'OS')
+            self.show_vars(pav_cfg, args.vars, 'platforms')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'OS')
+            self.show_full_config(pav_cfg, args.config, 'platforms')
         else:
-            self.show_configs_table(pav_cfg, 'OS',
+            self.show_configs_table(pav_cfg, 'platforms',
                                     verbose=args.verbose,
                                     errors=args.err)
 
