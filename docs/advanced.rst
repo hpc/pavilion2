@@ -57,13 +57,15 @@ Variables
 Test configs can contain *expressions* within their config values that
 reference and manipulate variables.
 
-These variables come from a variety of sources (this is also the
-resolution order):
+These variables come from a variety of sources, each of which is associated
+with a particular *variable category*, shown in parentheses:
 
-- The test config's variables section (var)
-- System Plugins (sys)
-- Pavilion hardcoded variables (pav)
-- The selected scheduler (sched)
+1. The test config's variables section (`var`)
+2. System Plugins (`sys`)
+3. Pavilion hardcoded variables (`pav`)
+4. The selected scheduler (`sched`)
+
+The above ordering is also the resolution order for variables.
 
 Variable names must be in lowercase and start with a letter, but may
 contain number and underscores.
@@ -86,7 +88,7 @@ contain number and underscores.
 -  Use double curly brackets ``{{var.myvar}}``.
 -  Variable category is optional. ``{{myvar}}`` is fine.
 -  Name conflicts are resolved in the order of categories listed above.
--  In fact, it's recommended to not use the category component unless
+-  In fact, it's recommended not to use the category component unless
    you need to make the reference explicit.
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
