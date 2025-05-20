@@ -135,7 +135,9 @@ class RunCommand(Command):
         # Note: We have to get a few arguments this way because this code
         # is reused between the build and run commands, and the don't quite have the
         # same arguments.
-        if args.name:
+        if args.name == "all":
+            ...
+        elif args.name is not None:
             series_name = args.name
         else:
             series_name = 'cmdline'
