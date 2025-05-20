@@ -945,6 +945,7 @@ of result keys.
         results = result.base_results(self)
 
         results['return_value'] = run_result
+        results['key_results'] = self.config.get('key_results', [])
 
         result_log("Base results:")
         result_log.indent(pprint.pformat(results))
