@@ -275,7 +275,6 @@ class ResultsCommand(Command):
         else:
             flat_sorted_results = utils.sort_table(args.sort_by, flat_results)
 
-            print(f"Fields: {fields}")
             title_str=f"Test Results: {serieses}."
             output.draw_table(
                 outfile=self.outfile,
