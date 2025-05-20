@@ -15,16 +15,17 @@ Assumptions
 -----------
 
 Pavilion assumes that it runs under a relatively clean, default login
-environment; ie the login environment a new user might get when they log
+environment; i.e., the login environment a new user might get when they log
 into the machine for the first time, including any default modules or
-environment variables. This is **not required**, but simply means that
-when you run Pavilion, it will work the same as when your co-worker
+environment variables. A clean environment is **not required**, but simply
+means that when you run Pavilion, it will work the same as when your co-worker
 does.
 
-That aside, most basic changes won't have a significant impact on
-Pavilion. However, a few things will: - Changing from the default
-Python3 or PYTHONPATH - Modifying LD\_LIBRARY\_PATH or similar variables
-that affect compilation.
+That aside, most basic changes to the enviroment won't have a significant
+impact on Pavilion's behavior. However, a few things will:
+
+- Changing from the default Python3 or `PYTHONPATH`
+- Modifying `LD\_LIBRARY\_PATH` or similar variables that affect compilation.
 
 Lastly, Pavilion writes and runs *BASH* scripts. It assumes that
 whatever your environment is, the module system will work under *BASH*
@@ -56,7 +57,7 @@ contain any bash shell syntax without issue.
           - for value in ${AN_ARRAY[@]}; do echo $value; done
           - python3 mytest.py
 
-Each set variable is set (and \_exported) in the order given.
+Each set variable is set (and exported) in the order given.
 
 .. code:: bash
 
@@ -123,8 +124,8 @@ by listing them (in the order needed) under the *modules* attribute.
       build:
         modules: [gcc, openmpi/2.1.2]
 
-In the generated build script, each of these modules will be both loaded
-and checked to see if they were actually loaded.
+In the generated build script, each of these modules will be first loaded,
+then checked to verify that it was loaded successfully.
 
 .. code:: bash
 
