@@ -225,7 +225,10 @@ class ResultsCommand(Command):
                 if rslt['result'] != TestRun.PASS:
                     all_passed = False
 
-                key_results = key_results.union(set(rslt['key_results']))
+                key_results = key_results.union(set(rslt.get('key_results', [])))
+
+            for k in key_results:
+                if k not in
 
             fields += key_results
 
