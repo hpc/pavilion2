@@ -863,7 +863,7 @@ expected to be added to by various plugins.
             sub_elem=yc.StrElem(),
             help_text="The list of result keys that should be considered "
                       "'key results'. These results appear automatically "
-                      "when running 'pav results'.")
+                      "when running 'pav results'."),
         ModuleWrapperCatElem(
             'module_wrappers',
             help_text="Whenever the given module[/version] is asked for in the 'build.modules' "
