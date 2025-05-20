@@ -227,9 +227,6 @@ class ResultsCommand(Command):
 
                 key_results = key_results.union(set(rslt.get('key_results', [])))
 
-            for k in key_results:
-                if k not in
-
             fields += key_results
 
             field_info = {
