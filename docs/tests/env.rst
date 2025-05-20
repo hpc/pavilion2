@@ -116,7 +116,7 @@ Loading modules
 ~~~~~~~~~~~~~~~
 
 In either *run* or *build* configs, you can have Pavilion import modules
-by listing them (in the order needed) under the *modules* attribute.
+by listing them (in the order needed) under the ``modules`` attribute.
 
 .. code:: yaml
 
@@ -136,15 +136,16 @@ then checked to verify that it was loaded successfully.
     module load gcc
     # This checks to make sure the module was loaded. If it isn't the script
     # exits and updates the test status.
-    is_module_loaded gcc $TEST_ID
+    verify_module_loaded gcc $TEST_ID
 
     module load openmpi/2.1.2
-    is_module_loaded openmpi/2.1.2 $TEST_ID
+    verify_module_loaded openmpi/2.1.2 $TEST_ID
 
 Other Module Manipulations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can also unload and swap modules:
+You can also swap modules by using the arrow (``->``) syntax and unload modules by prefixing
+their names with a dash (``-``):
 
 .. code:: yaml
 
@@ -201,7 +202,7 @@ sections:
             - PrgEnv-cray->PrgEnv-gnu
             # Swap the default gcc (that comes with the PrgEnv) for the requested one
             # You shouldn't specify versions (unless you want to force a version), Pavilion
-            # will automatically ask for the version asked for by
+            # will automatically ask for the version requested in the test config.
             - gcc->gcc
         env:
             # You can also add environment variables to automatically be exported after
@@ -242,9 +243,9 @@ loaded package that matches the left side, and swap it for the right side.
 Version Variable
 ~~~~~~~~~~~~~~~~
 
-If you need the version of the loaded module, it's available in the '<mod_name>_VERSION'
+If you need the version of the loaded module, it's available in the ``<mod_name>_VERSION``
 environment variable. If the the mod_name contains wildcards, '*' is replaced with 'any', and
-other characters are replaced with underscores. So ``gcc-[f]-?-*`` gets a 'gcc-_-_-any_VERSION'
+other characters are replaced with underscores. So ``gcc-[f]-?-*`` gets a ``gcc-_-_-any_VERSION``
 environment variable.
 
 Module Wrapper Plugins
@@ -263,8 +264,8 @@ test scripts. This is not enabled by default as it requires an external Spack
 instance.
 
 Once configured, Spack packages can be installed and loaded in Pavilion test
-scripts using the 'spack' section inside both the 'build' and 'run' sections of
-a test config. This section has two keys, 'install' and 'load', that take a list
+scripts using the ``spack`` section inside both the ``build`` and ``run`` sections of
+a test config. This section has two keys, ``install`` and ``load``, that take a list
 of package names with optional spec and dependency options.
 
 .. code-block:: yaml
@@ -284,17 +285,17 @@ of package names with optional spec and dependency options.
                 - mpich
                 - mpileaks
 
-Pavilion will also allow for Spack specific configuration changes to be added
-inside test configs under the 'spack' section. The following Spack specific
+Pavilion will also allow for Spack-specific configuration changes to be added
+inside test configs under the ``spack`` section. The following Spack-specific
 options are currently supported:
 
-- build_jobs - The max number of jobs to use when running `make` in parallel.
-- repos - Paths to package repositories.
-- mirrors - URLs that point to a directories that contain Spack packages.
-- upstreams - Other Spack instances.
+- ``build_jobs`` - The max number of jobs to use when running ``make`` in parallel.
+- ``repos`` - Paths to package repositories.
+- ``mirrors`` - URLs that point to a directories that contain Spack packages.
+- ``upstreams`` - Other Spack instances.
 
-These are directly inserted into the Spack build environment's spack.yaml
-file. Refer to Spack documentation on usage for these.
+These options are directly inserted into the Spack build environment's ``spack.yaml``
+file. Refer to Spack documentation on usage.
 
 .. code-block:: yaml
 
@@ -313,13 +314,13 @@ file. Refer to Spack documentation on usage for these.
 Enabling Spack Features
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Spack features can be added by providing a Spack instance's path
+Spack features can be enabled by providing a Spack instance's path
 under the ``spack_path`` key in the Pavilion config file (``pavilion.yaml``).
 For more Pavilion configuration information, see
 :ref:`config`.
 
 Once Spack is enabled globally for Pavilion, it can be enabled for individual
-tests simply by including a spack.load or spack.install key under the run or
+tests simply by including a ``spack.load`` or ``spack.install`` key under the run or
 build sections of a test config. Trying to use Spack in a test when it is not
 globally enabled first results in an error.
 
@@ -345,7 +346,7 @@ as seen below:
 This means any installs that are not in the global Spack instance will only be
 in the scope of this build.
 
-Global Spack packages or packages in upstreams will still require to be listed
+Global Spack packages or packages in upstreams will still need to be listed
 under the install section for both the build and run sections of a test config
 so that those packages can be added to the Spack environment correctly.
 
