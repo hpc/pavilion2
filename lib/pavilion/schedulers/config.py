@@ -7,6 +7,7 @@ import hostlist
 
 import yaml_config as yc
 from pavilion import utils
+from ..errors import SchedConfigError
 
 
 MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
