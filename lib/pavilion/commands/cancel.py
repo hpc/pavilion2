@@ -55,18 +55,19 @@ class CancelCommand(Command):
         # Separate out into tests and series
         series_ids, test_ids = partition(cmd_utils.is_series_id, args.tests)
 
-        args.tests = test_ids
-        args.series = series_ids
+        args.tests = list(test_ids)
+        args.series = list(series_ids)
 
-        # Get TestRun and TestSeries objects
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
-        tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
+        test_ret = 0
+        sers_ret = 0
 
-        sinfos = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
-        test_series = map(lambda x: series.TestSeries.load(pav_cfg, x.sid), sinfos)
-
-        # Cancel TestRuns and TestSeries
-        test_ret = cancel_utils.cancel_tests(pav_cfg, tests, self.outfile)
-        sers_ret = cancel_utils.cancel_series(test_series, self.outfile)
+        if len(args.tests) > 0:
+            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
+            tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
+            test_ret = cancel_utils.cancel_tests(pav_cfg, tests, self.outfile)
+        if len(args.series) > 0:
+            sinfos = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
+            test_series = list(map(lambda x: series.TestSeries.load(pav_cfg, x.sid), sinfos))
+            sers_ret = cancel_utils.cancel_series(test_series, self.outfile)
 
         return test_ret or sers_ret

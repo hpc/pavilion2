@@ -1147,7 +1147,16 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('To be built in an allocation.')
 
         script.command(f'echo "(pav) Setting up {stype} environment."')
+
+        purge = utils.str_bool(config.get("purge_modules"))
+
+        if purge:
+            script.newline()
+            script.comment("Start with a fresh environment")
+            script.module_purge()
+
         modules = config.get('modules', [])
+
         if modules:
             script.newline()
             script.comment('Perform module related changes to the environment.')

@@ -7,6 +7,7 @@ from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
 from pavilion import resolver
 from pavilion.test_run import TestRun
+from pavilion import module_wrapper
 
 MODULE_SYSTEM_ROOT_PATHS = [
     Path('/usr/share/Modules'),
@@ -102,6 +103,7 @@ class ModWrapperTests(PavTestCase):
         test_cfg['run']['modules'] = [
             '',               # A blank module
             'test_mod1/1.0',
+            'test_mod1/1.10',
             'test_mod1',      # Should load 1.1 as the default.
             'test_mod2',      # Un-versioned.
         ]
@@ -114,8 +116,8 @@ class ModWrapperTests(PavTestCase):
             # test_mod1 only gets added once (no dups)
             '[[ "${mods_sorted}" == "test_mod1:test_mod2" ]] || exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ "${vers_sorted}" == "1.0:1.1:" ]] || '
-            '[[ "${vers_sorted}" == "1.1::" ]] || exit 1'
+            '[[ "${vers_sorted}" == "1.0:1.10:" ]] || '
+            '[[ "${vers_sorted}" == "1.10::" ]] || exit 1'
         ]
 
         test = self._quick_test(test_cfg)
@@ -309,3 +311,71 @@ class ModWrapperTests(PavTestCase):
             'module swap $old_module gcc/1.2.8',
         ])
 
+    def test_parse_module(self):
+        """Make sure the parse_module function behaves as expected"""
+
+        checks = [
+            ('foo/1.10', ('load', ('foo', '1.10'), (None, None)))
+        ]
+
+        for mod, result in checks:
+            self.assertEqual(module_wrapper.parse_module(mod), result)
+
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
+    def test_run_module_purge(self):
+        """Test that a module purge is performed when running tests."""
+
+        # Test that a module purge is performed by default
+        test_cfg = self._quick_test_cfg()
+        test_cfg['run']['cmds'] = [
+            '[[ $(module -t list 2>&1) = "No modules loaded" ]] || exit 1',
+        ]
+        test_cfg['run']['preamble'].append('module load test_mod1 || exit 2')
+
+        test = self._quick_test(test_cfg)
+
+        run_result = test.run()
+
+        self.assertEqual(run_result, 0)
+
+        # Check that we can disable purging
+        test_cfg = self._quick_test_cfg()
+        test_cfg['run']['cmds'] = [
+            '[[ $(module -t list 2>&1) = "No modules loaded" ]] || exit 1',
+        ]
+        test_cfg['run']['preamble'].append('module load test_mod1 || exit 2')
+        test_cfg["run"]["purge_modules"] = False
+        test = self._quick_test(test_cfg)
+        run_result = test.run()
+
+        self.assertEqual(run_result, 1)
+
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
+    def test_build_module_purge(self):
+        """Test that a module purge is performed when building tests."""
+
+        # Test that a module purge is performed by default
+        test_cfg = self._quick_test_cfg()
+        test_cfg['build']['cmds'] = [
+            '[[ $(module -t list 2>&1) = "No modules loaded" ]] || exit 1',
+        ]
+        test_cfg['run']['preamble'].append('module load test_mod1 || exit 2')
+
+        test = self._quick_test(test_cfg, build=False)
+        build_result = test.build()
+
+        self.assertEqual(build_result, True)
+
+        # Check that we can disable purging
+        test_cfg = self._quick_test_cfg()
+        test_cfg['build']['cmds'] = [
+            '[[ $(module -t list 2>&1) = "No modules loaded" ]] || exit 1',
+        ]
+        test_cfg['build']['preamble'] = ['module load test_mod1 || exit 2']
+        test_cfg["build"]["purge_modules"] = False
+        test = self._quick_test(test_cfg, build=False)
+        build_result = test.build()
+
+        self.assertEqual(build_result, False)
