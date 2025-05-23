@@ -252,7 +252,7 @@ class TestBuilder:
                 hash_obj.update(self._hash_file(full_path))
             elif full_path.is_dir():
                 self._date_dir(full_path)
-                hash_obj.update(self._hash_dir(full_path, 
+                hash_obj.update(self._hash_dir(full_path,
                     exclude=CONFIG_FNAMES))
             else:
                 raise TestBuilderError(
