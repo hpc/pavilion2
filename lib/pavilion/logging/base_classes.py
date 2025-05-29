@@ -6,6 +6,18 @@ from yapsy import IPlugin
 from pavilion.errors import LoggingPluginError
 
 
+LOGGER = logging.getLogger(__file__)
+
+
+_OUTPUT_PLUGINS = {}
+
+
+def get_plugin(name: str) -> "ResultOutputPlugin":
+    """Get the result output plugin with the specified name."""
+
+    return _OUTPUT_PLUGINS[name]
+
+
 class ResultOutputPlugin(IPlugin.IPlugin):
 
     PRIO_CORE = 0
@@ -33,12 +45,30 @@ class ResultOutputPlugin(IPlugin.IPlugin):
         raise NotImplementedError
     
     def activate(self):
-        """Add this plugin to the logger plugin list."""
-        pass
+        """Add this plugin to the result output plugin list."""
+
+        if self.name in _OUTPUT_PLUGINS:
+            other = _OUTPUT_PLUGINS[self.name]
+            if self.priority > other.priority:
+                LOGGER.info(
+                    "Result output plugin '%s' at %s is superseded by %s.",
+                    self.name, other.path, self.path)
+                _OUTPUT_PLUGINS[self.name] = self
+            elif self.priority < other.priority:
+                LOGGER.info(
+                    "Result output plugin '%s' at %s is ignored in lieu of %s.",
+                    self.name, self.path, other.path)
+            else:
+                raise RuntimeError("Result output plugin conflict. Plugin '{}' at {} "
+                                   "has the same priority as {}"
+                                   .format(self.name, other.path, self.path))
+        else:
+            _OUTPUT_PLUGINS[self.name] = self
 
     def deactivate(self):
         """Remove this plugin from the logging plugin list."""
-        pass
+        
+        del _OUTPUT_PLUGINS[self.name]
 
     def __repr__(self):
         return '<{} from file {} named {}, priority {}>'.format(

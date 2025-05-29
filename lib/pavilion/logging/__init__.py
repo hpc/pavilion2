@@ -1,4 +1,4 @@
-from .base_classes import ResultOutputPlugin
+from .base_classes import ResultOutputPlugin, get_plugin
 from .files import Files
 
 _builtin_logging_plugins = [
