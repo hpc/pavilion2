@@ -39,7 +39,7 @@ from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
 from pavilion.micro import get_nested
-from pavilion.logging import get_plugin
+from pavilion.results_output import get_plugin
 from .test_attrs import TestAttributes
 
 

@@ -1,4 +1,5 @@
 import re
+import logging
 from typing import Dict
 
 from yapsy import IPlugin

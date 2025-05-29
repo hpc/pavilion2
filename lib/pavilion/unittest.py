@@ -111,7 +111,7 @@ base class.
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
         raw_pav_cfg.user_config = False
 
-        raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
+        raw_pav_cfg.result_output = [{"plugin": "files", "dest": raw_pav_cfg.working_dir/'results.log'}]
 
         if not raw_pav_cfg.working_dir.exists():
             raw_pav_cfg.working_dir.mkdir()

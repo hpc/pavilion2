@@ -468,13 +468,6 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             choices=['debug', 'info', 'warning', 'error', 'critical'],
             help_text="The minimum log level for messages sent to the pavilion "
                       "logfile."),
-        ExPathElem(
-            "result_log",
-            # Derive the default from the working directory, if a value isn't
-            # given.
-            help_text="Results are put in both the general log and a specific "
-                      "results log. This defaults to 'results.log' in the default "
-                      "working directory."),
         yc.BoolElem(
             "flatten_results", default=True,
             help_text="Flatten results with multiple 'per_file' values into "
@@ -512,6 +505,11 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "parser with the corresponding key and constant value. "
                       "Generally, the values should contain a pavilion "
                       "variable of some sort to resolve."),
+        yc.ListElem(
+            'result_output', sub_elem=yc.CategoryElem(),
+            help_text="The list of result output methods and their "
+                      "corresponding parameters."
+        ),
 
         # The following configuration items are for internal use and provide a
         # convenient way to pass around core pavilion components or data.

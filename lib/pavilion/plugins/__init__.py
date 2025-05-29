@@ -23,7 +23,7 @@ from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result_parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.sys_vars import SystemPlugin
-from pavilion.logging import ResultOutputPlugin
+from pavilion.results_output import ResultOutputPlugin
 from yapsy import PluginManager
 
 LOGGER = logging.getLogger('plugins')
