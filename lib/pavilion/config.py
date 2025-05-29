@@ -506,7 +506,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "Generally, the values should contain a pavilion "
                       "variable of some sort to resolve."),
         yc.ListElem(
-            'result_output', sub_elem=yc.CategoryElem(),
+            'result_output', sub_elem=yc.CategoryElem(sub_elem=yc.StrElem()),
             help_text="The list of result output methods and their "
                       "corresponding parameters."
         ),

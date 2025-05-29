@@ -203,30 +203,6 @@ def setup_loggers(pav_cfg) -> TextIO:
     # filter them.
     root_logger.setLevel(logging.DEBUG)
 
-    # Setup the result logger.
-    # Results will be logged to both the main log and the result log.
-    if pav_cfg.result_log is None:
-        result_log = working_dir/'results.log'
-    else:
-        result_log = pav_cfg.result_log
-
-    try:
-        result_log.touch()
-    except (PermissionError, FileNotFoundError) as err:
-        pav_cfg.warnings.append(
-            "Could not write to result log at '{}': {}"
-            .format(pav_cfg.result_log, err))
-
-    result_logger = logging.getLogger('common_results')
-    result_handler = LockFileRotatingFileHandler(
-        file_name=str(result_log),
-        # 20 MB
-        max_bytes=20 * 1024 ** 2,
-        backup_count=3)
-    result_handler.setFormatter(logging.Formatter("{message}", style='{'))
-    result_logger.setLevel(logging.INFO)
-    result_logger.addHandler(result_handler)
-
     # Setup the exception logger.
     # Exceptions will be logged to this directory, along with other useful info.
 

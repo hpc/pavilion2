@@ -1,5 +1,6 @@
 import re
 import logging
+import inspect
 from typing import Dict
 
 from yapsy import IPlugin
@@ -17,6 +18,12 @@ def get_plugin(name: str) -> "ResultOutputPlugin":
     """Get the result output plugin with the specified name."""
 
     return _OUTPUT_PLUGINS[name]
+
+
+def __reset() -> None:
+    global _OUTPUT_PLUGINS
+
+    _OUTPUT_PLUGINS = {}
 
 
 class ResultOutputPlugin(IPlugin.IPlugin):
@@ -38,6 +45,7 @@ class ResultOutputPlugin(IPlugin.IPlugin):
         self.name = name
         self.help_text = description
         self.priority = priority
+        self.path = inspect.getfile(self.__class__)
     
     def validate_config(self, config: Dict) -> None:
         raise NotImplementedError
