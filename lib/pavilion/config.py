@@ -8,18 +8,14 @@ import getpass
 import grp
 import os
 import stat
-import sys
 from collections import OrderedDict
 from pathlib import Path
-from itertools import product, starmap
 from typing import List, Union, Dict, NewType, Iterator, Tuple
 
 import yaml_config as yc
-from pavilion import output
 from pavilion import errors
 from pavilion.micro import first, flatten, remove_none, set_default
-from pavilion.path_utils import Pathlike, append_to_path, append_suffix, exists, path_product
-from pavilion.status_file import STATES
+from pavilion.path_utils import Pathlike, append_to_path, exists, path_product
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -204,7 +200,7 @@ class PavConfig(PavConfigDict):
         self.max_cpu: int = NCPU
         self.log_format: str = LOG_FORMAT
         self.log_level: str = 'info'
-        self.result_log: OptPath = None
+        self.result_output: List[Dict] = []
         self.flatten_results: bool = True
         self.exception_log: OptPath = None
         self.wget_timeout: int = 5

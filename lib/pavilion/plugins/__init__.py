@@ -23,6 +23,7 @@ from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result_parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.sys_vars import SystemPlugin
+from pavilion.logging import ResultOutputPlugin
 from yapsy import PluginManager
 
 LOGGER = logging.getLogger('plugins')
@@ -34,6 +35,7 @@ PLUGIN_CATEGORIES = {
     'function': FunctionPlugin,
     'module': ModuleWrapper,
     'result': ResultParser,
+    'result_output': ResultOutputPlugin,
     'sched': SchedulerPlugin,
     'sys': SystemPlugin,
 }
