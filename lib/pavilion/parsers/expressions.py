@@ -173,6 +173,14 @@ class BaseExprTransformer(PavTransformer):
         else:
             val1 = arg1.value
             val2 = arg2.value
+            # When one of the two isn't a string, try to convert them both to non-string values.
+            if not (isinstance(val1, str) and isinstance(val2, str)):
+                val1 = auto_type_convert(arg1.value)
+                val2 = auto_type_convert(arg2.value)
+                # After conversion, if one is still a string, make them both string values.
+                if isinstance(val1, str) or isinstance(val2, str):
+                    val1 = str(arg1.value)
+                    val2 = str(arg2.value)
 
         if (isinstance(val1, list) and isinstance(val2, list)
                 and len(val1) != len(val2)):
@@ -692,10 +700,6 @@ class ExprTransformer(BaseExprTransformer):
             raise ParserValueError(
                 self._merge_tokens(items, var_key),
                 err.args[0])
-
-        # Convert val into the type it looks most like.
-        if isinstance(val, str):
-            val = auto_type_convert(val)
 
         return self._merge_tokens(items, val)
 

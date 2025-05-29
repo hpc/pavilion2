@@ -140,23 +140,40 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
 
     args.tests = ids
 
-    if 'all' in args.tests:
-        for arg, default in filters.TEST_FILTER_DEFAULTS.items():
-            if hasattr(args, arg) and default != getattr(args, arg):
-                break
+    has_filter_defaults = False
+
+    for arg, default in filters.TEST_FILTER_DEFAULTS.items():
+        if hasattr(args, arg) and default != getattr(args, arg):
+            has_filter_defaults = True
+            break
+
+    # "all" takes priority over everything else
+    if "all" in args.tests:
+        args.tests = ["all"]
+    elif "last" in args.tests:
+        args.tests = ["last"]
+    elif len(args.tests) == 0:
+        if has_filter_defaults or args.filter is not None:
+            args.tests = ["all"]
         else:
-            output.fprint(verbose, "Using default search filters: The current system, user, and "
-                                   "created less than 1 day ago.", color=output.CYAN)
-            args.filter = make_filter_query()
+            args.tests = ["last"]
+
+    if "all" in args.tests and args.filter is not None and not has_filter_defaults:
+        output.fprint(verbose, "Using default search filters: The current system, user, and "
+                               "created less than 1 day ago.", color=output.CYAN)
+        args.filter = make_filter_query()
 
     if args.filter is None:
         filter_func = filters.const(True) # Always return True
     else:
-        filter_func = filters.parse_query(args.filter)
+        try:
+            filter_func = filters.parse_query(args.filter)
+        except filters.FilterParseError:
+            raise PavilionError(f"Invalid syntax in filter query: {args.filter}")
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
-    if 'all' in args.tests:
+    if "all" in args.tests:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
@@ -177,9 +194,6 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
 
         return tests
 
-    if not args.tests:
-        args.tests.append('last')
-
     test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
 
     return dir_db.select_from(
@@ -194,13 +208,15 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
 
 
 def make_filter_query() -> str:
-    template = 'user={} and created<{}'
+    """Construct the default filter query, which targets tests created
+    by the current user on the current system more recently than 1 day ago."""
+
+    template = 'user={} and created>1 day'
 
     user = utils.get_login()
-    time = (dt.datetime.now() - dt.timedelta(days=1)).isoformat()
     sysname = sys_vars.get_vars(defer=True).get('sys_name')
 
-    fargs = [user, time]
+    fargs = [user]
 
     if sysname is not None and len(sysname) > 0:
         template += ' and sys_name={}'
@@ -250,7 +266,10 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
             if args.filter is None:
                 filter_func = filters.const(True)  # Always return True
             else:
-                filter_func = filters.parse_query(args.filter)
+                try:
+                    filter_func = filters.parse_query(args.filter)
+                except filters.FilterParseError:
+                    raise PavilionError(f"Invalid syntax in filter query: {args.filter}")
 
             found_series = dir_db.select(
                 pav_cfg=pav_cfg,

@@ -38,6 +38,7 @@ class TestCaseEx(unittest.TestCase):
     def __getattribute__(self, item):
         """Override the builtin __getattribute__ so that tests skipped via command line
         options are properly 'wrapped'."""
+
         attr = super().__getattribute__(item)
 
         cls = super().__getattribute__('__class__')

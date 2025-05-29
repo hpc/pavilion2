@@ -71,7 +71,7 @@ def cancel_jobs(
                     'success': False,
                     'msg': "Uncancelled tests still running."})
 
-        return jobs_cancelled
+    return jobs_cancelled
 
 
 SLEEP_PERIOD = 0.3

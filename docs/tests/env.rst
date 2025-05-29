@@ -143,7 +143,7 @@ and checked to see if they were actually loaded.
 Other Module Manipulations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can also unload and swap modules.
+You can also unload and swap modules:
 
 .. code:: yaml
 
@@ -155,6 +155,25 @@ You can also unload and swap modules.
         modules: [gcc->intel/18.0.4, -openmpi, intel-mpi]
         cmds:
           - $MPICC -o test_code test_code.c
+
+It is sometimes useful to start a build or run with a fresh module environment, that is, with no
+modules loaded. This is helpful for ensuring consistency across machines that may have different
+default modules. Pavilion offers the option to purge modules at the beggining of a build or
+run, prior to loading explicitly requested modules:
+
+.. code:: yaml
+    
+    module_example3:
+      build:
+        purge_modules: True
+        modules:
+          - gcc
+      run:
+        purge_modules: True
+        modules:
+          - gcc
+
+By default, modules are not purged.
 
 .. _tests.env.module_wrappers:
 

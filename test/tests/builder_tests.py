@@ -30,7 +30,7 @@ class BuilderTests(PavTestCase):
         test_cfg['build']['cmds'] = ['sleep 0.2']
 
         num_tests = 3
-        
+
         mb_tracker = MultiBuildTracker()
         tests = []
         threads = []
@@ -43,7 +43,7 @@ class BuilderTests(PavTestCase):
             thread = threading.Thread(target=test.builder.build, args=(test.full_id, tracker))
             threads.append(thread)
             thread.run()
-    
+
         map(lambda x: x.join(), threads)
 
         states = [test.status.current().state for test in tests]
@@ -175,7 +175,7 @@ class BuilderTests(PavTestCase):
             created_file = open(str(file_path), 'r', encoding='utf-8')
 
             # Compare contents.
-            self.assertEquals(original.getvalue(), created_file.read())
+            self.assertEqual(original.getvalue(), created_file.read())
             original.close()
             created_file.close()
 

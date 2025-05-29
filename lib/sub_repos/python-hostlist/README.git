@@ -1,0 +1,47 @@
+Information for those who check out python-hostlist from git
+============================================================
+
+Having verbatim version numbers in a lot of files is cumbersome
+and invites mistakes. From version 1.5, the version number
+(and the release number for the RPM) is stored in the Makefile.
+
+Before running setup.py, the files are copied into the subdirectory
+"versioned" by "make prepare" (substituting #VERSION# and #RELEASE# in
+the appropriate files). That target is invoked automatically when you
+do "make tar" or "make rpms".
+
+Please add similar handling of further setup.py options if they are
+needed. No traces of this mechanism should be left in the generated
+.tar.gz and .rpm files.
+
+Making a release
+================
+
+*) Make sure everything is commited in git on the master branch.
+
+*) Change VERSION and RELEASE to something indicating a test release
+   (for example, 1.4.9.1 in preparation for a 1.5 release).
+
+*) Do "make rpms" and install the resulting noarch package.
+
+*) Run the test suite using "python test/test_hostlist.py".
+
+*) Change VERSION to the final version number (and reset RELEASE).
+
+*) Add changes to the %changelog in the spec file.
+
+*) Commit the changes to git, mentioning the new version number in
+   the commit message ("Version 1.5." or similar).
+
+*) Tag the new version using "git tag", prepending a lower-case "v" before
+   the version number.
+
+*) Push the master branch and the new tag to the public repository.
+
+*) Copy versioned/dist/python-hostlist-VERSION.tar.gz to the web page
+   and update the text there.
+
+*) Upload to the Python Package Index using "make pypi".
+
+*) Send an email to jette1@llnl.gov about the new version.
+
