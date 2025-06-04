@@ -38,8 +38,8 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
-from pavilion.micro import get_nested
-from pavilion.results_output import get_plugin
+from pavilion.micro import get_nested, consume
+from pavilion.timing import wait
 from .test_attrs import TestAttributes
 
 
@@ -1027,12 +1027,20 @@ of result keys.
         self._results = results
         self.save_attributes()
 
-        for output in self._pav_cfg.result_output:
-            plugin_name = output.get("plugin", "")
-            plugin = get_plugin(plugin_name)
+        result_logger = logging.getLogger('common_results')
+        if self._pav_cfg.get('flatten_results') and results.get('per_file'):
+            # Flatten 'per_file' results into separate result records.
+            base = results.copy()
+            del base['per_file']
 
-            plugin.validate_config(output)
-            plugin.log_results(output, results)
+            for per_file, values in results['per_file'].items():
+                per_result = base.copy()
+                per_result['file'] = per_file
+                per_result.update(values)
+
+                result_logger.info(output.json_dumps(per_result))
+        else:
+            result_logger.info(output.json_dumps(results))
 
     @property
     def is_built(self):
