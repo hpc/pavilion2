@@ -1,32 +1,57 @@
 import re
 import logging
 import inspect
-from typing import Dict
+from abc import ABC, abstractmethod
+from operator import itemgetter
+from pathlib import Path
+from typing import Dict, Set
 
 from yapsy import IPlugin
 
-from pavilion.errors import LoggingPluginError
+from pavilion.errors import ResultLoggerPluginError
 
 
 LOGGER = logging.getLogger(__file__)
 
 
-_OUTPUT_PLUGINS = {}
+_RESULT_LOGGER_PLUGINS = {}
 
 
 def get_plugin(name: str) -> "ResultOutputPlugin":
     """Get the result output plugin with the specified name."""
 
-    return _OUTPUT_PLUGINS[name]
+    return _RESULT_LOGGER_PLUGINS.get(name)
+
+
+def get_result_loggers(pav_cfg: "PavConfig") -> Set["ResultLogger"]:
+    """Get all result logger instances defined in the given Pavilion config."""
+
+    loggers = set()
+
+    for log_config in pav_cfg.get("result_loggers"):
+        plugin_name = log_config.get("plugin", "")
+        factory = get_plugin(plugin_name)
+        loggers.add(factory.make_logger(log_config))
+
+    return loggers
+
+
+def get_result_dests(pav_cfg: "PavConfig") -> Set[Path]:
+    """Get the set of all files to which results are logged."""
+
+    files_configs = filter(lambda x: hasattr(x, "dest"), pav_cfg.get("result_loggers"))
+    dests = map(Path, map(itemgetter("dest"), files_configs))
+
+    return set(dests)
 
 
 def __reset() -> None:
-    global _OUTPUT_PLUGINS
+    global _RESULT_LOGGER_PLUGINS
 
-    _OUTPUT_PLUGINS = {}
+    _RESULT_LOGGER_PLUGINS = {}
 
 
-class ResultOutputPlugin(IPlugin.IPlugin):
+class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 
     PRIO_CORE = 0
     PRIO_COMMON = 10
@@ -47,22 +72,32 @@ class ResultOutputPlugin(IPlugin.IPlugin):
         self.priority = priority
         self.path = inspect.getfile(self.__class__)
     
+    @abstractmethod
     def validate_config(self, config: Dict) -> None:
         raise NotImplementedError
 
-    def log_results(self, config: Dict, results: Dict) -> None:
+    @abstractmethod
+    def _make_logger(self, config: Dict) -> "ResultLogger":
+        """Create the result logger from the given config."""
         raise NotImplementedError
-    
+
+    def make_logger(self, config: Dict) -> "ResultLogger":
+        """Validate the config and create the result logger."""
+
+        self.validate_config(config)
+
+        return self._make_logger(config)
+
     def activate(self):
         """Add this plugin to the result output plugin list."""
 
-        if self.name in _OUTPUT_PLUGINS:
-            other = _OUTPUT_PLUGINS[self.name]
+        if self.name in _RESULT_LOGGER_PLUGINS:
+            other = _RESULT_LOGGER_PLUGINS[self.name]
             if self.priority > other.priority:
                 LOGGER.info(
                     "Result output plugin '%s' at %s is superseded by %s.",
                     self.name, other.path, self.path)
-                _OUTPUT_PLUGINS[self.name] = self
+                _RESULT_LOGGER_PLUGINS[self.name] = self
             elif self.priority < other.priority:
                 LOGGER.info(
                     "Result output plugin '%s' at %s is ignored in lieu of %s.",
@@ -72,12 +107,12 @@ class ResultOutputPlugin(IPlugin.IPlugin):
                                    "has the same priority as {}"
                                    .format(self.name, other.path, self.path))
         else:
-            _OUTPUT_PLUGINS[self.name] = self
+            _RESULT_LOGGER_PLUGINS[self.name] = self
 
     def deactivate(self):
         """Remove this plugin from the logging plugin list."""
         
-        del _OUTPUT_PLUGINS[self.name]
+        del _RESULT_LOGGER_PLUGINS[self.name]
 
     def __repr__(self):
         return '<{} from file {} named {}, priority {}>'.format(
@@ -86,3 +121,14 @@ class ResultOutputPlugin(IPlugin.IPlugin):
             self.name,
             self.priority
         )
+
+class ResultLogger(ABC):
+    """Abstract base class for all result loggers."""
+
+    @abstractmethod 
+    def log(results: Dict) -> None:
+        """Log a test's results dictionary."""
+        raise NotImplementedError
+
+    def __call__(self, results: Dict) -> None:
+        self.log(results)

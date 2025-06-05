@@ -7,6 +7,7 @@ import json
 import logging
 import pprint
 from collections import OrderedDict
+from pathlib import Path
 
 import pavilion.errors
 import pavilion.result
@@ -24,6 +25,7 @@ from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion.result_logging import get_result_dests
 
 LOGGER = logging.getLogger(__name__)
 
@@ -1074,44 +1076,34 @@ class ResultParserTests(PavTestCase):
         """Make sure result flattening works as expected, as well as regular
         result output while we're at it."""
 
-        cfg = self._quick_test_cfg()
+        arg_parser = arguments.get_parser()
+        cmd = ['run', '-H', 'this', 'flatten_results']
+        args = arg_parser.parse_args(cmd)
 
-        cfg['run']['cmds'] = [
-            'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
-        ]
-        cfg['result_parse']['regex'] = {
-            'hello': {
-                'regex':    r'hello \d+',
-                'files':    '*.out',
-                'per_file': 'name',
-            }
-        }
+        run_cmd = commands.get_command(args.command_name)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
-        test = self._quick_test(cfg, name="flatten_results_test1")
+        self.pav_cfg['flatten_results'] = False
 
-        run_result = test.run()
-        results = test.gather_results(run_result)
-        test.save_results(results)
+        cmd = ['run', '-H', 'this', 'flatten_results']
+        args = arg_parser.parse_args(cmd)
+        run_cmd = commands.get_command(args.command_name)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+        result_log = Path(next(iter(get_result_dests(self.pav_cfg))))
 
         flattened = {}
 
-        test2 = self._quick_test(cfg, name="flatten_results_test2")
-        run_result = test2.run()
-        results = test2.gather_results(run_result)
-        test2._pav_cfg = test2._pav_cfg.copy()
-        test2._pav_cfg['flatten_results'] = False
-        test2.save_results(results)
-
-        with self.pav_cfg['result_log'].open() as results_log:
-            for line in results_log.readlines():
+        with open(result_log) as fin:
+            for line in fin.readlines():
                 _result = json.loads(line)
 
                 # Reconstruct the per_file dict, so that flattened and
                 # unflattened are the same. If there's a format error, this
                 # will have problems.
-                if _result['name'] == "unittest.flatten_results_test1":
+                if _result['name'] == "flatten_results.flatten":
                     flattened[_result['file']] = {'hello': _result['hello']}
-                elif _result['name'] == "unittest.flatten_results_test2":
+                elif _result['name'] == "flatten_results.dont_flatten":
                     unflattened = _result['per_file']
 
         answer = {

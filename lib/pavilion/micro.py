@@ -11,7 +11,7 @@ from pathlib import Path
 from itertools import filterfalse, chain, tee, islice
 from collections import deque
 from typing import (List, Union, TypeVar, Iterator, Iterable, Callable, Optional, Hashable, Dict,
-                    Tuple, Any)
+                    Tuple, Any, Type)
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -53,8 +53,7 @@ def first(pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[T]:
     """Return the first item of the list that satisfies the given
     predicate, or None if no item does."""
 
-    for item in filter(pred, lst):
-        return item
+    return next(filter(pred, lst), None)
 
 def apply_to_first(func: Callable[[T], U], pred: Callable[[T], bool],
                     lst: Iterable[T]) -> Optional[U]:
@@ -80,6 +79,11 @@ def listmap(func: Callable[[T], U], lst: Iterable[T]) -> List[U]:
     """Map a function over an iterable, but return a list instead
     of a map object."""
     return list(map(func, lst))
+
+def listfilter(pred: Callable[[T], bool], lst: Iterable[T]) -> List[T]:
+    """Filter an iterable by the given predicate, returning a list
+    rather than an iterator."""
+    return list(filter(pred, lst))
 
 def set_default(val: Optional[T], default: T) -> T:
     """Set the input value to default, if the original value is None.
@@ -107,3 +111,11 @@ def do(func: Callable[[T], Any], lst: Iterable[T]) -> None:
     is lazily evaluated."""
 
     consume(map(func, lst))
+
+def promote(item: Union[T, Type[T]], ptype: Type) -> Type[T]:
+    """Promote the item to the type ptype, if it is not already of that type."""
+
+    if isinstance(item, ptype):
+        return item
+
+    return ptype(item)

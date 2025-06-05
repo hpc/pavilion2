@@ -29,8 +29,9 @@ from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
-from pavilion.micro import partition
+from pavilion.micro import partition, do
 from pavilion.timing import TimeLimiter
+from pavilion.result_logging import get_result_loggers
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -122,6 +123,7 @@ class TestSeries:
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
+        self.result_loggers = get_result_loggers(pav_cfg)
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
@@ -155,6 +157,14 @@ class TestSeries:
             raise TestSeriesError("Could not start series '{}' in the background."
                                   .format(self.sid), err)
 
+        try:
+            # Create a new process to log test results as tests complete
+            log_res_args = [pav_exe, '_log_results', self.sid]
+            subprocess.Popen(temp_args, start_new_session=True, env=env)
+        except OSError as err:
+            raise TestSeriesError("Could not start result logger in the background for series '{}'."
+                                  .format(self.sid), err)
+
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
         series_pgid_path = self.path/self.PGID_FN
@@ -167,16 +177,24 @@ class TestSeries:
         except OSError:
             raise TestSeriesWarning("Could not write series PGID to a file.")
 
-    def get_currently_running(self):
+    def get_with_states(self, states: Union[str, List[str]]) -> List[TestRun]:
+        """Get a list of tests with states in the given list of states."""
+
+        states = promote(states, list)
+        tests = map(lambda x: x[1], self.tests.items())
+
+        return listfilter(lambda x: x.status.current().state in states, tests)
+
+    def get_currently_running(self) -> List[TestRun]:
         """Returns list of tests that have states of either SCHEDULED or
         RUNNING. """
 
-        cur_run = []
-        for test_id, test_obj in self.tests.items():
-            temp_state = test_obj.status.current().state
-            if temp_state in ['SCHEDULED', 'RUNNING']:
-                cur_run.append(test_obj)
-        return cur_run
+        return self.get_with_states(['SCHEDULED', 'RUNNING'])
+
+    def get_completed(self) -> List[TestRun]:
+        """Returns list of completed tests."""
+
+        return self.get_with_states("COMPLETE")
 
     def save_config(self) -> None:
         """Saves series config to a file."""
@@ -505,6 +523,18 @@ differentiate it from test ids."""
 
         # Completion will be set when looked for.
 
+    def _log_results(self) -> None:
+        """Log the results of each test in the series as tests complete."""
+
+        logged = set()
+        to_log = set(self.get_completed()) - logged
+
+        while not self.complete or len(to_log) > 0:
+            for logger in self.result_loggers:
+                do(logger, to_log)
+                    
+            logged |= to_log
+            to_log = set(self.get_completed()) - logged
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""

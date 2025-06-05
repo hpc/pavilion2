@@ -200,7 +200,7 @@ class PavConfig(PavConfigDict):
         self.max_cpu: int = NCPU
         self.log_format: str = LOG_FORMAT
         self.log_level: str = 'info'
-        self.result_output: List[Dict] = []
+        self.result_loggers: List[Dict] = []
         self.flatten_results: bool = True
         self.exception_log: OptPath = None
         self.wget_timeout: int = 5
@@ -506,9 +506,8 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "Generally, the values should contain a pavilion "
                       "variable of some sort to resolve."),
         yc.ListElem(
-            'result_output', sub_elem=yc.CategoryElem(sub_elem=yc.StrElem()),
-            help_text="The list of result output methods and their "
-                      "corresponding parameters."
+            'result_loggers', sub_elem=yc.CategoryElem(sub_elem=yc.StrElem()),
+            help_text="The list of result loggers and their corresponding parameters."
         ),
 
         # The following configuration items are for internal use and provide a
