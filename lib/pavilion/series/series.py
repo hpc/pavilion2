@@ -29,7 +29,7 @@ from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
-from pavilion.micro import partition, do
+from pavilion.micro import partition, do, promote, listfilter
 from pavilion.timing import TimeLimiter
 from pavilion.result_logging import get_result_loggers
 from yaml_config import YAMLError, RequiredError
@@ -157,14 +157,6 @@ class TestSeries:
             raise TestSeriesError("Could not start series '{}' in the background."
                                   .format(self.sid), err)
 
-        try:
-            # Create a new process to log test results as tests complete
-            log_res_args = [pav_exe, '_log_results', self.sid]
-            subprocess.Popen(temp_args, start_new_session=True, env=env)
-        except OSError as err:
-            raise TestSeriesError("Could not start result logger in the background for series '{}'."
-                                  .format(self.sid), err)
-
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
         series_pgid_path = self.path/self.PGID_FN
@@ -179,6 +171,8 @@ class TestSeries:
 
     def get_with_states(self, states: Union[str, List[str]]) -> List[TestRun]:
         """Get a list of tests with states in the given list of states."""
+
+        print(f"{len(self.tests)} tests")
 
         states = promote(states, list)
         tests = map(lambda x: x[1], self.tests.items())
@@ -448,6 +442,21 @@ differentiate it from test ids."""
 
         self.status.set(SERIES_STATES.RUN, "Series running.")
 
+        pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
+
+        env = os.environ.copy()
+        pav_cfg = self.pav_cfg.pav_cfg_file
+        pav_cfg = pav_cfg.parent.resolve()/pav_cfg.name
+        env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
+
+        try:
+            # Create a new process to log test results as tests complete
+            log_res_args = [pav_exe, '_log_results', self.sid]
+            subprocess.Popen(log_res_args, start_new_session=True, env=env)
+        except OSError as err:
+            raise TestSeriesError("Could not start result logger in the background for series '{}'."
+                                  .format(self.sid), err)
+
         # create the test sets and link together.
         try:
             self._create_test_sets()
@@ -532,7 +541,7 @@ differentiate it from test ids."""
         while not self.complete or len(to_log) > 0:
             for logger in self.result_loggers:
                 do(logger, to_log)
-                    
+
             logged |= to_log
             to_log = set(self.get_completed()) - logged
 
@@ -720,6 +729,8 @@ differentiate it from test ids."""
 
         :param test_set: The set of tests to add.
         """
+
+        print(f"Adding {len(tests)} tests...")
 
         for test in tests:
             self._add_test(test_set_name, test)

@@ -13,6 +13,7 @@ from .base_classes import cmd_tracker as _cmd_tracker
 # name, and the value is a tuple of the module name and plugin
 # class within that module.
 _builtin_commands = {
+    '_log_results': ('_log_results', 'LogResults'),
     '_run':       ('_run', '_RunCommand'),
     '_series':    ('_series', 'AutoSeries'),
     'build':      ('build', 'BuildCommand'),

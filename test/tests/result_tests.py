@@ -1083,16 +1083,22 @@ class ResultParserTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+        series1 = run_cmd.last_series
+
         self.pav_cfg['flatten_results'] = False
 
         cmd = ['run', '-H', 'this', 'flatten_results']
         args = arg_parser.parse_args(cmd)
-        run_cmd = commands.get_command(args.command_name)
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
         result_log = Path(next(iter(get_result_dests(self.pav_cfg))))
 
         flattened = {}
+
+        series2 = run_cmd.last_series
+
+        series1.wait()
+        series2.wait()
 
         with open(result_log) as fin:
             for line in fin.readlines():
