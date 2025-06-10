@@ -126,7 +126,7 @@ class ResultLogger(ABC):
     """Abstract base class for all result loggers."""
 
     @abstractmethod 
-    def log(results: Dict) -> None:
+    def log(self, results: Dict) -> None:
         """Log a test's results dictionary."""
         raise NotImplementedError
 

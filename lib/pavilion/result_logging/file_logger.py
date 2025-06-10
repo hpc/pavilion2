@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 from typing import Dict
 
 from pavilion.errors import ResultLoggerPluginError
@@ -45,6 +46,6 @@ class FileResultLogger(ResultLogger):
         if self.dest.is_dir():
             self.dest /= RESULTS_FN
 
-    def log(results: Dict) -> None:
-        with open(dest) as fout:
+    def log(self, results: Dict) -> None:
+        with open(self.dest, "w") as fout:
             json.dump(results, fout)

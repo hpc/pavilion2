@@ -172,12 +172,7 @@ class TestSeries:
     def get_with_states(self, states: Union[str, List[str]]) -> List[TestRun]:
         """Get a list of tests with states in the given list of states."""
 
-        print(f"{len(self.tests)} tests")
-
-        states = promote(states, list)
-        tests = map(lambda x: x[1], self.tests.items())
-
-        return listfilter(lambda x: x.status.current().state in states, tests)
+        return listfilter(lambda x: x.status.current().state in states, self.tests.values())
 
     def get_currently_running(self) -> List[TestRun]:
         """Returns list of tests that have states of either SCHEDULED or
@@ -188,7 +183,7 @@ class TestSeries:
     def get_completed(self) -> List[TestRun]:
         """Returns list of completed tests."""
 
-        return self.get_with_states("COMPLETE")
+        return self.get_with_states(["COMPLETE"])
 
     def save_config(self) -> None:
         """Saves series config to a file."""
@@ -540,7 +535,7 @@ differentiate it from test ids."""
 
         while not self.complete or len(to_log) > 0:
             for logger in self.result_loggers:
-                do(logger, to_log)
+                do(lambda x: logger(x.results), to_log)
 
             logged |= to_log
             to_log = set(self.get_completed()) - logged
