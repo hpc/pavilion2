@@ -8,7 +8,7 @@ https://docs.python.org/3/library/itertools.html#itertools-recipes
 """
 
 from pathlib import Path
-from itertools import filterfalse, chain, tee, islice
+from itertools import filterfalse, chain, tee, islice, starmap
 from collections import deque
 from typing import (List, Union, TypeVar, Iterator, Iterable, Callable, Optional, Hashable, Dict,
                     Tuple, Any, Type)
@@ -111,6 +111,11 @@ def do(func: Callable[[T], Any], lst: Iterable[T]) -> None:
     is lazily evaluated."""
 
     consume(map(func, lst))
+
+def stardo(func: Callable, lst: Iterable) -> None:
+    """Analogue of do using starmap."""
+
+    consume(starmap(func, lst))
 
 def promote(item: Union[T, Type[T]], ptype: Type) -> Type[T]:
     """Promote the item to the type ptype, if it is not already of that type."""

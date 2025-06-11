@@ -13,6 +13,7 @@ import time
 from collections import defaultdict, OrderedDict
 from pathlib import Path
 from operator import attrgetter
+from itertools import product
 from typing import List, Dict, Set, Union, TextIO, Iterator, Optional
 
 import pavilion
@@ -29,7 +30,7 @@ from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
-from pavilion.micro import partition, do, promote, listfilter
+from pavilion.micro import partition, do, listfilter, stardo
 from pavilion.timing import TimeLimiter
 from pavilion.result_logging import get_result_loggers
 from yaml_config import YAMLError, RequiredError
@@ -447,6 +448,11 @@ differentiate it from test ids."""
         try:
             # Create a new process to log test results as tests complete
             log_res_args = [pav_exe, '_log_results', self.sid]
+
+            # This is necessary for propagating pav config state when unit testing
+            if self.pav_cfg.get("flatten_results"):
+                log_res_args.append("--flatten")
+
             subprocess.Popen(log_res_args, start_new_session=True, env=env)
         except OSError as err:
             raise TestSeriesError("Could not start result logger in the background for series '{}'."
@@ -527,15 +533,22 @@ differentiate it from test ids."""
 
         # Completion will be set when looked for.
 
-    def _log_results(self) -> None:
+    def _log_results(self, flatten: bool = False) -> None:
         """Log the results of each test in the series as tests complete."""
+
+        if flatten:
+            # Log the sequence of flattened results
+            log = lambda logger, test: do(logger, test._flatten_results(test.results))
+        else:
+            # Just log the single unflattened result
+            log = lambda logger, test: logger(test.results)
 
         logged = set()
         to_log = set(self.get_completed()) - logged
 
         while not self.complete or len(to_log) > 0:
-            for logger in self.result_loggers:
-                do(lambda x: logger(x.results), to_log)
+            # Apply all loggers to all tests ready to log
+            stardo(log, product(self.result_loggers, to_log))
 
             logged |= to_log
             to_log = set(self.get_completed()) - logged
@@ -724,8 +737,6 @@ differentiate it from test ids."""
 
         :param test_set: The set of tests to add.
         """
-
-        print(f"Adding {len(tests)} tests...")
 
         for test in tests:
             self._add_test(test_set_name, test)

@@ -15,7 +15,7 @@ import time
 import uuid
 import os
 from pathlib import Path
-from typing import TextIO, Union, Dict, Optional, Set
+from typing import TextIO, Union, Dict, Optional, List
 import yc_yaml as yaml
 
 from pavilion.config import PavConfig
@@ -1005,27 +1005,27 @@ of result keys.
         return results
 
     @staticmethod
-    def _flatten_results(results: Dict) -> Set[Dict]:
+    def _flatten_results(results: Dict) -> List[Dict]:
         """Flatten 'per_file' results into separate result records."""
 
         results_files = results.get("per_file", {})
 
         if len(results_files) == 0:
-            return set(results)
+            return list(results)
 
         base = results.copy()
         del base['per_file']
 
-        results = set()
+        flattened_results = []
 
-        for per_file, values in results['per_file'].items():
+        for per_file, values in results_files.items():
             per_result = base.copy()
             per_result['file'] = per_file
             per_result.update(values)
             
-            results.add(per_results)
+            flattened_results.append(per_result)
 
-        return results
+        return flattened_results
 
     def save_results(self, results: Dict) -> None:
         """Save the results to the test specific results file.

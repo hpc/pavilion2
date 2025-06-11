@@ -1,11 +1,14 @@
 flatten:
-    run:
-        cmds:
-            - 'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
+  run:
+    cmds:
+      - 'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
 
-    result_parse:
-        regex:
-            hello:
-                regex: "hello \d+"
-                files: '*.out'
-                per_file: name
+  result_parse:
+    regex:
+      hello:
+        regex: "hello \d+"
+        files: '*.out'
+        per_file: name
+
+dont_flatten:
+  inherits_from: flatten

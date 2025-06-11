@@ -47,5 +47,6 @@ class FileResultLogger(ResultLogger):
             self.dest /= RESULTS_FN
 
     def log(self, results: Dict) -> None:
-        with open(self.dest, "w") as fout:
+        with open(self.dest, "a") as fout:
             json.dump(results, fout)
+            fout.write("\n")

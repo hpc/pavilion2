@@ -25,6 +25,10 @@ class LogResults(Command):
             'series_id', action='store',
             help="Series ID."
         )
+        parser.add_argument(
+            '--flatten', action='store_true',
+            help="Force flattening of test results. Necessary for unit tests."
+        )
 
     def run(self, pav_cfg: "PavConfig", args: "Namespace") -> Optional[int]:
         """Loads series object from directory and runs series."""
@@ -40,7 +44,7 @@ class LogResults(Command):
             sys.exit(1)
         try:
             # Log the results of the series
-            series_obj._log_results()
+            series_obj._log_results(flatten=args.flatten)
         except TestSeriesError as err:
             output.fprint(self.errfile, "Error while logging results for series '{}'.".format(args.series_id))
             output.fprint(self.errfile, err.pformat())
