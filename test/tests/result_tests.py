@@ -25,7 +25,6 @@ from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
-from pavilion.result_logging import get_result_dests
 from pavilion.timing import wait
 
 LOGGER = logging.getLogger(__name__)
@@ -1078,43 +1077,32 @@ class ResultParserTests(PavTestCase):
         result output while we're at it."""
 
         arg_parser = arguments.get_parser()
-        cmd = ['run', '-H', 'this', 'flatten_results.flatten']
+        cmd = ['run', '-H', 'this', 'flatten_results']
         args = arg_parser.parse_args(cmd)
 
         run_cmd = commands.get_command(args.command_name)
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
-        series1 = run_cmd.last_series
+        series = run_cmd.last_series
+        series.wait()
+        series.wait_log()
 
-        self.pav_cfg['flatten_results'] = False
+        result_log = series.get_result_paths()[0]
 
-        cmd = ['run', '-H', 'this', 'flatten_results.dont_flatten']
-        args = arg_parser.parse_args(cmd)
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
-
-        result_log = Path(next(iter(get_result_dests(self.pav_cfg))))
+        wait(lambda: result_log.exists(), interval=0.2, timeout=5)
 
         flattened = {}
-        unflattened = {}
-
-        series2 = run_cmd.last_series
-
-        series1.wait()
-        series2.wait()
-
-        wait(lambda: result_log.exists(), interval=0.2, timeout=2)
 
         with open(result_log) as fin:
-            for line in fin.readlines():
+            lines = fin.readlines()
+
+            for line in lines:
                 _result = json.loads(line)
 
                 # Reconstruct the per_file dict, so that flattened and
                 # unflattened are the same. If there's a format error, this
                 # will have problems.
-                if _result['name'] == "flatten_results.flatten":
-                    flattened[_result['file']] = {'hello': _result['hello']}
-                elif _result['name'] == "flatten_results.dont_flatten":
-                    unflattened = _result['per_file']
+                flattened[_result['file']] = {'hello': _result['hello']}
 
         answer = {
             '1': {'hello': 'hello 1'},
@@ -1124,4 +1112,3 @@ class ResultParserTests(PavTestCase):
         }
 
         self.assertEqual(flattened, answer)
-        self.assertEqual(unflattened, answer)

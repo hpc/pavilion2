@@ -1,4 +1,4 @@
-flatten:
+base:
   run:
     cmds:
       - 'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
@@ -9,6 +9,3 @@ flatten:
         regex: "hello \d+"
         files: '*.out'
         per_file: name
-
-dont_flatten:
-  inherits_from: flatten

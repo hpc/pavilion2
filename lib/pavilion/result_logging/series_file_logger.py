@@ -6,13 +6,13 @@ from pavilion.errors import ResultLoggerPluginError
 from .base_classes import ResultLoggerPlugin, ResultLogger
 
 
-class FileLoggerFactory(ResultLoggerPlugin):
-    """Basic plugin for logging to a file. Responsible for generating FileResultLoggers from
-    configs."""
+class SeriesFileLoggerFactory(ResultLoggerPlugin):
+    """Basic plugin for logging to a separate file for each series. Responsible for generating
+    SeriesFileResultLoggers from configs."""
 
     def __init__(self):
         super().__init__(
-            name="files",
+            name="series_file",
             description="Log to a file",
             priority=self.PRIO_CORE)
     
@@ -29,22 +29,20 @@ class FileLoggerFactory(ResultLoggerPlugin):
         if not Path(dest).is_absolute():
             raise ResultLoggerPluginError(f"Provided path {dest} is not an absolute path.")
 
-    def _make_logger(self, config: Dict) -> "FileResultLogger":
-        dest = Path(config.get("dest"))
+    def _make_logger(self, config: Dict, sid: str) -> "SeriesFileResultLogger":
+        dest = Path(config.get("dest")) / f"{sid}.log"
 
-        return FileResultLogger(dest)
+        return SeriesFileResultLogger(dest)
 
 
-class FileResultLogger(ResultLogger):
+class SeriesFileResultLogger(ResultLogger):
     """Simple result logger for writing results to a file."""
 
     RESULTS_FN = "results.log"
 
     def __init__(self, dest: Path):
         self.dest = dest
-
-        if self.dest.is_dir():
-            self.dest /= RESULTS_FN
+        self.dest.parent.mkdir(exist_ok=True)
 
     def log(self, results: Dict) -> None:
         with open(self.dest, "a") as fout:

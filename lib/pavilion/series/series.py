@@ -124,7 +124,8 @@ class TestSeries:
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
-        self.result_loggers = get_result_loggers(pav_cfg)
+        self.result_loggers = get_result_loggers(pav_cfg, self.sid)
+        self.log_proc = None
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
@@ -453,7 +454,7 @@ differentiate it from test ids."""
             if self.pav_cfg.get("flatten_results"):
                 log_res_args.append("--flatten")
 
-            subprocess.Popen(log_res_args, start_new_session=True, env=env)
+            self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
         except OSError as err:
             raise TestSeriesError("Could not start result logger in the background for series '{}'."
                                   .format(self.sid), err)
@@ -544,14 +545,18 @@ differentiate it from test ids."""
             log = lambda logger, test: logger(test.results)
 
         logged = set()
-        to_log = set(self.get_completed()) - logged
 
-        while not self.complete or len(to_log) > 0:
+        while not self.complete:
+            to_log = set(self.get_completed()) - logged
+
             # Apply all loggers to all tests ready to log
             stardo(log, product(self.result_loggers, to_log))
 
             logged |= to_log
-            to_log = set(self.get_completed()) - logged
+            time.sleep(0.2)
+
+        to_log = set(self.get_completed()) - logged
+        stardo(log, product(self.result_loggers, to_log))
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
@@ -635,6 +640,14 @@ differentiate it from test ids."""
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))
+
+    def wait_log(self, timeout: float = None) -> None:
+        """Wait until the result logging process finishes."""
+
+        if self.log_proc is None:
+            return
+
+        self.log_proc.wait()
 
     @property
     def complete(self) -> bool:
@@ -798,6 +811,17 @@ differentiate it from test ids."""
                 with json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
+
+    def get_result_paths(self) -> List[Path]:
+        """Get all results log paths."""
+
+        paths = []
+        
+        for logger in self.result_loggers:
+            if hasattr(logger, "dest"):
+                paths.append(logger.dest)
+            
+        return paths
 
     @property
     def timestamp(self):

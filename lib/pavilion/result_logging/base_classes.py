@@ -2,7 +2,6 @@ import re
 import logging
 import inspect
 from abc import ABC, abstractmethod
-from operator import itemgetter
 from pathlib import Path
 from typing import Dict, Set
 
@@ -23,7 +22,7 @@ def get_plugin(name: str) -> "ResultOutputPlugin":
     return _RESULT_LOGGER_PLUGINS.get(name)
 
 
-def get_result_loggers(pav_cfg: "PavConfig") -> Set["ResultLogger"]:
+def get_result_loggers(pav_cfg: "PavConfig", sid: str) -> Set["ResultLogger"]:
     """Get all result logger instances defined in the given Pavilion config."""
 
     loggers = set()
@@ -31,18 +30,9 @@ def get_result_loggers(pav_cfg: "PavConfig") -> Set["ResultLogger"]:
     for log_config in pav_cfg.get("result_loggers"):
         plugin_name = log_config.get("plugin", "")
         factory = get_plugin(plugin_name)
-        loggers.add(factory.make_logger(log_config))
+        loggers.add(factory.make_logger(log_config, sid))
 
     return loggers
-
-
-def get_result_dests(pav_cfg: "PavConfig") -> Set[Path]:
-    """Get the set of all files to which results are logged."""
-
-    files_configs = filter(lambda x: hasattr(x, "dest"), pav_cfg.get("result_loggers"))
-    dests = map(Path, map(itemgetter("dest"), files_configs))
-
-    return set(dests)
 
 
 def __reset() -> None:
@@ -77,16 +67,16 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _make_logger(self, config: Dict) -> "ResultLogger":
-        """Create the result logger from the given config."""
+    def _make_logger(self, config: Dict, sid: str) -> "ResultLogger":
+        """Create the result logger from the given config and series ID."""
         raise NotImplementedError
 
-    def make_logger(self, config: Dict) -> "ResultLogger":
+    def make_logger(self, config: Dict, sid: str) -> "ResultLogger":
         """Validate the config and create the result logger."""
 
         self.validate_config(config)
 
-        return self._make_logger(config)
+        return self._make_logger(config, sid)
 
     def activate(self):
         """Add this plugin to the result output plugin list."""

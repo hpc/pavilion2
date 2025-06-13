@@ -1,8 +1,8 @@
-from .base_classes import ResultLoggerPlugin, get_result_loggers, get_result_dests
-from .file_logger import FileLoggerFactory
+from .base_classes import ResultLoggerPlugin, get_result_loggers
+from .series_file_logger import SeriesFileLoggerFactory
 
 _builtin_logging_plugins = [
-    FileLoggerFactory
+    SeriesFileLoggerFactory
 ]
 
 def register_core_plugins():

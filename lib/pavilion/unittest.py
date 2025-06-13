@@ -112,8 +112,8 @@ base class.
         raw_pav_cfg.user_config = False
 
         raw_pav_cfg.result_loggers = [{
-            "plugin": "files",
-            "dest": raw_pav_cfg.working_dir/'results.log'}]
+            "plugin": "series_file",
+            "dest": raw_pav_cfg.working_dir/'results'}]
 
         if not raw_pav_cfg.working_dir.exists():
             raw_pav_cfg.working_dir.mkdir()
