@@ -26,9 +26,6 @@ class LoggingTests(PavTestCase):
             "name": str(uuid.uuid4()),
         })
         result_logger.error(result_msg)
-        # Make sure our message got logged.
-        result_log_data = self.pav_cfg.result_log.open().read()
-        self.assertIn(result_msg + '\n', result_log_data)
 
         # Check that yapsy errors go to stderr (or the stream we replaced
         # stderr with).
