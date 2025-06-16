@@ -13,7 +13,7 @@ class SeriesFileLoggerFactory(ResultLoggerPlugin):
     def __init__(self):
         super().__init__(
             name="series_file",
-            description="Log to a file",
+            description="Log to a separate file for each series",
             priority=self.PRIO_CORE)
     
     def validate_config(self, config: Dict) -> None:
