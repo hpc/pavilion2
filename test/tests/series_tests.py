@@ -13,7 +13,7 @@ class SeriesTests(PavTestCase):
     def test_init(self):
         """Check initialization of the series object."""
 
-        ignore_keys = ['outfile', 'cancel_limiter']
+        ignore_keys = ['outfile', 'cancel_limiter', 'result_loggers']
 
         # Initialize from scratch
         series1 = series.TestSeries(
