@@ -1011,7 +1011,7 @@ of result keys.
         results_files = results.get("per_file", {})
 
         if len(results_files) == 0:
-            return list(results)
+            return [results]
 
         base = results.copy()
         del base['per_file']

@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import threading
 
+from pavilion import commands
+from pavilion import arguments
 from pavilion.log_setup import LockFileRotatingFileHandler, setup_loggers
 from pavilion.unittest import PavTestCase
 
@@ -134,3 +136,33 @@ class LoggingTests(PavTestCase):
 
         self.assertIn(ident, handler.ERR_OUT.getvalue())
         self.assertNotIn(ident, logfile_path.open().read())
+
+    def test_series_file_logger(self):
+        """Test that the series file logger works correctly."""
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'results_log',
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+        series = run_cmd.last_series
+        log_path = next(iter(series.get_result_paths()), None)
+
+        self.assertEqual(log_path.stem, series.sid)
+
+        series.wait_log()
+
+        with open(log_path) as fin:
+            results = json.load(fin)
+
+        self.assertEqual(results.get("hello"), "world")
+
+    def test_common_file_logger(self):
+        ...
