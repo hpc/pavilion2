@@ -1005,7 +1005,7 @@ of result keys.
         return results
 
     @staticmethod
-    def _flatten_results(results: Dict) -> List[Dict]:
+    def flatten_results(results: Dict) -> List[Dict]:
         """Flatten 'per_file' results into separate result records."""
 
         results_files = results.get("per_file", {})
@@ -1022,7 +1022,7 @@ of result keys.
             per_result = base.copy()
             per_result['file'] = per_file
             per_result.update(values)
-            
+
             flattened_results.append(per_result)
 
         return flattened_results

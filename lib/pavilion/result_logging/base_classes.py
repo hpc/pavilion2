@@ -56,12 +56,12 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
             raise LoggingPluginError(
                 "Invalid module name: '{}'"
                 .format(name))
-        
+
         self.name = name
         self.help_text = description
         self.priority = priority
         self.path = inspect.getfile(self.__class__)
-    
+
     @abstractmethod
     def validate_config(self, config: Dict) -> None:
         raise NotImplementedError
@@ -101,7 +101,7 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 
     def deactivate(self):
         """Remove this plugin from the logging plugin list."""
-        
+
         del _RESULT_LOGGER_PLUGINS[self.name]
 
     def __repr__(self):
@@ -115,7 +115,7 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 class ResultLogger(ABC):
     """Abstract base class for all result loggers."""
 
-    @abstractmethod 
+    @abstractmethod
     def log(self, results: Dict) -> None:
         """Log a test's results dictionary."""
         raise NotImplementedError

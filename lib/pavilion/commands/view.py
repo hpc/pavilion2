@@ -60,6 +60,7 @@ class ViewCommand(run.RunCommand):
 
     SLEEP_INTERVAL = 1
 
+    # pylint: disable=arguments-differ
     def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual

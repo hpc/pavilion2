@@ -39,9 +39,10 @@ class LogResults(Command):
             output.fprint(sys.stdout, "Error in _log_results cmd.", err)
             sys.exit(1)
         try:
-            series_obj._log_results()
+            series_obj.log_results()
         except TestSeriesError as err:
-            output.fprint(self.errfile, "Error while logging results for series '{}'.".format(args.series_id))
+            output.fprint(self.errfile,
+                "Error while logging results for series '{}'.".format(args.series_id))
             output.fprint(self.errfile, err.pformat())
 
         return 0

@@ -452,8 +452,9 @@ differentiate it from test ids."""
                 log_res_args = [pav_exe, '_log_results', self.sid]
                 self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
             except OSError as err:
-                raise TestSeriesError("Could not start result logger in the background for series '{}'."
-                                      .format(self.sid), err)
+                raise TestSeriesError(
+                    "Could not start result logger in the background for series '{}'."
+                    .format(self.sid), err)
 
         # create the test sets and link together.
         try:
@@ -530,7 +531,7 @@ differentiate it from test ids."""
 
         # Completion will be set when looked for.
 
-    def _log_results(self, loggers: List["ResultLogger"] = None) -> None:
+    def log_results(self, loggers: List["ResultLogger"] = None) -> None:
         """Log the results of each test in the series as tests complete."""
 
         if loggers is None:
@@ -538,7 +539,7 @@ differentiate it from test ids."""
 
         if self.pav_cfg.get("flatten_results"):
             # Log the sequence of flattened results
-            log = lambda logger, test: do(logger, test._flatten_results(test.results))
+            log = lambda logger, test: do(logger, test.flatten_results(test.results))
         else:
             # Just log the single unflattened result
             log = lambda logger, test: logger(test.results)
@@ -816,11 +817,11 @@ differentiate it from test ids."""
         """Get all results log paths."""
 
         paths = []
-        
+
         for logger in self.result_loggers:
             if hasattr(logger, "dest"):
                 paths.append(logger.dest)
-            
+
         return paths
 
     @property
