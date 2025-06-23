@@ -5,6 +5,7 @@ from typing import Optional
 
 from pavilion import output
 from pavilion import series
+from pavilion.result_logging import get_result_loggers
 from pavilion.errors import TestSeriesError
 from .base_classes import Command
 
@@ -25,15 +26,10 @@ class LogResults(Command):
             'series_id', action='store',
             help="Series ID."
         )
-        parser.add_argument(
-            '--flatten', action='store_true',
-            help="Force flattening of test results. Necessary for unit tests."
-        )
 
     def run(self, pav_cfg: "PavConfig", args: "Namespace") -> Optional[int]:
         """Loads series object from directory and runs series."""
 
-        # load series obj
         try:
             series_obj = series.TestSeries.load(
                 pav_cfg,
@@ -43,8 +39,7 @@ class LogResults(Command):
             output.fprint(sys.stdout, "Error in _log_results cmd.", err)
             sys.exit(1)
         try:
-            # Log the results of the series
-            series_obj._log_results(flatten=args.flatten)
+            series_obj._log_results()
         except TestSeriesError as err:
             output.fprint(self.errfile, "Error while logging results for series '{}'.".format(args.series_id))
             output.fprint(self.errfile, err.pformat())

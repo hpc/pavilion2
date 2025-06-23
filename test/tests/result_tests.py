@@ -26,6 +26,7 @@ from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 from pavilion.timing import wait
+from pavilion.result_logging import get_result_loggers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -1081,19 +1082,22 @@ class ResultParserTests(PavTestCase):
         args = arg_parser.parse_args(cmd)
 
         run_cmd = commands.get_command(args.command_name)
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
-        series = run_cmd.last_series
-        series.wait()
-        series.wait_log()
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
 
-        result_log = series.get_result_paths()[0]
+        series1 = run_cmd.last_series
 
-        wait(lambda: result_log.exists(), interval=0.2, timeout=5)
+        loggers = get_result_loggers(self.pav_cfg, series1.sid)
+        series1._log_results(loggers)
+
+        series1.wait()
+        series1.wait_log()
+
+        result_log1 = series1.get_result_paths()[0]
 
         flattened = {}
 
-        with open(result_log) as fin:
+        with open(result_log1) as fin:
             lines = fin.readlines()
 
             for line in lines:
@@ -1112,3 +1116,28 @@ class ResultParserTests(PavTestCase):
         }
 
         self.assertEqual(flattened, answer)
+
+        self.pav_cfg["flatten_results"] = False
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+
+        series2 = run_cmd.last_series
+
+        loggers = get_result_loggers(self.pav_cfg, series2.sid)
+        series2._log_results(loggers)
+
+        series2.wait()
+        series2.wait_log()
+
+        result_log2 = series2.get_result_paths()[0]
+
+        unflattened = {}
+
+        with open(result_log2) as fin:
+            lines = fin.readlines()
+
+            for line in lines:
+                _result = json.loads(line)
+                unflattened = _result["per_file"]
+
+        self.assertEqual(unflattened, answer)

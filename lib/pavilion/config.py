@@ -9,6 +9,7 @@ import grp
 import os
 import stat
 from collections import OrderedDict
+from operator import itemgetter
 from pathlib import Path
 from typing import List, Union, Dict, NewType, Iterator, Tuple
 
@@ -287,6 +288,14 @@ class PavConfig(PavConfigDict):
         self._suite_info = suite_infos
 
         return suite_infos
+
+    @property
+    def result_logs(self) -> List[Path]:
+        """Return a list of all result log paths, which may be paths
+        to either files (in the case of common file loggers) or directories
+        (in the case of series file loggers)."""
+
+        return list(remove_none(map(itemgetter("dest"), self.result_loggers)))
 
     def find_file(self, file: Pathlike, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
             -> Union[Path, None]:

@@ -427,7 +427,7 @@ differentiate it from test ids."""
         return False
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False):
+            local_builds_only: bool = False, log_results: bool = True):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -446,18 +446,14 @@ differentiate it from test ids."""
         pav_cfg = pav_cfg.parent.resolve()/pav_cfg.name
         env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
 
-        try:
-            # Create a new process to log test results as tests complete
-            log_res_args = [pav_exe, '_log_results', self.sid]
-
-            # This is necessary for propagating pav config state when unit testing
-            if self.pav_cfg.get("flatten_results"):
-                log_res_args.append("--flatten")
-
-            self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
-        except OSError as err:
-            raise TestSeriesError("Could not start result logger in the background for series '{}'."
-                                  .format(self.sid), err)
+        if log_results:
+            try:
+                # Create a new process to log test results as tests complete
+                log_res_args = [pav_exe, '_log_results', self.sid]
+                self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
+            except OSError as err:
+                raise TestSeriesError("Could not start result logger in the background for series '{}'."
+                                      .format(self.sid), err)
 
         # create the test sets and link together.
         try:
@@ -534,10 +530,13 @@ differentiate it from test ids."""
 
         # Completion will be set when looked for.
 
-    def _log_results(self, flatten: bool = False) -> None:
+    def _log_results(self, loggers: List["ResultLogger"] = None) -> None:
         """Log the results of each test in the series as tests complete."""
 
-        if flatten:
+        if loggers is None:
+            loggers = self.result_loggers
+
+        if self.pav_cfg.get("flatten_results"):
             # Log the sequence of flattened results
             log = lambda logger, test: do(logger, test._flatten_results(test.results))
         else:
@@ -550,13 +549,14 @@ differentiate it from test ids."""
             to_log = set(self.get_completed()) - logged
 
             # Apply all loggers to all tests ready to log
-            stardo(log, product(self.result_loggers, to_log))
+            stardo(log, product(loggers, to_log))
 
             logged |= to_log
             time.sleep(0.2)
 
+        # Log any remaining tests after series completion
         to_log = set(self.get_completed()) - logged
-        stardo(log, product(self.result_loggers, to_log))
+        stardo(log, product(loggers, to_log))
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
