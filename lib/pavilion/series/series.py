@@ -546,7 +546,7 @@ differentiate it from test ids."""
 
         logged = set()
 
-        while not self.complete:
+        while not (self.complete or self.check_cancelled()):
             to_log = set(self.get_completed()) - logged
 
             # Apply all loggers to all tests ready to log
