@@ -20,8 +20,11 @@ Common File Loggers
 -------------------
 
 The common file logger is the simplest possible result logger. It logs all test results to a single
-log file, located in a specified location. The format for configuring a common file logger consists
-of the plugin type (``common_file``) and the destination of the log file:
+log file, located in a specified location. Note that common file loggers rely on locking mechanisms
+that require atomic file creation, which may not be present on all filesystems.
+
+The format for configuring a common file logger consists of the plugin type (``common_file``) and
+the destination of the log file:
 
 .. code-block:: yaml
   result_loggers:
