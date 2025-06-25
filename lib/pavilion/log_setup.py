@@ -158,7 +158,7 @@ def record_factory(*fargs, **kwargs):
     return record
 
 
-def setup_loggers(pav_cfg) -> TextIO:
+def setup_loggers(pav_cfg: "PavConfig") -> TextIO:
     """Setup the loggers for the Pavilion command. This will include:
 
     - The general log file (as a multi-process/host safe rotating logger).
@@ -171,6 +171,17 @@ def setup_loggers(pav_cfg) -> TextIO:
     """
 
     root_logger = logging.getLogger()
+
+    if pav_cfg.result_log is not None:
+        pav_cfg.warnings.append(
+            ("Pavilion config key 'result_log' is deprecated. Configuring a common file logger "
+            f"with destination {pav_cfg.result_log}. Please use the `result_loggers` key to "
+            "configure result logs."))
+
+        pav_cfg.result_loggers.append(
+            {"plugin": "common_file",
+            "dest": pav_cfg.result_log}
+        )
 
     # Setup the new record factory.
     logging.setLogRecordFactory(record_factory)

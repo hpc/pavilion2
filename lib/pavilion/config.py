@@ -201,6 +201,7 @@ class PavConfig(PavConfigDict):
         self.max_cpu: int = NCPU
         self.log_format: str = LOG_FORMAT
         self.log_level: str = 'info'
+        self.result_log: OptPath = None
         self.result_loggers: List[Dict] = []
         self.flatten_results: bool = True
         self.exception_log: OptPath = None
@@ -477,6 +478,13 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             choices=['debug', 'info', 'warning', 'error', 'critical'],
             help_text="The minimum log level for messages sent to the pavilion "
                       "logfile."),
+        ExPathElem(
+            "result_log",
+            # Derive the default from the working directory, if a value isn't
+            # given.
+            help_text="Results are put in both the general log and a specific "
+                      "results log. This defaults to 'results.log' in the default "
+                      "working directory."),
         yc.BoolElem(
             "flatten_results", default=True,
             help_text="Flatten results with multiple 'per_file' values into "
