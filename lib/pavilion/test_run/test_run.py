@@ -38,6 +38,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
+from pavilion.test_ids import TestID
 from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
 from .test_attrs import TestAttributes
@@ -422,11 +423,11 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def parse_raw_id(cls, pav_cfg, raw_test_id: str) -> ID_Pair:
+    def parse_raw_id(cls, pav_cfg: "PavConfig", test_id: TestID) -> ID_Pair:
         """Parse a raw test run id and return the label, working_dir, and id
         for that test. The test run need not exist, but the label must."""
 
-        parts = raw_test_id.split('.', 1)
+        parts = test_id.parts
         if not parts:
             raise TestRunNotFoundError("Blank test run id given")
         elif len(parts) == 1:
@@ -434,12 +435,6 @@ class TestRun(TestAttributes):
             test_id = parts[0]
         else:
             cfg_label, test_id = parts
-
-        try:
-            test_id = int(test_id)
-        except ValueError:
-            raise TestRunNotFoundError("Invalid test id with label '{}': '{}'"
-                                       .format(cfg_label, test_id))
 
         if cfg_label not in pav_cfg.configs:
             raise TestRunNotFoundError(

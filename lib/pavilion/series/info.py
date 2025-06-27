@@ -9,6 +9,7 @@ from pavilion import config
 from pavilion import dir_db
 from pavilion import status_file
 from pavilion import utils
+from pavilion.test_ids import SeriesID
 from pavilion.errors import TestRunError, TestSeriesError
 from pavilion.test_run import TestRun, TestAttributes
 from . import common
@@ -346,15 +347,13 @@ class SeriesInfo(SeriesInfoBase):
         return common.get_all_started(self.path)
 
     @classmethod
-    def load(cls, pav_cfg: config.PavConfig, sid: str):
+    def load(cls, pav_cfg: config.PavConfig, sid: SeriesID):
         """Find and load a series info object from a series id."""
 
         try:
-            id_ = int(sid[1:])
+            id_ = sid.as_int()
         except ValueError:
-            raise TestSeriesError(
-                "Invalid series id '{}'. Series id should "
-                "look like 's1234'.".format(sid))
+            raise TestSeriesError(f"Unable to convert series ID {sid} to int.")
 
         series_path = pav_cfg.working_dir/'series'/str(id_)
         if not series_path.exists():

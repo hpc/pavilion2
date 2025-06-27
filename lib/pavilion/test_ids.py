@@ -1,7 +1,7 @@
-from typing import Union, Tuple, List, NewType, Iterator, TypeVar, Iterable
+from typing import Union, Tuple, List, Iterable, Optional
 from abc import ABC, abstractmethod
 
-from pavilion.micro import flatten
+from pavilion.micro import flatten, unique
 from pavilion.utils import is_int
 
 
@@ -42,6 +42,13 @@ class ID(ABC):
 
         return self.id_str.lower() == "last"
 
+    @property
+    @abstractmethod
+    def range_type() -> type:
+        """Return the range ID type associated with the ID."""
+
+        raise NotImplementedError
+
     def __str__(self) -> str:
         return self.id_str
 
@@ -81,6 +88,10 @@ class TestID(ID):
 
         return tuple(self.id_str.split('.', 1))
 
+    @property
+    def range_type() -> type:
+        return TestRange
+
 
 class SeriesID(ID):
     """Represents a single series ID."""
@@ -105,17 +116,33 @@ class SeriesID(ID):
 
         return int(self.id_str[1:])
 
+    @property
+    def range_type() -> type:
+        return SeriesRange
 
-class GroupID(ID):
+
+class TestGroup:
     """Represents a single group ID."""
+    
+    def __init__(self, id_str: str):
+        self.id_str = id_str
 
     @staticmethod
     def is_valid_id(id_str: str) -> bool:
         """Determine whether the given string constitutes a valid group ID."""
         return len(id_str) > 0 and not (TestID.is_valid_id(id_str) or SeriesID.is_valid_id(id_str))
 
+    def __str__(self) -> str:
+        return self.id_str
 
-class Range(ABC):
+    def __eq__(self, other: "TestGroup") -> bool:
+        return self.id_str == other.id_str
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.id_str})"
+
+
+class IDRange(ABC):
     """Represents a contiguous sequence of IDs."""
 
     def __init__(self, start: int, end: int):
@@ -131,7 +158,7 @@ class Range(ABC):
 
     @staticmethod
     @abstractmethod
-    def from_str(rng_str: str) -> "Range":
+    def from_str(rng_str: str) -> "IDRange":
         """Produce a new range object from a string.
 
         NOTE: This method should not perform validation. It assumes that validation has been
@@ -140,12 +167,12 @@ class Range(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def expand(self) -> Iterator[ID]:
+    def expand(self) -> List[ID]:
         """Get the sequence of all values in the range."""
 
         raise NotImplementedError
 
-    def __eq__(self, other: "Range") -> bool:
+    def __eq__(self, other: "IDRange") -> bool:
         if not isinstance(other, type(self)):
             return False
 
@@ -159,7 +186,7 @@ class Range(ABC):
         return f"{type(self).__name__}({self.start}, {self.end})"
 
 
-class TestRange(Range):
+class TestRange(IDRange):
     """Represents a contiguous sequence of test IDs."""
 
     @staticmethod
@@ -190,16 +217,16 @@ class TestRange(Range):
 
         return TestRange(int(start), int(end))
 
-    def expand(self) -> Iterator[TestID]:
+    def expand(self) -> List[TestID]:
         """Get the sequence of all series IDs in the range."""
 
-        return map(TestID, map(str, range(self.start, self.end + 1)))
+        return list(map(TestID, map(str, range(self.start, self.end + 1))))
 
     def __str__(self) -> str:
         return f"{self.start}-{self.end}"
 
 
-class SeriesRange(Range):
+class SeriesRange(IDRange):
     """Represents a contiguous sequence of series IDs."""
 
     @staticmethod
@@ -228,18 +255,50 @@ class SeriesRange(Range):
 
         return SeriesRange(int(start[1:]), int(end[1:]))
 
-    def expand(self) -> Iterator[SeriesID]:
+    def expand(self) -> List[SeriesID]:
         """Get the sequence of all series IDs in the range."""
 
-        return map(SeriesID, map(lambda x: f"s{x}", range(self.start, self.end + 1)))
+        return list(map(SeriesID, map(lambda x: f"s{x}", range(self.start, self.end + 1))))
 
     def __str__(self) -> str:
         return f"s{self.start}-s{self.end}"
 
 
-def multi_convert(id_str: str) -> Union[List[TestID], List[SeriesID], List[GroupID]]:
+def resolve_ids(id_strs: List[str], id_type: ID, auto_last: bool = True) -> List[ID]:
+    """Resolve a list of strings into a list of TestIDs."""
+
+    range_type = id_type.range_type
+    ids = []
+
+    if len(id_strs) == 0:
+        if auto_last:
+            return [id_type("last")]
+
+        return ids
+    
+    if "all" in id_strs:
+        return id_type("all")
+
+    for id_str in id_strs:
+        if id_type.is_valid_id(id_str):
+            ids.append(id_type(id_str))
+        elif range_type.is_valid_range_str(id_str):
+            id_range = range_type.from_str(id_str).expand()
+        else:
+            ...
+
+    return list(unique(ids))
+
+
+def multi_convert(id_str: str, priority: ID) -> Union[List[TestID], List[SeriesID], List[TestGroup]]:
     """Convert a string into a list (possibly a singleton list) of either a TestID, SeriesID,
-    or GroupID as appropriate."""
+    or TestGroup as appropriate. Abstract IDs (i.e. 'last' and 'all') will be disambiguated based on
+    the specified by priority."""
+
+    if id_str.lower() == "all":
+        return [priority("all")]
+    if id_str.lower() == "last":
+        return [priority("last")]
 
     if TestRange.is_valid_range_str(id_str):
         return list(TestRange.from_str(id_str).expand())
@@ -250,10 +309,11 @@ def multi_convert(id_str: str) -> Union[List[TestID], List[SeriesID], List[Group
     if SeriesID.is_valid_id(id_str):
         return [SeriesID(id_str)]
 
-    return [GroupID(id_str)]
+    return [TestGroup(id_str)]
 
 
-def resolve_ids(ids: Iterable[str]) -> List[Union[TestID, SeriesID, GroupID]]:
+def resolve_mixed_ids(ids: Iterable[str], priority: ID,
+                      auto_last: bool = True) -> List[Union[TestID, SeriesID, TestGroup]]:
     """Fully resolve all IDs in the given list into either test IDs, series IDs, or group IDs."""
 
     ids = list(ids)
@@ -261,4 +321,4 @@ def resolve_ids(ids: Iterable[str]) -> List[Union[TestID, SeriesID, GroupID]]:
     if "all" in ids:
         return [SeriesID("all")]
 
-    return list(flatten(map(multi_convert, ids)))
+    return list(flatten(map(lambda x: multi_convert(x, priority), ids)))
