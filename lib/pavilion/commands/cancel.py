@@ -12,6 +12,7 @@ from pavilion import series
 from pavilion.errors import TestSeriesError
 from pavilion.test_run import TestRun
 from pavilion.config import PavConfig
+from pavilion.test_ids import resolve_mixed_ids, SeriesID
 from pavilion.micro import partition
 from .base_classes import Command
 from ..errors import TestRunError
@@ -45,15 +46,10 @@ class CancelCommand(Command):
     def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Cancel the given tests or series."""
 
-        if len(args.tests) == 0:
-            # Get the last series ran by this user.
-            series_id = series.load_user_series_id(pav_cfg)
-
-            if series_id is not None:
-                args.tests.append(series_id)
+        ids = resolve_mixed_ids(args.tests, priority=SeriesID)
 
         # Separate out into tests and series
-        series_ids, test_ids = partition(cmd_utils.is_series_id, args.tests)
+        series_ids, test_ids = partition(lambda x: isinstance(x, SeriesID), ids)
 
         args.tests = list(test_ids)
         args.series = list(series_ids)

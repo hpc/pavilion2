@@ -7,6 +7,7 @@ from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
 from pavilion import status_utils
+from pavilion.test_ids import resolve_mixed_ids, SeriesID
 from pavilion.errors import PavilionError
 from .base_classes import Command
 
@@ -52,6 +53,9 @@ class StatusCommand(Command):
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
+
+        args.tests = resolve_mixed_ids(args.tests, priority=SeriesID)
+
         try:
             test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
         except (ValueError, PavilionError) as err:

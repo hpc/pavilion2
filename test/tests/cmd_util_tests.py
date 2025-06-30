@@ -10,6 +10,7 @@ from pavilion import unittest
 from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import arguments
+from pavilion.test_ids import resolve_mixed_ids, SeriesID
 
 
 class CmdUtilsTests(unittest.PavTestCase):
@@ -56,6 +57,8 @@ class CmdUtilsTests(unittest.PavTestCase):
                 ]:
 
             args = arguments.get_parser().parse_args(argset)
+
+            args.tests = resolve_mixed_ids(args.tests, priority=SeriesID)
 
             self.assertEqual(len(cmd_utils.arg_filtered_tests(self.pav_cfg, args).paths), count)
 
