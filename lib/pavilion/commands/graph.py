@@ -11,7 +11,7 @@ from pavilion import cmd_utils
 from pavilion import errors
 from pavilion import filters
 from pavilion import output
-from pavilion.test_ids import TestID, resolve_ids
+from pavilion.test_ids import TestID, resolve_mixed_ids
 from pavilion.result.evaluations import check_evaluations, evaluate_results
 from .base_classes import Command
 from ..errors import ResultError
@@ -140,7 +140,7 @@ class GraphCommand(Command):
 
         output.fprint(self.outfile, "Generating Graph...")
 
-        args.tests = resolve_ids(args.tests, TestID)
+        args.tests = resolve_mixed_ids(args.tests, auto_last=True)
 
         # Get filtered Test IDs.
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths

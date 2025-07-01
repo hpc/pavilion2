@@ -18,6 +18,88 @@ class ID(ABC):
         
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def range_type() -> type:
+        """Return the range ID type associated with the ID."""
+
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        return self.id_str
+
+    def __eq__(self, other: "ID") -> bool:
+        return self.id_str == other.id_str
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.id_str})"
+
+    def __hash__(self) -> int:
+        return hash(self.id_str)
+
+
+class TestID(ID):
+    """Represents a single test ID."""
+
+    @classmethod
+    def is_valid_id(cls, id_str: str) -> bool:
+        """Determine whether the given string constitutes a valid test ID."""
+
+        return '.' in id_str or (is_int(id_str) and int(id_str) > 0)
+
+    def is_int(self) -> bool:
+        """Determine whether the test ID is an integer value."""
+
+        return is_int(self.id_str)
+
+    def as_int(self) -> int:
+        """Convert the test ID into an integer, if possible."""
+
+        try:
+            return int(self.id_str)
+        except:
+            raise ValueError(f"Test with ID {self.id_str} cannot be converted to an integer.")
+
+    @property
+    def parts(self) -> Tuple[str]:
+        """Return a tuple of components of the test ID, where components are separated by
+        periods."""
+
+        return tuple(self.id_str.split('.', 1))
+
+    @property
+    def label(self) -> str:
+        """Return the config label component of the test ID."""
+
+        if len(self.parts) > 1:
+            return self.parts[0]
+
+        return "main"
+
+    @property
+    def test_num(self) -> Optional[int]:
+        """Return the test number component of the test ID."""
+
+        if self.is_int():
+            return self.as_int()
+        elif len(self.parts) > 1:
+            return int(self.parts[-1])
+
+    @property
+    def range_type() -> type:
+        return TestRange
+
+
+class SeriesID(ID):
+    """Represents a single series ID."""
+
+    @classmethod
+    def is_valid_id(cls, id_str: str) -> bool:
+        """Determine whether the given string constitutes a valid series ID."""
+
+        return cls.is_abstract_id(id_str) or (len(id_str) > 0 and id_str[0] == 's' \
+            and is_int(id_str[1:]) and int(id_str[1:]) > 0)
+
     @staticmethod
     def is_abstract_id(id_str: str) -> bool:
         """Determine whether the given string is an abstract ID, that is, whether it
@@ -41,81 +123,6 @@ class ID(ABC):
         """Determine whether the ID is the most recently run."""
 
         return self.id_str.lower() == "last"
-
-    @property
-    @abstractmethod
-    def range_type() -> type:
-        """Return the range ID type associated with the ID."""
-
-        raise NotImplementedError
-
-    def __str__(self) -> str:
-        return self.id_str
-
-    def __eq__(self, other: "ID") -> bool:
-        return self.id_str == other.id_str
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.id_str})"
-
-
-class TestID(ID):
-    """Represents a single test ID."""
-
-    @classmethod
-    def is_valid_id(cls, id_str: str) -> bool:
-        """Determine whether the given string constitutes a valid test ID."""
-
-        return '.' in id_str or (is_int(id_str) and int(id_str) > 0) or cls.is_abstract_id(id_str)
-
-    def is_int(self) -> bool:
-        """Determine whether the test ID is an integer value."""
-
-        return is_int(self.id_str)
-
-    def as_int(self) -> int:
-        """Convert the test ID into an integer, if possible."""
-
-        try:
-            return int(self.id_str)
-        except:
-            raise ValueError(f"Test with ID {self.id_str} cannot be converted to an integer.")
-
-    @property
-    def parts(self) -> Tuple[str]:
-        """Return a tuple of components of the test ID, where components are separated by
-        periods."""
-
-        return tuple(self.id_str.split('.', 1))
-
-    @property
-    def label(self) -> Optional[str]:
-        if len(self.parts) > 1:
-            return self.parts[0]
-
-        return None
-
-    @property
-    def test_num(self) -> Optional[int]:
-        if self.is_int():
-            return self.as_int()
-        elif len(self.parts) > 1:
-            return int(self.parts[-1])
-
-    @property
-    def range_type() -> type:
-        return TestRange
-
-
-class SeriesID(ID):
-    """Represents a single series ID."""
-
-    @classmethod
-    def is_valid_id(cls, id_str: str) -> bool:
-        """Determine whether the given string constitutes a valid series ID."""
-
-        return cls.is_abstract_id(id_str) or (len(id_str) > 0 and id_str[0] == 's' \
-            and is_int(id_str[1:]) and int(id_str[1:]) > 0)
 
     def is_int(self) -> bool:
         """Determine whether the series ID is an integer value."""
@@ -291,7 +298,7 @@ def resolve_ids(id_strs: List[str], id_type: ID, auto_last: bool = True) -> List
         return ids
     
     if "all" in id_strs:
-        return id_type("all")
+        return [id_type("all")]
 
     for id_str in id_strs:
         if id_type.is_valid_id(id_str):
@@ -304,15 +311,14 @@ def resolve_ids(id_strs: List[str], id_type: ID, auto_last: bool = True) -> List
     return list(unique(ids))
 
 
-def multi_convert(id_str: str, priority: ID) -> Union[List[TestID], List[SeriesID], List[GroupID]]:
+def multi_convert(id_str: str) -> Union[List[TestID], List[SeriesID], List[GroupID]]:
     """Convert a string into a list (possibly a singleton list) of either a TestID, SeriesID,
-    or GroupID as appropriate. Abstract IDs (i.e. 'last' and 'all') will be disambiguated based on
-    the specified by priority."""
+    or GroupID as appropriate."""
 
     if id_str.lower() == "all":
-        return [priority("all")]
+        return [SeriesID("all")]
     if id_str.lower() == "last":
-        return [priority("last")]
+        return [SeriesID("last")]
 
     if TestRange.is_valid_range_str(id_str):
         return list(TestRange.from_str(id_str).expand())
@@ -326,10 +332,12 @@ def multi_convert(id_str: str, priority: ID) -> Union[List[TestID], List[SeriesI
     return [GroupID(id_str)]
 
 
-def resolve_mixed_ids(ids: Iterable[str], priority: ID,
-                      auto_last: bool = True) -> List[Union[TestID, SeriesID, GroupID]]:
+def resolve_mixed_ids(ids: Iterable[str], auto_last: bool = True) -> List[Union[TestID, SeriesID, GroupID]]:
     """Fully resolve all IDs in the given list into either test IDs, series IDs, or group IDs."""
 
     ids = list(ids)
 
-    return list(flatten(map(lambda x: multi_convert(x, priority), ids)))
+    if "all" in ids:
+        return [SeriesID("all")]
+
+    return list(flatten(map(multi_convert, ids)))

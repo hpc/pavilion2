@@ -46,7 +46,7 @@ class CancelCommand(Command):
     def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Cancel the given tests or series."""
 
-        ids = resolve_mixed_ids(args.tests, priority=SeriesID)
+        ids = resolve_mixed_ids(args.tests, auto_last=True)
 
         # Separate out into tests and series
         series_ids, test_ids = partition(lambda x: isinstance(x, SeriesID), ids)

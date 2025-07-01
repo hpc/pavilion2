@@ -58,7 +58,7 @@ class CmdUtilsTests(unittest.PavTestCase):
 
             args = arguments.get_parser().parse_args(argset)
 
-            args.tests = resolve_mixed_ids(args.tests, priority=SeriesID)
+            args.tests = resolve_mixed_ids(args.tests)
 
             self.assertEqual(len(cmd_utils.arg_filtered_tests(self.pav_cfg, args).paths), count)
 

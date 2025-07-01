@@ -54,7 +54,7 @@ class StatusCommand(Command):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
-        args.tests = resolve_mixed_ids(args.tests, priority=SeriesID)
+        args.tests = resolve_mixed_ids(args.tests)
 
         try:
             test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths

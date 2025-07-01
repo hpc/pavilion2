@@ -10,6 +10,7 @@ from pavilion import filters
 from pavilion import output
 from pavilion.series.info import SeriesInfo
 from pavilion.test_run import TestAttributes
+from pavilion.test_ids import resolve_mixed_ids, resolve_ids, SeriesID
 from .base_classes import Command, sub_cmd
 
 
@@ -229,6 +230,8 @@ class ListCommand(Command):
             avail_fields=TestAttributes.list_attrs()
         )
 
+        args.tests = resolve_mixed_ids(args.tests, auto_last=True)
+
         test_runs = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).data
 
         def remove_nones(run: Mapping) -> Dict:
@@ -266,6 +269,8 @@ class ListCommand(Command):
             default_fields=self.SERIES_LONG_FIELDS,
             avail_fields=list(series_attrs.keys()),
         )
+
+        args.series = resolve_ids(args.series, SeriesID, auto_last=True)
 
         series = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
         series = [series_info.attr_dict() for series_info in series]

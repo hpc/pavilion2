@@ -21,6 +21,7 @@ from pavilion import resolve
 from pavilion import result
 from pavilion import result_utils
 from pavilion import utils
+from pavilion.test_ids import resolve_mixed_ids
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from .base_classes import Command
@@ -153,6 +154,7 @@ class ResultsCommand(Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
+        args.tests = resolve_mixed_ids(args.tests)
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
                                 verbose=self.errfile).paths
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
