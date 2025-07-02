@@ -1,5 +1,5 @@
 from pavilion.unittest import PavTestCase
-from pavilion.test_ids import TestID, SeriesID, GroupID
+from pavilion.test_ids import TestID, SeriesID, GroupID, TestRange, SeriesRange
 
 
 class TestIDTests(PavTestCase):
@@ -39,3 +39,21 @@ class TestIDTests(PavTestCase):
 
         for id in invalid_ids:
             self.assertFalse(GroupID.is_valid_id(id))
+
+    def test_test_range_expansion(self):
+        """Test that test ID ranges are correctly expanded into sequences of test IDs."""
+
+        ranges = ("1-2", "1-1", "2-1")
+        expected = ([TestID("1"), TestID("2")], [TestID("1")], [])
+
+        for i, rng in enumerate(ranges):
+            self.assertEqual(TestRange.from_str(rng).expand(), expected[i])
+
+    def test_series_range_expansion(self):
+        """Test that series ID ranges are correctly expanded into sequences of series IDs."""
+
+        ranges = ("s1-s2", "s1-s1", "s2-s1")
+        expected = ([SeriesID("s1"), SeriesID("s2")], [SeriesID("s1")], [])
+
+        for i, rng in enumerate(ranges):
+            self.assertEqual(SeriesRange.from_str(rng).expand(), expected[i])
