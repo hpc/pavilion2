@@ -29,6 +29,8 @@ class LSCommand(Command):
     def _setup_arguments(self, parser):
         parser.add_argument(
             'test_id',
+            nargs='?',
+            default=None,
             help="Test id number.",
             metavar='TEST_ID',
         )
@@ -80,6 +82,11 @@ class LSCommand(Command):
 
         if args.test_id is None:
             test_id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
+
+            if test_id is None:
+                output.fprint(self.errfile, "No last test found.", color=output.RED)
+                return errno.EEXIST
+
         elif TestID.is_valid_id(args.test_id):
             test_id = TestID(args.test_id)
         else:
