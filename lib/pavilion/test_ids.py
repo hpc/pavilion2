@@ -10,18 +10,12 @@ class ID(ABC):
 
     def __init__(self, id_str: str):
         self.id_str = id_str
+        self.range_type = None
 
     @staticmethod
     @abstractmethod
     def is_valid_id(id_str: str) -> bool:
         """Determine whether the given string constitutes a valid ID."""
-        
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def range_type() -> type:
-        """Return the range ID type associated with the ID."""
 
         raise NotImplementedError
 
@@ -40,6 +34,10 @@ class ID(ABC):
 
 class TestID(ID):
     """Represents a single test ID."""
+
+    def __init__(self):
+        super().__init__()
+        self.range_type = TestRange
 
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
@@ -92,13 +90,13 @@ class TestID(ID):
         elif len(self.parts) > 1:
             return int(self.parts[-1])
 
-    @property
-    def range_type() -> type:
-        return TestRange
-
 
 class SeriesID(ID):
     """Represents a single series ID."""
+
+    def __init__(self):
+        super().__init__()
+        self.range_type = SeriesRange
 
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
@@ -144,14 +142,10 @@ class SeriesID(ID):
 
         return int(self.id_str[1:])
 
-    @property
-    def range_type() -> type:
-        return SeriesRange
-
 
 class GroupID:
     """Represents a single group ID."""
-    
+
     def __init__(self, id_str: str):
         self.id_str = id_str
 
@@ -303,7 +297,7 @@ def resolve_ids(id_strs: List[str], id_type: ID, auto_last: bool = True) -> List
             return [id_type("last")]
 
         return ids
-    
+
     if "all" in id_strs:
         return [id_type("all")]
 
@@ -339,7 +333,8 @@ def multi_convert(id_str: str) -> Union[List[TestID], List[SeriesID], List[Group
     return [GroupID(id_str)]
 
 
-def resolve_mixed_ids(ids: Iterable[str], auto_last: bool = True) -> List[Union[TestID, SeriesID, GroupID]]:
+def resolve_mixed_ids(ids: Iterable[str],
+                      auto_last: bool = True) -> List[Union[TestID, SeriesID, GroupID]]:
     """Fully resolve all IDs in the given list into either test IDs, series IDs, or group IDs."""
 
     ids = list(ids)

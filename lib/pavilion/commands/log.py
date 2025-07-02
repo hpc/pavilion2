@@ -149,7 +149,7 @@ class LogCommand(Command):
         if cmd_name == 'states':
             if args.id is None:
                 args.id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
-                
+
             if args.id is None:
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
                 return 1

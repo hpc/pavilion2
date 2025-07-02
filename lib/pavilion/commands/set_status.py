@@ -47,7 +47,7 @@ class SetStatusCommand(Command):
             return 0
 
         if TestID.is_valid_id(args.test):
-            test_id = TestID(args.test) 
+            test_id = TestID(args.test)
         else:
             output.fprint(self.errfile, f"{args.test} is not a valid test ID.")
             return errno.EEXIST

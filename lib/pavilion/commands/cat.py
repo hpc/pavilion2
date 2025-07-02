@@ -44,7 +44,7 @@ class CatCommand(Command):
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
                 return 1
         elif TestID.is_valid_id(args.test_id):
-            test_id = TestID(args.test_id) 
+            test_id = TestID(args.test_id)
         else:
             output.fprint(self.errfile, f"{args.test_id} is not a valid test ID.")
             return errno.EEXIST
