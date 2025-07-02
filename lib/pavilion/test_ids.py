@@ -45,7 +45,14 @@ class TestID(ID):
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid test ID."""
 
-        return '.' in id_str or (is_int(id_str) and int(id_str) > 0)
+        test_num = -1
+
+        if "." in id_str:
+            test_num = int(id_str.split(".")[-1])
+        elif is_int(id_str):
+            test_num = int(id_str)
+
+        return test_num > 0
 
     def is_int(self) -> bool:
         """Determine whether the test ID is an integer value."""
