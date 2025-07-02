@@ -9,6 +9,7 @@ import sys
 from pavilion import errors
 from pavilion import output
 from pavilion import series, series_config
+from pavilion import cmd_utils
 from pavilion.test_run import TestRun
 from .base_classes import Command
 
@@ -42,7 +43,7 @@ class LogCommand(Command):
             help="Show a test's run.log",
             description="Displays the test run log (run.log)."
         )
-        run.add_argument('id', type=str,
+        run.add_argument('id', type=str, nargs='?', default=None,
                          help="Test number or series id (e.g. s7) argument.")
 
         kickoff = subparsers.add_parser(
@@ -50,7 +51,7 @@ class LogCommand(Command):
             help="Show a test's kickoff.log",
             description="Displays the kickoff log (kickoff.log)"
         )
-        kickoff.add_argument('id', type=str,
+        kickoff.add_argument('id', nargs='?', default=None, type=str,
                              help="Test number or series id (e.g. s7) "
                                   "argument.")
 
@@ -59,7 +60,7 @@ class LogCommand(Command):
             help="Show a test's build.log",
             description="Displays the build log (build.log)"
         )
-        build.add_argument('id', type=str,
+        build.add_argument('id', nargs='?', default=None, type=str,
                            help="Test number or series id (e.g. s7) argument.")
 
         results = subparsers.add_parser(
@@ -67,7 +68,7 @@ class LogCommand(Command):
             help="Show a test's results.log",
             description="Displays the results log (results.log)"
         )
-        results.add_argument('id', type=str,
+        results.add_argument('id', type=str, nargs='?', default=None,
                              help="Test number or series id (e.g. s7) "
                                   "argument.")
 
@@ -76,7 +77,7 @@ class LogCommand(Command):
             help="Show a series's output (series.out).",
             description="Displays the series output (series.log)."
         )
-        series_cmd.add_argument('id', type=str,
+        series_cmd.add_argument('id', type=str, nargs='?', default=None,
                                 help="Test number or series id (e.g. s7) argument.")
 
         subparsers.add_parser(
@@ -93,7 +94,8 @@ class LogCommand(Command):
             '--raw', action='store_true', help="Print the state file as is.")
         states_cmd.add_argument(
             '--raw_time', action='store_true', help="Print raw unix timestamps.")
-        states_cmd.add_argument('id', help="The test id to show states for.")
+        states_cmd.add_argument('id', nargs='?', default=None,
+                                help="The test id to show states for.")
 
         subparsers.add_parser(
             'all_results',
@@ -145,6 +147,13 @@ class LogCommand(Command):
             cmd_name = args.log_cmd
 
         if cmd_name == 'states':
+            if args.id is None:
+                args.id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
+                
+            if args.id is None:
+                output.fprint(self.errfile, "No last test found.", color=output.RED)
+                return 1
+
             return self._states(pav_cfg, args.id, raw=args.raw, raw_time=args.raw_time)
 
         if cmd_name in ['global', 'all_results', 'allresults', 'all-results']:
@@ -156,8 +165,22 @@ class LogCommand(Command):
         else:
             try:
                 if cmd_name == 'series':
-                    test = series.TestSeries.load(pav_cfg, args.id)
+                    if args.id is None:
+                        test = cmd_utils.load_last_series(pav_cfg, self.errfile)
+
+                        if test is None:
+                            output.fprint(self.errfile, "No last series found.", color=output.RED)
+                            return 1
+                    else:
+                        test = series.TestSeries.load(pav_cfg, args.id)
                 else:
+                    if args.id is None:
+                        args.id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
+
+                    if args.id is None:
+                        output.fprint(self.errfile, "No last test found.", color=output.RED)
+                        return 1
+
                     test = TestRun.load_from_raw_id(pav_cfg, args.id)
             except errors.TestRunError as err:
                 output.fprint(self.errfile, "Error loading test.", err, color=output.RED)

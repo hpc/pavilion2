@@ -35,7 +35,11 @@ def load_last_series(pav_cfg, errfile: TextIO) -> Union[series.TestSeries, None]
     try:
         series_id = series.load_user_series_id(pav_cfg)
     except series.TestSeriesError as err:
-        output.fprint("Failed to find last series: {}".format(err.args[0]), file=errfile)
+        output.fprint(errfile, "Failed to find last series: {}".format(err.args[0]))
+        return None
+
+    if series_id is None:
+        output.fprint(errfile, "Failed to find last series.")
         return None
 
     try:
@@ -518,10 +522,16 @@ def get_last_test_id(pav_cfg: "PavConfig", errfile: TextIO) -> Optional[TestID]:
 
     test_ids = list(last_series.tests.keys())
 
+    if len(test_ids) == 0:
+        output.fprint(
+            errfile,
+            f"Most recent series contains no tests.")
+        return None
+
     if len(test_ids) > 1:
         output.fprint(
-            f"Multiple tests exist in last series. Could not unambiguously identify last test",
-            file=errfile)
+            errfile,
+            f"Multiple tests exist in last series. Could not unambiguously identify last test.")
         return None
 
     return TestID(test_ids[0])
