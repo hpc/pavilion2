@@ -6,6 +6,7 @@ import errno
 from pavilion import cmd_utils
 from pavilion import output
 from pavilion.status_file import STATES
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 
@@ -45,7 +46,13 @@ class SetStatusCommand(Command):
         if args.test == 0:
             return 0
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test], self.errfile)
+        if TestID.is_valid_id(args.test):
+            test_id = TestID(args.test) 
+        else:
+            output.fprint(self.errfile, f"{args.test} is not a valid test ID.")
+            return errno.EEXIST
+
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
 
         if not tests:
             output.fprint(self.errfile, "Test {} could not be opened.".format(args.test),

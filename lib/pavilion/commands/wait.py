@@ -10,6 +10,7 @@ from pavilion import status_utils
 from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
+from pavilion.test_ids import resolve_mixed_ids
 from .base_classes import Command
 
 
@@ -72,6 +73,7 @@ class WaitCommand(Command):
 
         # get start time
         start_time = time.time()
+        args.tests = resolve_mixed_ids(args.tests, auto_last=True)
         tests = cmd_utils.get_tests_by_id(pav_cfg, args.tests, self.errfile)
 
         # determine timeout time, if there is one

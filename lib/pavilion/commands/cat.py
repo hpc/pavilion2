@@ -7,6 +7,7 @@ import sys
 from pavilion import dir_db
 from pavilion import output
 from pavilion import cmd_utils
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 
@@ -35,9 +36,17 @@ class CatCommand(Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
+        if args.test_id is None:
+            test_id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
+        elif TestID.is_valid_id(args.test_id):
+            test_id = TestID(args.test_id) 
+        else:
+            output.fprint(self.errfile, f"{args.test_id} is not a valid test ID.")
+            return errno.EEXIST
+
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
         if not tests:
-            output.fprint(self.errfile, "Could not find test '{}'".format(args.test_id))
+            output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
             return errno.EEXIST
         elif len(tests) > 1:
             output.fprint(
