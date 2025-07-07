@@ -10,7 +10,7 @@ from pavilion import filters
 from pavilion import output
 from pavilion.series.info import SeriesInfo
 from pavilion.test_run import TestAttributes
-from pavilion.test_ids import resolve_mixed_ids, resolve_ids, SeriesID
+from pavilion.test_ids import resolve_mixed_ids, SeriesID
 from .base_classes import Command, sub_cmd
 
 
@@ -270,7 +270,7 @@ class ListCommand(Command):
             avail_fields=list(series_attrs.keys()),
         )
 
-        args.series = resolve_ids(args.series, SeriesID, auto_last=True)
+        args.series = resolve_mixed_ids(args.series, auto_last=True)
 
         series = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
         series = [series_info.attr_dict() for series_info in series]

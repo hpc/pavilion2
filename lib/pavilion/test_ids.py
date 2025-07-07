@@ -10,7 +10,6 @@ class ID(ABC):
 
     def __init__(self, id_str: str):
         self.id_str = id_str
-        self.range_type = None
 
     @staticmethod
     @abstractmethod
@@ -34,10 +33,6 @@ class ID(ABC):
 
 class TestID(ID):
     """Represents a single test ID."""
-
-    def __init__(self):
-        super().__init__()
-        self.range_type = TestRange
 
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
@@ -93,10 +88,6 @@ class TestID(ID):
 
 class SeriesID(ID):
     """Represents a single series ID."""
-
-    def __init__(self):
-        super().__init__()
-        self.range_type = SeriesRange
 
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
@@ -284,32 +275,6 @@ class SeriesRange(IDRange):
 
     def __str__(self) -> str:
         return f"s{self.start}-s{self.end}"
-
-
-def resolve_ids(id_strs: List[str], id_type: ID, auto_last: bool = True) -> List[ID]:
-    """Resolve a list of strings into a list of TestIDs."""
-
-    range_type = id_type.range_type
-    ids = []
-
-    if len(id_strs) == 0:
-        if auto_last:
-            return [id_type("last")]
-
-        return ids
-
-    if "all" in id_strs:
-        return [id_type("all")]
-
-    for id_str in id_strs:
-        if id_type.is_valid_id(id_str):
-            ids.append(id_type(id_str))
-        elif range_type.is_valid_range_str(id_str):
-            id_range = range_type.from_str(id_str).expand()
-        else:
-            raise ValueError(f"Invalid ID str {id_str}.")
-
-    return list(unique(ids))
 
 
 def multi_convert(id_str: str) -> Union[List[TestID], List[SeriesID], List[GroupID]]:

@@ -82,7 +82,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'cancel',
-            tests[0],
+            tests[0].id_str,
         ])
 
         cancel_cmd = commands.get_command(args.command_name)

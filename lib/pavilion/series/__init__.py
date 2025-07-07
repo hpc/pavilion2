@@ -5,6 +5,7 @@ from typing import TextIO, Optional
 
 from pavilion import output
 from pavilion import utils, dir_db
+from pavilion.test_ids import SeriesID
 from ..sys_vars import base_classes
 from ..errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo, path_to_sid, mk_series_info_transform, TestSetInfo, SeriesInfoBase
@@ -29,7 +30,7 @@ def load_user_series_id(pav_cfg, errfile=None) -> Optional[str]:
     try:
         with last_series_fn.open() as last_series_file:
             sys_name_series_dict = json.load(last_series_file)
-            return sys_name_series_dict[sys_name].strip()
+            return SeriesID(sys_name_series_dict[sys_name].strip())
     except (IOError, OSError, KeyError) as err:
         if errfile:
             output.fprint(errfile, "Failed to read series id file '{}'"
