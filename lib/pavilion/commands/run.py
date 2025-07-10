@@ -9,6 +9,7 @@ from pathlib import Path
 from pavilion import cmd_utils
 from pavilion import groups
 from pavilion import output
+from pavilion import resolver
 from pavilion.enums import Verbose
 from pavilion.errors import TestSeriesError, PavilionError
 from pavilion.series.series import TestSeries
@@ -61,6 +62,10 @@ class RunCommand(Command):
         :param argparse.ArgumentParser parser:
         """
 
+        parser.add_argument(
+            "-a", "--all", action="store_true",
+            help="Build or run all known tests."
+        )
         parser.add_argument(
             '-p', '--platform', action='store',
             help='The platform to configure this test for. If not '
@@ -152,13 +157,20 @@ class RunCommand(Command):
             ignore_errors=args.ignore_errors,
         )
 
-        tests = args.tests
-        try:
-            tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
-        except PavilionError as err:
-            output.fprint(self.errfile, "Error reading given test list files.\n{}"
-                          .format(err))
-            return errno.EINVAL
+        if args.all:
+            resolv = resolver.TestConfigResolver(pav_cfg)
+            suites = resolv.find_all_tests()
+            tests = list(suites.keys())
+            args.files = []
+            import pdb; pdb.set_trace()
+        else:
+            tests = args.tests
+            try:
+                tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
+            except PavilionError as err:
+                output.fprint(self.errfile, "Error reading given test list files.\n{}"
+                              .format(err))
+                return errno.EINVAL
 
         local_builds_only = getattr(args, 'local_builds_only', False)
         report_status = getattr(args, 'status', False)
@@ -167,18 +179,13 @@ class RunCommand(Command):
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
                                 verbosity=Verbose[args.verbosity],
                                 outfile=self.outfile)
-        testset_name = cmd_utils.get_testset_name(pav_cfg, args.tests, args.files)
+        testset_name = cmd_utils.get_testset_name(pav_cfg, tests, args.files)
 
         if args.group:
-            try:
-                group = groups.TestGroup(pav_cfg, args.group)
-                group.add([series_obj])
-            except groups.TestGroupError as err:
-                output.fprint(self.errfile,
-                              "Could not add series to group '{}'".format(args.group),
-                              color=output.RED)
-                output.fprint(self.errfile, err.pformat())
-                return errno.EINVAL
+            ret = self._add_to_group(pav_cfg, series_obj, args.group)
+            
+            if ret != 0:
+                return ret
 
         else:
             output.fprint(self.outfile, "Created Test Series {}.".format(series_obj.name))
@@ -211,3 +218,18 @@ class RunCommand(Command):
             )
 
         return 0
+
+    def _add_to_group(self, series: "TestSeries", group: str) -> int:
+        """Add the given series to the given group."""
+
+        try:
+            group = groups.TestGroup(pav_cfg, args.group)
+            group.add([series_obj])
+
+            return 0
+        except groups.TestGroupError as err:
+            output.fprint(self.errfile,
+                          "Could not add series to group '{}'".format(args.group),
+                          color=output.RED)
+            output.fprint(self.errfile, err.pformat())
+            return errno.EINVAL
