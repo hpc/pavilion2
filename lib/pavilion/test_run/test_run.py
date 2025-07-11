@@ -1225,9 +1225,10 @@ be set by the scheduler plugin as soon as it's known."""
         script.command(f'echo "(pav) Executing {stype} commands."')
         script.newline()
         cmds = config.get('cmds', [])
+        autoexit = utils.str_bool(self.config.get(stype, {}).get('autoexit'))
         if cmds:
             script.comment("Perform the sequence of test commands.")
-            if utils.str_bool(self.config.get(stype, {}).get('autoexit')):
+            if autoexit:
                 script.command("set -e -o pipefail")
             for line in config.get('cmds', []):
                 if line is None:
@@ -1237,7 +1238,13 @@ be set by the scheduler plugin as soon as it's known."""
         else:
             script.comment('No commands given for this script.')
 
+        # When autoexit isn't set, we need to preserve the return value of the last script command.
+        if not autoexit:
+            script.command("PAV_EXIT=$?")
         script.command(f'echo "(pav) Test {stype} commands completed without error."')
+        if not autoexit:
+            script.command("exit $PAV_EXIT")
+
 
         script.write(path)
 
