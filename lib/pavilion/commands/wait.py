@@ -135,6 +135,6 @@ class WaitCommand(Command):
                         stats_out.append(' '.join(stat))
                     fprint(self.outfile, ''.join(map(str, stats_out)), width=None)
 
-        final_stats = status_utils.get_statuses(pav_cfg, tests)
+        final_stats = status_utils.get_statuses(pav_cfg, all_tests)
         fprint(self.outfile, '\n')
         status_utils.print_status(final_stats, self.outfile)

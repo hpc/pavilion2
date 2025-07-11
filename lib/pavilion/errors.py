@@ -313,6 +313,8 @@ class SeriesConfigError(TestConfigError):
 class SystemPluginError(PavilionError):
     """Error thrown when a system plugin encounters an error."""
 
+class ResultLoggerPluginError(PavilionError):
+    """Error thrown when a logging plugin encounters an error."""
 
 class WGetError(RuntimeError):
     """Errors for the Wget subsystem."""

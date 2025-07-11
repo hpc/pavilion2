@@ -92,7 +92,7 @@ base class.
     def tear_down(self):
         """Nothing to do by default."""
 
-    def make_pav_config(self, config_dirs: List[Path] = None):
+    def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
         as the config directory.
         """
@@ -111,7 +111,12 @@ base class.
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
         raw_pav_cfg.user_config = False
 
-        raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
+        if result_loggers is None:
+            raw_pav_cfg.result_loggers = [{
+                "plugin": "series_file",
+                "dest": raw_pav_cfg.working_dir/'results'}]
+        else:
+            raw_pav_cfg.result_loggers = result_loggers
 
         if not raw_pav_cfg.working_dir.exists():
             raw_pav_cfg.working_dir.mkdir()

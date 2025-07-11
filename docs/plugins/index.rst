@@ -12,3 +12,4 @@ Pavilion Plugins
    result_parsers.rst
    schedulers.rst
    sys_vars.rst
+   result_loggers.rst

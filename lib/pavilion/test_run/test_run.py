@@ -15,7 +15,7 @@ import time
 import uuid
 import os
 from pathlib import Path
-from typing import TextIO, Union, Dict, Optional
+from typing import TextIO, Union, Dict, Optional, List
 import yc_yaml as yaml
 
 from pavilion.config import PavConfig
@@ -1004,9 +1004,31 @@ of result keys.
 
         return results
 
-    def save_results(self, results):
-        """Save the results to the test specific results file and the general
-        pavilion results file.
+    @staticmethod
+    def flatten_results(results: Dict) -> List[Dict]:
+        """Flatten 'per_file' results into separate result records."""
+
+        results_files = results.get("per_file", {})
+
+        if len(results_files) == 0:
+            return [results]
+
+        base = results.copy()
+        del base['per_file']
+
+        flattened_results = []
+
+        for per_file, values in results_files.items():
+            per_result = base.copy()
+            per_result['file'] = per_file
+            per_result.update(values)
+
+            flattened_results.append(per_result)
+
+        return flattened_results
+
+    def save_results(self, results: Dict) -> None:
+        """Save the results to the test specific results file.
 
         :param dict results: The results dictionary.
         """
@@ -1026,21 +1048,6 @@ of result keys.
 
         self._results = results
         self.save_attributes()
-
-        result_logger = logging.getLogger('common_results')
-        if self._pav_cfg.get('flatten_results') and results.get('per_file'):
-            # Flatten 'per_file' results into separate result records.
-            base = results.copy()
-            del base['per_file']
-
-            for per_file, values in results['per_file'].items():
-                per_result = base.copy()
-                per_result['file'] = per_file
-                per_result.update(values)
-
-                result_logger.info(output.json_dumps(per_result))
-        else:
-            result_logger.info(output.json_dumps(results))
 
     @property
     def is_built(self):
@@ -1147,7 +1154,16 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('To be built in an allocation.')
 
         script.command(f'echo "(pav) Setting up {stype} environment."')
+
+        purge = utils.str_bool(config.get("purge_modules"))
+
+        if purge:
+            script.newline()
+            script.comment("Start with a fresh environment")
+            script.module_purge()
+
         modules = config.get('modules', [])
+
         if modules:
             script.newline()
             script.comment('Perform module related changes to the environment.')

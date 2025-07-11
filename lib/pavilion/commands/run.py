@@ -120,12 +120,14 @@ class RunCommand(Command):
     SLEEP_INTERVAL = 1
 
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, log_results: bool = True):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
         tests themselves.
         :param pav_cfg: The pavilion configuration.
         :param args: The parsed command line argument object.
+        :param log_results: Whether or not to automatically run the _log_results command. Useful
+            for fine-grained control of logging during unit tests.
         """
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.
@@ -193,7 +195,8 @@ class RunCommand(Command):
             series_obj.run(
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
-                local_builds_only=local_builds_only)
+                local_builds_only=local_builds_only,
+                log_results=log_results)
             self.last_tests = list(series_obj.tests.values())
         except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())

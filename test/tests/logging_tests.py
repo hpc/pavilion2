@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import threading
 
+from pavilion import commands
+from pavilion import arguments
 from pavilion.log_setup import LockFileRotatingFileHandler, setup_loggers
 from pavilion.unittest import PavTestCase
 
@@ -26,9 +28,6 @@ class LoggingTests(PavTestCase):
             "name": str(uuid.uuid4()),
         })
         result_logger.error(result_msg)
-        # Make sure our message got logged.
-        result_log_data = self.pav_cfg.result_log.open().read()
-        self.assertIn(result_msg + '\n', result_log_data)
 
         # Check that yapsy errors go to stderr (or the stream we replaced
         # stderr with).
@@ -137,3 +136,65 @@ class LoggingTests(PavTestCase):
 
         self.assertIn(ident, handler.ERR_OUT.getvalue())
         self.assertNotIn(ident, logfile_path.open().read())
+
+    def test_series_file_logger(self):
+        """Test that the series file logger works correctly."""
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'results_log',
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+
+        series = run_cmd.last_series
+        series.log_results()
+        log_path = next(iter(series.get_result_paths()), None)
+
+        self.assertEqual(log_path.stem, series.sid)
+
+        with open(log_path) as fin:
+            results = json.load(fin)
+
+        self.assertEqual(results.get("hello"), "world")
+
+    def test_common_file_logger(self):
+        """Test that the common file logger works correctly."""
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'results_log',
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        self.pav_cfg["result_loggers"] = [{
+            "plugin": "common_file",
+            "dest": self.pav_cfg.working_dir / "results.log"}]
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+
+        series1 = run_cmd.last_series
+        series1.log_results()
+        log_path = next(iter(series1.get_result_paths()), None)
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+        series2 = run_cmd.last_series
+        series2.log_results()
+
+        with open(log_path) as fin:
+            results = fin.readlines()
+
+        self.assertEqual(len(results), 2)
+
+        for res in results:
+            results = json.loads(res)
+            self.assertEqual(results.get("hello"), "world")

@@ -103,6 +103,12 @@ class LazyTestRunDict(UserDict):
 
                 self.add_key(ID_Pair((working_dir, test_id)))
 
+    def __len__(self) -> int:
+        return len(list(self.keys()))
+
+    def __iter__(self) -> "Iterator":
+        return iter(self.keys())
+
 
 def set_all_started(path: Path):
     """Touch the 'all_started' file, indicating that all tests that will be created

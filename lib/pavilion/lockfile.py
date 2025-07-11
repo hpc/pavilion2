@@ -40,7 +40,7 @@ lock regularly while it's in use for longer periods of time.
 
     DEFAULT_EXPIRE = 3
 
-    SLEEP_PERIOD = 0.2
+    SLEEP_PERIOD = 1.5
 
     LOCK_PERMS = 0o774
 

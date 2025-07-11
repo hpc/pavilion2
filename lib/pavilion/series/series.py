@@ -13,6 +13,7 @@ import time
 from collections import defaultdict, OrderedDict
 from pathlib import Path
 from operator import attrgetter
+from itertools import product
 from typing import List, Dict, Set, Union, TextIO, Iterator, Optional
 
 import pavilion
@@ -29,8 +30,9 @@ from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
-from pavilion.micro import partition
+from pavilion.micro import partition, do, listfilter, stardo
 from pavilion.timing import TimeLimiter
+from pavilion.result_logging import get_result_loggers
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -122,6 +124,8 @@ class TestSeries:
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
+        self.result_loggers = get_result_loggers(pav_cfg, self.sid)
+        self.log_proc = None
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
@@ -167,16 +171,21 @@ class TestSeries:
         except OSError:
             raise TestSeriesWarning("Could not write series PGID to a file.")
 
-    def get_currently_running(self):
+    def get_with_states(self, states: Union[str, List[str]]) -> List[TestRun]:
+        """Get a list of tests with states in the given list of states."""
+
+        return listfilter(lambda x: x.status.current().state in states, self.tests.values())
+
+    def get_currently_running(self) -> List[TestRun]:
         """Returns list of tests that have states of either SCHEDULED or
         RUNNING. """
 
-        cur_run = []
-        for test_id, test_obj in self.tests.items():
-            temp_state = test_obj.status.current().state
-            if temp_state in ['SCHEDULED', 'RUNNING']:
-                cur_run.append(test_obj)
-        return cur_run
+        return self.get_with_states(['SCHEDULED', 'RUNNING'])
+
+    def get_completed(self) -> List[TestRun]:
+        """Returns list of completed tests."""
+
+        return self.get_with_states(["COMPLETE"])
 
     def save_config(self) -> None:
         """Saves series config to a file."""
@@ -418,7 +427,7 @@ differentiate it from test ids."""
         return False
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False):
+            local_builds_only: bool = False, log_results: bool = True):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -429,6 +438,23 @@ differentiate it from test ids."""
         """
 
         self.status.set(SERIES_STATES.RUN, "Series running.")
+
+        pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
+
+        env = os.environ.copy()
+        pav_cfg = self.pav_cfg.pav_cfg_file
+        pav_cfg = pav_cfg.parent.resolve()/pav_cfg.name
+        env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
+
+        if log_results:
+            try:
+                # Create a new process to log test results as tests complete
+                log_res_args = [pav_exe, '_log_results', self.sid]
+                self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
+            except OSError as err:
+                raise TestSeriesError(
+                    "Could not start result logger in the background for series '{}'."
+                    .format(self.sid), err)
 
         # create the test sets and link together.
         try:
@@ -505,6 +531,33 @@ differentiate it from test ids."""
 
         # Completion will be set when looked for.
 
+    def log_results(self, loggers: List["ResultLogger"] = None) -> None:
+        """Log the results of each test in the series as tests complete."""
+
+        if loggers is None:
+            loggers = self.result_loggers
+
+        if self.pav_cfg.get("flatten_results"):
+            # Log the sequence of flattened results
+            log = lambda logger, test: do(logger, test.flatten_results(test.results))
+        else:
+            # Just log the single unflattened result
+            log = lambda logger, test: logger(test.results)
+
+        logged = set()
+
+        while not (self.complete or self.check_cancelled()):
+            to_log = set(self.get_completed()) - logged
+
+            # Apply all loggers to all tests ready to log
+            stardo(log, product(loggers, to_log))
+
+            logged |= to_log
+            time.sleep(0.2)
+
+        # Log any remaining tests after series completion
+        to_log = set(self.get_completed()) - logged
+        stardo(log, product(loggers, to_log))
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
@@ -588,6 +641,14 @@ differentiate it from test ids."""
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))
+
+    def wait_log(self, timeout: float = None) -> None:
+        """Wait until the result logging process finishes."""
+
+        if self.log_proc is None:
+            return
+
+        self.log_proc.wait()
 
     @property
     def complete(self) -> bool:
@@ -751,6 +812,17 @@ differentiate it from test ids."""
                 with json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
+
+    def get_result_paths(self) -> List[Path]:
+        """Get all results log paths."""
+
+        paths = []
+
+        for logger in self.result_loggers:
+            if hasattr(logger, "dest"):
+                paths.append(logger.dest)
+
+        return paths
 
     @property
     def timestamp(self):
