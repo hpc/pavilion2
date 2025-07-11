@@ -23,3 +23,13 @@ class AutoexitTests(unittest.PavTestCase):
         test = self._quick_test(cfg=cfg_run_no)
         testreturn = test.run()
         self.assertEqual(testreturn, 0)
+
+        # Make sure we actually catch the case where the final return is false.
+        cfg_run_no = self._quick_test_cfg()
+        cfg_run_no['run'] = {'cmds': ['false', 'echo "did not exit"', 'false'], 'autoexit': 'False'}
+        test = self._quick_test(cfg=cfg_run_no)
+        testreturn = test.run()
+        self.assertEqual(testreturn, 1)
+        with open(test.path/'run.log') as file:
+            self.assertIn("did not exit", file.read())
+
