@@ -158,11 +158,11 @@ class RunCommand(Command):
         )
 
         if args.all:
+            import pdb; pdb.set_trace()
             resolv = resolver.TestConfigResolver(pav_cfg)
             suites = resolv.find_all_tests()
             tests = list(suites.keys())
             args.files = []
-            import pdb; pdb.set_trace()
         else:
             tests = args.tests
             try:
