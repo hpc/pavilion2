@@ -15,7 +15,7 @@ Variable Sets
 -------------
 
 Variables can come from several different variable sets. Each set has a
-category name ('var', 'sys', 'pav', 'sched') that is used in the
+category name (``var``, ``sys``, ``pav``, ``sched``) that is used in the
 variable reference to remove ambiguity about the source of the variable,
 but is otherwise optional. This ordering of variable sets also
 determines the order in which the system resolves variable names where
@@ -70,13 +70,13 @@ rules about what a given scheduler plugin should provide. Scheduler
 plugin writers are encouraged to follow the following conventions for
 variable naming, however:
 
--  test\_\* - Variables that are specific to a currently running test.
--  alloc\_\* - Variables specific to the current allocation.
+-  ``test_*`` - Variables that are specific to a currently running test.
+-  ``alloc_*`` - Variables specific to the current allocation.
 
-Note that the current allocation resources and what the test wants may
-differ, as the scheduler is allowed to request more resources than specifically
-asked for by the test. Scheduler plugin writers are encouraged to
-provide helper variables to simplify the launching of tests within an
+Note that the resources provided by the current allocation and the resources
+specified by the test may differ, as the scheduler is allowed to request more
+resources than specifically asked for by the test. Scheduler plugin writers are
+encouraged to provide helper variables to simplify the launching of tests within an
 arbitrary allocation.
 
 .. _tests.variables.types:
@@ -95,8 +95,8 @@ Single Value
 ^^^^^^^^^^^^
 
 Single value variables are the simplest, and are what is generally shown
-in the Pavilion documentation for simplicities sake. Variable references
-are simply replaced with the variable's value.
+in the Pavilion documentation for simplicity's sake. For single value variables,
+variable references are simply replaced with the variable's value.
 
 .. code:: yaml
 
@@ -110,7 +110,7 @@ are simply replaced with the variable's value.
 Multiple Values
 ^^^^^^^^^^^^^^^
 
-Variables may have multiple values, and referenced with an index
+Variables may have multiple values, and are referenced with an index
 (counting from 0).
 
 .. code:: yaml
@@ -196,7 +196,7 @@ Test Variable References
 
 Variables may contain references to other variables in their values.
 These can reference any other variable set (with the exception of
-'sched' variables) and can contain substrings and all the other syntax tricks
+``sched`` variables) and can contain substrings and all the other syntax tricks
 Pavilion provides.
 
 .. code:: yaml
@@ -210,7 +210,7 @@ Default Variables (?)
 ^^^^^^^^^^^^^^^^^^^^^
 
 You can denote a variable as a 'default' by adding a question mark ``?``. Default
-variables have *lowest* precedence, they will be overridden if set at any level, including in
+variables have *lowest* precedence; they will be overridden if set at any level, including in
 host files (which are normally the lowest).
 
 Defaults have one other function - they denote variables that *must* be set. That's not
@@ -277,13 +277,13 @@ add at least one value.
 Deferred Variables
 ------------------
 
-Deferred variables are simply variables whose value is to be determined
-when a test runs on its allocation.
+Deferred variables are simply variables whose values are not determined
+until a test runs on its allocation.
 
 - They cannot have multiple values.
 - They **can** have complex values, as their sub-keys are defined in
   advance.
-- Only the system and scheduler variable sets can contained deferred values.
+- Only the system and scheduler variable sets can contain deferred values.
 - Deferred values **are not allowed** in certain config sections:
 
   - Any base values (summary, scheduler, etc.)
