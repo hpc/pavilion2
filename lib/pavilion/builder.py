@@ -1006,9 +1006,10 @@ class TestBuilder:
                                   directory) and file contents to hash."""
 
         hash_obj = hashlib.sha256()
+        contents.seek(0)
         chunk = contents.read(cls._BLOCK_SIZE)
         while chunk:
-            hash_obj.update(chunk)
+            hash_obj.update(chunk.encode())
             chunk = contents.read(cls._BLOCK_SIZE)
 
         return hash_obj.digest()
