@@ -456,6 +456,33 @@ scheduler, but don't configure one. It's time to rectify that.
 - See ``pav show sched --config`` for full scheduler configuration documentation.
 
 
+Filtering Tests
+---------------
+
+Many pavilion commands, including ``pav status`` and ``pav cancel``, support the ``--filter``
+option, which allows users to select which tests the command should operate on. For instance,
+to view the status of only those tests run by user ``jim``, we can use the following command:
+
+.. code-block::
+
+    pav status --filter="user=jim"
+
+Or, to view only tests created in the past hour:
+
+.. code-block::
+
+    pav status --filter="created>1 hour"
+
+We can also combine filter predicates using boolean operators. The following command displays the
+status of all failed tests created in the past hour by either Jim or Jane:
+
+.. code-block::
+
+    pav status --filter="created>1 hour and FAILED and (user=jim or user=jane)"
+
+For a comprehensive overview of all available filter options, run ``pav status --help``.
+
+
 An Automated Workflow
 ---------------------
 
