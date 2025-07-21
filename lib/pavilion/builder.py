@@ -1009,7 +1009,10 @@ class TestBuilder:
         contents.seek(0)
         chunk = contents.read(cls._BLOCK_SIZE)
         while chunk:
-            hash_obj.update(chunk.encode())
+            if isinstance(chunk, str):
+                chunk = chunk.encode()
+
+            hash_obj.update(chunk)
             chunk = contents.read(cls._BLOCK_SIZE)
 
         return hash_obj.digest()
