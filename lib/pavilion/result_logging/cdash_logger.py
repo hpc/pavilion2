@@ -46,9 +46,9 @@ class CDashResultLogger(ResultLogger):
 
         site = ET.Element("Site")
         testing = ET.SubElement(site, "Testing")
-        test = ET.SubElement(testing, "Test", Status="passed")
+        test = ET.SubElement(testing, "Test", Status=results.get("result"))
         name = ET.SubElement(test, "Name")
-        name.text = "example_test"
+        name.text = results.get("name")
 
         tree = ET.ElementTree(site)
 
