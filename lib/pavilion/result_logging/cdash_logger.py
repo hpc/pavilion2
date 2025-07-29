@@ -20,16 +20,20 @@ class CDashLoggerFactory(ResultLoggerPlugin):
     def validate_config(self, config: Dict) -> None:
         plugin_name = config.get("plugin", "")
         endpoint = config.get("endpoint")
+        project = config.get("project")
 
         if plugin_name != self.name:
             raise ResultLoggerPluginError(
                 f"Name {plugin_name} does not match plugin type {self.name}.")
 
-        if dest is None:
+        if endpoint is None:
             raise ResultLoggerPluginError("No CDash endpoint provided.")
 
+        if project is None:
+            raise ResultLoggerPluginError("No CDash project provided.")
+
     def _make_logger(self, config: Dict, sid: str) -> "SeriesFileResultLogger":
-        return CDashResultLogger(config.get("endpoint"))
+        return CDashResultLogger(config.get("endpoint"), config.get("project"))
 
 
 class CDashResultLogger(ResultLogger):
@@ -40,6 +44,7 @@ class CDashResultLogger(ResultLogger):
         self.proj_name = proj_name
 
 
+    @staticmethod
     def as_xml(results: Dict) -> BytesIO:
         """Convert the results dictionary into an XML document for consumption
         by CDash."""
@@ -52,7 +57,7 @@ class CDashResultLogger(ResultLogger):
 
         tree = ET.ElementTree(site)
 
-        buffer = io.BytesIO()
+        buffer = BytesIO()
         tree.write(buffer, encoding="UTF-8", xml_declaration=True)
 
         return buffer.getvalue()
@@ -60,7 +65,7 @@ class CDashResultLogger(ResultLogger):
 
     def log(self, results: Dict) -> None:
         # 1. Convert results to XML
-        test_xml = self.xml(results)
+        test_xml = self.as_xml(results)
 
         # 2. Submit results to CDash endpoint
         response = requests.post(
