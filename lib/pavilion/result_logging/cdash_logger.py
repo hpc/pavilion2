@@ -51,9 +51,9 @@ class CDashResultLogger(ResultLogger):
 
         site = ET.Element("Site")
         testing = ET.SubElement(site, "Testing")
-        test = ET.SubElement(testing, "Test", Status=results.get("result"))
+        test = ET.SubElement(testing, "Test", Status=results.get("result", ""))
         name = ET.SubElement(test, "Name")
-        name.text = results.get("name")
+        name.text = results.get("name", "")
 
         tree = ET.ElementTree(site)
 
@@ -67,10 +67,13 @@ class CDashResultLogger(ResultLogger):
         # 1. Convert results to XML
         test_xml = self.as_xml(results)
 
+        cdash_token = os.environ.get("CDASH_AUTH_TOKEN")
+
         # 2. Submit results to CDash endpoint
         response = requests.post(
                         self.endpoint,
                         params={"project": self.proj_name, "FileName": "Test.xml"},
                         data=test_xml,
-                        headers={"Content-Type": "application/xml"}
+                        headers={"Content-Type": "application/xml",
+                                "Authorization": f"Bearer {cdash_token}"}
                         )
