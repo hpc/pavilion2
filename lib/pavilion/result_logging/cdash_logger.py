@@ -50,7 +50,9 @@ class CDashResultLogger(ResultLogger):
         """Convert the results dictionary into an XML document for consumption
         by CDash."""
 
-        site = ET.Element("Site")
+        site = ET.Element("Site",
+                            BuildName=results.get("name", ""),
+                            Name=results.get("sys_name", ""))
         testing = ET.SubElement(site, "Testing")
         test = ET.SubElement(testing, "Test", Status="passed")
         name = ET.SubElement(test, "Name")
