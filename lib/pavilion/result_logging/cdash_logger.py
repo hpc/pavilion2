@@ -1,5 +1,6 @@
 from io import BytesIO
 import xml.etree.ElementTree as ET
+import os
 from typing import Dict
 
 import requests
@@ -51,17 +52,16 @@ class CDashResultLogger(ResultLogger):
 
         site = ET.Element("Site")
         testing = ET.SubElement(site, "Testing")
-        test = ET.SubElement(testing, "Test", Status=results.get("result", ""))
+        test = ET.SubElement(testing, "Test", Status="passed")
         name = ET.SubElement(test, "Name")
         name.text = results.get("name", "")
 
         tree = ET.ElementTree(site)
 
         buffer = BytesIO()
-        tree.write(buffer, encoding="UTF-8", xml_declaration=True)
+        tree.write(buffer, encoding="utf-8", xml_declaration=True)
 
         return buffer.getvalue()
-
 
     def log(self, results: Dict) -> None:
         # 1. Convert results to XML
@@ -77,3 +77,5 @@ class CDashResultLogger(ResultLogger):
                         headers={"Content-Type": "application/xml",
                                 "Authorization": f"Bearer {cdash_token}"}
                         )
+
+        print(response.text)
