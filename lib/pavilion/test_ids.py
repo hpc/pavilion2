@@ -305,7 +305,7 @@ def resolve_mixed_ids(ids: Iterable[str],
     ids = list(ids)
 
     if auto_last and len(ids) == 0:
-        return [SeriesID("last"]
+        return [SeriesID("last")]
 
     if "all" in ids:
         return [SeriesID("all")]
