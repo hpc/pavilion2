@@ -262,6 +262,8 @@ class StatusCmdTests(PavTestCase):
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 
+        args.tests = []
+
         # Testing that summary flags return correctly
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
