@@ -105,7 +105,7 @@ class SeriesID(ID):
 
     @classmethod
     def is_concrete_id(cls, id_str: str) -> bool:
-        """Determine whether the given string is an abstract ID, that is, whether it
+        """Determine whether the given string is a concrete ID, that is, whether it
         is not 'last' or 'all'."""
 
         return cls.is_valid_id(id_str) and not cls.is_abstract_id(id_str)
@@ -303,6 +303,9 @@ def resolve_mixed_ids(ids: Iterable[str],
     """Fully resolve all IDs in the given list into either test IDs, series IDs, or group IDs."""
 
     ids = list(ids)
+
+    if auto_last and len(ids) == 0:
+        return [SeriesID("last"]
 
     if "all" in ids:
         return [SeriesID("all")]
