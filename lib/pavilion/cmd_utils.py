@@ -420,7 +420,10 @@ def get_tests_by_id(pav_cfg, test_ids: List[Union[TestID, SeriesID]], errfile: T
         # Series start with 's' (like 'snake') and never have labels
         if isinstance(raw_id, SeriesID):
             try:
-                series_obj = series.TestSeries.load(pav_cfg, raw_id.id_str)
+                if raw_id.last():
+                    series_obj = load_last_series(pav_cfg, errfile)
+                else:
+                    series_obj = series.TestSeries.load(pav_cfg, raw_id.id_str)
             except TestSeriesError as err:
                 output.fprint(errfile, "Suite {} could not be found.\n{}"
                               .format(raw_id, err), color=output.RED)
