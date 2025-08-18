@@ -11,7 +11,7 @@ the values of one or more variables.
 Overview
 --------
 
-The `permute_on` test attribute defines a list of variables to permute over.
+The ``permute_on`` test attribute defines a list of variables to permute over.
 These can come from any variable set, but they cannot be deferred variables.
 
 .. code:: yaml
@@ -36,21 +36,21 @@ different message.
    - ``echo "goodbye Paul - 07/14/19"``
    - ``echo "goodbye Nick - 07/14/19"``
 - The tests are scheduled independently when using ``pav run``.
-- The subtitle attribute allows for adding a permutation based value to
+- The ``subtitle`` attribute allows for adding a permutation-based value to
   the test name. If it is not defined, all permutations of a test will
   have identical names, making it difficult to tell them apart.
-- The subtitle attribute also allows for running specific permutations.
+- The ``subtitle`` attribute also allows for running specific permutations.
   For example, you can run ``pav run suite.permuted_test.Paul-hello``,
   which will only run the permutation with that subtitle. You 
-  can also use standard filename globs, such as 'suite.permuted_test.Paul-\*', 
-  which will run all the 'Paul-' permutations.
+  can also use standard filename globs, such as ``suite.permuted_test.Paul-\*``, 
+  which will run all the ``Paul-`` permutations.
 
 Limitations
 -----------
 
--  You can't permute on 'sched' variables. They don't exist until after
+-  You can't permute on ``sched`` variables. They don't exist until after
    permutations are generated.
--  You can't permute on *Deferred* variables. They can only have one
+-  You can't permute on *deferred* variables. They can only have one
    value, and we won't know what that is until right before the test
    runs.
 -  No attempt is made to remove duplicate tests, so if you permute on a
@@ -79,8 +79,8 @@ permutation.
         ...
 
 This would create two virtual tests, one built with gcc and one with
-intel. - The ``subtitle`` test attribute lets us give each a specific
-name. In this case ``mytest.gcc`` and ``mytest.intel``. - Note that
+intel. The ``subtitle`` test attribute lets us give each a specific
+name. In this case ``mytest.gcc`` and ``mytest.intel``. Note that
 using a variable multiple times **never** creates additional
 permutations.
 
