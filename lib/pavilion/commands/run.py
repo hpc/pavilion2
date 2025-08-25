@@ -218,17 +218,17 @@ class RunCommand(Command):
 
         return 0
 
-    def _add_to_group(self, series: "TestSeries", group: str) -> int:
+    def _add_to_group(self, pav_cfg: "PavConfig", series: "TestSeries", group: str) -> int:
         """Add the given series to the given group."""
 
         try:
-            group = groups.TestGroup(pav_cfg, args.group)
-            group.add([series_obj])
+            group = groups.TestGroup(pav_cfg, group)
+            group.add([series])
 
             return 0
         except groups.TestGroupError as err:
             output.fprint(self.errfile,
-                          "Could not add series to group '{}'".format(args.group),
+                          "Could not add series to group '{}'".format(group),
                           color=output.RED)
             output.fprint(self.errfile, err.pformat())
             return errno.EINVAL
