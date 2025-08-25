@@ -182,7 +182,7 @@ class RunCommand(Command):
 
         if args.group:
             ret = self._add_to_group(pav_cfg, series_obj, args.group)
-            
+
             if ret != 0:
                 return ret
 
