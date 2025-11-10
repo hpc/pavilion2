@@ -15,7 +15,7 @@ import time
 import uuid
 import os
 from pathlib import Path
-from typing import TextIO, Union, Dict, Optional, List
+from typing import Any, TextIO, Union, Dict, Optional, List
 import yc_yaml as yaml
 
 from pavilion.config import PavConfig
@@ -103,8 +103,9 @@ class TestRun(TestAttributes):
     PAV_LIB_FN = "pav-lib.bash"
     """Pavilion bash utilities"""
 
-    def __init__(self, pav_cfg: PavConfig, config: Dict, var_man: VariableSetManager = None,
-                 _id: int = None, rebuild: bool = False, build_only: bool = False):
+    def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
+                 var_man: Optional[VariableSetManager] = None, _id: Optional[int] = None,
+                 series_id: Optional[str]= None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -131,19 +132,23 @@ class TestRun(TestAttributes):
             self.working_dir = Path(config['working_dir'])
 
         tests_path = self.working_dir/self.RUN_DIR
+        series_path = self.working_dir / "series" / series_id if series_id else None
 
         self.config = config
         self._validate_config()
+
+        self.uuid = str(uuid.uuid4())
+        uuid_path = tests_path / self.uuid
 
         # Get an id for the test, if we weren't given one.
         if new_test:
             # These will be set by save() or on load.
             try:
-                id_tmp, run_path = dir_db.create_id_dir(tests_path)
+                id_tmp, series_test_path = dir_db.create_id_dir(series_path, link_target=uuid_path)
             except (OSError, TimeoutError) as err:
                 raise TestRunError("Could not create test id directory at '{}'"
                                    .format(tests_path), err)
-            super().__init__(path=run_path, load=False)
+            super().__init__(path=self.path, load=False)
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
@@ -166,14 +171,13 @@ class TestRun(TestAttributes):
                 self.suite_path = Path(suite_path)
 
             self.user = utils.get_login()
-            self.uuid = str(uuid.uuid4())
 
             if var_man is None:
                 var_man = VariableSetManager()
             self.var_man = var_man
         else:
             # Load the test info from the given id path.
-            super().__init__(path=dir_db.make_id_path(tests_path, _id))
+            super().__init__(path=uuid_path)
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))

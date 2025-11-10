@@ -12,7 +12,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
-from typing import Callable, List, Iterable, Any, Dict, NewType, \
+from typing import Callable, List, Iterable, Any, Dict, NewType, Optional, \
     Union, NamedTuple, IO, Tuple
 
 from pavilion import lockfile
@@ -53,9 +53,10 @@ def reset_pkey(id_dir: Path) -> None:
         pass
 
 
-def create_id_dir(id_dir: Path) -> (int, Path):
+def create_id_dir(id_dir: Path, link_target: Optional[Path] = None) -> Tuple[int, Path]:
     """In the given directory, create the lowest numbered (positive integer)
-    directory that doesn't already exist.
+    directory that doesn't already exist. If link_target is given, create a
+    symlink to that target instead of a directory.
 
     :param id_dir: Path to the directory that contains these 'id'
         directories
@@ -103,7 +104,10 @@ def create_id_dir(id_dir: Path) -> (int, Path):
 
             next_id_path = make_id_path(id_dir, next_id)
 
-        next_id_path.mkdir()
+        if link_target is None:
+            next_id_path.mkdir()
+        else:
+            next_id_path.symlink_to(link_target)
         with next_fn.open('w') as next_file:
             next_file.write(str(next_id + 1))
 
