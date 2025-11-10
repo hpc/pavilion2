@@ -330,9 +330,9 @@ class TestAttributes(Mapping):
         # If the cfg label is actually something that exists, use it in the
         # test full_id. Otherwise give the test path.
         if self.cfg_label == DEFAULT_CONFIG_LABEL or self.cfg_label is None:
-            return '{}'.format(self.id)
+            return '{}'.format(self.uuid)
         else:
-            return '{}.{}'.format(self.cfg_label, self.id)
+            return '{}.{}'.format(self.cfg_label, self.uuid)
 
     @property
     def state(self) -> Optional[TestStatusInfo]:

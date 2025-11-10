@@ -27,7 +27,7 @@ PKEY_FN = 'next_id'
 LOGGER = logging.getLogger(__file__)
 
 
-def make_id_path(base_path, id_) -> Path:
+def make_id_path(base_path: Path, id_: Union[str, int]) -> Path:
     """Create the full path to an id directory given its base path and
     the id.
 
@@ -36,7 +36,7 @@ def make_id_path(base_path, id_) -> Path:
     :rtype: Path
     """
 
-    return base_path / (ID_FMT.format(id=id_))
+    return base_path / str(id_)
 
 
 def reset_pkey(id_dir: Path) -> None:

@@ -767,7 +767,7 @@ differentiate it from test ids."""
                 .format(set_path, self.sid), err)
 
         # attempt to make symlink
-        link_path = dir_db.make_id_path(set_path, test.id)
+        link_path = dir_db.make_id_path(set_path, test.uuid)
 
         self.tests[test.id_pair] = test
 

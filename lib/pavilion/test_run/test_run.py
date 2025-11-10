@@ -105,7 +105,7 @@ class TestRun(TestAttributes):
 
     def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
                  var_man: Optional[VariableSetManager] = None, _id: Optional[int] = None,
-                 series_id: Optional[str]= None, rebuild: bool = False, build_only: bool = False):
+                 series_id: Optional[str] = None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -116,6 +116,9 @@ class TestRun(TestAttributes):
         select a new, non-deprecated build.
     :param int _id: The test id of an existing test. (You should be using
         TestRun.load)."""
+
+        print(f"Build only: {build_only}")
+        print(f"Rebuild: {rebuild}")
 
         self.saved = False
 
@@ -137,18 +140,22 @@ class TestRun(TestAttributes):
         self.config = config
         self._validate_config()
 
-        self.uuid = str(uuid.uuid4())
-        uuid_path = tests_path / self.uuid
+        test_uuid = uuid.uuid4().hex
+        uuid_path = tests_path / test_uuid
+        uuid_path.mkdir()
+
+        id_tmp = None
 
         # Get an id for the test, if we weren't given one.
         if new_test:
             # These will be set by save() or on load.
             try:
-                id_tmp, series_test_path = dir_db.create_id_dir(series_path, link_target=uuid_path)
+                if series_path is not None:
+                    id_tmp, series_test_path = dir_db.create_id_dir(series_path, link_target=uuid_path)
             except (OSError, TimeoutError) as err:
                 raise TestRunError("Could not create test id directory at '{}'"
                                    .format(tests_path), err)
-            super().__init__(path=self.path, load=False)
+            super().__init__(path=uuid_path, load=False)
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
@@ -192,6 +199,7 @@ class TestRun(TestAttributes):
                 raise TestRunError("Error loading variable set for test {}".format(self.id),
                                    err)
 
+        self.uuid = test_uuid
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
         self.test_version = config.get('test_version')
@@ -273,7 +281,7 @@ class TestRun(TestAttributes):
     @property
     def id_pair(self) -> ID_Pair:
         """Returns an ID_pair (a tuple of the working dir and test id)."""
-        return ID_Pair((self.working_dir, self.id))
+        return ID_Pair((self.working_dir, self.uuid))
 
     @property
     def series(self) -> Union[str, None]:
@@ -729,8 +737,10 @@ class TestRun(TestAttributes):
 
         if build_success:
             self.status.set(STATES.BUILD_DONE, "Build is complete.")
+            self.status.set(STATES.BUILD_DONE, f"build_only: {self.build_only}")
 
         if self.build_only or not build_success:
+            self.status.set(STATES.BUILD_DONE, "Setting run complete...")
             self.set_run_complete()
 
         return build_success
@@ -879,6 +889,7 @@ class TestRun(TestAttributes):
                                "can be marked complete.".format(self.full_id))
 
         complete_path = self.path/self.COMPLETE_FN
+        self.status.set(STATES.BUILD_DONE, f"Complete path: {complete_path}")
 
         tmp_path = self._create_complete_file(complete_path)
         self._finalize_complete_file(complete_path, tmp_path)
