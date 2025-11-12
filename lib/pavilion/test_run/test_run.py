@@ -117,9 +117,6 @@ class TestRun(TestAttributes):
     :param int _id: The test id of an existing test. (You should be using
         TestRun.load)."""
 
-        print(f"Build only: {build_only}")
-        print(f"Rebuild: {rebuild}")
-
         self.saved = False
 
         new_test = _id is None
@@ -141,21 +138,20 @@ class TestRun(TestAttributes):
         self._validate_config()
 
         test_uuid = uuid.uuid4().hex
-        uuid_path = tests_path / test_uuid
-        uuid_path.mkdir()
-
-        id_tmp = None
 
         # Get an id for the test, if we weren't given one.
         if new_test:
+            uuid_path = tests_path / test_uuid
+            uuid_path.mkdir()
             # These will be set by save() or on load.
             try:
                 if series_path is not None:
-                    id_tmp, series_test_path = dir_db.create_id_dir(series_path, link_target=uuid_path)
+                    _, series_test_path = dir_db.create_id_dir(series_path, link_target=uuid_path)
             except (OSError, TimeoutError) as err:
                 raise TestRunError("Could not create test id directory at '{}'"
                                    .format(tests_path), err)
             super().__init__(path=uuid_path, load=False)
+            self.id = test_uuid
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
@@ -163,7 +159,6 @@ class TestRun(TestAttributes):
             self.build_name = None
 
             # Set basic attributes
-            self.id = id_tmp  # pylint: disable=invalid-name
             self.build_only = build_only
             self._complete = False
             self.created = time.time()
@@ -183,8 +178,10 @@ class TestRun(TestAttributes):
                 var_man = VariableSetManager()
             self.var_man = var_man
         else:
+            uuid_path = tests_path / _id
             # Load the test info from the given id path.
             super().__init__(path=uuid_path)
+            self.id = _id
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))
@@ -199,7 +196,7 @@ class TestRun(TestAttributes):
                 raise TestRunError("Error loading variable set for test {}".format(self.id),
                                    err)
 
-        self.uuid = test_uuid
+        self.uuid = self.id
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
         self.test_version = config.get('test_version')
@@ -446,12 +443,6 @@ class TestRun(TestAttributes):
             test_id = parts[0]
         else:
             cfg_label, test_id = parts
-
-        try:
-            test_id = int(test_id)
-        except ValueError:
-            raise TestRunNotFoundError("Invalid test id with label '{}': '{}'"
-                                       .format(cfg_label, test_id))
 
         if cfg_label not in pav_cfg.configs:
             raise TestRunNotFoundError(
@@ -737,7 +728,6 @@ class TestRun(TestAttributes):
 
         if build_success:
             self.status.set(STATES.BUILD_DONE, "Build is complete.")
-            self.status.set(STATES.BUILD_DONE, f"build_only: {self.build_only}")
 
         if self.build_only or not build_success:
             self.status.set(STATES.BUILD_DONE, "Setting run complete...")

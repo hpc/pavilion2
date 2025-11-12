@@ -153,7 +153,7 @@ class TestAttributes(Mapping):
             'build_name': None,
             'created':    self.path.stat().st_mtime,
             'finished':   self.path.stat().st_mtime,
-            'id':         int(self.path.name),
+            'id':         self.path.name,
             'rebuild':    False,
             'result':     None,
             'skipped':    None,
