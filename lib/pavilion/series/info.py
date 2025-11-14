@@ -118,6 +118,7 @@ class SeriesInfoBase(Mapping):
         """Number of tests that have passed."""
 
         passed = 0
+
         for test_path in self._tests:
             test_info = self.test_info(test_path)
             if test_info is None:
