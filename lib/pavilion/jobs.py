@@ -133,6 +133,7 @@ class Job:
         # create a circular import.
 
         pairs = []
+
         for test_dir in self.tests_path.iterdir():
             if test_dir.is_symlink() and test_dir.exists():
                 try:
@@ -143,7 +144,7 @@ class Job:
 
                 working_dir = test_dir.parents[1]
                 try:
-                    test_id = int(test_dir.name)
+                    test_id = test_dir.name
                 except ValueError:
                     # Skip any links that don't go to an id dir.
                     continue
