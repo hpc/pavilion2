@@ -2,7 +2,7 @@ from typing import Union, Tuple, List, Iterable, Optional
 from abc import ABC, abstractmethod
 
 from pavilion.micro import flatten, unique
-from pavilion.utils import is_int
+from pavilion.utils import is_int, is_hex
 
 
 class ID(ABC):
@@ -38,27 +38,20 @@ class TestID(ID):
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid test ID."""
 
-        test_num = -1
+        if is_hex(id_str):
+            return True
 
         if "." in id_str:
-            test_num = int(id_str.split(".")[-1])
-        elif is_int(id_str):
-            test_num = int(id_str)
+            series_id_str, num_str = id_str.split(".")
 
-        return test_num > 0
+            test_num = -1
 
-    def is_int(self) -> bool:
-        """Determine whether the test ID is an integer value."""
+            if is_int(id_str):
+                test_num = int(id_str)
 
-        return is_int(self.id_str)
+            return test_num > 0 and SeriesID.is_valid_id(series_id_str)
 
-    def as_int(self) -> int:
-        """Convert the test ID into an integer, if possible."""
-
-        try:
-            return int(self.id_str)
-        except:
-            raise ValueError(f"Test with ID {self.id_str} cannot be converted to an integer.")
+        return False
 
     @property
     def parts(self) -> Tuple[str]:
@@ -66,15 +59,6 @@ class TestID(ID):
         periods."""
 
         return tuple(self.id_str.split('.', 1))
-
-    @property
-    def label(self) -> str:
-        """Return the config label component of the test ID."""
-
-        if len(self.parts) > 1:
-            return self.parts[0]
-
-        return "main"
 
     @property
     def test_num(self) -> Optional[int]:

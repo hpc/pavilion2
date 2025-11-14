@@ -730,7 +730,6 @@ class TestRun(TestAttributes):
             self.status.set(STATES.BUILD_DONE, "Build is complete.")
 
         if self.build_only or not build_success:
-            self.status.set(STATES.BUILD_DONE, "Setting run complete...")
             self.set_run_complete()
 
         return build_success
@@ -879,7 +878,6 @@ class TestRun(TestAttributes):
                                "can be marked complete.".format(self.full_id))
 
         complete_path = self.path/self.COMPLETE_FN
-        self.status.set(STATES.BUILD_DONE, f"Complete path: {complete_path}")
 
         tmp_path = self._create_complete_file(complete_path)
         self._finalize_complete_file(complete_path, tmp_path)

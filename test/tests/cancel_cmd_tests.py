@@ -2,6 +2,7 @@
 
 import errno
 import sys
+import uuid
 
 import pavilion.series
 from pavilion import arguments
@@ -49,7 +50,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'cancel',
-            'test.{}'.format(sys.maxsize)
+            str(uuid.uuid4().hex)
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
