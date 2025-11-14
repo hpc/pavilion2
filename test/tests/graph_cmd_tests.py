@@ -156,6 +156,6 @@ class ResolverTests(PavTestCase):
             '-o', '/tmp/foo.png',
             '--x', 'id',
             '--y', 'id',
-        ] + [test.full_id for test in tests])
+        ] + [test.id for test in tests])
 
         cmd.run(self.pav_cfg, args)

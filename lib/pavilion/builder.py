@@ -460,7 +460,7 @@ class TestBuilder:
         directory into our test directory, and note that we've used the given
         build.
 
-        :param test_id: The test 'full_id' for the test initiating this build.
+        :param test_id: The test id for the test initiating this build.
         :param tracker: A thread-safe tracker object for keeping info on what the
             build is doing.
         :param cancel_event: Allows builds to tell each other
@@ -570,7 +570,7 @@ class TestBuilder:
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
             should stop.
-        :param test_id: The 'full_id' of the test initiating the build.
+        :param test_id: The ID of the test initiating the build.
         :param tracker: Build tracker for this build.
         :returns: True or False, depending on whether the build appears to have
             been successful.

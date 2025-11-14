@@ -501,8 +501,8 @@ class TestGroup:
 
         if isinstance(test, TestRun):
             if not test.path.exists():
-                raise TestGroupError("Test '{}' does not exist.".format(test.full_id))
-            return test.full_id, test.path
+                raise TestGroupError("Test '{}' does not exist.".format(test.id))
+            return test.id, test.path
 
         if isinstance(test, str):
             if '.' in test:
@@ -514,7 +514,7 @@ class TestGroup:
         elif isinstance(test, int):
             cfg_label = config.DEFAULT_CONFIG_LABEL
             test_id = str(int)
-            # We'll use this as our full_id too.
+            # We'll use this as our ID too.
             test = test_id
 
         if not is_int(test_id):
@@ -573,7 +573,7 @@ class TestGroup:
            the group."""
 
         if isinstance(item, TestRun):
-            return self.TEST_ITYPE, self.path/self.TESTS_DIR/item.full_id
+            return self.TEST_ITYPE, self.path/self.TESTS_DIR/item.id
         elif isinstance(item, TestSeries):
             return self.SERIES_ITYPE, self.path/self.SERIES_DIR/item.sid
         elif isinstance(item, self.__class__):
@@ -601,19 +601,19 @@ class TestGroup:
         excluded = {}
         try:
             for test_path in (self.path/self.EXCLUDED_DIR).iterdir():
-                full_id = test_path.name
+                id = test_path.name
                 test_path = test_path.resolve()
                 if test_path.exists():
-                    excluded[full_id] = test_path
+                    excluded[id] = test_path
         except (OSError, FileNotFoundError):
             pass
 
         return excluded
 
-    def _add_excluded(self, full_id: str, test_path: Path):
+    def _add_excluded(self, id: str, test_path: Path):
         """Add the given test path to the excluded directory."""
 
-        path = self.path/self.EXCLUDED_DIR/full_id
+        path = self.path/self.EXCLUDED_DIR/id
 
         try:
             if not path.exists():
@@ -623,10 +623,10 @@ class TestGroup:
                 "Could not create test exclusion record at {}".format(path),
                 prior_error=err)
 
-    def _remove_excluded(self, full_id: str):
+    def _remove_excluded(self, id: str):
         """Remove the test from the exclusion records."""
 
-        path = self.path/self.EXCLUDED_DIR/full_id
+        path = self.path/self.EXCLUDED_DIR/id
 
         try:
             if path.exists():
@@ -641,9 +641,9 @@ class TestGroup:
 
         root_path = self.path/self.EXCLUDED_DIR
 
-        for full_id, path in self._excluded().items():
+        for id, path in self._excluded().items():
             if not path.exists():
-                ex_path = root_path/full_id
+                ex_path = root_path/id
                 try:
                     ex_path.unlink()
                 except (OSError, FileNotFoundError) as err:

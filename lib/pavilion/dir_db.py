@@ -304,7 +304,7 @@ def select(pav_cfg,
            transform: Callable[[Path], Any] = None,
            order_func: Callable[[Any], Any] = None,
            order_asc: bool = True,
-           fn_base: int = 10,
+           fn_base: int = 16,
            idx_complete_key: 'str' = 'complete',
            use_index: Union[bool, str] = True,
            verbose: IO[str] = None,
@@ -389,7 +389,7 @@ def select_from(pav_cfg,
                 transform: Callable[[Path], Any] = None,
                 order_func: Callable[[Any], Any] = None,
                 order_asc: bool = True,
-                fn_base: int = 10,
+                fn_base: int = 16,
                 limit: int = None) -> (List[Any], List[Path]):
     """Filter, order, and truncate the given paths based on the filter and
     other parameters.

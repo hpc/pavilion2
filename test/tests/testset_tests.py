@@ -231,7 +231,7 @@ class TestSetTests(PavTestCase):
         for test in ts1.tests:
             self.assertEqual(test.status.current().state,
                              test.status.states.CANCELLED,
-                             msg="Test {} should be aborted".format(test.full_id))
+                             msg="Test {} should be aborted".format(test.id))
         self.assertFalse(ts1.all_passed)
 
     def test_should_run(self):

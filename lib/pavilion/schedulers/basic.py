@@ -80,7 +80,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 job_share_key = self.gen_job_share_key(sched_config, node_range[0], node_range[1])
             else:
                 # If this scheduler doesn't support concurrency, just put every test in its own bin.
-                job_share_key = test.full_id
+                job_share_key = test.id
 
             job_bins[job_share_key].append(test)
             job_bin_sched_configs[job_share_key] = (node_range, sched_config)
@@ -98,7 +98,20 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             for test in test_bin:
                 test.job = job
 
+<<<<<<< HEAD
             script = self.create_kickoff_script(pav_cfg, test_bin, job.kickoff_log)
+=======
+            script = self._create_kickoff_script_stub(
+                pav_cfg=pav_cfg,
+                job_name=job_name,
+                log_path=job.kickoff_log,
+                sched_config=sched_config,
+                node_range=node_range,
+                shebang=test.shebang)
+
+            test_ids = ' '.join(test.id for test in tests)
+            script.command('pav _run {}'.format(test_ids))
+>>>>>>> 0e54304d (Fix logging tests)
             script.write(job.kickoff_path)
 
             try:

@@ -30,7 +30,7 @@ class TestGroupTests(unittest.PavTestCase):
         series1 = series.TestSeries(self.pav_cfg, series_cfg)
         series1._add_tests([tr2], 'bob')
         sub_group = groups.TestGroup(self.pav_cfg, self._make_group_name())
-        self.assertEqual(sub_group.add([tr3]), ([('test', tr3.full_id)], []))
+        self.assertEqual(sub_group.add([tr3]), ([('test', tr3.id)], []))
 
         group = groups.TestGroup(self.pav_cfg, self._make_group_name())
 
@@ -49,7 +49,7 @@ class TestGroupTests(unittest.PavTestCase):
             elif isinstance(item, series.TestSeries):
                 item_tuples.append(('series', item.sid))
             else:
-                item_tuples.append(('test', item.full_id))
+                item_tuples.append(('test', item.id))
 
         members.sort()
         item_tuples.sort()
@@ -74,7 +74,7 @@ class TestGroupTests(unittest.PavTestCase):
         group, (test, series1, sub_group) = self._make_example()
 
         for obj, str_rep in (
-                (test, test.full_id),
+                (test, test.id),
                 (series1, series1.sid),
                 (sub_group, sub_group.name)):
 
@@ -87,7 +87,7 @@ class TestGroupTests(unittest.PavTestCase):
         test, series1, sub_group = items
         added, errors = group.add(items)
         self.assertEqual(errors, [])
-        added_answer = [('test', test.full_id),
+        added_answer = [('test', test.id),
                         ('series', series1.sid),
                         ('group', sub_group.name)]
         added2, errors = group.add(items)
@@ -121,7 +121,7 @@ class TestGroupTests(unittest.PavTestCase):
         # Remove multiple items.
         removed, errors = group.remove([test, sub_group])
         self.assertEqual(errors, [])
-        self.assertEqual(removed, [('test', test.full_id), ('group', sub_group.name)])
+        self.assertEqual(removed, [('test', test.id), ('group', sub_group.name)])
         self.assertGroupContentsEqual(group, [])
 
         removed, errors = group.remove(['nope', 'a.1', 'test.982349842', 's1234981234'])
@@ -138,23 +138,23 @@ class TestGroupTests(unittest.PavTestCase):
         s_test = list(series1.tests.values())[0]
         g_test = sub_group.tests()[0]
         g_test = g_test.resolve()
-        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], int(g_test.name))
+        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], g_test.name)
 
         removed, warnings = group.remove([g_test, s_test])
         self.assertEqual(warnings, [])
         removed.sort()
-        answer = sorted([(group.EXCL_ITYPE, s_test.full_id),
-                         (group.EXCL_ITYPE, g_test.full_id)])
+        answer = sorted([(group.EXCL_ITYPE, s_test.id),
+                         (group.EXCL_ITYPE, g_test.id)])
         self.assertEqual(removed, answer)
-        self.assertEqual(group._excluded(), {s_test.full_id: s_test.path,
-                                             g_test.full_id: g_test.path})
+        self.assertEqual(group._excluded(), {s_test.id: s_test.path,
+                                             g_test.id: g_test.path})
         self.assertEqual(group.tests(), [btest.path])
 
         group.remove([sub_group.name])
 
         added, warnings = group.add([s_test, g_test])
-        self.assertEqual(sorted(added), [('test',  g_test.full_id),
-                                         ('test*', s_test.full_id)])
+        self.assertEqual(sorted(added), [('test',  g_test.id),
+                                         ('test*', s_test.id)])
         self.assertEqual(warnings, [])
 
     def test_group_clean(self):
@@ -238,7 +238,7 @@ class TestGroupTests(unittest.PavTestCase):
         run_cmd.run(self.pav_cfg, run_args3)
         run_cmd.last_series.wait(timeout=10)
 
-        add_items = [sub_group_name] + [test.full_id for test in run_cmd.last_tests]
+        add_items = [sub_group_name] + [test.id for test in run_cmd.last_tests]
         rm_tests = add_items[1:3]
 
         def run_grp_cmd(args):

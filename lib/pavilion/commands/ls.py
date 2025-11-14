@@ -100,7 +100,7 @@ class LSCommand(Command):
         elif len(tests) > 1:
             output.fprint(
                 self.errfile, "Matched multiple tests. Listing files for first "
-                              "test only (test {})".format(tests[0].full_id),
+                              "test only (test {})".format(tests[0].id),
                 color=output.YELLOW)
         test = tests[0]
 

@@ -89,7 +89,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         'result':  result,
         'series':  series_id,
         'state':   status_f.state,
-        'test_id': test.id if test.full_id.startswith('main') else test.full_id,
+        'test_id': test.id,
         'time':    status_f.when,
     }
 
@@ -113,7 +113,7 @@ def get_status(test: TestRun, pav_conf):
             'result':  '',
             'series':  '',
             'state':   STATES.UNKNOWN,
-            'test_id': test.full_id,
+            'test_id': test.id,
             'time':    '',
         }
 

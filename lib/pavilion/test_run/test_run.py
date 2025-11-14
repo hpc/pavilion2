@@ -65,8 +65,6 @@ class TestRun(TestAttributes):
     5. Results are gathered. -- ``test.gather_results()``
 
     :ivar int ~.id: The test id number.
-    :ivar str ~.full_id: The full test id number, including the config label. This
-        may also be a string path to the test itself.
     :ivar str cfg_label: The config label for the configuration directory that
         defined this test. This is ephemeral, and may change between Pavilion
         invocations based on available configurations.
@@ -220,7 +218,7 @@ class TestRun(TestAttributes):
                 raise ValueError()
         except ValueError:
             raise TestRunError("The run.concurrent test config key must be a positive integer. "
-                               "Test '{}' got '{}'".format(self.full_id, self.concurrent))
+                               "Test '{}' got '{}'".format(self.id, self.concurrent))
 
         self.run_log = self.path/'run.log'
         self.build_log = self.path/'build.log'
@@ -501,7 +499,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("You must call the 'test.save()' method before "
-                               "you can finalize a test. Test: {}".format(self.full_id))
+                               "you can finalize a test. Test: {}".format(self.id))
 
         self._save_config()
         # Save our newly updated variables.
@@ -512,7 +510,7 @@ class TestRun(TestAttributes):
                 create_files.create_file(file, self.build_path, contents)
             except TestConfigError as err:
                 raise TestRunError("Test run '{}' Could not create build script."
-                                   .format(self.full_id), err)
+                                   .format(self.id), err)
 
         for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
             try:
@@ -520,7 +518,7 @@ class TestRun(TestAttributes):
                 create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
             except TestConfigError as err:
                 raise TestRunError("Test run '{}' could not create run script."
-                                   .format(self.full_id, err))
+                                   .format(self.id, err))
 
         self.save_attributes()
 
@@ -553,7 +551,7 @@ class TestRun(TestAttributes):
 
         pav_path = self._pav_cfg.pav_root/'bin'/'pav'
 
-        return '{} run {}'.format(pav_path, self.full_id)
+        return '{} run {}'.format(pav_path, self.id)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
@@ -670,7 +668,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("The .save() method must be called before you "
-                               "can build test '{}'".format(self.full_id))
+                               "can build test '{}'".format(self.id))
 
         if self.build_origin_path.exists():
             raise RuntimeError(
@@ -686,7 +684,7 @@ class TestRun(TestAttributes):
             # evaluated to true
             return True
 
-        if self.builder.build(self.full_id, tracker=tracker,
+        if self.builder.build(self.id, tracker=tracker,
                               cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
@@ -697,7 +695,7 @@ class TestRun(TestAttributes):
             try:
                 if not built_by_path.exists():
                     with built_by_path.open('w') as built_by:
-                        built_by.write(str(self.full_id))
+                        built_by.write(str(self.id))
                     built_by_path.chmod(0o440)
             except OSError as err:
                 tracker.warn("Could not create built_by file: {}".format(err.args),
@@ -753,7 +751,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before running "
-                               "test {}".format(self.full_id))
+                               "test {}".format(self.id))
 
         if self.build_only:
             self.status.set(
@@ -776,7 +774,7 @@ class TestRun(TestAttributes):
                 run_wd = self.build_path.as_posix()
 
             # Run scripts take the test id as a first argument.
-            cmd = [self.run_script_path.as_posix(), self.full_id]
+            cmd = [self.run_script_path.as_posix(), self.id]
             proc = subprocess.Popen(cmd,
                                     cwd=run_wd,
                                     stdout=run_log,
@@ -875,7 +873,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before run {} "
-                               "can be marked complete.".format(self.full_id))
+                               "can be marked complete.".format(self.id))
 
         complete_path = self.path/self.COMPLETE_FN
 
@@ -927,7 +925,7 @@ class TestRun(TestAttributes):
 
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
-                                   "complete".format(self.full_id))
+                                   "complete".format(self.id))
 
     def gather_results(self, run_result: int, regather: bool = False,
                        log_file: TextIO = None):
@@ -1044,7 +1042,7 @@ of result keys.
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before saving "
-                               "results for test {}".format(self.full_id))
+                               "results for test {}".format(self.id))
 
         results_tmp_path = self.results_path.with_suffix('.tmp')
         with results_tmp_path.open('w') as results_file:
@@ -1273,7 +1271,7 @@ be set by the scheduler plugin as soon as it's known."""
         return script
 
     def __repr__(self):
-        return "TestRun({s.name}-{s.full_id})".format(s=self)
+        return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_permute_vars(self):
         """Return the permute var values in a dictionary."""

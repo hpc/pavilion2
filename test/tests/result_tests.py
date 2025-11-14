@@ -819,14 +819,14 @@ class ResultParserTests(PavTestCase):
             test.wait(10)
 
         res_args = arg_parser.parse_args(
-            ('result', '--full') + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result', '--full') + tuple(t.id for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
                       .format(cmd_out, cmd_err))
 
         res_args = arg_parser.parse_args(
-            ('result',) + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result',) + tuple(t.id for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
@@ -834,7 +834,7 @@ class ResultParserTests(PavTestCase):
 
         for test in run_cmd.last_tests:
             # Each of these tests should have a 'FAIL' as the result.
-            self.assertEqual(test.results['result'], TestRun.FAIL, 
+            self.assertEqual(test.results['result'], TestRun.FAIL,
                              msg='Should be FAIL {}'.format(test.results))
 
         # Make sure we can re-run results, even with permutations.
@@ -842,7 +842,7 @@ class ResultParserTests(PavTestCase):
         result_cmd.clear_output()
         res_args = arg_parser.parse_args(
             ('result', '--re-run', '--json') +
-            tuple(t.full_id for t in run_cmd.last_tests))
+            tuple(t.id for t in run_cmd.last_tests))
         result_cmd.run(rerun_cfg, res_args)
 
         data, err = result_cmd.clear_output()
@@ -867,7 +867,7 @@ class ResultParserTests(PavTestCase):
 
         # Make sure the log argument doesn't blow up.
         res_args = arg_parser.parse_args(
-            ('result', '--show-log') + (run_cmd.last_tests[0].full_id,))
+            ('result', '--show-log') + (run_cmd.last_tests[0].id,))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
@@ -880,10 +880,10 @@ class ResultParserTests(PavTestCase):
         test_cfg['build']['cmds'] = ['false']
         bad_test = self._quick_test(test_cfg)
         res_args = arg_parser.parse_args(
-            ('result', '--re-run', bad_test.full_id))
+            ('result', '--re-run', bad_test.id))
         self.assertEqual(result_cmd.run(self.pav_cfg, res_args), 0)
         out, err = result_cmd.clear_output()
-        self.assertIn(bad_test.full_id, err)
+        self.assertIn(bad_test.id, err)
 
     def test_result_cmd_by_key(self):
         """Check the by-key and by-key-compat options."""
@@ -901,9 +901,9 @@ class ResultParserTests(PavTestCase):
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
         for test in run_cmd.last_tests:
             test.wait(10)
- 
+
         res_args = arg_parser.parse_args(
-            ('result', '--by-key-compat', run_cmd.last_tests[0].full_id))
+            ('result', '--by-key-compat', run_cmd.last_tests[0].id))
         rslt = result_cmd.run(self.pav_cfg, res_args)
         cmd_out, cmd_err = result_cmd.clear_output()
         self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
@@ -912,7 +912,7 @@ class ResultParserTests(PavTestCase):
         self.assertIn('data', cmd_out)
 
         res_args = arg_parser.parse_args(
-            ('result', '--by-key=data', run_cmd.last_tests[0].full_id))
+            ('result', '--by-key=data', run_cmd.last_tests[0].id))
         rslt = result_cmd.run(self.pav_cfg, res_args)
         cmd_out, cmd_err = result_cmd.clear_output()
         self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
@@ -950,16 +950,16 @@ class ResultParserTests(PavTestCase):
         rslts = bad_rslts.gather_results(bad_rslts.run())
         bad_rslts.save_results(rslts)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', good.id])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 0)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_run.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', good.id, bad_run.id])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_build.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', good.id, bad_build.id])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_rslts.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', good.id, bad_rslts.id])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
 
     def test_re_search(self):

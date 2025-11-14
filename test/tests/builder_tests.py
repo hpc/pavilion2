@@ -40,7 +40,7 @@ class BuilderTests(PavTestCase):
 
         for test in tests:
             tracker = mb_tracker.register(test)
-            thread = threading.Thread(target=test.builder.build, args=(test.full_id, tracker))
+            thread = threading.Thread(target=test.builder.build, args=(test.id, tracker))
             threads.append(thread)
             thread.run()
 

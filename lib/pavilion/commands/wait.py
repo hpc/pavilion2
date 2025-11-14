@@ -93,7 +93,6 @@ class WaitCommand(Command):
 
         done_tests = []
         all_tests = list(tests)
-        all_tests.sort(key=lambda t: t.full_id)
 
         tests = list(tests)
 

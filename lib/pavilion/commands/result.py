@@ -307,7 +307,7 @@ class ResultsCommand(Command):
                 self.errfile,
                 "One or more of the requested tests never completed, and therefore have no "
                 "results to 're-run'. Check the status and/or logs for these tests to see why:\n"
-                + ", ".join([test.full_id for test in skipped_reruns]),
+                + ", ".join([test.id for test in skipped_reruns]),
                 color=output.YELLOW)
 
         if args.all_passed and not all_passed:

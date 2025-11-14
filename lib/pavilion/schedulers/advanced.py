@@ -391,7 +391,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             node_list_id = int(test.var_man.get('sched.node_list_id'))
 
             sched_config = validate_config(test.config['schedule'])
-            sched_configs[test.full_id] = sched_config
+            sched_configs[test.id] = sched_config
             chunk_spec = test.config.get('chunk')
             if chunk_spec != 'any':
                 # This is validated in test object creation.
@@ -455,7 +455,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         errors = []
 
         for test in tests:
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
 
             if not sched_config['share_allocation']:
                 if sched_config['flex_scheduled']:
@@ -474,14 +474,14 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for job_share_key, tests in list(share_groups.items()):
             if len(tests) == 1:
                 test = tests[0]
-                if sched_configs[test.full_id]['chunking']['size'] in (0, None):
+                if sched_configs[test.id]['chunking']['size'] in (0, None):
                     flex_tests.append(test)
                 else:
                     indi_tests.append(test)
                 del share_groups[job_share_key]
 
         for job_share_key, tests in share_groups.items():
-            chunking_enabled = sched_configs[tests[0].full_id]['chunking']['size'] not in (0, None)
+            chunking_enabled = sched_configs[tests[0].id]['chunking']['size'] not in (0, None)
             # If the user really wants to use the same nodes even if other nodes are available,
             # setting share_allocation to max will allow that.
             use_same_nodes = True if sched_config['share_allocation'] == 'max' else False
@@ -524,7 +524,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         # At this point the scheduler config should be effectively identical
         # for the test being allocated.
         base_test = tests[0]
-        base_sched_config = sched_configs[base_test.full_id].copy()
+        base_sched_config = sched_configs[base_test.id].copy()
         # Get the longest time limit for all the tests.
         base_sched_config['time_limit'] = max(conf['time_limit'] for conf in
                                               sched_configs.values())
@@ -595,7 +595,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                                                    prior_error=err, tests=[test]))
                 continue
 
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
 
             node_range = calc_node_range(sched_config, len(chunk))
 
@@ -646,7 +646,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         # Figure out how many nodes each test needs and sort them least
         for test in tests:
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
 
             min_nodes, max_nodes = calc_node_range(sched_config, chunk_size)
             if max_nodes is None:
@@ -664,7 +664,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                                                    prior_error=err, tests=[test]))
                 continue
 
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
             if needed_nodes == 0:
 
                 if needed_nodes > len(chunk_usage):

@@ -47,7 +47,7 @@ class CmdUtilsTests(unittest.PavTestCase):
         # This just loads the arguments for the status command.
         commands.get_command('status')
 
-        tests1 = [test.full_id for test in series1.tests.values()]
+        tests1 = [test.id for test in series1.tests.values()]
 
         for argset, count in [
                 (('status', series1.sid, series2.sid), 6),

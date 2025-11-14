@@ -265,6 +265,7 @@ def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path,
 
     if check_tests:
         latest = None
+
         for test_path in dir_db.select(pav_cfg, test_set_path).paths:
             complete_ts = TestAttributes(test_path).complete_time
 

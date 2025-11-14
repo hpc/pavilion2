@@ -56,7 +56,7 @@ class CatCommand(Command):
         elif len(tests) > 1:
             output.fprint(
                 self.errfile, "Matched multiple tests. Printing file contents for first "
-                              "test only (test {})".format(tests[0].full_id),
+                              "test only (test {})".format(tests[0].id),
                 color=output.YELLOW)
 
         test = tests[0]
@@ -67,7 +67,7 @@ class CatCommand(Command):
 
         if not test.path/args.file:
             output.fprint(sys.stderr, "File {} does not exist for test {}."
-                                      .format(args.file, test.full_id))
+                                      .format(args.file, test.id))
             return errno.EEXIST
 
         return self.print_file(test.path / args.file)

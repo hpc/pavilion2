@@ -64,7 +64,7 @@ class _RunCommand(Command):
             try:
                 self._finalize_test(pav_cfg, test)
             except PavilionError as err:
-                fprint(self.outfile, "Error finalizing test run '{}'".format(test.full_id))
+                fprint(self.outfile, "Error finalizing test run '{}'".format(test.id))
                 fprint(self.outfile, err.pformat())
                 test.status.set(STATES.RUN_ERROR, "Error finalizing test: {}".format(err))
                 test.set_run_complete()
@@ -87,7 +87,7 @@ class _RunCommand(Command):
                     test.status.set(STATES.BUILDING, "Test building on an allocation.")
                     if not test.build():
                         test.set_run_complete()
-                        fprint(self.outfile, "Test {} build failed.".format(test.full_id))
+                        fprint(self.outfile, "Test {} build failed.".format(test.id))
                         continue
                 if not test.build_only:
                     built_tests.append(test)
@@ -130,7 +130,7 @@ class _RunCommand(Command):
                 "Error resolving scheduler variables at run time. "
                 "See'pav log kickoff {}' for the full error.".format(test.id))
             raise TestRunError("Error resolving scheduler variables for test {}.\n"
-                               .format(test.full_id)
+                               .format(test.id)
                                + '\n'.join(var_man.get('sched.errors.*')))
 
         try:
@@ -141,7 +141,7 @@ class _RunCommand(Command):
                 "Unexpected error finalizing test\n{}\n"
                 "See 'pav log kickoff {}' for the full error."
                 .format(err, test.id))
-            raise TestRunError("Could not finalize test '{}'.".format(test.full_id), prior_err=err)
+            raise TestRunError("Could not finalize test '{}'.".format(test.id), prior_err=err)
 
 
     def _run_tests(self, pav_cfg, tests):
@@ -150,7 +150,7 @@ class _RunCommand(Command):
         # Turn this into a stack
         tests.reverse()
 
-        # Track our running tests by full_id
+        # Track our running tests by ID
         running_tests : Dict[str, Tuple[threading.Thread, TestRun]] = {}
         while tests or running_tests:
             added_thread = False
@@ -165,7 +165,7 @@ class _RunCommand(Command):
                 conc_limit = min([test.concurrent for test in next_tests])
                 if len(running_tests) + 1 <= conc_limit:
                     thread = threading.Thread(target=self._run, args=(next_test,))
-                    running_tests[next_test.full_id] = (thread, next_test)
+                    running_tests[next_test.id] = (thread, next_test)
                     thread.start()
                     added_thread = True
                 else:
@@ -181,7 +181,7 @@ class _RunCommand(Command):
                             thread.join()
                             thread_exited = True
                             test.set_run_complete()
-                            del running_tests[test.full_id]
+                            del running_tests[test.id]
 
                     if not thread_exited:
                         time.sleep(0.5)
