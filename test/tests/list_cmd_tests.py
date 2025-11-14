@@ -45,7 +45,7 @@ class ListCmdTest(PavTestCase):
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         self.assertEqual(err, '')
-        self.assertEqual([int(t) for t in out.split()],
+        self.assertEqual([t for t in out.split()],
                          [t.id for t in tests[:15]])
 
         args = parser.parse_args(
@@ -54,7 +54,7 @@ class ListCmdTest(PavTestCase):
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         # 26-30 are filtered due to the default newer-than time.
-        self.assertEqual([int(t) for t in out.strip().splitlines()],
+        self.assertEqual([t for t in out.strip().splitlines()],
                          [t.id for t in list(reversed(tests))][:15])
 
         all_out_fields = ','.join(TestAttributes.list_attrs())
@@ -68,7 +68,7 @@ class ListCmdTest(PavTestCase):
         id_idx = TestAttributes.list_attrs().index('id')
         for line in lines:
             parts = [part.strip() for part in line.split('|')]
-            ids.append(int(parts[id_idx]))
+            ids.append(parts[id_idx])
 
         # 26-30 are filtered due to the default newer-than time.
         self.assertEqual(ids,

@@ -249,6 +249,7 @@ class TestGroupTests(unittest.PavTestCase):
 
         members = group.members()
         # Add tests and a group via commands
+
         run_grp_cmd(['group', 'add', group_name] + add_items)
         self.assertEqual(len(group.tests()), 10)
 

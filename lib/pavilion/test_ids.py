@@ -54,20 +54,27 @@ class TestID(ID):
         return False
 
     @property
-    def parts(self) -> Tuple[str]:
+    def parts(self) -> Tuple[Optional["SeriesID"], Union[int, str]]:
         """Return a tuple of components of the test ID, where components are separated by
         periods."""
 
-        return tuple(self.id_str.split('.', 1))
+        parts = self.id_str.split('.', 1)
+
+        if len(parts) == 2:
+            return SeriesID(parts[0]), int(parts[1])
+
+        if is_int(parts[1]):
+            return int(parts[1])
+
+        return parts[1]
 
     @property
-    def test_num(self) -> Optional[int]:
-        """Return the test number component of the test ID."""
+    def series(self) -> Optional["SeriesID"]:
+        self.parts[0]
 
-        if self.is_int():
-            return self.as_int()
-        elif len(self.parts) > 1:
-            return int(self.parts[-1])
+    @property
+    def id(self) -> Union[int, str]:
+        return self.parts[1]
 
 
 class SeriesID(ID):

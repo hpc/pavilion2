@@ -11,6 +11,7 @@ from pavilion import config
 from pavilion.errors import TestGroupError
 from pavilion.series import TestSeries, list_series_tests, SeriesInfo
 from pavilion.test_run import TestRun, TestAttributes
+from pavilion.test_ids import TestID, SeriesID
 from pavilion.utils import is_int
 
 GroupMemberDescr = NewType('GroupMemberDescr', Union[TestRun, TestSeries, "TestGroup", str])
@@ -505,6 +506,7 @@ class TestGroup:
             return test.id, test.path
 
         if isinstance(test, str):
+
             if '.' in test:
                 cfg_label, test_id = test.split('.', maxsplit=1)
             else:
@@ -517,7 +519,7 @@ class TestGroup:
             # We'll use this as our ID too.
             test = test_id
 
-        if not is_int(test_id):
+        if not TestID.is_valid_id(test_id):
             raise TestGroupError(
                 "Invalid test id '{}' from test id '{}'.\n"
                 "Test id's must be a number, like 27."
@@ -579,10 +581,10 @@ class TestGroup:
         elif isinstance(item, self.__class__):
             return self.GROUP_ITYPE, self.path/self.GROUPS_DIR/item.name
         elif isinstance(item, str):
-            if is_int(item) or '.' in item:
+            if TestID.is_valid_id(item):
                 # Looks like a test id
                 return self.TEST_ITYPE, self.path/self.TESTS_DIR/item
-            elif item[0] == 's' and is_int(item[1:]):
+            elif SeriesID.is_valid_id(item):
                 # Looks like a sid
                 return self.SERIES_ITYPE, self.path/self.SERIES_DIR/item
             else:
