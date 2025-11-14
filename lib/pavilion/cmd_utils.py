@@ -143,7 +143,6 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
         limit=limit
     )
 
-
 def make_filter_query() -> str:
     """Construct the default filter query, which targets tests created
     by the current user on the current system more recently than 1 day ago."""

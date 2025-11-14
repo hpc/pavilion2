@@ -134,7 +134,7 @@ def index(pav_cfg,
           complete_key: str = 'complete',
           refresh_period: int = 1,
           verbose: IO[str] = None,
-          fn_base: int = 10) -> Index:
+          fn_base: int = 16) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
     the transformed data.
@@ -381,7 +381,6 @@ def select(pav_cfg,
             order_asc=order_asc,
             fn_base=fn_base,
             limit=limit)
-
 
 def select_from(pav_cfg,
                 paths: Iterable[Path],
