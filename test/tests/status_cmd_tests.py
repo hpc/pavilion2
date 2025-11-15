@@ -284,7 +284,7 @@ class StatusCmdTests(PavTestCase):
         while not test.complete and time.time() < end:
             time.sleep(.1)
 
-        args = parser.parse_args(['--history', 'test.{}'.format(test.id)])
+        args = parser.parse_args(['--history', test.id])
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         out.seek(0)

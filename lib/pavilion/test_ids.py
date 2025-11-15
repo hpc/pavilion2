@@ -46,8 +46,8 @@ class TestID(ID):
 
             test_num = -1
 
-            if is_int(id_str):
-                test_num = int(id_str)
+            if is_int(num_str):
+                test_num = int(num_str)
 
             return test_num > 0 and SeriesID.is_valid_id(series_id_str)
 
@@ -63,10 +63,10 @@ class TestID(ID):
         if len(parts) == 2:
             return SeriesID(parts[0]), int(parts[1])
 
-        if is_int(parts[1]):
-            return int(parts[1])
+        if is_int(parts[0]):
+            return None, int(parts[0])
 
-        return parts[1]
+        return None, parts[0]
 
     @property
     def series(self) -> Optional["SeriesID"]:

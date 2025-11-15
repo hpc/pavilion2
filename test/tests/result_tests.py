@@ -846,6 +846,7 @@ class ResultParserTests(PavTestCase):
         result_cmd.run(rerun_cfg, res_args)
 
         data, err = result_cmd.clear_output()
+
         results = json.loads(data)
         results = {res['name']: res for res in results}
 

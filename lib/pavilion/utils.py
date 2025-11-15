@@ -70,14 +70,14 @@ def is_int(val: str):
     return True
 
 def is_hex(val: str) -> bool:
-    """Return true if the given string value is hexidecimal."""
+    """Return true if the given string value is a positive hexidecimal value."""
 
     try:
-        int(val, 16)
+        val = int(val, 16)
     except ValueError:
         return False
 
-    return True
+    return val > 0
 
 def str_bool(val):
     """Returns true if the string value is the string 'true' with allowances

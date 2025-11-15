@@ -387,12 +387,7 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
         test_path = test_path.resolve()
 
         test_wd = test_path.parents[1]
-        try:
-            test_id = int(test_path.name)
-        except ValueError:
-            output.fprint(errfile, "Invalid test id '{}' from test path '{}'"
-                          .format(test_path.name, test_path), color=output.YELLOW)
-            continue
+        test_id = test_path.name
 
         test_pairs.append(ID_Pair((test_wd, test_id)))
 

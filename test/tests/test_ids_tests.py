@@ -7,8 +7,8 @@ class TestIDTests(PavTestCase):
     def test_test_id_validation(self):
         """Test that validation is correctly performed for test IDs."""
 
-        valid_ids = ("1", "test.1", "37")
-        invalid_ids = ("", "0", "test.0", "-3", "all" "last", "")
+        valid_ids = ("1", "s2.1", "37", "0123abc")
+        invalid_ids = ("", "test.0", "-3", "all" "last", "")
 
         for id in valid_ids:
             self.assertTrue(TestID.is_valid_id(id))
@@ -32,7 +32,7 @@ class TestIDTests(PavTestCase):
         """Test that validation is correctly performed for group IDs."""
 
         valid_ids = ("mygroup")
-        invalid_ids = ("1", "s7", "all", "last", "test.1", "")
+        invalid_ids = ("1", "s7", "all", "last", "s2.1", "123abc")
 
         for id in valid_ids:
             self.assertTrue(GroupID.is_valid_id(id))
