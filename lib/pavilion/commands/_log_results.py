@@ -5,6 +5,7 @@ from typing import Optional
 
 from pavilion import output
 from pavilion import series
+from pavilion.test_ids import SeriesID
 from pavilion.result_logging import get_result_loggers
 from pavilion.errors import TestSeriesError
 from .base_classes import Command
@@ -23,7 +24,7 @@ class LogResults(Command):
         """Sets up arguments for _log_series command. Only needs series ID."""
 
         parser.add_argument(
-            'series_id', action='store',
+            'series_id', type=SeriesID, action='store',
             help="Series ID."
         )
 

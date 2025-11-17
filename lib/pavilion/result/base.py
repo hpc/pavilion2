@@ -39,7 +39,7 @@ def get_top_keys(test, topkey: str) -> dict:
 BASE_RESULTS = {
     'name': (lambda test: test.name,
              "The test run name"),
-    'id': (lambda test: test.id,
+    'id': (lambda test: str(test.id),
            "The test run id"),
     'test_version': (lambda test: test.test_version,
                      "The test config version."),

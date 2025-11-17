@@ -11,6 +11,7 @@ from pavilion import output
 from pavilion import series, series_config
 from pavilion import cmd_utils
 from pavilion.test_run import TestRun
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 

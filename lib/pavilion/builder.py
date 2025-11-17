@@ -592,7 +592,8 @@ class TestBuilder:
             # Do the build, and wait for it to complete.
             with self.tmp_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
-                cmd = [self._script_path.as_posix(), test_id]
+                cmd = [self._script_path.as_posix(), str(test_id)]
+
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
@@ -796,10 +797,6 @@ class TestBuilder:
         if extract_error is not None:
             raise TestBuilderError("Error extracting file '{}'\n  {}"
                                    .format(src_path.as_posix(), extract_error))
-
-        tracker.update(
-            state=STATES.BUILDING,
-            note="Generating dynamically created files.")
 
         # Create build time file(s).
         for file, contents in self._config.get('create_files', {}).items():

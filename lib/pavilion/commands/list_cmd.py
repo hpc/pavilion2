@@ -10,7 +10,7 @@ from pavilion import filters
 from pavilion import output
 from pavilion.series.info import SeriesInfo
 from pavilion.test_run import TestAttributes
-from pavilion.test_ids import resolve_mixed_ids, SeriesID
+from pavilion.test_ids import resolve_mixed_ids, SeriesID, TestID
 from .base_classes import Command, sub_cmd
 
 
@@ -122,7 +122,7 @@ class ListCommand(Command):
         )
 
         series_p.add_argument(
-            'series', nargs="*", default=['all'],
+            'series', nargs="*", type=SeriesID, default=[SeriesID("all")],
             help="Specific series to filter from. Defaults to 'all'"
         )
 

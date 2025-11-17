@@ -32,6 +32,7 @@ from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
 from pavilion.micro import partition, do, listfilter, stardo
 from pavilion.timing import TimeLimiter
+from pavilion.test_ids import SeriesID
 from pavilion.result_logging import get_result_loggers
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
@@ -234,17 +235,13 @@ differentiate it from test ids."""
                 "Invalid SID '{}'. Must end in an integer.".format(sid))
 
     @classmethod
-    def load(cls, pav_cfg, sid: Union[str, int], outfile=None):
+    def load(cls, pav_cfg, sid: SeriesID, outfile=None):
         """Load a series object from the given id, along with all of its
     associated tests.
 
     :raises TestSeriesError: From invalid series id or path."""
 
-        if isinstance(sid, str):
-            series_id = cls.sid_to_id(sid)
-        else:
-            series_id = sid
-
+        series_id = sid.as_int()
         series_path = pav_cfg.working_dir/'series'
         series_path = dir_db.make_id_path(series_path, series_id)
 

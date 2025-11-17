@@ -17,6 +17,7 @@ from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
 from pavilion.test_run import TestRun, mass_status_update
 from pavilion.variables import VariableSetManager
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 # We need to catch pretty much all exceptions to cleanly report errors.
@@ -34,7 +35,7 @@ class _RunCommand(Command):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
-            'test_ids', action='store', nargs='+',
+            'test_ids', type=TestID, action='store', nargs='+',
             help='The full id of the test to run.')
 
     def run(self, pav_cfg, args):
@@ -244,7 +245,7 @@ class _RunCommand(Command):
             # Some other unexpected exception.
             test.status.set(
                 STATES.RUN_ERROR,
-                "Unknown error while running test. Refer to the kickoff log.")
+                f"Unknown error while running test. Refer to the kickoff log.")
             return
 
         try:

@@ -196,7 +196,7 @@ class TestRun(TestAttributes):
                 raise TestRunError("Error loading variable set for test {}".format(self.id),
                                    err)
 
-        self.uuid = self.id
+        self.uuid = test_uuid
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
         self.test_version = config.get('test_version')
@@ -431,14 +431,14 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def parse_raw_id(cls, pav_cfg, raw_test_id: str) -> ID_Pair:
+    def parse_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID) -> ID_Pair:
         """Parse a raw test run id and return the label, working_dir, and id
         for that test. The test run need not exist, but the label must."""
 
-        return ID_Pair((pav_cfg.working_dir, TestID(raw_test_id).id))
+        return ID_Pair((pav_cfg.working_dir, raw_test_id))
 
     @classmethod
-    def load_from_raw_id(cls, pav_cfg, raw_test_id: str) -> 'TestRun':
+    def load_from_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID) -> 'TestRun':
         """Load a test given a raw test id string, in the form
         [label].test_id. The optional label will allow us to look up the config
         path for the test."""
@@ -760,7 +760,7 @@ class TestRun(TestAttributes):
                 run_wd = self.build_path.as_posix()
 
             # Run scripts take the test id as a first argument.
-            cmd = [self.run_script_path.as_posix(), self.id]
+            cmd = [self.run_script_path.as_posix(), str(self.id)]
             proc = subprocess.Popen(cmd,
                                     cwd=run_wd,
                                     stdout=run_log,

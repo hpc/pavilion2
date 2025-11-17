@@ -30,6 +30,7 @@ class LSCommand(Command):
         parser.add_argument(
             'test_id',
             nargs='?',
+            type=TestID,
             default=None,
             help="Test id number.",
             metavar='TEST_ID',

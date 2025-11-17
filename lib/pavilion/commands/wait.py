@@ -51,7 +51,7 @@ class WaitCommand(Command):
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
-            help='The name(s) of the tests to check.  These may be any mix of '
+            help='The ID(s) of the tests to check.  These may be any mix of '
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
         )

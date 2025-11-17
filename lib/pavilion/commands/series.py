@@ -84,7 +84,7 @@ class RunSeries(Command):
             formatter_class=arguments.WrappedFormatter)
 
         list_p.add_argument(
-            'series', nargs='*',
+            'series', nargs='*', type=SeriesID, default=SeriesID("all"),
             help="Specific series to show. Defaults to all your recent series on this cluster.",
         )
         filters.add_series_filter_args(list_p)

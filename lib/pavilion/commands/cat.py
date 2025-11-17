@@ -23,7 +23,7 @@ class CatCommand(Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'test_id', help="test id",
+            'test_id', type=TestID, help="test id",
             nargs='?', default=None,
             metavar='TEST_ID'
         )
@@ -43,11 +43,6 @@ class CatCommand(Command):
             if test_id is None:
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
                 return 1
-        elif TestID.is_valid_id(args.test_id):
-            test_id = TestID(args.test_id)
-        else:
-            output.fprint(self.errfile, f"{args.test_id} is not a valid test ID.")
-            return errno.EEXIST
 
         tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
         if not tests:

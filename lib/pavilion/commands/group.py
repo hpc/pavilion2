@@ -10,6 +10,7 @@ from pavilion.output import fprint, draw_table
 from pavilion.enums import Verbose
 from pavilion.groups import TestGroup
 from pavilion.errors import TestGroupError
+from pavilion.test_ids import GroupID
 from .base_classes import Command, sub_cmd
 
 
@@ -50,6 +51,7 @@ class GroupCommand(Command):
 
         add_p.add_argument(
             'group',
+            type=GroupID,
             help="The group to add to.")
         add_p.add_argument(
             'items', nargs='+',

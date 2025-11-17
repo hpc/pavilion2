@@ -32,8 +32,8 @@ class SetStatusCommand(Command):
             help='Note to set for the test, tests, or suite of tests.'
         )
         parser.add_argument(
-            'test', action='store', metavar='<test_id>',
-            help='The name of the test to set the status of. If no value is '
+            'test', action='store', type=TestID, metavar='<test_id>',
+            help='The ID of the test to set the status of. If no value is '
                  'provided, the most recent suite submitted by this user is '
                  'used.'
         )
@@ -45,12 +45,6 @@ class SetStatusCommand(Command):
         # Pavilion.
         if args.test == 0:
             return 0
-
-        if TestID.is_valid_id(args.test):
-            test_id = TestID(args.test)
-        else:
-            output.fprint(self.errfile, f"{args.test} is not a valid test ID.")
-            return errno.EEXIST
 
         tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
 

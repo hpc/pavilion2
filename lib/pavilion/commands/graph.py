@@ -82,7 +82,7 @@ class GraphCommand(Command):
         filters.add_test_filter_args(parser)
 
         parser.add_argument(
-            'tests', nargs='*', default=[], action='store',
+            'tests', nargs='*', type=TestID, default=[], action='store',
             help='Specific Test Ids to graph. '
         )
         parser.add_argument(

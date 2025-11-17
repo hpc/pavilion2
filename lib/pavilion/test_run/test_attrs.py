@@ -8,6 +8,7 @@ from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion.errors import TestRunError
 from pavilion.status_file import TestStatusInfo, TestStatusFile, STATES
+from pavilion.test_ids import TestID
 
 
 # pylint: disable=protected-access
@@ -47,6 +48,7 @@ class TestAttributes(Mapping):
     """
 
     serializers = {
+        "id": lambda x: str(x),
         "status": lambda s: s.path.as_posix(),
         'suite_path': lambda p: p.as_posix(),
     }
@@ -54,6 +56,7 @@ class TestAttributes(Mapping):
     deserializers = {
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
+        'id': TestID,
         'started': utils.deserialize_datetime,
         "status": lambda s: TestStatusFile(Path(s)),
         'suite_path': lambda p: Path(p) if p is not None else None,
@@ -311,7 +314,7 @@ class TestAttributes(Mapping):
                 'name': self.name,
                 'sys_name': self.sys_name,
                 'created': self.created,
-                'id': self.id,
+                'id': str(self.id),
                 'result': None,
             }
         else:
