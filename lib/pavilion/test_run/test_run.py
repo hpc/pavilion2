@@ -103,7 +103,7 @@ class TestRun(TestAttributes):
     """Pavilion bash utilities"""
 
     def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
-                 var_man: Optional[VariableSetManager] = None, _id: Optional[int] = None,
+                 var_man: Optional[VariableSetManager] = None, _id: Union[int, str, None] = None,
                  series_id: Optional[str] = None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
@@ -177,7 +177,7 @@ class TestRun(TestAttributes):
                 var_man = VariableSetManager()
             self.var_man = var_man
         else:
-            uuid_path = tests_path / _id
+            uuid_path = tests_path / str(_id)
             # Load the test info from the given id path.
             super().__init__(path=uuid_path)
             self.id = _id
