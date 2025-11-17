@@ -11,6 +11,9 @@ class ID(ABC):
     """Base class for IDs"""
 
     def __init__(self, id_str: str):
+        if not self.is_valid_id(id_str):
+            raise ValueError(f"Invalid string {id_str} for type {self.__class__}.")
+
         self.id_str = id_str
 
     @staticmethod
@@ -36,6 +39,24 @@ class ID(ABC):
 class TestID(ID):
     """Represents a single test ID."""
 
+    def __init__(self, id_str: str):
+        super().__init__(id_str)
+
+        parts = self.id_str.split('.', 1)
+
+        if len(parts) == 2:
+            self.series = SeriesID(parts[0])
+            self.id = int(parts[1])
+        else:
+            if is_int(parts[0]):
+                self.series = SeriesID("last")
+                self.id = int(parts[0])
+            else:
+                self.series = None
+                self.id = parts[0]
+
+        self.parts = (self.series, self.id)
+
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid test ID."""
@@ -44,7 +65,7 @@ class TestID(ID):
             return True
 
         if "." in id_str:
-            series_id_str, num_str = id_str.split(".")
+            series_id_str, num_str = id_str.split(".", 1)
 
             test_num = -1
 
@@ -55,32 +76,23 @@ class TestID(ID):
 
         return False
 
-    @property
-    def parts(self) -> Tuple[Optional["SeriesID"], Union[int, str]]:
-        """Return a tuple of components of the test ID, where components are separated by
-        periods."""
+    def is_absolute(self) -> bool:
+        """Returns true if the ID is absolute (i.e. not series-relative)."""
 
-        parts = self.id_str.split('.', 1)
+        return self.series is None
 
-        if len(parts) == 2:
-            return SeriesID(parts[0]), int(parts[1])
+    def is_series_relative(self) -> bool:
+        """Returns true if the ID is relative to a particular series."""
 
-        if is_int(parts[0]):
-            return None, int(parts[0])
+        return not self.is_absolute()
 
-        return None, parts[0]
-
-    @property
-    def series(self) -> Optional["SeriesID"]:
-        return self.parts[0]
-
-    @property
-    def id(self) -> Union[int, str]:
-        return self.parts[1]
 
 
 class SeriesID(ID):
     """Represents a single series ID."""
+
+    def __init__(self, id_str: str):
+        super().__init__(id_str)
 
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
@@ -131,6 +143,9 @@ class GroupID:
     """Represents a single group ID."""
 
     def __init__(self, id_str: str):
+        if not is_valid_id(id_str):
+            raise ValueError(f"Invalid string {id_str} for type GroupID.")
+
         self.id_str = id_str
 
     @staticmethod
