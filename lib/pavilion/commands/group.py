@@ -156,7 +156,6 @@ class GroupCommand(Command):
 
         added, errors = group.add(args.items)
         if errors:
-            import pdb; pdb.set_trace()
             fprint(self.errfile, "There were one or more errors when adding tests.",
             	   color=output.RED)
             for error in errors:

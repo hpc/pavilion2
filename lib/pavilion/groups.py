@@ -1,6 +1,8 @@
 """Groups are a named collection of series and tests. They can be manipulated
 with the `pav group` command."""
 
+# pylint: disable=invalid-name
+
 from pathlib import Path
 import re
 import shutil

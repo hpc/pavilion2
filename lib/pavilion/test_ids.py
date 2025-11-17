@@ -1,3 +1,5 @@
+# pylint: disable=invalid-name
+
 from typing import Union, Tuple, List, Iterable, Optional
 from abc import ABC, abstractmethod
 
@@ -70,7 +72,7 @@ class TestID(ID):
 
     @property
     def series(self) -> Optional["SeriesID"]:
-        self.parts[0]
+        return self.parts[0]
 
     @property
     def id(self) -> Union[int, str]:
