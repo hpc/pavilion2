@@ -140,8 +140,6 @@ class GraphCommand(Command):
 
         output.fprint(self.outfile, "Generating Graph...")
 
-        args.tests = resolve_mixed_ids(args.tests, auto_last=True)
-
         # Get filtered Test IDs.
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
 
