@@ -217,7 +217,7 @@ class RunSeries(Command):
                 group.add([series_obj])
             except groups.TestGroupError as err:
                 output.fprint(self.errfile, "Error adding series '{}' to group '{}'."
-                                            .format(series_obj.sid, group.name), color=output.RED)
+                                            .format(series_obj._id, group.name), color=output.RED)
                 output.fprint(self.errfile, err.pformat())
                 return errno.EINVAL
             output.fprint(self.errfile,
@@ -243,7 +243,7 @@ class RunSeries(Command):
                       "Run `pav series status {sid}` to view series status.\n"
                       "Run `pav series cancel {sid}` to cancel the series (and all its tests).\n"
                       "Run `pav series sets {sid}` to view status of individual test sets."
-                      .format(sid=series_obj.sid))
+                      .format(sid=series_obj._id))
 
         self.last_run_series = series_obj
 
@@ -440,18 +440,18 @@ class RunSeries(Command):
         chosen_series = []
         for ser in series_info:
             try:
-                loaded_ser = series.TestSeries.load(pav_cfg, ser.sid)
+                loaded_ser = series.TestSeries.load(pav_cfg, ser._id)
                 chosen_series.append(loaded_ser)
             except series.TestSeriesError as err:
                 output.fprint(self.errfile,
                               "Could not load found series '{}': {}"
-                              .format(ser.sid, err.args[0]))
+                              .format(ser._id, err.args[0]))
 
         tests_to_cancel = []
         for ser in chosen_series:
             # We'll cancel the tests verbosely.
             ser.cancel(message="By user {}".format(utils.get_login()), cancel_tests=False)
-            output.fprint(self.outfile, "Series {} cancelled.".format(ser.sid))
+            output.fprint(self.outfile, "Series {} cancelled.".format(ser._id))
 
             tests_to_cancel.extend(ser.tests.values())
 

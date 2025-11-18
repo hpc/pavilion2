@@ -6,6 +6,7 @@ from pavilion import unittest
 from pavilion.errors import TestGroupError
 from pavilion.series_config import generate_series_config
 from pavilion.test_run import TestRun
+from pavilion.test_ids import GroupID
 
 import shutil
 import uuid
@@ -18,7 +19,7 @@ class TestGroupTests(unittest.PavTestCase):
 
         _ = self
 
-        return 'grp_' + uuid.uuid4().hex[:10]
+        return GroupID('grp_' + uuid.uuid4().hex[:10])
 
     def _make_example(self):
         """Make an example group,  and a tuple of a test, series, and sub-group."""
@@ -30,7 +31,7 @@ class TestGroupTests(unittest.PavTestCase):
         series1 = series.TestSeries(self.pav_cfg, series_cfg)
         series1._add_tests([tr2], 'bob')
         sub_group = groups.TestGroup(self.pav_cfg, self._make_group_name())
-        self.assertEqual(sub_group.add([tr3]), ([('test', tr3.id)], []))
+        self.assertEqual(sub_group.add([tr3]), ([tr3.id], []))
 
         group = groups.TestGroup(self.pav_cfg, self._make_group_name())
 
@@ -40,33 +41,18 @@ class TestGroupTests(unittest.PavTestCase):
         """Verify that the group's contents match the given items ((itype, name) tuples)."""
         members = []
         for mem in test_group.members():
-            members.append((mem['itype'], mem['id']))
+            members.append(mem['id'])
 
         item_tuples = []
         for item in items:
             if isinstance(item, groups.TestGroup):
-                item_tuples.append(('group', item.name))
+                item_tuples.append(item.name)
             elif isinstance(item, series.TestSeries):
-                item_tuples.append(('series', item.sid))
+                item_tuples.append(item._id)
             else:
-                item_tuples.append(('test', item.id))
+                item_tuples.append(item.id)
 
-        members.sort()
-        item_tuples.sort()
-        self.assertEqual(members, item_tuples)
-
-    def test_group_init(self):
-        """Check that object initialization and basic status functions work."""
-
-        group = groups.TestGroup(self.pav_cfg, 'init_test_group')
-
-        self.assertFalse(group.exists())
-        group.create()
-        self.assertTrue(group.exists())
-
-        for bad_name in ('s123', '-as3', '327bb', 'a b'):
-            with self.assertRaisesRegex(TestGroupError, r'Invalid group name'):
-                group = groups.TestGroup(self.pav_cfg, bad_name) # Bad group name.
+        self.assertEqual(set(members), set(item_tuples))
 
     def test_member_info(self):
         """Check that member info gathering works the same if given an object or a string."""
@@ -75,7 +61,7 @@ class TestGroupTests(unittest.PavTestCase):
 
         for obj, str_rep in (
                 (test, test.id),
-                (series1, series1.sid),
+                (series1, series1._id),
                 (sub_group, sub_group.name)):
 
             self.assertEqual(group._get_member_info(obj), group._get_member_info(str_rep))
@@ -87,9 +73,9 @@ class TestGroupTests(unittest.PavTestCase):
         test, series1, sub_group = items
         added, errors = group.add(items)
         self.assertEqual(errors, [])
-        added_answer = [('test', test.id),
-                        ('series', series1.sid),
-                        ('group', sub_group.name)]
+        added_answer = [test.id,
+                        series1._id,
+                        sub_group.name]
         added2, errors = group.add(items)
         self.assertEqual(errors, [])
         self.assertEqual(added2, [])
@@ -115,7 +101,7 @@ class TestGroupTests(unittest.PavTestCase):
         # Remove a single item, to make sure other items are preserved
         removed, errors = group.remove([series1])
         self.assertEqual(errors, [])
-        self.assertEqual(removed, [('series', series1.sid)])
+        self.assertEqual(removed, [('series', series1._id)])
         self.assertGroupContentsEqual(group, [test, sub_group])
 
         # Remove multiple items.
@@ -210,7 +196,7 @@ class TestGroupTests(unittest.PavTestCase):
         for cmd in group_cmd, run_cmd, series_cmd:
             cmd.silence()
 
-        group_name = self._make_group_name()
+        group_name = str(self._make_group_name())
         parser = arguments.get_parser()
         # Start a series of tests two ways, each assigned to a group.
 

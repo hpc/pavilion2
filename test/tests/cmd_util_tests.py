@@ -27,7 +27,7 @@ class CmdUtilsTests(unittest.PavTestCase):
 
         last_series = cmd_utils.load_last_series(self.pav_cfg, io.StringIO())
 
-        self.assertEqual(last_series.sid, run_cmd.last_series.sid)
+        self.assertEqual(last_series._id, run_cmd.last_series._id)
 
     def test_arg_filtered_tests(self):
         """Make sure basic requests for tests work."""
@@ -47,11 +47,11 @@ class CmdUtilsTests(unittest.PavTestCase):
         # This just loads the arguments for the status command.
         commands.get_command('status')
 
-        tests1 = [test.id for test in series1.tests.values()]
+        tests1 = [str(test.id) for test in series1.tests.values()]
 
         for argset, count in [
-                (('status', series1.sid, series2.sid), 6),
-                (('status', '{}-{}'.format(series1.sid, series2.sid)), 6),
+                (('status', str(series1._id), str(series2._id)), 6),
+                (('status', '{}-{}'.format(series1._id, series2._id)), 6),
                 (('status', 'all', '--filter', 'name=arg_filtered.*'), 3),
                 (('status', ) + tuple(tests1), 3),
                 ]:

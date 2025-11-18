@@ -1,5 +1,6 @@
 # pylint: disable=invalid-name
 
+import re
 from typing import Union, Tuple, List, Iterable, Optional
 from abc import ABC, abstractmethod
 
@@ -16,9 +17,9 @@ class ID(ABC):
 
         self.id_str = id_str
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def is_valid_id(id_str: str) -> bool:
+    def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid ID."""
 
         raise NotImplementedError
@@ -101,8 +102,8 @@ class SeriesID(ID):
         return cls.is_abstract_id(id_str) or (len(id_str) > 0 and id_str[0] == 's' \
             and is_int(id_str[1:]) and int(id_str[1:]) > 0)
 
-    @staticmethod
-    def is_abstract_id(id_str: str) -> bool:
+    @classmethod
+    def is_abstract_id(cls, id_str: str) -> bool:
         """Determine whether the given string is an abstract ID, that is, whether it
         is 'last' or 'all'."""
 
@@ -138,29 +139,25 @@ class SeriesID(ID):
 
         return int(self.id_str[1:])
 
+    @classmethod
+    def from_int(cls, id: int) -> "SeriesID":
+        """Create a new SeriesID from an int."""
 
-class GroupID:
+        return cls(f"s{id}")
+
+class GroupID(ID):
     """Represents a single group ID."""
 
+    GROUP_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]+$')
+
     def __init__(self, id_str: str):
-        if not self.is_valid_id(id_str):
-            raise ValueError(f"Invalid string {id_str} for type GroupID.")
+        super().__init__(id_str)
 
-        self.id_str = id_str
-
-    @staticmethod
-    def is_valid_id(id_str: str) -> bool:
+    @classmethod
+    def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid group ID."""
-        return len(id_str) > 0 and not (TestID.is_valid_id(id_str) or SeriesID.is_valid_id(id_str))
-
-    def __str__(self) -> str:
-        return self.id_str
-
-    def __eq__(self, other: "GroupID") -> bool:
-        return self.id_str == other.id_str
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.id_str})"
+        return not (TestID.is_valid_id(id_str) or SeriesID.is_valid_id(id_str)) and \
+            cls.GROUP_NAME_RE.match(id_str)
 
 
 class IDRange(ABC):

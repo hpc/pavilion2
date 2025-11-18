@@ -41,7 +41,7 @@ from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
 from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
-from pavilion.test_ids import TestID
+from pavilion.test_ids import TestID, SeriesID
 from .test_attrs import TestAttributes
 
 
@@ -104,8 +104,8 @@ class TestRun(TestAttributes):
     """Pavilion bash utilities"""
 
     def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
-                 var_man: Optional[VariableSetManager] = None, _id: Union[int, str, None] = None,
-                 series_id: Optional[str] = None, rebuild: bool = False, build_only: bool = False):
+                 var_man: Optional[VariableSetManager] = None, _id: Optional[TestID] = None,
+                 series_id: Optional[SeriesID] = None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -151,7 +151,7 @@ class TestRun(TestAttributes):
                 raise TestRunError("Could not create test id directory at '{}'"
                                    .format(tests_path), err)
             super().__init__(path=uuid_path, load=False)
-            self.id = test_uuid
+            self.id = TestID(test_uuid)
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None

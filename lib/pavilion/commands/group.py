@@ -66,7 +66,7 @@ class GroupCommand(Command):
             description="Remove all given ID's (test/series/group) from the group.")
 
         remove_p.add_argument(
-            'group', help="The group to remove items from.")
+            'group', type=GroupID, help="The group to remove items from.")
         remove_p.add_argument(
             'items', nargs='+',
             help="Test run, test series, and group ID's to remove, as per `pav group add`.")
@@ -75,15 +75,15 @@ class GroupCommand(Command):
             'delete',
             help="Delete the given group entirely.")
         delete_p.add_argument(
-            'group', help="The group to delete.")
+            'group', type=GroupID, help="The group to delete.")
 
         rename_p = subparsers.add_parser(
             'rename',
             help="Rename a group.")
         rename_p.add_argument(
-            'group', help="The group to rename.")
+            'group', type=GroupID, help="The group to rename.")
         rename_p.add_argument(
-            'new_name', help="The new name for the group")
+            'new_name', type=GroupID, help="The new name for the group")
         rename_p.add_argument(
             '--no-redirect', action='store_true', default=False,
             help="By default, groups that point to this group are redirected to the new name. "
@@ -105,7 +105,7 @@ class GroupCommand(Command):
                  "include those attached indirectly through series. To see all tests "
                  "in a group, use `pav status`.")
         member_p.add_argument(
-            'group', help="The group to list.")
+            'group', type=GroupID, help="The group to list.")
         member_p.add_argument(
             '--recursive', '-r', action='store_true', default=False,
             help="Recursively list members of child groups as well.")
@@ -124,7 +124,7 @@ class GroupCommand(Command):
 
         return self._run_sub_command(pav_cfg, args)
 
-    def _get_group(self, pav_cfg, group_name: str) -> TestGroup:
+    def _get_group(self, pav_cfg, group_name: GroupID) -> TestGroup:
         """Get the requested group, and print a standard error message on failure."""
 
         try:

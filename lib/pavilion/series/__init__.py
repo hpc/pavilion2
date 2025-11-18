@@ -1,10 +1,12 @@
 """Module init for series objects and related functions."""
 
 import json
+from pathlib import Path
 from typing import TextIO, Optional
 
 from pavilion import output
 from pavilion import utils, dir_db
+from pavilion.config import PavConfig
 from pavilion.test_ids import SeriesID
 from ..sys_vars import base_classes
 from ..errors import TestSeriesError, TestSeriesWarning
@@ -38,7 +40,7 @@ def load_user_series_id(pav_cfg, errfile=None) -> Optional[SeriesID]:
         return None
 
 
-def list_series_tests(pav_cfg, sid: str):
+def list_series_tests(pav_cfg, sid: SeriesID):
     """Return a list of paths to test run directories for the given series id.
     :raises TestSeriesError: If the series doesn't exist."""
 
@@ -63,21 +65,10 @@ def list_series_tests(pav_cfg, sid: str):
     return test_paths
 
 
-def path_from_id(pav_cfg, sid: str):
+def path_from_id(pav_cfg: PavConfig, sid: SeriesID) -> Path:
     """Return the path to the series directory given a series id (in the
     format 's[0-9]+'.
     :raises TestSeriesError: For an invalid id.
     """
 
-    if not sid.startswith('s'):
-        raise TestSeriesError(
-            "Series id's must start with 's'. Got '{}'".format(sid))
-
-    try:
-        raw_id = int(sid[1:])
-    except ValueError:
-        raise TestSeriesError(
-            "Invalid series id '{}'. Series id's must be in the format "
-            "s[0-9]+".format(sid))
-
-    return dir_db.make_id_path(pav_cfg.working_dir/'series', raw_id)
+    return dir_db.make_id_path(pav_cfg.working_dir/'series', sid.as_int())

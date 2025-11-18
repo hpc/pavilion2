@@ -109,7 +109,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 node_range=node_range,
                 shebang=test.shebang)
 
-            test_ids = ' '.join(test.id for test in tests)
+            test_ids = ' '.join(str(test.id) for test in tests)
             script.command('pav _run {}'.format(test_ids))
 >>>>>>> 0e54304d (Fix logging tests)
             script.write(job.kickoff_path)

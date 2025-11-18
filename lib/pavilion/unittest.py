@@ -353,6 +353,7 @@ The default config is: ::
         cfg = resolve.test_config(cfg, var_man)
 
         test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
+
         if test.skipped:
             # You can't proceed further with a skipped test.
             return test
@@ -368,6 +369,7 @@ The default config is: ::
             fin_sched_vars = sched.get_final_vars(test)
             fin_var_man.add_var_set('sched', fin_sched_vars)
             test.finalize(fin_var_man)
+
         return test
 
     def wait_tests(self, working_dir: Path, timeout=5):

@@ -56,7 +56,7 @@ class Job:
                            .format(test_link_dir), err)
 
         for test in tests:
-            (test_link_dir/test.id).symlink_to(test.path)
+            (test_link_dir/str(test.id)).symlink_to(test.path)
 
         job = cls(job_path)
         job.set_kickoff(kickoff_fn)

@@ -273,8 +273,8 @@ def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
     return None
 
 
-def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
-    """Given a list of raw test id's and series id's, return a list of paths
+def test_list_to_paths(pav_cfg, req_tests: List[Union[TestID, SeriesID]], errfile=None) -> List[Path]:
+    """Given a list of test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by
     the current user on the current machine.
@@ -282,7 +282,7 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
     :param pav_cfg: The Pavilion config.
     :param req_tests: A list of test id's, series id's, or 'last'.
     :param errfile: An option output file for printing errors.
-    :return: A list of test id's.
+    :return: A list of test paths.
     """
 
     if errfile is None:
@@ -314,7 +314,7 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
         elif isinstance(raw_id, SeriesID):
             try:
                 test_paths.extend(
-                    series.list_series_tests(pav_cfg, raw_id.id_str))
+                    series.list_series_tests(pav_cfg, raw_id))
             except TestSeriesError:
                 output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
                               color=output.YELLOW)

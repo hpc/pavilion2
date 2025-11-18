@@ -56,7 +56,7 @@ class TestSeries:
     CANCEL_FN = 'series.CANCELED'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
 
-    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id=None,
+    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
                  cancel_cooldown: float = 0.5):
         """Initialize the series. Test sets may be added via 'add_tests()'.
@@ -103,12 +103,13 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = dir_db.create_id_dir(series_path)
+                _id, self.path = dir_db.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}'"
                     .format(series_path), err)
 
+            self._id = SeriesID.from_int(_id)
             # save series config
             self.save_config()
 
@@ -121,11 +122,11 @@ class TestSeries:
         # time).
         else:
             self._id = _id
-            self.path = dir_db.make_id_path(series_path, self._id)
+            self.path = dir_db.make_id_path(series_path, self._id.as_int())
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
-        self.result_loggers = get_result_loggers(pav_cfg, self.sid)
+        self.result_loggers = get_result_loggers(pav_cfg, self._id)
         self.log_proc = None
 
     def run_background(self):
@@ -143,7 +144,7 @@ class TestSeries:
         env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
 
         # start subprocess
-        temp_args = [pav_exe, '_series', self.sid]
+        temp_args = [pav_exe, '_series', str(self._id)]
         try:
             series_out_path = self.path/self.OUT_FN
             with series_out_path.open('w') as series_out:
@@ -158,7 +159,7 @@ class TestSeries:
 
         except OSError as err:
             raise TestSeriesError("Could not start series '{}' in the background."
-                                  .format(self.sid), err)
+                                  .format(self._id), err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -210,30 +211,6 @@ class TestSeries:
                 if dir.is_dir():
                     yield dir
 
-    @property
-    def sid(self):  # pylint: disable=invalid-name
-        """Return the series id as a string, with an 's' in the front to
-differentiate it from test ids."""
-
-        return 's{}'.format(self._id)
-
-    @classmethod
-    def sid_to_id(cls, sid: str) -> int:
-        """Convert a sid string to a numeric series id.
-
-        :raises TestSeriesError: On an invalid sid.
-        """
-
-        if not sid.startswith('s'):
-            raise TestSeriesError(
-                "Invalid SID '{}'. Must start with 's'.".format(sid))
-
-        try:
-            return int(sid[1:])
-        except ValueError:
-            raise TestSeriesError(
-                "Invalid SID '{}'. Must end in an integer.".format(sid))
-
     @classmethod
     def load(cls, pav_cfg, sid: SeriesID, outfile=None):
         """Load a series object from the given id, along with all of its
@@ -262,7 +239,7 @@ differentiate it from test ids."""
             raise TestSeriesError("Could not load config file for test series '{}': {}"
                                   .format(sid), err)
 
-        series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg, outfile=outfile)
+        series = cls(pav_cfg, _id=sid, series_cfg=series_cfg, outfile=outfile)
         return series
 
     def _create_test_sets(self, iteration=0):
@@ -446,12 +423,12 @@ differentiate it from test ids."""
         if log_results:
             try:
                 # Create a new process to log test results as tests complete
-                log_res_args = [pav_exe, '_log_results', self.sid]
+                log_res_args = [pav_exe, '_log_results', str(self._id)]
                 self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
             except OSError as err:
                 raise TestSeriesError(
                     "Could not start result logger in the background for series '{}'."
-                    .format(self.sid), err)
+                    .format(self._id), err)
 
         # create the test sets and link together.
         try:
@@ -499,12 +476,12 @@ differentiate it from test ids."""
                     self.status.set(SERIES_STATES.ERROR,
                                     "Error running test set {}. See the series log "
                                     "`pav log series {}`.  {}"
-                                    .format(test_set.name, self.sid, err.args[0]))
+                                    .format(test_set.name, self._id, err.args[0]))
 
                     self.set_complete()
                     raise TestSeriesError(
                         "Error making tests for series '{}'."
-                        .format(self.sid), err)
+                        .format(self._id), err)
 
             potential_sets = list(waiting_sets)
 
@@ -579,11 +556,11 @@ differentiate it from test ids."""
             except TestSetError as err:
                 self.status.set(SERIES_STATES.BUILD_ERROR,
                                 "Error building tests. See the series log `pav log series {}"
-                                .format(self.sid))
+                                .format(self._id))
                 self.set_complete()
                 raise TestSeriesError(
                     "Error building tests for series '{}'"
-                    .format(self.sid), err)
+                    .format(self._id), err)
 
             if not test_set.ready_to_start:
                 continue
@@ -596,14 +573,14 @@ differentiate it from test ids."""
                 tests_running += len(started_tests)
             except TestSetError as err:
                 self.status.set(SERIES_STATES.KICKOFF_ERROR,
-                                "Error kicking off tests for series '{}'".format(self.sid))
+                                "Error kicking off tests for series '{}'".format(self._id))
                 raise TestSeriesError(
-                    "Error kicking off tests for series '{}'".format(self.sid))
+                    "Error kicking off tests for series '{}'".format(self._id))
 
             if self.verbosity != Verbose.QUIET:
                 if len(new_jobs) == 1:
                     fprint(self.outfile, "Kicked off a job for test set '{}' in series {}."
-                                         .format(test_set.name, self.sid))
+                                         .format(test_set.name, self._id))
                 else:
                     ktests = ', '.join([test.name for test in started_tests[:3]]
                                        + ['...'] if len(started_tests) > 3 else [])
@@ -611,7 +588,7 @@ differentiate it from test ids."""
                     fprint(self.outfile, "Kicked off tests {} ({} total) for test set {} "
                                          "in series {}."
                                          .format(ktests, len(started_tests),
-                                                 test_set.name, self.sid))
+                                                 test_set.name, self._id))
             # If simultaneous is set in the test_set, use that.
             _simultaneous = test_set.simultaneous if test_set.simultaneous else self.simultaneous
             # Wait for jobs until enough have finished to start a new batch.
@@ -720,7 +697,7 @@ differentiate it from test ids."""
 
         if name in self.config['test_sets']:
             raise TestSeriesError("A test set called '{}' already exists in series {}"
-                                  .format(name, self.sid))
+                                  .format(name, self._id))
 
         self.config['test_sets'][name] = {
             'tests': test_names,
@@ -761,7 +738,7 @@ differentiate it from test ids."""
         except OSError as err:
             raise TestSeriesError(
                 "Could not create test set directory {} under series {}."
-                .format(set_path, self.sid), err)
+                .format(set_path, self._id), err)
 
         # attempt to make symlink
         link_path = dir_db.make_id_path(set_path, test.uuid)
@@ -801,13 +778,13 @@ differentiate it from test ids."""
                         # File was empty, therefore json couldn't be loaded.
                         pass
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.sid
+                    data[sys_name] = str(self._id)
                     json_series_file.write(json.dumps(data))
 
             except FileNotFoundError:
                 # File hadn't been created yet.
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.sid
+                    data[sys_name] = str(self._id)
                     json_series_file.write(json.dumps(data))
 
     def get_result_paths(self) -> List[Path]:

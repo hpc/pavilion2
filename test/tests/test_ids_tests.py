@@ -32,7 +32,7 @@ class TestIDTests(PavTestCase):
         """Test that validation is correctly performed for group IDs."""
 
         valid_ids = ("mygroup")
-        invalid_ids = ("1", "s7", "all", "last", "s2.1", "123abc")
+        invalid_ids = ("1", "s7", "all", "last", "s2.1", "123abc", "-as3", "a b")
 
         for id in valid_ids:
             self.assertTrue(GroupID.is_valid_id(id))
