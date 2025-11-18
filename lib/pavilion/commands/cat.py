@@ -43,6 +43,8 @@ class CatCommand(Command):
             if test_id is None:
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
                 return 1
+        else:
+            test_id = args.test_id
 
         tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
         if not tests:

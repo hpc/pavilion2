@@ -143,7 +143,7 @@ class GroupID:
     """Represents a single group ID."""
 
     def __init__(self, id_str: str):
-        if not is_valid_id(id_str):
+        if not self.is_valid_id(id_str):
             raise ValueError(f"Invalid string {id_str} for type GroupID.")
 
         self.id_str = id_str

@@ -14,7 +14,7 @@ from .test_set import TestSet
 from .common import COMPLETE_FN, STATUS_FN, get_all_started
 
 
-def load_user_series_id(pav_cfg, errfile=None) -> Optional[str]:
+def load_user_series_id(pav_cfg, errfile=None) -> Optional[SeriesID]:
     """Load the last series id used by the current user."""
 
     user = utils.get_login()

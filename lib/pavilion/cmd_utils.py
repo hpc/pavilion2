@@ -44,7 +44,7 @@ def load_last_series(pav_cfg, errfile: TextIO) -> Union[series.TestSeries, None]
         return None
 
     try:
-        return series.TestSeries.load(pav_cfg, series_id.id_str)
+        return series.TestSeries.load(pav_cfg, series_id)
     except series.TestSeriesError as err:
         output.fprint(errfile, "Failed to load last series: {}".format(err.args[0]))
         return None

@@ -76,8 +76,6 @@ def is_hex(val: str) -> bool:
         val = int(val, 16)
     except ValueError:
         return False
-    except TypeError:
-        print(type(val))
 
     return val > 0
 
