@@ -12,6 +12,7 @@ from pavilion import dir_db
 from pavilion import status_file
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.types import ID_Pair
+from pavilion.test_ids import TestID
 from ..errors import TestSeriesError
 
 COMPLETE_FN = 'SERIES_COMPLETE'
@@ -91,7 +92,7 @@ class LazyTestRunDict(UserDict):
                 if not path.is_symlink():
                     continue
 
-                test_id = path.name
+                test_id = TestID(path.name)
 
                 try:
                     working_dir = path.resolve().parents[1]
