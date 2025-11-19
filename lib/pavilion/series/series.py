@@ -1,4 +1,5 @@
 # pylint: disable=W0221
+# pylint: disable=invalid-name
 """Series are built around a config that specifies a 'series' of tests to run. It
 also tracks the tests that have run under it."""
 import io
@@ -109,7 +110,7 @@ class TestSeries:
                     "Could not get id or series directory in '{}'"
                     .format(series_path), err)
 
-            self._id = SeriesID.from_int(_id)
+            self.id = SeriesID.from_int(_id)
             # save series config
             self.save_config()
 
@@ -121,12 +122,12 @@ class TestSeries:
         # We're not creating this from scratch (an object was made ahead of
         # time).
         else:
-            self._id = _id
-            self.path = dir_db.make_id_path(series_path, self._id.as_int())
+            self.id = _id
+            self.path = dir_db.make_id_path(series_path, self.id.as_int())
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
-        self.result_loggers = get_result_loggers(pav_cfg, self._id)
+        self.result_loggers = get_result_loggers(pav_cfg, self.id)
         self.log_proc = None
 
     def run_background(self):
@@ -144,7 +145,7 @@ class TestSeries:
         env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
 
         # start subprocess
-        temp_args = [pav_exe, '_series', str(self._id)]
+        temp_args = [pav_exe, '_series', str(self.id)]
         try:
             series_out_path = self.path/self.OUT_FN
             with series_out_path.open('w') as series_out:
@@ -159,7 +160,7 @@ class TestSeries:
 
         except OSError as err:
             raise TestSeriesError("Could not start series '{}' in the background."
-                                  .format(self._id), err)
+                                  .format(self.id), err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -423,12 +424,12 @@ class TestSeries:
         if log_results:
             try:
                 # Create a new process to log test results as tests complete
-                log_res_args = [pav_exe, '_log_results', str(self._id)]
+                log_res_args = [pav_exe, '_log_results', str(self.id)]
                 self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
             except OSError as err:
                 raise TestSeriesError(
                     "Could not start result logger in the background for series '{}'."
-                    .format(self._id), err)
+                    .format(self.id), err)
 
         # create the test sets and link together.
         try:
@@ -476,12 +477,12 @@ class TestSeries:
                     self.status.set(SERIES_STATES.ERROR,
                                     "Error running test set {}. See the series log "
                                     "`pav log series {}`.  {}"
-                                    .format(test_set.name, self._id, err.args[0]))
+                                    .format(test_set.name, self.id, err.args[0]))
 
                     self.set_complete()
                     raise TestSeriesError(
                         "Error making tests for series '{}'."
-                        .format(self._id), err)
+                        .format(self.id), err)
 
             potential_sets = list(waiting_sets)
 
@@ -556,11 +557,11 @@ class TestSeries:
             except TestSetError as err:
                 self.status.set(SERIES_STATES.BUILD_ERROR,
                                 "Error building tests. See the series log `pav log series {}"
-                                .format(self._id))
+                                .format(self.id))
                 self.set_complete()
                 raise TestSeriesError(
                     "Error building tests for series '{}'"
-                    .format(self._id), err)
+                    .format(self.id), err)
 
             if not test_set.ready_to_start:
                 continue
@@ -573,14 +574,14 @@ class TestSeries:
                 tests_running += len(started_tests)
             except TestSetError as err:
                 self.status.set(SERIES_STATES.KICKOFF_ERROR,
-                                "Error kicking off tests for series '{}'".format(self._id))
+                                "Error kicking off tests for series '{}'".format(self.id))
                 raise TestSeriesError(
-                    "Error kicking off tests for series '{}'".format(self._id))
+                    "Error kicking off tests for series '{}'".format(self.id))
 
             if self.verbosity != Verbose.QUIET:
                 if len(new_jobs) == 1:
                     fprint(self.outfile, "Kicked off a job for test set '{}' in series {}."
-                                         .format(test_set.name, self._id))
+                                         .format(test_set.name, self.id))
                 else:
                     ktests = ', '.join([test.name for test in started_tests[:3]]
                                        + ['...'] if len(started_tests) > 3 else [])
@@ -588,7 +589,7 @@ class TestSeries:
                     fprint(self.outfile, "Kicked off tests {} ({} total) for test set {} "
                                          "in series {}."
                                          .format(ktests, len(started_tests),
-                                                 test_set.name, self._id))
+                                                 test_set.name, self.id))
             # If simultaneous is set in the test_set, use that.
             _simultaneous = test_set.simultaneous if test_set.simultaneous else self.simultaneous
             # Wait for jobs until enough have finished to start a new batch.
@@ -614,7 +615,7 @@ class TestSeries:
             time.sleep(self.WAIT_INTERVAL)
 
         raise TimeoutError("Series {} did not complete before timeout."
-                           .format(self._id))
+                           .format(self.id))
 
     def wait_log(self, timeout: float = None) -> None:
         """Wait until the result logging process finishes."""
@@ -697,7 +698,7 @@ class TestSeries:
 
         if name in self.config['test_sets']:
             raise TestSeriesError("A test set called '{}' already exists in series {}"
-                                  .format(name, self._id))
+                                  .format(name, self.id))
 
         self.config['test_sets'][name] = {
             'tests': test_names,
@@ -738,7 +739,7 @@ class TestSeries:
         except OSError as err:
             raise TestSeriesError(
                 "Could not create test set directory {} under series {}."
-                .format(set_path, self._id), err)
+                .format(set_path, self.id), err)
 
         # attempt to make symlink
         link_path = dir_db.make_id_path(set_path, test.uuid)
@@ -778,13 +779,13 @@ class TestSeries:
                         # File was empty, therefore json couldn't be loaded.
                         pass
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = str(self._id)
+                    data[sys_name] = str(self.id)
                     json_series_file.write(json.dumps(data))
 
             except FileNotFoundError:
                 # File hadn't been created yet.
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = str(self._id)
+                    data[sys_name] = str(self.id)
                     json_series_file.write(json.dumps(data))
 
     def get_result_paths(self) -> List[Path]:

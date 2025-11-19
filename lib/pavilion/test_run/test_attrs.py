@@ -48,7 +48,7 @@ class TestAttributes(Mapping):
     """
 
     serializers = {
-        "id": lambda x: str(x),
+        "id": str,
         "status": lambda s: s.path.as_posix(),
         'suite_path': lambda p: p.as_posix(),
     }

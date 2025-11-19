@@ -1088,7 +1088,7 @@ class ResultParserTests(PavTestCase):
 
         series1 = run_cmd.last_series
 
-        loggers = get_result_loggers(self.pav_cfg, series1._id)
+        loggers = get_result_loggers(self.pav_cfg, series1.id)
         series1.log_results(loggers)
 
         series1.wait()
@@ -1124,7 +1124,7 @@ class ResultParserTests(PavTestCase):
 
         series2 = run_cmd.last_series
 
-        loggers = get_result_loggers(self.pav_cfg, str(series2._id))
+        loggers = get_result_loggers(self.pav_cfg, str(series2.id))
         series2.log_results(loggers)
 
         series2.wait()

@@ -5,7 +5,7 @@ from typing import Union, Tuple, List, Iterable, Optional, Dict, Any
 from abc import ABC, abstractmethod
 
 from pavilion.micro import flatten, unique
-from pavilion.utils import is_int, is_hex
+from pavilion.utils import is_int, is_hash
 
 
 class ID(ABC):
@@ -63,11 +63,11 @@ class TestID(ID):
             self.series = SeriesID(parts[0])
             self.id = int(parts[1])
         else:
+            self.series = None
+
             if is_int(parts[0]):
-                self.series = SeriesID("last")
                 self.id = int(parts[0])
             else:
-                self.series = None
                 self.id = parts[0]
 
         self.parts = (self.series, self.id)
@@ -76,7 +76,7 @@ class TestID(ID):
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid test ID."""
 
-        if is_hex(id_str):
+        if is_hash(id_str, 32) or is_int(id_str):
             return True
 
         if "." in id_str:
@@ -121,9 +121,6 @@ class TestID(ID):
 
 class SeriesID(ID):
     """Represents a single series ID."""
-
-    def __init__(self, id_str: str):
-        super().__init__(id_str)
 
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
@@ -178,9 +175,6 @@ class GroupID(ID):
 
     GROUP_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]+$')
 
-    def __init__(self, id_str: str):
-        super().__init__(id_str)
-
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid group ID."""
@@ -188,7 +182,7 @@ class GroupID(ID):
                     SeriesID.is_valid_id(id_str) or \
                     TestRange.is_valid_range_str(id_str) or \
                     SeriesRange.is_valid_range_str(id_str)) and \
-               cls.GROUP_NAME_RE.match(id_str)
+               cls.GROUP_NAME_RE.match(id_str) is not None
 
     def __gt__(self, other: "GroupID") -> bool:
         if not isinstance(other, self.__class__):

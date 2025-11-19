@@ -73,7 +73,11 @@ class WaitCommand(Command):
 
         # get start time
         start_time = time.time()
-        args.tests = resolve_mixed_ids(args.tests, auto_last=True)
+
+        ids = resolve_mixed_ids(args.tests, auto_last=True)
+        args.tests = ids["tests"]
+        args.series = ids["series"]
+
         tests = cmd_utils.get_tests_by_id(pav_cfg, args.tests, self.errfile)
 
         # determine timeout time, if there is one

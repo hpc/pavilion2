@@ -197,7 +197,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
     seen_sids = []
     found_series = []
 
-    if not (isinstance(args.series, list)):
+    if not isinstance(args.series, list):
         args.series = [args.series]
 
     for sid in args.series:

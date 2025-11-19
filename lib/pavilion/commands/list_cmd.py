@@ -267,7 +267,7 @@ class ListCommand(Command):
         fields, mode = self.get_fields(
             fields_arg=args.out_fields,
             mode_arg=args.output_mode,
-            default_single_field='sid',
+            default_single_field='id',
             default_fields=self.SERIES_LONG_FIELDS,
             avail_fields=list(series_attrs.keys()),
         )

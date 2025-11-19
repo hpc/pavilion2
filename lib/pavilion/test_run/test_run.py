@@ -105,7 +105,8 @@ class TestRun(TestAttributes):
 
     def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
                  var_man: Optional[VariableSetManager] = None, _id: Optional[TestID] = None,
-                 series_id: Optional[SeriesID] = None, rebuild: bool = False, build_only: bool = False):
+                 series_id: Optional[SeriesID] = None, rebuild: bool = False,
+                 build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 

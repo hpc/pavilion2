@@ -58,7 +58,8 @@ class RunSeries(Command):
             'cancel',
             help="Cancel a series or series. Defaults to the your last series on this system.")
         filters.add_series_filter_args(cancel_p, sort_keys=[], disable_opts=['sys-name'])
-        cancel_p.add_argument('series', type=SeriesID, nargs='*', help="One or more series to cancel")
+        cancel_p.add_argument('series', type=SeriesID, nargs='*',
+                                help="One or more series to cancel")
 
         list_p = subparsers.add_parser(
             'list',
@@ -217,7 +218,7 @@ class RunSeries(Command):
                 group.add([series_obj])
             except groups.TestGroupError as err:
                 output.fprint(self.errfile, "Error adding series '{}' to group '{}'."
-                                            .format(series_obj._id, group.name), color=output.RED)
+                                            .format(series_obj.id, group.name), color=output.RED)
                 output.fprint(self.errfile, err.pformat())
                 return errno.EINVAL
             output.fprint(self.errfile,
@@ -243,7 +244,7 @@ class RunSeries(Command):
                       "Run `pav series status {sid}` to view series status.\n"
                       "Run `pav series cancel {sid}` to cancel the series (and all its tests).\n"
                       "Run `pav series sets {sid}` to view status of individual test sets."
-                      .format(sid=series_obj._id))
+                      .format(sid=series_obj.id))
 
         self.last_run_series = series_obj
 
@@ -443,13 +444,13 @@ class RunSeries(Command):
             except series.TestSeriesError as err:
                 output.fprint(self.errfile,
                               "Could not load found series '{}': {}"
-                              .format(ser._id, err.args[0]))
+                              .format(ser.id, err.args[0]))
 
         tests_to_cancel = []
         for ser in chosen_series:
             # We'll cancel the tests verbosely.
             ser.cancel(message="By user {}".format(utils.get_login()), cancel_tests=False)
-            output.fprint(self.outfile, "Series {} cancelled.".format(ser._id))
+            output.fprint(self.outfile, "Series {} cancelled.".format(ser.id))
 
             tests_to_cancel.extend(ser.tests.values())
 

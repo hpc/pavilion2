@@ -495,8 +495,8 @@ class TestGroup:
         if isinstance(series, TestSeries):
             if not series.path.exists():
                 raise TestGroupError("Series '{}' at '{}' does not exist."
-                                     .format(series._id, series.path))
-            return series._id, series.path
+                                     .format(series.id, series.path))
+            return series.id, series.path
 
         series_dir = self.pav_cfg.working_dir/'series'/str(series.as_int())
 
@@ -515,7 +515,7 @@ class TestGroup:
         elif isinstance(item, TestID):
             return TestRun, self.path/self.TESTS_DIR/str(item)
         elif isinstance(item, TestSeries):
-            return TestSeries, self.path/self.SERIES_DIR/str(item._id.as_int())
+            return TestSeries, self.path/self.SERIES_DIR/str(item.id.as_int())
         elif isinstance(item, SeriesID):
             return TestSeries, self.path/self.SERIES_DIR/str(item.as_int())
         elif isinstance(item, self.__class__):

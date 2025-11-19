@@ -69,15 +69,15 @@ def is_int(val: str):
 
     return True
 
-def is_hex(val: str) -> bool:
-    """Return true if the given string value is a positive hexidecimal value."""
+def is_hash(val: str, hash_len: int) -> bool:
+    """Return true if the given string value is a hexidecimal hash."""
 
     try:
-        val = int(val, 16)
+        int(val, 16)
     except ValueError:
         return False
 
-    return val > 0
+    return len(val) == hash_len
 
 def str_bool(val):
     """Returns true if the string value is the string 'true' with allowances

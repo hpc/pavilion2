@@ -88,13 +88,7 @@ class LSCommand(Command):
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
                 return errno.EEXIST
 
-        elif TestID.is_valid_id(args.test_id):
-            test_id = TestID(args.test_id)
-        else:
-            output.fprint(self.errfile, f"{args.test_id} is not a valid test ID.")
-            return errno.EEXIST
-
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
         if not tests:
             output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
             return errno.EEXIST

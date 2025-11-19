@@ -47,8 +47,6 @@ class TestGroupTests(unittest.PavTestCase):
         for item in items:
             if isinstance(item, groups.TestGroup):
                 item_tuples.append(item.name)
-            elif isinstance(item, series.TestSeries):
-                item_tuples.append(item._id)
             else:
                 item_tuples.append(item.id)
 
@@ -61,7 +59,7 @@ class TestGroupTests(unittest.PavTestCase):
 
         for obj, str_rep in (
                 (test, test.id),
-                (series1, series1._id),
+                (series1, series1.id),
                 (sub_group, sub_group.name)):
 
             self.assertEqual(group._get_member_info(obj), group._get_member_info(str_rep))
@@ -74,7 +72,7 @@ class TestGroupTests(unittest.PavTestCase):
         added, errors = group.add(items)
         self.assertEqual(errors, [])
         added_answer = [test.id,
-                        series1._id,
+                        series1.id,
                         sub_group.name]
         added2, errors = group.add(items)
         self.assertEqual(errors, [])
@@ -101,7 +99,7 @@ class TestGroupTests(unittest.PavTestCase):
         # Remove a single item, to make sure other items are preserved
         removed, errors = group.remove([series1])
         self.assertEqual(errors, [])
-        self.assertEqual(removed, [series1._id])
+        self.assertEqual(removed, [series1.id])
         self.assertGroupContentsEqual(group, [test, sub_group])
 
         # Remove multiple items.
