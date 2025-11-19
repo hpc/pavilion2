@@ -529,7 +529,7 @@ class TestSet:
                         when = output.get_relative_timestamp(when)
                         state = '' if state is None else state
                         preamble = self.BUILD_STATUS_PREAMBLE.format(
-                            when=when, test_id=test.id,
+                            when=when, test_id=str(test.id),
                             state_len=STATES.max_length, state=state)
 
                         output.fprint(self.outfile, preamble, msg, width=None,
@@ -648,13 +648,10 @@ class TestSet:
             "Tests with build errors:"
         ]
 
-        test_id = '<id>'
+        test_id = None
         for tracker in self.mb_tracker.failures():
             test = tracker.test
-            if test.id.startswith('main'):
-                test_id = str(test.id)
-            else:
-                test_id = test.id
+            test_id = test.id
 
             msg.append(
                 " - {test} ({id} in test set '{set_name}')"

@@ -202,6 +202,8 @@ class IDRange(ABC):
     """Represents a contiguous sequence of IDs."""
 
     def __init__(self, start: int, end: int):
+        if start > end:
+            raise ValueError(f"End value {end} must be greater than or equal to {start}.")
         self.start = start
         self.end = end
 
@@ -240,6 +242,9 @@ class IDRange(ABC):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.start}, {self.end})"
+
+    def __len__(self) -> int:
+        return self.end - self.start + 1
 
 
 class TestRange(IDRange):
