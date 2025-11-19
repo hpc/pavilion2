@@ -184,7 +184,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
     limit = getattr(args, 'limit', filters.SERIES_FILTER_DEFAULTS['limit'])
     verbose = verbose or io.StringIO()
 
-    if SeriesID('all') in args.series:
+    if args.series == SeriesID("all") or SeriesID('all') in args.series:
         for arg, default in filters.SERIES_FILTER_DEFAULTS.items():
             if hasattr(args, arg) and default != getattr(args, arg):
                 break
@@ -195,6 +195,10 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
 
     seen_sids = []
     found_series = []
+
+    if not (isinstance(args.series, list)):
+        args.series = [args.series]
+
     for sid in args.series:
         # Go through each provided sid (including last and all) and find all
         # matching series. Then only add them if we haven't seen them yet.
@@ -233,9 +237,9 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
 
     matching_series = []
     for sinfo in found_series:
-        if sinfo.sid not in seen_sids:
+        if sinfo.id not in seen_sids:
             matching_series.append(sinfo)
-            seen_sids.append(sinfo.sid)
+            seen_sids.append(sinfo.id)
 
     return matching_series
 

@@ -11,6 +11,7 @@ from pavilion import status_file
 from pavilion import utils
 from pavilion.errors import TestRunError, TestSeriesError
 from pavilion.test_run import TestRun, TestAttributes
+from pavilion.test_ids import SeriesID
 from . import common
 
 
@@ -74,15 +75,9 @@ class SeriesInfoBase(Mapping):
         return attr_prop.__doc__
 
     @property
-    def sid(self):
-        """The sid of this series."""
-
-        return path_to_sid(self.path)
-
-    @property
-    def id(self):  # pylint: disable=invalid-name
+    def id(self) -> SeriesID:  # pylint: disable=invalid-name
         """The id of this series."""
-        return int(self.path.name)
+        return SeriesID(f"s{self.path.name}")
 
     @property
     def user(self):

@@ -58,7 +58,7 @@ class RunSeries(Command):
             'cancel',
             help="Cancel a series or series. Defaults to the your last series on this system.")
         filters.add_series_filter_args(cancel_p, sort_keys=[], disable_opts=['sys-name'])
-        cancel_p.add_argument('series', nargs='*', help="One or more series to cancel")
+        cancel_p.add_argument('series', type=SeriesID, nargs='*', help="One or more series to cancel")
 
         list_p = subparsers.add_parser(
             'list',
@@ -138,7 +138,7 @@ class RunSeries(Command):
                  "`pav series status`")
         set_status_p.add_argument('--merge-repeats', '-m', default=False, action='store_true',
                                   help='Merge data from all repeats of each set.')
-        set_status_p.add_argument('series', default='last', nargs='?',
+        set_status_p.add_argument('series', type=SeriesID, default=SeriesID("last"), nargs='?',
                                   help='The series to print the sets for.')
 
         state_p = subparsers.add_parser(
@@ -154,7 +154,7 @@ class RunSeries(Command):
         state_p_filter_args.add_argument(
             '--skipped', action='store_true', default=False,
             help="List only skipped test reasons.")
-        state_p.add_argument('series', default='last', nargs='?',
+        state_p.add_argument('series', type=SeriesID, default=SeriesID("last"), nargs='?',
                              help="The series to print status history for.")
 
     def _find_series(self, pav_cfg, series_name):
@@ -250,10 +250,9 @@ class RunSeries(Command):
         return 0
 
     @sub_cmd(*LIST_ALIASES)
-    def _list_cmd(self, pav_cfg, args):
+    def _list_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """List series."""
 
-        args.series = resolve_mixed_ids(args.series, auto_last=True)
         matched_series = cmd_utils.arg_filtered_series(
             pav_cfg=pav_cfg, args=args, verbose=self.errfile)
 
@@ -388,7 +387,7 @@ class RunSeries(Command):
     def _state_history_cmd(self, pav_cfg: config.PavConfig, args):
         """Print the full status history for a series."""
 
-        if args.series == 'last':
+        if args.series == SeriesID("last"):
             ser = cmd_utils.load_last_series(pav_cfg, self.errfile)
             if ser is None:
                 return errno.EINVAL
@@ -433,14 +432,13 @@ class RunSeries(Command):
     def _cancel_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Cancel all series found given the arguments."""
 
-        args.series = resolve_mixed_ids(args.series, auto_last=True)
         series_info = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
         output.fprint(self.outfile, "Found {} series to cancel.".format(len(series_info)))
 
         chosen_series = []
         for ser in series_info:
             try:
-                loaded_ser = series.TestSeries.load(pav_cfg, ser._id)
+                loaded_ser = series.TestSeries.load(pav_cfg, ser.id)
                 chosen_series.append(loaded_ser)
             except series.TestSeriesError as err:
                 output.fprint(self.errfile,
