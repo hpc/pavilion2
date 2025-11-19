@@ -37,7 +37,7 @@ class SeriesTests(PavTestCase):
         # Add a basic test set and save.
         series1.add_test_set_config('series1', ['pass_fail'])
 
-        series2 = series.TestSeries.load(self.pav_cfg, series1.sid)
+        series2 = series.TestSeries.load(self.pav_cfg, series1._id)
 
         # Make sure a loaded series is the same as the original
         for attr in series1.__dict__.keys():
