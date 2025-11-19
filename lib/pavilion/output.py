@@ -678,7 +678,7 @@ def dt_format_rows(rows: List[Dict], fields: List[str],
             data = row.get(field, info.get('default', ''))
             orig_data = data
             # Transform the data, if a transform is given
-            if data != '' and data is not None:
+            if data is not None and not (isinstance(data, str) and data == ""):
                 try:
                     data = info.get('transform', lambda a: a)(data)
                 except (ValueError, AttributeError, KeyError):

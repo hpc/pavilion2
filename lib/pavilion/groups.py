@@ -273,7 +273,7 @@ class TestGroup:
             if not rmpath.exists():
                 if itype == TestRun:
                     try:
-                        t_full_id, t_path = self._get_test_info(rmpath.name)
+                        t_full_id, t_path = self._get_test_info(TestID(rmpath.name))
                     except TestGroupError as err:
                         warnings.append(
                             TestGroupError(
@@ -374,14 +374,6 @@ class TestGroup:
                 if path.exists():
                     mem_info['created'] = path.stat().st_mtime
         return members
-
-    def member_tuples(self) -> List[Tuple[type,ID]]:
-        """As per 'members', but return a list of (item_type, item_id) tuples."""
-
-        tups = []
-        for item in self.members():
-            tups.append((item['itype'], item['id']))
-        return tups
 
     def clean(self) -> List[TestGroupError]:
         """Remove all dead links and group files, then delete the group if it's empty.
@@ -543,7 +535,7 @@ class TestGroup:
         excluded = {}
         try:
             for test_path in (self.path/self.EXCLUDED_DIR).iterdir():
-                id = test_path.name
+                id = TestID(test_path.name)
                 test_path = test_path.resolve()
                 if test_path.exists():
                     excluded[id] = test_path
@@ -590,3 +582,12 @@ class TestGroup:
                     ex_path.unlink()
                 except (OSError, FileNotFoundError) as err:
                     pass
+
+    def __contains__(self, item: ID) -> bool:
+        if isinstance(item, TestID):
+            return str(item) in map(lambda x: x.name, (self.path / self.TESTS_DIR).iterdir())
+        elif isinstance(item, SeriesID):
+            return str(item.as_int()) in map(lambda x: x.name,
+                                            (self.path / self.SERIES_DIR).iterdir())
+        else:
+            return str(item) in map(lambda x: x.name, (self.path / self.GROUPS_DIR).iterdir())

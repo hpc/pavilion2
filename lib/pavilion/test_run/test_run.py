@@ -448,7 +448,7 @@ class TestRun(TestAttributes):
         return cls.load(pav_cfg, working_dir, test_id)
 
     @classmethod
-    def load(cls, pav_cfg, working_dir: Path, test_id: int) -> 'TestRun':
+    def load(cls, pav_cfg, working_dir: Path, test_id: TestID) -> 'TestRun':
         """Load an old TestRun object given a test id.
 
         :param pav_cfg: The pavilion config
@@ -457,7 +457,7 @@ class TestRun(TestAttributes):
         :rtype: TestRun
         """
 
-        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id)
+        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id.id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "

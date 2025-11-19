@@ -6,7 +6,7 @@ from pavilion import unittest
 from pavilion.errors import TestGroupError
 from pavilion.series_config import generate_series_config
 from pavilion.test_run import TestRun
-from pavilion.test_ids import GroupID
+from pavilion.test_ids import GroupID, TestID
 
 import shutil
 import uuid
@@ -112,7 +112,7 @@ class TestGroupTests(unittest.PavTestCase):
 
         removed, errors = group.remove([GroupID('nope')])
         self.assertEqual(removed, [])
-        self.assertEqual(len(errors), 4)
+        self.assertEqual(len(errors), 1)
 
     def test_group_exclusions(self):
         """Check that excluded tests are handled properly."""
@@ -124,11 +124,10 @@ class TestGroupTests(unittest.PavTestCase):
         s_test = list(series1.tests.values())[0]
         g_test = sub_group.tests()[0]
         g_test = g_test.resolve()
-        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], g_test.name)
+        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], TestID(g_test.name))
 
         removed, warnings = group.remove([g_test, s_test])
         self.assertEqual(warnings, [])
-        removed.sort()
         answer = [s_test.id, g_test.id]
         self.assertEqual(set(removed), set(answer))
         self.assertEqual(group._excluded(), {s_test.id: s_test.path,
@@ -138,8 +137,7 @@ class TestGroupTests(unittest.PavTestCase):
         group.remove([sub_group.name])
 
         added, warnings = group.add([s_test, g_test])
-        self.assertEqual(sorted(added), [('test',  g_test.id),
-                                         ('test*', s_test.id)])
+        self.assertEqual(sorted(added), sorted([g_test.id, s_test.id]))
         self.assertEqual(warnings, [])
 
     def test_group_clean(self):
@@ -173,17 +171,17 @@ class TestGroupTests(unittest.PavTestCase):
         self.assertEqual(sub_group.name, new_name)
         self.assertEqual(GroupID(sub_group.path.name), new_name)
         self.assertTrue(sub_group.exists())
-        self.assertIn(('group', new_name), group.member_tuples())
-        self.assertNotIn(('group', old_name), group.member_tuples())
+        self.assertIn(new_name, group)
+        self.assertNotIn(old_name, group)
 
         new_name2 = self._make_group_name()
         sub_group.rename(new_name2, redirect_parents=False)
         self.assertEqual(sub_group.name, new_name2)
-        self.assertEqual(sub_group.path.name, new_name2)
+        self.assertEqual(GroupID(sub_group.path.name), new_name2)
         self.assertTrue(sub_group.exists())
         # The group doesn't exist under the old renaming, and we didn't rename it.
-        self.assertIn(('group', new_name), group.member_tuples())
-        self.assertNotIn(('group', new_name2), group.member_tuples())
+        self.assertIn(new_name, group)
+        self.assertNotIn(new_name2, group)
 
     def test_group_commands(self):
         """Check the operation of various group command statements."""

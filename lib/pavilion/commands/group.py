@@ -305,13 +305,22 @@ class GroupCommand(Command):
         if args.recursive:
             fields.insert(0, 'group')
 
+        def type_transform(type: type) -> str:
+            if type == TestRun:
+                return "test"
+            elif type == TestSeries:
+                return "series"
+            else:
+                return "group"
+
         draw_table(
             self.outfile,
             rows=members,
             fields=fields,
             field_info={
-                'itype': {'title': 'type'},
-                'created': {'transform': output.get_relative_timestamp}
+                'itype': {'title': 'type', 'transform': type_transform},
+                'created': {'transform': output.get_relative_timestamp},
+                'id': {'transform': str}
             })
 
         return 0

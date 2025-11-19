@@ -28,10 +28,6 @@ class ID(ABC):
         return self.id_str
 
     def __eq__(self, other: "ID") -> bool:
-        if not isinstance(other, self.__class__):
-            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
-                            f"{type(other).__name__}.")
-
         return self.id_str == other.id_str
 
     @abstractmethod
