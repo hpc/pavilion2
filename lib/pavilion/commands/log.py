@@ -11,7 +11,7 @@ from pavilion import output
 from pavilion import series, series_config
 from pavilion import cmd_utils
 from pavilion.test_run import TestRun
-from pavilion.test_ids import TestID
+from pavilion.test_ids import TestID, SeriesID
 from .base_classes import Command
 
 
@@ -147,11 +147,20 @@ class LogCommand(Command):
         else:
             cmd_name = args.log_cmd
 
-        if cmd_name == 'states':
+        if hasattr(args, "id"):
             if args.id is None:
+                args.id = SeriesID("last")
+            else:
+                if TestID.is_valid_id(args.id):
+                    args.id = TestID(args.id)
+                else:
+                    args.id = SeriesID(args.id)
+
+        if cmd_name == 'states':
+            if args.id == SeriesID("last"):
                 args.id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
 
-            if args.id is None:
+            if args.id == SeriesID("last"):
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
                 return 1
 
@@ -166,7 +175,7 @@ class LogCommand(Command):
         else:
             try:
                 if cmd_name == 'series':
-                    if args.id is None:
+                    if args.id is SeriesID("last"):
                         test = cmd_utils.load_last_series(pav_cfg, self.errfile)
 
                         if test is None:
@@ -175,7 +184,7 @@ class LogCommand(Command):
                     else:
                         test = series.TestSeries.load(pav_cfg, args.id)
                 else:
-                    if args.id is None:
+                    if args.id is SeriesID("last"):
                         args.id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
 
                     if args.id is None:
@@ -243,7 +252,7 @@ class LogCommand(Command):
                 break
         return 0
 
-    def _states(self, pav_cfg, test_id: str, raw: bool = False, raw_time: bool = False):
+    def _states(self, pav_cfg, test_id: TestID, raw: bool = False, raw_time: bool = False):
         """Print the states for a test."""
 
         try:
