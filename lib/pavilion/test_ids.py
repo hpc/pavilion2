@@ -1,7 +1,7 @@
 # pylint: disable=invalid-name
 
 import re
-from typing import Union, Tuple, List, Iterable, Optional, Dict
+from typing import Union, Tuple, List, Iterable, Optional, Dict, Any
 from abc import ABC, abstractmethod
 
 from pavilion.micro import flatten, unique
@@ -27,8 +27,11 @@ class ID(ABC):
     def __str__(self) -> str:
         return self.id_str
 
-    def __eq__(self, other: "ID") -> bool:
-        return self.id_str == other.id_str
+    def __eq__(self, other: Any) -> bool:
+        if not hasattr(other, "id_str"):
+            return False
+
+        return self.id_str.lower() == other.id_str.lower()
 
     @abstractmethod
     def __gt__(self, other: "ID") -> bool:
@@ -126,22 +129,18 @@ class SeriesID(ID):
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid series ID."""
 
-        return cls.is_abstract_id(id_str) or (len(id_str) > 0 and id_str[0] == 's' \
+        return id_str.lower() in ("last", "all") or (len(id_str) > 0 and id_str[0] == 's' \
             and is_int(id_str[1:]) and int(id_str[1:]) > 0)
 
-    @classmethod
-    def is_abstract_id(cls, id_str: str) -> bool:
-        """Determine whether the given string is an abstract ID, that is, whether it
-        is 'last' or 'all'."""
+    def is_abstract_id(self) -> bool:
+        """Return true if the ID is an abstract ID, that is, whether it is 'last' or 'all'."""
 
-        return id_str.lower() in ("last", "all")
+        return self.all() or self.last()
 
-    @classmethod
-    def is_concrete_id(cls, id_str: str) -> bool:
-        """Determine whether the given string is a concrete ID, that is, whether it
-        is not 'last' or 'all'."""
+    def is_concrete_id(self) -> bool:
+        """Return true if the ID is a concrete ID, that is, whether it is not 'last' or 'all'."""
 
-        return cls.is_valid_id(id_str) and not cls.is_abstract_id(id_str)
+        return not self.is_abstract_id()
 
     def all(self) -> bool:
         """Determine whether the ID is the set of all IDs."""
@@ -153,16 +152,11 @@ class SeriesID(ID):
 
         return self.id_str.lower() == "last"
 
-    def is_int(self) -> bool:
-        """Determine whether the series ID is an integer value."""
-
-        return len(self.id_str) > 0 and is_int(self.id_str[1:])
-
     def as_int(self) -> int:
         """Convert the series ID into an integer, if possible."""
 
-        if self.all() or self.last():
-            raise ValueError(f"Series with ID {self.id_str} cannot be converted to an integer.")
+        if self.is_abstract_id():
+            raise ValueError(f"Abstract series '{self}' cannot be converted to an integer.")
 
         return int(self.id_str[1:])
 

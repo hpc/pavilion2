@@ -230,7 +230,9 @@ class ListCommand(Command):
             avail_fields=TestAttributes.list_attrs()
         )
 
-        args.tests = resolve_mixed_ids(args.tests, auto_last=True)
+        ids = resolve_mixed_ids(args.tests, auto_last=True)
+        args.tests = ids["tests"]
+        args.series = ids["series"]
 
         test_runs = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).data
 
@@ -269,8 +271,6 @@ class ListCommand(Command):
             default_fields=self.SERIES_LONG_FIELDS,
             avail_fields=list(series_attrs.keys()),
         )
-
-        args.series = resolve_mixed_ids(args.series, auto_last=True)
 
         series = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
         series = [series_info.attr_dict() for series_info in series]

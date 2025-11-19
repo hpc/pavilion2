@@ -134,7 +134,16 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
     test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
 
     for sid in args.series:
-        test_paths.extend(map(lambda x: x.resolve(), series.list_series_tests(pav_cfg, sid)))
+        if sid.last():
+            sid_ = series.load_user_series_id(pav_cfg, errfile=verbose)
+
+            if sid_ is None:
+                output.fprint(verbose, "No last series found.")
+                continue
+        else:
+            sid_ = sid
+
+        test_paths.extend(map(lambda x: x.resolve(), series.list_series_tests(pav_cfg, sid_)))
 
     return dir_db.select_from(
         pav_cfg,

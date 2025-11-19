@@ -5,6 +5,7 @@ from pavilion import arguments
 from pavilion import commands
 from pavilion.series.series import TestSeries
 from pavilion.test_run import TestAttributes
+from pavilion.test_ids import resolve_mixed_ids
 from pavilion.unittest import PavTestCase
 
 
@@ -42,11 +43,12 @@ class ListCmdTest(PavTestCase):
 
         args = parser.parse_args(['list', 'test_runs', '--limit=15',
                                   '--filter', 'name=*.list_cmd_tests_*'])
+
         self.assertEqual(cmd.run(self.pav_cfg, args), 0)
         out, err = cmd.clear_output()
         self.assertEqual(err, '')
         self.assertEqual([t for t in out.split()],
-                         [t.id for t in tests[:15]])
+                         [str(t.id) for t in tests[:15]])
 
         args = parser.parse_args(
             ['list', '--multi-line', 'test_runs', '--sort-by=created',
@@ -55,7 +57,7 @@ class ListCmdTest(PavTestCase):
         out, err = cmd.clear_output()
         # 26-30 are filtered due to the default newer-than time.
         self.assertEqual([t for t in out.strip().splitlines()],
-                         [t.id for t in list(reversed(tests))][:15])
+                         [str(t.id) for t in list(reversed(tests))][:15])
 
         all_out_fields = ','.join(TestAttributes.list_attrs())
         args = parser.parse_args(
@@ -72,7 +74,7 @@ class ListCmdTest(PavTestCase):
 
         # 26-30 are filtered due to the default newer-than time.
         self.assertEqual(ids,
-                         [t.id for t in tests if t.complete])
+                         [str(t.id) for t in tests if t.complete])
 
         args = parser.parse_args(
             ['list', '--csv', '--out-fields={}'.format(all_out_fields),
@@ -82,7 +84,7 @@ class ListCmdTest(PavTestCase):
         rows = [line.split(",") for line in out.strip().splitlines()]
         ids = [int(row[id_idx]) for row in rows]
         self.assertEqual(ids,
-                         [t.id for t in tests if (t.result == t.PASS)])
+                         [str(t.id) for t in tests if (t.result == t.PASS)])
 
         for arglist in [
                 ['list', '--long', '--header', '--vsep=$', 'runs'],
