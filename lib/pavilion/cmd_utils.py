@@ -421,7 +421,7 @@ def get_tests_by_id(pav_cfg, test_ids: List[Union[TestID, SeriesID]], errfile: T
                 if raw_id.last():
                     series_obj = load_last_series(pav_cfg, errfile)
                 else:
-                    series_obj = series.TestSeries.load(pav_cfg, raw_id.id_str)
+                    series_obj = series.TestSeries.load(pav_cfg, raw_id)
             except TestSeriesError as err:
                 output.fprint(errfile, "Suite {} could not be found.\n{}"
                               .format(raw_id, err), color=output.RED)
@@ -431,7 +431,7 @@ def get_tests_by_id(pav_cfg, test_ids: List[Union[TestID, SeriesID]], errfile: T
         # Just a plain test id.
         else:
             try:
-                test_id_pairs.append(TestRun.parse_raw_id(pav_cfg, raw_id.id_str))
+                test_id_pairs.append(TestRun.parse_raw_id(pav_cfg, raw_id))
 
             except TestRunError as err:
                 output.fprint(sys.stdout, "Error loading test '{}': {}"
