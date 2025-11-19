@@ -1,7 +1,6 @@
 """The module contains functions and classes that are generally useful across
 multiple commands."""
 
-import argparse
 import datetime as dt
 import io
 import logging
@@ -9,6 +8,7 @@ import sys
 import time
 import os
 from pathlib import Path
+from argparse import Namespace
 from typing import List, TextIO, Union, Iterator, Optional
 from collections import defaultdict
 
@@ -23,14 +23,14 @@ from pavilion import utils
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
 from pavilion.test_run import TestRun, load_tests, TestAttributes
-from pavilion.test_ids import TestID, SeriesID
+from pavilion.test_ids import TestID, SeriesID, ID
 from pavilion.types import ID_Pair
 from pavilion.micro import flatten
 
 LOGGER = logging.getLogger(__name__)
 
 
-def load_last_series(pav_cfg, errfile: TextIO) -> Union[series.TestSeries, None]:
+def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[series.TestSeries]:
     """Load the series object for the last series run by this user on this system."""
 
     try:
@@ -50,7 +50,7 @@ def load_last_series(pav_cfg, errfile: TextIO) -> Union[series.TestSeries, None]
         return None
 
 
-def set_arg_defaults(args):
+def set_arg_defaults(args: Namespace) -> None:
     """Set typical argument defaults, but don't override any given."""
 
     # Don't assume these actually exist.
@@ -58,8 +58,8 @@ def set_arg_defaults(args):
     args.filter = getattr(args, 'filter', def_filter)
 
 
-def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
-                       verbose: TextIO = None) -> dir_db.SelectItems:
+def arg_filtered_tests(pav_cfg: config.PavConfig, args: Namespace,
+                       verbose: Optional[TextIO] = None) -> dir_db.SelectItems:
     """Search for test runs that match based on the argument values in args,
     and return a list of matching test id's.
 
@@ -174,8 +174,8 @@ def make_filter_query() -> str:
     return template.format(*fargs)
 
 
-def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
-                        verbose: TextIO = None) -> List[series.SeriesInfo]:
+def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
+                        verbose: Optional[TextIO] = None) -> List[series.SeriesInfo]:
     """Return a list of SeriesInfo objects based on the args.series attribute. When args.series is
     empty, default to the 'last' series started by the user on this system. If 'all' is given,
     search all series (with a default current user/system/1-day filter) and additonally filtered
@@ -240,7 +240,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: argparse.Namespace,
     return matching_series
 
 
-def read_test_files(pav_cfg, files: List[str]) -> List[str]:
+def read_test_files(pav_cfg: config.PavConfig, files: List[str]) -> List[str]:
     """Read the given files which contain a list of tests (removing comments)
     and return a list of test names."""
 
@@ -273,7 +273,7 @@ def read_test_files(pav_cfg, files: List[str]) -> List[str]:
     return tests
 
 
-def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
+def get_collection_path(pav_cfg: config.PavConfig, collection: str) -> Optional[Path]:
     """Find a collection in one of the config directories. Returns None on failure."""
 
     # Check if this collection exists in one of the defined config dirs
@@ -286,7 +286,8 @@ def get_collection_path(pav_cfg, collection) -> Union[Path, None]:
     return None
 
 
-def test_list_to_paths(pav_cfg, req_tests: List[Union[TestID, SeriesID]], errfile=None) -> List[Path]:
+def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
+                        errfile: Optional[TextIO] = None) -> List[Path]:
     """Given a list of test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by
@@ -313,7 +314,7 @@ def test_list_to_paths(pav_cfg, req_tests: List[Union[TestID, SeriesID]], errfil
 
         if isinstance(raw_id, TestID):
             try:
-                test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id.id_str)
+                test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
             except TestRunError as err:
                 output.fprint(errfile, err, color=output.YELLOW)
                 continue
@@ -327,14 +328,14 @@ def test_list_to_paths(pav_cfg, req_tests: List[Union[TestID, SeriesID]], errfil
         elif isinstance(raw_id, SeriesID):
             try:
                 test_paths.extend(
-                    series.list_series_tests(pav_cfg, raw_id.id_str))
+                    series.list_series_tests(pav_cfg, raw_id))
             except TestSeriesError:
                 output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
                               color=output.YELLOW)
         else:
             # A group
             try:
-                group = groups.TestGroup(pav_cfg, raw_id.id_str)
+                group = groups.TestGroup(pav_cfg, raw_id)
             except TestGroupError as err:
                 output.fprint(
                     errfile,
@@ -359,7 +360,7 @@ def test_list_to_paths(pav_cfg, req_tests: List[Union[TestID, SeriesID]], errfil
     return test_paths
 
 
-def _filter_tests_by_raw_id(pav_cfg, id_pairs: List[ID_Pair],
+def _filter_tests_by_raw_id(pav_cfg: config.PavConfig, id_pairs: List[ID_Pair],
                             exclude_ids: List[TestID]) -> List[ID_Pair]:
     """Filter the given tests by raw id."""
 
@@ -380,7 +381,7 @@ def _filter_tests_by_raw_id(pav_cfg, id_pairs: List[ID_Pair],
     return [pair for pair in id_pairs if pair not in exclude_pairs]
 
 
-def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
+def get_tests_by_paths(pav_cfg: config.PavConfig, test_paths: List[Path], errfile: TextIO,
                        exclude_ids: List[TestID] = None) -> List[TestRun]:
     """Given a list of paths to test run directories, return the corresponding
     list of tests.
@@ -410,8 +411,8 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
     return load_tests(pav_cfg, test_pairs, errfile)
 
 
-def get_tests_by_id(pav_cfg, test_ids: List[Union[TestID, SeriesID]], errfile: TextIO,
-                    exclude_ids: List[TestID] = None) -> List[TestRun]:
+def get_tests_by_id(pav_cfg: config.PavConfig, test_ids: List[Union[TestID, SeriesID]],
+                    errfile: TextIO, exclude_ids: Optional[List[TestID]] = None) -> List[TestRun]:
     """Convert a list of raw test id's and series id's into a list of
     test objects.
 
@@ -452,7 +453,7 @@ def get_tests_by_id(pav_cfg, test_ids: List[Union[TestID, SeriesID]], errfile: T
 
     return load_tests(pav_cfg, test_id_pairs, errfile)
 
-def get_testset_name(pav_cfg, tests: List['str'], files: List['str']):
+def get_testset_name(pav_cfg: config.PavConfig, tests: List[str], files: List[str]) -> str:
     """Generate the name for the set set based on the test input to the run command.
     """
     # Expected Behavior:
@@ -522,7 +523,7 @@ def get_testset_name(pav_cfg, tests: List['str'], files: List['str']):
     return testset_name
 
 
-def get_last_test_id(pav_cfg: "PavConfig", errfile: TextIO) -> Optional[TestID]:
+def get_last_test_id(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[TestID]:
     """Get the ID of the last run test, if it exists, and if there is a single
     unambigous last test. If there is not, return None."""
 
@@ -546,7 +547,6 @@ def get_last_test_id(pav_cfg: "PavConfig", errfile: TextIO) -> Optional[TestID]:
         return None
 
     return TestID(str(id_pairs[0][1]))
-
 
 def list_files(path: Path, include_root: bool = False) -> Iterator[Path]:
     """Recursively list all files in a directory, optionally including the directory itself."""

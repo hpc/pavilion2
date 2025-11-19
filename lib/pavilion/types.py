@@ -1,8 +1,10 @@
 from pathlib import Path
 from typing import NewType, Tuple, Dict, Any, List, FrozenSet, Union
 
+from pavilion.test_ids import TestID
+
 # pylint: disable=invalid-name
-ID_Pair = NewType('ID_Pair', Tuple[Path, int])
+ID_Pair = NewType('ID_Pair', Tuple[Path, TestID])
 NodeInfo = NewType('NodeInfo', Dict[str, Any])
 Nodes = NewType('Nodes', Dict[str, NodeInfo])
 NodeList = NewType('NodeList', List[str])
