@@ -96,7 +96,7 @@ class StatusCmdTests(PavTestCase):
         series = TestSeries(self.pav_cfg, None)
         for test in tests:
             series._add_test('test', test)
-        test_str = " ".join([test.id for test in series.tests.values()])
+        test_str = " ".join([str(test.id) for test in series.tests.values()])
 
         status_cmd = commands.get_command('status')
         status_cmd.outfile = io.StringIO()
@@ -105,7 +105,7 @@ class StatusCmdTests(PavTestCase):
         for test in series.tests.values():
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
-            arg_list = ['-j', test.id]
+            arg_list = ['-j', str(test.id)]
             args = parser.parse_args(arg_list)
             self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
@@ -120,7 +120,7 @@ class StatusCmdTests(PavTestCase):
         for test in series.tests.values():
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
-            args = parser.parse_args([test.id])
+            args = parser.parse_args([str(test.id)])
             self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for multiple tests with tabular output
@@ -187,7 +187,7 @@ class StatusCmdTests(PavTestCase):
             start_status = test.status.current()
             parser = argparse.ArgumentParser()
             set_status_cmd._setup_arguments(parser)
-            arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious', test.id]
+            arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious', str(test.id)]
             args = parser.parse_args(arg_list)
             self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0,
                              "Invalid run return for test {}".format(test.id))
@@ -284,7 +284,7 @@ class StatusCmdTests(PavTestCase):
         while not test.complete and time.time() < end:
             time.sleep(.1)
 
-        args = parser.parse_args(['--history', test.id])
+        args = parser.parse_args(['--history', str(test.id)])
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         out.seek(0)

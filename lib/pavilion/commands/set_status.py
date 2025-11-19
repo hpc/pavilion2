@@ -43,10 +43,10 @@ class SetStatusCommand(Command):
 
         # Zero is given as the default when running test scripts outside of
         # Pavilion.
-        if args.test == 0:
+        if args.test.id == 0:
             return 0
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test], self.errfile)
 
         if not tests:
             output.fprint(self.errfile, "Test {} could not be opened.".format(args.test),

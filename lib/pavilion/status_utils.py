@@ -148,7 +148,6 @@ def print_status(statuses: List[dict], outfile,
 :return: success or failure.
 :rtype: int
 """
-
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
@@ -171,7 +170,7 @@ def print_status(statuses: List[dict], outfile,
                 'time': {
                     'transform': output.get_relative_timestamp,
                     'title': 'Updated'},
-                'test_id': {'title': 'Test'},
+                'test_id': {'title': 'Test', 'transform': str},
             },
             fields=fields,
             rows=flat_sorted_statuses,

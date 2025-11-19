@@ -95,8 +95,8 @@ def arg_filtered_tests(pav_cfg: config.PavConfig, args: Namespace,
             has_filter_defaults = True
             break
 
-    if hasattr(args, "series") and SeriesID("all") in args.series and args.filter is not None and \
-        not has_filter_defaults:
+    if isinstance(getattr(args, "series"), list) and SeriesID("all") in args.series and \
+        args.filter is not None and not has_filter_defaults:
         output.fprint(verbose, "Using default search filters: The current system, user, and "
                                "created less than 1 day ago.", color=output.CYAN)
         args.filter = make_filter_query()
@@ -111,7 +111,7 @@ def arg_filtered_tests(pav_cfg: config.PavConfig, args: Namespace,
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
-    if hasattr(args, "series") and SeriesID("all") in args.series:
+    if isinstance(getattr(args, "series"), list) and SeriesID("all") in args.series:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
@@ -134,17 +134,18 @@ def arg_filtered_tests(pav_cfg: config.PavConfig, args: Namespace,
 
     test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
 
-    for sid in args.series:
-        if sid.last():
-            sid_ = series.load_user_series_id(pav_cfg, errfile=verbose)
+    if isinstance(getattr(args, "series"), list):
+        for sid in args.series:
+            if sid.last():
+                sid_ = series.load_user_series_id(pav_cfg, errfile=verbose)
 
-            if sid_ is None:
-                output.fprint(verbose, "No last series found.")
-                continue
-        else:
-            sid_ = sid
+                if sid_ is None:
+                    output.fprint(verbose, "No last series found.")
+                    continue
+            else:
+                sid_ = sid
 
-        test_paths.extend(map(lambda x: x.resolve(), series.list_series_tests(pav_cfg, sid_)))
+            test_paths.extend(map(lambda x: x.resolve(), series.list_series_tests(pav_cfg, sid_)))
 
     return dir_db.select_from(
         pav_cfg,

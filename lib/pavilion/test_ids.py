@@ -87,7 +87,7 @@ class TestID(ID):
             if is_int(num_str):
                 test_num = int(num_str)
 
-            return test_num > 0 and SeriesID.is_valid_id(series_id_str)
+            return test_num >= 0 and SeriesID.is_valid_id(series_id_str)
 
         return False
 

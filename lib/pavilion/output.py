@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import List, Dict, Union, TextIO, Any, Optional, Callable
 
 from pavilion import errors
+from pavilion.test_ids import TestID, SeriesID
 
 BLACK = 30
 RED = 31
@@ -952,6 +953,8 @@ class PavEncoder(json.JSONEncoder):
         # Just auto-convert anything that looks like a dict.
         elif isinstance(o, (dict, UserDict)):
             return dict(o)
+        elif isinstance(o, (TestID, SeriesID)):
+            return str(o)
         # or has an 'as_dict' method
         elif hasattr(o, 'as_dict'):
             return o.as_dict()
