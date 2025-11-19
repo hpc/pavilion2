@@ -90,7 +90,7 @@ class GraphCommand(Command):
             help='Desired name of graph when saved to PNG.'
         )
         parser.add_argument(
-            '--exclude', default=[], action='append',
+            '--exclude', type=TestID, default=[], action='append',
             help='Exclude specific Test Ids from the graph.'
         )
         parser.add_argument(

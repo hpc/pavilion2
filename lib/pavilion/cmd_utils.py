@@ -371,7 +371,7 @@ def _filter_tests_by_raw_id(pav_cfg, id_pairs: List[ID_Pair],
 
 
 def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
-                       exclude_ids: List[str] = None) -> List[TestRun]:
+                       exclude_ids: List[TestID] = None) -> List[TestRun]:
     """Given a list of paths to test run directories, return the corresponding
     list of tests.
 
@@ -390,7 +390,7 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
         test_path = test_path.resolve()
 
         test_wd = test_path.parents[1]
-        test_id = test_path.name
+        test_id = TestID(test_path.name)
 
         test_pairs.append(ID_Pair((test_wd, test_id)))
 
