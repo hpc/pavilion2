@@ -498,7 +498,7 @@ class TestSet:
                             when, state, msg = notes[-1]
                             when = output.get_relative_timestamp(when)
                             preamble = (self.BUILD_STATUS_PREAMBLE
-                                        .format(when=when, test_id=test.id,
+                                        .format(when=when, test_id=str(test.id),
                                                 state_len=STATES.max_length,
                                                 state=state))
                             output.fprint(self.outfile, preamble, msg, width=None,

@@ -8,9 +8,11 @@ from pavilion import config
 from pavilion import output
 from pavilion.output import fprint, draw_table
 from pavilion.enums import Verbose
+from pavilion.test_run import TestRun
+from pavilion.series import TestSeries
 from pavilion.groups import TestGroup
 from pavilion.errors import TestGroupError
-from pavilion.test_ids import GroupID
+from pavilion.test_ids import GroupID, resolve_mixed_ids
 from .base_classes import Command, sub_cmd
 
 
@@ -156,19 +158,23 @@ class GroupCommand(Command):
             fprint(self.errfile, err.pformat())
             return 1
 
-        added, errors = group.add(args.items)
+        ids = resolve_mixed_ids(args.items)
+        items = ids["tests"] + ids["series"] + ids["groups"]
+
+        added, errors = group.add(items)
         if errors:
             fprint(self.errfile, "There were one or more errors when adding tests.",
             	   color=output.RED)
             for error in errors:
                 fprint(self.errfile, error.pformat(), '\n')
 
-        existed = len(args.items) - len(added) - len(errors)
+        existed = len(items) - len(added) - len(errors)
         fprint(self.outfile,
                "Added {} item{} to the group ({} already existed)."
                .format(len(added), '' if len(added) == 1 else 's', existed))
 
         if errors:
+            # import pdb; pdb.set_trace()
             return 1
         else:
             return 0
@@ -181,7 +187,10 @@ class GroupCommand(Command):
         if group is None:
             return 1
 
-        removed, errors = group.remove(args.items)
+        ids = resolve_mixed_ids(args.items)
+        items = ids["tests"] + ids["series"] + ids["groups"]
+
+        removed, errors = group.remove(items)
         if errors:
             fprint(self.errfile, "There were one or more errors when removing tests.",
             	   color=output.RED)
@@ -246,7 +255,7 @@ class GroupCommand(Command):
                     else:
                         continue
 
-                group = TestGroup(pav_cfg, group_dir.name)
+                group = TestGroup(pav_cfg, GroupID(group_dir.name))
                 groups_info.append(group.info())
 
         groups_info.sort(key=lambda v: v['created'], reverse=True)
@@ -283,11 +292,11 @@ class GroupCommand(Command):
 
         filtered_members = []
         for mem in members:
-            if show_tests and mem['itype'] == TestGroup.TEST_ITYPE:
+            if show_tests and mem['itype'] == TestRun:
                 filtered_members.append(mem)
-            elif show_series and mem['itype'] == TestGroup.SERIES_ITYPE:
+            elif show_series and mem['itype'] == TestSeries:
                 filtered_members.append(mem)
-            elif show_groups and mem['itype'] == TestGroup.GROUP_ITYPE:
+            elif show_groups and mem['itype'] == TestGroup:
                 filtered_members.append(mem)
         members = filtered_members
 

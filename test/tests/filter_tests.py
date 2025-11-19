@@ -251,7 +251,7 @@ class FiltersTest(PavTestCase):
         t_filter = filters.parse_query("state=RUN_DONE")
         t_filter2 = filters.parse_query("has_state=RUNNING")
 
-        agg1 = test 
+        agg1 = test
 
         self.assertFalse(t_filter(agg1))
 
@@ -308,6 +308,7 @@ class FiltersTest(PavTestCase):
             paths=paths,
             transform=test_run_attr_transform,
             order_func=sort, order_asc=ascending).data
+
         self.assertEqual([t['id'] for t in sorted_tests], ids)
 
         # And descending.
@@ -323,9 +324,9 @@ class FiltersTest(PavTestCase):
     def test_error_on_bad_query(self):
         with self.assertRaises(FilterParseError):
             test_filter = filters.parse_query("garbage")
-            
+
     def test_validators(self):
-        
+
         @validate_int
         def ret_int(_):
             return 42
@@ -349,7 +350,7 @@ class FiltersTest(PavTestCase):
         self.assertTrue(ret_int(None, "=", "42"))
         self.assertFalse(ret_int(None, "=", "40"))
         self.assertTrue(ret_int(None, ">=", "0"))
-        
+
         with self.assertRaises(FilterParseError):
             ret_int(None, "!", "57")
 
@@ -373,9 +374,9 @@ class FiltersTest(PavTestCase):
 
         self.assertTrue(ret_str_list(None, "=", "CHESS"))
         self.assertFalse(ret_str_list(None, "=", "parcheesi"))
-        
+
         with self.assertRaises(FilterParseError):
-            ret_str_list(None, "💩", "glass") 
+            ret_str_list(None, "💩", "glass")
 
         self.assertTrue(ret_datetime(None, ">", "1945-09-06"))
         self.assertFalse(ret_datetime(None, "<", "1945-11-11T11:00"))
@@ -399,7 +400,7 @@ class FiltersTest(PavTestCase):
         """Test that the filter's three-valued logic works as expected
         (as specified by Paul). See transformer.py for detailed
         specification."""
-        
+
         test_dict = {
             'name': None,
             'user': 'Batman',

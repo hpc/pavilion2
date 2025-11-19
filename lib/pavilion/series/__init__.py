@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import TextIO, Optional
+from typing import TextIO, Optional, List
 
 from pavilion import output
 from pavilion import utils, dir_db
@@ -40,7 +40,7 @@ def load_user_series_id(pav_cfg, errfile=None) -> Optional[SeriesID]:
         return None
 
 
-def list_series_tests(pav_cfg, sid: SeriesID):
+def list_series_tests(pav_cfg, sid: SeriesID) -> List[Path]:
     """Return a list of paths to test run directories for the given series id.
     :raises TestSeriesError: If the series doesn't exist."""
 

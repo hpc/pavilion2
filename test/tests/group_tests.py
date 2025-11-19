@@ -101,16 +101,16 @@ class TestGroupTests(unittest.PavTestCase):
         # Remove a single item, to make sure other items are preserved
         removed, errors = group.remove([series1])
         self.assertEqual(errors, [])
-        self.assertEqual(removed, [('series', series1._id)])
+        self.assertEqual(removed, [series1._id])
         self.assertGroupContentsEqual(group, [test, sub_group])
 
         # Remove multiple items.
         removed, errors = group.remove([test, sub_group])
         self.assertEqual(errors, [])
-        self.assertEqual(removed, [('test', test.id), ('group', sub_group.name)])
+        self.assertEqual(removed, [test.id, sub_group.name])
         self.assertGroupContentsEqual(group, [])
 
-        removed, errors = group.remove(['nope', 'a.1', 'test.982349842', 's1234981234'])
+        removed, errors = group.remove([GroupID('nope')])
         self.assertEqual(removed, [])
         self.assertEqual(len(errors), 4)
 
@@ -129,9 +129,8 @@ class TestGroupTests(unittest.PavTestCase):
         removed, warnings = group.remove([g_test, s_test])
         self.assertEqual(warnings, [])
         removed.sort()
-        answer = sorted([(group.EXCL_ITYPE, s_test.id),
-                         (group.EXCL_ITYPE, g_test.id)])
-        self.assertEqual(removed, answer)
+        answer = [s_test.id, g_test.id]
+        self.assertEqual(set(removed), set(answer))
         self.assertEqual(group._excluded(), {s_test.id: s_test.path,
                                              g_test.id: g_test.path})
         self.assertEqual(group.tests(), [btest.path])
@@ -172,7 +171,7 @@ class TestGroupTests(unittest.PavTestCase):
         new_name = self._make_group_name()
         sub_group.rename(new_name)
         self.assertEqual(sub_group.name, new_name)
-        self.assertEqual(sub_group.path.name, new_name)
+        self.assertEqual(GroupID(sub_group.path.name), new_name)
         self.assertTrue(sub_group.exists())
         self.assertIn(('group', new_name), group.member_tuples())
         self.assertNotIn(('group', old_name), group.member_tuples())
@@ -196,12 +195,12 @@ class TestGroupTests(unittest.PavTestCase):
         for cmd in group_cmd, run_cmd, series_cmd:
             cmd.silence()
 
-        group_name = str(self._make_group_name())
+        group_name = self._make_group_name()
         parser = arguments.get_parser()
         # Start a series of tests two ways, each assigned to a group.
 
-        run_args = parser.parse_args(['run', '-g', group_name, 'hello_world'])
-        series_args = parser.parse_args(['series', 'run', '-g', group_name, 'basic'])
+        run_args = parser.parse_args(['run', '-g', str(group_name), 'hello_world'])
+        series_args = parser.parse_args(['series', 'run', '-g', str(group_name), 'basic'])
 
         run_cmd.run(self.pav_cfg, run_args)
         series_cmd.run(self.pav_cfg, series_args)
@@ -220,11 +219,11 @@ class TestGroupTests(unittest.PavTestCase):
 
         # Create a new group with tests to add
         sub_group_name = self._make_group_name()
-        run_args3 = parser.parse_args(['run', '-g', sub_group_name, 'hello_world'])
+        run_args3 = parser.parse_args(['run', '-g', str(sub_group_name), 'hello_world'])
         run_cmd.run(self.pav_cfg, run_args3)
         run_cmd.last_series.wait(timeout=10)
 
-        add_items = [sub_group_name] + [test.id for test in run_cmd.last_tests]
+        add_items = [str(sub_group_name)] + [str(test.id) for test in run_cmd.last_tests]
         rm_tests = add_items[1:3]
 
         def run_grp_cmd(args):
@@ -236,31 +235,31 @@ class TestGroupTests(unittest.PavTestCase):
         members = group.members()
         # Add tests and a group via commands
 
-        run_grp_cmd(['group', 'add', group_name] + add_items)
+        run_grp_cmd(['group', 'add', str(group_name)] + add_items)
         self.assertEqual(len(group.tests()), 10)
 
         # Remove a couple tests
-        run_grp_cmd(['group', 'remove', group_name] + rm_tests)
+        run_grp_cmd(['group', 'remove', str(group_name)] + rm_tests)
         self.assertEqual(len(group.tests()), 8)
 
         # Rename the subgroup
         new_name1 = self._make_group_name()
         new_name2 = self._make_group_name()
-        run_grp_cmd(['group', 'rename', sub_group_name, new_name1])
+        run_grp_cmd(['group', 'rename', str(sub_group_name), str(new_name1)])
         self.assertEqual(len(group.tests()), 8)
-        run_grp_cmd(['group', 'rename', '--no-redirect', new_name1, new_name2])
+        run_grp_cmd(['group', 'rename', '--no-redirect', str(new_name1), str(new_name2)])
         self.assertEqual(len(group.tests()), 5)
-        run_grp_cmd(['group', 'rename', new_name2, new_name1])
+        run_grp_cmd(['group', 'rename', str(new_name2), str(new_name1)])
         self.assertEqual(len(group.tests()), 8)
 
         # Try all the list options
         for rows, args in [
-                (7,    ['group', 'members', group_name]),
-                (4,    ['group', 'members', '--tests', group_name]),
-                (5,    ['group', 'members', '--series', group_name]),
-                (4,    ['group', 'members', '--groups', group_name]),
-                (7,    ['group', 'members', '--tests', '--series', '--groups', group_name]),
-                (8,    ['group', 'members', '--recursive', group_name]),
+                (7,    ['group', 'members', str(group_name)]),
+                (4,    ['group', 'members', '--tests', str(group_name)]),
+                (5,    ['group', 'members', '--series', str(group_name)]),
+                (4,    ['group', 'members', '--groups', str(group_name)]),
+                (7,    ['group', 'members', '--tests', '--series', '--groups', str(group_name)]),
+                (8,    ['group', 'members', '--recursive', str(group_name)]),
                 ]:
             run_grp_cmd(args)
             out, err_out = group_cmd.clear_output()
@@ -276,5 +275,5 @@ class TestGroupTests(unittest.PavTestCase):
 
 
         # Delete the renamed sub-group
-        run_grp_cmd(['group', 'delete', new_name1])
+        run_grp_cmd(['group', 'delete', str(new_name1)])
         self.assertEqual(len(group.tests()), 5)

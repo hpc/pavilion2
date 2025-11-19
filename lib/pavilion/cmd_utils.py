@@ -95,7 +95,7 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
             has_filter_defaults = True
             break
 
-    if SeriesID("all") in args.tests and args.filter is not None and not has_filter_defaults:
+    if SeriesID("all") in args.series and args.filter is not None and not has_filter_defaults:
         output.fprint(verbose, "Using default search filters: The current system, user, and "
                                "created less than 1 day ago.", color=output.CYAN)
         args.filter = make_filter_query()
@@ -110,7 +110,7 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
-    if SeriesID("all") in args.tests:
+    if SeriesID("all") in args.series:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
@@ -132,6 +132,9 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
         return tests
 
     test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
+
+    for sid in args.series:
+        test_paths.extend(map(lambda x: x.resolve(), series.list_series_tests(pav_cfg, sid)))
 
     return dir_db.select_from(
         pav_cfg,
@@ -314,7 +317,7 @@ def test_list_to_paths(pav_cfg, req_tests: List[Union[TestID, SeriesID]], errfil
         elif isinstance(raw_id, SeriesID):
             try:
                 test_paths.extend(
-                    series.list_series_tests(pav_cfg, raw_id))
+                    series.list_series_tests(pav_cfg, raw_id.id_str))
             except TestSeriesError:
                 output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
                               color=output.YELLOW)

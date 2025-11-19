@@ -434,4 +434,4 @@ def test_run_attr_transform(path):
     """A dir_db transformer to convert a test_run path into a dict of test
     attributes."""
 
-    return TestAttributes(path).attr_dict(serialize=True)
+    return TestAttributes(path).attr_dict()

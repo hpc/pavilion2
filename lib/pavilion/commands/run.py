@@ -15,6 +15,7 @@ from pavilion.errors import TestSeriesError, PavilionError
 from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
+from pavilion.test_ids import GroupID
 from .base_classes import Command
 
 
@@ -92,7 +93,7 @@ class RunCommand(Command):
                  '\'key=value\', where key is the dot separated key name, '
                  'and value is a json object. Example: `-c schedule.nodes=23`')
         parser.add_argument(
-            '-g', '--group', action="store", type=str,
+            '-g', '--group', action="store", type=GroupID,
             help="Add the created test series to the given group, creating it if necessary.")
         parser.add_argument(
             '-v', '--verbosity', choices=[verb.name for verb in Verbose],

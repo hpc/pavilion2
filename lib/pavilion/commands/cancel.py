@@ -47,12 +47,8 @@ class CancelCommand(Command):
         """Cancel the given tests or series."""
 
         ids = resolve_mixed_ids(args.tests, auto_last=True)
-
-        # Separate out into tests and series
-        series_ids, test_ids = partition(lambda x: isinstance(x, SeriesID), ids)
-
-        args.tests = list(test_ids)
-        args.series = list(series_ids)
+        args.tests = ids["tests"]
+        args.series = ids["series"]
 
         test_ret = 0
         sers_ret = 0

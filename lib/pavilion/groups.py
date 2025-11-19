@@ -134,7 +134,7 @@ class TestGroup:
                             prior_error=err)
 
                     sid = SeriesID(f"s{series_dir.name}")
-                    tests.extend(list_series_tests(self.pav_cfg))
+                    tests.extend(list_series_tests(self.pav_cfg, sid))
 
         except OSError as err:
             raise TestGroupError(
@@ -145,8 +145,9 @@ class TestGroup:
         try:
             if (self.path/self.GROUPS_DIR).exists():
                 for group_file in (self.path/self.GROUPS_DIR).iterdir():
-                    group_name = group_file.name
+                    group_name = GroupID(group_file.name)
                     sub_group = TestGroup(self.pav_cfg, group_name)
+
                     if group_name not in seen_groups:
                         tests.extend(sub_group.tests(seen_groups=seen_groups))
 

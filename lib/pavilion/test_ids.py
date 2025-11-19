@@ -1,7 +1,7 @@
 # pylint: disable=invalid-name
 
 import re
-from typing import Union, Tuple, List, Iterable, Optional
+from typing import Union, Tuple, List, Iterable, Optional, Dict
 from abc import ABC, abstractmethod
 
 from pavilion.micro import flatten, unique
@@ -13,7 +13,7 @@ class ID(ABC):
 
     def __init__(self, id_str: str):
         if not self.is_valid_id(id_str):
-            raise ValueError(f"Invalid string {id_str} for type {self.__class__}.")
+            raise ValueError(f"Invalid string {id_str} for type {self.__class__.__name__}.")
 
         self.id_str = id_str
 
@@ -28,7 +28,22 @@ class ID(ABC):
         return self.id_str
 
     def __eq__(self, other: "ID") -> bool:
+        if not isinstance(other, self.__class__):
+            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
+                            f"{type(other).__name__}.")
+
         return self.id_str == other.id_str
+
+    @abstractmethod
+    def __gt__(self, other: "ID") -> bool:
+        raise NotImplementedError
+
+    def __lt__(self, other: "ID") -> bool:
+        if not isinstance(other, self.__class__):
+            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
+                            f"{type(other).__name__}.")
+
+        return not (self > other or self == other)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.id_str})"
@@ -87,6 +102,22 @@ class TestID(ID):
 
         return not self.is_absolute()
 
+    def __gt__(self, other: "TestID") -> bool:
+        if not isinstance(other, self.__class__):
+            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
+                            f"{type(other).__name__}.")
+
+        if self.is_absolute() and other.is_absolute():
+            return int(self.id_str, 16) > int(other.id_str, 16)
+        elif self.is_series_relative() and other.is_series_relative():
+            if self.series == other.series:
+                return int(self.id) > int(other.id)
+            else:
+                raise TypeError(f"Cannot compare test IDs {self} and {other} "
+                                "from different series.")
+        else:
+            raise TypeError("Incompatible test ID formats for numerical comparison: "\
+                            "{self} and {other}")
 
 
 class SeriesID(ID):
@@ -145,6 +176,13 @@ class SeriesID(ID):
 
         return cls(f"s{id}")
 
+    def __gt__(self, other: "SeriesID"):
+        if not isinstance(other, self.__class__):
+            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
+                            f"{type(other).__name__}.")
+
+        return self.as_int() > other.as_int()
+
 class GroupID(ID):
     """Represents a single group ID."""
 
@@ -156,8 +194,18 @@ class GroupID(ID):
     @classmethod
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid group ID."""
-        return not (TestID.is_valid_id(id_str) or SeriesID.is_valid_id(id_str)) and \
-            cls.GROUP_NAME_RE.match(id_str)
+        return not (TestID.is_valid_id(id_str) or \
+                    SeriesID.is_valid_id(id_str) or \
+                    TestRange.is_valid_range_str(id_str) or \
+                    SeriesRange.is_valid_range_str(id_str)) and \
+               cls.GROUP_NAME_RE.match(id_str)
+
+    def __gt__(self, other: "GroupID") -> bool:
+        if not isinstance(other, self.__class__):
+            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
+                            f"{type(other).__name__}.")
+
+        return self.id_str > other.id_str
 
 
 class IDRange(ABC):
@@ -282,37 +330,32 @@ class SeriesRange(IDRange):
         return f"s{self.start}-s{self.end}"
 
 
-def multi_convert(id_str: str) -> Union[List[TestID], List[SeriesID], List[GroupID]]:
-    """Convert a string into a list (possibly a singleton list) of either a TestID, SeriesID,
-    or GroupID as appropriate."""
-
-    if id_str.lower() == "all":
-        return [SeriesID("all")]
-    if id_str.lower() == "last":
-        return [SeriesID("last")]
-
-    if TestRange.is_valid_range_str(id_str):
-        return list(TestRange.from_str(id_str).expand())
-    if SeriesRange.is_valid_range_str(id_str):
-        return list(SeriesRange.from_str(id_str).expand())
-    if TestID.is_valid_id(id_str):
-        return [TestID(id_str)]
-    if SeriesID.is_valid_id(id_str):
-        return [SeriesID(id_str)]
-
-    return [GroupID(id_str)]
-
-
 def resolve_mixed_ids(ids: Iterable[str],
-                      auto_last: bool = True) -> List[Union[TestID, SeriesID, GroupID]]:
+                      auto_last: bool = True) -> Dict[str, List[ID]]:
     """Fully resolve all IDs in the given list into either test IDs, series IDs, or group IDs."""
+
+    id_dict = {"tests": [], "series": [], "groups": []}
 
     ids = list(ids)
 
     if auto_last and len(ids) == 0:
-        return [SeriesID("last")]
+        id_dict["series"].append(SeriesID("last"))
 
     if "all" in ids:
-        return [SeriesID("all")]
+        id_dict["series"].append(SeriesID("all"))
 
-    return list(flatten(map(multi_convert, ids)))
+        return id_dict
+
+    for id_str in ids:
+        if TestID.is_valid_id(id_str):
+            id_dict["tests"].append(TestID(id_str))
+        elif SeriesID.is_valid_id(id_str):
+            id_dict["series"].append(SeriesID(id_str))
+        elif GroupID.is_valid_id(id_str):
+            id_dict["groups"].append(GroupID(id_str))
+        elif TestRange.is_valid_range_str(id_str):
+            id_dict["tests"].extend(TestRange.from_str(id_str).expand())
+        elif SeriesRange.is_valid_range_str(id_str):
+            id_dict["series"].extend(SeriesRange.from_str(id_str).expand())
+
+    return id_dict

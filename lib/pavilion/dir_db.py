@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, Optional, \
     Union, NamedTuple, IO, Tuple
 
+from pavilion.config import PavConfig
 from pavilion import lockfile
 from pavilion import output
 
@@ -382,7 +383,7 @@ def select(pav_cfg,
             fn_base=fn_base,
             limit=limit)
 
-def select_from(pav_cfg,
+def select_from(pav_cfg: PavConfig,
                 paths: Iterable[Path],
                 filter_func: Callable[[Any], bool] = default_filter,
                 transform: Callable[[Path], Any] = None,
