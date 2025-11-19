@@ -95,7 +95,8 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
             has_filter_defaults = True
             break
 
-    if SeriesID("all") in args.series and args.filter is not None and not has_filter_defaults:
+    if hasattr(args, "series") and SeriesID("all") in args.series and args.filter is not None and \
+        not has_filter_defaults:
         output.fprint(verbose, "Using default search filters: The current system, user, and "
                                "created less than 1 day ago.", color=output.CYAN)
         args.filter = make_filter_query()
@@ -110,7 +111,7 @@ def arg_filtered_tests(pav_cfg: "PavConfig", args: argparse.Namespace,
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
-    if SeriesID("all") in args.series:
+    if hasattr(args, "series") and SeriesID("all") in args.series:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))

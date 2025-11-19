@@ -9,6 +9,7 @@ import pprint
 import shutil
 from math import log10, floor
 import re
+from argparse import Namespace
 from typing import List, IO, Union, Optional, Any
 
 from pavilion.errors import TestConfigError, ResultError
@@ -21,6 +22,7 @@ from pavilion import resolve
 from pavilion import result
 from pavilion import result_utils
 from pavilion import utils
+from pavilion.config import PavConfig
 from pavilion.test_ids import resolve_mixed_ids
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
@@ -151,10 +153,13 @@ class ResultsCommand(Command):
         )
         filters.add_test_filter_args(parser)
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Print the test results in a variety of formats."""
 
-        args.tests = resolve_mixed_ids(args.tests)
+        ids = resolve_mixed_ids(args.tests)
+        args.tests = ids["tests"]
+        args.series = ids["series"]
+
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
                                 verbose=self.errfile).paths
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
@@ -307,7 +312,7 @@ class ResultsCommand(Command):
                 self.errfile,
                 "One or more of the requested tests never completed, and therefore have no "
                 "results to 're-run'. Check the status and/or logs for these tests to see why:\n"
-                + ", ".join([test.id for test in skipped_reruns]),
+                + ", ".join([str(test.id) for test in skipped_reruns]),
                 color=output.YELLOW)
 
         if args.all_passed and not all_passed:
