@@ -59,9 +59,15 @@ class CmdUtilsTests(unittest.PavTestCase):
             args = arguments.get_parser().parse_args(argset)
 
             ids = resolve_mixed_ids(args.tests)
-            args.tests = ids["tests"]
-            args.series = ids["series"]
+            tests = ids["tests"]
+            series = ids["series"]
 
-            self.assertEqual(len(cmd_utils.arg_filtered_tests(self.pav_cfg, args).paths), count)
+            self.assertEqual(len(cmd_utils.arg_filtered_tests(
+                                    self.pav_cfg,
+                                    tests,
+                                    series,
+                                    filter_query=args.filter,
+                                    sort_by=args.sort_by,
+                                    limit=args.limit).paths), count)
 
     # TODO: We really need to add unit tests for each of the cmd utils functions.

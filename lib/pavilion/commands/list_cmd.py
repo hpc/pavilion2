@@ -231,10 +231,17 @@ class ListCommand(Command):
         )
 
         ids = resolve_mixed_ids(args.tests, auto_last=True)
-        args.tests = ids["tests"]
-        args.series = ids["series"]
+        tests = ids["tests"]
+        series = ids["series"]
 
-        test_runs = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).data
+        test_runs = cmd_utils.arg_filtered_tests(
+                                pav_cfg,
+                                tests,
+                                series,
+                                filter_query=args.filter,
+                                sort_by=args.sort_by,
+                                limit=args.limit,
+                                verbose=self.errfile).data
 
         def remove_nones(run: Mapping) -> Dict:
             return { k: v for k, v in run.items() if v not in [None, ''] }

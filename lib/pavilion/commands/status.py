@@ -59,11 +59,18 @@ class StatusCommand(Command):
         show_series = args.series
 
         ids = resolve_mixed_ids(args.tests)
-        args.tests = ids["tests"]
-        args.series = ids["series"]
+        tests = ids["tests"]
+        series = ids["series"]
 
         try:
-            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
+            test_paths = cmd_utils.arg_filtered_tests(
+                                        pav_cfg,
+                                        tests,
+                                        series,
+                                        filter_query=args.filter,
+                                        sort_by=args.sort_by,
+                                        limit=args.limit,
+                                        verbose=self.errfile).paths
         except (ValueError, PavilionError) as err:
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EINVAL

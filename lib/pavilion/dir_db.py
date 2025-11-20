@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, Optional, \
-    Union, NamedTuple, IO, Tuple
+    Union, NamedTuple, IO, Tuple, TypeVar
 
 from pavilion.config import PavConfig
 from pavilion import lockfile
@@ -124,17 +124,18 @@ def default_filter(_: Path) -> bool:
 Index = NewType("Index", Dict[int, Dict['str', Any]])
 
 
-def identity(value):
+def identity(value: T) -> T:
     """Because lambdas can't be pickled."""
     return value
 
 
-def index(pav_cfg,
-          id_dir: Path, idx_name: str,
+def index(pav_cfg: PavConfig,
+          id_dir: Path,
+          idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
           refresh_period: int = 1,
-          verbose: IO[str] = None,
+          verbose: Optional[IO[str]] = None,
           fn_base: int = 16) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
@@ -261,9 +262,14 @@ def index(pav_cfg,
 
 SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
                                          ('paths', List[Path])])
+T = TypeVar("T")
 
 
-def select_one(path, ffunc, trans, ofunc, fnb):
+def select_one(path: Path,
+               ffunc: Optional[Callable[[Path], bool]],
+               trans: Optional[Callable[[Path], T]],
+               ofunc: Callable[[T], Any],
+               fnb: int) -> Optional[T]:
     """Allows the objects to be filtered and transformed in parallel with map.
 
     :param path: Path to filter and transform (input to reduced function)
@@ -299,7 +305,7 @@ def select_one(path, ffunc, trans, ofunc, fnb):
     return item
 
 
-def select(pav_cfg,
+def select(pav_cfg: PavConfig,
            id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
            transform: Callable[[Path], Any] = None,
@@ -309,7 +315,7 @@ def select(pav_cfg,
            idx_complete_key: 'str' = 'complete',
            use_index: Union[bool, str] = True,
            verbose: IO[str] = None,
-           limit: int = None) -> (List[Any], List[Path]):
+           limit: int = None) -> SelectItems:
     """Filter and order found paths in the id directory based on the filter and
     other parameters. If a transform is given, this will create an index of the
     data returned by the transform to hasten this process.
@@ -385,12 +391,12 @@ def select(pav_cfg,
 
 def select_from(pav_cfg: PavConfig,
                 paths: Iterable[Path],
-                filter_func: Callable[[Any], bool] = default_filter,
-                transform: Callable[[Path], Any] = None,
-                order_func: Callable[[Any], Any] = None,
+                filter_func: Callable[[T], bool] = default_filter,
+                transform: Optional[Callable[[Path], T]] = None,
+                order_func: Optional[Callable[[T], Any]] = None,
                 order_asc: bool = True,
                 fn_base: int = 16,
-                limit: int = None) -> (List[Any], List[Path]):
+                limit: int = None) -> SelectItems:
     """Filter, order, and truncate the given paths based on the filter and
     other parameters.
 

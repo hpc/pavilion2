@@ -9,7 +9,7 @@ import time
 import os
 from pathlib import Path
 from argparse import Namespace
-from typing import List, TextIO, Union, Iterator, Optional
+from typing import List, TextIO, Union, Iterator, Optional, Callable
 from collections import defaultdict
 
 from pavilion import config
@@ -17,9 +17,10 @@ from pavilion import dir_db
 from pavilion import filters
 from pavilion import groups
 from pavilion import output
-from pavilion import series
 from pavilion import sys_vars
 from pavilion import utils
+from pavilion.series import TestSeries, SeriesInfo, list_series_tests, load_user_series_id, \
+                            mk_series_info_transform
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
 from pavilion.test_run import TestRun, load_tests, TestAttributes
@@ -30,12 +31,12 @@ from pavilion.micro import flatten
 LOGGER = logging.getLogger(__name__)
 
 
-def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[series.TestSeries]:
+def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[TestSeries]:
     """Load the series object for the last series run by this user on this system."""
 
     try:
-        series_id = series.load_user_series_id(pav_cfg)
-    except series.TestSeriesError as err:
+        series_id = load_user_series_id(pav_cfg)
+    except TestSeriesError as err:
         output.fprint(errfile, "Failed to find last series: {}".format(err.args[0]))
         return None
 
@@ -44,8 +45,8 @@ def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[ser
         return None
 
     try:
-        return series.TestSeries.load(pav_cfg, series_id)
-    except series.TestSeriesError as err:
+        return TestSeries.load(pav_cfg, series_id)
+    except TestSeriesError as err:
         output.fprint(errfile, "Failed to load last series: {}".format(err.args[0]))
         return None
 
@@ -58,60 +59,47 @@ def set_arg_defaults(args: Namespace) -> None:
     args.filter = getattr(args, 'filter', def_filter)
 
 
-def arg_filtered_tests(pav_cfg: config.PavConfig, args: Namespace,
+def arg_filtered_tests(pav_cfg: config.PavConfig, tests: List[TestID], series: List[SeriesID],
+                       limit: Optional[int] = None, sort_by: Optional[str] = None,
+                       filter_query: Optional[str] = None,
                        verbose: Optional[TextIO] = None) -> dir_db.SelectItems:
-    """Search for test runs that match based on the argument values in args,
+    """Search for test runs that match based on the specified tests and series IDs,
     and return a list of matching test id's.
 
-    Note: I know this violates the idea that we shouldn't be passing a
-    generic object around and just using random bits of an undefined interface.
-    BUT:
-
-    1. The interface is well defined, by `filters.add_test_filter_args`.
-    2. All of the used bits are *ALWAYS* used, so any errors will pop up
-       immediately in unit tests.
-
-    TODO: Rewrite the interface so that it's cleaner and not coupled to argparse. - HW
-
     :param pav_cfg: The Pavilion config.
-    :param args: An argument namespace with args defined by
-        `filters.add_test_filter_args`, plus one additional `tests` argument
-        that should contain a list of test id's, series id's, or the 'last'
-        or 'all' keyword. Last implies the last test series run by the current user
-        on this system (and is the default if no tests are given. 'all' means all tests.
+    :param tests: A list of test IDs on which to filter.
+    :param series: A list of series IDs whose tests should be filtered.
+    :param limit: The maximum number of test runs to return.
+    :param sort_by: The field on which to sort.
+    :param filter_query: The query to use when filtering tests.
     :param verbose: A file like object to report test search status.
     :return: A list of test paths.
     """
 
-    limit = getattr(args, 'limit', filters.TEST_FILTER_DEFAULTS['limit'])
     verbose = verbose or io.StringIO()
-    sys_name = getattr(args, 'sys_name', sys_vars.get_vars(defer=True).get('sys_name'))
-    sort_by = getattr(args, 'sort_by', 'created')
+    sort_by = sort_by or "-created"
 
-    has_filter_defaults = False
+    use_default_filter = True
 
-    for arg, default in filters.TEST_FILTER_DEFAULTS.items():
-        if hasattr(args, arg) and default != getattr(args, arg):
-            has_filter_defaults = True
-            break
+    if sort_by != "-created" or limit is not None or filter_query is not None:
+        use_default_filter = False
 
-    if isinstance(getattr(args, "series"), list) and SeriesID("all") in args.series and \
-        args.filter is not None and not has_filter_defaults:
+    if SeriesID("all") in series and filter_query is not None and use_default_filter:
         output.fprint(verbose, "Using default search filters: The current system, user, and "
                                "created less than 1 day ago.", color=output.CYAN)
-        args.filter = make_filter_query()
+        filter_query = make_filter_query()
 
-    if args.filter is None:
+    if filter_query is None:
         filter_func = filters.const(True) # Always return True
     else:
         try:
-            filter_func = filters.parse_query(args.filter)
+            filter_func = filters.parse_query(filter_query)
         except filters.FilterParseError:
-            raise PavilionError(f"Invalid syntax in filter query: {args.filter}")
+            raise PavilionError(f"Invalid syntax in filter query: {filter_query}")
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
-    if isinstance(getattr(args, "series"), list) and SeriesID("all") in args.series:
+    if SeriesID("all") in series:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
                                pav_cfg.configs.values()))
@@ -132,20 +120,19 @@ def arg_filtered_tests(pav_cfg: config.PavConfig, args: Namespace,
 
         return tests
 
-    test_paths = test_list_to_paths(pav_cfg, args.tests, verbose)
+    test_paths = test_list_to_paths(pav_cfg, tests, verbose)
 
-    if isinstance(getattr(args, "series"), list):
-        for sid in args.series:
-            if sid.last():
-                sid_ = series.load_user_series_id(pav_cfg, errfile=verbose)
+    for sid in series:
+        if sid.last():
+            sid_ = load_user_series_id(pav_cfg, errfile=verbose)
 
-                if sid_ is None:
-                    output.fprint(verbose, "No last series found.")
-                    continue
-            else:
-                sid_ = sid
+            if sid_ is None:
+                output.fprint(verbose, "No last series found.")
+                continue
+        else:
+            sid_ = sid
 
-            test_paths.extend(map(lambda x: x.resolve(), series.list_series_tests(pav_cfg, sid_)))
+        test_paths.extend(map(lambda x: x.resolve(), list_series_tests(pav_cfg, sid_)))
 
     return dir_db.select_from(
         pav_cfg,
@@ -176,7 +163,7 @@ def make_filter_query() -> str:
 
 
 def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
-                        verbose: Optional[TextIO] = None) -> List[series.SeriesInfo]:
+                        verbose: Optional[TextIO] = None) -> List[SeriesInfo]:
     """Return a list of SeriesInfo objects based on the args.series attribute. When args.series is
     empty, default to the 'last' series started by the user on this system. If 'all' is given,
     search all series (with a default current user/system/1-day filter) and additonally filtered
@@ -226,7 +213,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
                 pav_cfg=pav_cfg,
                 id_dir=pav_cfg.working_dir/'series',
                 filter_func=filter_func,
-                transform=series.mk_series_info_transform(pav_cfg),
+                transform=mk_series_info_transform(pav_cfg),
                 order_func=order_func,
                 order_asc=order_asc,
                 use_index=False,
@@ -234,7 +221,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
                 limit=limit,
             ).data
         else:
-            found_series.append(series.SeriesInfo.load(pav_cfg, sid.id_str))
+            found_series.append(SeriesInfo.load(pav_cfg, sid.id_str))
 
     matching_series = []
     for sinfo in found_series:
@@ -311,7 +298,7 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
     for raw_id in req_tests:
 
         if isinstance(raw_id, SeriesID) and raw_id.last():
-            raw_id = series.load_user_series_id(pav_cfg, errfile)
+            raw_id = load_user_series_id(pav_cfg, errfile)
             if raw_id is None:
                 output.fprint(errfile, "User has no 'last' series for this machine.",
                               color=output.YELLOW)
@@ -333,7 +320,7 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
         elif isinstance(raw_id, SeriesID):
             try:
                 test_paths.extend(
-                    series.list_series_tests(pav_cfg, raw_id))
+                    list_series_tests(pav_cfg, raw_id))
             except TestSeriesError:
                 output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
                               color=output.YELLOW)
@@ -437,7 +424,7 @@ def get_tests_by_id(pav_cfg: config.PavConfig, test_ids: List[Union[TestID, Seri
                 if raw_id.last():
                     series_obj = load_last_series(pav_cfg, errfile)
                 else:
-                    series_obj = series.TestSeries.load(pav_cfg, raw_id)
+                    series_obj = TestSeries.load(pav_cfg, raw_id)
             except TestSeriesError as err:
                 output.fprint(errfile, "Suite {} could not be found.\n{}"
                               .format(raw_id, err), color=output.RED)

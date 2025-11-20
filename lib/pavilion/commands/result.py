@@ -157,11 +157,17 @@ class ResultsCommand(Command):
         """Print the test results in a variety of formats."""
 
         ids = resolve_mixed_ids(args.tests)
-        args.tests = ids["tests"]
-        args.series = ids["series"]
+        tests = ids["tests"]
+        series = ids["series"]
 
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
-                                verbose=self.errfile).paths
+        test_paths = cmd_utils.arg_filtered_tests(
+                                    pav_cfg,
+                                    tests,
+                                    series,
+                                    filter_query=args.filter,
+                                    sort_by=args.sort_by,
+                                    limit=args.limit,
+                                    verbose=self.errfile).paths
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
         log_file = None
