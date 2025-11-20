@@ -8,6 +8,9 @@ from pavilion.micro import flatten, unique
 from pavilion.utils import is_int, is_hash
 
 
+HASH_LEN = 32
+
+
 class ID(ABC):
     """Base class for IDs"""
 
@@ -76,7 +79,7 @@ class TestID(ID):
     def is_valid_id(cls, id_str: str) -> bool:
         """Determine whether the given string constitutes a valid test ID."""
 
-        if is_hash(id_str, 32) or is_int(id_str):
+        if is_hash(id_str, HASH_LEN) or is_int(id_str):
             return True
 
         if "." in id_str:
@@ -94,9 +97,9 @@ class TestID(ID):
     def is_absolute(self) -> bool:
         """Returns true if the ID is absolute (i.e. not series-relative)."""
 
-        return self.series is None
+        return isinstance(self.id, str)
 
-    def is_series_relative(self) -> bool:
+    def is_relative(self) -> bool:
         """Returns true if the ID is relative to a particular series."""
 
         return not self.is_absolute()

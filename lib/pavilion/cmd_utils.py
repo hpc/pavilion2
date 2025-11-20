@@ -50,15 +50,6 @@ def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[Tes
         output.fprint(errfile, "Failed to load last series: {}".format(err.args[0]))
         return None
 
-
-def set_arg_defaults(args: Namespace) -> None:
-    """Set typical argument defaults, but don't override any given."""
-
-    # Don't assume these actually exist.
-    def_filter = make_filter_query()
-    args.filter = getattr(args, 'filter', def_filter)
-
-
 def arg_filtered_tests(pav_cfg: config.PavConfig,
                        tests: List[TestID],
                        series: List[SeriesID],
@@ -362,17 +353,9 @@ def _filter_tests_by_raw_id(pav_cfg: config.PavConfig, id_pairs: List[ID_Pair],
 
     exclude_pairs = []
 
-    for raw_id in exclude_ids:
-        label = raw_id.label
-        ex_id = raw_id.test_num
+    ex_wd = Path(pav_cfg.get("working_dir"))
 
-        ex_wd = pav_cfg['configs'].get(label, None)
-        if ex_wd is None:
-            # Invalid label.
-            continue
-
-        ex_wd = Path(ex_wd)
-        exclude_pairs.append((ex_wd, ex_id))
+    exclude_pairs = [ID_Pair(ex_wd, id) for id in exclude_ids]
 
     return [pair for pair in id_pairs if pair not in exclude_pairs]
 

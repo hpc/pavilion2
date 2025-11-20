@@ -432,24 +432,33 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def parse_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID) -> ID_Pair:
+    def parse_raw_id(cls, pav_cfg: PavConfig, test_id: TestID, legacy: bool = False) -> ID_Pair:
         """Parse a raw test run id and return the label, working_dir, and id
         for that test. The test run need not exist, but the label must."""
 
-        return ID_Pair((pav_cfg.working_dir, raw_test_id))
+        if test_id.is_relative() and test_id.series is None and not legacy:
+            sid = load_user_series_id(pav_cfg)
+
+            if sid is None:
+                raise TestRunError(f"Unable to resolve test ID '{test_id}' with implicit series "
+                                    "'last'. No last series found.")
+            test_id.series = sid
+
+        return ID_Pair((pav_cfg.working_dir, test_id))
 
     @classmethod
-    def load_from_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID) -> 'TestRun':
+    def load_from_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID,
+                         legacy: bool = False) -> 'TestRun':
         """Load a test given a raw test id string, in the form
         [label].test_id. The optional label will allow us to look up the config
         path for the test."""
 
-        working_dir, test_id = cls.parse_raw_id(pav_cfg, raw_test_id)
+        working_dir, test_id = cls.parse_raw_id(pav_cfg, raw_test_id, legacy)
 
-        return cls.load(pav_cfg, working_dir, test_id)
+        return cls.load(pav_cfg, working_dir, test_id, legacy)
 
     @classmethod
-    def load(cls, pav_cfg, working_dir: Path, test_id: TestID) -> 'TestRun':
+    def load(cls, pav_cfg, working_dir: Path, test_id: TestID, legacy: bool = False) -> 'TestRun':
         """Load an old TestRun object given a test id.
 
         :param pav_cfg: The pavilion config
@@ -458,7 +467,11 @@ class TestRun(TestAttributes):
         :rtype: TestRun
         """
 
-        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id.id)
+        if test_id.is_absolute() or legacy:
+            path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id.id)
+        else:
+            path = (dir_db.make_id_path(working_dir / "series" / str(test_id.series.as_int()),
+                                       test_id.id)).resolve()
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
