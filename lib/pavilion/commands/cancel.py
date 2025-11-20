@@ -64,9 +64,10 @@ class CancelCommand(Command):
             tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
             test_ret = cancel_utils.cancel_tests(pav_cfg, tests, self.outfile)
         if len(series) > 0:
-            args.tests = tests
-            args.series = series
-            sinfos = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
+            sinfos = cmd_utils.arg_filtered_series(
+                                pav_cfg,
+                                series,
+                                verbose=self.errfile)
             test_series = list(map(lambda x: TestSeries.load(pav_cfg, x.id), sinfos))
             sers_ret = cancel_utils.cancel_series(test_series, self.outfile)
 

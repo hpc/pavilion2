@@ -85,7 +85,7 @@ class RunSeries(Command):
             formatter_class=arguments.WrappedFormatter)
 
         list_p.add_argument(
-            'series', nargs='*', type=SeriesID, default=SeriesID("all"),
+            'series', nargs='*', type=SeriesID, default=[SeriesID("all")],
             help="Specific series to show. Defaults to all your recent series on this cluster.",
         )
         filters.add_series_filter_args(list_p)
@@ -255,7 +255,11 @@ class RunSeries(Command):
         """List series."""
 
         matched_series = cmd_utils.arg_filtered_series(
-            pav_cfg=pav_cfg, args=args, verbose=self.errfile)
+                                        pav_cfg,
+                                        args.series,
+                                        filter_query=args.filter,
+                                        limit=args.limit,
+                                        verbose=self.errfile)
 
         rows = [ser.attr_dict() for ser in matched_series]
 
@@ -433,7 +437,12 @@ class RunSeries(Command):
     def _cancel_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Cancel all series found given the arguments."""
 
-        series_info = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
+        series_info = cmd_utils.arg_filtered_series(
+                                    pav_cfg,
+                                    args.series,
+                                    filter_query=args.filter,
+                                    limit=args.limit,
+                                    verbose=self.errfile)
         output.fprint(self.outfile, "Found {} series to cancel.".format(len(series_info)))
 
         chosen_series = []

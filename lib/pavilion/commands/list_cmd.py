@@ -2,12 +2,14 @@
 undefined) bits."""
 
 import errno
+from argparse import Namespace
 from typing import List, Dict, Mapping
 
 from pavilion import arguments
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
+from pavilion.config import PavConfig
 from pavilion.series.info import SeriesInfo
 from pavilion.test_run import TestAttributes
 from pavilion.test_ids import resolve_mixed_ids, SeriesID, TestID
@@ -260,7 +262,7 @@ class ListCommand(Command):
     SERIES_LONG_FIELDS = ['id', 'user', 'created', 'num_tests']
 
     @sub_cmd()
-    def _series_cmd(self, pav_cfg, args):
+    def _series_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Print info on each series."""
 
         series_attrs = {
@@ -279,7 +281,13 @@ class ListCommand(Command):
             avail_fields=list(series_attrs.keys()),
         )
 
-        series = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
+        series = cmd_utils.arg_filtered_series(
+                                pav_cfg,
+                                args.series,
+                                filter_query=args.filter,
+                                sort_by=args.sort_by,
+                                limit=args.limit,
+                                verbose=self.errfile)
         series = [series_info.attr_dict() for series_info in series]
 
         self.write_output(
@@ -290,3 +298,5 @@ class ListCommand(Command):
             vsep=args.vsep,
             wrap=args.wrap,
         )
+
+        return 0

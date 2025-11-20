@@ -5,7 +5,7 @@ import argparse
 from functools import partial
 from pathlib import Path
 from enum import Enum, auto
-from typing import Dict, Any, Callable, List, Mapping
+from typing import Dict, Any, Callable, List, Mapping, TypeVar, Tuple
 
 from lark import Lark
 from lark.exceptions import UnexpectedInput
@@ -77,10 +77,13 @@ HELP_TEXT = (
             "  user=USER          Include only tests/series started by this user. \n")
 
 
+T = TypeVar("T")
+
+
 filter_parser = Lark.open(GRAMMAR_PATH, start="expr")
 
 
-def sort_func(test_attrs: Mapping, key: str) -> Any:
+def sort_func(test_attrs: Mapping[str, T], key: str) -> T:
     """Use partial to reduce inputs and use as key in sort function.
     Sort by default key if given key is invalid at this stage.
 
@@ -224,7 +227,7 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 
 def get_sort_opts(
         sort_name: str,
-        stype: str) -> (Callable[[Path], Any], bool):
+        stype: str) -> Tuple[Callable[[Mapping[str, T]], T], bool]:
     """Return a sort function and sort order.
 
     :param sort_name: The name of the sort, possibly prepended with -.

@@ -1091,8 +1091,8 @@ class ResultParserTests(PavTestCase):
         loggers = get_result_loggers(self.pav_cfg, series1.id)
         series1.log_results(loggers)
 
-        series1.wait()
-        series1.wait_log()
+        series1.wait(10)
+        series1.wait_log(10)
 
         result_log1 = series1.get_result_paths()[0]
 

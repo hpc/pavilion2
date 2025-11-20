@@ -28,6 +28,11 @@ PKEY_FN = 'next_id'
 LOGGER = logging.getLogger(__file__)
 
 
+SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
+                                         ('paths', List[Path])])
+T = TypeVar("T")
+
+
 def make_id_path(base_path: Path, id_: Union[str, int]) -> Path:
     """Create the full path to an id directory given its base path and
     the id.
@@ -121,7 +126,7 @@ def default_filter(_: Path) -> bool:
     return True
 
 
-Index = NewType("Index", Dict[int, Dict['str', Any]])
+Index = NewType("Index", Dict[int, Dict[str, Any]])
 
 
 def identity(value: T) -> T:
@@ -260,11 +265,6 @@ def index(pav_cfg: PavConfig,
     return idx
 
 
-SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
-                                         ('paths', List[Path])])
-T = TypeVar("T")
-
-
 def select_one(path: Path,
                ffunc: Optional[Callable[[Path], bool]],
                trans: Optional[Callable[[Path], T]],
@@ -308,8 +308,8 @@ def select_one(path: Path,
 def select(pav_cfg: PavConfig,
            id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
-           transform: Callable[[Path], Any] = None,
-           order_func: Callable[[Any], Any] = None,
+           transform: Optional[Callable[[Path], Any]] = None,
+           order_func: Optional[Callable[[Dict[str, Any]], Any]] = None,
            order_asc: bool = True,
            fn_base: int = 16,
            idx_complete_key: 'str' = 'complete',

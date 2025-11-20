@@ -600,7 +600,7 @@ class TestSeries:
 
     WAIT_INTERVAL = 0.5
 
-    def wait(self, timeout: float = None) -> None:
+    def wait(self, timeout: Optional[float] = None) -> None:
         """Wait for the series to be complete or the timeout to expire. """
 
         if timeout is None:
@@ -617,13 +617,13 @@ class TestSeries:
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self.id))
 
-    def wait_log(self, timeout: float = None) -> None:
+    def wait_log(self, timeout: Optional[float] = None) -> None:
         """Wait until the result logging process finishes."""
 
         if self.log_proc is None:
             return
 
-        self.log_proc.wait()
+        self.log_proc.wait(timeout)
 
     @property
     def complete(self) -> bool:

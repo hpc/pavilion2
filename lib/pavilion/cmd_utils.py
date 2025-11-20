@@ -59,9 +59,12 @@ def set_arg_defaults(args: Namespace) -> None:
     args.filter = getattr(args, 'filter', def_filter)
 
 
-def arg_filtered_tests(pav_cfg: config.PavConfig, tests: List[TestID], series: List[SeriesID],
-                       limit: Optional[int] = None, sort_by: Optional[str] = None,
+def arg_filtered_tests(pav_cfg: config.PavConfig,
+                       tests: List[TestID],
+                       series: List[SeriesID],
                        filter_query: Optional[str] = None,
+                       sort_by: Optional[str] = None,
+                       limit: Optional[int] = None,
                        verbose: Optional[TextIO] = None) -> dir_db.SelectItems:
     """Search for test runs that match based on the specified tests and series IDs,
     and return a list of matching test id's.
@@ -84,7 +87,7 @@ def arg_filtered_tests(pav_cfg: config.PavConfig, tests: List[TestID], series: L
     if sort_by != "-created" or limit is not None or filter_query is not None:
         use_default_filter = False
 
-    if SeriesID("all") in series and filter_query is not None and use_default_filter:
+    if SeriesID("all") in series and use_default_filter:
         output.fprint(verbose, "Using default search filters: The current system, user, and "
                                "created less than 1 day ago.", color=output.CYAN)
         filter_query = make_filter_query()
@@ -162,32 +165,34 @@ def make_filter_query() -> str:
     return template.format(*fargs)
 
 
-def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
+def arg_filtered_series(pav_cfg: config.PavConfig,
+                        series: List[SeriesID],
+                        filter_query: Optional[str] = None,
+                        sort_by: Optional[str] = None,
+                        limit: Optional[int] = None,
                         verbose: Optional[TextIO] = None) -> List[SeriesInfo]:
     """Return a list of SeriesInfo objects based on the args.series attribute. When args.series is
     empty, default to the 'last' series started by the user on this system. If 'all' is given,
     search all series (with a default current user/system/1-day filter) and additonally filtered
     by args attributes provied via filters.add_series_filter_args()."""
 
-    limit = getattr(args, 'limit', filters.SERIES_FILTER_DEFAULTS['limit'])
     verbose = verbose or io.StringIO()
+    sort_by = sort_by or "-status_when"
 
-    if args.series == SeriesID("all") or SeriesID('all') in args.series:
-        for arg, default in filters.SERIES_FILTER_DEFAULTS.items():
-            if hasattr(args, arg) and default != getattr(args, arg):
-                break
-        else:
-            output.fprint(verbose, "Using default search filters: The current system, user, and "
-                                   "created less than 1 day ago.", color=output.CYAN)
-            args.filter = make_filter_query()
+    use_default_filter = True
+
+    if sort_by != "-status_when" or limit is not None or filter_query is not None:
+        use_default_filter = False
+
+    if SeriesID("all") in series and use_default_filter:
+        output.fprint(verbose, "Using default search filters: The current system, user, and "
+                                "created less than 1 day ago.", color=output.CYAN)
+        filter_query = make_filter_query()
 
     seen_sids = []
     found_series = []
 
-    if not isinstance(args.series, list):
-        args.series = [args.series]
-
-    for sid in args.series:
+    for sid in series:
         # Go through each provided sid (including last and all) and find all
         # matching series. Then only add them if we haven't seen them yet.
         if sid.last():
@@ -198,16 +203,15 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
             found_series.append(last_series.info())
 
         elif sid.all():
-            sort_by = getattr(args, 'sort_by', filters.SERIES_FILTER_DEFAULTS['sort_by'])
             order_func, order_asc = filters.get_sort_opts(sort_by, 'SERIES')
 
-            if args.filter is None:
+            if filter_query is None:
                 filter_func = filters.const(True)  # Always return True
             else:
                 try:
-                    filter_func = filters.parse_query(args.filter)
+                    filter_func = filters.parse_query(filter_query)
                 except filters.FilterParseError:
-                    raise PavilionError(f"Invalid syntax in filter query: {args.filter}")
+                    raise PavilionError(f"Invalid syntax in filter query: {filter_query}")
 
             found_series = dir_db.select(
                 pav_cfg=pav_cfg,
@@ -221,7 +225,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig, args: Namespace,
                 limit=limit,
             ).data
         else:
-            found_series.append(SeriesInfo.load(pav_cfg, sid.id_str))
+            found_series.append(SeriesInfo.load(pav_cfg, sid))
 
     matching_series = []
     for sinfo in found_series:

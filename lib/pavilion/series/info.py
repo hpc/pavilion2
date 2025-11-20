@@ -342,17 +342,11 @@ class SeriesInfo(SeriesInfoBase):
         return common.get_all_started(self.path)
 
     @classmethod
-    def load(cls, pav_cfg: config.PavConfig, sid: str):
+    def load(cls, pav_cfg: config.PavConfig, sid: SeriesID) -> "SeriesInfo":
         """Find and load a series info object from a series id."""
 
-        try:
-            id_ = int(sid[1:])
-        except ValueError:
-            raise TestSeriesError(
-                "Invalid series id '{}'. Series id should "
-                "look like 's1234'.".format(sid))
+        series_path = pav_cfg.working_dir/'series'/str(sid.as_int())
 
-        series_path = pav_cfg.working_dir/'series'/str(id_)
         if not series_path.exists():
             raise TestSeriesError("Could not find series '{}'".format(sid))
         return cls(pav_cfg, series_path)
