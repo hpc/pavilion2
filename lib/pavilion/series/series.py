@@ -18,6 +18,7 @@ from itertools import product
 from typing import List, Dict, Set, Union, TextIO, Iterator, Optional
 
 import pavilion
+from pavilion.config import PavConfig
 from pavilion import cancel_utils
 from pavilion import config
 from pavilion import dir_db
@@ -35,6 +36,7 @@ from pavilion.micro import partition, do, listfilter, stardo
 from pavilion.timing import TimeLimiter
 from pavilion.test_ids import SeriesID
 from pavilion.result_logging import get_result_loggers
+from pavilion.dir_db import create_id_dir
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -56,6 +58,7 @@ class TestSeries:
     PGID_FN = 'series.pgid'
     CANCEL_FN = 'series.CANCELED'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
+    TESTSET_DIRNAME = "test_sets"
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
@@ -207,13 +210,13 @@ class TestSeries:
     def test_set_dirs(self) -> Iterator[Path]:
         """Return an iterator over the test set directories for this series."""
 
-        if (self.path/'test_sets').exists():
-            for dir in (self.path/'test_sets').iterdir():
+        if (self.path/self.TESTSET_DIRNAME).exists():
+            for dir in (self.path/self.TESTSET_DIRNAME).iterdir():
                 if dir.is_dir():
                     yield dir
 
     @classmethod
-    def load(cls, pav_cfg, sid: SeriesID, outfile=None):
+    def load(cls, pav_cfg: PavConfig, sid: SeriesID, outfile: TextIO = None) -> "TestSeries":
         """Load a series object from the given id, along with all of its
     associated tests.
 
@@ -253,7 +256,7 @@ class TestSeries:
                                "no test sets for a series, but this series has: {}"
                                .format(self.test_sets))
 
-        sets_path = self.path/'test_sets'
+        sets_path = self.path/self.TESTSET_DIRNAME
         sets_path.mkdir(exist_ok=True)
 
         # What each test depends on.
@@ -733,7 +736,7 @@ class TestSeries:
     def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""
 
-        set_path = self.path/'test_sets'/test_set_name
+        set_path = self.path/self.TESTSET_DIRNAME/test_set_name
         try:
             set_path.mkdir(exist_ok=True, parents=True)
         except OSError as err:
@@ -742,7 +745,9 @@ class TestSeries:
                 .format(set_path, self.id), err)
 
         # attempt to make symlink
-        link_path = dir_db.make_id_path(set_path, test.uuid)
+        _, link_path = create_id_dir(set_path,
+                                  link_target=test.path,
+                                  next_fn=self.path/self.TESTSET_DIRNAME/"next_id")
 
         self.tests[test.id_pair] = test
 

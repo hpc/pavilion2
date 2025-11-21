@@ -1,14 +1,18 @@
 # pylint: disable=invalid-name
 
 import re
-from typing import Union, Tuple, List, Iterable, Optional, Dict, Any
+from typing import Union, Tuple, List, Iterable, Optional, Dict, Any, TextIO
 from abc import ABC, abstractmethod
 
-from pavilion.micro import flatten, unique
 from pavilion.utils import is_int, is_hash
+from pavilion.errors import PavilionError
 
 
 HASH_LEN = 32
+
+
+class TestIDError(PavilionError):
+    """Error related to the manipulation and resolution of test IDs."""
 
 
 class ID(ABC):
@@ -320,7 +324,6 @@ class SeriesRange(IDRange):
 
     def __str__(self) -> str:
         return f"s{self.start}-s{self.end}"
-
 
 def resolve_mixed_ids(ids: Iterable[str],
                       auto_last: bool = True) -> Dict[str, List[ID]]:

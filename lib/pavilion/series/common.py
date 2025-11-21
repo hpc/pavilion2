@@ -92,7 +92,7 @@ class LazyTestRunDict(UserDict):
                 if not path.is_symlink():
                     continue
 
-                test_id = TestID(path.name)
+                test_id = TestID(path.resolve().name)
 
                 try:
                     working_dir = path.resolve().parents[1]

@@ -42,6 +42,7 @@ from pavilion.types import ID_Pair
 from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
+from pavilion.id_utils import resolve_relative_id
 from .test_attrs import TestAttributes
 
 
@@ -436,14 +437,6 @@ class TestRun(TestAttributes):
         """Parse a raw test run id and return the label, working_dir, and id
         for that test. The test run need not exist, but the label must."""
 
-        if test_id.is_relative() and test_id.series is None and not legacy:
-            sid = load_user_series_id(pav_cfg)
-
-            if sid is None:
-                raise TestRunError(f"Unable to resolve test ID '{test_id}' with implicit series "
-                                    "'last'. No last series found.")
-            test_id.series = sid
-
         return ID_Pair((pav_cfg.working_dir, test_id))
 
     @classmethod
@@ -463,15 +456,15 @@ class TestRun(TestAttributes):
 
         :param pav_cfg: The pavilion config
         :param working_dir: The working directory where this test run lives.
-        :param int test_id: The test's id number.
+        :param test_id: The test's id number.
+        :param legacy: Whether or not to treat the ID as a legacy ID.
         :rtype: TestRun
         """
 
-        if test_id.is_absolute() or legacy:
-            path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id.id)
-        else:
-            path = (dir_db.make_id_path(working_dir / "series" / str(test_id.series.as_int()),
-                                       test_id.id)).resolve()
+        if test_id.is_relative() and not legacy:
+            test_id = resolve_relative_id(pav_cfg, working_dir, test_id)
+
+        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id.id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "

@@ -59,22 +59,26 @@ def reset_pkey(id_dir: Path) -> None:
         pass
 
 
-def create_id_dir(id_dir: Path, link_target: Optional[Path] = None) -> Tuple[int, Path]:
+def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
+                  next_fn: Optional[Path] = None) -> Tuple[int, Path]:
     """In the given directory, create the lowest numbered (positive integer)
     directory that doesn't already exist. If link_target is given, create a
     symlink to that target instead of a directory.
 
     :param id_dir: Path to the directory that contains these 'id'
         directories
+    :param link_target: Create the ID path as a symlink to the given target, rather than as
+                        a directory.
+    :param: next_fn: File from which to read the next ID.
     :returns: The id and path to the created directory.
     :raises OSError: on directory creation failure.
     :raises TimeoutError: If we couldn't get the lock in time.
     """
 
     lockfile_path = id_dir/'.lockfile'
-    with lockfile.LockFile(lockfile_path, timeout=1):
-        next_fn = id_dir/PKEY_FN
+    next_fn = next_fn or id_dir/PKEY_FN
 
+    with lockfile.LockFile(lockfile_path, timeout=1):
         next_valid = True
 
         if next_fn.exists():

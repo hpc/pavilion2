@@ -19,8 +19,8 @@ from pavilion import groups
 from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.series import TestSeries, SeriesInfo, list_series_tests, load_user_series_id, \
-                            mk_series_info_transform
+from pavilion.series import TestSeries, SeriesInfo, list_series_tests, mk_series_info_transform
+from pavilion.id_utils import load_user_series_id
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
 from pavilion.test_run import TestRun, load_tests, TestAttributes
