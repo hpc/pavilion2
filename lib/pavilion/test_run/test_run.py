@@ -601,6 +601,7 @@ class TestRun(TestAttributes):
                 err
             )
 
+        # This will overwrite an existing file (except on Windows)
         tmp_path.rename(config_path)
 
     @classmethod
