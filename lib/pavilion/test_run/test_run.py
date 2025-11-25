@@ -594,13 +594,19 @@ class TestRun(TestAttributes):
         except (OSError, FileNotFoundError):
             pass
 
-        start = time.time()
-        while time.time() - start < 100:
-            try:
-                tmp_path.rename(config_path)
-                break
-            except FileNotFoundError:
-                continue
+        try:
+            wait(
+                lambda: tmp_path.exists(),
+                interval=0.1,
+                timeout=5,
+                msg=f"Timed out waiting for file {tmp_path} to be created.")
+        except TimeoutError as err:
+            raise TestRunError(
+                "Could not save TestRun ({self.name}) config at {self.path}",
+                err
+            )
+
+        tmp_path.rename(config_path)
 
     @classmethod
     def _load_config(cls, test_path):
