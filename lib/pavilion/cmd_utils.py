@@ -523,18 +523,18 @@ def get_last_test_id(pav_cfg: "PavConfig", errfile: TextIO) -> Optional[TestID]:
     if last_series is None:
         return None
 
-    test_ids = list(last_series.tests.keys())
+    id_pairs = list(last_series.tests.keys())
 
-    if len(test_ids) == 0:
+    if len(id_pairs) == 0:
         output.fprint(
             errfile,
             f"Most recent series contains no tests.")
         return None
 
-    if len(test_ids) > 1:
+    if len(id_pairs) > 1:
         output.fprint(
             errfile,
             f"Multiple tests exist in last series. Could not unambiguously identify last test.")
         return None
 
-    return TestID(test_ids[0])
+    return TestID(str(id_pairs[0][1]))
