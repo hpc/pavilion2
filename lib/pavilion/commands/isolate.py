@@ -6,19 +6,21 @@ from typing import Dict, Any, Optional
 from pavilion import output
 from pavilion.config import PavConfig
 from pavilion.test_ids import TestID
-from pavilion.cmd_utils import get_last_test_id
+from pavilion.cmd_utils import get_last_test_id, get_tests_by_id
 from pavilion.utils import copytree
 from .base_classes import Command
 
 
-class ArchiveOptionsAction(Action)
+class ArchiveOptionsAction(Action):
     def __call__(
             parser: ArgumentParser,
             namespace: Namespace,
-            values: Dict[str, Any]
+            values: Dict[str, Any],
             option_string: Optional[str] = None) -> None:
-        if not getattr(namespace, "archive") and geattr(namespace, "zip"):
+        if not getattr(namespace, "archive"):
             parser.error("--archive must be specified to use --zip.")
+        else:
+            setattr(namespace, "zip", True)
 
 
 class IsolateCommand(Command):
@@ -56,7 +58,6 @@ class IsolateCommand(Command):
         parser.add_argument(
             "-z",
             "--zip",
-            action="store_true",
             default=False,
             help="compress the test archive",
             action=ArchiveOptionsAction
@@ -73,7 +74,7 @@ class IsolateCommand(Command):
 
                 return 1
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
+        tests = get_tests_by_id(pav_cfg, [test_id], self.errfile)
 
         if len(tests) == 0:
             output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
@@ -88,7 +89,7 @@ class IsolateCommand(Command):
 
             return 3
 
-        test = next(tests)
+        test = next(iter(tests))
 
         if not test.path.is_dir():
             output.fprint(sys.stderr, "Directory '{}' does not exist."
@@ -104,4 +105,5 @@ class IsolateCommand(Command):
 
             shutil.make_archive(args.path, archive_format, test.path)
         else:
+            print("Copying directory tree...")
             copytree(test.path, args.path)
