@@ -590,11 +590,6 @@ class TestRun(TestAttributes):
                 .format(self.name), err)
 
         try:
-            config_path.unlink()
-        except (OSError, FileNotFoundError):
-            pass
-
-        try:
             wait(
                 lambda: tmp_path.exists(),
                 interval=0.1,
