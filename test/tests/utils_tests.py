@@ -140,3 +140,19 @@ class UtilsTests(unittest.PavTestCase):
                     self.assertFalse(Path(os.readlink(str(path))).is_absolute())
                 with path.open() as file:
                     self.assertEqual(file.read(), answer)
+
+    def test_copytree_dotfiles(self):
+        """Check that copytree copies dotfiles."""
+
+        with tempfile.TemporaryDirectory() as dir:
+            src = Path(dir) / "src"
+            dest = Path(dir) / "dest"
+            dotfile = src / ".dotfile"
+
+            src.mkdir()
+            dotfile.touch()
+
+            utils.copytree(src, dest)
+
+            names = (map(lambda x: x.name, dest.iterdir()))
+            self.assertIn(".dotfile", names)
