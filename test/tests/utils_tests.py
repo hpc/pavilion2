@@ -156,3 +156,19 @@ class UtilsTests(unittest.PavTestCase):
 
             names = (map(lambda x: x.name, dest.iterdir()))
             self.assertIn(".dotfile", names)
+
+    def test_copytree_resolved(self):
+        with tempfile.TemporaryDirectory() as src:
+            src = Path(src)
+
+            with tempfile.TemporaryDirectory() as dest:
+                dest = Path(dest)
+
+                (src / "foo").mkdir()
+                (src / "bar").touch()
+                (src / "foo" / "baz").touch()
+
+                utils.copytree_resolved(src, dest)
+
+                dest_files = set(map(lambda x: x.relative_to(src), src.iterdir()))
+                dest_files = set(map(lambda x: x.relative_to(dest), dest.iterdir()))

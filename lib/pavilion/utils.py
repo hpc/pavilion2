@@ -241,6 +241,7 @@ def copytree_resolved(
     elif src.is_file():
         return shutil.copy(src, dest)
     elif src.is_dir():
+        dest.mkdir(exist_ok=True)
         files = src.iterdir()
 
         for f in files:
