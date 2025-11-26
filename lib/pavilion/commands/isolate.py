@@ -99,8 +99,18 @@ class IsolateCommand(Command):
             else:
                 archive_format = "tar"
 
-            shutil.make_archive(dest, archive_format, test_path)
+            try:
+                shutil.make_archive(dest, archive_format, test_path)
+            except OSError:
+                output.fprint(f"Unable to isolate test {test.id} at {dest}.")
+
+                return 6
         else:
-            shutil.copytree(test_path, dest, ignore=lambda x, y: ("series", "job"))
+            try:
+                shutil.copytree(test_path, dest, ignore=lambda x, y: ("series", "job"))
+            except OSError:
+                output.fprint(f"Unable to isolate test {test.id} at {dest}.")
+
+                return 6
 
         return 0
