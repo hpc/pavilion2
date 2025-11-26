@@ -1,5 +1,8 @@
 import tempfile
+import os
 from pathlib import Path
+import subprocess as sp
+from typing import Iterator
 
 from pavilion import commands
 from pavilion import arguments
@@ -32,4 +35,46 @@ class IsolateCmdTests(PavTestCase):
             self.assertEqual({f for f in source_files if f not in ("series", "job")}, dest_files)
 
     def test_zip_archive(self):
-        ...
+        run_cmd = commands.get_command("run")
+        isolate_cmd = commands.get_command("isolate")
+
+        run_cmd.silence()
+        isolate_cmd.silence()
+
+        parser = arguments.get_parser()
+        run_args = ["run", "-H", "this", "hello_world.hello"]
+
+        run_cmd.run(self.pav_cfg, parser.parse_args(run_args))
+        last_test = next(iter(run_cmd.last_tests))
+
+        with tempfile.TemporaryDirectory() as dir:
+            isolate_args = parser.parse_args(["isolate",
+                                              str(Path(dir) / "dest"),
+                                              "--archive",
+                                              "--zip"])
+
+            self.assertEqual(isolate_cmd.run(self.pav_cfg, isolate_args), 0)
+
+            res = sp.run(
+                ["tar", "-tf", str(Path(dir) / "dest.tar.gz")],
+                stdout=sp.PIPE,
+                stderr=sp.PIPE,
+                universal_newlines=True)
+
+            def list_files(path: Path) -> Iterator[Path]:
+                for root, dirs, files in os.walk(path):
+                    yield root
+
+                    for f in files:
+                        yield Path(root) / f
+                    for d in dirs:
+                        yield Path(root) / d
+
+            source_files = set(map(
+                                lambda x: Path(x).relative_to(last_test.path.parent),
+                                list_files(last_test.path)))
+            dest_files = set(map(Path, res.stdout.splitlines()))
+
+            self.assertEqual(
+                {f for f in source_files if f.name not in ("series", "job")},
+                dest_files)

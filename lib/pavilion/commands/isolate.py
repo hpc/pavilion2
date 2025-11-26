@@ -100,7 +100,11 @@ class IsolateCommand(Command):
                 archive_format = "tar"
 
             try:
-                shutil.make_archive(dest, archive_format, test_path)
+                shutil.make_archive(
+                        dest,
+                        archive_format,
+                        root_dir=test_path.parent,
+                        base_dir=test_path.name)
             except OSError:
                 output.fprint(f"Unable to isolate test {test.id} at {dest}.")
 
