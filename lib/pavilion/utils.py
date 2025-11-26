@@ -13,8 +13,7 @@ import subprocess
 import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO
-from typing import List, Dict
+from typing import Iterator, Union, TextIO, List, Dict, Optional, Set
 
 
 class WrappedFormatter(argparse.HelpFormatter):
@@ -207,6 +206,47 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
     if errors:
         raise shutil.Error(errors)
     return dst
+
+def copytree_resolved(
+                src: Path,
+                dest: Path,
+                seen_files: Optional[Set] = None,
+                flatten: bool = False) -> Path:
+    """Copy a directory tree to another location, such that the resulting directory contains
+    the targets of all symlinks. If flatten is specified, replace all symlinks with
+    their targets."""
+
+    seen_files = seen_files or set()
+
+    if src in seen_files:
+        return src
+
+    seen_files.add(src)
+
+    if src.is_symlink():
+        target = src.resolve()
+
+        if target not in seen_files:
+            if flatten:
+                copytree_resolved(target, dest, seen_files)
+            else:
+                # Retain the symlink but copy its target to the present directory
+                copytree_resolved(target, dest.parent / target.name, seen_files)
+                dest.symlink_to(dest.parent / target.name)
+        else:
+            dest.symlink_to(target)
+
+        return dest
+
+    elif src.is_file():
+        return shutil.copy(src, dest, seen_files)
+    elif src.is_dir():
+        files = src.iterdir()
+
+        for f in files:
+            copytree(f, dest / f.name, seen_files)
+
+        return dest
 
 
 def path_is_external(path: Path):
