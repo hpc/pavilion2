@@ -239,15 +239,14 @@ def copytree_resolved(
         return dest
 
     elif src.is_file():
-        return shutil.copy(src, dest, seen_files)
+        return shutil.copy(src, dest)
     elif src.is_dir():
         files = src.iterdir()
 
         for f in files:
-            copytree(f, dest / f.name, seen_files)
+            copytree_resolved(f, dest / f.name, seen_files)
 
         return dest
-
 
 def path_is_external(path: Path):
     """Returns True if a path contains enough back 'up-references' to escape
