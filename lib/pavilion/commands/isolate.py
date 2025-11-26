@@ -116,7 +116,6 @@ class IsolateCommand(Command):
                 with tarfile.open(dest, "w:gz") as tf:
                     for f in list_files(test.path, include_root=True):
                         if f.name not in cls.IGNORE_FILES:
-                            print(f.relative_to(test.path.parent))
                             tf.add(f, arcname=f.relative_to(test.path.parent), recursive=False)
             except Exception as err:
                 output.fprint(
