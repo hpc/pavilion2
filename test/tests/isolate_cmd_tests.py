@@ -26,10 +26,10 @@ class IsolateCmdTests(PavTestCase):
 
             self.assertEqual(isolate_cmd.run(self.pav_cfg, isolate_args), 0)
 
-            source_files = set(map(lambda x: x.name, last_test.path.listdir()))
-            dest_files = set(map(lambda x: x.name, (Path(dir) / "dest").listdir()))
+            source_files = set(map(lambda x: x.name, last_test.path.iterdir()))
+            dest_files = set(map(lambda x: x.name, (Path(dir) / "dest").iterdir()))
 
-            self.assertEqual(source_files, dest_files)
+            self.assertEqual({f for f in source_files if f not in ("series", "job")}, dest_files)
 
-    def test_zip_arcive(self):
+    def test_zip_archive(self):
         ...

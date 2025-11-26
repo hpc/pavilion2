@@ -7,7 +7,6 @@ from pavilion import output
 from pavilion.config import PavConfig
 from pavilion.test_ids import TestID
 from pavilion.cmd_utils import get_last_test_id, get_tests_by_id
-from pavilion.utils import copytree
 from .base_classes import Command
 
 
@@ -105,5 +104,6 @@ class IsolateCommand(Command):
 
             shutil.make_archive(args.path, archive_format, test.path)
         else:
-            print("Copying directory tree...")
-            copytree(test.path, args.path)
+            shutil.copytree(test.path, args.path, ignore=lambda x, y: ("series", "job"))
+
+        return 0
