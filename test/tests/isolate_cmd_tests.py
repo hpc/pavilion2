@@ -7,6 +7,7 @@ from typing import Iterator
 from pavilion import commands
 from pavilion import arguments
 from pavilion.unittest import PavTestCase
+from pavilion.cmd_utils import list_files
 
 
 class IsolateCmdTests(PavTestCase):
@@ -49,30 +50,21 @@ class IsolateCmdTests(PavTestCase):
 
         with tempfile.TemporaryDirectory() as dir:
             isolate_args = parser.parse_args(["isolate",
-                                              str(Path(dir) / "dest"),
+                                              str(Path(dir) / "dest.tgz"),
                                               "--archive",
                                               "--zip"])
 
             self.assertEqual(isolate_cmd.run(self.pav_cfg, isolate_args), 0)
 
             res = sp.run(
-                ["tar", "-tf", str(Path(dir) / "dest.tar.gz")],
+                ["tar", "-tf", str(Path(dir) / "dest.tgz")],
                 stdout=sp.PIPE,
                 stderr=sp.PIPE,
                 universal_newlines=True)
 
-            def list_files(path: Path) -> Iterator[Path]:
-                for root, dirs, files in os.walk(path):
-                    yield root
-
-                    for f in files:
-                        yield Path(root) / f
-                    for d in dirs:
-                        yield Path(root) / d
-
             source_files = set(map(
                                 lambda x: Path(x).relative_to(last_test.path.parent),
-                                list_files(last_test.path)))
+                                list_files(last_test.path, include_root=True)))
             dest_files = set(map(Path, res.stdout.splitlines()))
 
             self.assertEqual(

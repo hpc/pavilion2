@@ -7,6 +7,7 @@ import io
 import logging
 import sys
 import time
+import os
 from pathlib import Path
 from typing import List, TextIO, Union, Iterator, Optional
 from collections import defaultdict
@@ -538,3 +539,16 @@ def get_last_test_id(pav_cfg: "PavConfig", errfile: TextIO) -> Optional[TestID]:
         return None
 
     return TestID(str(id_pairs[0][1]))
+
+
+def list_files(path: Path, include_root: bool = False) -> Iterator[Path]:
+    """Recursively list all files in a directory, optionally including the directory itself."""
+
+    for root, dirs, files in os.walk(path):
+        if include_root:
+            yield Path(root)
+
+        for f in files:
+            yield Path(root) / f
+        for d in dirs:
+            yield Path(root) / d

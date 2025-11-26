@@ -1,17 +1,22 @@
 from argparse import ArgumentParser, Namespace, Action
 from pathlib import Path
 import shutil
+import tarfile
+import sys
 from typing import Dict, Any, Optional
 
 from pavilion import output
 from pavilion.config import PavConfig
+from pavilion.test_run import TestRun
 from pavilion.test_ids import TestID
-from pavilion.cmd_utils import get_last_test_id, get_tests_by_id
+from pavilion.cmd_utils import get_last_test_id, get_tests_by_id, list_files
 from .base_classes import Command
 
 
 class IsolateCommand(Command):
     """Isolates an existing test run in a form that can be run without Pavilion."""
+
+    IGNORE_FILES = ("series", "job")
 
     def __init__(self):
         super().__init__(
@@ -83,15 +88,23 @@ class IsolateCommand(Command):
 
         test = next(iter(tests))
 
-        return self._isolate(test.path, args.path, args.archive, args.zip)
+        return self._isolate(test, args.path, args.archive, args.zip)
 
-    @staticmethod
-    def _isolate(test_path: Path, dest: Path, archive: bool, zip: bool) -> int:
-        if not test_path.is_dir():
+    @classmethod
+    def _isolate(cls, test: TestRun, dest: Path, archive: bool, zip: bool) -> int:
+        if not test.path.is_dir():
             output.fprint(sys.stderr, "Directory '{}' does not exist."
-                          .format(test_path.as_posix()), color=output.RED)
+                          .format(test.path.as_posix()), color=output.RED)
 
             return 5
+
+        if dest.exists():
+            output.fprint(
+                sys.stderr,
+                f"Unable to isolate test {test.id}. Destination {dest} already exists.",
+                color=output.RED)
+
+            return 6
 
         if archive:
             if zip:
@@ -100,21 +113,27 @@ class IsolateCommand(Command):
                 archive_format = "tar"
 
             try:
-                shutil.make_archive(
-                        dest,
-                        archive_format,
-                        root_dir=test_path.parent,
-                        base_dir=test_path.name)
-            except OSError:
-                output.fprint(f"Unable to isolate test {test.id} at {dest}.")
+                with tarfile.open(dest, "w:gz") as tf:
+                    for f in list_files(test.path, include_root=True):
+                        if f.name not in cls.IGNORE_FILES:
+                            print(f.relative_to(test.path.parent))
+                            tf.add(f, arcname=f.relative_to(test.path.parent), recursive=False)
+            except Exception as err:
+                output.fprint(
+                    sys.stderr,
+                    f"Unable to isolate test {test.id} at {dest}: {err}",
+                    color=output.RED)
 
-                return 6
+                return 7
         else:
             try:
-                shutil.copytree(test_path, dest, ignore=lambda x, y: ("series", "job"))
+                shutil.copytree(test.path, dest, ignore=lambda x, y: cls.IGNORE_FILES)
             except OSError:
-                output.fprint(f"Unable to isolate test {test.id} at {dest}.")
+                output.fprint(
+                    sys.stderr,
+                    f"Unable to isolate test {test.id} at {dest}.",
+                    color=output.RED)
 
-                return 6
+                return 8
 
         return 0
