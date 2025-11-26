@@ -115,6 +115,7 @@ class IsolateCommand(Command):
             else:
                 if len(dest.suffixes) == 0:
                     dest = dest.with_suffix(".tar")
+
                 archive_format = "tar"
 
             try:
@@ -122,10 +123,10 @@ class IsolateCommand(Command):
                     for f in list_files(test.path, include_root=True):
                         if f.name not in cls.IGNORE_FILES:
                             tf.add(f, arcname=f.relative_to(test.path.parent), recursive=False)
-            except Exception as err:
+            except:
                 output.fprint(
                     sys.stderr,
-                    f"Unable to isolate test {test.id} at {dest}: {err}",
+                    f"Unable to isolate test {test.id} at {dest}.",
                     color=output.RED)
 
                 return 7

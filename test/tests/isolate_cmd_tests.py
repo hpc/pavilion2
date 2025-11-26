@@ -1,5 +1,6 @@
 import tempfile
 import os
+import tarfile
 from pathlib import Path
 import subprocess as sp
 from typing import Iterator
@@ -30,9 +31,10 @@ class IsolateCmdTests(PavTestCase):
 
             self.assertEqual(isolate_cmd.run(self.pav_cfg, isolate_args), 0)
 
-            source_files = set(map(lambda x: x.name, last_test.path.iterdir()))
-            dest_files = set(map(lambda x: x.name, (Path(dir) / "dest").iterdir()))
+            source_files = set(list_files(last_test.path))
+            dest_files = set(list_files(Path(dir) / "dest"))
 
+            self.assertFalse(any(map(lambda x: x.is_symlink(), dest_files)))
             self.assertEqual({f for f in source_files if f not in ("series", "job")}, dest_files)
 
     def test_zip_archive(self):
@@ -50,23 +52,25 @@ class IsolateCmdTests(PavTestCase):
 
         with tempfile.TemporaryDirectory() as dir:
             isolate_args = parser.parse_args(["isolate",
-                                              str(Path(dir) / "dest.tgz"),
+                                              str(Path(dir) / "dest"),
                                               "--archive",
                                               "--zip"])
 
             self.assertEqual(isolate_cmd.run(self.pav_cfg, isolate_args), 0)
 
-            res = sp.run(
-                ["tar", "-tf", str(Path(dir) / "dest.tgz")],
-                stdout=sp.PIPE,
-                stderr=sp.PIPE,
-                universal_newlines=True)
+            with tempfile.TemporaryDirectory() as extract_dir:
+                with tarfile.open(Path(dir) / "dest.tgz", "r:gz") as tf:
+                    tf.extractall(extract_dir)
 
-            source_files = set(map(
-                                lambda x: Path(x).relative_to(last_test.path.parent),
-                                list_files(last_test.path, include_root=True)))
-            dest_files = set(map(Path, res.stdout.splitlines()))
+                    dest_files = list_files(Path(extract_dir))
 
-            self.assertEqual(
-                {f for f in source_files if f.name not in ("series", "job")},
-                dest_files)
+                    self.assertFalse(any(map(lambda x: x.is_symlink(), dest_files)))
+
+                    source_files = set(map(
+                                        lambda x: Path(x).relative_to(last_test.path.parent),
+                                        list_files(last_test.path, include_root=True)))
+                    dest_files = set(dest_files)
+
+                    self.assertEqual(
+                        {f for f in source_files if f.name not in ("series", "job")},
+                        dest_files)
