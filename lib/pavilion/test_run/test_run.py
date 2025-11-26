@@ -591,18 +591,23 @@ class TestRun(TestAttributes):
 
         try:
             wait(
-                lambda: tmp_path.exists(),
+                tmp_path.exists,
                 interval=0.1,
                 timeout=5,
                 msg=f"Timed out waiting for file {tmp_path} to be created.")
         except TimeoutError as err:
             raise TestRunError(
-                "Could not save TestRun ({self.name}) config at {self.path}",
+                f"Could not save TestRun ({self.name}) config at {self.path}",
                 err
             )
 
-        # This will overwrite an existing file (except on Windows)
-        tmp_path.rename(config_path)
+        try:
+            # This will overwrite existing files (on Linux)
+            tmp_path.rename(config_path)
+        except FileExistsError:
+            # This should only happen on Windows systems
+            config_path.unlink()
+            tmp_path.rename(config_path)
 
     @classmethod
     def _load_config(cls, test_path):
