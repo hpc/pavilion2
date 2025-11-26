@@ -108,8 +108,13 @@ class IsolateCommand(Command):
 
         if archive:
             if zip:
+                if len(dest.suffixes) == 0:
+                    dest = dest.with_suffix(".tgz")
+
                 archive_format = "gztar"
             else:
+                if len(dest.suffixes) == 0:
+                    dest = dest.with_suffix(".tar")
                 archive_format = "tar"
 
             try:
