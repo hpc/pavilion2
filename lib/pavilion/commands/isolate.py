@@ -10,18 +10,6 @@ from pavilion.cmd_utils import get_last_test_id, get_tests_by_id
 from .base_classes import Command
 
 
-class ArchiveOptionsAction(Action):
-    def __call__(
-            parser: ArgumentParser,
-            namespace: Namespace,
-            values: Dict[str, Any],
-            option_string: Optional[str] = None) -> None:
-        if not getattr(namespace, "archive"):
-            parser.error("--archive must be specified to use --zip.")
-        else:
-            setattr(namespace, "zip", True)
-
-
 class IsolateCommand(Command):
     """Isolates an existing test run in a form that can be run without Pavilion."""
 
@@ -59,10 +47,15 @@ class IsolateCommand(Command):
             "--zip",
             default=False,
             help="compress the test archive",
-            action=ArchiveOptionsAction
+            action="store_true"
         )
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
+        if args.zip and not args.archive:
+            output.fprint(self.errfile, "--archive must be specified to use --zip.")
+
+            return 1
+
         test_id = args.test_id
 
         if args.test_id is None:
@@ -71,14 +64,14 @@ class IsolateCommand(Command):
             if test_id is None:
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
 
-                return 1
+                return 2
 
         tests = get_tests_by_id(pav_cfg, [test_id], self.errfile)
 
         if len(tests) == 0:
             output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
 
-            return 2
+            return 3
 
         elif len(tests) > 1:
             output.fprint(
@@ -86,24 +79,28 @@ class IsolateCommand(Command):
                               "test only (test {})".format(tests[0].full_id),
                 color=output.YELLOW)
 
-            return 3
+            return 4
 
         test = next(iter(tests))
 
-        if not test.path.is_dir():
+        return self._isolate(test.path, args.path, args.archive, args.zip)
+
+    @staticmethod
+    def _isolate(test_path: Path, dest: Path, archive: bool, zip: bool) -> int:
+        if not test_path.is_dir():
             output.fprint(sys.stderr, "Directory '{}' does not exist."
-                          .format(test.path.as_posix()), color=output.RED)
+                          .format(test_path.as_posix()), color=output.RED)
 
-            return 4
+            return 5
 
-        if args.archive:
-            if args.zip:
+        if archive:
+            if zip:
                 archive_format = "gztar"
             else:
                 archive_format = "tar"
 
-            shutil.make_archive(args.path, archive_format, test.path)
+            shutil.make_archive(dest, archive_format, test_path)
         else:
-            shutil.copytree(test.path, args.path, ignore=lambda x, y: ("series", "job"))
+            shutil.copytree(test_path, dest, ignore=lambda x, y: ("series", "job"))
 
         return 0
