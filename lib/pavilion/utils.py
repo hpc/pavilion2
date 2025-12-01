@@ -244,8 +244,8 @@ def copytree_resolved(
         dest.mkdir(exist_ok=True)
         files = src.iterdir()
 
-        for fl in files:
-            copytree_resolved(fl, dest / fl.name, seen_files)
+        for fname in files:
+            copytree_resolved(fname, dest / fname.name, seen_files)
 
         return dest
 

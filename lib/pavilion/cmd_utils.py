@@ -548,7 +548,7 @@ def list_files(path: Path, include_root: bool = False) -> Iterator[Path]:
         if include_root:
             yield Path(root)
 
-        for f in files:
-            yield Path(root) / f
-        for d in dirs:
-            yield Path(root) / d
+        for fname in files:
+            yield Path(root) / fname
+        for dname in dirs:
+            yield Path(root) / dname

@@ -119,10 +119,10 @@ class IsolateCommand(Command):
                 archive_format = "tar"
 
             try:
-                with tarfile.open(dest, "w:gz") as tf:
-                    for f in list_files(test.path, include_root=True):
-                        if f.name not in cls.IGNORE_FILES:
-                            tf.add(f, arcname=f.relative_to(test.path.parent), recursive=False)
+                with tarfile.open(dest, "w:gz") as tarf:
+                    for fname in list_files(test.path, include_root=True):
+                        if fname.name not in cls.IGNORE_FILES:
+                            tarf.add(f, arcname=f.relative_to(test.path.parent), recursive=False)
             except:
                 output.fprint(
                     sys.stderr,
