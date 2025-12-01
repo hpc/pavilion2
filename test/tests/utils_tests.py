@@ -158,73 +158,100 @@ class UtilsTests(unittest.PavTestCase):
             self.assertIn(".dotfile", names)
 
     def test_copytree_resolved(self):
-        with tempfile.TemporaryDirectory() as src:
-            src = Path(src)
+        examples = [
+            {
+                "flatten": False,
+                "files": [
+                    {"name": "foo", "dir": True, "target": None},
+                    {"name": "bar", "dir": False, "target": None},
+                    {"name": "foo/baz", "dir": False, "target": None},
+                ],
+                "expected": [
+                    {"name": "foo", "dir": True, "target": None},
+                    {"name": "bar", "dir": False, "target": None},
+                    {"name": "foo/baz", "dir": False, "target": None},
+                ]
+            },
+            {
+                "flatten": True,
+                "files": [
+                    {"name": "foo", "dir": True, "target": None},
+                    {"name": "bar", "dir": False, "target": None},
+                    {"name": "foo/baz", "dir": False, "target": "bar"},
+                ],
+                "expected": [
+                    {"name": "foo", "dir": True, "target": None},
+                    {"name": "foo/baz", "dir": False, "target": None},
+                ]
+            },
+            {
+                "flatten": False,
+                "files": [
+                    {"name": "foo", "dir": True, "target": None},
+                    {"name": "bar", "dir": False, "target": None},
+                    {"name": "foo/baz", "dir": False, "target": "bar"},
+                ],
+                "expected": [
+                    {"name": "foo", "dir": True, "target": None},
+                    {"name": "foo/baz", "dir": False, "target": "foo/bar"},
+                    {"name": "foo/bar", "dir": False, "target": None},
+                ]
+            },
+            {
+                "flatten": False,
+                "files": [
+                    {"name": "foo", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": "foo"},
+                ],
+                "expected": [
+                    {"name": "foo", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": "foo"},
+                ]
+            },
+            {
+                "flatten": True,
+                "files": [
+                    {"name": "foo", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": "foo"},
+                ],
+                "expected": [
+                    {"name": "foo", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": "foo"},
+                ]
+            },
+        ]
 
-            with tempfile.TemporaryDirectory() as dest:
-                dest = Path(dest)
+        for ex in examples:
+            with tempfile.TemporaryDirectory() as src:
+                src = Path(src)
 
-                (src / "foo").mkdir()
-                (src / "bar").touch()
-                (src / "foo" / "baz").touch()
+                with tempfile.TemporaryDirectory() as dest:
+                    dest = Path(dest)
 
-                utils.copytree_resolved(src, dest)
+                    # Create the files.
+                    for f in ex["files"]:
+                        file_path = src / f["name"]
 
-                src_files = set(map(lambda x: x.relative_to(src), src.iterdir()))
-                dest_files = set(map(lambda x: x.relative_to(dest), dest.iterdir()))
+                        if f["dir"]:
+                            file_path.mkdir(parents=True)
+                        else:
+                            if f["target"] is None:
+                                file_path.touch()
+                            else:
+                                target_path = src / f["target"]
+                                file_path.symlink_to(target_path)
 
-                self.assertEqual(src_files, dest_files)
+                    utils.copytree_resolved(src, dest, flatten=ex["flatten"])
 
-        with tempfile.TemporaryDirectory() as src:
-            src = Path(src)
+                    expected = set(Path(f["name"]) for f in ex["expected"])
+                    actual = set(p.relative_to(dest) for p in dest.rglob('*'))
 
-            with tempfile.TemporaryDirectory() as dest:
-                dest = Path(dest)
+                    self.assertEqual(expected, actual)
 
-                (src / "foo").mkdir()
-                (src / "bar").touch()
-
-                (src / "foo" / "baz").symlink_to(src / "bar")
-
-                utils.copytree_resolved(src / "foo", dest, flatten=True)
-
-                dest_files = set(map(lambda x: x.relative_to(dest), dest.iterdir()))
-                expected = set([Path("foo"), Path("foo") / "baz"])
-
-                self.assertEqual(dest_files, expected)
-                self.assertFalse((dest / "foo" / "baz").is_symlink())
-        
-        with tempfile.TemporaryDirectory() as src:
-            src = Path(src)
-
-            with tempfile.TemporaryDirectory() as dest:
-                dest = Path(dest)
-                
-                (src / "foo").mkdir()
-                (src / "bar").touch()
-
-                (src / "foo" / "baz").symlink_to(src / "bar")
- 
-                utils.copytree_resolved(src / "foo", dest, flatten=False)
-
-                dest_files = set(map(lambda x: x.relative_to(dest), dest.iterdir()))
-                expected = set([Path("foo"), Path("foo") / "baz", Path("foo") / "bar"])
-
-                self.assertEqual(dest_files, expected)
-                self.assertTrue((dest / "foo" / "baz").is_symlink())
-
-        with tempfile.TemporaryDirectory() as src:
-            src = Path(src)
-
-            with tempfile.TemporaryDirectory() as dest:
-                dest = Path(dest)
-
-                (src / "foo").symlink_to(src / "bar")
-                (src / "bar").symlink_to(src / "foo")
-
-                utils.copytree_resolved(src / "foo", dest, flatten=False)
-
-                dest_files = set(map(lambda x: x.relative_to(dest), dest.iterdir()))
-                expected = set([Path("foo"), Path("bar")])
-
-                self.assertEqual(dest_files, expected)
+                    for f in ex["expected"]:
+                        for g in actual:
+                            if Path(f["name"]) == g:
+                                if f["target"] is None:
+                                    self.assertFalse((dest / g).is_symlink())
+                                else:
+                                    self.assertTrue((dest / g).is_symlink())
