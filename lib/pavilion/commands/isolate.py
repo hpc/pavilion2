@@ -117,21 +117,23 @@ class IsolateCommand(Command):
 
                 modestr = "w:"
 
-            try:
-                with tarfile.open(dest, modestr) as tarf:
-                    for fname in list_files(test.path, include_root=True):
-                        if fname.name not in cls.IGNORE_FILES:
+            with tempfile.TemporaryDirectory() as tmp:
+                utils.copytree_resolved(test.path, tmp, ignore_files=cls.IGNORE_FILES)
+
+                try:
+                    with tarfile.open(dest, modestr) as tarf:
+                        for fname in list_files(tmp):
                             tarf.add(
                                     fname,
                                     arcname=fname.relative_to(test.path.parent),
                                     recursive=False)
-            except (tarfile.TarError, OSError):
-                output.fprint(
-                    sys.stderr,
-                    f"Unable to isolate test {test.id} at {dest}.",
-                    color=output.RED)
+                except (tarfile.TarError, OSError):
+                    output.fprint(
+                        sys.stderr,
+                        f"Unable to isolate test {test.id} at {dest}.",
+                        color=output.RED)
 
-                return 7
+                    return 7
         else:
             try:
                 shutil.copytree(test.path, dest, ignore=lambda x, y: cls.IGNORE_FILES)
