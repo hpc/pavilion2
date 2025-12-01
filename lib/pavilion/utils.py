@@ -224,14 +224,14 @@ def copytree_resolved(
     seen_files.add(src)
 
     if src.is_symlink():
-        target = src.resolve()
+        target = Path(os.readlink(src))
 
         if target not in seen_files:
             if flatten:
-                copytree_resolved(target, dest, seen_files)
+                copytree_resolved(target, dest, seen_files, flatten=flatten)
             else:
                 # Retain the symlink but copy its target to the present directory
-                copytree_resolved(target, dest.parent / target.name, seen_files)
+                copytree_resolved(target, dest.parent / target.name, seen_files, flatten=flatten)
                 dest.symlink_to(dest.parent / target.name)
         else:
             dest.symlink_to(target)
@@ -245,7 +245,7 @@ def copytree_resolved(
         files = src.iterdir()
 
         for fname in files:
-            copytree_resolved(fname, dest / fname.name, seen_files)
+            copytree_resolved(fname, dest / fname.name, seen_files, flatten=flatten)
 
         return dest
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from pavilion import unittest
 from pavilion import utils
+from pavilion.cmd_utils import list_files
 
 
 class UtilsTests(unittest.PavTestCase):
@@ -182,8 +183,7 @@ class UtilsTests(unittest.PavTestCase):
                     {"name": "foo/baz", "dir": False, "target": "bar"},
                 ],
                 "expected": [
-                    {"name": "foo", "dir": True, "target": None},
-                    {"name": "foo/baz", "dir": False, "target": None},
+                    {"name": "baz", "dir": False, "target": None},
                 ]
             },
             {
@@ -195,14 +195,13 @@ class UtilsTests(unittest.PavTestCase):
                     {"name": "foo/baz", "dir": False, "target": "bar"},
                 ],
                 "expected": [
-                    {"name": "foo", "dir": True, "target": None},
-                    {"name": "foo/baz", "dir": False, "target": "foo/bar"},
-                    {"name": "foo/bar", "dir": False, "target": None},
+                    {"name": "baz", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": None},
                 ]
             },
             {
                 "flatten": False,
-                "copt_root": None,
+                "copy_root": None,
                 "files": [
                     {"name": "foo", "dir": False, "target": "bar"},
                     {"name": "bar", "dir": False, "target": "foo"},
@@ -220,7 +219,6 @@ class UtilsTests(unittest.PavTestCase):
                     {"name": "bar", "dir": False, "target": "foo"},
                 ],
                 "expected": [
-                    {"name": "foo", "dir": False, "target": "bar"},
                     {"name": "bar", "dir": False, "target": "foo"},
                 ]
             },
@@ -241,6 +239,7 @@ class UtilsTests(unittest.PavTestCase):
                             file_path.mkdir(parents=True)
                         else:
                             if f["target"] is None:
+                                print(f"Making file {file_path}")
                                 file_path.touch()
                             else:
                                 target_path = src / f["target"]
@@ -252,7 +251,7 @@ class UtilsTests(unittest.PavTestCase):
                         utils.copytree_resolved(src / ex["copy_root"], dest, flatten=ex["flatten"])
 
                     expected = set(Path(f["name"]) for f in ex["expected"])
-                    actual = set(p.relative_to(dest) for p in dest.rglob('*'))
+                    actual = set(p.relative_to(dest) for p in list_files(dest))
 
                     self.assertEqual(expected, actual)
 
