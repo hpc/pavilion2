@@ -212,10 +212,12 @@ def copytree_resolved(
                 dest: Path,
                 seen_files: Optional[Set] = None,
                 flatten: bool = False,
-                ignore_files: List[str]) -> Path:
+                ignore_files: List[str] = None) -> Path:
     """Copy a directory tree to another location, such that the resulting directory contains
     the targets of all symlinks. If flatten is specified, replace all symlinks with
     their targets."""
+
+    ignore_files = ignore_files or []
 
     if src.name in ignore_files:
         return src
