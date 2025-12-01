@@ -64,6 +64,11 @@ class IsolateCmdTests(PavTestCase):
 
                     dest_files = list_files(Path(extract_dir))
 
+                    for df in dest_files:
+                        if df.is_symlink():
+                            import pdb; pdb.set_trace()
+
+
                     self.assertFalse(any(map(lambda x: x.is_symlink(), dest_files)))
 
                     source_files = set(map(

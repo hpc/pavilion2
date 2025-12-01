@@ -3,6 +3,7 @@
 import io
 import json
 import shutil
+import tempfile
 from pathlib import Path
 
 from pavilion import dir_db
@@ -61,5 +62,12 @@ class CmdUtilsTests(unittest.PavTestCase):
             args.tests = resolve_mixed_ids(args.tests)
 
             self.assertEqual(len(cmd_utils.arg_filtered_tests(self.pav_cfg, args).paths), count)
+
+    def test_copytree_resolved(self):
+        with tempfile.TemporaryDirectory() as src:
+            with tempfile.TemporaryDirectory() as dest:
+                (Path(src) / "foo").touch()
+
+                cmd_utils.copytree_resolved(Path(src), Path(dest))
 
     # TODO: We really need to add unit tests for each of the cmd utils functions.

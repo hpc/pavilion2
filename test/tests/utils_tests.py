@@ -170,5 +170,26 @@ class UtilsTests(unittest.PavTestCase):
 
                 utils.copytree_resolved(src, dest)
 
-                dest_files = set(map(lambda x: x.relative_to(src), src.iterdir()))
+                src_files = set(map(lambda x: x.relative_to(src), src.iterdir()))
                 dest_files = set(map(lambda x: x.relative_to(dest), dest.iterdir()))
+
+                self.assertEqual(src_files, dest_files)
+
+        with tempfile.TemporaryDirectory() as src:
+            src = Path(src)
+
+            with tempfile.TemporaryDirectory() as dest:
+                dest = Path(dest)
+
+                (src / "foo").mkdir()
+                (src / "bar").touch()
+
+                (src / "foo" / "baz").symlink_to(src / "bar")
+
+                utils.copytree_resolved(src / "foo", dest, flatten=True)
+
+                dest_files = set(map(lambda x: x.relative_to(dest), dest.iterdir()))
+                expected = set([Path("foo"), Path("foo") / "baz"])
+
+                self.assertEqual(dest_files, expected)
+                self.assertFalse((dest / "foo" / "baz").is_symlink())
