@@ -259,7 +259,9 @@ class TestGroupTests(unittest.PavTestCase):
                 ]:
             run_grp_cmd(args)
             out, err_out = group_cmd.clear_output()
-            self.assertEqual(len(out.split('\n')), rows,
+            self.assertEqual(
+                            len([ x for x in out.split('\n') if x[0] != " "]),
+                            rows,
                              msg="unexpected lines for {}:\n{}"
                                  .format(args, out))
 
