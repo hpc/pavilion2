@@ -3,7 +3,6 @@ from pathlib import Path
 import shutil
 import tarfile
 import sys
-from typing import Dict, Any, Optional
 
 from pavilion import output
 from pavilion.config import PavConfig
@@ -111,19 +110,22 @@ class IsolateCommand(Command):
                 if len(dest.suffixes) == 0:
                     dest = dest.with_suffix(".tgz")
 
-                archive_format = "gztar"
+                modestr = "w:gz"
             else:
                 if len(dest.suffixes) == 0:
                     dest = dest.with_suffix(".tar")
 
-                archive_format = "tar"
+                modestr = "w:"
 
             try:
-                with tarfile.open(dest, "w:gz") as tarf:
+                with tarfile.open(dest, modestr) as tarf:
                     for fname in list_files(test.path, include_root=True):
                         if fname.name not in cls.IGNORE_FILES:
-                            tarf.add(f, arcname=f.relative_to(test.path.parent), recursive=False)
-            except:
+                            tarf.add(
+                                    fname,
+                                    arcname=fname.relative_to(test.path.parent),
+                                    recursive=False)
+            except (tarfile.TarError, OSError):
                 output.fprint(
                     sys.stderr,
                     f"Unable to isolate test {test.id} at {dest}.",
