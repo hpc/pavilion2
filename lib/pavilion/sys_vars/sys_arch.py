@@ -14,4 +14,3 @@ class SystemArch(SystemPlugin):
         """Base method for determining the system architecture."""
 
         return platform.machine()
-
