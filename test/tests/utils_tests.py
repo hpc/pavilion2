@@ -161,6 +161,7 @@ class UtilsTests(unittest.PavTestCase):
         examples = [
             {
                 "flatten": False,
+                "copy_root": None,
                 "files": [
                     {"name": "foo", "dir": True, "target": None},
                     {"name": "bar", "dir": False, "target": None},
@@ -174,6 +175,7 @@ class UtilsTests(unittest.PavTestCase):
             },
             {
                 "flatten": True,
+                "copy_root": "foo",
                 "files": [
                     {"name": "foo", "dir": True, "target": None},
                     {"name": "bar", "dir": False, "target": None},
@@ -186,6 +188,7 @@ class UtilsTests(unittest.PavTestCase):
             },
             {
                 "flatten": False,
+                "copy_root": "foo",
                 "files": [
                     {"name": "foo", "dir": True, "target": None},
                     {"name": "bar", "dir": False, "target": None},
@@ -199,6 +202,7 @@ class UtilsTests(unittest.PavTestCase):
             },
             {
                 "flatten": False,
+                "copt_root": None,
                 "files": [
                     {"name": "foo", "dir": False, "target": "bar"},
                     {"name": "bar", "dir": False, "target": "foo"},
@@ -210,6 +214,7 @@ class UtilsTests(unittest.PavTestCase):
             },
             {
                 "flatten": True,
+                "copy_root": None,
                 "files": [
                     {"name": "foo", "dir": False, "target": "bar"},
                     {"name": "bar", "dir": False, "target": "foo"},
@@ -241,7 +246,10 @@ class UtilsTests(unittest.PavTestCase):
                                 target_path = src / f["target"]
                                 file_path.symlink_to(target_path)
 
-                    utils.copytree_resolved(src, dest, flatten=ex["flatten"])
+                    if ex["copy_root"] is None:
+                        utils.copytree_resolved(src, dest, flatten=ex["flatten"])
+                    else:
+                        utils.copytree_resolved(src / ex["copy_root"], dest, flatten=ex["flatten"])
 
                     expected = set(Path(f["name"]) for f in ex["expected"])
                     actual = set(p.relative_to(dest) for p in dest.rglob('*'))
