@@ -1,4 +1,5 @@
 from pathlib import Path
+import platform
 from .base_classes import SystemPlugin
 
 
@@ -13,15 +14,22 @@ class SystemOS(SystemPlugin):
     def _get(self):
         """Base method for determining the operating system and version."""
 
-        with Path('/etc/os-release').open() as release:
-            rlines = release.readlines()
-
         os_info = {}
 
-        for line in rlines:
-            if line[:3] == 'ID=':
-                os_info['name'] = line[3:].strip().strip('"')
-            elif line[:11] == 'VERSION_ID=':
-                os_info['version'] = line[11:].strip().strip('"')
+        if platform.system() == "Linux":
+            with Path('/etc/os-release').open() as release:
+                rlines = release.readlines()
+
+            for line in rlines:
+                if line[:3] == 'ID=':
+                    os_info['name'] = line[3:].strip().strip('"')
+                elif line[:11] == 'VERSION_ID=':
+                    os_info['version'] = line[11:].strip().strip('"')
+        elif platform.system() == "Darwin":
+            os_info['name'] = 'macOS'
+            os_info['version'] = platform.mac_ver()[0]
+        elif platform.system() == "Windows":
+            os_info['name'] = 'Windows'
+            os_info['version'] = platform.version()
 
         return os_info

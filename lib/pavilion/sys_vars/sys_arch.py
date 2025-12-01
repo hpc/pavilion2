@@ -1,4 +1,4 @@
-import subprocess
+import platform
 from .base_classes import SystemPlugin
 
 
@@ -13,5 +13,4 @@ class SystemArch(SystemPlugin):
     def _get( self ):
         """Base method for determining the system architecture."""
 
-        arch = subprocess.check_output(['uname', '-i'])
-        return arch.strip().decode('utf8')
+        return platform.machine()

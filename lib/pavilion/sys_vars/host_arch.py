@@ -1,4 +1,4 @@
-import subprocess
+import platform
 from .base_classes import SystemPlugin
 
 
@@ -15,6 +15,4 @@ class HostArch(SystemPlugin):
     def _get(self):
         """Base method for determining the host architecture."""
 
-        out = subprocess.check_output(['uname', '-i'])
-
-        return out.strip().decode('utf8')
+        return platform.machine()
