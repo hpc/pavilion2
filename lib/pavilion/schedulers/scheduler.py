@@ -49,8 +49,13 @@ class KickoffScriptHeader(ScriptHeader):
         if nodes is None:
             self._include_nodes = self._config['include_nodes']
             self._exclude_nodes = self._config['exclude_nodes']
-            self._node_min = node_range[0]
-            self._node_max = node_range[1]
+
+            if node_range is not None:
+                self._node_min = node_range[0]
+                self._node_max = node_range[1]
+            else:
+                self._node_min = None
+                self._node_max = None
         else:
             self._include_nodes = nodes
             # Any nodes in the exclude list will have already been filtered out.
