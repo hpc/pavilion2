@@ -1228,7 +1228,7 @@ be set by the scheduler plugin as soon as it's known."""
                                    .format(package))
 
         script.comment('Output the environment for posterity')
-        script.command(f'declare -p | tee > {stype}.env.sh')
+        script.command(f'declare -p | tee > {path.parent / stype}.env.sh')
 
         script.command(f'echo "(pav) Executing {stype} commands."')
         script.newline()
