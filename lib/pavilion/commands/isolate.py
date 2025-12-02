@@ -2,7 +2,6 @@ from argparse import ArgumentParser, Namespace, Action
 from pathlib import Path
 import tarfile
 import sys
-import shutil
 
 from pavilion import output
 from pavilion import schedulers
@@ -112,7 +111,13 @@ class IsolateCommand(Command):
             return 6
 
         if archive:
-            self._write_tarball(test.id, test.path, dest, zip, cls.IGNORE_FILES)
+            self._write_tarball(
+                                pav_cfg,
+                                test.id,
+                                test.path,
+                                dest,
+                                zip,
+                                cls.IGNORE_FILES)
 
         else:
             try:
@@ -134,7 +139,7 @@ class IsolateCommand(Command):
 
     @classmethod
     def _write_tarball(cls, pav_cfg: PavConfig, test_id: TestID, src: Path, dest: Path, zip: bool,
-                        ignore_files) -> None:
+                        ignore_files: Iterable[str]) -> None:
         if zip:
             if len(dest.suffixes) == 0:
                 dest = dest.with_suffix(".tgz")

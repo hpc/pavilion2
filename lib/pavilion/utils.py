@@ -13,7 +13,7 @@ import subprocess
 import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO, List, Dict, Optional, Set
+from typing import Iterator, Union, TextIO, List, Dict, Optional, Set, Iterable
 
 
 class WrappedFormatter(argparse.HelpFormatter):
@@ -211,9 +211,9 @@ def copytree_resolved(
                 src: Path,
                 dest: Path,
                 seen_files: Optional[Set] = None,
-                ignore_files: List[str] = None) -> Path:
-    """Copy a directory tree to another location, such that the resulting directory contains
-    the targets of all symlinks."""
+                ignore_files: Optional[Iterable[str]] = None) -> Path:
+    """Copy a directory tree to another location, such that the only symlinks that remain are
+    symlinks internal to the directory."""
 
     ignore_files = ignore_files or []
 
@@ -231,7 +231,7 @@ def copytree_resolved(
         target = Path(os.readlink(src))
 
         if target not in seen_files:
-            copytree_resolved(target, dest, seen_files)
+            copytree_resolved(target, dest, seen_files, ignore_files)
         else:
             dest.symlink_to(target)
 
@@ -244,7 +244,7 @@ def copytree_resolved(
         files = src.iterdir()
 
         for fname in files:
-            copytree_resolved(fname, dest / fname.name, seen_files)
+            copytree_resolved(fname, dest / fname.name, seen_files, ignore_files)
 
         return dest
 
