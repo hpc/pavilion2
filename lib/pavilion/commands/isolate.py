@@ -17,7 +17,7 @@ from .base_classes import Command
 class IsolateCommand(Command):
     """Isolates an existing test run in a form that can be run without Pavilion."""
 
-    IGNORE_FILES = ("series", "job")
+    IGNORE_FILES = ("series")
     KICKOFF_FN = "kickoff.isolated"
 
     def __init__(self):
