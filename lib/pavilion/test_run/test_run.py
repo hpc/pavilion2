@@ -1178,6 +1178,7 @@ be set by the scheduler plugin as soon as it's known."""
         if stype == 'build' and not self.build_local:
             script.comment('To be built in an allocation.')
 
+        script.newline()
         script.command(f'echo "(pav) Setting up {stype} environment."')
 
         purge = utils.str_bool(config.get("purge_modules"))
@@ -1270,6 +1271,7 @@ be set by the scheduler plugin as soon as it's known."""
         else:
             script.comment('No commands given for this script.')
 
+        script.newline()
         script.command(f'echo "(pav) Test {stype} commands completed without error."')
 
         script.write(path)
