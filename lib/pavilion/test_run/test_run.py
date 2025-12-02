@@ -319,8 +319,12 @@ class TestRun(TestAttributes):
         self.status.set(STATES.CREATED,
                         "Test directory and status file created.")
 
+        header = scriptcomposer.ScriptHeader(shebang=self.shebang)
+        script = scriptcomposer.ScriptComposer(header=header)
+
         if self._build_needed():
             self._write_script(
+                script,
                 'build',
                 path=self.build_script_path,
                 config=self.config.get('build', {}),
@@ -334,6 +338,7 @@ class TestRun(TestAttributes):
             self._build_trivial()
 
         self._write_script(
+            script,
             'run',
             path=self.run_tmpl_path,
             config=self.config.get('run', {}),
@@ -521,7 +526,11 @@ class TestRun(TestAttributes):
 
         self.save_attributes()
 
+        header = scriptcomposer.ScriptHeader(shebang=self.shebang)
+        script = scriptcomposer.ScriptComposer(header=header)
+
         self._write_script(
+            script,
             'run',
             self.run_script_path,
             self.config['run'],
@@ -1119,7 +1128,12 @@ be set by the scheduler plugin as soon as it's known."""
                 .format(run_complete_path.as_posix(), err))
             return None
 
-    def _write_script(self, stype: str, path: Path, config: dict, module_wrappers: dict):
+    def _write_script(self,
+                      script: scriptcomposer.ScriptComposer,
+                      stype: str,
+                      path: Path,
+                      config: dict,
+                      module_wrappers: dict):
         """Write a build or run script or template. The formats for each are
             mostly identical.
         :param stype: The type of script (run or build).
@@ -1127,9 +1141,6 @@ be set by the scheduler plugin as soon as it's known."""
         :param config: Configuration dictionary for the script file.
         :param module_wrappers: The module wrappers definition.
         """
-
-        header = scriptcomposer.ScriptHeader(shebang=self.shebang)
-        script = scriptcomposer.ScriptComposer(header=header)
 
         verbose = config.get('verbose', 'false').lower() == 'true'
 

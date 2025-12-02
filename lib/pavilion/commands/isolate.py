@@ -184,4 +184,11 @@ class IsolateCommand(Command):
                                             )
 
         script = ScriptComposer(header=header)
-        script.write(script_path)
+        script.newline()
+
+        test._write_script(
+                        script,
+                        'run',
+                        script_path,
+                        test.config['run'],
+                        test.config.get('module_wrappers', {}))
