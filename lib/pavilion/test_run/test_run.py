@@ -1227,9 +1227,15 @@ be set by the scheduler plugin as soon as it's known."""
                     script.command('spack load {} || exit 1'
                                    .format(package))
 
+        script.newline()
         script.comment('Output the environment for posterity')
-        script.command(f'declare -p | tee > {path.parent / stype}.env.sh')
 
+        if verbose:
+            script.command(f'declare -p | tee > {path.parent / stype}.env.sh')
+        else:
+            script.command(f'declare -p > {path.parent / stype}.env.sh')
+
+        script.newline()
         script.command(f'echo "(pav) Executing {stype} commands."')
         script.newline()
         cmds = config.get('cmds', [])
