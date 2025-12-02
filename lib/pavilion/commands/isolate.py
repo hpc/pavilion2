@@ -2,6 +2,7 @@ from argparse import ArgumentParser, Namespace, Action
 from pathlib import Path
 import tarfile
 import sys
+from typing import Iterable
 
 from pavilion import output
 from pavilion import schedulers
@@ -111,8 +112,7 @@ class IsolateCommand(Command):
             return 6
 
         if archive:
-            self._write_tarball(
-                                pav_cfg,
+            self._write_tarball(pav_cfg,
                                 test.id,
                                 test.path,
                                 dest,
