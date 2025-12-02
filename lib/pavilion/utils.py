@@ -211,11 +211,9 @@ def copytree_resolved(
                 src: Path,
                 dest: Path,
                 seen_files: Optional[Set] = None,
-                flatten: bool = False,
                 ignore_files: List[str] = None) -> Path:
     """Copy a directory tree to another location, such that the resulting directory contains
-    the targets of all symlinks. If flatten is specified, replace all symlinks with
-    their targets."""
+    the targets of all symlinks."""
 
     ignore_files = ignore_files or []
 
@@ -233,12 +231,7 @@ def copytree_resolved(
         target = Path(os.readlink(src))
 
         if target not in seen_files:
-            if flatten:
-                copytree_resolved(target, dest, seen_files, flatten=flatten)
-            else:
-                # Retain the symlink but copy its target to the present directory
-                copytree_resolved(target, dest.parent / target.name, seen_files, flatten=flatten)
-                dest.symlink_to(dest.parent / target.name)
+            copytree_resolved(target, dest, seen_files)
         else:
             dest.symlink_to(target)
 
@@ -251,7 +244,7 @@ def copytree_resolved(
         files = src.iterdir()
 
         for fname in files:
-            copytree_resolved(fname, dest / fname.name, seen_files, flatten=flatten)
+            copytree_resolved(fname, dest / fname.name, seen_files)
 
         return dest
 

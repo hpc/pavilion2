@@ -1,6 +1,5 @@
 from argparse import ArgumentParser, Namespace, Action
 from pathlib import Path
-import shutil
 import tarfile
 import sys
 
@@ -10,6 +9,7 @@ from pavilion.config import PavConfig
 from pavilion.test_run import TestRun
 from pavilion.test_ids import TestID
 from pavilion.cmd_utils import get_last_test_id, get_tests_by_id, list_files
+from pavilion.utils import copytree_resolved
 from pavilion.schedulers.config import validate_config
 from .base_classes import Command
 
@@ -113,11 +113,11 @@ class IsolateCommand(Command):
 
         else:
             try:
-                shutil.copytree(test.path, dest, ignore=lambda x, y: cls.IGNORE_FILES)
-            except OSError:
+                copytree_resolved(test.path, dest, ignore_files=cls.IGNORE_FILES)
+            except OSError as err:
                 output.fprint(
                     sys.stderr,
-                    f"Unable to isolate test {test.id} at {dest}.",
+                    f"Unable to isolate test {test.id} at {dest}: {err}",
                     color=output.RED)
 
                 return 8
