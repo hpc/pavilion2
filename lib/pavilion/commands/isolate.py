@@ -10,6 +10,7 @@ from pavilion.test_run import TestRun
 from pavilion.test_ids import TestID
 from pavilion.cmd_utils import get_last_test_id, get_tests_by_id, list_files
 from pavilion.utils import copytree_resolved
+from pavilion.scriptcomposer import ScriptComposer
 from pavilion.schedulers.config import validate_config
 from .base_classes import Command
 
@@ -175,7 +176,7 @@ class IsolateCommand(Command):
             return 9
 
         header = sched._get_kickoff_script_header(
-                                            job_name="pav_{test.name}_isolated",
+                                            job_name=f"pav_{test.name}_isolated",
                                             sched_config=validate_config(test.config['schedule']),
                                             nodes=None,
                                             node_range=None,
