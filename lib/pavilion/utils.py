@@ -210,11 +210,15 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
 def copytree_resolved(
                 src: Path,
                 dest: Path,
+                src_root: Optional[Path] = None,
+                dest_root: Optional[Path] = None,
                 seen_files: Optional[Set] = None,
                 ignore_files: Optional[Iterable[str]] = None) -> Path:
     """Copy a directory tree to another location, such that the only symlinks that remain are
     symlinks internal to the directory."""
 
+    src_root = src_root or src
+    dest_root = dest_root or dest
     ignore_files = ignore_files or []
 
     if src.name in ignore_files:
@@ -230,10 +234,22 @@ def copytree_resolved(
     if src.is_symlink():
         target = Path(os.readlink(src))
 
-        if target not in seen_files:
-            copytree_resolved(target, dest, seen_files, ignore_files)
+        # Only recreate symlinks if they are internal to the source directory
+        if target.is_relative_to(src_root):
+            target = target.relative_to(src_root)
+
+            # Don't create the symlink if it points inside a directory we're ignoring
+            skip_link = False
+
+            for pt in target.parts:
+                if pt in ignore_files
+                    skip_link = True
+                    break
+
+            if not skip_link:
+                dest.symlink_to(dest_root / target)
         else:
-            dest.symlink_to(target)
+            copytree_resolved(target.resolve(), dest, src_root, dest_root, seen_files, ignore_files)
 
         return dest
 
@@ -244,7 +260,8 @@ def copytree_resolved(
         files = src.iterdir()
 
         for fname in files:
-            copytree_resolved(fname, dest / fname.name, seen_files, ignore_files)
+            copytree_resolved(fname, dest / fname.name, src_root, dest_root,
+                                seen_files, ignore_files)
 
         return dest
 
