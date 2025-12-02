@@ -89,10 +89,10 @@ class IsolateCommand(Command):
 
         test = next(iter(tests))
 
-        return self._isolate(test, args.path, args.archive, args.zip)
+        return self._isolate(pav_cfg, test, args.path, args.archive, args.zip)
 
     @classmethod
-    def _isolate(cls, test: TestRun, dest: Path, archive: bool, zip: bool) -> int:
+    def _isolate(cls, pav_cfg: PavConfig, test: TestRun, dest: Path, archive: bool, zip: bool) -> int:
         if not test.path.is_dir():
             output.fprint(sys.stderr, "Directory '{}' does not exist."
                           .format(test.path.as_posix()), color=output.RED)
