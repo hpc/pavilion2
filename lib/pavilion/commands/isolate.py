@@ -121,11 +121,12 @@ class IsolateCommand(Command):
 
                 return 8
 
-            self._write_kickoff_script(pav_cfg, test.id, dest / cls.KICKOFF_FN)
+            cls._write_kickoff_script(pav_cfg, test.id, dest / cls.KICKOFF_FN)
 
         return 0
 
-    def _write_tarball(self, pav_cfg: PavConfig, test_id: TestID, src: Path, dest: Path, zip: bool,
+    @classmethod
+    def _write_tarball(cls, pav_cfg: PavConfig, test_id: TestID, src: Path, dest: Path, zip: bool,
                         ignore_files) -> None:
         if zip:
             if len(dest.suffixes) == 0:
@@ -140,7 +141,7 @@ class IsolateCommand(Command):
 
         with tempfile.TemporaryDirectory() as tmp:
             utils.copytree_resolved(src, tmp, ignore_files=ignore_files)
-            self._write_kickoff_script(pav_cfg, test_id, tmp / self.KICKOFF_FN)
+            cls._write_kickoff_script(pav_cfg, test_id, tmp / cls.KICKOFF_FN)
 
             try:
                 with tarfile.open(dest, modestr) as tarf:
@@ -157,7 +158,8 @@ class IsolateCommand(Command):
 
                 return 7
 
-    def _write_kickoff_script(self, pav_cfg: PavConfig, test_id: TestID, script_path: Path) -> None:
+    @classmethod
+    def _write_kickoff_script(cls, pav_cfg: PavConfig, test_id: TestID, script_path: Path) -> None:
         """Write a special kickoff script that can be used to run the given test independently of
         Pavilion."""
 
