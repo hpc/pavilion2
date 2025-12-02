@@ -18,8 +18,9 @@ from .base_classes import Command
 class IsolateCommand(Command):
     """Isolates an existing test run in a form that can be run without Pavilion."""
 
-    IGNORE_FILES = ("series",)
+    IGNORE_FILES = ("series", "job")
     KICKOFF_FN = "kickoff.isolated"
+    PAV_LIB_FN = "pav-lib.bash"
 
     def __init__(self):
         super().__init__(
@@ -123,6 +124,9 @@ class IsolateCommand(Command):
 
                 return 8
 
+            pav_lib_bash = pav_cfg.pav_root / 'bin' / cls.PAV_LIB_FN
+            shutil.copyfile(pav_lib_bash, dest / cls.PAV_LIB_FN)
+
             cls._write_kickoff_script(pav_cfg, test, dest / cls.KICKOFF_FN)
 
         return 0
@@ -143,6 +147,11 @@ class IsolateCommand(Command):
 
         with tempfile.TemporaryDirectory() as tmp:
             utils.copytree_resolved(src, tmp, ignore_files=ignore_files)
+
+            # Copy Pavilion bash library into tarball
+            pav_lib_bash = pav_cfg.pav_root / 'bin' / cls.PAV_LIB_FN
+            shutil.copyfile(pav_lib_bash, tmp / cls.PAV_LIB_FN)
+
             cls._write_kickoff_script(pav_cfg, test_id, tmp / cls.KICKOFF_FN)
 
             try:
@@ -184,11 +193,11 @@ class IsolateCommand(Command):
                                             )
 
         script = ScriptComposer(header=header)
-        script.newline()
 
         test._write_script(
-                        script,
-                        'run',
-                        script_path,
-                        test.config['run'],
-                        test.config.get('module_wrappers', {}))
+                        script=script,
+                        stype='run',
+                        path=script_path,
+                        config=test.config['run'],
+                        module_wrappers=test.config.get('module_wrappers', {}),
+                        isolate=True)

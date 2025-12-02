@@ -1133,7 +1133,8 @@ be set by the scheduler plugin as soon as it's known."""
                       stype: str,
                       path: Path,
                       config: dict,
-                      module_wrappers: dict):
+                      module_wrappers: dict,
+                      isolate: bool = False) -> None:
         """Write a build or run script or template. The formats for each are
             mostly identical.
         :param stype: The type of script (run or build).
@@ -1149,17 +1150,23 @@ be set by the scheduler plugin as soon as it's known."""
             script.command('set -v')
             script.newline()
 
-        pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
+        if isolate:
+            pav_lib_bash = path.parent / "pav-lib.bash"
+        else:
+            pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
         script.command(f'echo "(pav) Starting {stype} script"')
 
         # If we include this directly, it breaks build hashing.
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
-        script.env_change({
-            'TEST_ID': '${1:-0}',   # Default to test id 0 if one isn't given.
-            'PAV_CONFIG_FILE': self._pav_cfg['pav_cfg_file']
-        })
+
+        env = {'TEST_ID': '${1:-0}'} # Default to test id 0 if one isn't given.
+
+        if not isolate:
+            env["PAV_CONFIG_FILE"] = self._pav_cfg['pav_cfg_file']
+
+        script.env_change(env)
         script.command('source {}'.format(pav_lib_bash))
 
         if config.get('preamble', []):
@@ -1241,10 +1248,11 @@ be set by the scheduler plugin as soon as it's known."""
         script.newline()
         script.comment('Output the environment for posterity')
 
-        if verbose:
-            script.command(f'declare -p | tee > {path.parent / stype}.env.sh')
-        else:
-            script.command(f'declare -p > {path.parent / stype}.env.sh')
+        if not isolate:
+            if verbose:
+                script.command(f'declare -p | tee > {path.parent / stype}.env.sh')
+            else:
+                script.command(f'declare -p > {path.parent / stype}.env.sh')
 
         script.newline()
         script.command(f'echo "(pav) Executing {stype} commands."')
