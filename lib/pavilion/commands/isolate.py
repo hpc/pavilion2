@@ -174,7 +174,7 @@ class IsolateCommand(Command):
             )
             return 9
 
-        script = sched._get_kickoff_script_header(
+        header = sched._get_kickoff_script_header(
                                             job_name="pav_{test.name}_isolated",
                                             sched_config=validate_config(test.config['schedule']),
                                             nodes=None,
@@ -182,4 +182,5 @@ class IsolateCommand(Command):
                                             shebang=test.shebang
                                             )
 
+        script = ScriptComposer(header=header)
         script.write(script_path)
