@@ -2,6 +2,7 @@ from argparse import ArgumentParser, Namespace, Action
 from pathlib import Path
 import tarfile
 import sys
+import shutil
 from typing import Iterable
 
 from pavilion import output
