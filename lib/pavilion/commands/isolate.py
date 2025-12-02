@@ -5,6 +5,7 @@ import tarfile
 import sys
 
 from pavilion import output
+from pavilion import schedulers
 from pavilion.config import PavConfig
 from pavilion.test_run import TestRun
 from pavilion.test_ids import TestID
