@@ -1191,8 +1191,6 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('List all the module modules for posterity')
             script.command("module -t list")
             script.newline()
-            script.comment('Output the environment for posterity')
-            script.command("declare -p")
 
         if self.spack_enabled():
             script.command(f'echo "(pav) Setting up Spack."')
@@ -1228,6 +1226,9 @@ be set by the scheduler plugin as soon as it's known."""
                 for package in load_packages:
                     script.command('spack load {} || exit 1'
                                    .format(package))
+
+        script.comment('Output the environment for posterity')
+        script.command(f'declare -p | tee > {stype}.env.sh')
 
         script.command(f'echo "(pav) Executing {stype} commands."')
         script.newline()
