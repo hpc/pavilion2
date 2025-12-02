@@ -235,19 +235,24 @@ def copytree_resolved(
         target = Path(os.readlink(src))
 
         # Only recreate symlinks if they are internal to the source directory
-        if target.is_relative_to(src_root):
-            target = target.relative_to(src_root)
+        relative = True
 
+        try:
+            rel_target = target.relative_to(src_root)
+        except ValueError:
+            relative = False
+
+        if relative:
             # Don't create the symlink if it points inside a directory we're ignoring
             skip_link = False
 
-            for pt in target.parts:
+            for pt in rel_target.parts:
                 if pt in ignore_files:
                     skip_link = True
                     break
 
             if not skip_link:
-                dest.symlink_to(dest_root / target)
+                dest.symlink_to(dest_root / rel_target)
         else:
             copytree_resolved(target.resolve(), dest, src_root, dest_root, seen_files, ignore_files)
 
