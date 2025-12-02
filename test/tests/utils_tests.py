@@ -74,7 +74,7 @@ class UtilsTests(unittest.PavTestCase):
     def test_relative_to(self):
         """Check relative path calculations."""
 
-        # base, target, answer
+        # base, "target", answer
         tests = [
             # Outside 'base'
             (self.PAV_LIB_DIR,
@@ -96,11 +96,11 @@ class UtilsTests(unittest.PavTestCase):
     def test_repair_symlinks(self):
         """Check symlink repairing."""
 
-        # (File, target, answer)
-        # A target of None means to create a regular file with the filename
+        # (File, "target", answer)
+        # A "target" of None means to create a regular file with the filename
         # as the contents.
-        # An answer of None means the target won't exist.
-        # An answer of '*' means we can't know the target's contents (but it
+        # An answer of None means the "target" won't exist.
+        # An answer of '*' means we can't know the "target"'s contents (but it
         # should exist).
         test_files = (
             ('t1/A', None, 'A'),
@@ -161,21 +161,6 @@ class UtilsTests(unittest.PavTestCase):
     def test_copytree_resolved(self):
         examples = [
             {
-                "flatten": False,
-                "copy_root": None,
-                "files": [
-                    {"name": "foo", "dir": True, "target": None},
-                    {"name": "bar", "dir": False, "target": None},
-                    {"name": "foo/baz", "dir": False, "target": None},
-                ],
-                "expected": [
-                    {"name": "foo", "dir": True, "target": None},
-                    {"name": "bar", "dir": False, "target": None},
-                    {"name": "foo/baz", "dir": False, "target": None},
-                ]
-            },
-            {
-                "flatten": True,
                 "copy_root": "foo",
                 "files": [
                     {"name": "foo", "dir": True, "target": None},
@@ -187,41 +172,56 @@ class UtilsTests(unittest.PavTestCase):
                 ]
             },
             {
-                "flatten": False,
+                "copy_root": None,
+                "files": [
+                    {"name": "foo", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": "foo"},
+                ],
+                "expected": []
+            },
+            {
                 "copy_root": "foo",
                 "files": [
-                    {"name": "foo", "dir": True, "target": None},
-                    {"name": "bar", "dir": False, "target": None},
-                    {"name": "foo/baz", "dir": False, "target": "bar"},
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "foo/bar", "dir": False, "target": "foobar"},
+                   {"name": "foo/baz", "dir": False, "target": None},
+                   {"name": "foobar", "dir": False, "target": "foo/baz"}
                 ],
                 "expected": [
-                    {"name": "baz", "dir": False, "target": "bar"},
-                    {"name": "bar", "dir": False, "target": None},
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "foo/bar", "dir": False, "target": "foo/baz"},
+                   {"name": "foo/baz", "dir": False, "target": None},
                 ]
             },
             {
-                "flatten": False,
                 "copy_root": None,
                 "files": [
-                    {"name": "foo", "dir": False, "target": "bar"},
-                    {"name": "bar", "dir": False, "target": "foo"},
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "bar", "dir": False, "target": None},
+                   {"name": "foo/baz", "dir": False, "target": "bar"},
+                   {"name": "foobar", "dir": False, "target": "bar"},
                 ],
                 "expected": [
-                    {"name": "foo", "dir": False, "target": "bar"},
-                    {"name": "bar", "dir": False, "target": "foo"},
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "bar", "dir": False, "target": None},
+                   {"name": "foo/baz", "dir": False, "target": "bar"},
+                   {"name": "foobar", "dir": False, "target": "bar"},
                 ]
             },
             {
-                "flatten": True,
-                "copy_root": None,
+                "copy_root": "foo",
                 "files": [
-                    {"name": "foo", "dir": False, "target": "bar"},
-                    {"name": "bar", "dir": False, "target": "foo"},
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "bar", "dir": False, "target": None},
+                   {"name": "foo/baz", "dir": False, "target": "bar"},
+                   {"name": "foo/foobar", "dir": False, "target": "bar"},
                 ],
                 "expected": [
-                    {"name": "bar", "dir": False, "target": "foo"},
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "foo/baz", "dir": False, "target": None},
+                   {"name": "foo/foobar", "dir": False, "target": "foo/baz"},
                 ]
-            },
+            }
         ]
 
         for ex in examples:
@@ -246,9 +246,9 @@ class UtilsTests(unittest.PavTestCase):
                                 file_path.symlink_to(target_path)
 
                     if ex["copy_root"] is None:
-                        utils.copytree_resolved(src, dest, flatten=ex["flatten"])
+                        utils.copytree_resolved(src, dest)
                     else:
-                        utils.copytree_resolved(src / ex["copy_root"], dest, flatten=ex["flatten"])
+                        utils.copytree_resolved(src / ex["copy_root"], dest)
 
                     expected = set(Path(f["name"]) for f in ex["expected"])
                     actual = set(p.relative_to(dest) for p in list_files(dest))
