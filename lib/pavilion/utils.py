@@ -242,7 +242,7 @@ def copytree_resolved(
             skip_link = False
 
             for pt in target.parts:
-                if pt in ignore_files
+                if pt in ignore_files:
                     skip_link = True
                     break
 
