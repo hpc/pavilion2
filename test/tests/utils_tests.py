@@ -177,7 +177,10 @@ class UtilsTests(unittest.PavTestCase):
                     {"name": "foo", "dir": False, "target": "bar"},
                     {"name": "bar", "dir": False, "target": "foo"},
                 ],
-                "expected": []
+                "expected": [
+                    {"name": "foo", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": "foo"},
+                ]
             },
             {
                 "copy_root": "foo",
@@ -188,9 +191,8 @@ class UtilsTests(unittest.PavTestCase):
                    {"name": "foobar", "dir": False, "target": "foo/baz"}
                 ],
                 "expected": [
-                   {"name": "foo", "dir": True, "target": None},
-                   {"name": "foo/bar", "dir": False, "target": "foo/baz"},
-                   {"name": "foo/baz", "dir": False, "target": None},
+                   {"name": "bar", "dir": False, "target": "baz"},
+                   {"name": "baz", "dir": False, "target": None},
                 ]
             },
             {
@@ -217,9 +219,8 @@ class UtilsTests(unittest.PavTestCase):
                    {"name": "foo/foobar", "dir": False, "target": "bar"},
                 ],
                 "expected": [
-                   {"name": "foo", "dir": True, "target": None},
-                   {"name": "foo/baz", "dir": False, "target": None},
-                   {"name": "foo/foobar", "dir": False, "target": "foo/baz"},
+                   {"name": "baz", "dir": False, "target": None},
+                   {"name": "foobar", "dir": False, "target": "baz"},
                 ]
             }
         ]
