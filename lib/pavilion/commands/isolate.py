@@ -9,6 +9,7 @@ from pavilion.config import PavConfig
 from pavilion.test_run import TestRun
 from pavilion.test_ids import TestID
 from pavilion.cmd_utils import get_last_test_id, get_tests_by_id, list_files
+from pavilion.schedulers.config import validate_config
 from .base_classes import Command
 
 
@@ -16,6 +17,7 @@ class IsolateCommand(Command):
     """Isolates an existing test run in a form that can be run without Pavilion."""
 
     IGNORE_FILES = ("series", "job")
+    KICKOFF_FN = "kickoff.isolated"
 
     def __init__(self):
         super().__init__(
@@ -106,34 +108,8 @@ class IsolateCommand(Command):
             return 6
 
         if archive:
-            if zip:
-                if len(dest.suffixes) == 0:
-                    dest = dest.with_suffix(".tgz")
+            self._write_tarball(test.id, test.path, dest, zip, cls.IGNORE_FILES)
 
-                modestr = "w:gz"
-            else:
-                if len(dest.suffixes) == 0:
-                    dest = dest.with_suffix(".tar")
-
-                modestr = "w:"
-
-            with tempfile.TemporaryDirectory() as tmp:
-                utils.copytree_resolved(test.path, tmp, ignore_files=cls.IGNORE_FILES)
-
-                try:
-                    with tarfile.open(dest, modestr) as tarf:
-                        for fname in list_files(tmp):
-                            tarf.add(
-                                    fname,
-                                    arcname=fname.relative_to(test.path.parent),
-                                    recursive=False)
-                except (tarfile.TarError, OSError):
-                    output.fprint(
-                        sys.stderr,
-                        f"Unable to isolate test {test.id} at {dest}.",
-                        color=output.RED)
-
-                    return 7
         else:
             try:
                 shutil.copytree(test.path, dest, ignore=lambda x, y: cls.IGNORE_FILES)
@@ -145,4 +121,64 @@ class IsolateCommand(Command):
 
                 return 8
 
+            self._write_kickoff_script(pav_cfg, test.id, dest / cls.KICKOFF_FN)
+
         return 0
+
+    def _write_tarball(self, pav_cfg: PavConfig, test_id: TestID, src: Path, dest: Path, zip: bool,
+                        ignore_files) -> None:
+        if zip:
+            if len(dest.suffixes) == 0:
+                dest = dest.with_suffix(".tgz")
+
+            modestr = "w:gz"
+        else:
+            if len(dest.suffixes) == 0:
+                dest = dest.with_suffix(".tar")
+
+            modestr = "w:"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            utils.copytree_resolved(src, tmp, ignore_files=ignore_files)
+            self._write_kickoff_script(pav_cfg, test_id, tmp / self.KICKOFF_FN)
+
+            try:
+                with tarfile.open(dest, modestr) as tarf:
+                    for fname in list_files(tmp):
+                        tarf.add(
+                                fname,
+                                arcname=fname.relative_to(src.parent),
+                                recursive=False)
+            except (tarfile.TarError, OSError):
+                output.fprint(
+                    sys.stderr,
+                    f"Unable to isolate test {test_id} at {dest}.",
+                    color=output.RED)
+
+                return 7
+
+    def _write_kickoff_script(self, pav_cfg: PavConfig, test_id: TestID, script_path: Path) -> None:
+        """Write a special kickoff script that can be used to run the given test independently of
+        Pavilion."""
+
+        test = TestRun.load_from_raw_id(pav_cfg, test_id)
+
+        try:
+            sched = schedulers.get_plugin(test.scheduler)
+        except SchedulerPluginError:
+            output.fprint(
+                sys.stderr,
+                f"Unable to generate kickoff script for test {test_id}: unable to load scheduler"
+                f" {test.scheduler}."
+            )
+            return 9
+
+        script = sched._get_kickoff_script_header(
+                                            job_name="pav_{test.name}_isolated",
+                                            sched_config=validate_config(test.config['schedule']),
+                                            nodes=None,
+                                            node_range=None,
+                                            shebang=test.shebang
+                                            )
+
+        script.write(script_path)
