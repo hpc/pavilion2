@@ -121,7 +121,7 @@ class IsolateCommand(Command):
 
                 return 8
 
-            cls._write_kickoff_script(pav_cfg, test.id, dest / cls.KICKOFF_FN)
+            cls._write_kickoff_script(pav_cfg, test, dest / cls.KICKOFF_FN)
 
         return 0
 
@@ -159,11 +159,9 @@ class IsolateCommand(Command):
                 return 7
 
     @classmethod
-    def _write_kickoff_script(cls, pav_cfg: PavConfig, test_id: TestID, script_path: Path) -> None:
+    def _write_kickoff_script(cls, pav_cfg: PavConfig, test: TestRun, script_path: Path) -> None:
         """Write a special kickoff script that can be used to run the given test independently of
         Pavilion."""
-
-        test = TestRun.load_from_raw_id(pav_cfg, test_id)
 
         try:
             sched = schedulers.get_plugin(test.scheduler)
