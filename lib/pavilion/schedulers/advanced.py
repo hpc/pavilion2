@@ -732,7 +732,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         job_name = self._job_name(tests)
 
         if isolate:
-            job_name = job_name + "_isolated"
+            job_name = job_name + self.ISOLATE_KICKOFF_SUFFIX
 
         if nodes is None:
             node_range = calc_node_range(
@@ -748,7 +748,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 sched_config=sched_config,
                 node_range=node_range,
                 nodes=nodes,
-                shebang=tests[0].shebang)
+                shebang=tests[0].shebang,
+                isolate=isolate)
 
         test_ids = ' '.join(test.full_id for test in tests)
 

@@ -152,7 +152,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
         job_name = self._job_name(tests)
 
         if isolate:
-            job_name = job_name + "_isolated"
+            job_name = job_name + self.ISOLATE_KICKOFF_SUFFIX
 
         script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,
@@ -161,7 +161,8 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 sched_config=sched_config,
                 node_range=node_range,
                 nodes=nodes,
-                shebang=tests[0].shebang)
+                shebang=tests[0].shebang,
+                isolate=isolate)
 
         test_ids = ' '.join(test.full_id for test in tests)
 

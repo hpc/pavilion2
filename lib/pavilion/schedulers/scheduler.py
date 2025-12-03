@@ -103,6 +103,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     KICKOFF_LOG_DEFAULT_FN = "kickoff.log"
 
+    ISOLATE_KICKOFF_SUFFIX = "_isolated"
+
     VAR_CLASS = SchedulerVariables  # type: Type[SchedulerVariables]
     """The scheduler's variable class."""
 
