@@ -74,7 +74,7 @@ class UtilsTests(unittest.PavTestCase):
     def test_relative_to(self):
         """Check relative path calculations."""
 
-        # base, "target", answer
+        # base, target, answer
         tests = [
             # Outside 'base'
             (self.PAV_LIB_DIR,
@@ -96,11 +96,11 @@ class UtilsTests(unittest.PavTestCase):
     def test_repair_symlinks(self):
         """Check symlink repairing."""
 
-        # (File, "target", answer)
-        # A "target" of None means to create a regular file with the filename
+        # (File, target, answer)
+        # A target of None means to create a regular file with the filename
         # as the contents.
-        # An answer of None means the "target" won't exist.
-        # An answer of '*' means we can't know the "target"'s contents (but it
+        # An answer of None means the target won't exist.
+        # An answer of '*' means we can't know the target's contents (but it
         # should exist).
         test_files = (
             ('t1/A', None, 'A'),

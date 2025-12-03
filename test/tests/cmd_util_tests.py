@@ -3,7 +3,6 @@
 import io
 import json
 import shutil
-import tempfile
 from pathlib import Path
 
 from pavilion import dir_db
