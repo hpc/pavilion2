@@ -14,6 +14,8 @@ from pavilion.cmd_utils import list_files
 class IsolateCmdTests(PavTestCase):
 
     def test_no_archive(self):
+        """Test that isolating without archiving works correctly."""
+
         run_cmd = commands.get_command("run")
         isolate_cmd = commands.get_command("isolate")
 
@@ -46,6 +48,8 @@ class IsolateCmdTests(PavTestCase):
                             f.parent.name != "build_origin"})
 
     def test_zip_archive(self):
+        """Test that isolating using a compressed archive works correctly."""
+
         run_cmd = commands.get_command("run")
         isolate_cmd = commands.get_command("isolate")
 
