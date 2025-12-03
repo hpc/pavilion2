@@ -40,7 +40,10 @@ class IsolateCmdTests(PavTestCase):
 
             self.assertEqual(
                         {f for f in source_files if f.name not in ("series", "job")},
-                        {f for f in dest_files if f.name not in ("pav-lib.bash", "kickoff.isolated")})
+                        {f for f in dest_files if f.name not in \
+                            ("pav-lib.bash", "kickoff.isolated") and \
+                            # Have to exclude build_origin because of how os.walk handles symlinks
+                            f.parent.name != "build_origin"})
 
     def test_zip_archive(self):
         run_cmd = commands.get_command("run")
@@ -76,4 +79,7 @@ class IsolateCmdTests(PavTestCase):
 
                     self.assertEqual(
                         {f for f in source_files if f.name not in ("series", "job")},
-                        {f for f in dest_files if f.name not in ("pav-lib.bash", "kickoff.isolated")})
+                        {f for f in dest_files if f.name not in \
+                            ("pav-lib.bash", "kickoff.isolated") and \
+                            # Have to exclude build_origin because of how os.walk handles symlinks
+                            f.parent.name != "build_origin"})
