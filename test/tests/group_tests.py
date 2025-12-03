@@ -10,6 +10,7 @@ from pavilion.test_ids import GroupID, TestID
 
 import shutil
 import uuid
+import json
 
 
 class TestGroupTests(unittest.PavTestCase):
@@ -220,6 +221,7 @@ class TestGroupTests(unittest.PavTestCase):
         run_cmd.last_series.wait(timeout=10)
 
         add_items = [str(sub_group_name)] + [str(test.id) for test in run_cmd.last_tests]
+        print(len(add_items))
         rm_tests = add_items[1:3]
 
         def run_grp_cmd(args):
@@ -250,17 +252,17 @@ class TestGroupTests(unittest.PavTestCase):
 
         # Try all the list options
         for rows, args in [
-                (7,    ['group', 'members', "--json", str(group_name)]),
-                (4,    ['group', 'members', "--json", '--tests', str(group_name)]),
-                (5,    ['group', 'members', "--json", '--series', str(group_name)]),
-                (4,    ['group', 'members', "--json", '--groups', str(group_name)]),
-                (7,    ['group', 'members', "--json", '--tests', '--series', '--groups', str(group_name)]),
-                (8,    ['group', 'members', "--json", '--recursive', str(group_name)]),
+                (4,    ['group', 'members', "--json", str(group_name)]),
+                (1,    ['group', 'members', "--json", '--tests', str(group_name)]),
+                (2,    ['group', 'members', "--json", '--series', str(group_name)]),
+                (1,    ['group', 'members', "--json", '--groups', str(group_name)]),
+                (4,    ['group', 'members', "--json", '--tests', '--series', '--groups', str(group_name)]),
+                (5,    ['group', 'members', "--json", '--recursive', str(group_name)]),
                 ]:
             run_grp_cmd(args)
             out, err_out = group_cmd.clear_output()
             self.assertEqual(
-                            len(out.split('\n')),
+                            len(json.loads(out)),
                             rows,
                              msg="unexpected lines for {}:\n{}"
                                  .format(args, out))
