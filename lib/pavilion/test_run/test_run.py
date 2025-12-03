@@ -1150,11 +1150,6 @@ be set by the scheduler plugin as soon as it's known."""
             script.command('set -v')
             script.newline()
 
-        if isolate:
-            pav_lib_bash = path.parent / "pav-lib.bash"
-        else:
-            pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
-
         script.command(f'echo "(pav) Starting {stype} script"')
 
         # If we include this directly, it breaks build hashing.
@@ -1167,6 +1162,12 @@ be set by the scheduler plugin as soon as it's known."""
             env["PAV_CONFIG_FILE"] = self._pav_cfg['pav_cfg_file']
 
         script.env_change(env)
+
+        if isolate:
+            pav_lib_bash = '$( dirname -- "${BASH_SOURCE[0]}" )/pav-lib.bash'
+        else:
+            pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
+
         script.command('source {}'.format(pav_lib_bash))
 
         if config.get('preamble', []):
@@ -1246,10 +1247,10 @@ be set by the scheduler plugin as soon as it's known."""
                     script.command('spack load {} || exit 1'
                                    .format(package))
 
-        script.newline()
-        script.comment('Output the environment for posterity')
-
         if not isolate:
+            script.newline()
+            script.comment('Output the environment for posterity')
+
             if verbose:
                 script.command(f'declare -p | tee > {path.parent / stype}.env.sh')
             else:

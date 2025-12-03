@@ -207,7 +207,7 @@ class IsolateCommand(Command):
             return 9
 
         sched_config = validate_config(test.config['schedule'])
-        node_range = calc_node_range(test.config, sched_config['cluster_info']['node_count'])
+        node_range = calc_node_range(sched_config, sched_config['cluster_info']['node_count'])
 
         header = sched._get_kickoff_script_header(
                                             job_name=f"pav_{test.name}_isolated",
