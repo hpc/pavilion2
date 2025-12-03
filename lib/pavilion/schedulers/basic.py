@@ -164,7 +164,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                 shebang=tests[0].shebang,
                 isolate=isolate)
 
-        test_ids = ' '.join(test.full_id for test in tests)
+        test_ids = ' '.join(str(test.id) for test in tests)
 
         # This is commented out for consistency with prior behavior and with expected output for
         # logging unit tests. We may want to consider adding it. — HW

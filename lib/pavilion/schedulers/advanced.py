@@ -751,7 +751,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 shebang=tests[0].shebang,
                 isolate=isolate)
 
-        test_ids = ' '.join(test.full_id for test in tests)
+        test_ids = ' '.join(str(test.id) for test in tests)
 
         script.newline()
         script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
