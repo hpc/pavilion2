@@ -177,7 +177,6 @@ class GroupCommand(Command):
                .format(len(added), '' if len(added) == 1 else 's', existed))
 
         if errors:
-            # import pdb; pdb.set_trace()
             return 1
         else:
             return 0
