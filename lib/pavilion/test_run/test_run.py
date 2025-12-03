@@ -1138,6 +1138,8 @@ be set by the scheduler plugin as soon as it's known."""
 
         script.command(f'echo "(pav) Starting {stype} script"')
 
+        script.newline()
+
         # If we include this directly, it breaks build hashing.
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
@@ -1149,10 +1151,8 @@ be set by the scheduler plugin as soon as it's known."""
 
         script.env_change(env)
 
-        script.command('this_dir=$( dirname -- "${BASH_SOURCE[0]}" )')
-
         if isolate:
-            pav_lib_bash = '${this_dir}/pav-lib.bash'
+            pav_lib_bash = '$( dirname -- "${BASH_SOURCE[0]}" )/pav-lib.bash'
         else:
             pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
@@ -1240,9 +1240,10 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Output the environment for posterity')
 
             if verbose:
-                script.command(f'declare -p | tee > ${{this_dir}}/{stype}.env.sh')
+                script.command(
+                    f'declare -p | tee > $( dirname -- "${{BASH_SOURCE[0]}}" )/{stype}.env.sh')
             else:
-                script.command(f'declare -p > ${{this_dir}}/{stype}.env.sh')
+                script.command(f'declare -p > $( dirname -- "${{BASH_SOURCE[0]}}" )/{stype}.env.sh')
 
         script.newline()
         script.command(f'echo "(pav) Executing {stype} commands."')

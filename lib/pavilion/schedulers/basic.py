@@ -169,6 +169,8 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
         # logging unit tests. We may want to consider adding it. — HW
         # script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
 
+        script.newline()
+
         if isolate:
             script = tests[0].make_script(script, "run", isolate=True)
         else:

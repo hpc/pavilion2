@@ -444,8 +444,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
                                     log_path: Optional[Path] = None,
                                     nodes: Union[NodeList, None] = None,
                                     node_range: Union[Tuple[int, int], None] = None,
-                                    shebang: str = None)\
-            -> ScriptComposer:
+                                    shebang: str = None,
+                                    isolate: bool = False) -> ScriptComposer:
         """Generate the kickoff script essentials preamble common to all scheduled
         tests.
 
@@ -475,15 +475,17 @@ class SchedulerPlugin(IPlugin.IPlugin):
             script.command(
                 f'exec > $(dirname -- ${{BASH_SOURCE[0]}})/{self.KICKOFF_LOG_DEFAULT_FN} 2>&1')
 
-        # Make sure the pavilion spawned
-        env_changes = {
-            'PATH':            '{}:${{PATH}}'.format(pav_cfg.pav_root / 'bin'),
-            'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
-        }
-        if 'PAV_CONFIG_DIR' in os.environ:
-            env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
+        if not isolate:
+            script.newline()
+            # Make sure the pavilion spawned
+            env_changes = {
+                'PATH':            '{}:${{PATH}}'.format(pav_cfg.pav_root / 'bin'),
+                'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
+            }
+            if 'PAV_CONFIG_DIR' in os.environ:
+                env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
 
-        script.env_change(env_changes)
+            script.env_change(env_changes)
 
         # Run Kickoff Env setup commands
         for command in pav_cfg.env_setup:

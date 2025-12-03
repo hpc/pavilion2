@@ -752,7 +752,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         test_ids = ' '.join(test.full_id for test in tests)
 
+        script.newline()
         script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
+
+        script.newline()
 
         if isolate:
             script = tests[0].make_script(script, "run", isolate=True)
