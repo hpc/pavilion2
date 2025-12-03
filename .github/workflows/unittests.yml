@@ -42,6 +42,7 @@ jobs:
     - name: run_tests
       env:
         COLUMNS: 120
+        LINES: 40
       run: |
         ./test/run_tests
 
