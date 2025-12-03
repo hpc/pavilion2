@@ -30,7 +30,7 @@ def get_result(test: TestRun):
         results['results_log'] = test.results_log.as_posix()
 
     except (TestRunError, TestRunNotFoundError) as err:
-        results = {'id': test.full_id}
+        results = {'id': test.id}
         for field in BASE_FIELDS[1:]:
             results[field] = None
 

@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import List, Dict, Union, TextIO, Any, Optional, Callable
 
 from pavilion import errors
+from pavilion.test_ids import TestID, SeriesID, GroupID
 
 BLACK = 30
 RED = 31
@@ -292,6 +293,26 @@ def output_csv(outfile, fields, rows, field_info=None, header=False):
         # Handle broken pipes. It's ok when this happens.
         pass
 
+
+def output_json(outfile: TextIO, rows: List[Dict], fields: List[str],
+                    field_info: Dict = None) -> None:
+    """Output the given rows as JSON."""
+
+    new_rows = []
+
+    for row in rows:
+        new_row = {}
+
+        for k in row:
+            new_key = field_info.get(k, {}).get("title", k)
+            transform = field_info.get(k, {}).get("transform", lambda x: x)
+
+            new_row[new_key] = transform(row.get(k))
+
+        new_rows.append(new_row)
+
+    json_dump(new_rows, outfile)
+    outfile.write("\n")
 
 class ANSIString(UserString):
     """Create a string with an implicit ANSI display mode. The ansi code will be
@@ -678,7 +699,7 @@ def dt_format_rows(rows: List[Dict], fields: List[str],
             data = row.get(field, info.get('default', ''))
             orig_data = data
             # Transform the data, if a transform is given
-            if data != '' and data is not None:
+            if data is not None and not (isinstance(data, str) and data == ""):
                 try:
                     data = info.get('transform', lambda a: a)(data)
                 except (ValueError, AttributeError, KeyError):
@@ -952,6 +973,8 @@ class PavEncoder(json.JSONEncoder):
         # Just auto-convert anything that looks like a dict.
         elif isinstance(o, (dict, UserDict)):
             return dict(o)
+        elif isinstance(o, (TestID, SeriesID, GroupID)):
+            return str(o)
         # or has an 'as_dict' method
         elif hasattr(o, 'as_dict'):
             return o.as_dict()

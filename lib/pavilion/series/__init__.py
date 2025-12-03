@@ -1,11 +1,13 @@
 """Module init for series objects and related functions."""
 
 import json
-from typing import TextIO, Optional
+from pathlib import Path
+from typing import TextIO, Optional, List
 
 from pavilion import output
 from pavilion import utils, dir_db
-from ..sys_vars import base_classes
+from pavilion.config import PavConfig
+from pavilion.test_ids import SeriesID
 from ..errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo, path_to_sid, mk_series_info_transform, TestSetInfo, SeriesInfoBase
 from .series import TestSeries
@@ -13,31 +15,7 @@ from .test_set import TestSet
 from .common import COMPLETE_FN, STATUS_FN, get_all_started
 
 
-def load_user_series_id(pav_cfg, errfile=None) -> Optional[str]:
-    """Load the last series id used by the current user."""
-
-    user = utils.get_login()
-    last_series_fn = pav_cfg.working_dir/'users'
-    last_series_fn /= '{}.json'.format(user)
-
-    sys_vars = base_classes.get_vars(True)
-    sys_name = sys_vars['sys_name']
-
-    if not last_series_fn.exists():
-        return None
-
-    try:
-        with last_series_fn.open() as last_series_file:
-            sys_name_series_dict = json.load(last_series_file)
-            return sys_name_series_dict[sys_name].strip()
-    except (IOError, OSError, KeyError) as err:
-        if errfile:
-            output.fprint(errfile, "Failed to read series id file '{}'"
-                                   .format(last_series_fn), err)
-        return None
-
-
-def list_series_tests(pav_cfg, sid: str):
+def list_series_tests(pav_cfg, sid: SeriesID) -> List[Path]:
     """Return a list of paths to test run directories for the given series id.
     :raises TestSeriesError: If the series doesn't exist."""
 
@@ -62,21 +40,10 @@ def list_series_tests(pav_cfg, sid: str):
     return test_paths
 
 
-def path_from_id(pav_cfg, sid: str):
+def path_from_id(pav_cfg: PavConfig, sid: SeriesID) -> Path:
     """Return the path to the series directory given a series id (in the
     format 's[0-9]+'.
     :raises TestSeriesError: For an invalid id.
     """
 
-    if not sid.startswith('s'):
-        raise TestSeriesError(
-            "Series id's must start with 's'. Got '{}'".format(sid))
-
-    try:
-        raw_id = int(sid[1:])
-    except ValueError:
-        raise TestSeriesError(
-            "Invalid series id '{}'. Series id's must be in the format "
-            "s[0-9]+".format(sid))
-
-    return dir_db.make_id_path(pav_cfg.working_dir/'series', raw_id)
+    return dir_db.make_id_path(pav_cfg.working_dir/'series', sid.as_int())

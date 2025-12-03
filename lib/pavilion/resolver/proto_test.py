@@ -27,6 +27,12 @@ class ProtoTest:
         self.var_man = var_man
         self.count = count
 
+    @property
+    def name(self):
+        return '.'.join([
+            self.config.get('suite', '_suite_'),
+            self.config.get('name', '_test_name_')])
+
     def update_config(self, new_config):
         """Replace the existing config with this new (probably completely resolved) version."""
 
@@ -50,18 +56,17 @@ class ProtoTest:
             self.update_config(new_cfg)
             return new_cfg
         except TestConfigError as err:
-            name = self.config['name']
             permute_on = self.config.get('permute_on')
             if permute_on:
                 permute_values = {key: self.var_man.get(key) for key in permute_on}
 
                 raise TestConfigError(
                     "Error resolving test {} with permute values:"
-                    .format(name),
+                    .format(self.name),
                     prior_error=err, data=permute_values, request=self.request)
             else:
                 raise TestConfigError(
-                    "Error resolving test {}".format(name), self.request, err)
+                    "Error resolving test {}".format(self.name), self.request, err)
 
     def check_result_format(self):
         """Make sure the result parsers for each test are ok."""
@@ -72,7 +77,7 @@ class ProtoTest:
                                 self.config['result_evaluate'])
         except ResultError as err:
             raise TestConfigError(
-                "Error in results section for test {}.".format(self.config['name']),
+                "Error in results section for test {}.".format(self.name),
                 self.request, err)
 
 class RawProtoTest:
@@ -92,16 +97,20 @@ class RawProtoTest:
 
         user_vars = self.config.get('variables', {})
         base_var_man = copy.deepcopy(base_var_man)
-        test_name = self.config.get('name', '<no name>')
 
         try:
             base_var_man.add_var_set('var', user_vars)
         except VariableError as err:
             raise TestConfigError("Error in variables section for test '{}'"
-                                  .format(test_name), self.request, err)
+                                  .format(self.name), self.request, err)
 
         self.var_man = base_var_man
 
+    @property
+    def name(self):
+        return '.'.join([
+            self.config.get('suite', '_suite_'),
+            self.config.get('name', '_test_name_')])
 
     def check_variable_consistency(self):
         """Check all the variables defined as defaults with a null value to
@@ -111,16 +120,13 @@ class RawProtoTest:
         :raises TestConfigError: When variable inconsistencies are found.
         """
 
-        test_name = self.config.get('name', '<unnamed>')
-        test_suite = self.config.get('suite_path', '<no suite>')
-
         for var_key, values in self.config.get('variables', {}).items():
 
             if not values:
                 raise TestConfigError(
-                    "In test '{}' from suite '{}', test variable '{}' was defined "
+                    "In test '{}', test variable '{}' was defined "
                     "but wasn't given a value."
-                    .format(test_name, test_suite, var_key), self.request)
+                    .format(self.name, var_key), self.request)
 
             first_value_keys = set(values[0].keys())
             for i, value in enumerate(values):
@@ -132,41 +138,41 @@ class RawProtoTest:
 
                     if subval is None:
                         raise TestConfigError(
-                            "In test '{}' from suite '{}', test variable '{}' has an empty "
+                            "In test '{}', test variable '{}' has an empty "
                             "value. Empty defaults are fine (as long as they are "
                             "overridden), but regular variables should always be given "
                             "a value (even if it's just an empty string)."
-                            .format(test_name, test_suite, full_key), request=self.request)
+                            .format(self.name, test_suite, full_key), request=self.request)
 
                 value_keys = set(value.keys())
                 if value_keys != first_value_keys:
                     if None in first_value_keys:
                         raise TestConfigError(
-                            "In test '{}' from suite '{}', test variable '{}' has  "
+                            "In test '{}', test variable '{}' has  "
                             "inconsistent keys. The first value was a simple variable "
                             "with value '{}', while value {} had keys {}"
-                            .format(test_name, test_suite, var_key, values[0][None], i + 1,
+                            .format(self.name, test_suite, var_key, values[0][None], i + 1,
                                     value_keys), request=self.request)
                     elif None in value_keys:
                         raise TestConfigError(
-                            "In test '{}' from suite '{}', test variable '{}' has "
+                            "In test '{}', test variable '{}' has "
                             "inconsistent keys.The first value had keys {}, while value "
                             "{} was a simple value '{}'."
-                            .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                            .format(self.name, var_key, first_value_keys, i + 1,
                                     value[None]), request=self.request)
                     else:
                         raise TestConfigError(
-                            "In test '{}' from suite '{}', test variable '{}' has "
+                            "In test '{}', test variable '{}' has "
                             "inconsistent keys. The first value had keys {}, "
                             "while value {} had keys {}"
-                            .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                            .format(self.name, var_key, first_value_keys, i + 1,
                                     value_keys), request=self.request)
 
                 if not values:
                     raise TestConfigError(
-                        "In test '{}' from suite '{}', test variable '{}' was defined "
+                        "In test '{}', test variable '{}' was defined "
                         "but wasn't given a value."
-                        .format(test_name, test_suite, var_key), request=self.request)
+                        .format(self_name, var_key), request=self.request)
 
                 first_value_keys = set(values[0].keys())
                 for i, value in enumerate(values):
@@ -178,34 +184,34 @@ class RawProtoTest:
 
                         if subval is None:
                             raise TestConfigError(
-                                "In test '{}' from suite '{}', test variable '{}' has an empty "
+                                "In test '{}', test variable '{}' has an empty "
                                 "value. Empty defaults are fine (as long as they are "
                                 "overridden), but regular variables should always be given "
                                 "a value (even if it's just an empty string)."
-                                .format(test_name, test_suite, full_key), request=self.request)
+                                .format(self.name, full_key), request=self.request)
 
                     value_keys = set(value.keys())
                     if value_keys != first_value_keys:
                         if None in first_value_keys:
                             raise TestConfigError(
-                                "In test '{}' from suite '{}', test variable '{}' has  "
+                                "In test '{}', test variable '{}' has  "
                                 "inconsistent keys. The first value was a simple variable "
                                 "with value '{}', while value {} had keys {}"
-                                .format(test_name, test_suite, var_key, values[0][None], i + 1,
+                                .format(self.name, var_key, values[0][None], i + 1,
                                         value_keys), request=self.request)
                         elif None in value_keys:
                             raise TestConfigError(
-                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "In test '{}', test variable '{}' has "
                                 "inconsistent keys.The first value had keys {}, while value "
                                 "{} was a simple value '{}'."
-                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                .format(self.name, var_key, first_value_keys, i + 1,
                                         value[None]), request=self.request)
                         else:
                             raise TestConfigError(
-                                "In test '{}' from suite '{}', test variable '{}' has "
+                                "In test '{}', test variable '{}' has "
                                 "inconsistent keys. The first value had keys {}, "
                                 "while value {} had keys {}"
-                                .format(test_name, test_suite, var_key, first_value_keys, i + 1,
+                                .format(self.name, var_key, first_value_keys, i + 1,
                                         value_keys), request=self.request)
 
     def resolve_permutations(self) -> List[ProtoTest]:

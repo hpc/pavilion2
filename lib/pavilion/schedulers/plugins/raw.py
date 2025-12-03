@@ -6,6 +6,7 @@ import socket
 import subprocess
 import time
 import uuid
+import platform
 from pathlib import Path
 from typing import Union, List, Tuple
 
@@ -66,23 +67,37 @@ class Raw(SchedulerPluginBasic):
 
         info = NodeInfo({})
 
-        cpus = subprocess.check_output(['nproc']).strip().decode('utf8')
-        try:
-            info['cpus'] = int(cpus)
-        except ValueError:
-            pass
+        if platform.system() == "Linux":
+            cpus = subprocess.check_output(['nproc']).strip().decode('utf8')
+            try:
+                info['cpus'] = int(cpus)
+            except ValueError:
+                pass
 
-        with Path('/proc/meminfo').open() as meminfo_file:
-            for line in meminfo_file.readlines():
-                if line.startswith('MemTotal:'):
-                    parts = line.split()
-                    if len(parts) > 2:
-                        try:
-                            info['mem'] = int(parts[1])//1024**2
-                        except ValueError:
-                            pass
+            with Path('/proc/meminfo').open() as meminfo_file:
+                for line in meminfo_file.readlines():
+                    if line.startswith('MemTotal:'):
+                        parts = line.split()
+                        if len(parts) > 2:
+                            try:
+                                info['mem'] = int(parts[1])//1024**2
+                            except ValueError:
+                                pass
 
-                    break
+                        break
+        elif platform.system() == "Darwin":
+            cpus = subprocess.check_output(['sysctl', '-n', 'hw.logicalcpu']).decode('utf8')
+
+            try:
+                info['cpus'] = int(cpus)
+            except ValueError:
+                pass
+
+            try:
+                total_bytes = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).strip())
+                info['mem'] = total_bytes // 1024**3
+            except ValueError:
+                pass
 
         return info
 

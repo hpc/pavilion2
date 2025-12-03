@@ -5,10 +5,12 @@ mechanisms to Pavilion.
 import inspect
 import os
 import time
+from abc import abstractmethod
 from pathlib import Path
-from typing import List, Union, Dict, NewType, Tuple, Type
+from typing import List, Union, Dict, NewType, Tuple, Type, Optional
 
 import yaml_config as yc
+from pavilion.config import PavConfig
 from pavilion.jobs import JobError, JobInfo, Job
 from pavilion.scriptcomposer import ScriptHeader, ScriptComposer
 from pavilion.status_file import STATES, TestStatusInfo
@@ -49,8 +51,13 @@ class KickoffScriptHeader(ScriptHeader):
         if nodes is None:
             self._include_nodes = self._config['include_nodes']
             self._exclude_nodes = self._config['exclude_nodes']
-            self._node_min = node_range[0]
-            self._node_max = node_range[1]
+
+            if node_range is not None:
+                self._node_min = node_range[0]
+                self._node_max = node_range[1]
+            else:
+                self._node_min = None
+                self._node_max = None
         else:
             self._include_nodes = nodes
             # Any nodes in the exclude list will have already been filtered out.
@@ -93,6 +100,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     KICKOFF_FN = None
     """If the kickoff script requires a special filename, set it here."""
+
+    KICKOFF_LOG_DEFAULT_FN = "kickoff.log"
+
+    ISOLATE_KICKOFF_SUFFIX = "_isolated"
 
     VAR_CLASS = SchedulerVariables  # type: Type[SchedulerVariables]
     """The scheduler's variable class."""
@@ -417,12 +428,26 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return [], {}, {}
 
-    def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
+    @abstractmethod
+    def create_kickoff_script(self,
+                              pav_cfg: PavConfig,
+                              tests: Union[TestRun, List[TestRun]],
+                              log_path: Optional[Path] = None,
+                              nodes: Optional = None,
+                              isolate: bool = False) -> ScriptComposer:
+        """Create the kickoff script."""
+
+        raise NotImplementedError
+
+    def _create_kickoff_script_stub(self,
+                                    pav_cfg: PavConfig,
+                                    job_name: str,
                                     sched_config: dict,
+                                    log_path: Optional[Path] = None,
                                     nodes: Union[NodeList, None] = None,
                                     node_range: Union[Tuple[int, int], None] = None,
-                                    shebang: str = None)\
-            -> ScriptComposer:
+                                    shebang: str = None,
+                                    isolate: bool = False) -> ScriptComposer:
         """Generate the kickoff script essentials preamble common to all scheduled
         tests.
 
@@ -445,17 +470,24 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         script = ScriptComposer(header=header)
         script.comment("Redirect all output to the kickoff log.")
-        script.command("exec >{} 2>&1".format(log_path.as_posix()))
 
-        # Make sure the pavilion spawned
-        env_changes = {
-            'PATH':            '{}:${{PATH}}'.format(pav_cfg.pav_root / 'bin'),
-            'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
-        }
-        if 'PAV_CONFIG_DIR' in os.environ:
-            env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
+        if log_path is not None:
+            script.command(f"exec >{log_path.as_posix()} 2>&1")
+        else:
+            script.command(
+                f'exec > $(dirname -- ${{BASH_SOURCE[0]}})/{self.KICKOFF_LOG_DEFAULT_FN} 2>&1')
 
-        script.env_change(env_changes)
+        if not isolate:
+            script.newline()
+            # Make sure the pavilion spawned
+            env_changes = {
+                'PATH':            '{}:${{PATH}}'.format(pav_cfg.pav_root / 'bin'),
+                'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
+            }
+            if 'PAV_CONFIG_DIR' in os.environ:
+                env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
+
+            script.env_change(env_changes)
 
         # Run Kickoff Env setup commands
         for command in pav_cfg.env_setup:
@@ -530,7 +562,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _make_kickoff_error(self, orig_err, tests):
         """Convert a generic error to something with more information."""
 
-        test_names = ['{} ({})'.format(test.full_id, test.name) for test in tests[:2]]
+        test_names = ['{} ({})'.format(test.id, test.name) for test in tests[:2]]
         if len(tests) > 2:
             test_names.append('...')
         test_names = ', '.join(test_names)
@@ -571,6 +603,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
             key_parts.append(opt)
 
         return tuple(key_parts)
+
+    @abstractmethod
+    def _job_name(self, tests: Union[TestRun, List[TestRun]]) -> str:
+        """Given a test, get the name of the job."""
+
+        raise NotImplementedError
 
 
 def __reset():

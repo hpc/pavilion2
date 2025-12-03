@@ -1,4 +1,5 @@
 # pylint: disable=W0221
+# pylint: disable=invalid-name
 """Series are built around a config that specifies a 'series' of tests to run. It
 also tracks the tests that have run under it."""
 import io
@@ -13,9 +14,11 @@ import time
 from collections import defaultdict, OrderedDict
 from pathlib import Path
 from operator import attrgetter
+from itertools import product
 from typing import List, Dict, Set, Union, TextIO, Iterator, Optional
 
 import pavilion
+from pavilion.config import PavConfig
 from pavilion import cancel_utils
 from pavilion import config
 from pavilion import dir_db
@@ -29,8 +32,11 @@ from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
-from pavilion.micro import partition
+from pavilion.micro import partition, do, listfilter, stardo
 from pavilion.timing import TimeLimiter
+from pavilion.test_ids import SeriesID
+from pavilion.result_logging import get_result_loggers
+from pavilion.dir_db import create_id_dir
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -52,8 +58,9 @@ class TestSeries:
     PGID_FN = 'series.pgid'
     CANCEL_FN = 'series.CANCELED'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
+    TESTSET_DIRNAME = "test_sets"
 
-    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id=None,
+    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
                  cancel_cooldown: float = 0.5):
         """Initialize the series. Test sets may be added via 'add_tests()'.
@@ -100,12 +107,13 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = dir_db.create_id_dir(series_path)
+                _id, self.path = dir_db.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}'"
                     .format(series_path), err)
 
+            self.id = SeriesID.from_int(_id)
             # save series config
             self.save_config()
 
@@ -117,11 +125,13 @@ class TestSeries:
         # We're not creating this from scratch (an object was made ahead of
         # time).
         else:
-            self._id = _id
-            self.path = dir_db.make_id_path(series_path, self._id)
+            self.id = _id
+            self.path = dir_db.make_id_path(series_path, self.id.as_int())
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
+        self.result_loggers = get_result_loggers(pav_cfg, self.id)
+        self.log_proc = None
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
@@ -138,7 +148,7 @@ class TestSeries:
         env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
 
         # start subprocess
-        temp_args = [pav_exe, '_series', self.sid]
+        temp_args = [pav_exe, '_series', str(self.id)]
         try:
             series_out_path = self.path/self.OUT_FN
             with series_out_path.open('w') as series_out:
@@ -153,7 +163,7 @@ class TestSeries:
 
         except OSError as err:
             raise TestSeriesError("Could not start series '{}' in the background."
-                                  .format(self.sid), err)
+                                  .format(self.id), err)
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
@@ -167,16 +177,21 @@ class TestSeries:
         except OSError:
             raise TestSeriesWarning("Could not write series PGID to a file.")
 
-    def get_currently_running(self):
+    def get_with_states(self, states: Union[str, List[str]]) -> List[TestRun]:
+        """Get a list of tests with states in the given list of states."""
+
+        return listfilter(lambda x: x.status.current().state in states, self.tests.values())
+
+    def get_currently_running(self) -> List[TestRun]:
         """Returns list of tests that have states of either SCHEDULED or
         RUNNING. """
 
-        cur_run = []
-        for test_id, test_obj in self.tests.items():
-            temp_state = test_obj.status.current().state
-            if temp_state in ['SCHEDULED', 'RUNNING']:
-                cur_run.append(test_obj)
-        return cur_run
+        return self.get_with_states(['SCHEDULED', 'RUNNING'])
+
+    def get_completed(self) -> List[TestRun]:
+        """Returns list of completed tests."""
+
+        return self.get_with_states(["COMPLETE"])
 
     def save_config(self) -> None:
         """Saves series config to a file."""
@@ -195,47 +210,19 @@ class TestSeries:
     def test_set_dirs(self) -> Iterator[Path]:
         """Return an iterator over the test set directories for this series."""
 
-        if (self.path/'test_sets').exists():
-            for dir in (self.path/'test_sets').iterdir():
+        if (self.path/self.TESTSET_DIRNAME).exists():
+            for dir in (self.path/self.TESTSET_DIRNAME).iterdir():
                 if dir.is_dir():
                     yield dir
 
-    @property
-    def sid(self):  # pylint: disable=invalid-name
-        """Return the series id as a string, with an 's' in the front to
-differentiate it from test ids."""
-
-        return 's{}'.format(self._id)
-
     @classmethod
-    def sid_to_id(cls, sid: str) -> int:
-        """Convert a sid string to a numeric series id.
-
-        :raises TestSeriesError: On an invalid sid.
-        """
-
-        if not sid.startswith('s'):
-            raise TestSeriesError(
-                "Invalid SID '{}'. Must start with 's'.".format(sid))
-
-        try:
-            return int(sid[1:])
-        except ValueError:
-            raise TestSeriesError(
-                "Invalid SID '{}'. Must end in an integer.".format(sid))
-
-    @classmethod
-    def load(cls, pav_cfg, sid: Union[str, int], outfile=None):
+    def load(cls, pav_cfg: PavConfig, sid: SeriesID, outfile: TextIO = None) -> "TestSeries":
         """Load a series object from the given id, along with all of its
     associated tests.
 
     :raises TestSeriesError: From invalid series id or path."""
 
-        if isinstance(sid, str):
-            series_id = cls.sid_to_id(sid)
-        else:
-            series_id = sid
-
+        series_id = sid.as_int()
         series_path = pav_cfg.working_dir/'series'
         series_path = dir_db.make_id_path(series_path, series_id)
 
@@ -256,7 +243,7 @@ differentiate it from test ids."""
             raise TestSeriesError("Could not load config file for test series '{}': {}"
                                   .format(sid), err)
 
-        series = cls(pav_cfg, _id=series_id, series_cfg=series_cfg, outfile=outfile)
+        series = cls(pav_cfg, _id=sid, series_cfg=series_cfg, outfile=outfile)
         return series
 
     def _create_test_sets(self, iteration=0):
@@ -269,7 +256,7 @@ differentiate it from test ids."""
                                "no test sets for a series, but this series has: {}"
                                .format(self.test_sets))
 
-        sets_path = self.path/'test_sets'
+        sets_path = self.path/self.TESTSET_DIRNAME
         sets_path.mkdir(exist_ok=True)
 
         # What each test depends on.
@@ -418,7 +405,7 @@ differentiate it from test ids."""
         return False
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False):
+            local_builds_only: bool = False, log_results: bool = True):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -429,6 +416,23 @@ differentiate it from test ids."""
         """
 
         self.status.set(SERIES_STATES.RUN, "Series running.")
+
+        pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
+
+        env = os.environ.copy()
+        pav_cfg = self.pav_cfg.pav_cfg_file
+        pav_cfg = pav_cfg.parent.resolve()/pav_cfg.name
+        env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
+
+        if log_results:
+            try:
+                # Create a new process to log test results as tests complete
+                log_res_args = [pav_exe, '_log_results', str(self.id)]
+                self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
+            except OSError as err:
+                raise TestSeriesError(
+                    "Could not start result logger in the background for series '{}'."
+                    .format(self.id), err)
 
         # create the test sets and link together.
         try:
@@ -476,12 +480,12 @@ differentiate it from test ids."""
                     self.status.set(SERIES_STATES.ERROR,
                                     "Error running test set {}. See the series log "
                                     "`pav log series {}`.  {}"
-                                    .format(test_set.name, self.sid, err.args[0]))
+                                    .format(test_set.name, self.id, err.args[0]))
 
                     self.set_complete()
                     raise TestSeriesError(
                         "Error making tests for series '{}'."
-                        .format(self.sid), err)
+                        .format(self.id), err)
 
             potential_sets = list(waiting_sets)
 
@@ -505,6 +509,33 @@ differentiate it from test ids."""
 
         # Completion will be set when looked for.
 
+    def log_results(self, loggers: List["ResultLogger"] = None) -> None:
+        """Log the results of each test in the series as tests complete."""
+
+        if loggers is None:
+            loggers = self.result_loggers
+
+        if self.pav_cfg.get("flatten_results"):
+            # Log the sequence of flattened results
+            log = lambda logger, test: do(logger, test.flatten_results(test.results))
+        else:
+            # Just log the single unflattened result
+            log = lambda logger, test: logger(test.results)
+
+        logged = set()
+
+        while not (self.complete or self.check_cancelled()):
+            to_log = set(self.get_completed()) - logged
+
+            # Apply all loggers to all tests ready to log
+            stardo(log, product(loggers, to_log))
+
+            logged |= to_log
+            time.sleep(0.2)
+
+        # Log any remaining tests after series completion
+        to_log = set(self.get_completed()) - logged
+        stardo(log, product(loggers, to_log))
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
@@ -529,11 +560,11 @@ differentiate it from test ids."""
             except TestSetError as err:
                 self.status.set(SERIES_STATES.BUILD_ERROR,
                                 "Error building tests. See the series log `pav log series {}"
-                                .format(self.sid))
+                                .format(self.id))
                 self.set_complete()
                 raise TestSeriesError(
                     "Error building tests for series '{}'"
-                    .format(self.sid), err)
+                    .format(self.id), err)
 
             if not test_set.ready_to_start:
                 continue
@@ -546,14 +577,14 @@ differentiate it from test ids."""
                 tests_running += len(started_tests)
             except TestSetError as err:
                 self.status.set(SERIES_STATES.KICKOFF_ERROR,
-                                "Error kicking off tests for series '{}'".format(self.sid))
+                                "Error kicking off tests for series '{}'".format(self.id))
                 raise TestSeriesError(
-                    "Error kicking off tests for series '{}'".format(self.sid))
+                    "Error kicking off tests for series '{}'".format(self.id))
 
             if self.verbosity != Verbose.QUIET:
                 if len(new_jobs) == 1:
                     fprint(self.outfile, "Kicked off a job for test set '{}' in series {}."
-                                         .format(test_set.name, self.sid))
+                                         .format(test_set.name, self.id))
                 else:
                     ktests = ', '.join([test.name for test in started_tests[:3]]
                                        + ['...'] if len(started_tests) > 3 else [])
@@ -561,7 +592,7 @@ differentiate it from test ids."""
                     fprint(self.outfile, "Kicked off tests {} ({} total) for test set {} "
                                          "in series {}."
                                          .format(ktests, len(started_tests),
-                                                 test_set.name, self.sid))
+                                                 test_set.name, self.id))
             # If simultaneous is set in the test_set, use that.
             _simultaneous = test_set.simultaneous if test_set.simultaneous else self.simultaneous
             # Wait for jobs until enough have finished to start a new batch.
@@ -572,7 +603,7 @@ differentiate it from test ids."""
 
     WAIT_INTERVAL = 0.5
 
-    def wait(self, timeout: float = None) -> None:
+    def wait(self, timeout: Optional[float] = None) -> None:
         """Wait for the series to be complete or the timeout to expire. """
 
         if timeout is None:
@@ -587,7 +618,15 @@ differentiate it from test ids."""
             time.sleep(self.WAIT_INTERVAL)
 
         raise TimeoutError("Series {} did not complete before timeout."
-                           .format(self._id))
+                           .format(self.id))
+
+    def wait_log(self, timeout: Optional[float] = None) -> None:
+        """Wait until the result logging process finishes."""
+
+        if self.log_proc is None:
+            return
+
+        self.log_proc.wait(timeout)
 
     @property
     def complete(self) -> bool:
@@ -662,7 +701,7 @@ differentiate it from test ids."""
 
         if name in self.config['test_sets']:
             raise TestSeriesError("A test set called '{}' already exists in series {}"
-                                  .format(name, self.sid))
+                                  .format(name, self.id))
 
         self.config['test_sets'][name] = {
             'tests': test_names,
@@ -697,16 +736,18 @@ differentiate it from test ids."""
     def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""
 
-        set_path = self.path/'test_sets'/test_set_name
+        set_path = self.path/self.TESTSET_DIRNAME/test_set_name
         try:
             set_path.mkdir(exist_ok=True, parents=True)
         except OSError as err:
             raise TestSeriesError(
                 "Could not create test set directory {} under series {}."
-                .format(set_path, self.sid), err)
+                .format(set_path, self.id), err)
 
         # attempt to make symlink
-        link_path = dir_db.make_id_path(set_path, test.id)
+        _, link_path = create_id_dir(set_path,
+                                  link_target=test.path,
+                                  next_fn=self.path/self.TESTSET_DIRNAME/"next_id")
 
         self.tests[test.id_pair] = test
 
@@ -743,14 +784,25 @@ differentiate it from test ids."""
                         # File was empty, therefore json couldn't be loaded.
                         pass
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.sid
+                    data[sys_name] = str(self.id)
                     json_series_file.write(json.dumps(data))
 
             except FileNotFoundError:
                 # File hadn't been created yet.
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.sid
+                    data[sys_name] = str(self.id)
                     json_series_file.write(json.dumps(data))
+
+    def get_result_paths(self) -> List[Path]:
+        """Get all results log paths."""
+
+        paths = []
+
+        for logger in self.result_loggers:
+            if hasattr(logger, "dest"):
+                paths.append(logger.dest)
+
+        return paths
 
     @property
     def timestamp(self):

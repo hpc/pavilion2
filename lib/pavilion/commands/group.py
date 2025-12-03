@@ -6,10 +6,13 @@ import fnmatch
 from pavilion import groups
 from pavilion import config
 from pavilion import output
-from pavilion.output import fprint, draw_table
+from pavilion.output import fprint, draw_table, output_json
 from pavilion.enums import Verbose
+from pavilion.test_run import TestRun
+from pavilion.series import TestSeries
 from pavilion.groups import TestGroup
 from pavilion.errors import TestGroupError
+from pavilion.test_ids import GroupID, resolve_mixed_ids
 from .base_classes import Command, sub_cmd
 
 
@@ -50,6 +53,7 @@ class GroupCommand(Command):
 
         add_p.add_argument(
             'group',
+            type=GroupID,
             help="The group to add to.")
         add_p.add_argument(
             'items', nargs='+',
@@ -64,7 +68,7 @@ class GroupCommand(Command):
             description="Remove all given ID's (test/series/group) from the group.")
 
         remove_p.add_argument(
-            'group', help="The group to remove items from.")
+            'group', type=GroupID, help="The group to remove items from.")
         remove_p.add_argument(
             'items', nargs='+',
             help="Test run, test series, and group ID's to remove, as per `pav group add`.")
@@ -73,15 +77,15 @@ class GroupCommand(Command):
             'delete',
             help="Delete the given group entirely.")
         delete_p.add_argument(
-            'group', help="The group to delete.")
+            'group', type=GroupID, help="The group to delete.")
 
         rename_p = subparsers.add_parser(
             'rename',
             help="Rename a group.")
         rename_p.add_argument(
-            'group', help="The group to rename.")
+            'group', type=GroupID, help="The group to rename.")
         rename_p.add_argument(
-            'new_name', help="The new name for the group")
+            'new_name', type=GroupID, help="The new name for the group")
         rename_p.add_argument(
             '--no-redirect', action='store_true', default=False,
             help="By default, groups that point to this group are redirected to the new name. "
@@ -103,7 +107,7 @@ class GroupCommand(Command):
                  "include those attached indirectly through series. To see all tests "
                  "in a group, use `pav status`.")
         member_p.add_argument(
-            'group', help="The group to list.")
+            'group', type=GroupID, help="The group to list.")
         member_p.add_argument(
             '--recursive', '-r', action='store_true', default=False,
             help="Recursively list members of child groups as well.")
@@ -116,13 +120,16 @@ class GroupCommand(Command):
         member_p.add_argument(
             '--groups', '-g', action='store_true', default=False,
             help="Show groups, and disable the default of showing everything.")
+        member_p.add_argument(
+            "--json", "-j", action="store_true", default=False,
+            help="Output data as json.")
 
     def run(self, pav_cfg, args):
         """Run the selected sub command."""
 
         return self._run_sub_command(pav_cfg, args)
 
-    def _get_group(self, pav_cfg, group_name: str) -> TestGroup:
+    def _get_group(self, pav_cfg, group_name: GroupID) -> TestGroup:
         """Get the requested group, and print a standard error message on failure."""
 
         try:
@@ -154,14 +161,17 @@ class GroupCommand(Command):
             fprint(self.errfile, err.pformat())
             return 1
 
-        added, errors = group.add(args.items)
+        ids = resolve_mixed_ids(args.items)
+        items = ids["tests"] + ids["series"] + ids["groups"]
+
+        added, errors = group.add(items)
         if errors:
             fprint(self.errfile, "There were one or more errors when adding tests.",
             	   color=output.RED)
             for error in errors:
                 fprint(self.errfile, error.pformat(), '\n')
 
-        existed = len(args.items) - len(added) - len(errors)
+        existed = len(items) - len(added) - len(errors)
         fprint(self.outfile,
                "Added {} item{} to the group ({} already existed)."
                .format(len(added), '' if len(added) == 1 else 's', existed))
@@ -179,7 +189,10 @@ class GroupCommand(Command):
         if group is None:
             return 1
 
-        removed, errors = group.remove(args.items)
+        ids = resolve_mixed_ids(args.items)
+        items = ids["tests"] + ids["series"] + ids["groups"]
+
+        removed, errors = group.remove(items)
         if errors:
             fprint(self.errfile, "There were one or more errors when removing tests.",
             	   color=output.RED)
@@ -244,7 +257,7 @@ class GroupCommand(Command):
                     else:
                         continue
 
-                group = TestGroup(pav_cfg, group_dir.name)
+                group = TestGroup(pav_cfg, GroupID(group_dir.name))
                 groups_info.append(group.info())
 
         groups_info.sort(key=lambda v: v['created'], reverse=True)
@@ -281,11 +294,11 @@ class GroupCommand(Command):
 
         filtered_members = []
         for mem in members:
-            if show_tests and mem['itype'] == TestGroup.TEST_ITYPE:
+            if show_tests and mem['itype'] == TestRun:
                 filtered_members.append(mem)
-            elif show_series and mem['itype'] == TestGroup.SERIES_ITYPE:
+            elif show_series and mem['itype'] == TestSeries:
                 filtered_members.append(mem)
-            elif show_groups and mem['itype'] == TestGroup.GROUP_ITYPE:
+            elif show_groups and mem['itype'] == TestGroup:
                 filtered_members.append(mem)
         members = filtered_members
 
@@ -294,14 +307,34 @@ class GroupCommand(Command):
         if args.recursive:
             fields.insert(0, 'group')
 
-        draw_table(
-            self.outfile,
-            rows=members,
-            fields=fields,
-            field_info={
-                'itype': {'title': 'type'},
-                'created': {'transform': output.get_relative_timestamp}
-            })
+        def type_transform(type: type) -> str:
+            if type == TestRun:
+                return "test"
+            elif type == TestSeries:
+                return "series"
+            else:
+                return "group"
+
+        if args.json:
+            output_json(
+                self.outfile,
+                rows=members,
+                fields=fields,
+                field_info={
+                    'itype': {'title': 'type', 'transform': type_transform},
+                    'created': {'transform': output.get_relative_timestamp},
+                    'id': {'transform': str}
+                })
+        else:
+            draw_table(
+                self.outfile,
+                rows=members,
+                fields=fields,
+                field_info={
+                    'itype': {'title': 'type', 'transform': type_transform},
+                    'created': {'transform': output.get_relative_timestamp},
+                    'id': {'transform': str}
+                })
 
         return 0
 

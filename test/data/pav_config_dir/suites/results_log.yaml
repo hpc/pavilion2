@@ -1,0 +1,9 @@
+results_log:
+  run:
+    cmds:
+      - echo 'Hello, world'
+
+  result_parse:
+    regex:
+      hello:
+        regex: 'Hello, (.+)'

@@ -12,6 +12,7 @@ from pavilion import cmd_utils
 from pavilion import dir_db
 from pavilion import output
 from pavilion import utils
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 
@@ -28,6 +29,9 @@ class LSCommand(Command):
     def _setup_arguments(self, parser):
         parser.add_argument(
             'test_id',
+            nargs='?',
+            type=TestID,
+            default=None,
             help="Test id number.",
             metavar='TEST_ID',
         )
@@ -77,14 +81,21 @@ class LSCommand(Command):
     def run(self, pav_cfg, args):
         """List the run directory for the given run."""
 
+        if args.test_id is None:
+            test_id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
+
+            if test_id is None:
+                output.fprint(self.errfile, "No last test found.", color=output.RED)
+                return errno.EEXIST
+
         tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
         if not tests:
-            output.fprint(self.errfile, "Could not find test '{}'".format(args.test_id))
+            output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
             return errno.EEXIST
         elif len(tests) > 1:
             output.fprint(
                 self.errfile, "Matched multiple tests. Listing files for first "
-                              "test only (test {})".format(tests[0].full_id),
+                              "test only (test {})".format(tests[0].id),
                 color=output.YELLOW)
         test = tests[0]
 

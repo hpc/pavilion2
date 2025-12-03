@@ -634,7 +634,7 @@ index, sub_var) tuple.
         except (OSError, IOError, FileNotFoundError) as err:
             raise VariableError(
                 "Could not write variable file at '{}'"
-                .format(tmp_path), err)
+                .format(tmp_path), prior_error=err)
 
         start = time.time()
         while time.time() - start < 100:
@@ -656,7 +656,7 @@ index, sub_var) tuple.
                 data = json.load(stream)
         except (json.decoder.JSONDecodeError, IOError, FileNotFoundError) \
                 as err:
-            raise VariableError("Could not load variable file '{}'".format(path), err)
+            raise VariableError("Could not load variable file '{}'".format(path), prior_error=err)
 
         var_man = cls()
 

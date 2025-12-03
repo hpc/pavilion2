@@ -2,12 +2,13 @@
 
 import errno
 import sys
+import uuid
 
-import pavilion.series
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion.status_utils import get_statuses
+from pavilion.id_utils import load_user_series_id
 from pavilion.unittest import PavTestCase
 
 
@@ -49,7 +50,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'cancel',
-            'test.{}'.format(sys.maxsize)
+            str(uuid.uuid4().hex)
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
@@ -77,12 +78,12 @@ class CancelCmdTests(PavTestCase):
 
         tests = []
 
-        series_id = pavilion.series.load_user_series_id(self.pav_cfg)
+        series_id = load_user_series_id(self.pav_cfg)
         tests.append(series_id)
 
         args = arg_parser.parse_args([
             'cancel',
-            tests[0],
+            tests[0].id_str,
         ])
 
         cancel_cmd = commands.get_command(args.command_name)

@@ -1,19 +1,23 @@
 """Groups are a named collection of series and tests. They can be manipulated
 with the `pav group` command."""
 
+# pylint: disable=invalid-name
+
 from pathlib import Path
 import re
 import shutil
-from typing import NewType, List, Tuple, Union, Dict
+from typing import NewType, List, Tuple, Union, Dict, Any
 import uuid
 
 from pavilion import config
 from pavilion.errors import TestGroupError
 from pavilion.series import TestSeries, list_series_tests, SeriesInfo
 from pavilion.test_run import TestRun, TestAttributes
+from pavilion.test_ids import ID, TestID, SeriesID, GroupID
 from pavilion.utils import is_int
 
-GroupMemberDescr = NewType('GroupMemberDescr', Union[TestRun, TestSeries, "TestGroup", str])
+GroupMemberDescr = NewType('GroupMemberDescr', Union[TestRun, TestSeries, "TestGroup",
+                            TestID, SeriesID, GroupID])
 FlexDescr = NewType('FlexDescr', Union[List[GroupMemberDescr], GroupMemberDescr])
 
 
@@ -25,22 +29,13 @@ class TestGroup:
     SERIES_DIR = 'series'
     EXCLUDED_DIR = 'excluded'
 
-    TEST_ITYPE = 'test'
-    SERIES_ITYPE = 'series'
-    GROUP_ITYPE = 'group'
-    EXCL_ITYPE = 'test*'
-
-    group_name_re = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]+$')
-
-    def __init__(self, pav_cfg: config.PavConfig, name: str):
+    def __init__(self, pav_cfg: config.PavConfig, name: GroupID):
 
         self.pav_cfg = pav_cfg
 
-        self._check_name(name)
-
         self.name = name
 
-        self.path = self.pav_cfg.working_dir/self.GROUPS_DIR/self.name
+        self.path = self.pav_cfg.working_dir/self.GROUPS_DIR/str(self.name)
 
         if self.path.exists():
             self.created = True
@@ -72,17 +67,17 @@ class TestGroup:
 
         return self.path.exists()
 
-    def info(self) -> Dict:
+    def info(self) -> Dict[str, Any]:
         """Return some basic group info. Number of tests, series, sub-groups, creation time."""
 
         info = {
             'name': self.name,
             'created': self.path.stat().st_mtime,
         }
-        for cat_type, cat_dir in (
-                (self.TEST_ITYPE, self.TESTS_DIR),
-                (self.SERIES_ITYPE, self.SERIES_DIR),
-                (self.GROUP_ITYPE, self.GROUPS_DIR),):
+        for _, cat_dir in (
+                (TestRun, self.TESTS_DIR),
+                (TestSeries, self.SERIES_DIR),
+                (self.__class__, self.GROUPS_DIR),):
             cat_path = self.path/cat_dir
 
             if not cat_path.exists():
@@ -92,7 +87,7 @@ class TestGroup:
 
         return info
 
-    def tests(self, seen_groups=None) -> List[Path]:
+    def tests(self, seen_groups: List[GroupID] = None) -> List[Path]:
         """Returns a list of paths to all tests in this group.  Use with
         cmd_utils.get_tests_by_paths to convert to real test objects. Bad links are ignored.
         Groups are recursively examined (loops are allowed, but not followed).
@@ -138,7 +133,8 @@ class TestGroup:
                             .format(series_dir.name, self.name),
                             prior_error=err)
 
-                    tests.extend(list_series_tests(self.pav_cfg, series_dir.name))
+                    sid = SeriesID(f"s{series_dir.name}")
+                    tests.extend(list_series_tests(self.pav_cfg, sid))
 
         except OSError as err:
             raise TestGroupError(
@@ -149,8 +145,9 @@ class TestGroup:
         try:
             if (self.path/self.GROUPS_DIR).exists():
                 for group_file in (self.path/self.GROUPS_DIR).iterdir():
-                    group_name = group_file.name
+                    group_name = GroupID(group_file.name)
                     sub_group = TestGroup(self.pav_cfg, group_name)
+
                     if group_name not in seen_groups:
                         tests.extend(sub_group.tests(seen_groups=seen_groups))
 
@@ -169,7 +166,7 @@ class TestGroup:
 
         return test_path in self.tests()
 
-    def add(self, items: FlexDescr) -> Tuple[List[str], List[TestGroupError]]:
+    def add(self, items: FlexDescr) -> Tuple[List[ID], List[TestGroupError]]:
         """Add each of the given items to the group. Accepts TestRun, TestSeries, and TestGroup
         objects, as well as just the test/series(sid)/group names as strings.
 
@@ -200,11 +197,11 @@ class TestGroup:
 
             # Get a string a name for the item, and the path to the actual item.
             try:
-                if itype == self.TEST_ITYPE:
+                if itype == TestRun:
                     iname, dest_path = self._get_test_info(item)
-                elif itype == self.SERIES_ITYPE:
+                elif itype == TestSeries:
                     iname, dest_path = self._get_series_info(item)
-                elif itype == self.GROUP_ITYPE:
+                elif itype == TestGroup:
                     if isinstance(item, TestGroup):
                         agroup = item
                     else:
@@ -227,7 +224,7 @@ class TestGroup:
                                    prior_error=err))
                 continue
 
-            if itype == self.TEST_ITYPE:
+            if itype == TestRun:
                 if iname in self._excluded():
                     try:
                         self._remove_excluded(iname)
@@ -238,18 +235,18 @@ class TestGroup:
                                 prior_error=err))
 
                     if self._has_test(dest_path):
-                        added.append((self.EXCL_ITYPE, iname))
+                        added.append(iname)
                         continue
 
             try:
                 # For tests and series, symlink to their directories.
-                if itype in (self.TEST_ITYPE, self.SERIES_ITYPE):
+                if itype in (TestRun, TestSeries):
                     # Add the item, unless it just needed to be un-excluded.
                     item_path.symlink_to(dest_path)
                 # For groups, just touch a file of that name (prevents symlink loops).
                 else:
                     item_path.touch()
-                added.append((itype, iname))
+                added.append(iname)
             except OSError as err:
                 warnings.append(
                     TestGroupError("Could not add {} '{}' to test group '{}'"
@@ -258,7 +255,7 @@ class TestGroup:
 
         return added, warnings
 
-    def remove(self, items: FlexDescr) -> Tuple[List[str], List[TestGroupError]]:
+    def remove(self, items: FlexDescr) -> Tuple[List[ID], List[TestGroupError]]:
         """Remove all of the given items from the group. Returns a list of warnings."""
 
         removed = []
@@ -270,15 +267,13 @@ class TestGroup:
         all_tests = None
 
         for item in items:
-            if isinstance(item, int):
-                item = str(item)
 
             itype, rmpath = self._get_member_info(item)
 
             if not rmpath.exists():
-                if itype == self.TEST_ITYPE:
+                if itype == TestRun:
                     try:
-                        t_full_id, t_path = self._get_test_info(rmpath.name)
+                        t_full_id, t_path = self._get_test_info(TestID(rmpath.name))
                     except TestGroupError as err:
                         warnings.append(
                             TestGroupError(
@@ -292,7 +287,7 @@ class TestGroup:
 
                     if t_path in all_tests:
                         self._add_excluded(t_full_id, t_path)
-                        removed.append((self.EXCL_ITYPE, t_full_id))
+                        removed.append(t_full_id)
                         continue
 
                 warnings.append(
@@ -302,7 +297,13 @@ class TestGroup:
 
             try:
                 rmpath.unlink()
-                removed.append((itype, rmpath.name))
+
+                if itype == TestRun:
+                    removed.append(TestID(rmpath.name))
+                elif itype == TestSeries:
+                    removed.append(SeriesID(f"s{rmpath.name}"))
+                else:
+                    removed.append(GroupID(rmpath.name))
             except OSError:
                 warnings.append(
                     TestGroupError("Could not remove {} '{}' from group '{}'."
@@ -311,7 +312,7 @@ class TestGroup:
 
         return removed, warnings
 
-    def members(self, recursive=False, seen_groups=None) -> List[Dict]:
+    def members(self, recursive: bool = False, seen_groups: List[GroupID] = None) -> List[Dict]:
         """Return a list of dicts of member info, keys 'itype', 'name'."""
 
         seen_groups = seen_groups if seen_groups is not None else []
@@ -322,10 +323,10 @@ class TestGroup:
 
         members = []
 
-        for itype, type_dir in (
-                (self.TEST_ITYPE, self.TESTS_DIR),
-                (self.SERIES_ITYPE, self.SERIES_DIR),
-                (self.GROUP_ITYPE, self.GROUPS_DIR)):
+        for itype, type_dir, id_type in (
+                (TestRun, self.TESTS_DIR, TestID),
+                (TestSeries, self.SERIES_DIR, lambda x: SeriesID(f"s{x}")),
+                (TestGroup, self.GROUPS_DIR, GroupID)):
 
             try:
                 for path in (self.path/type_dir).iterdir():
@@ -340,15 +341,15 @@ class TestGroup:
                         'group': self.name,
                         'itype': itype,
                         'path': abs_path,
-                        'id': path.name,})
+                        'id': id_type(path.name),})
 
-                if recursive and itype == self.GROUP_ITYPE and path.name not in seen_groups:
-                    try:
-                        subgroup = self.__class__(self.pav_cfg, path.name)
-                    except TestGroupError:
-                        continue
+                    if recursive and itype == TestGroup and GroupID(path.name) not in seen_groups:
+                        try:
+                            subgroup = self.__class__(self.pav_cfg, path.name)
+                        except TestGroupError:
+                            continue
 
-                    members.extend(subgroup.members(recursive=True, seen_groups=seen_groups))
+                        members.extend(subgroup.members(recursive=True, seen_groups=seen_groups))
 
             except OSError as err:
                 raise TestGroupError(
@@ -360,11 +361,11 @@ class TestGroup:
             if path is None:
                 continue
 
-            if mem_info['itype'] == self.TEST_ITYPE:
+            if mem_info['itype'] == TestRun:
                 test_attrs = TestAttributes(mem_info['path'])
                 mem_info['name'] = test_attrs.name
                 mem_info['created'] = test_attrs.created
-            elif mem_info['itype'] == self.SERIES_ITYPE:
+            elif mem_info['itype'] == TestSeries:
                 series_info = SeriesInfo(self.pav_cfg, path)
                 mem_info['name'] = series_info.name
                 mem_info['created'] = series_info.created
@@ -373,14 +374,6 @@ class TestGroup:
                 if path.exists():
                     mem_info['created'] = path.stat().st_mtime
         return members
-
-    def member_tuples(self) -> List[Tuple[str,str]]:
-        """As per 'members', but return a list of (item_type, item_id) tuples."""
-
-        tups = []
-        for item in self.members():
-            tups.append((item['itype'], item['id']))
-        return tups
 
     def clean(self) -> List[TestGroupError]:
         """Remove all dead links and group files, then delete the group if it's empty.
@@ -391,14 +384,14 @@ class TestGroup:
 
         # Cleanup items for each item type (tests, series, groups)
         for itype, type_dir in (
-                (self.TEST_ITYPE, self.TESTS_DIR),
-                (self.SERIES_ITYPE, self.SERIES_DIR),
-                (self.GROUP_ITYPE, self.GROUPS_DIR)):
+                (TestRun, self.TESTS_DIR),
+                (TestSeries, self.SERIES_DIR),
+                (TestGroup, self.GROUPS_DIR)):
 
             try:
                 for item_path in (self.path/type_dir).iterdir():
                     # Skip that items that still exist.
-                    if itype == self.GROUP_ITYPE:
+                    if itype == TestGroup:
                         if (self.path.parent/item_path.name).exists():
                             keepers = True
                             continue
@@ -445,16 +438,14 @@ class TestGroup:
 
         self.created = False
 
-    def rename(self, new_name, redirect_parents=True):
+    def rename(self, new_name: GroupID, redirect_parents: bool = True) -> None:
         """Rename this group.
 
         :param redirect_parents: Search other test groups for inclusion of this group,
             and point them at the new name.
         """
 
-        self._check_name(new_name)
-
-        new_path = self.path.parent/new_name
+        new_path = self.path.parent/str(new_name)
 
         if new_path.exists():
             raise TestGroupError("Renaming group '{}' to '{}' but a group already exists "
@@ -471,8 +462,8 @@ class TestGroup:
             try:
                 for group_path in self.path.parent.iterdir():
                     for sub_group in (group_path/self.GROUPS_DIR).iterdir():
-                        if sub_group.name == self.name:
-                            new_sub_path = sub_group.parent/new_name
+                        if sub_group.name == str(self.name):
+                            new_sub_path = sub_group.parent/str(new_name)
                             sub_group.rename(new_sub_path)
             except OSError as err:
                 raise TestGroupError("Failed to redirect parents of group '{}' to the new name."
@@ -481,57 +472,15 @@ class TestGroup:
         self.name = new_name
         self.path = new_path
 
-    def _check_name(self, name: str):
-        """Make sure the given test group name complies with the naming standard."""
-
-        if self.group_name_re.match(name) is None:
-            raise TestGroupError(
-                "Invalid group name '{}'\n"
-                "Group names must start with a letter, but can otherwise have any "
-                "combination of letters, numbers, underscores and dashes."
-                .format(name))
-        if name[0] in ('s', 'S') and is_int(name[1:]):
-            raise TestGroupError(
-                "Invalid group name '{}'\n"
-                "Group name looks too much like a series ID."
-                .format(name))
-
-    def _get_test_info(self, test: Union[TestRun, str]) -> Tuple[str, Path]:
+    def _get_test_info(self, test: Union[TestRun, TestID]) -> Tuple[TestID, Path]:
         """Find the test full id and path from the given test information."""
 
         if isinstance(test, TestRun):
             if not test.path.exists():
-                raise TestGroupError("Test '{}' does not exist.".format(test.full_id))
-            return test.full_id, test.path
+                raise TestGroupError("Test '{}' does not exist.".format(test.id))
+            return test.id, test.path
 
-        if isinstance(test, str):
-            if '.' in test:
-                cfg_label, test_id = test.split('.', maxsplit=1)
-            else:
-                cfg_label = config.DEFAULT_CONFIG_LABEL
-                test_id = test
-
-        elif isinstance(test, int):
-            cfg_label = config.DEFAULT_CONFIG_LABEL
-            test_id = str(int)
-            # We'll use this as our full_id too.
-            test = test_id
-
-        if not is_int(test_id):
-            raise TestGroupError(
-                "Invalid test id '{}' from test id '{}'.\n"
-                "Test id's must be a number, like 27."
-                .format(test_id, test))
-        if cfg_label not in self.pav_cfg.configs:
-            raise TestGroupError(
-                "Invalid config label '{}' from test id '{}'.\n"
-                "No such Pavilion configuration directory exists. Valid config "
-                "labels are:\n {}"
-                .format(cfg_label, test,
-                        '\n'.join([' - {}'.format(lbl for lbl in self.pav_cfg.configs)])))
-
-        rel_cfg = self.pav_cfg.configs[cfg_label]
-        tpath = rel_cfg.working_dir/'test_runs'/test_id
+        tpath = self.pav_cfg.working_dir/'test_runs'/str(test)
 
         if not tpath.is_dir():
             raise TestGroupError(
@@ -540,27 +489,16 @@ class TestGroup:
 
         return test, tpath
 
-    def _get_series_info(self, series: Union[TestSeries, str]) -> Tuple[str, Path]:
+    def _get_series_info(self, series: Union[TestSeries, SeriesID]) -> Tuple[SeriesID, Path]:
         """Get the sid and path for a series, given a flexible description."""
 
         if isinstance(series, TestSeries):
             if not series.path.exists():
                 raise TestGroupError("Series '{}' at '{}' does not exist."
-                                     .format(series.sid, series.path))
-            return series.sid, series.path
+                                     .format(series.id, series.path))
+            return series.id, series.path
 
-        series = str(series)
-        if series.startswith("s"):
-            series_id = series[1:]
-            sid = series
-        else:
-            sid = 's{}'.format(series)
-
-        if not is_int(series_id):
-            raise TestGroupError("Invalid series id '{}', not numeric id."
-                                 .format(series))
-
-        series_dir = self.pav_cfg.working_dir/'series'/series_id
+        series_dir = self.pav_cfg.working_dir/'series'/str(series.as_int())
 
         if not series_dir.is_dir():
             raise TestGroupError("Series directory for sid '{}' does not exist.\n"
@@ -568,26 +506,22 @@ class TestGroup:
 
         return sid, series_dir
 
-    def _get_member_info(self, item: GroupMemberDescr) -> Tuple[str, Path]:
+    def _get_member_info(self, item: GroupMemberDescr) -> Tuple[type, Path]:
         """Figure out what type of item 'item' is, and return its type name and path in
            the group."""
 
         if isinstance(item, TestRun):
-            return self.TEST_ITYPE, self.path/self.TESTS_DIR/item.full_id
+            return TestRun, self.path/self.TESTS_DIR/str(item.id)
+        elif isinstance(item, TestID):
+            return TestRun, self.path/self.TESTS_DIR/str(item)
         elif isinstance(item, TestSeries):
-            return self.SERIES_ITYPE, self.path/self.SERIES_DIR/item.sid
+            return TestSeries, self.path/self.SERIES_DIR/str(item.id.as_int())
+        elif isinstance(item, SeriesID):
+            return TestSeries, self.path/self.SERIES_DIR/str(item.as_int())
         elif isinstance(item, self.__class__):
-            return self.GROUP_ITYPE, self.path/self.GROUPS_DIR/item.name
-        elif isinstance(item, str):
-            if is_int(item) or '.' in item:
-                # Looks like a test id
-                return self.TEST_ITYPE, self.path/self.TESTS_DIR/item
-            elif item[0] == 's' and is_int(item[1:]):
-                # Looks like a sid
-                return self.SERIES_ITYPE, self.path/self.SERIES_DIR/item
-            else:
-                # Anything can only be a group
-                return self.GROUP_ITYPE, self.path/self.GROUPS_DIR/item
+            return self.__class__, self.path/self.GROUPS_DIR/str(item.name)
+        elif isinstance(item, GroupID):
+            return self.__class__, self.path/self.GROUPS_DIR/str(item)
         else:
             raise TestGroupError("Invalid group item '{}' given for removal.".format(item))
 
@@ -601,19 +535,19 @@ class TestGroup:
         excluded = {}
         try:
             for test_path in (self.path/self.EXCLUDED_DIR).iterdir():
-                full_id = test_path.name
+                id = TestID(test_path.name)
                 test_path = test_path.resolve()
                 if test_path.exists():
-                    excluded[full_id] = test_path
+                    excluded[id] = test_path
         except (OSError, FileNotFoundError):
             pass
 
         return excluded
 
-    def _add_excluded(self, full_id: str, test_path: Path):
+    def _add_excluded(self, id: TestID, test_path: Path):
         """Add the given test path to the excluded directory."""
 
-        path = self.path/self.EXCLUDED_DIR/full_id
+        path = self.path/self.EXCLUDED_DIR/str(id)
 
         try:
             if not path.exists():
@@ -623,10 +557,10 @@ class TestGroup:
                 "Could not create test exclusion record at {}".format(path),
                 prior_error=err)
 
-    def _remove_excluded(self, full_id: str):
+    def _remove_excluded(self, id: TestID):
         """Remove the test from the exclusion records."""
 
-        path = self.path/self.EXCLUDED_DIR/full_id
+        path = self.path/self.EXCLUDED_DIR/str(id)
 
         try:
             if path.exists():
@@ -641,10 +575,19 @@ class TestGroup:
 
         root_path = self.path/self.EXCLUDED_DIR
 
-        for full_id, path in self._excluded().items():
+        for id, path in self._excluded().items():
             if not path.exists():
-                ex_path = root_path/full_id
+                ex_path = root_path/id
                 try:
                     ex_path.unlink()
                 except (OSError, FileNotFoundError) as err:
                     pass
+
+    def __contains__(self, item: ID) -> bool:
+        if isinstance(item, TestID):
+            return str(item) in map(lambda x: x.name, (self.path / self.TESTS_DIR).iterdir())
+        elif isinstance(item, SeriesID):
+            return str(item.as_int()) in map(lambda x: x.name,
+                                            (self.path / self.SERIES_DIR).iterdir())
+        else:
+            return str(item) in map(lambda x: x.name, (self.path / self.GROUPS_DIR).iterdir())

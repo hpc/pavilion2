@@ -749,7 +749,7 @@ expected to be added to by various plugins.
                               'command.'),
                 yc.StrElem(
                     'purge_modules', choices=["true", "false", "True", "False"],
-                    default="True",
+                    default="False",
                     help_text="Whether or not to perform a module purge "
                               "before building."),
             ],
@@ -842,7 +842,7 @@ expected to be added to by various plugins.
                               'Tests that use MPI should use this cautiously.'),
                 yc.StrElem(
                     'purge_modules', choices=["true", "false", "True", "False"],
-                    default="True",
+                    default="False",
                     help_text="Whether or not to perform a module purge "
                               "before running."),
             ],

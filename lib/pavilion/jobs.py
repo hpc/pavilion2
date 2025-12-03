@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from typing import List, Union, NewType, Dict
 
+from pavilion.test_ids import TestID
 from pavilion.types import ID_Pair, Nodes
 
 
@@ -56,7 +57,7 @@ class Job:
                            .format(test_link_dir), err)
 
         for test in tests:
-            (test_link_dir/test.full_id).symlink_to(test.path)
+            (test_link_dir/str(test.id)).symlink_to(test.path)
 
         job = cls(job_path)
         job.set_kickoff(kickoff_fn)
@@ -133,6 +134,7 @@ class Job:
         # create a circular import.
 
         pairs = []
+
         for test_dir in self.tests_path.iterdir():
             if test_dir.is_symlink() and test_dir.exists():
                 try:
@@ -143,7 +145,7 @@ class Job:
 
                 working_dir = test_dir.parents[1]
                 try:
-                    test_id = int(test_dir.name)
+                    test_id = TestID(test_dir.name)
                 except ValueError:
                     # Skip any links that don't go to an id dir.
                     continue

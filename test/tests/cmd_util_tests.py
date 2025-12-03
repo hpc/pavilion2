@@ -10,6 +10,7 @@ from pavilion import unittest
 from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import arguments
+from pavilion.test_ids import resolve_mixed_ids, SeriesID
 
 
 class CmdUtilsTests(unittest.PavTestCase):
@@ -26,7 +27,7 @@ class CmdUtilsTests(unittest.PavTestCase):
 
         last_series = cmd_utils.load_last_series(self.pav_cfg, io.StringIO())
 
-        self.assertEqual(last_series.sid, run_cmd.last_series.sid)
+        self.assertEqual(last_series.id, run_cmd.last_series.id)
 
     def test_arg_filtered_tests(self):
         """Make sure basic requests for tests work."""
@@ -46,17 +47,27 @@ class CmdUtilsTests(unittest.PavTestCase):
         # This just loads the arguments for the status command.
         commands.get_command('status')
 
-        tests1 = [test.full_id for test in series1.tests.values()]
+        tests1 = [str(test.id) for test in series1.tests.values()]
 
         for argset, count in [
-                (('status', series1.sid, series2.sid), 6),
-                (('status', '{}-{}'.format(series1.sid, series2.sid)), 6),
+                (('status', str(series1.id), str(series2.id)), 6),
+                (('status', '{}-{}'.format(series1.id, series2.id)), 6),
                 (('status', 'all', '--filter', 'name=arg_filtered.*'), 3),
                 (('status', ) + tuple(tests1), 3),
                 ]:
 
             args = arguments.get_parser().parse_args(argset)
 
-            self.assertEqual(len(cmd_utils.arg_filtered_tests(self.pav_cfg, args).paths), count)
+            ids = resolve_mixed_ids(args.tests)
+            tests = ids["tests"]
+            series = ids["series"]
+
+            self.assertEqual(len(cmd_utils.arg_filtered_tests(
+                                    self.pav_cfg,
+                                    tests,
+                                    series,
+                                    filter_query=args.filter,
+                                    sort_by=args.sort_by,
+                                    limit=args.limit).paths), count)
 
     # TODO: We really need to add unit tests for each of the cmd utils functions.

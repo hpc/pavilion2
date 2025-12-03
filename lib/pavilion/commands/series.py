@@ -17,6 +17,7 @@ from pavilion import series
 from pavilion import series_config
 from pavilion import sys_vars
 from pavilion import utils
+from pavilion.test_ids import SeriesID, resolve_mixed_ids
 from pavilion.errors import TestSeriesError, TestSeriesWarning
 from pavilion.config import PavConfig
 from .base_classes import Command, sub_cmd
@@ -57,7 +58,8 @@ class RunSeries(Command):
             'cancel',
             help="Cancel a series or series. Defaults to the your last series on this system.")
         filters.add_series_filter_args(cancel_p, sort_keys=[], disable_opts=['sys-name'])
-        cancel_p.add_argument('series', nargs='*', help="One or more series to cancel")
+        cancel_p.add_argument('series', type=SeriesID, nargs='*',
+                                help="One or more series to cancel")
 
         list_p = subparsers.add_parser(
             'list',
@@ -83,7 +85,7 @@ class RunSeries(Command):
             formatter_class=arguments.WrappedFormatter)
 
         list_p.add_argument(
-            'series', nargs='*',
+            'series', nargs='*', type=SeriesID, default=[SeriesID("all")],
             help="Specific series to show. Defaults to all your recent series on this cluster.",
         )
         filters.add_series_filter_args(list_p)
@@ -137,7 +139,7 @@ class RunSeries(Command):
                  "`pav series status`")
         set_status_p.add_argument('--merge-repeats', '-m', default=False, action='store_true',
                                   help='Merge data from all repeats of each set.')
-        set_status_p.add_argument('series', default='last', nargs='?',
+        set_status_p.add_argument('series', type=SeriesID, default=SeriesID("last"), nargs='?',
                                   help='The series to print the sets for.')
 
         state_p = subparsers.add_parser(
@@ -153,7 +155,7 @@ class RunSeries(Command):
         state_p_filter_args.add_argument(
             '--skipped', action='store_true', default=False,
             help="List only skipped test reasons.")
-        state_p.add_argument('series', default='last', nargs='?',
+        state_p.add_argument('series', type=SeriesID, default=SeriesID("last"), nargs='?',
                              help="The series to print status history for.")
 
     def _find_series(self, pav_cfg, series_name):
@@ -216,7 +218,7 @@ class RunSeries(Command):
                 group.add([series_obj])
             except groups.TestGroupError as err:
                 output.fprint(self.errfile, "Error adding series '{}' to group '{}'."
-                                            .format(series_obj.sid, group.name), color=output.RED)
+                                            .format(series_obj.id, group.name), color=output.RED)
                 output.fprint(self.errfile, err.pformat())
                 return errno.EINVAL
             output.fprint(self.errfile,
@@ -242,18 +244,22 @@ class RunSeries(Command):
                       "Run `pav series status {sid}` to view series status.\n"
                       "Run `pav series cancel {sid}` to cancel the series (and all its tests).\n"
                       "Run `pav series sets {sid}` to view status of individual test sets."
-                      .format(sid=series_obj.sid))
+                      .format(sid=series_obj.id))
 
         self.last_run_series = series_obj
 
         return 0
 
     @sub_cmd(*LIST_ALIASES)
-    def _list_cmd(self, pav_cfg, args):
+    def _list_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """List series."""
 
         matched_series = cmd_utils.arg_filtered_series(
-            pav_cfg=pav_cfg, args=args, verbose=self.errfile)
+                                        pav_cfg,
+                                        args.series,
+                                        filter_query=args.filter,
+                                        limit=args.limit,
+                                        verbose=self.errfile)
 
         rows = [ser.attr_dict() for ser in matched_series]
 
@@ -386,7 +392,7 @@ class RunSeries(Command):
     def _state_history_cmd(self, pav_cfg: config.PavConfig, args):
         """Print the full status history for a series."""
 
-        if args.series == 'last':
+        if args.series == SeriesID("last"):
             ser = cmd_utils.load_last_series(pav_cfg, self.errfile)
             if ser is None:
                 return errno.EINVAL
@@ -431,24 +437,29 @@ class RunSeries(Command):
     def _cancel_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Cancel all series found given the arguments."""
 
-        series_info = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
+        series_info = cmd_utils.arg_filtered_series(
+                                    pav_cfg,
+                                    args.series,
+                                    filter_query=args.filter,
+                                    limit=args.limit,
+                                    verbose=self.errfile)
         output.fprint(self.outfile, "Found {} series to cancel.".format(len(series_info)))
 
         chosen_series = []
         for ser in series_info:
             try:
-                loaded_ser = series.TestSeries.load(pav_cfg, ser.sid)
+                loaded_ser = series.TestSeries.load(pav_cfg, ser.id)
                 chosen_series.append(loaded_ser)
             except series.TestSeriesError as err:
                 output.fprint(self.errfile,
                               "Could not load found series '{}': {}"
-                              .format(ser.sid, err.args[0]))
+                              .format(ser.id, err.args[0]))
 
         tests_to_cancel = []
         for ser in chosen_series:
             # We'll cancel the tests verbosely.
             ser.cancel(message="By user {}".format(utils.get_login()), cancel_tests=False)
-            output.fprint(self.outfile, "Series {} cancelled.".format(ser.sid))
+            output.fprint(self.outfile, "Series {} cancelled.".format(ser.id))
 
             tests_to_cancel.extend(ser.tests.values())
 

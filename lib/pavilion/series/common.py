@@ -12,6 +12,7 @@ from pavilion import dir_db
 from pavilion import status_file
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.types import ID_Pair
+from pavilion.test_ids import TestID
 from ..errors import TestSeriesError
 
 COMPLETE_FN = 'SERIES_COMPLETE'
@@ -91,10 +92,7 @@ class LazyTestRunDict(UserDict):
                 if not path.is_symlink():
                     continue
 
-                try:
-                    test_id = int(path.name)
-                except ValueError:
-                    continue
+                test_id = TestID(path.resolve().name)
 
                 try:
                     working_dir = path.resolve().parents[1]
@@ -102,6 +100,12 @@ class LazyTestRunDict(UserDict):
                     continue
 
                 self.add_key(ID_Pair((working_dir, test_id)))
+
+    def __len__(self) -> int:
+        return len(list(self.keys()))
+
+    def __iter__(self) -> "Iterator":
+        return iter(self.keys())
 
 
 def set_all_started(path: Path):
@@ -259,6 +263,7 @@ def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path,
 
     if check_tests:
         latest = None
+
         for test_path in dir_db.select(pav_cfg, test_set_path).paths:
             complete_ts = TestAttributes(test_path).complete_time
 

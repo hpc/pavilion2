@@ -114,7 +114,7 @@ class SeriesCmdTests(PavTestCase):
         ser = series_cmd.last_run_series
         self._wait_for_all_start(ser)
 
-        cancel_args = arg_parser.parse_args(['series', 'cancel', series_cmd.last_run_series.sid])
+        cancel_args = arg_parser.parse_args(['series', 'cancel', str(series_cmd.last_run_series.id)])
         cancel_result = series_cmd.run(self.pav_cfg, cancel_args)
         self.assertEqual(cancel_result, 0)
         self.assertEqual(ser.status.current().state, SERIES_STATES.CANCELED)
@@ -129,7 +129,7 @@ class SeriesCmdTests(PavTestCase):
         args = arg_parser.parse_args(['series', 'run', 'multi'])
         self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
         series_cmd.last_run_series.wait(timeout=10)
-        sid = series_cmd.last_run_series.sid
+        sid = str(series_cmd.last_run_series.id)
 
         arg_lists = [
             ['series', 'sets', sid],
@@ -161,7 +161,7 @@ class SeriesCmdTests(PavTestCase):
 
         list_args = [
             ['series', 'list'],
-            ['series', 'ls', series_cmd.last_run_series.sid],
+            ['series', 'ls', str(series_cmd.last_run_series.id)],
             ['series', 'status', 'all'],
         ]
         for raw_args in list_args:
@@ -186,7 +186,7 @@ class SeriesCmdTests(PavTestCase):
 
         list_args = [
             ['series', 'state_history', '--text'],
-            ['series', 'states', series_cmd.last_run_series.sid],
+            ['series', 'states', str(series_cmd.last_run_series.id)],
         ]
         for raw_args in list_args:
             args = arg_parser.parse_args(raw_args)

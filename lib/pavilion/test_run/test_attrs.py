@@ -8,6 +8,7 @@ from pavilion import utils
 from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion.errors import TestRunError
 from pavilion.status_file import TestStatusInfo, TestStatusFile, STATES
+from pavilion.test_ids import TestID
 
 
 # pylint: disable=protected-access
@@ -47,6 +48,7 @@ class TestAttributes(Mapping):
     """
 
     serializers = {
+        "id": str,
         "status": lambda s: s.path.as_posix(),
         'suite_path': lambda p: p.as_posix(),
     }
@@ -54,6 +56,7 @@ class TestAttributes(Mapping):
     deserializers = {
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
+        'id': lambda x: TestID(str(x)),
         'started': utils.deserialize_datetime,
         "status": lambda s: TestStatusFile(Path(s)),
         'suite_path': lambda p: Path(p) if p is not None else None,
@@ -153,7 +156,7 @@ class TestAttributes(Mapping):
             'build_name': None,
             'created':    self.path.stat().st_mtime,
             'finished':   self.path.stat().st_mtime,
-            'id':         int(self.path.name),
+            'id':         self.path.name,
             'rebuild':    False,
             'result':     None,
             'skipped':    None,
@@ -311,7 +314,7 @@ class TestAttributes(Mapping):
                 'name': self.name,
                 'sys_name': self.sys_name,
                 'created': self.created,
-                'id': self.full_id,
+                'id': str(self.id),
                 'result': None,
             }
         else:
@@ -322,17 +325,6 @@ class TestAttributes(Mapping):
         """The test result - PASS/FAIL/ERROR, or None if there isn't a result."""
 
         return self.results.get('result', None)
-
-    @property
-    def full_id(self):
-        """The test full id, which is the config label it was created under
-        and the test id.  The default config label is omitted."""
-        # If the cfg label is actually something that exists, use it in the
-        # test full_id. Otherwise give the test path.
-        if self.cfg_label == DEFAULT_CONFIG_LABEL or self.cfg_label is None:
-            return '{}'.format(self.id)
-        else:
-            return '{}.{}'.format(self.cfg_label, self.id)
 
     @property
     def state(self) -> Optional[TestStatusInfo]:
@@ -442,4 +434,4 @@ def test_run_attr_transform(path):
     """A dir_db transformer to convert a test_run path into a dict of test
     attributes."""
 
-    return TestAttributes(path).attr_dict(serialize=True)
+    return TestAttributes(path).attr_dict()

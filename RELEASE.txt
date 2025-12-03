@@ -4,6 +4,34 @@ RELEASE=2.4
 
 # Release History
 
+## 2.5 Release Notes
+
+ - Tests can (and should) now be structured as suites directories, which can contain test, host,
+   mode, and os configs, as well as test source code. The `test_src` directory is now deprecated.
+ - Subcommands such as `status` and `cancel` now support filtering on a variety of test attributes
+   via the `--filter` argument.
+ - Added support for result logger plugins, which allow control over how results are logged. Added
+   built-in loggers for logging all results to a single file, as well as for logging each series
+   to its own file. This feature addresses a bug in which sufficiently large numbers of tests,
+   running simultaneously, would cause the global results lock to fail. The `result_log` key in
+   the Pavilion config is now deprecated. Please consult the documentation for instructions on how
+   to configure result loggers in the config.
+ - Certain subcommands, including `log` and `cat` now automatically use the most recent test or
+   series ID rather than requiring it to be explicitly specified.
+ - Added config options to automatically perform a module purge when building and running tests.
+   This behavior is disabled by default so as not to break existing tests.
+ - Replaced `os` configs with `platform` configs, which add support for OS-architecture pairs,
+   such as `cos2-x86_64`.
+ - Added the ability for users to cancel tests run by other users using `pav cancel`.
+ - Fixed a bug in which changes to the `create_files` clause did not cause tests to be rebuilt
+   when run a second time.
+ - Fixed a bug in which `pav cancel` sometimes canceled the wrong series.
+ - Fixed a bug in which tests sometimes showed a status of `SCHED_ERROR` but eventually ran to
+   completion.
+ - Fixed a bug in which tests would occasionally transition to a `BUILD_CREATED` status after
+   failure.
+ - Various minor bug fixes for stability.
+
 ## 2.5 Pre-release notes
  - In the 'modules' section of 'run' or 'build' in test configs, modules specified without a version
    no longer verify that the default was loaded.

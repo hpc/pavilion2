@@ -158,7 +158,7 @@ def record_factory(*fargs, **kwargs):
     return record
 
 
-def setup_loggers(pav_cfg) -> TextIO:
+def setup_loggers(pav_cfg: "PavConfig") -> TextIO:
     """Setup the loggers for the Pavilion command. This will include:
 
     - The general log file (as a multi-process/host safe rotating logger).
@@ -171,6 +171,17 @@ def setup_loggers(pav_cfg) -> TextIO:
     """
 
     root_logger = logging.getLogger()
+
+    if pav_cfg.result_log is not None:
+        pav_cfg.warnings.append(
+            ("Pavilion config key 'result_log' is deprecated. Configuring a common file logger "
+            f"with destination {pav_cfg.result_log}. Please use the `result_loggers` key to "
+            "configure result logs."))
+
+        pav_cfg.result_loggers.append(
+            {"plugin": "common_file",
+            "dest": pav_cfg.result_log}
+        )
 
     # Setup the new record factory.
     logging.setLogRecordFactory(record_factory)
@@ -202,30 +213,6 @@ def setup_loggers(pav_cfg) -> TextIO:
     # The root logger should pass all messages, even if the handlers
     # filter them.
     root_logger.setLevel(logging.DEBUG)
-
-    # Setup the result logger.
-    # Results will be logged to both the main log and the result log.
-    if pav_cfg.result_log is None:
-        result_log = working_dir/'results.log'
-    else:
-        result_log = pav_cfg.result_log
-
-    try:
-        result_log.touch()
-    except (PermissionError, FileNotFoundError) as err:
-        pav_cfg.warnings.append(
-            "Could not write to result log at '{}': {}"
-            .format(pav_cfg.result_log, err))
-
-    result_logger = logging.getLogger('common_results')
-    result_handler = LockFileRotatingFileHandler(
-        file_name=str(result_log),
-        # 20 MB
-        max_bytes=20 * 1024 ** 2,
-        backup_count=3)
-    result_handler.setFormatter(logging.Formatter("{message}", style='{'))
-    result_logger.setLevel(logging.INFO)
-    result_logger.addHandler(result_handler)
 
     # Setup the exception logger.
     # Exceptions will be logged to this directory, along with other useful info.

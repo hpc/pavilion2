@@ -13,8 +13,7 @@ import subprocess
 import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO
-from typing import List, Dict
+from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable
 
 
 class WrappedFormatter(argparse.HelpFormatter):
@@ -69,6 +68,16 @@ def is_int(val: str):
             return False
 
     return True
+
+def is_hash(val: str, hash_len: int) -> bool:
+    """Return true if the given string value is a hexidecimal hash."""
+
+    try:
+        int(val, 16)
+    except ValueError:
+        return False
+
+    return len(val) == hash_len
 
 def str_bool(val):
     """Returns true if the string value is the string 'true' with allowances
@@ -208,6 +217,87 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
         raise shutil.Error(errors)
     return dst
 
+def copytree_resolved(
+                src: Path,
+                dest: Path,
+                src_root: Optional[Path] = None,
+                dest_root: Optional[Path] = None,
+                symlinks: Optional[Dict[Path, Path]] = None,
+                ignore_files: Optional[Iterable[str]] = None) -> None:
+    """Copy a directory tree to another location, such that the only symlinks that remain are
+    symlinks internal to the directory."""
+
+    src_root = src_root or src
+    dest_root = dest_root or dest
+    ignore_files = ignore_files or []
+
+    if symlinks is None:
+        symlinks = {}
+
+    if src.name in ignore_files:
+        return
+
+    if src.is_symlink():
+        try:
+            resolved = src.resolve()
+        except RuntimeError:
+            # There is a circular symlink
+            return
+
+        if resolved in symlinks:
+            # Create a relative symlink
+            dest.symlink_to(
+                        Path(
+                            os.path.relpath(
+                                symlinks.get(resolved),
+                                dest.resolve().parent)))
+        else:
+            # Only recreate symlinks if they are internal to the source directory
+            target_in_tree = True
+
+            try:
+                rel_target = resolved.relative_to(src_root)
+            except ValueError:
+                target_in_tree = False
+
+            if target_in_tree:
+                # Don't create the symlink if it points inside a directory we're ignoring
+                skip_link = False
+
+                for part in rel_target.parts:
+                    if part in ignore_files:
+                        skip_link = True
+                        break
+
+                if not skip_link:
+                    # Create a relative symlink
+                    dest.symlink_to(
+                                Path(
+                                    os.path.relpath(
+                                        dest_root / rel_target,
+                                        dest.resolve().parent)))
+                    symlinks[resolved] = dest_root / rel_target
+            else:
+                symlinks[resolved] = dest
+                copytree_resolved(resolved, dest, src_root, dest_root, symlinks, ignore_files)
+
+        return
+
+    elif src.is_file():
+        shutil.copy(src, dest)
+
+        return
+    elif src.is_dir():
+        dest.mkdir(exist_ok=True)
+
+        # Sort for reproduceability
+        files = sorted(src.iterdir(), key=lambda p: p.name)
+
+        for fname in files:
+            copytree_resolved(fname, dest / fname.name, src_root, dest_root,
+                                symlinks, ignore_files)
+
+        return
 
 def path_is_external(path: Path):
     """Returns True if a path contains enough back 'up-references' to escape

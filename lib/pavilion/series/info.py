@@ -11,6 +11,7 @@ from pavilion import status_file
 from pavilion import utils
 from pavilion.errors import TestRunError, TestSeriesError
 from pavilion.test_run import TestRun, TestAttributes
+from pavilion.test_ids import SeriesID
 from . import common
 
 
@@ -74,15 +75,9 @@ class SeriesInfoBase(Mapping):
         return attr_prop.__doc__
 
     @property
-    def sid(self):
-        """The sid of this series."""
-
-        return path_to_sid(self.path)
-
-    @property
-    def id(self):  # pylint: disable=invalid-name
+    def id(self) -> SeriesID:  # pylint: disable=invalid-name
         """The id of this series."""
-        return int(self.path.name)
+        return SeriesID(f"s{self.path.name}")
 
     @property
     def user(self):
@@ -118,6 +113,7 @@ class SeriesInfoBase(Mapping):
         """Number of tests that have passed."""
 
         passed = 0
+
         for test_path in self._tests:
             test_info = self.test_info(test_path)
             if test_info is None:
@@ -346,17 +342,11 @@ class SeriesInfo(SeriesInfoBase):
         return common.get_all_started(self.path)
 
     @classmethod
-    def load(cls, pav_cfg: config.PavConfig, sid: str):
+    def load(cls, pav_cfg: config.PavConfig, sid: SeriesID) -> "SeriesInfo":
         """Find and load a series info object from a series id."""
 
-        try:
-            id_ = int(sid[1:])
-        except ValueError:
-            raise TestSeriesError(
-                "Invalid series id '{}'. Series id should "
-                "look like 's1234'.".format(sid))
+        series_path = pav_cfg.working_dir/'series'/str(sid.as_int())
 
-        series_path = pav_cfg.working_dir/'series'/str(id_)
         if not series_path.exists():
             raise TestSeriesError("Could not find series '{}'".format(sid))
         return cls(pav_cfg, series_path)

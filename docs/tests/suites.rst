@@ -13,10 +13,11 @@ This section details the organization of test suites.
 Suite Directories
 -----------------
 
-In addition to simple tests, Pavilion provides the option to organize suites using a directory
-structure, such that the suite directory contains not only the test config, but any host, mode,
-and OS configs associated with the test, as well as test source code. This provides a convenient
-way of collecting the test code and data in a single location. This is useful, for instance, if the
+In addition to single-file test suites, Pavilion provides the option to organize more complex
+suites using a directory structure. Under this structure, each suite directory contains not only
+the suite config YAML file, but also any host, mode, and OS configs associated with the suite,
+along with any source code required by the suite's tests. This provides a convenient way of
+collecting the test code and data in a single location. This is useful, for instance, if the
 user wishes to version control each test separately and use it as a Git submodule in a larger
 project.
 
@@ -33,14 +34,15 @@ complexity of the suite:
 the ``suites`` directory. This method is useful for tests that do not require source code or other
 files.
 
-2. Suites consisting of multiple files, including additional configs and test source, should be
-placed under a subdirectory of ``suites``, ``suites/<suite_name>/``.
+2. Suites consisting of multiple files, including additional configs and source code, should be
+placed under a subdirectory of ``suites``, ``suites/<suite_name>/``. Arbitrary files may be placed
+in this subdirectory, but the subdirectory **must** contain at minimum a suite config named
+``suite.yaml``.
 
-In the latter case, arbitrary files may be placed in the subdirectory, but it **must** contain a
-suite config named ``suite.yaml``. In both cases, the suite config follows the format described in
-the Test Format section. Note the difference in file name between the two organization methods: in the
-first, the name of the file is the name of the suite; in the second, the file name is the generic
-``suite.yaml``, and Pavilion derives the suite name from its containing directory.
+In both cases, the suite config follows the format described in the :ref:`tests.format` section.
+Note the difference in file name between the two organization methods: in the first, the name of
+the file is the name of the suite; in the second, the file name is the generic ``suite.yaml``, and
+Pavilion derives the suite name from the file's parent directory.
 
 .. admonition:: Deprecation Warning
     :class: warning
@@ -57,20 +59,28 @@ Host, OS, and Mode Configs
 --------------------------
 
 When using the first organization method, host, OS, and mode configs must be placed under their
-respective subdirectories under the user's config directory and must be named with the name of
-their associated host, operating system, or mode.
+respective subdirectories (``hosts``, ``os``, or ``modes``) under the user's config directory
+and must be named according to their associated host, operating system, or mode.
 
-When using the second, suite directory method of organization, auxiliary configs must be placed
-in the suite directory alongside the suite config and must be named ``hosts.yaml``, ``os.yaml``, or
-``modes.yaml`` according to their config type. **Note that these file names are plural**. These
-configs override configs placed in the ``hosts``, ``os``, and ``modes`` subdirectories under the
-configuration directories.
+When using the second, suite directory method of organization, suite-specific auxiliary configs may
+optionally be placed in the suite directory alongside the suite config itself. These configs may be
+used to define test-specific options and variables that vary by host or OS, without cluttering
+global host, OS, or mode configs with test-specific variables. These configs extend, rather than
+override, configs placed in the ``hosts``, ``os``, and ``modes`` directories.
 
-The suite directory method of organization allows for more flexibility in these auxiliary configs.
-Specifically, multiple hosts, OSs, or modes may be specified in a config file. A single host, OS,
-or mode can be selected on test invocation by passing the name of the host, OS, or mode to the
-appropriate flag (either ``-H``, ``-o``, or ``-m``). The following is an example of a host file
-containing multiple host entries (OS and mode formats are analogous):
+This method is especially useful in combination with the submodule-based test structure described
+above, since it allows host-specific test options and variables to be version controlled along with
+the suite config while maintaining independence from global configs.
+
+If used, these suite-specific configs must be named ``hosts.yaml``, ``os.yaml``, or ``modes.yaml``,
+depending on their config type. **Note that these file names are plural**.
+
+The directory method of organization allows multiple hosts, OSs, or modes to be specified in a
+single config file. Pavilion discovers host and OS config files automatically based on the detected
+host and OS, but specific hosts and OSs, as well as modes, can be selected on test invocation by
+passing the name of the host, OS, or mode to ``pav run`` using the appropriate flag (either ``-H``,
+``-o``, or ``-m``). The following is an example of a host file containing multiple host entries (OS
+and mode formats are analogous):
 
 .. code-block:: yaml
 
@@ -85,5 +95,7 @@ containing multiple host entries (OS and mode formats are analogous):
             foo: bar
 
 Note that this format differs from the format used by configs located in the ``hosts``, ``os``, and
-``modes`` directories; in this case, individual configs within each config file derive their names
-from top-level keys rather than from the name of the config file.
+``modes`` directories; in this case, the config file consists of a series of key–value pairs, where
+the keys are the names of hosts (or OSs or modes) and the values are individual host configs. This
+is necessary even in configs containing only a single host, since configs derive their names from
+the top-level keys.

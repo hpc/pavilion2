@@ -285,7 +285,7 @@ class TestSet:
 
                         if self.verbosity in (Verbose.HIGH, Verbose.MAX):
                             output.fprint(self.outfile, 'Created and saved test run {} - {}'
-                                                   .format(test_run.full_id, test_run.name))
+                                                   .format(test_run.id, test_run.name))
                     else:
                         skip_count += 1
                         msg = "{} - {}" \
@@ -432,7 +432,7 @@ class TestSet:
 
         # Keep track of what the last message printed per build was.
         # This is for double build verbosity.
-        message_counts = {test.full_id: 0 for test in local_builds}
+        message_counts = {test.id: 0 for test in local_builds}
 
         # Used to track which threads are for which tests.
         test_by_threads = {}
@@ -457,7 +457,7 @@ class TestSet:
                     if self.verbosity in (Verbose.HIGH, Verbose.MAX):
                         output.fprint(self.outfile,
                                       "Skipping build for test {} - prior attempts failed."
-                                      .format(test.full_id))
+                                      .format(test.id))
                     test.status.set(STATES.BUILD_FAILED,
                                     "Build failed when being built for test {} (they "
                                     "share a build.".format(failed_builds[test.builder.name]))
@@ -488,7 +488,7 @@ class TestSet:
                     if not cancel_event.is_set():
                         built_tests.append(test)
                     else:
-                        failed_builds[test.builder.name] = test.full_id
+                        failed_builds[test.builder.name] = test.id
                         test.set_run_complete()
 
                     # Output test status after joining a thread.
@@ -498,7 +498,7 @@ class TestSet:
                             when, state, msg = notes[-1]
                             when = output.get_relative_timestamp(when)
                             preamble = (self.BUILD_STATUS_PREAMBLE
-                                        .format(when=when, test_id=test.full_id,
+                                        .format(when=when, test_id=str(test.id),
                                                 state_len=STATES.max_length,
                                                 state=state))
                             output.fprint(self.outfile, preamble, msg, width=None,
@@ -523,18 +523,18 @@ class TestSet:
                 output.fprint(self.outfile, line, width=None, end='\r', clear=True)
             elif self.verbosity == Verbose.MAX:
                 for test in local_builds:
-                    seen = message_counts[test.full_id]
+                    seen = message_counts[test.id]
                     msgs = self.mb_tracker.get_notes(test.builder)[seen:]
                     for when, state, msg in msgs:
                         when = output.get_relative_timestamp(when)
                         state = '' if state is None else state
                         preamble = self.BUILD_STATUS_PREAMBLE.format(
-                            when=when, test_id=test.id,
+                            when=when, test_id=str(test.id),
                             state_len=STATES.max_length, state=state)
 
                         output.fprint(self.outfile, preamble, msg, width=None,
                                       wrap_indent=len(preamble))
-                    message_counts[test.full_id] += len(msgs)
+                    message_counts[test.id] += len(msgs)
 
             time.sleep(self.BUILD_SLEEP_TIME)
 
@@ -582,6 +582,7 @@ class TestSet:
             self.status.set(S_STATES.SET_KICKOFF,
                             "Kicking off {} tests under scheduler {}"
                             .format(len(sched_tests), sched_name))
+
             sched_errors = scheduler.schedule_tests(self.pav_cfg, sched_tests)
 
             # Update the status of each test with any errors received from the scheduler.
@@ -647,13 +648,10 @@ class TestSet:
             "Tests with build errors:"
         ]
 
-        test_id = '<id>'
+        test_id = None
         for tracker in self.mb_tracker.failures():
             test = tracker.test
-            if test.full_id.startswith('main'):
-                test_id = str(test.id)
-            else:
-                test_id = test.full_id
+            test_id = test.id
 
             msg.append(
                 " - {test} ({id} in test set '{set_name}')"

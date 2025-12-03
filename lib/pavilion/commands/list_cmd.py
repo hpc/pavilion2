@@ -2,14 +2,17 @@
 undefined) bits."""
 
 import errno
+from argparse import Namespace
 from typing import List, Dict, Mapping
 
 from pavilion import arguments
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
+from pavilion.config import PavConfig
 from pavilion.series.info import SeriesInfo
 from pavilion.test_run import TestAttributes
+from pavilion.test_ids import resolve_mixed_ids, SeriesID, TestID
 from .base_classes import Command, sub_cmd
 
 
@@ -121,7 +124,7 @@ class ListCommand(Command):
         )
 
         series_p.add_argument(
-            'series', nargs="*", default=['all'],
+            'series', nargs="*", type=SeriesID, default=[SeriesID("all")],
             help="Specific series to filter from. Defaults to 'all'"
         )
 
@@ -229,7 +232,18 @@ class ListCommand(Command):
             avail_fields=TestAttributes.list_attrs()
         )
 
-        test_runs = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).data
+        ids = resolve_mixed_ids(args.tests, auto_last=True)
+        tests = ids["tests"]
+        series = ids["series"]
+
+        test_runs = cmd_utils.arg_filtered_tests(
+                                pav_cfg,
+                                tests,
+                                series,
+                                filter_query=args.filter,
+                                sort_by=args.sort_by,
+                                limit=args.limit,
+                                verbose=self.errfile).data
 
         def remove_nones(run: Mapping) -> Dict:
             return { k: v for k, v in run.items() if v not in [None, ''] }
@@ -248,7 +262,7 @@ class ListCommand(Command):
     SERIES_LONG_FIELDS = ['id', 'user', 'created', 'num_tests']
 
     @sub_cmd()
-    def _series_cmd(self, pav_cfg, args):
+    def _series_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Print info on each series."""
 
         series_attrs = {
@@ -262,12 +276,18 @@ class ListCommand(Command):
         fields, mode = self.get_fields(
             fields_arg=args.out_fields,
             mode_arg=args.output_mode,
-            default_single_field='sid',
+            default_single_field='id',
             default_fields=self.SERIES_LONG_FIELDS,
             avail_fields=list(series_attrs.keys()),
         )
 
-        series = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
+        series = cmd_utils.arg_filtered_series(
+                                pav_cfg,
+                                args.series,
+                                filter_query=args.filter,
+                                sort_by=args.sort_by,
+                                limit=args.limit,
+                                verbose=self.errfile)
         series = [series_info.attr_dict() for series_info in series]
 
         self.write_output(
@@ -278,3 +298,5 @@ class ListCommand(Command):
             vsep=args.vsep,
             wrap=args.wrap,
         )
+
+        return 0

@@ -8,18 +8,15 @@ import getpass
 import grp
 import os
 import stat
-import sys
 from collections import OrderedDict
+from operator import itemgetter
 from pathlib import Path
-from itertools import product, starmap
 from typing import List, Union, Dict, NewType, Iterator, Tuple
 
 import yaml_config as yc
-from pavilion import output
 from pavilion import errors
 from pavilion.micro import first, flatten, remove_none, set_default
-from pavilion.path_utils import Pathlike, append_to_path, append_suffix, exists, path_product
-from pavilion.status_file import STATES
+from pavilion.path_utils import Pathlike, append_to_path, exists, path_product
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -205,6 +202,7 @@ class PavConfig(PavConfigDict):
         self.log_format: str = LOG_FORMAT
         self.log_level: str = 'info'
         self.result_log: OptPath = None
+        self.result_loggers: List[Dict] = []
         self.flatten_results: bool = True
         self.exception_log: OptPath = None
         self.wget_timeout: int = 5
@@ -291,6 +289,14 @@ class PavConfig(PavConfigDict):
         self._suite_info = suite_infos
 
         return suite_infos
+
+    @property
+    def result_logs(self) -> List[Path]:
+        """Return a list of all result log paths, which may be paths
+        to either files (in the case of common file loggers) or directories
+        (in the case of series file loggers)."""
+
+        return list(remove_none(map(itemgetter("dest"), self.result_loggers)))
 
     def find_file(self, file: Pathlike, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
             -> Union[Path, None]:
@@ -516,6 +522,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "parser with the corresponding key and constant value. "
                       "Generally, the values should contain a pavilion "
                       "variable of some sort to resolve."),
+        yc.ListElem(
+            'result_loggers', sub_elem=yc.CategoryElem(sub_elem=yc.StrElem()),
+            help_text="The list of result loggers and their corresponding parameters."
+        ),
 
         # The following configuration items are for internal use and provide a
         # convenient way to pass around core pavilion components or data.

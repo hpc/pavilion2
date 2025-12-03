@@ -2,11 +2,14 @@
 other commands to print statuses."""
 
 import errno
+from argparse import Namespace
 
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
 from pavilion import status_utils
+from pavilion.config import PavConfig
+from pavilion.test_ids import resolve_mixed_ids, SeriesID
 from pavilion.errors import PavilionError
 from .base_classes import Command
 
@@ -49,11 +52,25 @@ class StatusCommand(Command):
 
         filters.add_test_filter_args(parser)
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
+
+        show_series = args.series
+
+        ids = resolve_mixed_ids(args.tests)
+        tests = ids["tests"]
+        series = ids["series"]
+
         try:
-            test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
+            test_paths = cmd_utils.arg_filtered_tests(
+                                        pav_cfg,
+                                        tests,
+                                        series,
+                                        filter_query=args.filter,
+                                        sort_by=args.sort_by,
+                                        limit=args.limit,
+                                        verbose=self.errfile).paths
         except (ValueError, PavilionError) as err:
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EINVAL
@@ -74,7 +91,7 @@ class StatusCommand(Command):
             return self.print_summary(statuses)
         else:
             return status_utils.print_status(statuses, self.outfile, json=args.json,
-                                             series=args.series, note=args.note,
+                                             series=show_series, note=args.note,
                                              sorter=args.sort_by)
 
     def print_summary(self, statuses):
