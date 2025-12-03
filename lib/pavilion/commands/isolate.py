@@ -24,7 +24,6 @@ class IsolateCommand(Command):
 
     IGNORE_FILES = ("series", "job")
     KICKOFF_FN = "kickoff.isolated"
-    PAV_LIB_FN = "pav-lib.bash"
 
     def __init__(self):
         super().__init__(
@@ -140,8 +139,8 @@ class IsolateCommand(Command):
 
                 return 8
 
-            pav_lib_bash = pav_cfg.pav_root / 'bin' / cls.PAV_LIB_FN
-            shutil.copyfile(pav_lib_bash, dest / cls.PAV_LIB_FN)
+            pav_lib_bash = pav_cfg.pav_root / 'bin' / TestRun.PAV_LIB_FN
+            shutil.copyfile(pav_lib_bash, dest / TestRun.PAV_LIB_FN)
 
             cls._write_kickoff_script(pav_cfg, test, dest / cls.KICKOFF_FN)
 

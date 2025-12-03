@@ -100,6 +100,9 @@ class TestRun(TestAttributes):
     BUILD_TEMPLATE_DIR = 'templates'
     """Directory that holds build templates."""
 
+    PAV_LIB_FN = "pav-lib.bash"
+    """Pavilion bash utilities"""
+
     def __init__(self, pav_cfg: PavConfig, config: Dict, var_man: VariableSetManager = None,
                  _id: int = None, rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
@@ -1152,9 +1155,9 @@ be set by the scheduler plugin as soon as it's known."""
         script.env_change(env)
 
         if isolate:
-            pav_lib_bash = '$( dirname -- "${BASH_SOURCE[0]}" )/pav-lib.bash'
+            pav_lib_bash = f'$( dirname -- "${{BASH_SOURCE[0]}}" )/{self.PAV_LIB_FN}'
         else:
-            pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
+            pav_lib_bash = self._pav_cfg.pav_root / 'bin' / self.PAV_LIB_FN
 
         script.command('source {}'.format(pav_lib_bash))
 
