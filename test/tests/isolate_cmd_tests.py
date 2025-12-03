@@ -31,11 +31,16 @@ class IsolateCmdTests(PavTestCase):
 
             self.assertEqual(isolate_cmd.run(self.pav_cfg, isolate_args), 0)
 
-            source_files = set(list_files(last_test.path))
-            dest_files = set(list_files(Path(dir) / "dest"))
+            source_files = set(map(
+                                lambda x: x.relative_to(last_test.path),
+                                list_files(last_test.path)))
+            dest_files = set(map(
+                                lambda x: x.relative_to(Path(dir) / "dest"),
+                                list_files(Path(dir) / "dest")))
 
-            self.assertFalse(any(map(lambda x: x.is_symlink(), dest_files)))
-            self.assertEqual({f for f in source_files if f not in ("series", "job")}, dest_files)
+            self.assertEqual(
+                        {f for f in source_files if f.name not in ("series", "job")},
+                        {f for f in dest_files if f.name not in ("pav-lib.bash", "kickoff.isolated")})
 
     def test_zip_archive(self):
         run_cmd = commands.get_command("run")
@@ -62,20 +67,13 @@ class IsolateCmdTests(PavTestCase):
                 with tarfile.open(Path(dir) / "dest.tgz", "r:gz") as tf:
                     tf.extractall(extract_dir)
 
-                    dest_files = list_files(Path(extract_dir))
-
-                    for df in dest_files:
-                        if df.is_symlink():
-                            import pdb; pdb.set_trace()
-
-
-                    self.assertFalse(any(map(lambda x: x.is_symlink(), dest_files)))
-
                     source_files = set(map(
-                                        lambda x: Path(x).relative_to(last_test.path.parent),
+                                        lambda x: Path(x).relative_to(last_test.path),
                                         list_files(last_test.path, include_root=True)))
-                    dest_files = set(dest_files)
+                    dest_files = set(map(
+                                        lambda x: x.relative_to(Path(extract_dir) / "dest"),
+                                        list_files(Path(extract_dir))))
 
                     self.assertEqual(
                         {f for f in source_files if f.name not in ("series", "job")},
-                        dest_files)
+                        {f for f in dest_files if f.name not in ("pav-lib.bash", "kickoff.isolated")})

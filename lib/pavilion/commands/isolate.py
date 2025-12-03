@@ -3,6 +3,7 @@ from pathlib import Path
 import tarfile
 import sys
 import shutil
+import tempfile
 from typing import Iterable
 
 from pavilion import output
@@ -13,6 +14,7 @@ from pavilion.test_ids import TestID
 from pavilion.cmd_utils import get_last_test_id, get_tests_by_id, list_files
 from pavilion.utils import copytree_resolved
 from pavilion.scriptcomposer import ScriptComposer
+from pavilion.errors import SchedulerPluginError
 from pavilion.schedulers.config import validate_config
 from .base_classes import Command
 
@@ -113,9 +115,8 @@ class IsolateCommand(Command):
             return 6
 
         if archive:
-            self._write_tarball(pav_cfg,
-                                test.id,
-                                test.path,
+            cls._write_tarball(pav_cfg,
+                                test,
                                 dest,
                                 zip,
                                 cls.IGNORE_FILES)
@@ -139,7 +140,7 @@ class IsolateCommand(Command):
         return 0
 
     @classmethod
-    def _write_tarball(cls, pav_cfg: PavConfig, test_id: TestID, src: Path, dest: Path, zip: bool,
+    def _write_tarball(cls, pav_cfg: PavConfig, test: TestRun, dest: Path, zip: bool,
                         ignore_files: Iterable[str]) -> None:
         if zip:
             if len(dest.suffixes) == 0:
@@ -153,25 +154,28 @@ class IsolateCommand(Command):
             modestr = "w:"
 
         with tempfile.TemporaryDirectory() as tmp:
-            utils.copytree_resolved(src, tmp, ignore_files=ignore_files)
+            tmp = Path(tmp)
+            tmp_dest = tmp / dest.stem
+            tmp_dest.mkdir()
+            copytree_resolved(test.path, tmp_dest, ignore_files=ignore_files)
 
             # Copy Pavilion bash library into tarball
             pav_lib_bash = pav_cfg.pav_root / 'bin' / cls.PAV_LIB_FN
-            shutil.copyfile(pav_lib_bash, tmp / cls.PAV_LIB_FN)
+            shutil.copyfile(pav_lib_bash, tmp_dest / cls.PAV_LIB_FN)
 
-            cls._write_kickoff_script(pav_cfg, test_id, tmp / cls.KICKOFF_FN)
+            cls._write_kickoff_script(pav_cfg, test, tmp_dest / cls.KICKOFF_FN)
 
             try:
                 with tarfile.open(dest, modestr) as tarf:
                     for fname in list_files(tmp):
                         tarf.add(
                                 fname,
-                                arcname=fname.relative_to(src.parent),
+                                arcname=fname.relative_to(tmp),
                                 recursive=False)
             except (tarfile.TarError, OSError):
                 output.fprint(
                     sys.stderr,
-                    f"Unable to isolate test {test_id} at {dest}.",
+                    f"Unable to isolate test {test.id} at {dest}.",
                     color=output.RED)
 
                 return 7
