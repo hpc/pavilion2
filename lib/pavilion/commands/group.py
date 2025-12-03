@@ -317,10 +317,15 @@ class GroupCommand(Command):
                 return "group"
 
         if args.json:
-            json_dumps(
-                members,
-                self.outfile
-            )
+            output_json(
+                self.outfile,
+                rows=members,
+                fields=fields,
+                field_info={
+                    'itype': {'title': 'type', 'transform': type_transform},
+                    'created': {'transform': output.get_relative_timestamp},
+                    'id': {'transform': str}
+                })
         else:
             draw_table(
                 self.outfile,

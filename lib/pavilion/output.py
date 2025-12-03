@@ -294,6 +294,26 @@ def output_csv(outfile, fields, rows, field_info=None, header=False):
         pass
 
 
+def output_json(outfile: TextIO, rows: List[Dict], fields: List[str],
+                    field_info: Dict = None) -> None:
+    """Output the given rows as JSON."""
+
+    new_rows = []
+
+    for row in rows:
+        new_row = {}
+
+        for k in row:
+            new_key = field_info.get(k, {}).get("title", k)
+            transform = field_info.get(k, {}).get("transform", lambda x: x)
+
+            new_row[new_key] = transform(row.get(k))
+
+        new_rows.append(new_row)
+
+    json_dump(new_rows, outfile)
+
+
 class ANSIString(UserString):
     """Create a string with an implicit ANSI display mode. The ansi code will be
 used when the string is formatted.
