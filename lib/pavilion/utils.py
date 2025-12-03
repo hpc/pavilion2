@@ -213,7 +213,7 @@ def copytree_resolved(
                 src_root: Optional[Path] = None,
                 dest_root: Optional[Path] = None,
                 symlinks: Optional[Dict[Path, Path]] = None,
-                ignore_files: Optional[Iterable[str]] = None) -> Path:
+                ignore_files: Optional[Iterable[str]] = None) -> None:
     """Copy a directory tree to another location, such that the only symlinks that remain are
     symlinks internal to the directory."""
 
@@ -225,14 +225,14 @@ def copytree_resolved(
         symlinks = {}
 
     if src.name in ignore_files:
-        return src
+        return
 
     if src.is_symlink():
         try:
             resolved = src.resolve()
         except RuntimeError:
             # There is a circular symlink
-            return src
+            return
 
         if resolved in symlinks:
             # Create a relative symlink
@@ -271,12 +271,12 @@ def copytree_resolved(
                 symlinks[resolved] = dest
                 copytree_resolved(resolved, dest, src_root, dest_root, symlinks, ignore_files)
 
-        return dest
+        return
 
     elif src.is_file():
-        ret = shutil.copy(src, dest)
+        shutil.copy(src, dest)
 
-        return ret
+        return
     elif src.is_dir():
         dest.mkdir(exist_ok=True)
 
@@ -287,7 +287,7 @@ def copytree_resolved(
             copytree_resolved(fname, dest / fname.name, src_root, dest_root,
                                 symlinks, ignore_files)
 
-        return dest
+        return
 
 def path_is_external(path: Path):
     """Returns True if a path contains enough back 'up-references' to escape
