@@ -6,7 +6,7 @@ import fnmatch
 from pavilion import groups
 from pavilion import config
 from pavilion import output
-from pavilion.output import fprint, draw_table
+from pavilion.output import fprint, draw_table, json_dumps
 from pavilion.enums import Verbose
 from pavilion.test_run import TestRun
 from pavilion.series import TestSeries
@@ -120,6 +120,9 @@ class GroupCommand(Command):
         member_p.add_argument(
             '--groups', '-g', action='store_true', default=False,
             help="Show groups, and disable the default of showing everything.")
+        member_p.add_argument(
+            "--json", "-j", action="store_true", default=False
+            help="Output data as json.")
 
     def run(self, pav_cfg, args):
         """Run the selected sub command."""
@@ -313,15 +316,21 @@ class GroupCommand(Command):
             else:
                 return "group"
 
+        if args.json:
+            json_dumps(
+                members,
+                self.outfile
+            )
+        else:
         draw_table(
-            self.outfile,
-            rows=members,
-            fields=fields,
-            field_info={
-                'itype': {'title': 'type', 'transform': type_transform},
-                'created': {'transform': output.get_relative_timestamp},
-                'id': {'transform': str}
-            })
+                self.outfile,
+                rows=members,
+                fields=fields,
+                field_info={
+                    'itype': {'title': 'type', 'transform': type_transform},
+                    'created': {'transform': output.get_relative_timestamp},
+                    'id': {'transform': str}
+                })
 
         return 0
 

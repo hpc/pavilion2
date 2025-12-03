@@ -250,12 +250,12 @@ class TestGroupTests(unittest.PavTestCase):
 
         # Try all the list options
         for rows, args in [
-                (7,    ['group', 'members', str(group_name)]),
-                (4,    ['group', 'members', '--tests', str(group_name)]),
-                (5,    ['group', 'members', '--series', str(group_name)]),
-                (4,    ['group', 'members', '--groups', str(group_name)]),
-                (7,    ['group', 'members', '--tests', '--series', '--groups', str(group_name)]),
-                (8,    ['group', 'members', '--recursive', str(group_name)]),
+                (7,    ['group', 'members', "--json", str(group_name)]),
+                (4,    ['group', 'members', "--json", '--tests', str(group_name)]),
+                (5,    ['group', 'members', "--json", '--series', str(group_name)]),
+                (4,    ['group', 'members', "--json", '--groups', str(group_name)]),
+                (7,    ['group', 'members', "--json", '--tests', '--series', '--groups', str(group_name)]),
+                (8,    ['group', 'members', "--json", '--recursive', str(group_name)]),
                 ]:
             run_grp_cmd(args)
             out, err_out = group_cmd.clear_output()
