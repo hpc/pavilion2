@@ -1240,9 +1240,9 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Output the environment for posterity')
 
             if verbose:
-                script.command(f'declare -p | tee > $(this_dir)/{stype}.env.sh')
+                script.command(f'declare -p | tee > ${{this_dir}}/{stype}.env.sh')
             else:
-                script.command(f'declare -p > $(this_dir)/{stype}.env.sh')
+                script.command(f'declare -p > ${{this_dir}}/{stype}.env.sh')
 
         script.newline()
         script.command(f'echo "(pav) Executing {stype} commands."')

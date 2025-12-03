@@ -723,18 +723,23 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             tests = [tests]
 
         sched_config = validate_config(tests[0].config['schedule'])
-        sched_config["time_limit"] = max(map(
-                                            lambda x: x.config["schedule"]["time_limit"],
-                                            tests))
+        time_limits = [t.config["schedule"]["time_limit"] for t in tests \
+                        if t.config["schedule"]["time_limit"] is not None]
+
+        if len(time_limits) > 0:
+            sched_config["time_limit"] = max(time_limits)
 
         job_name = self._job_name(tests)
 
         if isolate:
             job_name = job_name + "_isolated"
 
-        node_range = calc_node_range(
-                                sched_config,
-                                sched_config['cluster_info']['node_count'])
+        if nodes is None:
+            node_range = calc_node_range(
+                                    sched_config,
+                                    sched_config['cluster_info']['node_count'])
+        else:
+            node_range = None
 
         script = self._create_kickoff_script_stub(
                 pav_cfg=pav_cfg,

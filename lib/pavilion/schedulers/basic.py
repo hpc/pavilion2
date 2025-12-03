@@ -141,9 +141,13 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             tests = [tests]
 
         sched_config = validate_config(tests[0].config['schedule'])
-        node_range = calc_node_range(
-                                sched_config,
-                                sched_config['cluster_info']['node_count'])
+
+        if nodes is None:
+            node_range = calc_node_range(
+                                    sched_config,
+                                    sched_config['cluster_info']['node_count'])
+        else:
+            node_range = None
 
         job_name = self._job_name(tests)
 
