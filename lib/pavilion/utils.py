@@ -13,7 +13,7 @@ import subprocess
 import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO, List, Dict, Optional, Set, Iterable
+from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable
 
 
 class WrappedFormatter(argparse.HelpFormatter):
@@ -212,7 +212,7 @@ def copytree_resolved(
                 dest: Path,
                 src_root: Optional[Path] = None,
                 dest_root: Optional[Path] = None,
-                seen_files: Optional[Set] = None,
+                symlinks: Optional[Dict[Path, Path]] = None,
                 ignore_files: Optional[Iterable[str]] = None) -> Path:
     """Copy a directory tree to another location, such that the only symlinks that remain are
     symlinks internal to the directory."""
@@ -221,52 +221,61 @@ def copytree_resolved(
     dest_root = dest_root or dest
     ignore_files = ignore_files or []
 
+    if symlinks is None:
+        symlinks = {}
+
     if src.name in ignore_files:
         return src
 
-    seen_files = seen_files or set()
-
-    if src in seen_files:
-        return src
-
-    seen_files.add(src)
-
     if src.is_symlink():
-        target = Path(os.readlink(src))
-
-        # Only recreate symlinks if they are internal to the source directory
-        relative = True
-
         try:
-            rel_target = target.relative_to(src_root)
-        except ValueError:
-            relative = False
+            resolved = src.resolve()
+        except RuntimeError:
+            # There is a circular symlink
+            return src
 
-        if relative:
-            # Don't create the symlink if it points inside a directory we're ignoring
-            skip_link = False
-
-            for pt in rel_target.parts:
-                if pt in ignore_files:
-                    skip_link = True
-                    break
-
-            if not skip_link:
-                dest.symlink_to(dest_root / rel_target)
+        if resolved in symlinks:
+            dest.symlink_to(symlinks.get(resolved))
         else:
-            copytree_resolved(target.resolve(), dest, src_root, dest_root, seen_files, ignore_files)
+            # Only recreate symlinks if they are internal to the source directory
+            target_in_tree = True
+
+            try:
+                rel_target = resolved.relative_to(src_root)
+            except ValueError:
+                target_in_tree = False
+
+            if target_in_tree:
+                # Don't create the symlink if it points inside a directory we're ignoring
+                skip_link = False
+
+                for pt in rel_target.parts:
+                    if pt in ignore_files:
+                        skip_link = True
+                        break
+
+                if not skip_link:
+                    dest.symlink_to(dest_root / rel_target)
+                    symlinks[resolved] = dest_root / rel_target
+            else:
+                symlinks[resolved] = dest
+                copytree_resolved(resolved, dest, src_root, dest_root, symlinks, ignore_files)
 
         return dest
 
     elif src.is_file():
-        return shutil.copy(src, dest)
+        ret = shutil.copy(src, dest)
+
+        return ret
     elif src.is_dir():
         dest.mkdir(exist_ok=True)
-        files = src.iterdir()
+
+        # Sort for reproduceability
+        files = sorted(src.iterdir(), key=lambda p: p.name)
 
         for fname in files:
             copytree_resolved(fname, dest / fname.name, src_root, dest_root,
-                                seen_files, ignore_files)
+                                symlinks, ignore_files)
 
         return dest
 

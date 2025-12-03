@@ -177,10 +177,7 @@ class UtilsTests(unittest.PavTestCase):
                     {"name": "foo", "dir": False, "target": "bar"},
                     {"name": "bar", "dir": False, "target": "foo"},
                 ],
-                "expected": [
-                    {"name": "foo", "dir": False, "target": "bar"},
-                    {"name": "bar", "dir": False, "target": "foo"},
-                ]
+                "expected": []
             },
             {
                 "copy_root": "foo",
@@ -225,7 +222,7 @@ class UtilsTests(unittest.PavTestCase):
             }
         ]
 
-        for ex in examples:
+        for i, ex in enumerate(examples):
             with tempfile.TemporaryDirectory() as src:
                 src = Path(src)
 
@@ -240,7 +237,6 @@ class UtilsTests(unittest.PavTestCase):
                             file_path.mkdir(parents=True)
                         else:
                             if f["target"] is None:
-                                print(f"Making file {file_path}")
                                 file_path.touch()
                             else:
                                 target_path = src / f["target"]
