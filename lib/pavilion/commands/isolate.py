@@ -15,7 +15,7 @@ from pavilion.cmd_utils import get_last_test_id, get_tests_by_id, list_files
 from pavilion.utils import copytree_resolved
 from pavilion.scriptcomposer import ScriptComposer
 from pavilion.errors import SchedulerPluginError
-from pavilion.schedulers.config import validate_config
+from pavilion.schedulers.config import validate_config, calc_node_range
 from .base_classes import Command
 
 
@@ -150,6 +150,9 @@ class IsolateCommand(Command):
     @classmethod
     def _write_tarball(cls, pav_cfg: PavConfig, test: TestRun, dest: Path, zip: bool,
                         ignore_files: Iterable[str]) -> None:
+        """Given a test run object, create a tarball of its run directory in the specified
+        location."""
+
         if zip:
             if len(dest.suffixes) == 0:
                 dest = dest.with_suffix(".tgz")
@@ -203,11 +206,14 @@ class IsolateCommand(Command):
             )
             return 9
 
+        sched_config = validate_config(test.config['schedule'])
+        node_range = calc_node_range(test.config, sched_config['cluster_info']['node_count'])
+
         header = sched._get_kickoff_script_header(
                                             job_name=f"pav_{test.name}_isolated",
-                                            sched_config=validate_config(test.config['schedule']),
+                                            sched_config=sched_config,
                                             nodes=None,
-                                            node_range=None,
+                                            node_range=node_range,
                                             shebang=test.shebang
                                             )
 
