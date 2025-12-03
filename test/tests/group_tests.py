@@ -221,7 +221,6 @@ class TestGroupTests(unittest.PavTestCase):
         run_cmd.last_series.wait(timeout=10)
 
         add_items = [str(sub_group_name)] + [str(test.id) for test in run_cmd.last_tests]
-        print(len(add_items))
         rm_tests = add_items[1:3]
 
         def run_grp_cmd(args):
