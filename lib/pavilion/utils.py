@@ -235,7 +235,12 @@ def copytree_resolved(
             return src
 
         if resolved in symlinks:
-            dest.symlink_to(Path(os.path.relpath(symlinks.get(resolved), dest.resolve().parent)))
+            # Create a relative symlink
+            dest.symlink_to(
+                        Path(
+                            os.path.relpath(
+                                symlinks.get(resolved),
+                                dest.resolve().parent)))
         else:
             # Only recreate symlinks if they are internal to the source directory
             target_in_tree = True
@@ -255,7 +260,12 @@ def copytree_resolved(
                         break
 
                 if not skip_link:
-                    dest.symlink_to(Path(os.path.relpath(dest_root / rel_target, dest.resolve().parent)))
+                    # Create a relative symlink
+                    dest.symlink_to(
+                                Path(
+                                    os.path.relpath(
+                                        dest_root / rel_target,
+                                        dest.resolve().parent)))
                     symlinks[resolved] = dest_root / rel_target
             else:
                 symlinks[resolved] = dest
