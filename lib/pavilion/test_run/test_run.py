@@ -323,12 +323,8 @@ class TestRun(TestAttributes):
         script = scriptcomposer.ScriptComposer(header=header)
 
         if self._build_needed():
-            self._write_script(
-                script,
-                'build',
-                path=self.build_script_path,
-                config=self.config.get('build', {}),
-                module_wrappers=self.config.get('module_wrappers', {}))
+            script = self.make_script(script, 'build')
+            script.write(self.build_script_path)
 
             self.builder = self._make_builder()
             self.build_name = self.builder.name
@@ -337,12 +333,8 @@ class TestRun(TestAttributes):
             # process of creating and using a builder.
             self._build_trivial()
 
-        self._write_script(
-            script,
-            'run',
-            path=self.run_tmpl_path,
-            config=self.config.get('run', {}),
-            module_wrappers=self.config.get('module_wrappers', {}))
+        script = self.make_script(script, 'run')
+        script.write(self.run_tmpl_path)
 
         self.save_attributes()
         self.status.set(STATES.CREATED, "Test directory setup complete.")
@@ -529,13 +521,8 @@ class TestRun(TestAttributes):
         header = scriptcomposer.ScriptHeader(shebang=self.shebang)
         script = scriptcomposer.ScriptComposer(header=header)
 
-        self._write_script(
-            script,
-            'run',
-            self.run_script_path,
-            self.config['run'],
-            self.config.get('module_wrappers', {})
-        )
+        script = self.make_script(script, 'run')
+        script.write(self.run_script_path)
 
         self.status.set(STATES.FINALIZED, "Test Run Finalized.")
 
@@ -1128,13 +1115,10 @@ be set by the scheduler plugin as soon as it's known."""
                 .format(run_complete_path.as_posix(), err))
             return None
 
-    def _write_script(self,
-                      script: scriptcomposer.ScriptComposer,
-                      stype: str,
-                      path: Path,
-                      config: dict,
-                      module_wrappers: dict,
-                      isolate: bool = False) -> None:
+    def make_script(self,
+                     script: scriptcomposer.ScriptComposer,
+                     stype: str,
+                     isolate: bool = False) -> scriptcomposer.ScriptComposer:
         """Write a build or run script or template. The formats for each are
             mostly identical.
         :param stype: The type of script (run or build).
@@ -1143,6 +1127,8 @@ be set by the scheduler plugin as soon as it's known."""
         :param module_wrappers: The module wrappers definition.
         """
 
+        config = self.config[stype]
+        module_wrappers = self.config.get('module_wrappers', {})
         verbose = config.get('verbose', 'false').lower() == 'true'
 
         if verbose:
@@ -1163,8 +1149,10 @@ be set by the scheduler plugin as soon as it's known."""
 
         script.env_change(env)
 
+        script.command('this_dir=$( dirname -- "${BASH_SOURCE[0]}" )')
+
         if isolate:
-            pav_lib_bash = '$( dirname -- "${BASH_SOURCE[0]}" )/pav-lib.bash'
+            pav_lib_bash = '${this_dir}/pav-lib.bash'
         else:
             pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
@@ -1252,9 +1240,9 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Output the environment for posterity')
 
             if verbose:
-                script.command(f'declare -p | tee > {path.parent / stype}.env.sh')
+                script.command(f'declare -p | tee > $(this_dir)/{stype}.env.sh')
             else:
-                script.command(f'declare -p > {path.parent / stype}.env.sh')
+                script.command(f'declare -p > $(this_dir)/{stype}.env.sh')
 
         script.newline()
         script.command(f'echo "(pav) Executing {stype} commands."')
@@ -1275,7 +1263,7 @@ be set by the scheduler plugin as soon as it's known."""
         script.newline()
         script.command(f'echo "(pav) Test {stype} commands completed without error."')
 
-        script.write(path)
+        return script
 
     def __repr__(self):
         return "TestRun({s.name}-{s.full_id})".format(s=self)

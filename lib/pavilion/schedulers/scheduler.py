@@ -5,10 +5,12 @@ mechanisms to Pavilion.
 import inspect
 import os
 import time
+from abc import abstractmethod
 from pathlib import Path
-from typing import List, Union, Dict, NewType, Tuple, Type
+from typing import List, Union, Dict, NewType, Tuple, Type, Optional
 
 import yaml_config as yc
+from pavilion.config import PavConfig
 from pavilion.jobs import JobError, JobInfo, Job
 from pavilion.scriptcomposer import ScriptHeader, ScriptComposer
 from pavilion.status_file import STATES, TestStatusInfo
@@ -98,6 +100,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     KICKOFF_FN = None
     """If the kickoff script requires a special filename, set it here."""
+
+    KICKOFF_LOG_DEFAULT_FN = "kickoff.log"
 
     VAR_CLASS = SchedulerVariables  # type: Type[SchedulerVariables]
     """The scheduler's variable class."""
@@ -422,8 +426,22 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return [], {}, {}
 
-    def _create_kickoff_script_stub(self, pav_cfg, job_name: str, log_path: Path,
+    @abstractmethod
+    def create_kickoff_script(self,
+                              pav_cfg: PavConfig,
+                              tests: Union[TestRun, List[TestRun]],
+                              log_path: Optional[Path] = None,
+                              nodes: Optional = None,
+                              isolate: bool = False) -> ScriptComposer:
+        """Create the kickoff script."""
+
+        raise NotImplementedError
+
+    def _create_kickoff_script_stub(self,
+                                    pav_cfg: PavConfig,
+                                    job_name: str,
                                     sched_config: dict,
+                                    log_path: Optional[Path] = None,
                                     nodes: Union[NodeList, None] = None,
                                     node_range: Union[Tuple[int, int], None] = None,
                                     shebang: str = None)\
@@ -450,7 +468,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         script = ScriptComposer(header=header)
         script.comment("Redirect all output to the kickoff log.")
-        script.command("exec >{} 2>&1".format(log_path.as_posix()))
+
+        if log_path is not None:
+            script.command(f"exec >{log_path.as_posix()} 2>&1")
+        else:
+            script.command(
+                f'exec > $(dirname -- ${{BASH_SOURCE[0]}})/{self.KICKOFF_LOG_DEFAULT_FN} 2>&1')
 
         # Make sure the pavilion spawned
         env_changes = {
@@ -576,6 +599,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
             key_parts.append(opt)
 
         return tuple(key_parts)
+
+    @abstractmethod
+    def _job_name(self, tests: Union[TestRun, List[TestRun]]) -> str:
+        """Given a test, get the name of the job."""
+
+        raise NotImplementedError
 
 
 def __reset():

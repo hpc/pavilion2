@@ -3,12 +3,15 @@ node inventory, so Pavilion has to guess (or be told) about node info."""
 
 from abc import ABC
 from collections import defaultdict
-from typing import List
+from pathlib import Path
+from typing import List, Dict, Tuple, Optional, Union
 
+from pavilion.config import PavConfig
 from pavilion.jobs import Job, JobError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
-from pavilion.types import NodeInfo, Nodes
+from pavilion.scriptcomposer import ScriptComposer
+from pavilion.types import NodeInfo, Nodes, NodeSet
 from .config import validate_config, calc_node_range
 from .scheduler import SchedulerPlugin
 from ..errors import SchedulerPluginError
@@ -92,21 +95,10 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                                                    prior_error=err, tests=[test]))
                 continue
 
-            job_name = 'pav-{}-{}-runs'.format(self.name, test_bin[0].series)
-
             for test in test_bin:
                 test.job = job
 
-            script = self._create_kickoff_script_stub(
-                pav_cfg=pav_cfg,
-                job_name=job_name,
-                log_path=job.kickoff_log,
-                sched_config=sched_config,
-                node_range=node_range,
-                shebang=test.shebang)
-
-            test_ids = ' '.join(test.full_id for test in tests)
-            script.command('pav _run {}'.format(test_ids))
+            script = self.create_kickoff_script(pav_cfg, test_bin, job.kickoff_log)
             script.write(job.kickoff_path)
 
             try:
@@ -114,7 +106,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                     pav_cfg=pav_cfg,
                     job=job,
                     sched_config=sched_config,
-                    job_name=job_name,
+                    job_name=self._job_name(test_bin),
                     node_range=node_range)
             except SchedulerPluginError as err:
                 errors.append(self._make_kickoff_error(err, [test]))
@@ -131,3 +123,49 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                             "Test kicked off with the {} scheduler".format(self.name))
 
         return errors
+
+    def _job_name(self, tests: List[TestRun]) -> str:
+        """Given a test, get the name of the job."""
+
+        return 'pav-{}-{}-runs'.format(self.name, tests[0].series)
+
+    def create_kickoff_script(self,
+                              pav_cfg: PavConfig,
+                              tests: Union[TestRun, List[TestRun]],
+                              log_path: Optional[Path] = None,
+                              nodes: Optional[NodeSet] = None,
+                              isolate: bool = False) -> ScriptComposer:
+        """Create the kickoff script."""
+
+        if not isinstance(tests, list):
+            tests = [tests]
+
+        sched_config = validate_config(tests[0].config['schedule'])
+        node_range = calc_node_range(
+                                sched_config,
+                                sched_config['cluster_info']['node_count'])
+
+        job_name = self._job_name(tests)
+
+        if isolate:
+            job_name = job_name + "_isolated"
+
+        script = self._create_kickoff_script_stub(
+                pav_cfg=pav_cfg,
+                job_name=job_name,
+                log_path=log_path,
+                sched_config=sched_config,
+                node_range=node_range,
+                nodes=nodes,
+                shebang=tests[0].shebang)
+
+        test_ids = ' '.join(test.full_id for test in tests)
+
+        script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
+
+        if isolate:
+            script = tests[0].make_script(script, "run", isolate=True)
+        else:
+            script.command('pav _run {}'.format(test_ids))
+
+        return script

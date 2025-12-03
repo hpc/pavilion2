@@ -209,20 +209,9 @@ class IsolateCommand(Command):
         sched_config = validate_config(test.config['schedule'])
         node_range = calc_node_range(sched_config, sched_config['cluster_info']['node_count'])
 
-        header = sched._get_kickoff_script_header(
-                                            job_name=f"pav_{test.name}_isolated",
-                                            sched_config=sched_config,
-                                            nodes=None,
-                                            node_range=node_range,
-                                            shebang=test.shebang
-                                            )
+        script = sched.create_kickoff_script(
+                                        pav_cfg,
+                                        test,
+                                        isolate=True)
 
-        script = ScriptComposer(header=header)
-
-        test._write_script(
-                        script=script,
-                        stype='run',
-                        path=script_path,
-                        config=test.config['run'],
-                        module_wrappers=test.config.get('module_wrappers', {}),
-                        isolate=True)
+        script.write(script_path)
