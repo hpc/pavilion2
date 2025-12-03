@@ -121,7 +121,7 @@ class GroupCommand(Command):
             '--groups', '-g', action='store_true', default=False,
             help="Show groups, and disable the default of showing everything.")
         member_p.add_argument(
-            "--json", "-j", action="store_true", default=False
+            "--json", "-j", action="store_true", default=False,
             help="Output data as json.")
 
     def run(self, pav_cfg, args):
@@ -322,7 +322,7 @@ class GroupCommand(Command):
                 self.outfile
             )
         else:
-        draw_table(
+            draw_table(
                 self.outfile,
                 rows=members,
                 fields=fields,
