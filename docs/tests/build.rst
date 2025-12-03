@@ -72,9 +72,13 @@ This build option tells Pavilion when to download test source.
 Finding Source Files
 ~~~~~~~~~~~~~~~~~~~~
 
-The primary way to specify source in Pavilion is with the ``source_path``
-build option. Additionally you can bring additional files into your build
-directory with the ``extra files`` option.
+If a suite is organized as directory, all references to files within a test are interpreted as
+relative to the suite directory. If your tests requires source code or other files, this is the
+recommended method of organizing your test suite.
+
+It is also possible to use source code outside of the suite directory using the ``source_path``
+build option. Additionally you can bring additional files into your build directory with the 
+``extra files`` option.
 
 .. code:: yaml
 

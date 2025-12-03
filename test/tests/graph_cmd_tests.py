@@ -2,6 +2,7 @@ import unittest
 
 from pavilion import arguments
 from pavilion import commands
+from pavilion.test_ids import resolve_mixed_ids
 from pavilion.unittest import PavTestCase
 
 
@@ -156,6 +157,8 @@ class ResolverTests(PavTestCase):
             '-o', '/tmp/foo.png',
             '--x', 'id',
             '--y', 'id',
-        ] + [test.full_id for test in tests])
+        ] + [str(test.id) for test in tests])
+
+        args.series = []
 
         cmd.run(self.pav_cfg, args)

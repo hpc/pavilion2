@@ -77,8 +77,7 @@ Pavilion doesn't come with any tests itself (though it does come with
 example tests in ``examples/``); it's just a system for
 running them on HPC clusters. Each test needs a configuration script,
 and most will need some source files. Both of these will live in one of
-your :ref:`config.config_dirs` under the ``tests/`` and ``test_src/``
-sub-directories.
+your :ref:`config.config_dirs` under the ``suites/`` sub-directory.
 
 Test configs tell pavilion what environment it needs to build and run
 your test, the commands to run it, how to schedule it on a cluster, and
@@ -144,6 +143,11 @@ current host, which is provided via a built-in
 providing your own sys\_var plugin, typically to use more colloquial names for
 systems.
 
+.. note::
+    It is also possible to specify host configs on a per-suite basis using a slightly
+    different format. For more information on suite-specific host configs, see the
+    section on :ref:`tests.suites`.
+
 Running tests
 ~~~~~~~~~~~~~
 
@@ -165,7 +169,7 @@ suite). Did you forget what you named them? That's ok! Just ask Pavilion.
     1 tests started as test series s33.
 
 If you want to run every test in the suite, you can just give the suite
-name. You can also run whatever combinations of tests you want. You also
+name. You can also run whatever combinations of tests you want. You can also
 list tests in a file and have Pavilion read that.
 
 .. code:: bash
@@ -183,7 +187,7 @@ Test Status
 ^^^^^^^^^^^
 
 If you want to know what's going on with your tests, just use the
-``pav  status`` command.
+``pav status`` command.
 
 .. code:: bash
 
@@ -201,7 +205,7 @@ Test Series and ID's
 ~~~~~~~~~~~~~~~~~~~~
 
 From the above, you may have noticed that each test gets a series id
-like ``s24`` and a test id like ``41``. You can use these id's to
+like ``s24`` and a test id like ``41``. You can use these ID's to
 reference tests or suites of tests to get their status, results, and
 logs through the pavilion interface. The ID's are unique for a given
 Pavilion :ref:`config.working_dir` but they will
@@ -211,6 +215,9 @@ Test Results
 ~~~~~~~~~~~~
 
 Pavilion builds a mapping of result keys and values for every test that
+runs. You can view the results of any tests using the ``pav results``
+command.
+
 runs. You can view the results of any tests using the ``pav results``
 command.
 
@@ -239,7 +246,7 @@ Every test has a results object that contains a variety of useful,
 automatically populated keys. Additional keys can be defined through
 :ref:`result parsing and result evaluations <results.basics>`.
 
-Results are saved alongside each test, as well being written to a
+Results are saved alongside each test, as well as being written to a
 central result log that is suitable for import into Splunk or other
 tools.
 

@@ -12,9 +12,10 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
-from typing import Callable, List, Iterable, Any, Dict, NewType, \
-    Union, NamedTuple, IO, Tuple
+from typing import Callable, List, Iterable, Any, Dict, NewType, Optional, \
+    Union, NamedTuple, IO, Tuple, TypeVar
 
+from pavilion.config import PavConfig
 from pavilion import lockfile
 from pavilion import output
 
@@ -27,7 +28,12 @@ PKEY_FN = 'next_id'
 LOGGER = logging.getLogger(__file__)
 
 
-def make_id_path(base_path, id_) -> Path:
+SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
+                                         ('paths', List[Path])])
+T = TypeVar("T")
+
+
+def make_id_path(base_path: Path, id_: Union[str, int]) -> Path:
     """Create the full path to an id directory given its base path and
     the id.
 
@@ -36,7 +42,7 @@ def make_id_path(base_path, id_) -> Path:
     :rtype: Path
     """
 
-    return base_path / (ID_FMT.format(id=id_))
+    return base_path / str(id_)
 
 
 def reset_pkey(id_dir: Path) -> None:
@@ -53,21 +59,26 @@ def reset_pkey(id_dir: Path) -> None:
         pass
 
 
-def create_id_dir(id_dir: Path) -> (int, Path):
+def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
+                  next_fn: Optional[Path] = None) -> Tuple[int, Path]:
     """In the given directory, create the lowest numbered (positive integer)
-    directory that doesn't already exist.
+    directory that doesn't already exist. If link_target is given, create a
+    symlink to that target instead of a directory.
 
     :param id_dir: Path to the directory that contains these 'id'
         directories
+    :param link_target: Create the ID path as a symlink to the given target, rather than as
+                        a directory.
+    :param: next_fn: File from which to read the next ID.
     :returns: The id and path to the created directory.
     :raises OSError: on directory creation failure.
     :raises TimeoutError: If we couldn't get the lock in time.
     """
 
     lockfile_path = id_dir/'.lockfile'
-    with lockfile.LockFile(lockfile_path, timeout=1):
-        next_fn = id_dir/PKEY_FN
+    next_fn = next_fn or id_dir/PKEY_FN
 
+    with lockfile.LockFile(lockfile_path, timeout=1):
         next_valid = True
 
         if next_fn.exists():
@@ -103,7 +114,10 @@ def create_id_dir(id_dir: Path) -> (int, Path):
 
             next_id_path = make_id_path(id_dir, next_id)
 
-        next_id_path.mkdir()
+        if link_target is None:
+            next_id_path.mkdir()
+        else:
+            next_id_path.symlink_to(link_target)
         with next_fn.open('w') as next_file:
             next_file.write(str(next_id + 1))
 
@@ -116,21 +130,22 @@ def default_filter(_: Path) -> bool:
     return True
 
 
-Index = NewType("Index", Dict[int, Dict['str', Any]])
+Index = NewType("Index", Dict[int, Dict[str, Any]])
 
 
-def identity(value):
+def identity(value: T) -> T:
     """Because lambdas can't be pickled."""
     return value
 
 
-def index(pav_cfg,
-          id_dir: Path, idx_name: str,
+def index(pav_cfg: PavConfig,
+          id_dir: Path,
+          idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
           refresh_period: int = 1,
-          verbose: IO[str] = None,
-          fn_base: int = 10) -> Index:
+          verbose: Optional[IO[str]] = None,
+          fn_base: int = 16) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
     the transformed data.
@@ -254,11 +269,11 @@ def index(pav_cfg,
     return idx
 
 
-SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
-                                         ('paths', List[Path])])
-
-
-def select_one(path, ffunc, trans, ofunc, fnb):
+def select_one(path: Path,
+               ffunc: Optional[Callable[[Path], bool]],
+               trans: Optional[Callable[[Path], T]],
+               ofunc: Callable[[T], Any],
+               fnb: int) -> Optional[T]:
     """Allows the objects to be filtered and transformed in parallel with map.
 
     :param path: Path to filter and transform (input to reduced function)
@@ -294,17 +309,17 @@ def select_one(path, ffunc, trans, ofunc, fnb):
     return item
 
 
-def select(pav_cfg,
+def select(pav_cfg: PavConfig,
            id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
-           transform: Callable[[Path], Any] = None,
-           order_func: Callable[[Any], Any] = None,
+           transform: Optional[Callable[[Path], Any]] = None,
+           order_func: Optional[Callable[[Dict[str, Any]], Any]] = None,
            order_asc: bool = True,
-           fn_base: int = 10,
+           fn_base: int = 16,
            idx_complete_key: 'str' = 'complete',
            use_index: Union[bool, str] = True,
            verbose: IO[str] = None,
-           limit: int = None) -> (List[Any], List[Path]):
+           limit: int = None) -> SelectItems:
     """Filter and order found paths in the id directory based on the filter and
     other parameters. If a transform is given, this will create an index of the
     data returned by the transform to hasten this process.
@@ -378,15 +393,14 @@ def select(pav_cfg,
             fn_base=fn_base,
             limit=limit)
 
-
-def select_from(pav_cfg,
+def select_from(pav_cfg: PavConfig,
                 paths: Iterable[Path],
-                filter_func: Callable[[Any], bool] = default_filter,
-                transform: Callable[[Path], Any] = None,
-                order_func: Callable[[Any], Any] = None,
+                filter_func: Callable[[T], bool] = default_filter,
+                transform: Optional[Callable[[Path], T]] = None,
+                order_func: Optional[Callable[[T], Any]] = None,
                 order_asc: bool = True,
-                fn_base: int = 10,
-                limit: int = None) -> (List[Any], List[Path]):
+                fn_base: int = 16,
+                limit: int = None) -> SelectItems:
     """Filter, order, and truncate the given paths based on the filter and
     other parameters.
 

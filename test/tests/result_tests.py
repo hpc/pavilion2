@@ -7,6 +7,7 @@ import json
 import logging
 import pprint
 from collections import OrderedDict
+from pathlib import Path
 
 import pavilion.errors
 import pavilion.result
@@ -24,6 +25,8 @@ from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion.timing import wait
+from pavilion.result_logging import get_result_loggers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -816,14 +819,14 @@ class ResultParserTests(PavTestCase):
             test.wait(10)
 
         res_args = arg_parser.parse_args(
-            ('result', '--full') + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result', '--full') + tuple(str(t.id) for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
                       .format(cmd_out, cmd_err))
 
         res_args = arg_parser.parse_args(
-            ('result',) + tuple(t.full_id for t in run_cmd.last_tests))
+            ('result',) + tuple(str(t.id) for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
@@ -831,7 +834,7 @@ class ResultParserTests(PavTestCase):
 
         for test in run_cmd.last_tests:
             # Each of these tests should have a 'FAIL' as the result.
-            self.assertEqual(test.results['result'], TestRun.FAIL, 
+            self.assertEqual(test.results['result'], TestRun.FAIL,
                              msg='Should be FAIL {}'.format(test.results))
 
         # Make sure we can re-run results, even with permutations.
@@ -839,10 +842,11 @@ class ResultParserTests(PavTestCase):
         result_cmd.clear_output()
         res_args = arg_parser.parse_args(
             ('result', '--re-run', '--json') +
-            tuple(t.full_id for t in run_cmd.last_tests))
+            tuple(str(t.id) for t in run_cmd.last_tests))
         result_cmd.run(rerun_cfg, res_args)
 
         data, err = result_cmd.clear_output()
+
         results = json.loads(data)
         results = {res['name']: res for res in results}
 
@@ -864,7 +868,7 @@ class ResultParserTests(PavTestCase):
 
         # Make sure the log argument doesn't blow up.
         res_args = arg_parser.parse_args(
-            ('result', '--show-log') + (run_cmd.last_tests[0].full_id,))
+            ('result', '--show-log') + (str(run_cmd.last_tests[0].id),))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
@@ -877,10 +881,10 @@ class ResultParserTests(PavTestCase):
         test_cfg['build']['cmds'] = ['false']
         bad_test = self._quick_test(test_cfg)
         res_args = arg_parser.parse_args(
-            ('result', '--re-run', bad_test.full_id))
+            ('result', '--re-run', str(bad_test.id)))
         self.assertEqual(result_cmd.run(self.pav_cfg, res_args), 0)
         out, err = result_cmd.clear_output()
-        self.assertIn(bad_test.full_id, err)
+        self.assertIn(str(bad_test.id), err)
 
     def test_result_cmd_by_key(self):
         """Check the by-key and by-key-compat options."""
@@ -898,9 +902,9 @@ class ResultParserTests(PavTestCase):
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
         for test in run_cmd.last_tests:
             test.wait(10)
- 
+
         res_args = arg_parser.parse_args(
-            ('result', '--by-key-compat', run_cmd.last_tests[0].full_id))
+            ('result', '--by-key-compat', str(run_cmd.last_tests[0].id)))
         rslt = result_cmd.run(self.pav_cfg, res_args)
         cmd_out, cmd_err = result_cmd.clear_output()
         self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
@@ -909,7 +913,7 @@ class ResultParserTests(PavTestCase):
         self.assertIn('data', cmd_out)
 
         res_args = arg_parser.parse_args(
-            ('result', '--by-key=data', run_cmd.last_tests[0].full_id))
+            ('result', '--by-key=data', str(run_cmd.last_tests[0].id)))
         rslt = result_cmd.run(self.pav_cfg, res_args)
         cmd_out, cmd_err = result_cmd.clear_output()
         self.assertEqual(rslt, 0, "Result command failed: \n{}\n{}"
@@ -947,16 +951,16 @@ class ResultParserTests(PavTestCase):
         rslts = bad_rslts.gather_results(bad_rslts.run())
         bad_rslts.save_results(rslts)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', str(good.id)])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 0)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_run.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', str(good.id), str(bad_run.id)])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_build.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', str(good.id), str(bad_build.id)])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
 
-        args = arg_parser.parse_args(['result', '--all-passed', good.full_id, bad_rslts.full_id])
+        args = arg_parser.parse_args(['result', '--all-passed', str(good.id), str(bad_rslts.id)])
         self.assertEqual(rslts_cmd.run(self.pav_cfg, args), 1)
 
     def test_re_search(self):
@@ -1074,45 +1078,36 @@ class ResultParserTests(PavTestCase):
         """Make sure result flattening works as expected, as well as regular
         result output while we're at it."""
 
-        cfg = self._quick_test_cfg()
+        arg_parser = arguments.get_parser()
+        cmd = ['run', '-H', 'this', 'flatten_results']
+        args = arg_parser.parse_args(cmd)
 
-        cfg['run']['cmds'] = [
-            'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
-        ]
-        cfg['result_parse']['regex'] = {
-            'hello': {
-                'regex':    r'hello \d+',
-                'files':    '*.out',
-                'per_file': 'name',
-            }
-        }
+        run_cmd = commands.get_command(args.command_name)
 
-        test = self._quick_test(cfg, name="flatten_results_test1")
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
 
-        run_result = test.run()
-        results = test.gather_results(run_result)
-        test.save_results(results)
+        series1 = run_cmd.last_series
+
+        loggers = get_result_loggers(self.pav_cfg, series1.id)
+        series1.log_results(loggers)
+
+        series1.wait(10)
+        series1.wait_log(10)
+
+        result_log1 = series1.get_result_paths()[0]
 
         flattened = {}
 
-        test2 = self._quick_test(cfg, name="flatten_results_test2")
-        run_result = test2.run()
-        results = test2.gather_results(run_result)
-        test2._pav_cfg = test2._pav_cfg.copy()
-        test2._pav_cfg['flatten_results'] = False
-        test2.save_results(results)
+        with open(result_log1) as fin:
+            lines = fin.readlines()
 
-        with self.pav_cfg['result_log'].open() as results_log:
-            for line in results_log.readlines():
+            for line in lines:
                 _result = json.loads(line)
 
                 # Reconstruct the per_file dict, so that flattened and
                 # unflattened are the same. If there's a format error, this
                 # will have problems.
-                if _result['name'] == "unittest.flatten_results_test1":
-                    flattened[_result['file']] = {'hello': _result['hello']}
-                elif _result['name'] == "unittest.flatten_results_test2":
-                    unflattened = _result['per_file']
+                flattened[_result['file']] = {'hello': _result['hello']}
 
         answer = {
             '1': {'hello': 'hello 1'},
@@ -1122,4 +1117,28 @@ class ResultParserTests(PavTestCase):
         }
 
         self.assertEqual(flattened, answer)
+
+        self.pav_cfg["flatten_results"] = False
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+
+        series2 = run_cmd.last_series
+
+        loggers = get_result_loggers(self.pav_cfg, str(series2.id))
+        series2.log_results(loggers)
+
+        series2.wait()
+        series2.wait_log()
+
+        result_log2 = series2.get_result_paths()[0]
+
+        unflattened = {}
+
+        with open(result_log2) as fin:
+            lines = fin.readlines()
+
+            for line in lines:
+                _result = json.loads(line)
+                unflattened = _result["per_file"]
+
         self.assertEqual(unflattened, answer)

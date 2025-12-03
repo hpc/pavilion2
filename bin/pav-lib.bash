@@ -1,6 +1,12 @@
 
 PAV_PATH=$(dirname "${BASH_SOURCE[0]}")/pav
 
+# Echo the first argument, then return false
+function err() {
+    echo $1
+    return 1
+}
+
 # Find the module command to use. It's printed to stdout, nothing is printed if
 # be found.
 function find_module_cmd() {

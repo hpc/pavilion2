@@ -16,8 +16,8 @@ In addition to host config files, you can provide mode config files that
 you can apply to any test when you run it. They have the same format as
 the host configs, but multiple can be provided per test.
 
-Unlike host configs, mode configs apply _last_ in the process, overriding
-values set be host configs and the test itself.
+Unlike host configs, mode configs apply *last* in the process, overriding
+values set by host configs and the test itself.
 
 For example, the following mode file could be used to set a particular
 set of slurm vars:
@@ -38,7 +38,7 @@ Test Series
 A test series is a well defined group of tests that are designated to be
 run together. A series is created automatically whenever you use ``pav run``,
 but you can also explicitly define series using a
-``configs/series/<series_name>.yaml`` file. This allows you defined
+``configs/series/<series_name>.yaml`` file. This allows you to define
 relationships and dependencies between the tests, among other things.
 
 See :ref:`tutorials.series`.
@@ -57,13 +57,15 @@ Variables
 Test configs can contain *expressions* within their config values that
 reference and manipulate variables.
 
-These variables come from a variety of sources (this is also the
-resolution order):
+These variables come from a variety of sources, each of which is associated
+with a particular *variable category*, shown in parentheses:
 
-- The test config's variables section (var)
-- System Plugins (sys)
-- Pavilion hardcoded variables (pav)
-- The selected scheduler (sched)
+1. The test config's variables section (`var`)
+2. System Plugins (`sys`)
+3. Pavilion hardcoded variables (`pav`)
+4. The selected scheduler (`sched`)
+
+The above ordering is also the resolution order for variables.
 
 Variable names must be in lowercase and start with a letter, but may
 contain number and underscores.
@@ -86,7 +88,7 @@ contain number and underscores.
 -  Use double curly brackets ``{{var.myvar}}``.
 -  Variable category is optional. ``{{myvar}}`` is fine.
 -  Name conflicts are resolved in the order of categories listed above.
--  In fact, it's recommended to not use the category component unless
+-  In fact, it's recommended not to use the category component unless
    you need to make the reference explicit.
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
@@ -452,6 +454,33 @@ scheduler, but don't configure one. It's time to rectify that.
 - See ``pav show sched --vars <sched_name>`` for a listing of what variables are
   available for a given scheduler.
 - See ``pav show sched --config`` for full scheduler configuration documentation.
+
+
+Filtering Tests
+---------------
+
+Many pavilion commands, including ``pav status`` and ``pav cancel``, support the ``--filter``
+option, which allows users to select which tests the command should operate on. For instance,
+to view the status of only those tests run by user ``jim``, we can use the following command:
+
+.. code-block::
+
+    pav status --filter="user=jim"
+
+Or, to view only tests created in the past hour:
+
+.. code-block::
+
+    pav status --filter="created>1 hour"
+
+We can also combine filter predicates using boolean operators. The following command displays the
+status of all failed tests created in the past hour by either Jim or Jane:
+
+.. code-block::
+
+    pav status --filter="created>1 hour and FAILED and (user=jim or user=jane)"
+
+For a comprehensive overview of all available filter options, run ``pav status --help``.
 
 
 An Automated Workflow

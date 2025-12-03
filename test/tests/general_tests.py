@@ -9,6 +9,7 @@ from typing import List
 import yc_yaml as yaml
 from pavilion.test_run import TestRun
 from pavilion import utils
+from pavilion.test_ids import TestID
 from pavilion.unittest import PavTestCase
 
 
@@ -121,14 +122,14 @@ class GeneralTests(PavTestCase):
             shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
                             symlinks=True)
 
-            run_id = 'test.{}'.format(run)
+            run_id = TestID(run)
 
             # Move the build directory into place
             build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
             build_dst = dst_path/build_dst
             (dst_path/'build_dir').rename(build_dst)
 
-            test = TestRun.load_from_raw_id(self.pav_cfg, run_id)
+            test = TestRun.load_from_raw_id(self.pav_cfg, run_id, legacy=True)
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 

@@ -4,6 +4,7 @@ from pavilion import cancel_utils
 from pavilion import schedulers
 from pavilion import unittest
 from pavilion.status_file import STATES
+from pavilion.timing import wait
 
 
 class CancelTests(unittest.PavTestCase):
@@ -15,7 +16,7 @@ class CancelTests(unittest.PavTestCase):
         test_cfg = self._quick_test_cfg()
         test_cfg['run']['cmds'] = ['sleep 5']
         test_cfg['scheduler'] = 'dummy'
-        test_cfg['schedule'] = {'nodes': 'all'} 
+        test_cfg['schedule'] = {'nodes': 'all'}
         test1 = self._quick_test(test_cfg, finalize=False)
         test2 = self._quick_test(test_cfg, finalize=False)
 
@@ -27,11 +28,8 @@ class CancelTests(unittest.PavTestCase):
         test1.cancel("For fun")
 
         # Wait till we know test2 is running
-        while not test1.complete:
-            time.sleep(0.1)
-
-        while not test2.status.has_state(STATES.RUNNING):
-            time.sleep(0.1)
+        wait(lambda: test1.complete, interval=0.2, timeout=10)
+        wait(lambda: test2.status.has_state(STATES.RUNNING), interval=0.2, timeout=10)
 
         jobs = cancel_utils.cancel_jobs(self.pav_cfg, [test1, test2])
         self.assertEqual(test2.status.current().state, STATES.RUNNING)

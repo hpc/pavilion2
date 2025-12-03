@@ -5,14 +5,14 @@ Config Values
 
 All of the values in a Pavilion configuration are parsed and resolved. They
 can contain *expressions* and *iterations*, which let Pavilion dynamically
-alter the each test configuration.
+alter each test configuration.
 
 .. contents::
 
 Environment Variables
 ---------------------
 
-To head off some confusion we've ran into with new Pavilion users - Variables
+To head off some confusion we've run into with new Pavilion users: variables
 in Pavilion **are NOT** environment variables. Pavilion variable references/expressions
 are resolved before any scripts are written, while environment variables would
 be resolved during the execution of those scripts.
@@ -26,7 +26,7 @@ Mathematical Expressions
 
 Expressions are contained within double curly braces. They can contain
 :ref:`variable references <tests.variables>`, function calls, and math
-operations.  **Expressions often behave similarly to Python3, but they are
+operations.  **Expressions often behave similarly to expressions in Python3, but they are
 not Python3 code.**
 
 
@@ -52,8 +52,8 @@ Types of Expressions
 ^^^^^^^^^^^^^^^^^^^^
 
 This documentation covers expressions within the context of Pavilion value
-strings. They may also be used, with the exact same syntax (but using result
-keys as variables), in the 'result_evaluate' section. See
+strings. Expressions may also be used, with the exact same syntax (but using result
+keys as variables), in the ``result_evaluate`` section. See
 :ref:`results.evaluate`.
 
 Supported Math
@@ -72,10 +72,10 @@ identically to Python3 (with one noted exception). This includes:
 List Operations
 ^^^^^^^^^^^^^^^
 
-When using math operations with list values, the operation is applied
-recursively to each element. Operations between two lists require that the
-lists be equal length, and apply the operation between each corresponding pair
-of items.
+When using math operations with list values, operations are applied
+element-wise to the members of the list. Operations between two lists require that the
+lists be of equal length and are applied to corresponding pairs of items,
+producing a new list of the same length.
 
 .. code-block::
 
@@ -84,7 +84,7 @@ of items.
             nums: [1, 2, 3, 4]
             mult: [4, 4, 2, 1.5]
 
-            # This would add 3 to each value in the num list, then take average.
+            # This would add 3 to each value in the num list, then take the average.
             # The result would thus be (4 + 5 + 6 + 7)/4 == 5.5
             avg_adj_nums: '{{avg(nums + 3)}}'
 
@@ -94,9 +94,9 @@ of items.
 List Indexing and Slicing
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can reference individual items and slices from lists both from variables when they're returned
-from functions. The syntax ``val[start:end]`` mirrors that of Python.  You can also use the
-Pavilion classic syntax of ``val.1`` or ``val.*`` to access individual items or get the full list of
+You can reference both individual items and slices from list variables.
+The syntax ``val[start:end]`` mirrors that of Python.  You can also use the
+Pavilion syntax of ``val.1`` or ``val.*`` to access individual items or get the full list of
 items (``val`` is the same as ``val.0`` or ``val[0]``).
 
 .. code-block::
@@ -112,10 +112,10 @@ Types and End Results
 
 Math operations handle ints, floats, and booleans (``True`` and ``False``).
 Variable values are always strings, but are auto-converted as if they were
-literal ints, floats or booleans when used in math or logic operations.
+literal ints, floats, or booleans when used in math or logic operations.
 
-Strings, lists (of these types) and dictionaries/mappings are allowed as well.
-While they can't be used in math operations, they are often useful in as
+Strings, lists (of these types), and dictionaries/mappings are allowed as well.
+While they can't be used in math operations, they are often useful as
 function arguments.
 
 The final result of an expression cannot be a list or dict - this will result
@@ -124,7 +124,7 @@ in an error.
 Result Formatting
 `````````````````
 
-Expressions can be formatted using printf-like format codes. These are put at
+Expressions can be formatted using ``printf``-like format codes. These are put at
 the end of the expression after a colon:
 
 .. code-block:: yaml
@@ -159,8 +159,8 @@ Functions can be used within expressions as well.
 Iterations
 ----------
 
-Iterations give you the ability to insert that string once for every
-value of a contained variable. They're bracketed by ``[~`` and ``~]``.
+Iterations give you the ability to insert the elements of a list variable into a string, repeating
+a given pattern once for each value in the list. Iterations are bracketed by ``[~`` and ``~]``.
 
 .. code-block:: yaml
 
@@ -239,7 +239,7 @@ In all the iterations we've used so far, the variables were in the form:
 value from a multi-valued variable, we can still do that. You can't, however,
 access a specific value from a variable that is being iterated over.
 
-..code-block
+.. code-block:: yaml
 
     super_magic_fs:
         variables:

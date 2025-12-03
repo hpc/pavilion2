@@ -30,7 +30,7 @@ class LogCmdTest(PavTestCase):
             time.sleep(.1)
 
         # test `pav log run test`
-        args = parser.parse_args(['run', test.full_id])
+        args = parser.parse_args(['run', str(test.id)])
         result = log_cmd.run(self.pav_cfg, args)
         out, err = log_cmd.clear_output()
         self.assertEqual(err, '')
@@ -39,7 +39,7 @@ class LogCmdTest(PavTestCase):
 
         # test `pav log build test`
         # note: echo-ing hello world should not require anything to be built
-        args = parser.parse_args(['build', test.full_id])
+        args = parser.parse_args(['build', str(test.id)])
         log_cmd.run(self.pav_cfg, args)
         out, err = log_cmd.clear_output()
         out_data = '\n'.join(line for line in out.split('\n')
@@ -49,7 +49,7 @@ class LogCmdTest(PavTestCase):
 
         # test `pav log kickoff test`
         # note: in general, kickoff.log should be an empty file
-        args = parser.parse_args(['kickoff', test.full_id])
+        args = parser.parse_args(['kickoff', str(test.id)])
         result = log_cmd.run(self.pav_cfg, args)
         out, err = log_cmd.clear_output()
         self.assertEqual(out, '')
@@ -89,7 +89,7 @@ class LogCmdTest(PavTestCase):
         while not test.complete and time.time() < end:
             time.sleep(.1)
 
-        args = parser.parse_args(['--tail', '3', 'run', test.full_id])
+        args = parser.parse_args(['--tail', '3', 'run', str(test.id)])
         result = log_cmd.run(self.pav_cfg, args)
         self.assertEqual(result, 0)
         out, err = log_cmd.clear_output()
@@ -109,7 +109,7 @@ class LogCmdTest(PavTestCase):
         parser = argparse.ArgumentParser()
         log_cmd._setup_arguments(parser)
 
-        args = parser.parse_args(['--follow', 'run', test.full_id])
+        args = parser.parse_args(['--follow', 'run', str(test.id)])
         thread = threading.Thread(target=log_cmd.run, args=(self.pav_cfg, args))
         thread.start()
         time.sleep(.2)
@@ -133,10 +133,10 @@ class LogCmdTest(PavTestCase):
         log_cmd._setup_arguments(parser)
 
         for args in (
-                ('states', test.full_id),
-                ('states', '--raw', test.full_id),
-                ('states', '--raw_time', test.full_id),
-                ('states', '--raw', '--raw_time', test.full_id),
+                ('states', str(test.id)),
+                ('states', '--raw', str(test.id)),
+                ('states', '--raw_time', str(test.id)),
+                ('states', '--raw', '--raw_time', str(test.id)),
                 ):
             args = parser.parse_args(args)
             self.assertEqual(log_cmd.run(self.pav_cfg, args), 0)

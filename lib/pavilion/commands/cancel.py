@@ -8,10 +8,11 @@ from pavilion import cancel_utils
 from pavilion import cmd_utils
 from pavilion import filters
 from pavilion import output
-from pavilion import series
+from pavilion.series import TestSeries
 from pavilion.errors import TestSeriesError
 from pavilion.test_run import TestRun
 from pavilion.config import PavConfig
+from pavilion.test_ids import resolve_mixed_ids, SeriesID
 from pavilion.micro import partition
 from .base_classes import Command
 from ..errors import TestRunError
@@ -45,28 +46,29 @@ class CancelCommand(Command):
     def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Cancel the given tests or series."""
 
-        if len(args.tests) == 0:
-            # Get the last series ran by this user.
-            series_id = series.load_user_series_id(pav_cfg)
+        ids = resolve_mixed_ids(args.tests, auto_last=True)
+        tests = ids["tests"]
+        series = ids["series"]
 
-            if series_id is not None:
-                args.tests.append(series_id)
+        test_ret = 0
+        sers_ret = 0
 
-        # Separate out into tests and series
-        series_ids, test_ids = partition(cmd_utils.is_series_id, args.tests)
-
-        args.tests = test_ids
-        args.series = series_ids
-
-        # Get TestRun and TestSeries objects
-        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile).paths
-        tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
-
-        sinfos = cmd_utils.arg_filtered_series(pav_cfg, args, verbose=self.errfile)
-        test_series = map(lambda x: series.TestSeries.load(pav_cfg, x.sid), sinfos)
-
-        # Cancel TestRuns and TestSeries
-        test_ret = cancel_utils.cancel_tests(pav_cfg, tests, self.outfile)
-        sers_ret = cancel_utils.cancel_series(test_series, self.outfile)
+        if len(tests) > 0:
+            test_paths = cmd_utils.arg_filtered_tests(
+                                    pav_cfg,
+                                    tests,
+                                    series,
+                                    filter_query=args.filter,
+                                    limit=args.limit,
+                                    verbose=self.errfile).paths
+            tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
+            test_ret = cancel_utils.cancel_tests(pav_cfg, tests, self.outfile)
+        if len(series) > 0:
+            sinfos = cmd_utils.arg_filtered_series(
+                                pav_cfg,
+                                series,
+                                verbose=self.errfile)
+            test_series = list(map(lambda x: TestSeries.load(pav_cfg, x.id), sinfos))
+            sers_ret = cancel_utils.cancel_series(test_series, self.outfile)
 
         return test_ret or sers_ret

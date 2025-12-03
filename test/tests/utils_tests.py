@@ -9,6 +9,7 @@ from pathlib import Path
 
 from pavilion import unittest
 from pavilion import utils
+from pavilion.cmd_utils import list_files
 
 
 class UtilsTests(unittest.PavTestCase):
@@ -140,3 +141,121 @@ class UtilsTests(unittest.PavTestCase):
                     self.assertFalse(Path(os.readlink(str(path))).is_absolute())
                 with path.open() as file:
                     self.assertEqual(file.read(), answer)
+
+    def test_copytree_dotfiles(self):
+        """Check that copytree copies dotfiles."""
+
+        with tempfile.TemporaryDirectory() as dir:
+            src = Path(dir) / "src"
+            dest = Path(dir) / "dest"
+            dotfile = src / ".dotfile"
+
+            src.mkdir()
+            dotfile.touch()
+
+            utils.copytree(src, dest)
+
+            names = (map(lambda x: x.name, dest.iterdir()))
+            self.assertIn(".dotfile", names)
+
+    def test_copytree_resolved(self):
+        examples = [
+            {
+                "copy_root": "foo",
+                "files": [
+                    {"name": "foo", "dir": True, "target": None},
+                    {"name": "bar", "dir": False, "target": None},
+                    {"name": "foo/baz", "dir": False, "target": "bar"},
+                ],
+                "expected": [
+                    {"name": "baz", "dir": False, "target": None},
+                ]
+            },
+            {
+                "copy_root": None,
+                "files": [
+                    {"name": "foo", "dir": False, "target": "bar"},
+                    {"name": "bar", "dir": False, "target": "foo"},
+                ],
+                "expected": []
+            },
+            {
+                "copy_root": "foo",
+                "files": [
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "foo/bar", "dir": False, "target": "foobar"},
+                   {"name": "foo/baz", "dir": False, "target": None},
+                   {"name": "foobar", "dir": False, "target": "foo/baz"}
+                ],
+                "expected": [
+                   {"name": "bar", "dir": False, "target": "baz"},
+                   {"name": "baz", "dir": False, "target": None},
+                ]
+            },
+            {
+                "copy_root": None,
+                "files": [
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "bar", "dir": False, "target": None},
+                   {"name": "foo/baz", "dir": False, "target": "bar"},
+                   {"name": "foobar", "dir": False, "target": "bar"},
+                ],
+                "expected": [
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "bar", "dir": False, "target": None},
+                   {"name": "foo/baz", "dir": False, "target": "bar"},
+                   {"name": "foobar", "dir": False, "target": "bar"},
+                ]
+            },
+            {
+                "copy_root": "foo",
+                "files": [
+                   {"name": "foo", "dir": True, "target": None},
+                   {"name": "bar", "dir": False, "target": None},
+                   {"name": "foo/baz", "dir": False, "target": "bar"},
+                   {"name": "foo/foobar", "dir": False, "target": "bar"},
+                ],
+                "expected": [
+                   {"name": "baz", "dir": False, "target": None},
+                   {"name": "foobar", "dir": False, "target": "baz"},
+                ]
+            }
+        ]
+
+        for i, ex in enumerate(examples):
+            with tempfile.TemporaryDirectory() as src:
+                src = Path(src)
+
+                with tempfile.TemporaryDirectory() as dest:
+                    dest = Path(dest)
+
+                    # Create the files.
+                    for f in ex["files"]:
+                        file_path = src / f["name"]
+
+                        if f["dir"]:
+                            file_path.mkdir(parents=True)
+                        else:
+                            if f["target"] is None:
+                                file_path.touch()
+                            else:
+                                target_path = src / f["target"]
+                                file_path.symlink_to(target_path)
+
+                    if ex["copy_root"] is None:
+                        utils.copytree_resolved(src, dest)
+                    else:
+                        utils.copytree_resolved(src / ex["copy_root"], dest)
+
+                    expected = set(Path(f["name"]) for f in ex["expected"])
+                    actual = set(p.relative_to(dest) for p in list_files(dest))
+
+                    self.assertEqual(expected, actual)
+
+                    for f in ex["expected"]:
+                        for g in actual:
+                            if Path(f["name"]) == g:
+                                if f["target"] is None:
+                                    self.assertFalse((dest / g).is_symlink())
+                                else:
+                                    self.assertTrue((dest / g).is_symlink())

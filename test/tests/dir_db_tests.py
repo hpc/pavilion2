@@ -95,7 +95,7 @@ class DirDBTests(unittest.PavTestCase):
                  'd': d,
                  'complete': complete}
 
-        key = str(id_)
+        key = hex(id_)[2:]
         path = index_path / key
         path.mkdir(exist_ok=True)
         with (path / 'data').open('w') as data_file:

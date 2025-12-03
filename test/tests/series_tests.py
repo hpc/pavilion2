@@ -8,12 +8,25 @@ from pavilion.errors import TestSeriesError
 from pavilion.unittest import PavTestCase
 
 
+def durations_overlap(durations):
+    """Return true if any of the given test durations overlap with one another."""
+
+    durations.sort()
+
+    for i in range(len(durations) - 1):
+        for j in range(i + 1, len(durations)):
+            if durations[j][0] < durations[i][1]:
+                return True
+
+    return False
+
+
 class SeriesTests(PavTestCase):
 
     def test_init(self):
         """Check initialization of the series object."""
 
-        ignore_keys = ['outfile', 'cancel_limiter']
+        ignore_keys = ['outfile', 'cancel_limiter', 'result_loggers']
 
         # Initialize from scratch
         series1 = series.TestSeries(
@@ -24,7 +37,7 @@ class SeriesTests(PavTestCase):
         # Add a basic test set and save.
         series1.add_test_set_config('series1', ['pass_fail'])
 
-        series2 = series.TestSeries.load(self.pav_cfg, series1.sid)
+        series2 = series.TestSeries.load(self.pav_cfg, series1.id)
 
         # Make sure a loaded series is the same as the original
         for attr in series1.__dict__.keys():
@@ -104,13 +117,16 @@ class SeriesTests(PavTestCase):
         test_series_obj.wait(timeout=10)
 
         last_ended = None
-        for test_id in sorted(test_series_obj.tests):
+
+        durations = []
+
+        for test_id in test_series_obj.tests:
             test_obj = test_series_obj.tests[test_id]
             started = test_obj.results['started']
             ended = test_obj.results['finished']
-            if last_ended is not None:
-                self.assertLessEqual(last_ended, started)
-            last_ended = ended
+            durations.append((started, ended))
+
+            self.assertFalse(durations_overlap(durations))
 
     def test_series_test_set_simultaneous(self):
         """Test to see if simultaneous in the test_set overrides the simultaneous at full series"""
@@ -131,14 +147,15 @@ class SeriesTests(PavTestCase):
         test_series_obj.run()
         test_series_obj.wait(timeout=10)
 
-        last_ended = None
-        for test_id in sorted(test_series_obj.tests):
+        durations = []
+
+        for test_id in test_series_obj.tests:
             test_obj = test_series_obj.tests[test_id]
             started = test_obj.results['started']
             ended = test_obj.results['finished']
-            if last_ended is not None:
-                self.assertLessEqual(last_ended, started)
-            last_ended = ended
+            durations.append((started, ended))
+
+            self.assertFalse(durations_overlap(durations))
 
     def test_series_modes(self):
         """Test if modes and host are applied correctly."""

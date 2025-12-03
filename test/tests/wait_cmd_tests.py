@@ -26,7 +26,7 @@ class WaitCmdTests(PavTestCase):
         series = TestSeries(self.pav_cfg, None)
         for test in tests:
             series._add_test('test_set', test)
-        test_str = " ".join([test.full_id for test in series.tests.values()])
+        test_str = " ".join([str(test.id) for test in series.tests.values()])
 
         wait_cmd = commands.get_command('wait')
         wait_cmd.outfile = io.StringIO()
@@ -35,7 +35,7 @@ class WaitCmdTests(PavTestCase):
         for test in series.tests.values():
             parser = argparse.ArgumentParser()
             wait_cmd._setup_arguments(parser)
-            arg_list = ['-t', '1', test.full_id]
+            arg_list = ['-t', '1', str(test.id)]
             args = parser.parse_args(arg_list)
             self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
 
@@ -50,7 +50,7 @@ class WaitCmdTests(PavTestCase):
         for test in series.tests.values():
             parser = argparse.ArgumentParser()
             wait_cmd._setup_arguments(parser)
-            arg_list = ['-t', '1', test.full_id]
+            arg_list = ['-t', '1', str(test.id)]
             args = parser.parse_args(arg_list)
             self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
 

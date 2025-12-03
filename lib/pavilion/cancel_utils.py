@@ -71,7 +71,7 @@ def cancel_jobs(
                     'success': False,
                     'msg': "Uncancelled tests still running."})
 
-        return jobs_cancelled
+    return jobs_cancelled
 
 
 SLEEP_PERIOD = 0.3
@@ -100,7 +100,7 @@ def cancel_tests(pav_cfg: PavConfig, tests: Iterable[TestRun], outfile: TextIO,
             title="Cancelling {} test{}".format(test_count, 's' if test_count > 1 else ''),
             outfile=outfile,
             fields=['name', 'id', 'state', 'series'],
-            rows=[{'name': test.name, 'id': test.full_id,
+            rows=[{'name': test.name, 'id': test.id,
                    'state': test.status.current().state, 'series': test.series}
                   for test in cancelled_test_info])
     else:

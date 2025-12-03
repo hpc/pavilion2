@@ -188,8 +188,6 @@ class TestConfigResolver:
         type, if one exists. If the file does not exist in any known suites directory,
         returns None."""
 
-        # import pdb; pdb.set_trace()
-
         paths = []
         labels = list(self.config_labels)
 

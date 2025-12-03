@@ -92,7 +92,7 @@ base class.
     def tear_down(self):
         """Nothing to do by default."""
 
-    def make_pav_config(self, config_dirs: List[Path] = None):
+    def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
         as the config directory.
         """
@@ -111,7 +111,12 @@ base class.
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
         raw_pav_cfg.user_config = False
 
-        raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
+        if result_loggers is None:
+            raw_pav_cfg.result_loggers = [{
+                "plugin": "series_file",
+                "dest": raw_pav_cfg.working_dir/'results'}]
+        else:
+            raw_pav_cfg.result_loggers = result_loggers
 
         if not raw_pav_cfg.working_dir.exists():
             raw_pav_cfg.working_dir.mkdir()
@@ -348,6 +353,7 @@ The default config is: ::
         cfg = resolve.test_config(cfg, var_man)
 
         test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
+
         if test.skipped:
             # You can't proceed further with a skipped test.
             return test
@@ -363,6 +369,7 @@ The default config is: ::
             fin_sched_vars = sched.get_final_vars(test)
             fin_var_man.add_var_set('sched', fin_sched_vars)
             test.finalize(fin_var_man)
+
         return test
 
     def wait_tests(self, working_dir: Path, timeout=5):

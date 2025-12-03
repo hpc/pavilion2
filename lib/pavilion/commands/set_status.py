@@ -6,6 +6,7 @@ import errno
 from pavilion import cmd_utils
 from pavilion import output
 from pavilion.status_file import STATES
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 
@@ -31,8 +32,8 @@ class SetStatusCommand(Command):
             help='Note to set for the test, tests, or suite of tests.'
         )
         parser.add_argument(
-            'test', action='store', metavar='<test_id>',
-            help='The name of the test to set the status of. If no value is '
+            'test', action='store', type=TestID, metavar='<test_id>',
+            help='The ID of the test to set the status of. If no value is '
                  'provided, the most recent suite submitted by this user is '
                  'used.'
         )
@@ -42,7 +43,7 @@ class SetStatusCommand(Command):
 
         # Zero is given as the default when running test scripts outside of
         # Pavilion.
-        if args.test == 0:
+        if args.test.id == 0:
             return 0
 
         tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test], self.errfile)

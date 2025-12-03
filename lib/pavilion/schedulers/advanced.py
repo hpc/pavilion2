@@ -4,11 +4,14 @@ algorithms, and other advanced features."""
 import collections
 import pprint
 from abc import ABC
-from typing import Tuple, List, Any, Union, Dict, FrozenSet, NewType
+from pathlib import Path
+from typing import Tuple, List, Any, Union, Dict, FrozenSet, NewType, Optional
 
+from pavilion.config import PavConfig
 from pavilion.jobs import Job, JobError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
+from pavilion.scriptcomposer import ScriptComposer
 from pavilion.types import NodeInfo, Nodes, NodeList, NodeSet, NodeRange
 from .config import validate_config, AVAILABLE, BACKFILL, calc_node_range
 from .scheduler import SchedulerPlugin
@@ -336,22 +339,28 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for node in include_nodes:
             if node in nodes:
                 nodes.remove(node)
-        chunk_size = chunk_size - len(include_nodes)
 
         chunks = []
-        for i in range(len(nodes)//chunk_size):
-            # Apply the selection function and get our chunk nodes.
-            chunk = self.NODE_SELECTION[node_select](nodes, chunk_size)
-            # Filter out any chosen from our node list.
-            nodes = [node for node in nodes if node not in chunk]
 
-            # Add the 'include_nodes' to every chunk.
-            chunk = include_nodes + chunk
-            chunks.append(chunk)
+        if chunk_size != len(include_nodes):
+            chunk_size = chunk_size - len(include_nodes)
 
-        if nodes and chunk_extra == BACKFILL:
-            backfill = chunks[-1][:chunk_size - len(nodes)]
-            chunks.append(backfill + nodes)
+            for i in range(len(nodes)//chunk_size):
+                # Apply the selection function and get our chunk nodes.
+                chunk = self.NODE_SELECTION[node_select](nodes, chunk_size)
+                # Filter out any chosen from our node list.
+                nodes = [node for node in nodes if node not in chunk]
+
+                # Add the 'include_nodes' to every chunk.
+                chunk = include_nodes + chunk
+                chunks.append(chunk)
+
+            if nodes and chunk_extra == BACKFILL:
+                backfill = chunks[-1][:chunk_size - len(nodes)]
+                chunks.append(backfill + nodes)
+        else:
+            chunks.append(include_nodes)
+
 
         chunk_info = []
         for chunk in chunks:
@@ -382,7 +391,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             node_list_id = int(test.var_man.get('sched.node_list_id'))
 
             sched_config = validate_config(test.config['schedule'])
-            sched_configs[test.full_id] = sched_config
+            sched_configs[test.id] = sched_config
             chunk_spec = test.config.get('chunk')
             if chunk_spec != 'any':
                 # This is validated in test object creation.
@@ -446,7 +455,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         errors = []
 
         for test in tests:
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
 
             if not sched_config['share_allocation']:
                 if sched_config['flex_scheduled']:
@@ -465,14 +474,14 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         for job_share_key, tests in list(share_groups.items()):
             if len(tests) == 1:
                 test = tests[0]
-                if sched_configs[test.full_id]['chunking']['size'] in (0, None):
+                if sched_configs[test.id]['chunking']['size'] in (0, None):
                     flex_tests.append(test)
                 else:
                     indi_tests.append(test)
                 del share_groups[job_share_key]
 
         for job_share_key, tests in share_groups.items():
-            chunking_enabled = sched_configs[tests[0].full_id]['chunking']['size'] not in (0, None)
+            chunking_enabled = sched_configs[tests[0].id]['chunking']['size'] not in (0, None)
             # If the user really wants to use the same nodes even if other nodes are available,
             # setting share_allocation to max will allow that.
             use_same_nodes = True if sched_config['share_allocation'] == 'max' else False
@@ -515,7 +524,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         # At this point the scheduler config should be effectively identical
         # for the test being allocated.
         base_test = tests[0]
-        base_sched_config = sched_configs[base_test.full_id].copy()
+        base_sched_config = sched_configs[base_test.id].copy()
         # Get the longest time limit for all the tests.
         base_sched_config['time_limit'] = max(conf['time_limit'] for conf in
                                               sched_configs.values())
@@ -536,19 +545,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # Clear the node range - it's only used for flexible scheduling.
             node_range = None
 
-
-        job_name = 'pav_{}'.format(','.join(test.name for test in tests[:4]))
-        if len(tests) > 4:
-            job_name += ' ...'
-        script = self._create_kickoff_script_stub(pav_cfg, job_name, job.kickoff_log,
-                                                  base_sched_config, nodes=picked_nodes,
-                                                  node_range=node_range,
-                                                  shebang=base_test.shebang)
-
-        # Run each test via pavilion
-        script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
-        script.command('pav _run {}'.format(" ".join(test.full_id for test in tests)))
-
+        script = self.create_kickoff_script(pav_cfg, tests, job.kickoff_log, nodes=picked_nodes)
         script.write(job.kickoff_path)
 
         # Create symlinks for each test to the one test with the kickoff script and
@@ -561,7 +558,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 pav_cfg=pav_cfg,
                 job=job,
                 sched_config=base_sched_config,
-                job_name=job_name,
+                job_name=self._job_name(tests),
                 nodes=picked_nodes,
                 node_range=node_range)
         except SchedulerPluginError as err:
@@ -598,20 +595,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                                                    prior_error=err, tests=[test]))
                 continue
 
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
 
             node_range = calc_node_range(sched_config, len(chunk))
 
-            job_name = 'pav_{}'.format(test.name)
-            script = self._create_kickoff_script_stub(
-                pav_cfg=pav_cfg,
-                job_name=job_name,
-                log_path=job.kickoff_log,
-                sched_config=sched_config,
-                node_range=node_range,
-                shebang=test.shebang)
-
-            script.command('pav _run {t.full_id}'.format(t=test))
+            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log)
             script.write(job.kickoff_path)
 
             test.job = job
@@ -621,7 +609,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     pav_cfg=pav_cfg,
                     job=job,
                     sched_config=sched_config,
-                    job_name=job_name,
+                    job_name=self._job_name(test),
                     node_range=node_range,
                 )
             except SchedulerPluginError as err:
@@ -658,7 +646,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         # Figure out how many nodes each test needs and sort them least
         for test in tests:
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
 
             min_nodes, max_nodes = calc_node_range(sched_config, chunk_size)
             if max_nodes is None:
@@ -676,7 +664,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                                                    prior_error=err, tests=[test]))
                 continue
 
-            sched_config = sched_configs[test.full_id]
+            sched_config = sched_configs[test.id]
             if needed_nodes == 0:
 
                 if needed_nodes > len(chunk_usage):
@@ -697,16 +685,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                               prior_error=err, tests=[test]))
                 continue
 
-            job_name = 'pav_{}'.format(test.name)
-            script = self._create_kickoff_script_stub(
-                pav_cfg=pav_cfg,
-                job_name=job_name,
-                log_path=job.kickoff_log,
-                sched_config=sched_config,
-                nodes=picked_nodes,
-                shebang=test.shebang)
-
-            script.command('pav _run {t.full_id}'.format(t=test))
+            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log, nodes=picked_nodes)
             script.write(job.kickoff_path)
 
             test.job = job
@@ -716,7 +695,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     pav_cfg=pav_cfg,
                     job=job,
                     sched_config=sched_config,
-                    job_name=job_name,
+                    job_name=self._job_name(test),
                     nodes=picked_nodes)
             except SchedulerPluginError as err:
                 return [self._make_kickoff_error(err, [test])]
@@ -731,3 +710,70 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 .format(self.name, len(test_chunk)))
 
         return errors
+
+    def create_kickoff_script(self,
+                              pav_cfg: PavConfig,
+                              tests: Union[TestRun, List[TestRun]],
+                              log_path: Optional[Path] = None,
+                              nodes: Optional[NodeSet] = None,
+                              isolate: bool = False) -> ScriptComposer:
+        """Create the kickoff script."""
+
+        if not isinstance(tests, list):
+            tests = [tests]
+
+        sched_config = validate_config(tests[0].config['schedule'])
+        time_limits = [t.config["schedule"]["time_limit"] for t in tests \
+                        if t.config["schedule"]["time_limit"] is not None]
+
+        if len(time_limits) > 0:
+            sched_config["time_limit"] = max(time_limits)
+
+        job_name = self._job_name(tests)
+
+        if isolate:
+            job_name = job_name + self.ISOLATE_KICKOFF_SUFFIX
+
+        if nodes is None:
+            node_range = calc_node_range(
+                                    sched_config,
+                                    sched_config['cluster_info']['node_count'])
+        else:
+            node_range = None
+
+        script = self._create_kickoff_script_stub(
+                pav_cfg=pav_cfg,
+                job_name=job_name,
+                log_path=log_path,
+                sched_config=sched_config,
+                node_range=node_range,
+                nodes=nodes,
+                shebang=tests[0].shebang,
+                isolate=isolate)
+
+        test_ids = ' '.join(str(test.id) for test in tests)
+
+        script.newline()
+        script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
+
+        script.newline()
+
+        if isolate:
+            script = tests[0].make_script(script, "run", isolate=True)
+        else:
+            script.command('pav _run {}'.format(test_ids))
+
+        return script
+
+    def _job_name(self, tests: Union[TestRun, List[TestRun]]) -> str:
+        """Given a test, get the name of the job."""
+
+        if not isinstance(tests, list):
+            tests = [tests]
+
+        job_name = 'pav_{}'.format(','.join(test.name for test in tests[:4]))
+
+        if len(tests) > 4:
+            job_name += ' ...'
+
+        return job_name

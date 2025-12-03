@@ -30,9 +30,9 @@ keyword: NAME
         | duration
 
 // Lark's INTs are restricted to non-negative values
-duration: INT [WS] unit ["s"]
+duration: INT unit ["s"]
 
-unit: SECOND
+?unit: SECOND
     | MINUTE
     | HOUR
     | DAY

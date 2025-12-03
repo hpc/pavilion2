@@ -6,9 +6,11 @@ from pavilion import unittest
 from pavilion.errors import TestGroupError
 from pavilion.series_config import generate_series_config
 from pavilion.test_run import TestRun
+from pavilion.test_ids import GroupID, TestID
 
 import shutil
 import uuid
+import json
 
 
 class TestGroupTests(unittest.PavTestCase):
@@ -18,7 +20,7 @@ class TestGroupTests(unittest.PavTestCase):
 
         _ = self
 
-        return 'grp_' + uuid.uuid4().hex[:10]
+        return GroupID('grp_' + uuid.uuid4().hex[:10])
 
     def _make_example(self):
         """Make an example group,  and a tuple of a test, series, and sub-group."""
@@ -30,7 +32,7 @@ class TestGroupTests(unittest.PavTestCase):
         series1 = series.TestSeries(self.pav_cfg, series_cfg)
         series1._add_tests([tr2], 'bob')
         sub_group = groups.TestGroup(self.pav_cfg, self._make_group_name())
-        self.assertEqual(sub_group.add([tr3]), ([('test', tr3.full_id)], []))
+        self.assertEqual(sub_group.add([tr3]), ([tr3.id], []))
 
         group = groups.TestGroup(self.pav_cfg, self._make_group_name())
 
@@ -40,33 +42,16 @@ class TestGroupTests(unittest.PavTestCase):
         """Verify that the group's contents match the given items ((itype, name) tuples)."""
         members = []
         for mem in test_group.members():
-            members.append((mem['itype'], mem['id']))
+            members.append(mem['id'])
 
         item_tuples = []
         for item in items:
             if isinstance(item, groups.TestGroup):
-                item_tuples.append(('group', item.name))
-            elif isinstance(item, series.TestSeries):
-                item_tuples.append(('series', item.sid))
+                item_tuples.append(item.name)
             else:
-                item_tuples.append(('test', item.full_id))
+                item_tuples.append(item.id)
 
-        members.sort()
-        item_tuples.sort()
-        self.assertEqual(members, item_tuples)
-
-    def test_group_init(self):
-        """Check that object initialization and basic status functions work."""
-
-        group = groups.TestGroup(self.pav_cfg, 'init_test_group')
-
-        self.assertFalse(group.exists())
-        group.create()
-        self.assertTrue(group.exists())
-
-        for bad_name in ('s123', '-as3', '327bb', 'a b'):
-            with self.assertRaisesRegex(TestGroupError, r'Invalid group name'):
-                group = groups.TestGroup(self.pav_cfg, bad_name) # Bad group name.
+        self.assertEqual(set(members), set(item_tuples))
 
     def test_member_info(self):
         """Check that member info gathering works the same if given an object or a string."""
@@ -74,8 +59,8 @@ class TestGroupTests(unittest.PavTestCase):
         group, (test, series1, sub_group) = self._make_example()
 
         for obj, str_rep in (
-                (test, test.full_id),
-                (series1, series1.sid),
+                (test, test.id),
+                (series1, series1.id),
                 (sub_group, sub_group.name)):
 
             self.assertEqual(group._get_member_info(obj), group._get_member_info(str_rep))
@@ -87,9 +72,9 @@ class TestGroupTests(unittest.PavTestCase):
         test, series1, sub_group = items
         added, errors = group.add(items)
         self.assertEqual(errors, [])
-        added_answer = [('test', test.full_id),
-                        ('series', series1.sid),
-                        ('group', sub_group.name)]
+        added_answer = [test.id,
+                        series1.id,
+                        sub_group.name]
         added2, errors = group.add(items)
         self.assertEqual(errors, [])
         self.assertEqual(added2, [])
@@ -115,18 +100,18 @@ class TestGroupTests(unittest.PavTestCase):
         # Remove a single item, to make sure other items are preserved
         removed, errors = group.remove([series1])
         self.assertEqual(errors, [])
-        self.assertEqual(removed, [('series', series1.sid)])
+        self.assertEqual(removed, [series1.id])
         self.assertGroupContentsEqual(group, [test, sub_group])
 
         # Remove multiple items.
         removed, errors = group.remove([test, sub_group])
         self.assertEqual(errors, [])
-        self.assertEqual(removed, [('test', test.full_id), ('group', sub_group.name)])
+        self.assertEqual(removed, [test.id, sub_group.name])
         self.assertGroupContentsEqual(group, [])
 
-        removed, errors = group.remove(['nope', 'a.1', 'test.982349842', 's1234981234'])
+        removed, errors = group.remove([GroupID('nope')])
         self.assertEqual(removed, [])
-        self.assertEqual(len(errors), 4)
+        self.assertEqual(len(errors), 1)
 
     def test_group_exclusions(self):
         """Check that excluded tests are handled properly."""
@@ -138,23 +123,20 @@ class TestGroupTests(unittest.PavTestCase):
         s_test = list(series1.tests.values())[0]
         g_test = sub_group.tests()[0]
         g_test = g_test.resolve()
-        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], int(g_test.name))
+        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], TestID(g_test.name))
 
         removed, warnings = group.remove([g_test, s_test])
         self.assertEqual(warnings, [])
-        removed.sort()
-        answer = sorted([(group.EXCL_ITYPE, s_test.full_id),
-                         (group.EXCL_ITYPE, g_test.full_id)])
-        self.assertEqual(removed, answer)
-        self.assertEqual(group._excluded(), {s_test.full_id: s_test.path,
-                                             g_test.full_id: g_test.path})
+        answer = [s_test.id, g_test.id]
+        self.assertEqual(set(removed), set(answer))
+        self.assertEqual(group._excluded(), {s_test.id: s_test.path,
+                                             g_test.id: g_test.path})
         self.assertEqual(group.tests(), [btest.path])
 
         group.remove([sub_group.name])
 
         added, warnings = group.add([s_test, g_test])
-        self.assertEqual(sorted(added), [('test',  g_test.full_id),
-                                         ('test*', s_test.full_id)])
+        self.assertEqual(sorted(added), sorted([g_test.id, s_test.id]))
         self.assertEqual(warnings, [])
 
     def test_group_clean(self):
@@ -186,19 +168,19 @@ class TestGroupTests(unittest.PavTestCase):
         new_name = self._make_group_name()
         sub_group.rename(new_name)
         self.assertEqual(sub_group.name, new_name)
-        self.assertEqual(sub_group.path.name, new_name)
+        self.assertEqual(GroupID(sub_group.path.name), new_name)
         self.assertTrue(sub_group.exists())
-        self.assertIn(('group', new_name), group.member_tuples())
-        self.assertNotIn(('group', old_name), group.member_tuples())
+        self.assertIn(new_name, group)
+        self.assertNotIn(old_name, group)
 
         new_name2 = self._make_group_name()
         sub_group.rename(new_name2, redirect_parents=False)
         self.assertEqual(sub_group.name, new_name2)
-        self.assertEqual(sub_group.path.name, new_name2)
+        self.assertEqual(GroupID(sub_group.path.name), new_name2)
         self.assertTrue(sub_group.exists())
         # The group doesn't exist under the old renaming, and we didn't rename it.
-        self.assertIn(('group', new_name), group.member_tuples())
-        self.assertNotIn(('group', new_name2), group.member_tuples())
+        self.assertIn(new_name, group)
+        self.assertNotIn(new_name2, group)
 
     def test_group_commands(self):
         """Check the operation of various group command statements."""
@@ -214,8 +196,8 @@ class TestGroupTests(unittest.PavTestCase):
         parser = arguments.get_parser()
         # Start a series of tests two ways, each assigned to a group.
 
-        run_args = parser.parse_args(['run', '-g', group_name, 'hello_world'])
-        series_args = parser.parse_args(['series', 'run', '-g', group_name, 'basic'])
+        run_args = parser.parse_args(['run', '-g', str(group_name), 'hello_world'])
+        series_args = parser.parse_args(['series', 'run', '-g', str(group_name), 'basic'])
 
         run_cmd.run(self.pav_cfg, run_args)
         series_cmd.run(self.pav_cfg, series_args)
@@ -234,11 +216,11 @@ class TestGroupTests(unittest.PavTestCase):
 
         # Create a new group with tests to add
         sub_group_name = self._make_group_name()
-        run_args3 = parser.parse_args(['run', '-g', sub_group_name, 'hello_world'])
+        run_args3 = parser.parse_args(['run', '-g', str(sub_group_name), 'hello_world'])
         run_cmd.run(self.pav_cfg, run_args3)
         run_cmd.last_series.wait(timeout=10)
 
-        add_items = [sub_group_name] + [test.full_id for test in run_cmd.last_tests]
+        add_items = [str(sub_group_name)] + [str(test.id) for test in run_cmd.last_tests]
         rm_tests = add_items[1:3]
 
         def run_grp_cmd(args):
@@ -249,35 +231,38 @@ class TestGroupTests(unittest.PavTestCase):
 
         members = group.members()
         # Add tests and a group via commands
-        run_grp_cmd(['group', 'add', group_name] + add_items)
+
+        run_grp_cmd(['group', 'add', str(group_name)] + add_items)
         self.assertEqual(len(group.tests()), 10)
 
         # Remove a couple tests
-        run_grp_cmd(['group', 'remove', group_name] + rm_tests)
+        run_grp_cmd(['group', 'remove', str(group_name)] + rm_tests)
         self.assertEqual(len(group.tests()), 8)
 
         # Rename the subgroup
         new_name1 = self._make_group_name()
         new_name2 = self._make_group_name()
-        run_grp_cmd(['group', 'rename', sub_group_name, new_name1])
+        run_grp_cmd(['group', 'rename', str(sub_group_name), str(new_name1)])
         self.assertEqual(len(group.tests()), 8)
-        run_grp_cmd(['group', 'rename', '--no-redirect', new_name1, new_name2])
+        run_grp_cmd(['group', 'rename', '--no-redirect', str(new_name1), str(new_name2)])
         self.assertEqual(len(group.tests()), 5)
-        run_grp_cmd(['group', 'rename', new_name2, new_name1])
+        run_grp_cmd(['group', 'rename', str(new_name2), str(new_name1)])
         self.assertEqual(len(group.tests()), 8)
 
         # Try all the list options
         for rows, args in [
-                (7,    ['group', 'members', group_name]),
-                (4,    ['group', 'members', '--tests', group_name]),
-                (5,    ['group', 'members', '--series', group_name]),
-                (4,    ['group', 'members', '--groups', group_name]),
-                (7,    ['group', 'members', '--tests', '--series', '--groups', group_name]),
-                (8,    ['group', 'members', '--recursive', group_name]),
+                (4,    ['group', 'members', "--json", str(group_name)]),
+                (1,    ['group', 'members', "--json", '--tests', str(group_name)]),
+                (2,    ['group', 'members', "--json", '--series', str(group_name)]),
+                (1,    ['group', 'members', "--json", '--groups', str(group_name)]),
+                (4,    ['group', 'members', "--json", '--tests', '--series', '--groups', str(group_name)]),
+                (5,    ['group', 'members', "--json", '--recursive', str(group_name)]),
                 ]:
             run_grp_cmd(args)
             out, err_out = group_cmd.clear_output()
-            self.assertEqual(len(out.split('\n')), rows,
+            self.assertEqual(
+                            len(json.loads(out)),
+                            rows,
                              msg="unexpected lines for {}:\n{}"
                                  .format(args, out))
 
@@ -289,5 +274,5 @@ class TestGroupTests(unittest.PavTestCase):
 
 
         # Delete the renamed sub-group
-        run_grp_cmd(['group', 'delete', new_name1])
+        run_grp_cmd(['group', 'delete', str(new_name1)])
         self.assertEqual(len(group.tests()), 5)

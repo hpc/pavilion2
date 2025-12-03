@@ -89,7 +89,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         'result':  result,
         'series':  series_id,
         'state':   status_f.state,
-        'test_id': test.id if test.full_id.startswith('main') else test.full_id,
+        'test_id': test.id,
         'time':    status_f.when,
     }
 
@@ -113,7 +113,7 @@ def get_status(test: TestRun, pav_conf):
             'result':  '',
             'series':  '',
             'state':   STATES.UNKNOWN,
-            'test_id': test.full_id,
+            'test_id': test.id,
             'time':    '',
         }
 
@@ -148,7 +148,6 @@ def print_status(statuses: List[dict], outfile,
 :return: success or failure.
 :rtype: int
 """
-
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
@@ -171,7 +170,7 @@ def print_status(statuses: List[dict], outfile,
                 'time': {
                     'transform': output.get_relative_timestamp,
                     'title': 'Updated'},
-                'test_id': {'title': 'Test'},
+                'test_id': {'title': 'Test', 'transform': str},
             },
             fields=fields,
             rows=flat_sorted_statuses,

@@ -6,6 +6,7 @@ import sys
 from pavilion import output
 from pavilion import series
 from pavilion.errors import TestSeriesError
+from pavilion.test_ids import SeriesID
 from .base_classes import Command
 
 
@@ -22,7 +23,7 @@ class AutoSeries(Command):
         """Sets up arguments for _series command. Only needs series ID."""
 
         parser.add_argument(
-            'series_id', action='store',
+            'series_id', type=SeriesID, action='store',
             help="Series ID."
         )
 

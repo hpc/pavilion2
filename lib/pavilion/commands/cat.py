@@ -7,6 +7,7 @@ import sys
 from pavilion import dir_db
 from pavilion import output
 from pavilion import cmd_utils
+from pavilion.test_ids import TestID
 from .base_classes import Command
 
 
@@ -22,7 +23,8 @@ class CatCommand(Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'test_id', help="test id",
+            'test_id', type=TestID, help="test id",
+            nargs='?', default=None,
             metavar='TEST_ID'
         )
         parser.add_argument(
@@ -35,14 +37,23 @@ class CatCommand(Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
+        if args.test_id is None:
+            test_id = cmd_utils.get_last_test_id(pav_cfg, self.errfile)
+
+            if test_id is None:
+                output.fprint(self.errfile, "No last test found.", color=output.RED)
+                return 1
+        else:
+            test_id = args.test_id
+
+        tests = cmd_utils.get_tests_by_id(pav_cfg, [test_id], self.errfile)
         if not tests:
-            output.fprint(self.errfile, "Could not find test '{}'".format(args.test_id))
+            output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
             return errno.EEXIST
         elif len(tests) > 1:
             output.fprint(
                 self.errfile, "Matched multiple tests. Printing file contents for first "
-                              "test only (test {})".format(tests[0].full_id),
+                              "test only (test {})".format(tests[0].id),
                 color=output.YELLOW)
 
         test = tests[0]
@@ -53,7 +64,7 @@ class CatCommand(Command):
 
         if not test.path/args.file:
             output.fprint(sys.stderr, "File {} does not exist for test {}."
-                                      .format(args.file, test.full_id))
+                                      .format(args.file, test.id))
             return errno.EEXIST
 
         return self.print_file(test.path / args.file)

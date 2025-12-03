@@ -21,10 +21,10 @@ Finding the Pavilion.yaml file
 Pavilion looks for its main ``pavilion.yaml`` config in the following hierarchy
 and uses the first one it finds.
 
--  The user's `~/.pavilion` directory.
+-  The user's ``~/.pavilion`` directory.
 -  The directory given via the ``PAV_CONFIG_DIR`` environment variable.
 
-The pavilion.yaml file can configure additional locations to look for test,
+The ``pavilion.yaml`` file can configure additional locations to look for test,
 mode, and host configs, as well as plugins using the ``config_dirs`` option.
 The ``~/.pavilion`` directory is only searched for ``pavilion.yaml`` by
 default, but searches for other configs there can be turned on in ``pavilion

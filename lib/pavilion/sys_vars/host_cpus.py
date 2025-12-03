@@ -1,4 +1,4 @@
-import subprocess
+import os
 from .base_classes import SystemPlugin
 
 
@@ -10,8 +10,7 @@ class HostCPUs(SystemPlugin):
             description="The system processor count.",
             priority=self.PRIO_CORE)
 
-    def _get( self):
+    def _get(self):
         """Base method for determining the system processor count."""
 
-        name = subprocess.check_output(['grep', '-c', r'^processor\s*:\s*\d*', '/proc/cpuinfo'])
-        return name.strip().decode('UTF-8')
+        return str(os.cpu_count())

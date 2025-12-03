@@ -252,7 +252,8 @@ class TestBuilder:
                 hash_obj.update(self._hash_file(full_path))
             elif full_path.is_dir():
                 self._date_dir(full_path)
-                hash_obj.update(self._hash_dir(full_path, exclude=CONFIG_NAMES))
+                hash_obj.update(self._hash_dir(full_path,
+                    exclude=CONFIG_FNAMES))
             else:
                 raise TestBuilderError(
                     "Extra file '{}' must be a regular file or directory."
@@ -328,8 +329,11 @@ class TestBuilder:
 
         src_path = self._config.get('source_path')
 
-        if src_path is None:
-            return
+        # If no source path is specified, use the suite directory as the source path
+        if src_path is None and self.suite_subdir is not None:
+            return self._pav_cfg.find_file(Path("."), [self.suite_subdir])
+        elif src_path is None:
+            return None
 
         try:
             src_path = Path(src_path)
@@ -456,7 +460,7 @@ class TestBuilder:
         directory into our test directory, and note that we've used the given
         build.
 
-        :param test_id: The test 'full_id' for the test initiating this build.
+        :param test_id: The test id for the test initiating this build.
         :param tracker: A thread-safe tracker object for keeping info on what the
             build is doing.
         :param cancel_event: Allows builds to tell each other
@@ -566,7 +570,7 @@ class TestBuilder:
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
             should stop.
-        :param test_id: The 'full_id' of the test initiating the build.
+        :param test_id: The ID of the test initiating the build.
         :param tracker: Build tracker for this build.
         :returns: True or False, depending on whether the build appears to have
             been successful.
@@ -588,7 +592,8 @@ class TestBuilder:
             # Do the build, and wait for it to complete.
             with self.tmp_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
-                cmd = [self._script_path.as_posix(), test_id]
+                cmd = [self._script_path.as_posix(), str(test_id)]
+
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
@@ -792,10 +797,6 @@ class TestBuilder:
         if extract_error is not None:
             raise TestBuilderError("Error extracting file '{}'\n  {}"
                                    .format(src_path.as_posix(), extract_error))
-
-        tracker.update(
-            state=STATES.BUILDING,
-            note="Generating dynamically created files.")
 
         # Create build time file(s).
         for file, contents in self._config.get('create_files', {}).items():
@@ -1002,8 +1003,12 @@ class TestBuilder:
                                   directory) and file contents to hash."""
 
         hash_obj = hashlib.sha256()
+        contents.seek(0)
         chunk = contents.read(cls._BLOCK_SIZE)
         while chunk:
+            if isinstance(chunk, str):
+                chunk = chunk.encode()
+
             hash_obj.update(chunk)
             chunk = contents.read(cls._BLOCK_SIZE)
 

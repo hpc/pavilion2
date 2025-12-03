@@ -96,7 +96,7 @@ class StatusCmdTests(PavTestCase):
         series = TestSeries(self.pav_cfg, None)
         for test in tests:
             series._add_test('test', test)
-        test_str = " ".join([test.full_id for test in series.tests.values()])
+        test_str = " ".join([str(test.id) for test in series.tests.values()])
 
         status_cmd = commands.get_command('status')
         status_cmd.outfile = io.StringIO()
@@ -105,7 +105,7 @@ class StatusCmdTests(PavTestCase):
         for test in series.tests.values():
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
-            arg_list = ['-j', test.full_id]
+            arg_list = ['-j', str(test.id)]
             args = parser.parse_args(arg_list)
             self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
@@ -120,7 +120,7 @@ class StatusCmdTests(PavTestCase):
         for test in series.tests.values():
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
-            args = parser.parse_args([test.full_id])
+            args = parser.parse_args([str(test.id)])
             self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for multiple tests with tabular output
@@ -187,10 +187,10 @@ class StatusCmdTests(PavTestCase):
             start_status = test.status.current()
             parser = argparse.ArgumentParser()
             set_status_cmd._setup_arguments(parser)
-            arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious', test.full_id]
+            arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious', str(test.id)]
             args = parser.parse_args(arg_list)
             self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0,
-                             "Invalid run return for test {}".format(test.full_id))
+                             "Invalid run return for test {}".format(test.id))
             end_status = test.status.current()
 
             self.assertNotEqual(end_status.state, start_status.state)
@@ -262,6 +262,8 @@ class StatusCmdTests(PavTestCase):
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 
+        args.tests = []
+
         # Testing that summary flags return correctly
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
@@ -282,7 +284,7 @@ class StatusCmdTests(PavTestCase):
         while not test.complete and time.time() < end:
             time.sleep(.1)
 
-        args = parser.parse_args(['--history', 'test.{}'.format(test.id)])
+        args = parser.parse_args(['--history', str(test.id)])
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         out.seek(0)
