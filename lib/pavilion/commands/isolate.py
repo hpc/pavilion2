@@ -170,8 +170,8 @@ class IsolateCommand(Command):
             copytree_resolved(test.path, tmp_dest, ignore_files=ignore_files)
 
             # Copy Pavilion bash library into tarball
-            pav_lib_bash = pav_cfg.pav_root / 'bin' / cls.PAV_LIB_FN
-            shutil.copyfile(pav_lib_bash, tmp_dest / cls.PAV_LIB_FN)
+            pav_lib_bash = pav_cfg.pav_root / 'bin' / TestRun.PAV_LIB_FN
+            shutil.copyfile(pav_lib_bash, tmp_dest / TestRun.PAV_LIB_FN)
 
             cls._write_kickoff_script(pav_cfg, test, tmp_dest / cls.KICKOFF_FN)
 

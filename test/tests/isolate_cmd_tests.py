@@ -43,8 +43,8 @@ class IsolateCmdTests(PavTestCase):
                                 lambda x: x.relative_to(Path(dir) / "dest"),
                                 list_files(Path(dir) / "dest")))
 
-            self.assertIn(TestRun.PAV_LIB_FN, dest_files)
-            self.assertIn(isolate_cmd.KICKOFF_FN, dest_files)
+            self.assertIn(Path(TestRun.PAV_LIB_FN), dest_files)
+            self.assertIn(Path(isolate_cmd.KICKOFF_FN), dest_files)
 
             self.assertEqual(
                         {f for f in source_files if f.name not in ("series", "job")},
@@ -87,8 +87,8 @@ class IsolateCmdTests(PavTestCase):
                                         lambda x: x.relative_to(Path(extract_dir) / "dest"),
                                         list_files(Path(extract_dir))))
 
-                    self.assertIn("pav_lib.bash", dest_files)
-                    self.assertIn(isolate_cmd.KICKOFF_FN, dest_files)
+                    self.assertIn(Path(TestRun.PAV_LIB_FN), dest_files)
+                    self.assertIn(Path(isolate_cmd.KICKOFF_FN), dest_files)
 
                     self.assertEqual(
                         {f for f in source_files if f.name not in ("series", "job")},
