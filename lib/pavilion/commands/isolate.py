@@ -34,6 +34,8 @@ class IsolateCommand(Command):
         )
 
     def _setup_arguments(self, parser: ArgumentParser) -> None:
+        """Setup the argument parser for the isolate command."""
+
         parser.add_argument(
             "test_id",
             type=TestID,
@@ -64,6 +66,8 @@ class IsolateCommand(Command):
         )
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
+        """Run the isolate command."""
+
         if args.zip and not args.archive:
             output.fprint(self.errfile, "--archive must be specified to use --zip.")
 
@@ -99,7 +103,11 @@ class IsolateCommand(Command):
         return self._isolate(pav_cfg, test, args.path, args.archive, args.zip)
 
     @classmethod
-    def _isolate(cls, pav_cfg: PavConfig, test: TestRun, dest: Path, archive: bool, zip: bool) -> int:
+    def _isolate(cls, pav_cfg: PavConfig, test: TestRun, dest: Path, archive: bool,
+                    zip: bool) -> int:
+        """Given a test run and a destination path, isolate that test run, optionally
+        creating a tarball."""
+
         if not test.path.is_dir():
             output.fprint(sys.stderr, "Directory '{}' does not exist."
                           .format(test.path.as_posix()), color=output.RED)
