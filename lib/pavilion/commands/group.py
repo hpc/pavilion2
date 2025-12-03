@@ -6,7 +6,7 @@ import fnmatch
 from pavilion import groups
 from pavilion import config
 from pavilion import output
-from pavilion.output import fprint, draw_table, json_dumps
+from pavilion.output import fprint, draw_table, output_json
 from pavilion.enums import Verbose
 from pavilion.test_run import TestRun
 from pavilion.series import TestSeries

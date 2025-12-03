@@ -312,7 +312,7 @@ def output_json(outfile: TextIO, rows: List[Dict], fields: List[str],
         new_rows.append(new_row)
 
     json_dump(new_rows, outfile)
-
+    outfile.write("\n")
 
 class ANSIString(UserString):
     """Create a string with an implicit ANSI display mode. The ansi code will be
