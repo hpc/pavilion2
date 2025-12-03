@@ -165,7 +165,9 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
 
         test_ids = ' '.join(test.full_id for test in tests)
 
-        script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
+        # This is commented out for consistency with prior behavior and with expected output for
+        # logging unit tests. We may want to consider adding it. — HW
+        # script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
 
         if isolate:
             script = tests[0].make_script(script, "run", isolate=True)
