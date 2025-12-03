@@ -254,8 +254,8 @@ def copytree_resolved(
                 # Don't create the symlink if it points inside a directory we're ignoring
                 skip_link = False
 
-                for pt in rel_target.parts:
-                    if pt in ignore_files:
+                for part in rel_target.parts:
+                    if part in ignore_files:
                         skip_link = True
                         break
 
