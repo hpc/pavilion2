@@ -56,7 +56,7 @@ class TestAttributes(Mapping):
     deserializers = {
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
-        'id': TestID,
+        'id': lambda x: TestID(str(x)),
         'started': utils.deserialize_datetime,
         "status": lambda s: TestStatusFile(Path(s)),
         'suite_path': lambda p: Path(p) if p is not None else None,
