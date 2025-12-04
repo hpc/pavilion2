@@ -8,7 +8,7 @@ import time
 import math
 from collections import defaultdict
 from io import StringIO
-from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple, Optional
+from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple, Optional, Any
 
 import pavilion.errors
 from pavilion.config import PavConfig

@@ -16,7 +16,7 @@ from collections import defaultdict, OrderedDict
 from pathlib import Path
 from operator import attrgetter
 from itertools import product
-from typing import List, Dict, Set, Union, TextIO, Iterator, Optional
+from typing import List, Dict, Set, Union, TextIO, Iterator, Optional, Any
 
 import pavilion
 from pavilion.config import PavConfig

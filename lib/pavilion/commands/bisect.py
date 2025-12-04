@@ -1,4 +1,5 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
+from typing import List
 
 from pavilion import output
 from pavilion.errors import TestSeriesError
@@ -25,7 +26,7 @@ class BisectCommand(Command):
                 help="The name of the test to use to bisect the nodes.")
         parser.add_argument("nodes", type=str, default="",
                 help="The set of nodes with which to start the search.")
-         parser.add_argument(
+        parser.add_argument(
             '-p', '--platform', action='store',
             help='The platform to configure this test for. If not '
             'specified, the current platform as denoted by the sys '

@@ -16,6 +16,7 @@ from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
 from pavilion.test_ids import GroupID
+from pavilion.resolver import TestConfigResolver
 from .base_classes import Command
 
 

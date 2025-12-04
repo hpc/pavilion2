@@ -623,7 +623,7 @@ class TestConfigResolver:
         for ovr in overrides:
             if '=' not in ovr:
                 raise ValueError(
-                    "Invalid override value. Must be in the form: "
+                    f"Invalid override value {ovr}. Must be in the form: "
                     "<key>=<value>. Ex. -c run.modules=['gcc'] ")
 
             key, value = ovr.split('=', 1)
@@ -1137,8 +1137,9 @@ class TestConfigResolver:
 
         return test_cfg
 
+    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'base_name', 'host', 'platform', 'modes']
 
-    def apply_overrides(test_cfg: TestConfig, overrides: TestConfig) -> TestConfig:
+    def apply_overrides(self, test_cfg: TestConfig, overrides: TestConfig) -> TestConfig:
         """Apply the dictionary of overrides to the given test config."""
 
         for key in overrides.keys():
@@ -1256,43 +1257,3 @@ class TestConfigResolver:
         del suite_tests['__base__']
 
         return suite_tests
-
-
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'base_name', 'host', 'platform', 'modes']
-
-    def apply_overrides(self,
-                        test_cfg: TestConfig,
-                        overrides: TestConfig) -> TestConfig:
-        """Apply overrides to this test.
-
-        :param dict test_cfg: The test configuration.
-        :param list overrides: A list of raw overrides in a.b.c=value form.
-        :raises: (ValueError,KeyError, TestConfigError)
-    """
-
-        config_loader = self._loader
-
-        for ovr in overrides:
-            if '=' not in ovr:
-                raise ValueError(
-                    "Invalid override value. Must be in the form: "
-                    "<key>=<value>. Ex. -c run.modules=['gcc'] ")
-
-            key, value = ovr.split('=', 1)
-            key = key.strip()
-            if not key:
-                raise ValueError("Override '{}' given a blank key.".format(ovr))
-
-            key = key.split('.')
-            for part in key:
-                if ' ' in part:
-                    raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
-                if not part:
-                    raise ValueError("Override '{}' has an empty key part.".format(ovr))
-
-            self._apply_override(test_cfg, key, value)
-
-        try:
-            return config_loader.normalize(test_cfg, root_name='overrides')
-        except TypeError as err:
-            raise TestConfigError("Invalid override", prior_error=err)
