@@ -13,6 +13,7 @@ from pavilion import status_file
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.types import ID_Pair
 from pavilion.test_ids import TestID
+from pavilion.timing import wait
 from ..errors import TestSeriesError
 
 COMPLETE_FN = 'SERIES_COMPLETE'
@@ -187,7 +188,8 @@ def _read_complete(series_path: Path) -> Optional[Dict]:
 def get_complete(pav_cfg: config.PavConfig, series_path: Path,
                  check_tests: bool = False) -> Optional[Dict[str, float]]:
     """Check whether all the test sets in a series are complete. If they are,
-    returns a complete info dictionary containing the completion time.
+    returns a complete info dictionary containing the completion time, or None
+    otherwise.
 
     :param pav_cfg: The Pavilion configuration object
     :param series_path: Path to the series data
@@ -224,7 +226,13 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
 
         # All tests exist, so now it's just a matter of waiting for all test sets
         # to complete (which they have if we're at this point)
-        set_complete(series_path, latest)
+        try:
+            set_complete(series_path, latest)
+        except TimeoutError:
+            # The completion file could not be written. This can be safely ignored since the file
+            # will eventually be written, and the series will eventually check again for the file.
+            return None
+
         return {"complete": latest}
 
     if latest is None:
