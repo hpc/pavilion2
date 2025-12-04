@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Dict, Optional
 
 import yc_yaml
 import yaml_config
@@ -135,15 +135,15 @@ def verify_configs(pav_cfg, series_name: str, platform: str = None,
 
 def generate_series_config(
         name: str,
-        platform: str = None,
-        host: str = None,
-        modes: List[str] = None,
-        ordered: bool = None,
-        overrides: List[str] = None,
-        repeat: int = None,
-        simultaneous: int = None,
+        platform: Optional[str] = None,
+        host: Optional[str] = None,
+        modes: Optional[List[str]] = None,
+        ordered: Optional[bool] = None,
+        overrides: Optional[Dict[str, Any]] = None,
+        repeat: Optional[int] = None,
+        simultaneous: Optional[int] = None,
         ignore_errors: bool = False,
-    ) -> dict:
+    ) -> Dict[str, Any]:
     """Generates series config given global series settings. To add test sets,
     create a series with this config and use the add_test_set_config() method."""
 

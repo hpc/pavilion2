@@ -154,7 +154,7 @@ class RunCommand(Command):
             platform=args.platform,
             host=args.host,
             repeat=getattr(args, 'repeat', None),
-            overrides=args.overrides,
+            overrides=TestConfigResolver.config_from_overrides(args.overrides),
             ignore_errors=args.ignore_errors,
         )
 

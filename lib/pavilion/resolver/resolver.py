@@ -23,6 +23,7 @@ from typing import List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO,
 import similarity
 import yc_yaml
 import yaml_config as yc
+from pavilion.config import PavConfig
 from pavilion.enums import Verbose
 from pavilion import output, variables
 from pavilion import pavilion_variables
@@ -36,7 +37,7 @@ from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.utils import union_dictionary
+from pavilion.utils import union_dictionary, recursive_update
 from pavilion.micro import first, listmap
 from pavilion.path_utils import append_to_path, exists
 from yaml_config import RequiredError, YamlConfigLoader
@@ -53,7 +54,7 @@ LOGGER = logging.getLogger('pav.' + __name__)
 
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
-TestConfig = Dict
+TestConfig = Dict[str, Any]
 
 
 class ConfigInfo:
@@ -70,18 +71,22 @@ class ConfigInfo:
 class TestOptions:
     """Test options from the command line or series configs."""
 
-    def __init__(self, modes: List[str], overrides: List[str], conditions: Dict):
-        self.modes = modes if modes is not None else []
-        self.overrides = overrides if overrides is not None else []
-        self.conditions = conditions if conditions is not None else {}
+    def __init__(self, modes: List[str], overrides: TestConfig, conditions: Dict):
+        self.modes = modes or []
+        self.overrides = overrides or {}
+        self.conditions = conditions or {}
 
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
 
-    def __init__(self, pav_cfg, platform: str = None, host: str = None,
-                 outfile: TextIO = None, verbosity: int = Verbose.QUIET):
+    def __init__(self,
+                 pav_cfg: PavConfig,
+                 platform: Optional[str] = None,
+                 host: Optional[str] = None,
+                 outfile: Optional[TextIO] = None,
+                 verbosity: int = Verbose.QUIET):
         """Initialize the resolver.
 
         :param platform: The platform to configure tests for.
@@ -382,8 +387,12 @@ class TestConfigResolver:
 
     PROGRESS_PERIOD = 0.5
 
-    def load_iter(self, tests: List[str], modes: List[str] = None, overrides: List[str] = None,
-             conditions=None, batch_size=None) -> Iterator[List[ProtoTest]]:
+    def load_iter(self,
+                  tests: List[str],
+                  modes: Optional[List[str]] = None,
+                  overrides: Optional[TestConfig] = None,
+                  conditions: Optional[Dict] = None,
+                  batch_size: Optional[int] = None) -> Iterator[List[ProtoTest]]:
         """Load and fully resolve the requested tests. This returns an iterator
         of ProtoTest objects, which can be used to create the final test objects.
         Test resolution is delayed as long as possible, to keep in sync with system
@@ -500,9 +509,12 @@ class TestConfigResolver:
                         "Is `permute_on` set for that test?"
                         .format(request.request, request.permutation)))
 
-    def load(self, tests: List[str],
-             modes: List[str] = None, overrides: List[str] = None,
-             conditions=None, throw_errors: bool = True) -> List[ProtoTest]:
+    def load(self,
+             tests: List[str],
+             modes: Optional[List[str]] = None,
+             overrides: Optional[TestConfig] = None,
+             conditions: Optional[Dict] = None,
+             throw_errors: bool = True) -> List[ProtoTest]:
         """As per ``load_iter`` except just return a list of all generated tests
         without any batching. This method is entirely meant for testing -
         the primary code should always use the iterator.
@@ -603,6 +615,48 @@ class TestConfigResolver:
         return multiplied_tests
 
     @staticmethod
+    def config_from_overrides(overrides: List[str]) -> TestConfig:
+        """Parse a list of override strings and convert them into a test config."""
+
+        cfg = {}
+
+        for ovr in overrides:
+            if '=' not in ovr:
+                raise ValueError(
+                    "Invalid override value. Must be in the form: "
+                    "<key>=<value>. Ex. -c run.modules=['gcc'] ")
+
+            key, value = ovr.split('=', 1)
+            key = key.strip()
+
+            if not key:
+                raise ValueError("Override '{}' given a blank key.".format(ovr))
+
+            key = key.split('.')
+
+            for part in key:
+                if ' ' in part:
+                    raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
+                if not part:
+                    raise ValueError("Override '{}' has an empty key part.".format(ovr))
+
+            ovr_dict = {}
+            sub_cfg = ovr_dict
+
+            for part in key[-1]:
+                sub_cfg[part] = {}
+                sub_cfg = sub_cfg.get(part)
+
+            sub_cfg[key[-1]] = value
+
+            try:
+                recursive_update(cfg, ovr_dict)
+            except ValueError as err:
+                raise TestConfigError("Error parsing override {ovr}.")
+
+            return TestConfigLoader().normalize(cfg)
+
+    @staticmethod
     def _safe_load_config(cfg: ConfigInfo, loader: yc.YamlConfigLoader) -> TestConfig:
         """Given a path to a config, load the config, and raise an appropriate
         error if it can't be loaded"""
@@ -677,9 +731,7 @@ class TestConfigResolver:
         as guaranteeing that they have 'variables' and 'permutations' sections.
 
         :param request: A test request to load tests for.
-        :param modes: A list (possibly empty) of modes to layer onto the test.
-        :param conditions: A list (possibly empty) of conditions to apply to each test config.
-        :param overrides: A list of overrides to apply to each test config.
+        :param options: A set of test options, including modes and overrides.
         :return: A list of RawProtoTests.
         """
 
@@ -1040,7 +1092,10 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Error merging configuration for platform '{}'".format(platform))
 
-    def apply_modes(self, test_cfg, modes: List[str], suite_name: str = None):
+    def apply_modes(self,
+                    test_cfg: TestConfig,
+                    modes: List[str],
+                    suite_name: Optional[str] = None) -> TestConfig:
         """Apply each of the mode files to the given test config.
 
         :param test_cfg: The raw test configuration.
@@ -1081,6 +1136,22 @@ class TestConfigResolver:
             test_cfg = resolve.cmd_inheritance(test_cfg)
 
         return test_cfg
+
+
+    def apply_overrides(test_cfg: TestConfig, overrides: TestConfig) -> TestConfig:
+        """Apply the dictionary of overrides to the given test config."""
+
+        for key in overrides.keys():
+            if key in self.NOT_OVERRIDABLE:
+                raise KeyError("You can't override the '{}' key in a test config"
+                            .format(key))
+
+        try:
+            return self._loader.merge(test_cfg, overrides)
+        except (KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Error applying overrides to test config.\n{err}")
+
 
     def resolve_inheritance(self, suite_cfg, suite_path) \
             -> Dict[str, dict]:
@@ -1187,10 +1258,11 @@ class TestConfigResolver:
         return suite_tests
 
 
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path',
-                       'base_name', 'host', 'platform', 'modes']
+    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'base_name', 'host', 'platform', 'modes']
 
-    def apply_overrides(self, test_cfg, overrides) -> Dict:
+    def apply_overrides(self,
+                        test_cfg: TestConfig,
+                        overrides: TestConfig) -> TestConfig:
         """Apply overrides to this test.
 
         :param dict test_cfg: The test configuration.
@@ -1224,118 +1296,3 @@ class TestConfigResolver:
             return config_loader.normalize(test_cfg, root_name='overrides')
         except TypeError as err:
             raise TestConfigError("Invalid override", prior_error=err)
-
-    def _apply_override(self, test_cfg, key, value):
-        """Set the given key to the given value in test_cfg.
-
-        :param dict test_cfg: The test configuration.
-        :param [str] key: A list of key components, like
-            ``[`slurm', 'num_nodes']``
-        :param str value: The value to assign. If this looks like a json
-            structure, it will be decoded and treated as one.
-        """
-
-        cfg = test_cfg
-
-        disp_key = '.'.join(key)
-
-        if key[0] in self.NOT_OVERRIDABLE:
-            raise KeyError("You can't override the '{}' key in a test config"
-                           .format(key[0]))
-
-        key_copy = list(key)
-        last_cfg = None
-        last_key = None
-
-        # Normalize simple variable values.
-        if key[0] == 'variables' and len(key) in (2, 3):
-            is_var_value = True
-        else:
-            is_var_value = False
-
-        # Validate the key by walking the config according to the key
-        while key_copy:
-            part = key_copy.pop(0)
-
-            if isinstance(cfg, list):
-                try:
-                    idx = int(part)
-                except ValueError:
-                    raise KeyError("Trying to override list item with a "
-                                   "non-integer '{}' in key '{}'."
-                                   .format(part, disp_key))
-
-                try:
-                    last_cfg = cfg
-                    last_key = idx
-                    cfg = cfg[idx]
-                except IndexError:
-                    raise KeyError(
-                        "Trying to override index '{}' from key '{}' "
-                        "but the index is out of range."
-                        .format(part, disp_key))
-            elif isinstance(cfg, dict):
-
-                if part not in cfg and key_copy:
-                    raise KeyError("Trying to override '{}' from key '{}', "
-                                   "but there is no such key."
-                                   .format(part, disp_key))
-
-                # It's ok to override a key that doesn't exist if it's the
-                # last key component. We'll validate everything anyway.
-                last_cfg = cfg
-                last_key = part
-                cfg = cfg.get(part, None)
-            else:
-                raise KeyError("Tried, to override key '{}', but '{}' isn't "
-                               "a dict or list."
-                               .format(disp_key, part))
-
-        if last_cfg is None:
-            # Should never happen.
-            raise RuntimeError(
-                "Trying to override an empty key: {}".format(key))
-
-        # We should be at the final place where the value should go.
-        try:
-            dummy_file = io.StringIO(value)
-            value = yc_yaml.safe_load(dummy_file)
-        except (yc_yaml.YAMLError, ValueError, KeyError) as err:
-            raise TestConfigError("Invalid value '{}' for key '{}' in overrides"
-                                  .format(value, disp_key), prior_error=err)
-
-        last_cfg[last_key] = self.normalize_override_value(value, is_var_value)
-
-    def normalize_override_value(self, value, is_var_value=False):
-        """Normalize a value to one compatible with Pavilion configs. It can
-        be any structure of dicts and lists, as long as the leaf values are
-        strings.
-
-        :param value: The value to normalize.
-        :param is_var_value: True if the value will be used to set a variable value.
-        :returns: A string or a structure of dicts/lists whose leaves are
-            strings.
-        """
-
-        if isinstance(value, (int, float, bool, bytes)):
-            value = str(value)
-
-        if isinstance(value, str):
-            if is_var_value:
-                # Normalize a simple value into the standard variable format.
-                return [{None: value}]
-            else:
-                return value
-        elif isinstance(value, (list, tuple)):
-            return [self.normalize_override_value(v) for v in value]
-        elif isinstance(value, dict):
-            dict_val = {str(k): self.normalize_override_value(v)
-                        for k, v in value.items()}
-
-            if is_var_value:
-                # Normalize a single dict item into a list of them for variables.
-                return [dict_val]
-            else:
-                return dict_val
-        else:
-            raise ValueError("Invalid type in override value: {}".format(value))

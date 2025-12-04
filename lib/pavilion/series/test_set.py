@@ -8,16 +8,17 @@ import time
 import math
 from collections import defaultdict
 from io import StringIO
-from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple
+from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple, Optional
 
 import pavilion.errors
+from pavilion.config import PavConfig
 from pavilion import output, result, schedulers, cancel_utils
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.errors import TestRunError, TestConfigError, TestSetError, ResultError
 from pavilion.resolver import TestConfigResolver
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_run import TestRun, mass_status_update
-from pavilion.utils import str_bool
+from pavilion.utils import str_bool, recursive_update
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
 from pavilion.micro import set_default
@@ -38,19 +39,19 @@ class TestSet:
     # need info like
     # modes, only/not_ifs, next, prev
     def __init__(self,
-                 pav_cfg,
+                 pav_cfg: PavConfig,
                  name: str,
                  test_names: List[str],
                  iteration: int = 0,
-                 status: SeriesStatusFile = None,
-                 modes: List[str] = None,
-                 host: str = None,
-                 platform: str = None,
-                 only_if: Dict[str, List[str]] = None,
-                 not_if: Dict[str, List[str]] = None,
-                 overrides: List = None,
+                 status: Optional[SeriesStatusFile] = None,
+                 modes: Optional[List[str]] = None,
+                 host: Optional[str] = None,
+                 platform: Optional[str] = None,
+                 overrides: Optional[Dict[str, Any]] = None,
+                 only_if: Optional[Dict[str, List[str]]] = None,
+                 not_if: Optional[Dict[str, List[str]]] = None,
                  parents_must_pass: bool = False,
-                 simultaneous: Union[int, None] = None,
+                 simultaneous: Optional[int] = None,
                  ignore_errors: bool = False,
                  outfile: TextIO = StringIO(),
                  verbosity=Verbose.QUIET):
@@ -94,7 +95,7 @@ class TestSet:
         self.only_if = only_if or {}
         self.not_if = not_if or {}
         self.pav_cfg = pav_cfg
-        self.overrides = overrides or []
+        self.overrides = overrides or {}
 
         self.parent_sets = set()  # type: Set[TestSet]
         self.child_sets = set()  # type: Set[TestSet]
@@ -116,14 +117,14 @@ class TestSet:
         self.status.set(S_STATES.SET_CREATED,
                         "Created test set {}.".format(self.name))
 
-    def add_parents(self, *parents: 'TestSet'):
+    def add_parents(self, *parents: 'TestSet') -> None:
         """Add the given TestSets as a parent to this one."""
 
         for parent in parents:
             self.parent_sets.add(parent)
             parent.child_sets.add(self)
 
-    def remove_parent(self, parent: 'TestSet'):
+    def remove_parent(self, parent: 'TestSet') -> None:
         """Remove the given parent from this test set."""
 
         try:
@@ -189,10 +190,12 @@ class TestSet:
 
         return test_sets
 
-    def make_iter(self, build_only=False, rebuild=False, local_builds_only=False) \
-                  -> Iterator[List[TestRun]]:
+    def make_iter(self,
+                  build_only: bool = False,
+                  rebuild: bool = False,
+                  local_builds_only: bool = False) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
-        the test creation status.  This returns an iterator over batches tests, respecting the
+        the test creation status.  This returns an iterator over batches of tests, respecting the
         batch_size (half the simultanious limit).
         """
 
@@ -204,12 +207,7 @@ class TestSet:
         }
 
         if build_only:
-            for override in self.overrides:
-                if override.startswith('schedule.nodes'):
-                    self.overrides.remove(override)
-                    break
-
-            self.overrides.append('schedule.nodes=1')
+            recursive_update(self.overrides, {"schedule": {"nodes": 1}})
 
         cfg_resolver = TestConfigResolver(
             self.pav_cfg,
