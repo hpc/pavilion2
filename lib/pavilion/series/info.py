@@ -283,7 +283,7 @@ class SeriesInfo(SeriesInfoBase):
         return self._config.get('name', '<unknown>')
 
     @property
-    def complete(self):
+    def complete(self) -> bool:
         """True if all tests are complete."""
 
         return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None

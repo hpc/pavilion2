@@ -116,7 +116,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 "Requested {} 'schedule.include_nodes' to include in every chunk, but "
                 "set a 'chunking.size' of {}. "
                 "The chunk size must be more than the number of include_nodes."
-                .format(len(include_nodes, chunk_size)))
+                .format(len(include_nodes), chunk_size))
 
         # Min nodes is always >= 1, but max_nodes may be None
         min_nodes, max_nodes = calc_node_range(sched_config, len(filtered_nodes))

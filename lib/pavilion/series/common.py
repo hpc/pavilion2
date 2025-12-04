@@ -5,7 +5,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Union
+from typing import Optional, Dict, Union
 
 from pavilion import config
 from pavilion import dir_db
@@ -13,6 +13,7 @@ from pavilion import status_file
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.types import ID_Pair
 from pavilion.test_ids import TestID
+from pavilion.timing import wait
 from ..errors import TestSeriesError
 
 COMPLETE_FN = 'SERIES_COMPLETE'
@@ -128,9 +129,9 @@ def get_all_started(path: Path) -> Union[float, None]:
 
 
 # This is needed by both the series object and the series info object.
-def set_complete(path, when: float = None) -> dict:
+def set_complete(path: Path, when: float = None) -> dict:
     """Write a file in the series directory that indicates that the series
-    has finished."""
+    has finished. May raise a timeout error if the file cannot be written."""
 
     complete_fn = path/COMPLETE_FN
     status_fn = path/STATUS_FN
@@ -154,6 +155,12 @@ def set_complete(path, when: float = None) -> dict:
         except (OSError, ValueError) as err:
             raise TestSeriesError("Error saving completion file.", err)
 
+        wait(
+            complete_fn_tmp.exists,
+            interval=0.1,
+            timeout=5,
+            msg=f"Timed out waiting for file {complete_fn_tmp} to be created.")
+
         complete_fn_tmp.rename(complete_fn)
 
     # Note that this might be a bit off from reality if something else set the
@@ -165,7 +172,7 @@ def set_complete(path, when: float = None) -> dict:
 # Call the series complete even if it wasn't marked as such.
 SERIES_COMPLETE_TIMEOUT = 3*60*60
 
-def _read_complete(series_path: Path) -> Union[dict, None]:
+def _read_complete(series_path: Path) -> Optional[Dict]:
     """Read the series completion file, if it exists, and return the completion data.
     Returns None if the completion file doesn't exist or can't be read."""
 
@@ -179,8 +186,13 @@ def _read_complete(series_path: Path) -> Union[dict, None]:
 
 
 def get_complete(pav_cfg: config.PavConfig, series_path: Path,
-                 check_tests: bool = False) -> Union[dict, None]:
-    """Check whether all the test sets in a series are complete.
+                 check_tests: bool = False) -> Optional[Dict[str, float]]:
+    """Check whether all the test sets in a series are complete. If they are,
+    returns a complete info dictionary containing the completion time, or None
+    otherwise.
+
+    :param pav_cfg: The Pavilion configuration object
+    :param series_path: Path to the series data
     :param check_tests: Check tests for completion and set completion if all
         tests are complete. Will catch and ignore errors when setting completion."""
 
@@ -214,8 +226,14 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
 
         # All tests exist, so now it's just a matter of waiting for all test sets
         # to complete (which they have if we're at this point)
-        set_complete(series_path, latest)
-        return latest
+        try:
+            set_complete(series_path, latest)
+        except TimeoutError:
+            # The completion file could not be written. This can be safely ignored since the file
+            # will eventually be written, and the series will eventually check again for the file.
+            return None
+
+        return {"complete": latest}
 
     if latest is None:
         try:
@@ -228,7 +246,7 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
     # been created though.
     if latest + SERIES_COMPLETE_TIMEOUT < time.time():
         set_complete(series_path, latest)
-        return latest
+        return {"complete": latest}
 
     return None
 
