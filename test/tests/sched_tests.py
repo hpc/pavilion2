@@ -589,8 +589,8 @@ class SchedTests(PavTestCase):
             test = self._quick_test(test_cfg, finalize=False)
             test2 = self._quick_test(test_cfg, finalize=False)
             dummy.schedule_tests(self.pav_cfg, [test, test2])
-            test.wait()
-            test2.wait()
+            test.wait(timeout=10)
+            test2.wait(timeout=10)
             self.assertIn("tasks: 21", (test.path/'run.log').open().read())
 
         self.assertIn("tasks: 21", (test.path/'run.log').open().read())
@@ -614,7 +614,7 @@ class SchedTests(PavTestCase):
         dummy = pavilion.schedulers.get_plugin('dummy')
         dummy.schedule_tests(self.pav_cfg, [test])
         # Wait few seconds for the test to be scheduled to run.
-        test.wait()
+        test.wait(timeout=10)
 
         # Check if it actually echoed to log
         with (test.path/'run.log').open('r') as runlog:
