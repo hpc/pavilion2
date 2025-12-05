@@ -20,6 +20,7 @@ from pavilion import utils
 from pavilion.test_ids import SeriesID, resolve_mixed_ids
 from pavilion.errors import TestSeriesError, TestSeriesWarning
 from pavilion.config import PavConfig
+from pavilion.resolver import TestConfigResolver
 from .base_classes import Command, sub_cmd
 
 
@@ -189,13 +190,14 @@ class RunSeries(Command):
         else:
             # load series and test files
             try:
+                overrides = TestConfigResolver.config_from_overrides(args.overrides)
                 # Pre-verify that all the series, tests, platform, modes, and hosts exist.
                 series_cfg = series_config.verify_configs(pav_cfg,
                                                           args.series_name,
                                                           platform=args.platform,
                                                           host=args.host,
                                                           modes=args.modes,
-                                                          overrides=args.overrides)
+                                                          overrides=overrides)
             except series_config.SeriesConfigError as err:
                 output.fprint(self.errfile, err.pformat(), color=output.RED)
                 return errno.EINVAL

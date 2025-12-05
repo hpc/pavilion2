@@ -870,8 +870,7 @@ class TestConfigResolver:
             configs.append((cfg_info, cfg))
 
         if options.overrides is not None:
-            overrides = self._validate_overrides(options.overrides)
-            overrides = self._loader.normalize(overrides)
+            overrides = self._loader.normalize(options.overrides)
 
             cfg_info = ConfigInfo(
                                 name=None,
@@ -883,17 +882,6 @@ class TestConfigResolver:
             configs.append((cfg_info, overrides))
 
             return configs
-
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'base_name', 'host', 'platform', 'modes']
-
-    def _validate_overrides(self, overrides: TestConfig) -> TestConfig:
-        """Validate and normalize the overrides config."""
-
-        for key in overrides.keys():
-            if key in self.NOT_OVERRIDABLE:
-                raise KeyError("You can't override the '{}' key in a test config".format(key))
-
-        return self._loader.normalize(overrides, root_name=f"the top level of the overrides config")
 
     def _get_aux_config_paths(self,
                               options: TestOptions,

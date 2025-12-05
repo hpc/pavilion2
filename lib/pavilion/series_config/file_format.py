@@ -3,12 +3,19 @@
 import yaml_config as yc
 
 from pavilion.config import make_invalidator
-from pavilion.test_config.file_format import \
-    CondCategoryElem, EnvCatElem, TestCatElem
+from pavilion.test_config import TestConfigLoader
+from pavilion.test_config.file_format import CondCategoryElem, EnvCatElem, TestCatElem
+
+
+NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'base_name', 'host', 'platform', 'modes',
+                    'overrides']
 
 
 class SeriesConfigLoader(yc.YamlConfigLoader):
     """This class describes a series file."""
+
+    OVERRIDE_ELEMS = [elem for elem in TestConfigLoader.ELEMENTS \
+                        if elem.name not in NOT_OVERRIDABLE]
 
     ELEMENTS = [
         TestCatElem(
@@ -18,6 +25,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                     yc.BoolElem('depends_pass', default=False),
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
+                    yc.KeyedElem('overrides', elements=OVERRIDE_ELEMS),
                     yc.IntElem('simultaneous', default=None),
                     CondCategoryElem(
                         'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
@@ -48,8 +56,8 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             help_text="The host this series will be run on. This is not "
                       "configured, but dynamically added to the config."
         ),
-        yc.ListElem(
-            'overrides', sub_elem=yc.StrElem(), hidden=True,
+        yc.KeyedElem(
+            'overrides', elements=OVERRIDE_ELEMS, hidden=True,
             help_text="Command line overrides to apply to this series. This is only "
                       "used when ad-hoc series are created from the command line."
         ),
@@ -57,8 +65,8 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             'modes', sub_elem=yc.StrElem(),
             help_text="Modes to run all tests in this series under."
         ),
-        yc.ListElem(
-            'overrides', sub_elem=yc.StrElem(),
+        yc.KeyedElem(
+            'overrides', elements=OVERRIDE_ELEMS,
             help_text="Overrides to apply to all tests in this series."
         ),
         yc.IntElem(
