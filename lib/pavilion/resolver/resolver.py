@@ -38,7 +38,7 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary, recursive_update
-from pavilion.micro import first, listmap
+from pavilion.micro import first, listmap, listfilter
 from pavilion.path_utils import append_to_path, exists
 from yaml_config import RequiredError, YamlConfigLoader
 
@@ -58,7 +58,7 @@ TestConfig = Dict[str, Any]
 
 
 class ConfigInfo:
-    def __init__(self, name: str, type: str, path: Path, label: str = None,
+    def __init__(self, name: str, type: str, path: Path, label: Optional[str] = None,
         from_suite: bool = False):
 
         self.name = name
@@ -71,7 +71,12 @@ class ConfigInfo:
 class TestOptions:
     """Test options from the command line or series configs."""
 
-    def __init__(self, modes: List[str], overrides: TestConfig, conditions: Dict):
+    def __init__(self
+                 platform: str,
+                 host: str,
+                 modes: Optional[List[str]],
+                 overrides: Optional[TestConfig],
+                 conditions: Optional[Dict]):
         self.modes = modes or []
         self.overrides = overrides or {}
         self.conditions = conditions or {}
@@ -80,6 +85,8 @@ class TestOptions:
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
+
+    CONFIG_TYPES = ("platform", "host", "mode")
 
     def __init__(self,
                  pav_cfg: PavConfig,
@@ -146,8 +153,8 @@ class TestConfigResolver:
 
     @staticmethod
     def _get_config_fname(cfg_type: str) -> str:
-        """Given a config type, returns the name of the file in the
-        suites directory corresponding to that type."""
+        """Given a config type, returns the name of the file in the suite directory corresponding to
+        that type."""
 
         fname = cfg_type.lower()
 
@@ -171,47 +178,74 @@ class TestConfigResolver:
         """Return an iterator over all config labels."""
         return self.pav_cfg.configs.keys()
 
-    def _get_test_config_path(self, cfg_name: str, cfg_type: str) -> Tuple[str, Optional[Path]]:
+    def _get_test_config_path(self,
+                              cfg_name: str,
+                              cfg_type: str) -> Tuple[Optional[str], Optional[Path]]:
         """Given a config name and type, find the path to that config, if it exists,
         excluding configs in the suites directory. If no such config exists,
         return None."""
 
         cfg_dir = self._get_config_dirname(cfg_type)
         paths = map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.config_paths)
+
         pairs = zip(self.config_labels, paths)
+        paris = listfilter(lambda p: p[1].exists(), pairs)
 
-        res = first(lambda x: x[1].exists(), pairs)
+        if len(pairs) > 1:
+            raise TestConfigError(f"Could not unambiguously find config with name {cfg_name}: "
+                                  f"Found {len(pairs)} in the following locations: "
+                                  f"{listmap(lambda p: p[1], pairs)}.")
+        elif len(pairs) == 0:
+            return None, None
+        else:
+            return pairs[0]
 
-        if res is None:
-            return '', None
+    def _get_suite_path(self, suite_name: str) -> Tuple[Optional[str], Optional[Path]]:
+        """Get the path to the suite with the given name, if it exists, along with its corresponding
+        config label. Returns None if no suite is found."""
 
-        return res
+        suite_paths = listmap(append_to_path(f"{suite_name}.yaml"), self.suites_dirs)
+        suite_paths.extend(map(append_to_path(f"{suite_name}"), self.suites_dirs))
 
-    def _config_path_from_suite(self, suite_name: str,
-                                conf_type: str) -> Tuple[str, Optional[Path]]:
-        """Given a suite name, return the path to the config file of the specified
-        type, if one exists. If the file does not exist in any known suites directory,
-        returns None."""
+        pairs = zip(suite_paths, list(self.config_labels) * 2)
+        pairs = listfilter(lambda p: p[1].exists(), pairs)
 
-        paths = []
-        labels = list(self.config_labels)
+        if len(pairs) > 1:
+            raise TestConfigError(f"Could not unambiguously find suite with name {suite_name}: "
+                                  f"Found {len(pairs)} in the following locations: "
+                                  f"{listmap(lambda p: p[1], pairs)}.")
+        elif len(pairs) == 0:
+            return None, None
+        else:
+            return suite_paths[0]
+
+    def _config_path_from_suite(self, suite_name: Optional[str],
+                                conf_type: str) -> Tuple[Optional[str], Optional[Path]]:
+        """Given a suite name, return the path to the config file of the specified type, if one
+        exists, along with its corresponding config label. If the file does not exist in any known
+        suites directory, returns None."""
+
+        if suite_name is None:
+            return None, None
+
+        label, suite_path = self._get_suite_path(suite_name)
+
+        if suite_path is None:
+            return None, None
 
         cfg_fname = self._get_config_fname(conf_type)
 
-        if conf_type == "suite":
-            paths.extend(listmap(append_to_path(f"{suite_name}.yaml"), self.suites_dirs))
-            labels *= 2
+        if suite_path.is_dir():
+            cfg_path = suite_path / cfg_fname
+        elif cfg_type == "suite":
+            cfg_path = suite_path
+        else:
+            return None, None
 
-        paths.extend(listmap(append_to_path(f"{suite_name}/{cfg_fname}"), self.suites_dirs))
+        if cfg_path.exists():
+            return label, cfg_path
 
-        pairs = zip(labels, paths)
-
-        res = first(lambda x: x[1].exists(), pairs)
-
-        if res is None:
-            return '', None
-
-        return res
+        return None, None
 
     def find_config(self, cfg_type: str, cfg_name: str, suite_name: str = None) -> ConfigInfo:
         """Search all of the known configuration directories for a config of the
@@ -689,35 +723,18 @@ class TestConfigResolver:
 
         return raw_cfg
 
-    def _load_raw_config(self, cfg_info: ConfigInfo, loader: yc.YamlConfigLoader,
-                         optional: bool = False) -> Optional[TestConfig]:
+    def _load_raw_config(self,
+                         cfg_info: ConfigInfo,
+                         loader: yc.YamlConfigLoader) -> TestConfig:
         """Given a path to a config file and a loader, attempt to load the config, handle errors
         appropriately."""
-
-        if cfg_info.path is None and optional:
-            return None
-
-        if cfg_info.path is None and not optional:
-            similar = self.find_similar_configs(cfg_info.type, cfg_info.name)
-
-            if similar:
-                raise TestConfigError(
-                    "Could not find {} config {}.yaml.\n"
-                    "Did you mean one of these? {}"
-                    .format(cfg_info.type, cfg_info.name, ', '.join(similar)))
-            else:
-                raise TestConfigError(
-                    "Could not find {0} config file '{1}.yaml' in any of the "
-                    "Pavilion config directories.\n"
-                    "Run `pav show {2}` to get a list of available {0} files."
-                    .format(cfg_info.type, cfg_info.name, cfg_info.type))
 
         raw_cfg = self._safe_load_config(cfg_info, loader)
 
         if cfg_info.from_suite and cfg_info.type != "suite":
             raw_cfg = raw_cfg.get(cfg_info.name)
 
-        if raw_cfg is None and not optional:
+        if raw_cfg is None:
             raise TestConfigError(
                 f"Could not find {cfg_info.type} config with name {cfg_info.name}"
                 f" in file {cfg_info.path}.")
@@ -794,9 +811,163 @@ class TestConfigResolver:
 
         return test_configs
 
+    def apply_aux_configs(self, test_cfg: TestConfig, options: TestOptions) -> TestConfig:
+        """Apply the sequence of auxiliary configs to the test config."""
 
-    def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest) \
-            -> Optional[Dict]:
+        suite_name = test_cfg.get("suite")
+
+        aux_configs = self._load_aux_configs(options, suite_name)
+
+        for cfg_info, cfg in aux_cfgs:
+            try:
+                test_cfg = self._loader.merge(test_cfg, cfg)
+            except (KeyError, ValueError) as err:
+                if cfg_info.type == "overrides":
+                    msg = "Error merging overrides configuration."
+                else:
+                    msg = f"Error merging {cfg_info.type} configuration for {cfg_info.type} "
+                           "'{cfg_info.name}'"
+                raise TestConfigError(msg)
+
+            if cfg_info.type == "mode":
+                test_cfg = resolve.cmd_inheritance(test_cfg)
+
+        return test_cfg
+
+    def _load_aux_configs(self,
+                          options: TestOptions,
+                          suite_name: Optional[str] = None) -> Tuple[str, TestConfig]:
+        """Load platform, host, and mode configs, and construct the override configs,
+        returning them in the order in which they will be applied."""
+
+        configs = []
+
+        aux_paths = self._get_aux_config_paths(options, suite_name)
+
+        for cfg_info in aux_paths:
+            if cfg_info.from_suite:
+                loader = self._suite_loader
+            else:
+                loader = self._loader
+
+            raw_cfg = self._load_raw_config(cfg_info, loader)
+
+            try:
+                cfg = self._loader.normalize(
+                                    raw_cfg,
+                                    root_name=f"the top level of the {cfg_info.type} file.")
+            except (KeyError, ValueError) as err:
+                raise TestConfigError(
+                    f"Error loading {cfg_info.type}} config '{cfg_info.name}' from file "
+                    f"'{cfg_info.path}'.")
+
+            configs.append((cfg_info, cfg))
+
+        if overrides is not None:
+            overrides = self._validate_overrides(options.overrides)
+            overrides = self._loader.normalize(overrides)
+
+            cfg_info = ConfigInfo(
+                                name=None,
+                                type="overrides",
+                                label=None,
+                                path=None,
+                                from_suite=False)
+
+            configs.append((cfg_info, overrides))
+
+            return configs
+
+    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'base_name', 'host', 'platform', 'modes']
+
+    def _validate_overrides(self, overrides: TestConfig) -> TestConfig:
+        """Validate and normalize the overrides config."""
+
+        for key in overrides.keys():
+            if key in self.NOT_OVERRIDABLE:
+                raise KeyError("You can't override the '{}' key in a test config".format(key))
+
+        return self._loader.normalize(overrides, root_name=f"the top level of the overrides config")
+
+    def _get_aux_config_paths(self,
+                              options: TestOptions,
+                              suite_name: Optional[str] = None) -> List[ConfigInfo]:
+        """Get a list of auxiliary config paths in the order in which they will be applied."""
+
+        cfg_names = {"platform": options.platform, "host": options.host}
+
+        paths = []
+
+        for cfg_type in ("platform", "host"):
+            # If a config exists in both the suite directory and the config-type specific
+            # directory, we'll just stack them, with the config from the suite directory taking
+            # higher precedence.
+            label, path = self._get_test_config_path(cfg_names.get(cfg_type), cfg_type)
+
+            if path is not None:
+                paths.append(ConfigInfo(
+                                    name=cfg_names.get(cfg_type),
+                                    type=cfg_type,
+                                    label=label,
+                                    path=path,
+                                    from_suite=False))
+
+            label, path = self._config_path_from_suite(suite_name, cfg_type)
+
+            if path is not None:
+                paths.append(ConfigInfo(
+                                    name=cfg_names.get(cfg_type),
+                                    type=cfg_type,
+                                    label=label,
+                                    path=path,
+                                    from_suite=True))
+
+        for mode in options.modes:
+            global_mode_label, global_mode_path = self._get_test_config_path(mode, "mode")
+            suite_mode_label, suite_mode_path = self._config_path_from_suite(mode, "mode")
+
+            if suite_mode_path is not None:
+                if global_mode_path is not None:
+                    raise TestConfigError(f"Found multiple mode files with name {mode} in the "
+                                          "following locations: "
+                                          f"{[global_mode_path, suite_mode_path]}")
+                else:
+                    path = suite_mode_path
+                    label = suite_mode_label
+                    from_suite = True
+            else:
+                if global_mode_path is None:
+                    similar = self.find_similar_configs("mode", mode)
+
+                    if len(similar) > 0:
+                        raise TestConfigError(
+                            "Could not find {} config {}.yaml.\n"
+                            "Did you mean one of these? {}"
+                            .format(cfg_info.type, cfg_info.name, ', '.join(similar)))
+                    else:
+                        raise TestConfigError(
+                            "Could not find {0} config file '{1}.yaml' in any of the "
+                            "Pavilion config directories.\n"
+                            "Run `pav show {2}` to get a list of available {0} files."
+                            .format(cfg_info.type, cfg_info.name, cfg_info.type))
+                else:
+                    path = global_mode_path
+                    label = global_mode_label
+                    from_suite = False
+
+            paths.append(ConfigInfo(
+                    name=mode,
+                    type="mode",
+                    label=label,
+                    path=path,
+                    from_suite=from_suite))
+
+        return paths
+
+    def _apply_test_options(self,
+                            raw_test: TestConfig,
+                            options: TestOptions,
+                            request: TestRequest) -> Optional[Dict]:
 
         test_cfg = copy.deepcopy(raw_test)
 
@@ -814,9 +985,7 @@ class TestConfigResolver:
 
         # Apply downstream configs.
         try:
-            test_cfg = self.apply_platform(test_cfg, self._platform, suite_name)
-            test_cfg = self.apply_host(test_cfg, self._host, suite_name)
-            test_cfg = self.apply_modes(test_cfg, options.modes, suite_name)
+            test_cfg = self.apply_aux_configs(test_cfg, options)
         except TestConfigError as err:
             err.request = request
             self.errors.append(err)
@@ -824,21 +993,6 @@ class TestConfigResolver:
 
         # Save the overrides as part of the test config
         test_cfg['overrides'] = options.overrides
-
-        # Apply overrides
-        if options.overrides:
-            try:
-                test_cfg = self.apply_overrides(test_cfg, options.overrides)
-            except TestConfigError as err:
-                err.request = request
-                self.errors.append(err)
-                return None
-            except (KeyError, ValueError) as err:
-                self.errors.append(TestConfigError(
-                    'Error applying overrides to test {} from suite {} at:\n{}' \
-                    .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
-                    request, err))
-                return None
 
         # Result evaluations can be added to all tests at the root pavilion config level.
         result_evals = test_cfg['result_evaluate']
@@ -894,9 +1048,9 @@ class TestConfigResolver:
 
         # Get the base, empty config, then apply the host config on top of it.
         base_config = self._loader.load_empty()
-        base_config = self.apply_platform(base_config, platform)
+        options = TestOptions(platform=platform, host=host)
 
-        return self.apply_host(base_config, host)
+        return self.apply_aux_configs(base_config, options)
 
     def _load_suite_tests(self, request: TestRequest) -> Dict[str, Dict]:
         """Load the suite config, with standard info applied to """
@@ -1024,135 +1178,6 @@ class TestConfigResolver:
             raise TestConfigError(
                 "Incompatible with pavilion version '{}', compatible versions "
                 "'{}'.".format(PavVars()['version'], comp_versions))
-
-    def apply_host(self, test_cfg: TestConfig, hostname: str, suite_name: str = None) -> TestConfig:
-        """Apply the host configuration to the given config."""
-
-        if suite_name is not None:
-            from_suite = True
-            label, host_cfg_path = self._config_path_from_suite(suite_name, "host")
-            loader = self._suite_loader
-        else:
-            from_suite = False
-            label, host_cfg_path = self._get_test_config_path(hostname, "host")
-            loader = self._loader
-
-        cfg_info = ConfigInfo(hostname, "host", host_cfg_path, label, from_suite)
-
-        raw_host_cfg = self._load_raw_config(cfg_info, loader, optional=True)
-
-        if raw_host_cfg is None:
-            return test_cfg
-
-        try:
-            host_cfg = self._loader.normalize(
-                raw_host_cfg,
-                root_name=f"the top level of the host file.")
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                f"Error loading host config '{hostname}' from file '{host_cfg_path}'.")
-
-        try:
-            return self._loader.merge(test_cfg, host_cfg)
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Error merging host configuration for host '{}'".format(hostname))
-
-    def apply_platform(self, test_cfg: TestConfig, platform: str,
-                        suite_name: str = None) -> TestConfig:
-        """Apply the platform configuration to the given config."""
-
-        if suite_name is not None:
-            from_suite = True
-            label, platform_cfg_path = self._config_path_from_suite(suite_name, "platform")
-            loader = self._suite_loader
-        else:
-            from_suite = False
-            label, platform_cfg_path = self._get_test_config_path(platform, "platform")
-            loader = self._loader
-
-        cfg_info = ConfigInfo(platform, "platform", platform_cfg_path, label, from_suite)
-
-        raw_platform_cfg = self._load_raw_config(cfg_info, loader, optional=True)
-
-        if raw_platform_cfg is None:
-            return test_cfg
-
-        try:
-            platform_cfg = self._loader.normalize(
-                raw_platform_cfg,
-                root_name=f"the top level of the platform file.")
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                f"Error loading host config '{platform}' from file '{platform_cfg_path}'")
-
-        try:
-            return self._loader.merge(test_cfg, platform_cfg)
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Error merging configuration for platform '{}'".format(platform))
-
-    def apply_modes(self,
-                    test_cfg: TestConfig,
-                    modes: List[str],
-                    suite_name: Optional[str] = None) -> TestConfig:
-        """Apply each of the mode files to the given test config.
-
-        :param test_cfg: The raw test configuration.
-        :param modes: A list of mode names.
-        """
-
-        for mode in modes:
-            mode_cfg_path = None
-
-            if suite_name is not None:
-                label, mode_cfg_path = self._config_path_from_suite(suite_name, "mode")
-            if mode_cfg_path is None:
-                from_suite = False
-                label, mode_cfg_path = self._get_test_config_path(mode, "mode")
-                loader = self._loader
-            else:
-                from_suite = True
-                loader = self._suite_loader
-
-            cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, label, from_suite)
-
-            raw_mode_cfg = self._load_raw_config(cfg_info, loader)
-
-            try:
-                mode_cfg = self._loader.normalize(
-                    raw_mode_cfg,
-                    root_name=f"the top level of the OS file.")
-            except (KeyError, ValueError) as err:
-                raise TestConfigError(
-                    f"Error loading host config '{mode}' from file '{mode_cfg_path}'.")
-
-            try:
-                test_cfg = self._loader.merge(test_cfg, mode_cfg)
-            except (KeyError, ValueError) as err:
-                raise TestConfigError(
-                    "Error merging mode configuration for mode '{}'".format(mode))
-
-            test_cfg = resolve.cmd_inheritance(test_cfg)
-
-        return test_cfg
-
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'base_name', 'host', 'platform', 'modes']
-
-    def apply_overrides(self, test_cfg: TestConfig, overrides: TestConfig) -> TestConfig:
-        """Apply the dictionary of overrides to the given test config."""
-
-        for key in overrides.keys():
-            if key in self.NOT_OVERRIDABLE:
-                raise KeyError("You can't override the '{}' key in a test config"
-                            .format(key))
-
-        try:
-            return self._loader.merge(test_cfg, overrides)
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Error applying overrides to test config.\n{err}")
-
 
     def resolve_inheritance(self, suite_cfg, suite_path) \
             -> Dict[str, dict]:
