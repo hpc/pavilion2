@@ -71,12 +71,14 @@ class ConfigInfo:
 class TestOptions:
     """Test options from the command line or series configs."""
 
-    def __init__(self
+    def __init__(self,
                  platform: str,
                  host: str,
-                 modes: Optional[List[str]],
-                 overrides: Optional[TestConfig],
-                 conditions: Optional[Dict]):
+                 modes: Optional[List[str]] = None,
+                 overrides: Optional[TestConfig] = None,
+                 conditions: Optional[Dict] = None):
+        self.platform = platform
+        self.host = host
         self.modes = modes or []
         self.overrides = overrides or {}
         self.conditions = conditions or {}
@@ -189,7 +191,7 @@ class TestConfigResolver:
         paths = map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.config_paths)
 
         pairs = zip(self.config_labels, paths)
-        paris = listfilter(lambda p: p[1].exists(), pairs)
+        pairs = listfilter(lambda p: p[1].exists(), pairs)
 
         if len(pairs) > 1:
             raise TestConfigError(f"Could not unambiguously find config with name {cfg_name}: "
@@ -207,7 +209,7 @@ class TestConfigResolver:
         suite_paths = listmap(append_to_path(f"{suite_name}.yaml"), self.suites_dirs)
         suite_paths.extend(map(append_to_path(f"{suite_name}"), self.suites_dirs))
 
-        pairs = zip(suite_paths, list(self.config_labels) * 2)
+        pairs = zip(list(self.config_labels) * 2, suite_paths)
         pairs = listfilter(lambda p: p[1].exists(), pairs)
 
         if len(pairs) > 1:
@@ -217,10 +219,10 @@ class TestConfigResolver:
         elif len(pairs) == 0:
             return None, None
         else:
-            return suite_paths[0]
+            return pairs[0]
 
     def _config_path_from_suite(self, suite_name: Optional[str],
-                                conf_type: str) -> Tuple[Optional[str], Optional[Path]]:
+                                cfg_type: str) -> Tuple[Optional[str], Optional[Path]]:
         """Given a suite name, return the path to the config file of the specified type, if one
         exists, along with its corresponding config label. If the file does not exist in any known
         suites directory, returns None."""
@@ -233,7 +235,7 @@ class TestConfigResolver:
         if suite_path is None:
             return None, None
 
-        cfg_fname = self._get_config_fname(conf_type)
+        cfg_fname = self._get_config_fname(cfg_type)
 
         if suite_path.is_dir():
             cfg_path = suite_path / cfg_fname
@@ -816,7 +818,7 @@ class TestConfigResolver:
 
         suite_name = test_cfg.get("suite")
 
-        aux_configs = self._load_aux_configs(options, suite_name)
+        aux_cfgs = self._load_aux_configs(options, suite_name)
 
         for cfg_info, cfg in aux_cfgs:
             try:
@@ -825,8 +827,8 @@ class TestConfigResolver:
                 if cfg_info.type == "overrides":
                     msg = "Error merging overrides configuration."
                 else:
-                    msg = f"Error merging {cfg_info.type} configuration for {cfg_info.type} "
-                           "'{cfg_info.name}'"
+                    msg = (f"Error merging {cfg_info.type} configuration for {cfg_info.type} "
+                           "'{cfg_info.name}'")
                 raise TestConfigError(msg)
 
             if cfg_info.type == "mode":
@@ -858,12 +860,12 @@ class TestConfigResolver:
                                     root_name=f"the top level of the {cfg_info.type} file.")
             except (KeyError, ValueError) as err:
                 raise TestConfigError(
-                    f"Error loading {cfg_info.type}} config '{cfg_info.name}' from file "
+                    f"Error loading {cfg_info.type} config '{cfg_info.name}' from file "
                     f"'{cfg_info.path}'.")
 
             configs.append((cfg_info, cfg))
 
-        if overrides is not None:
+        if options.overrides is not None:
             overrides = self._validate_overrides(options.overrides)
             overrides = self._loader.normalize(overrides)
 
@@ -941,15 +943,15 @@ class TestConfigResolver:
 
                     if len(similar) > 0:
                         raise TestConfigError(
-                            "Could not find {} config {}.yaml.\n"
+                            "Could not find mode config {}.yaml.\n"
                             "Did you mean one of these? {}"
-                            .format(cfg_info.type, cfg_info.name, ', '.join(similar)))
+                            .format(mode, ', '.join(similar)))
                     else:
                         raise TestConfigError(
-                            "Could not find {0} config file '{1}.yaml' in any of the "
+                            "Could not find mode config file '{}.yaml' in any of the "
                             "Pavilion config directories.\n"
-                            "Run `pav show {2}` to get a list of available {0} files."
-                            .format(cfg_info.type, cfg_info.name, cfg_info.type))
+                            "Run `pav show mode` to get a list of available mode files."
+                            .format(mode))
                 else:
                     path = global_mode_path
                     label = global_mode_label
