@@ -451,7 +451,11 @@ class TestConfigResolver:
 
         batch_size = 2**32 if batch_size is None else batch_size
 
-        options = TestOptions(modes, overrides, conditions)
+        options = TestOptions(platform=self._platform,
+                              host=self._host,
+                              modes=modes,
+                              overrides=overrides,
+                              conditions=conditions)
 
         requests = [TestRequest(req) for req in tests]
 
