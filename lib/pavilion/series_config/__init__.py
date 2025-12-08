@@ -1,9 +1,11 @@
 import os
-from typing import List
+from typing import List, Dict, Optional, Any
 
 import yc_yaml
 import yaml_config
+from pavilion.config import PavConfig
 from pavilion.resolver import TestConfigResolver
+from pavilion.utils import recursive_update
 from ..errors import TestConfigError, SeriesConfigError
 from .file_format import SeriesConfigLoader
 
@@ -99,14 +101,14 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
                                     prior_error=err)
 
 
-def verify_configs(pav_cfg, series_name: str, platform: str = None,
-                   host: str = None, modes: List[str] = None,
-                   overrides: List[str] = None) -> dict:
+def verify_configs(pav_cfg: PavConfig, series_name: str, platform: Optional[str] = None,
+                   host: Optional[str] = None, modes: Optional[List[str]] = None,
+                   overrides: Optional[Dict[str, Any]] = None) -> Dict:
     """Loads series config and checks that all tests can be loaded with all
     modes and host (if any). """
 
     modes = modes or []
-    overrides = overrides or []
+    overrides = overrides or {}
 
     series_cfg = load_series_config(pav_cfg, series_name)
     resolver = TestConfigResolver(pav_cfg, host=host)
@@ -115,7 +117,7 @@ def verify_configs(pav_cfg, series_name: str, platform: str = None,
         series_cfg['name'] = series_name
 
     series_cfg['modes'] += modes
-    series_cfg['overrides'] += overrides
+    recursive_update(series_cfg['overrides'], overrides)
 
     try:
         for set_name, set_dict in series_cfg['test_sets'].items():
@@ -135,15 +137,15 @@ def verify_configs(pav_cfg, series_name: str, platform: str = None,
 
 def generate_series_config(
         name: str,
-        platform: str = None,
-        host: str = None,
-        modes: List[str] = None,
-        ordered: bool = None,
-        overrides: List[str] = None,
-        repeat: int = None,
-        simultaneous: int = None,
+        platform: Optional[str] = None,
+        host: Optional[str] = None,
+        modes: Optional[List[str]] = None,
+        ordered: Optional[bool] = None,
+        overrides: Optional[Dict[str, Any]] = None,
+        repeat: Optional[int] = None,
+        simultaneous: Optional[int] = None,
         ignore_errors: bool = False,
-    ) -> dict:
+    ) -> Dict[str, Any]:
     """Generates series config given global series settings. To add test sets,
     create a series with this config and use the add_test_set_config() method."""
 
