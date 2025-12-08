@@ -661,33 +661,7 @@ class TestConfigResolver:
         cfg = {}
 
         for ovr in overrides:
-            if '=' not in ovr:
-                raise ValueError(
-                    f"Invalid override value {ovr}. Must be in the form: "
-                    "<key>=<value>. Ex. -c run.modules=['gcc'] ")
-
-            key, value = ovr.split('=', 1)
-            key = key.strip()
-
-            if not key:
-                raise ValueError("Override '{}' given a blank key.".format(ovr))
-
-            key = key.split('.')
-
-            for part in key:
-                if ' ' in part:
-                    raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
-                if not part:
-                    raise ValueError("Override '{}' has an empty key part.".format(ovr))
-
-            ovr_dict = {}
-            sub_cfg = ovr_dict
-
-            for part in key[-1]:
-                sub_cfg[part] = {}
-                sub_cfg = sub_cfg.get(part)
-
-            sub_cfg[key[-1]] = value
+            ovr_dict = self.override_to_dict(ovr)
 
             try:
                 recursive_update(cfg, ovr_dict)
@@ -695,6 +669,38 @@ class TestConfigResolver:
                 raise TestConfigError("Error parsing override {ovr}.")
 
             return TestConfigLoader().normalize(cfg)
+
+    @staticmethod
+    def override_to_dict(override: str) -> Dict[str, str]:
+        """Convert a single overrides string (e.g. 'schedule.nodes=1') into a dictionary."""
+
+        if '=' not in ovr:
+                raise ValueError(
+                    f"Invalid override value {ovr}. Must be in the form: "
+                    "<key>=<value>. Ex. -c run.modules=['gcc'] ")
+
+        key, value = ovr.split('=', 1)
+        key = key.strip()
+
+        if not key:
+            raise ValueError("Override '{}' given a blank key.".format(ovr))
+
+        key = key.split('.')
+
+        for part in key:
+            if ' ' in part:
+                raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
+            if not part:
+                raise ValueError("Override '{}' has an empty key part.".format(ovr))
+
+        ovr_dict = {}
+        sub_cfg = ovr_dict
+
+        for part in key[-1]:
+            sub_cfg[part] = {}
+            sub_cfg = sub_cfg.get(part)
+
+        sub_cfg[key[-1]] = value
 
     @staticmethod
     def _safe_load_config(cfg: ConfigInfo, loader: yc.YamlConfigLoader) -> TestConfig:
@@ -880,6 +886,10 @@ class TestConfigResolver:
                                 from_suite=False)
 
             configs.append((cfg_info, overrides))
+
+            for cfg_info, cfg in configs:
+                # Print out the config
+                print(f"{cfg_info.type}: {cfg}")
 
             return configs
 
