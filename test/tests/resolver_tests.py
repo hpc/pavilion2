@@ -324,6 +324,8 @@ class ResolverTests(PavTestCase):
             ("summary={asdf", "Invalid value '{asdf'"),
         ]
 
+        overrides = self.resolver.config_from_overrides(overrides)
+
         proto_tests = self.resolver.load(['hello_world'],
                                          overrides=overrides)
 
