@@ -21,6 +21,7 @@ from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
 from pavilion.micro import set_default
+from pavilion.test_ids import TestID
 
 S_STATES = SERIES_STATES
 
@@ -189,8 +190,11 @@ class TestSet:
 
         return test_sets
 
-    def make_iter(self, build_only=False, rebuild=False, local_builds_only=False) \
-                  -> Iterator[List[TestRun]]:
+    def make_iter(self,
+                  series_id: SeriesID,
+                  build_only: bool = False,
+                  rebuild: bool = False,
+                  local_builds_only: bool = False) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).
