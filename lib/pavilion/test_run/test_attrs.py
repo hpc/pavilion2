@@ -364,7 +364,6 @@ class TestAttributes(Mapping):
         name='finished',
         doc="The end time for this test run.")
     id = basic_attr(
-
         name='id',
         doc="The test run id (unique per working_dir at any given time).")
     name = basic_attr(
