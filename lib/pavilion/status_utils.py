@@ -113,7 +113,7 @@ def get_status(test: TestRun, pav_conf):
             'result':  '',
             'series':  '',
             'state':   STATES.UNKNOWN,
-            'test_id': test.id,
+            'test_id': test.series_rel_id,
             'time':    '',
         }
 
