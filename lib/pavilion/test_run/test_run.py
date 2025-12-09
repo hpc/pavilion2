@@ -285,19 +285,13 @@ class TestRun(TestAttributes):
 
     @property
     def series(self) -> Optional[SeriesID]:
-        """Return the series id that this test belongs to. Returns None if it doesn't
+        """Return the series ID that this test belongs to. Returns None if it doesn't
         belong to any series."""
 
-        series_path = self.path/'series'
-        if series_path.exists():
-            series = series_path.resolve().name
-            try:
-                series = int(series)
-            except ValueError:
-                return None
-            return 's{}'.format(series)
-        else:
+        if self.series_rel_id is None:
             return None
+
+        return self.series_rel_id.series
 
     def _build_trivial(self) -> None:
         """Skip the actual build step, but create the correct files and directories,
