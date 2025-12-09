@@ -376,6 +376,9 @@ class TestAttributes(Mapping):
     skipped = basic_attr(
         name='skipped',
         doc="Did this test's skip conditions evaluate as 'skipped'?")
+    series_rel_id = basic_attr(
+        name="series_rel_id",
+        doc="The test ID relative to its series.")
     started = basic_attr(
         name='started',
         doc="The start time for this test run.")
@@ -392,9 +395,6 @@ class TestAttributes(Mapping):
     user = basic_attr(
         name='user',
         doc="The user who created this test run.")
-    uuid = basic_attr(
-        name='uuid',
-        doc="A completely unique id for this test run (test id's can rotate).")
     warnings = basic_attr(
         name='warnings',
         doc="Non-fatal internal errors in a TestRun."
