@@ -140,21 +140,25 @@ class TestRun(TestAttributes):
         self._validate_config()
 
         test_uuid = uuid.uuid4().hex
-        self.series_rel_id = None
 
         # Get an id for the test, if we weren't given one.
         if new_test:
             uuid_path = tests_path / test_uuid
             uuid_path.mkdir()
-            # These will be set by save() or on load.
+            series_rel_id = None
+
             try:
                 if series_path is not None:
                     series_rel_id, _ = dir_db.create_id_dir(series_path, link_target=uuid_path)
-                    self.series_rel_id = TestID(f"{series_id}.{series_rel_id}")
             except (OSError, TimeoutError) as err:
                 raise TestRunError(f"Could not link test id directory at '{series_path}'", err)
+
             super().__init__(path=uuid_path, load=False)
             self.id = TestID(test_uuid)
+
+            if series_id is not None:
+                self.series_rel_id = TestID(f"{series_id}.{series_rel_id}")
+
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
