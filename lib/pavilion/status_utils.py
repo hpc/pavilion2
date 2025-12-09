@@ -89,7 +89,7 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         'result':  result,
         'series':  series_id,
         'state':   status_f.state,
-        'test_id': test.id,
+        'test_id': test.series_rel_id,
         'time':    status_f.when,
     }
 
