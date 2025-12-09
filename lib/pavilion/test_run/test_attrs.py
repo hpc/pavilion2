@@ -49,6 +49,7 @@ class TestAttributes(Mapping):
 
     serializers = {
         "id": str,
+        "series_rel_id": str,
         "status": lambda s: s.path.as_posix(),
         'suite_path': lambda p: p.as_posix(),
     }
@@ -57,6 +58,7 @@ class TestAttributes(Mapping):
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
         'id': lambda x: TestID(str(x)),
+        'series_rel_id': TestID
         'started': utils.deserialize_datetime,
         "status": lambda s: TestStatusFile(Path(s)),
         'suite_path': lambda p: Path(p) if p is not None else None,
