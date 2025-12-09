@@ -134,7 +134,7 @@ class TestRun(TestAttributes):
             self.working_dir = Path(config['working_dir'])
 
         tests_path = self.working_dir/self.RUN_DIR
-        series_path = self.working_dir / "series" / series_id if series_id else None
+        series_path = self.working_dir / "series" / str(series_id.as_int()) if series_id else None
 
         self.config = config
         self._validate_config()
