@@ -34,7 +34,7 @@ from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
 from pavilion.micro import partition, do, listfilter, stardo
 from pavilion.timing import TimeLimiter
-from pavilion.test_ids import SeriesID
+from pavilion.test_ids import TestID, SeriesID
 from pavilion.result_logging import get_result_loggers
 from pavilion.dir_db import create_id_dir
 from yaml_config import YAMLError, RequiredError
@@ -745,9 +745,12 @@ class TestSeries:
                 .format(set_path, self.id), err)
 
         # attempt to make symlink
-        _, link_path = create_id_dir(set_path,
-                                  link_target=test.path,
-                                  next_fn=self.path/self.TESTSET_DIRNAME/"next_id")
+        rel_id, link_path = create_id_dir(set_path,
+                                          link_target=test.path,
+                                          next_fn=self.path/self.TESTSET_DIRNAME/"next_id")
+
+        # Set test's series-relative ID
+        test.rel_id = TestID(f"{self.id}.{rel_id}")
 
         self.tests[test.id_pair] = test
 

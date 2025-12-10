@@ -106,8 +106,7 @@ class TestRun(TestAttributes):
 
     def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
                  var_man: Optional[VariableSetManager] = None, _id: Optional[TestID] = None,
-                 series_id: Optional[SeriesID] = None, rebuild: bool = False,
-                 build_only: bool = False):
+                 rebuild: bool = False, build_only: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -134,31 +133,21 @@ class TestRun(TestAttributes):
             self.working_dir = Path(config['working_dir'])
 
         tests_path = self.working_dir/self.RUN_DIR
-        series_path = self.working_dir / "series" / str(series_id.as_int()) if series_id else None
 
         self.config = config
         self._validate_config()
 
         test_uuid = uuid.uuid4().hex
+        series_rel_id = None
 
         # Get an id for the test, if we weren't given one.
         if new_test:
             uuid_path = tests_path / test_uuid
             uuid_path.mkdir()
-            series_rel_id = None
-
-            try:
-                if series_path is not None:
-                    series_rel_id, _ = dir_db.create_id_dir(series_path, link_target=uuid_path)
-            except (OSError, TimeoutError) as err:
-                raise TestRunError(f"Could not link test id directory at '{series_path}'", err)
 
             super().__init__(path=uuid_path, load=False)
+
             self.id = TestID(test_uuid)
-
-            if series_id is not None:
-                self.series_rel_id = TestID(f"{series_id}.{series_rel_id}")
-
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
