@@ -191,7 +191,6 @@ class TestSet:
         return test_sets
 
     def make_iter(self,
-                  series_id: SeriesID,
                   build_only: bool = False,
                   rebuild: bool = False,
                   local_builds_only: bool = False) -> Iterator[List[TestRun]]:
@@ -281,7 +280,7 @@ class TestSet:
                 try:
                     test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
                                        var_man=ptest.var_man, rebuild=rebuild,
-                                       build_only=build_only, series_id=series_id)
+                                       build_only=build_only)
                     if not test_run.skipped:
                         test_run.save()
                         self.tests.append(test_run)
