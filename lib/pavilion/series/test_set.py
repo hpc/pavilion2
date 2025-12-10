@@ -21,7 +21,6 @@ from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
 from pavilion.micro import set_default
-from pavilion.test_ids import SeriesID
 
 S_STATES = SERIES_STATES
 

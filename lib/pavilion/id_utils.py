@@ -55,7 +55,6 @@ def resolve_relative_id(pav_cfg: PavConfig, working_dir: Path, test_id: TestID) 
         raise TestIDError(f"Unable to resolve relative test ID '{test_id}' to absolute ID. "
                           f"No series '{test_id.series}' found.")
 
-    print(f"Searching {series_dir} for matching test...")
     # Search the series directory for the symlink matching the relative test ID, then resolve
     # it to the absolute test ID.
     for test_set in series_dir.iterdir():
