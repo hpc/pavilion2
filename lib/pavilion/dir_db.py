@@ -18,6 +18,7 @@ from typing import Callable, List, Iterable, Any, Dict, NewType, Optional, \
 from pavilion.config import PavConfig
 from pavilion import lockfile
 from pavilion import output
+from pavilion import utils
 
 ID_DIGITS = 7
 ID_FMT = '{id:d}'
@@ -33,16 +34,17 @@ SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
 T = TypeVar("T")
 
 
-def make_id_path(base_path: Path, id_: Union[str, int]) -> Path:
+def make_id_path(base_path: Path, id_: Union[str, int], fn_base: int) -> Path:
     """Create the full path to an id directory given its base path and
     the id.
 
     :param Path base_path: The path to where id directories are stored.
     :param int id_: The id number
+    :param int fn_base: The base to use when converting the ID number to a string.
     :rtype: Path
     """
 
-    return base_path / str(id_)
+    return base_path / utils.int_to_base(id_, fn_base)
 
 
 def reset_pkey(id_dir: Path) -> None:
@@ -366,7 +368,7 @@ def select(pav_cfg: PavConfig,
         idx = index(pav_cfg, id_dir, index_name, transform,
                     complete_key=idx_complete_key, verbose=verbose)
         for id_, data in idx.items():
-            path = make_id_path(id_dir, id_)
+            path = make_id_path(id_dir, id_, fn_base=fn_base)
 
             if order_func is not None and order_func(data) is None:
                 continue

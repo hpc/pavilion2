@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import textwrap
 import zipfile
+import string
 from pathlib import Path
 from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable
 
@@ -38,6 +39,30 @@ class WrappedFormatter(argparse.HelpFormatter):
                                            subsequent_indent=indent))
         return '\n'.join(all_lines)
 
+
+DIGITS = string.digits + string.ascii_letters
+
+def int_to_base(val: int, base: int) -> str:
+    """Convert an integer to an arbitrary base."""
+
+    if base > len(DIGITS):
+        raise ValueError(f"Unsupported base: {base}.")
+
+    digits = []
+
+    if val < 0:
+        sign = "-"
+    else:
+        sign = ""
+
+    while val > 0:
+        val, digit = divmod(val, base)
+        digits.append(DIGITS[digit])
+
+    digits.append(sign)
+    digits.reverse()
+
+    return "".join(digits)
 
 def glob_to_re(glob):
     """Translate the given glob to one that is compatible with (extended) grep.
