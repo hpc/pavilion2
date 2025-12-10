@@ -750,7 +750,8 @@ class TestSeries:
                                           next_fn=self.path/self.TESTSET_DIRNAME/"next_id")
 
         # Set test's series-relative ID
-        test.rel_id = TestID(f"{self.id}.{rel_id}")
+        test.series_rel_id = TestID(f"{self.id}.{rel_id}")
+        test.save()
 
         self.tests[test.id_pair] = test
 
