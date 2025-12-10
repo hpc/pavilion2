@@ -88,7 +88,7 @@ def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
                 with next_fn.open() as next_file:
                     next_id = int(next_file.read())
 
-                next_id_path = make_id_path(id_dir, next_id, fn_base=10)
+                next_id_path = id_dir / str(next_id)
 
                 if next_id_path.exists():
                     next_valid = False
@@ -114,7 +114,7 @@ def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
             while next_id in ids:
                 next_id += 1
 
-            next_id_path = make_id_path(id_dir, next_id, fn_base=10)
+            next_id_path = id_dir / str(next_id)
 
         if link_target is None:
             next_id_path.mkdir()

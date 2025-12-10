@@ -127,7 +127,7 @@ class TestSeries:
         # time).
         else:
             self.id = _id
-            self.path = dir_db.make_id_path(series_path, self.id.as_int(), fn_base=10)
+            self.path = series_path / str(self.id.as_int())
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
@@ -225,7 +225,7 @@ class TestSeries:
 
         series_id = sid.as_int()
         series_path = pav_cfg.working_dir/'series'
-        series_path = dir_db.make_id_path(series_path, series_id)
+        series_path = series_path / str(series_id)
 
         if not series_path.exists():
             raise TestSeriesError("No such series found: '{}' at '{}'"

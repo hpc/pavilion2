@@ -46,4 +46,5 @@ def path_from_id(pav_cfg: PavConfig, sid: SeriesID) -> Path:
     :raises TestSeriesError: For an invalid id.
     """
 
-    return dir_db.make_id_path(pav_cfg.working_dir/'series', sid.as_int(), fn_base=10)
+    return pav_cfg.working_dir / "series" / str(sid.as_int())
+
