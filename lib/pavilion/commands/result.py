@@ -181,7 +181,7 @@ class ResultsCommand(Command):
                 return errno.EINVAL
 
         serieses = ",".join(
-            set([test.series for test in tests if test.series is not None]))
+            set([str(test.series) for test in tests if test.series is not None]))
         results = result_utils.get_results(pav_cfg, tests)
 
         if args.by_key_compat:
