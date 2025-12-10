@@ -127,7 +127,7 @@ class TestSeries:
         # time).
         else:
             self.id = _id
-            self.path = dir_db.make_id_path(series_path, self.id.as_int())
+            self.path = dir_db.make_id_path(series_path, self.id.as_int(), fn_base=10)
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)

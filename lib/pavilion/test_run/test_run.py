@@ -451,7 +451,7 @@ class TestRun(TestAttributes):
         if test_id.is_relative() and not legacy:
             test_id = resolve_relative_id(pav_cfg, working_dir, test_id)
 
-        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id.id)
+        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id.id, fn_base=10)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
