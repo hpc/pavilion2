@@ -165,7 +165,6 @@ class TestAttributes(Mapping):
             'suite_path': None,
             'sys_name':   None,
             'user':       utils.owner(self.path),
-            'uuid':       None,
             'warnings':   [],
         }
 

@@ -192,7 +192,6 @@ class TestRun(TestAttributes):
                 raise TestRunError("Error loading variable set for test {}".format(self.id),
                                    err)
 
-        self.uuid = test_uuid
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
         self.test_version = config.get('test_version')
@@ -274,7 +273,7 @@ class TestRun(TestAttributes):
     @property
     def id_pair(self) -> ID_Pair:
         """Returns an ID_pair (a tuple of the working dir and test id)."""
-        return ID_Pair((self.working_dir, self.uuid))
+        return ID_Pair((self.working_dir, self.id))
 
     @property
     def series(self) -> Optional[SeriesID]:
