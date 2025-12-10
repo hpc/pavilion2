@@ -59,6 +59,7 @@ class TestSeries:
     CANCEL_FN = 'series.CANCELED'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
     TESTSET_DIRNAME = "test_sets"
+    LOG_RESULTS_LOG_FN = "log_results.log"
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
@@ -428,7 +429,12 @@ class TestSeries:
             try:
                 # Create a new process to log test results as tests complete
                 log_res_args = [pav_exe, '_log_results', str(self.id)]
-                self.log_proc = subprocess.Popen(log_res_args, start_new_session=True, env=env)
+                self.log_proc = subprocess.Popen(
+                                            log_res_args,
+                                            start_new_session=True,
+                                            env=env,
+                                            stdout=self.path / self.LOG_RESULTS_LOG_FN,
+                                            stderr=subprocess.STDOUT)
             except OSError as err:
                 raise TestSeriesError(
                     "Could not start result logger in the background for series '{}'."
@@ -516,6 +522,7 @@ class TestSeries:
             loggers = self.result_loggers
 
         if self.pav_cfg.get("flatten_results"):
+            output.fprint(self.outfile, "Flattening results...")
             # Log the sequence of flattened results
             log = lambda logger, test: do(logger, test.flatten_results(test.results))
         else:
@@ -527,15 +534,32 @@ class TestSeries:
         while not (self.complete or self.check_cancelled()):
             to_log = set(self.get_completed()) - logged
 
-            # Apply all loggers to all tests ready to log
-            stardo(log, product(loggers, to_log))
+            output.fprint(self.outfile, f"Found {len(to_log)} completed tests to log.")
 
-            logged |= to_log
+            # Apply all loggers to all tests ready to log
+
+            try:
+                stardo(log, product(loggers, to_log))
+                logged |= to_log
+                output.fprint(self.outfile, f"Logged {len(to_log)} tests ({len(logged)} total).")
+            except TimeoutError:
+                output.fprint("Timed out waiting on lock for results log.", color=output.RED)
+
             time.sleep(0.2)
+
+        if self.complete:
+            output.fprint(f"Series {self.id} has completed. Finishing up logging....")
+        else:
+            output.fprint(f"Series {self.id} has been cancelled. Finishing up logging....")
 
         # Log any remaining tests after series completion
         to_log = set(self.get_completed()) - logged
+
+        output.fprint(self.outfile, f"Found {len(to_log)} completed tests to log.")
+
         stardo(log, product(loggers, to_log))
+
+        output.fprint("Finished logging results.")
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
