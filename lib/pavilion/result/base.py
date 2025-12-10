@@ -69,8 +69,6 @@ BASE_RESULTS = {
                  "Per file results."),
     'return_value': (None,
                      "The return value of run.sh"),
-    'uuid': (lambda test: test.uuid,
-             "The test's fully unique identifier."),
     'var': (lambda test: get_top_keys(test, 'var'),
              "The test's variables.")
 }
