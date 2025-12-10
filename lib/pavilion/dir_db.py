@@ -114,7 +114,7 @@ def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
             while next_id in ids:
                 next_id += 1
 
-            next_id_path = make_id_path(id_dir, next_id)
+            next_id_path = make_id_path(id_dir, next_id, fn_base=10)
 
         if link_target is None:
             next_id_path.mkdir()
