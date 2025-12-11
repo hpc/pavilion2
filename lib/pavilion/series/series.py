@@ -430,7 +430,7 @@ class TestSeries:
                 # Create a new process to log test results as tests complete
                 log_res_args = [pav_exe, '_log_results', str(self.id)]
 
-                with open(self.path / self.LOG_RESULTS_LOG_FN) as log_results_log:
+                with open(self.path / self.LOG_RESULTS_LOG_FN, "w") as log_results_log:
                     self.log_proc = subprocess.Popen(
                                                 log_res_args,
                                                 start_new_session=True,
