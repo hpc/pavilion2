@@ -434,6 +434,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
                               tests: Union[TestRun, List[TestRun]],
                               log_path: Optional[Path] = None,
                               nodes: Optional = None,
+                              delay: float = 0,
                               isolate: bool = False) -> ScriptComposer:
         """Create the kickoff script."""
 
@@ -447,7 +448,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
                                     nodes: Optional[NodeList] = None,
                                     node_range: Optional[Tuple[int, int]] = None,
                                     shebang: Optional[str] = None,
-                                    delay: float = 0,
                                     isolate: bool = False) -> ScriptComposer:
         """Generate the kickoff script essentials preamble common to all scheduled
         tests.
