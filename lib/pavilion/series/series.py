@@ -545,14 +545,16 @@ class TestSeries:
                 logged |= to_log
                 output.fprint(self.outfile, f"Logged {len(to_log)} tests ({len(logged)} total).")
             except TimeoutError:
-                output.fprint("Timed out waiting on lock for results log.", color=output.RED)
+                output.fprint(self.outfile, "Timed out waiting on lock for results log.",
+                              color=output.RED)
 
             time.sleep(0.2)
 
         if self.complete:
-            output.fprint(f"Series {self.id} has completed. Finishing up logging....")
+            output.fprint(self.outfile, f"Series {self.id} has completed. Finishing up logging....")
         else:
-            output.fprint(f"Series {self.id} has been cancelled. Finishing up logging....")
+            output.fprint(self.outfile,
+                          f"Series {self.id} has been cancelled. Finishing up logging....")
 
         # Log any remaining tests after series completion
         to_log = set(self.get_completed()) - logged
