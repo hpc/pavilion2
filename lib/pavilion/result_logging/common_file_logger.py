@@ -36,7 +36,7 @@ class CommonFileLoggerFactory(ResultLoggerPlugin):
     def _make_logger(self,
                      config: Dict,
                      sid: str,
-                     outfile: Optional[TextIO]) -> "CommonFileResultLogger":
+                     outfile: Optional[TextIO] = None) -> "CommonFileResultLogger":
         dest = Path(config.get("dest"))
 
         return CommonFileResultLogger(dest, outfile)

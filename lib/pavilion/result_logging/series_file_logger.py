@@ -35,7 +35,7 @@ class SeriesFileLoggerFactory(ResultLoggerPlugin):
     def _make_logger(self,
                      config: Dict,
                      sid: str,
-                     outfile: Optional[TextIO]) -> "SeriesFileResultLogger":
+                     outfile: Optional[TextIO] = None) -> "SeriesFileResultLogger":
         dest = Path(config.get("dest")) / f"{sid}.log"
 
         return SeriesFileResultLogger(dest, outfile)
