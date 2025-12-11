@@ -150,11 +150,16 @@ class LoggingTests(PavTestCase):
 
         run_cmd = commands.get_command(args.command_name)
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+        self.pav_cfg = self.make_pav_config(result_loggers= [{
+                                                "plugin": "series_file",
+                                                "dest": self.pav_cfg.working_dir/'results'}])
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
         series = run_cmd.last_series
-        series.log_results()
-        log_path = next(iter(series.get_result_paths()), None)
+        series.wait_log(timeout=10)
+
+        log_path = next(iter(series.get_result_paths()))
 
         self.assertEqual(log_path.stem, str(series.id))
 
@@ -177,20 +182,21 @@ class LoggingTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
 
-        self.pav_cfg["result_loggers"] = [{
-            "plugin": "common_file",
-            "dest": self.pav_cfg.working_dir / "results.log"}]
+        self.pav_cfg = self.make_pav_config(result_loggers=[{
+                                                "plugin": "common_file",
+                                                "dest": self.pav_cfg.working_dir / "results.log"}])
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
         series1 = run_cmd.last_series
 
-        series1.log_results()
-        log_path = next(iter(series1.get_result_paths()), None)
+        log_path = next(iter(series1.get_result_paths()))
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series2 = run_cmd.last_series
-        series2.log_results()
+
+        series1.wait_log(timeout=10)
+        series2.wait_log(timeout=10)
 
         with open(log_path) as fin:
             results = fin.readlines()

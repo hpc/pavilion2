@@ -131,7 +131,7 @@ class TestSeries:
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
-        self.result_loggers = get_result_loggers(pav_cfg, self.id)
+        self.result_loggers = get_result_loggers(pav_cfg, self.id, self.outfile)
         self.log_proc = None
 
     def run_background(self):

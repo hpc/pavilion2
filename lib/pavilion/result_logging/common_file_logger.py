@@ -1,7 +1,9 @@
 from pathlib import Path
 import json
-from typing import Dict
+import io
+from typing import Dict, Optional, TextIO
 
+from pavilion import output
 from pavilion.errors import ResultLoggerPluginError
 from pavilion.lockfile import FuzzyLock
 from .base_classes import ResultLoggerPlugin, ResultLogger
@@ -31,10 +33,13 @@ class CommonFileLoggerFactory(ResultLoggerPlugin):
         if not Path(dest).is_absolute():
             raise ResultLoggerPluginError(f"Provided path {dest} is not an absolute path.")
 
-    def _make_logger(self, config: Dict, sid: str) -> "CommonFileResultLogger":
+    def _make_logger(self,
+                     config: Dict,
+                     sid: str,
+                     outfile: Optional[TextIO]) -> "CommonFileResultLogger":
         dest = Path(config.get("dest"))
 
-        return CommonFileResultLogger(dest)
+        return CommonFileResultLogger(dest, outfile)
 
 
 class CommonFileResultLogger(ResultLogger):
@@ -42,15 +47,18 @@ class CommonFileResultLogger(ResultLogger):
 
     RESULTS_FN = "results.log"
 
-    def __init__(self, dest: Path):
+    def __init__(self, dest: Path, outfile: Optional[TextIO] = None):
         self.dest = dest
 
         if self.dest.is_dir():
             self.dest /= RESULTS_FN
 
         self.lockfile = FuzzyLock(self.dest.parent / "results.lock", timeout=10)
+        self.outfile = outfile or io.StringIO()
 
     def log(self, results: Dict) -> None:
+        output.fprint(self.outfile, f"{type(self).__name__}: Logging {results} to {self.dest}...")
+
         with self.lockfile:
             with open(self.dest, "a") as fout:
                 json.dump(results, fout)

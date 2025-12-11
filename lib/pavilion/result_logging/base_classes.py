@@ -3,7 +3,7 @@ import logging
 import inspect
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Set
+from typing import Dict, Set, Optional, TextIO
 
 from yapsy import IPlugin
 
@@ -22,7 +22,9 @@ def get_plugin(name: str) -> "ResultOutputPlugin":
     return _RESULT_LOGGER_PLUGINS.get(name)
 
 
-def get_result_loggers(pav_cfg: "PavConfig", sid: str) -> Set["ResultLogger"]:
+def get_result_loggers(pav_cfg: "PavConfig",
+                       sid: str,
+                       outfile: Optional[TextIO] = None) -> Set["ResultLogger"]:
     """Get all result logger instances defined in the given Pavilion config."""
 
     loggers = set()
@@ -30,7 +32,7 @@ def get_result_loggers(pav_cfg: "PavConfig", sid: str) -> Set["ResultLogger"]:
     for log_config in pav_cfg.get("result_loggers"):
         plugin_name = log_config.get("plugin", "")
         factory = get_plugin(plugin_name)
-        loggers.add(factory.make_logger(log_config, sid))
+        loggers.add(factory.make_logger(log_config, sid, outfile))
 
     return loggers
 
@@ -67,16 +69,22 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _make_logger(self, config: Dict, sid: str) -> "ResultLogger":
+    def _make_logger(self,
+                     config: Dict,
+                     sid: str,
+                     outfile: Optional[TextIO] = None) -> "ResultLogger":
         """Create the result logger from the given config and series ID."""
         raise NotImplementedError
 
-    def make_logger(self, config: Dict, sid: str) -> "ResultLogger":
+    def make_logger(self,
+                    config: Dict,
+                    sid: str,
+                    outfile: Optional[TextIO] = None) -> "ResultLogger":
         """Validate the config and create the result logger."""
 
         self.validate_config(config)
 
-        return self._make_logger(config, sid)
+        return self._make_logger(config, sid, outfile)
 
     def activate(self):
         """Add this plugin to the result output plugin list."""

@@ -6,7 +6,6 @@ from typing import Optional
 from pavilion import output
 from pavilion import series
 from pavilion.test_ids import SeriesID
-from pavilion.result_logging import get_result_loggers
 from pavilion.errors import TestSeriesError
 from .base_classes import Command
 
@@ -37,7 +36,7 @@ class LogResults(Command):
                 args.series_id,
                 outfile=self.outfile)
         except TestSeriesError as err:
-            output.fprint(sys.stdout, "Error in _log_results cmd.", err)
+            output.fprint(self.outfile, "Error in _log_results cmd.", err)
             sys.exit(1)
         try:
             series_obj.log_results()
