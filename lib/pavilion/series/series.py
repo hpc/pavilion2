@@ -563,7 +563,7 @@ class TestSeries:
 
         stardo(log, product(loggers, to_log))
 
-        output.fprint("Finished logging results.")
+        output.fprint(self.outfile, "Finished logging results.")
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""
