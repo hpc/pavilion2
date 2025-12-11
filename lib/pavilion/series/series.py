@@ -429,12 +429,14 @@ class TestSeries:
             try:
                 # Create a new process to log test results as tests complete
                 log_res_args = [pav_exe, '_log_results', str(self.id)]
-                self.log_proc = subprocess.Popen(
-                                            log_res_args,
-                                            start_new_session=True,
-                                            env=env,
-                                            stdout=self.path / self.LOG_RESULTS_LOG_FN,
-                                            stderr=subprocess.STDOUT)
+
+                with open(self.path / self.LOG_RESULTS_LOG_FN) as log_results_log:
+                    self.log_proc = subprocess.Popen(
+                                                log_res_args,
+                                                start_new_session=True,
+                                                env=env,
+                                                stdout=log_results_log,
+                                                stderr=subprocess.STDOUT)
             except OSError as err:
                 raise TestSeriesError(
                     "Could not start result logger in the background for series '{}'."
