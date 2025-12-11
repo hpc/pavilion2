@@ -25,6 +25,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
     # A 'Basic' scheduler is concurrent or not - either all tests can run from the same job
     # or they must run from separate jobs.
     IS_CONCURRENT = True
+    KICKOFF_DELAY_SECS = 0
 
     def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
         """Get the initial variables for the basic scheduler."""
@@ -98,7 +99,11 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
             for test in test_bin:
                 test.job = job
 
-            script = self.create_kickoff_script(pav_cfg, test_bin, job.kickoff_log)
+            script = self.create_kickoff_script(
+                                            pav_cfg,
+                                            test_bin,
+                                            job.kickoff_log,
+                                            delay=self.KICKOFF_DELAY_SECS)
             script.write(job.kickoff_path)
 
             try:
@@ -134,6 +139,7 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
                               tests: Union[TestRun, List[TestRun]],
                               log_path: Optional[Path] = None,
                               nodes: Optional[NodeSet] = None,
+                              delay: float = 0,
                               isolate: bool = False) -> ScriptComposer:
         """Create the kickoff script."""
 
@@ -171,6 +177,9 @@ class SchedulerPluginBasic(SchedulerPlugin, ABC):
         # script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
 
         script.newline()
+
+        if delay > 0:
+            script.command(f"sleep {delay}")
 
         if isolate:
             script = tests[0].make_script(script, "run", isolate=True)

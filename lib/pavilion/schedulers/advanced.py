@@ -27,6 +27,8 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
     """A scheduler plugin that supports automatic node inventories, and as a
     consequence chunking and other advanced features."""
 
+    KICKOFF_DELAY_SECS = 3
+
     def __init__(self, name, description, priority=SchedulerPlugin.PRIO_COMMON):
         """Initialize tracking of node info and chunks, in addition to the basics."""
 
@@ -545,7 +547,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             # Clear the node range - it's only used for flexible scheduling.
             node_range = None
 
-        script = self.create_kickoff_script(pav_cfg, tests, job.kickoff_log, nodes=picked_nodes)
+        script = self.create_kickoff_script(
+                                        pav_cfg,
+                                        tests,
+                                        job.kickoff_log,
+                                        nodes=picked_nodes,
+                                        delay=self.KICKOFF_DELAY_SECS)
         script.write(job.kickoff_path)
 
         # Create symlinks for each test to the one test with the kickoff script and
@@ -599,7 +606,11 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             node_range = calc_node_range(sched_config, len(chunk))
 
-            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log)
+            script = self.create_kickoff_script(
+                                            pav_cfg,
+                                            test,
+                                            job.kickoff_log,
+                                            delay=self.KICKOFF_DELAY_SECS)
             script.write(job.kickoff_path)
 
             test.job = job
@@ -685,7 +696,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                               prior_error=err, tests=[test]))
                 continue
 
-            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log, nodes=picked_nodes)
+            script = self.create_kickoff_script(
+                                            pav_cfg,
+                                            test,
+                                            job.kickoff_log,
+                                            nodes=picked_nodes,
+                                            delay=self.KICKOFF_DELAY_SECS)
             script.write(job.kickoff_path)
 
             test.job = job
@@ -716,6 +732,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                               tests: Union[TestRun, List[TestRun]],
                               log_path: Optional[Path] = None,
                               nodes: Optional[NodeSet] = None,
+                              delay: float = 0,
                               isolate: bool = False) -> ScriptComposer:
         """Create the kickoff script."""
 
@@ -757,6 +774,9 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         script.command('echo "Starting {} tests - $(date)"'.format(len(tests)))
 
         script.newline()
+
+        if delay > 0:
+            script.command(f"sleep {delay}")
 
         if isolate:
             script = tests[0].make_script(script, "run", isolate=True)
