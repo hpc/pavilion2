@@ -47,4 +47,3 @@ def path_from_id(pav_cfg: PavConfig, sid: SeriesID) -> Path:
     """
 
     return pav_cfg.working_dir / "series" / str(sid.as_int())
-
