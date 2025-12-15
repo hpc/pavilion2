@@ -270,6 +270,12 @@ For example, the following test excludes nodes 1, 3, and 7-23 from being schedul
       schedule:
         exclude_nodes: 'nid001,nid003,nid[007-023]'
 
+To accomplish the same thing via a command-line override:
+
+.. code-block:: bash
+
+  pav run mytest -c schedule.exclude_nodes='nid001,nid003,nid[007-023]'
+
 Chunking
 --------
 
