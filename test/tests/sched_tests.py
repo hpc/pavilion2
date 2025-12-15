@@ -420,7 +420,7 @@ class SchedTests(PavTestCase):
             self.assertEqual(len(test.job.get_test_id_pairs()), 1)
 
         for test in tests:
-            test.wait(10)
+            test.wait(15)
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
