@@ -16,8 +16,8 @@ LOGGER = logging.getLogger(__file__)
 _RESULT_LOGGER_PLUGINS = {}
 
 
-def get_plugin(name: str) -> "ResultOutputPlugin":
-    """Get the result output plugin with the specified name."""
+def get_plugin(name: str) -> Optional["ResultOutputPlugin"]:
+    """Get the result output plugin wth the specified name."""
 
     return _RESULT_LOGGER_PLUGINS.get(name)
 
@@ -32,6 +32,11 @@ def get_result_loggers(pav_cfg: "PavConfig",
     for log_config in pav_cfg.get("result_loggers"):
         plugin_name = log_config.get("plugin", "")
         factory = get_plugin(plugin_name)
+
+        if factory is None:
+            raise ResultLoggerPluginError(
+                f"No result logger plugin found with name '{plugin_name}'")
+
         loggers.add(factory.make_logger(log_config, sid, outfile))
 
     return loggers
