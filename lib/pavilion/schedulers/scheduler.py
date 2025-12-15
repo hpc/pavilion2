@@ -236,8 +236,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
               is provided, these will already be included.
             - 'exclude_nodes' - The list of nodes to exclude. When 'nodes' is provided,
               these will already be excluded.
-            - 'across_nodes' - An complete list of nodes to use. When provided, these nodes, and
-              only these nodes will be used for scheduling.
+            - 'across_nodes' - A complete list of nodes to use. When provided, these nodes, and
+              only these nodes (or potentially a subset of them) will be used for scheduling.
             - 'node_range' - From the 'node_range' argument. The minimum and maximum number of
               nodes to request.
             - 'job_name' - What to label the job.
