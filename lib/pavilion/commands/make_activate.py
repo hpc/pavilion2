@@ -27,6 +27,7 @@ class MakeActivateCommand(Command):
     def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
         this_dir = Path(__file__).parent.resolve()
         pav_bin = this_dir.parents[2] / "bin"
+        script_path = args.dest / args.name
 
         if args.config_dir is None:
             args.config_dir = args.dest
@@ -53,4 +54,6 @@ class MakeActivateCommand(Command):
         script.command("echo \"PAVBIN         -- ${PAVBIN}\"")
         script.command("echo \"PAV_CONFIG_DIR -- ${PAV_CONFIG_DIR}\"")
 
-        script.write(args.dest / args.name)
+        script.write(script_path)
+
+        script_path.chmod(774)
