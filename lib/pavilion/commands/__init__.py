@@ -27,7 +27,7 @@ _builtin_commands = {
     'list':       ('list_cmd', 'ListCommand'),
     'log':        ('log', 'LogCommand'),
     'ls':         ('ls', 'LSCommand'),
-    'make-activate': ('make-activate, MakeActivateCommand'),
+    'make-activate': ('make-activate', 'MakeActivateCommand'),
     'result':     ('result', 'ResultsCommand'),
     'run':        ('run', 'RunCommand'),
     'series':     ('series', 'RunSeries'),
