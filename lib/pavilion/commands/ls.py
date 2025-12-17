@@ -109,7 +109,7 @@ class LSCommand(Command):
             return errno.EEXIST
 
         if args.path is True:
-            output.fprint(sys.stdout, test_dir)
+            output.fprint(sys.stdout, test_dir, width=None)
             return 0
 
         output.fprint(self.outfile, str(test_dir) + ':')
