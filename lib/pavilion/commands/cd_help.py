@@ -19,7 +19,7 @@ class CDHelpCommand(Command):
     def _setup_arguments(self, parser: ArgumentParser) -> None:
         """Set up the arguments for the cd command."""
 
-        parser.add_argument("test_id", type=TestID, help="test ID")
+        parser.add_argument("test_id", type=TestID, help="test ID", nargs="?")
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
         """Dummy method to run the cd command. This should never be run. Instead, pav cd
