@@ -1,6 +1,7 @@
-from argparse import ArgParser, Namespace
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+from pavilion.config import PavConfig
 from pavilion.scriptcomposer import ScriptComposer
 from .base_classes import Command
 
@@ -15,17 +16,20 @@ class MakeActivateCommand(Command):
             short_help="Make activation script"
         )
 
-    def _setup_arguments(self, parser: ArgParser) -> None:
+    def _setup_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("dest", help="Location in which to save the script.", type=Path,
-                            default=Path("."))
-        parser.add_argument("--name", help="Name of the script", default="activate.sh")
-        parser.add_argument("--config-dir", help="Config directory location", type=Path,
-                            default=Path("."))
-        parser.add_argument("--umask", help="Umask value to set in the script.", default="002")
+                            default=Path("."), nargs="?")
+        parser.add_argument("-n", "--name", help="Name of the script", default="activate.sh")
+        parser.add_argument("-c", "--config-dir", help="Config directory location", type=Path)
+        parser.add_argument("-u", "--umask", help="Umask value to set in the script.",
+                            default="002")
 
-    def run(self, args: Namespace) -> None:
+    def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
         this_dir = Path(__file__).parent.resolve()
-        pav_bin = this_dir.parents[3] / "bin"
+        pav_bin = this_dir.parents[2] / "bin"
+
+        if args.config_dir is None:
+            args.config_dir = args.dest
 
         script = ScriptComposer()
 
@@ -33,7 +37,7 @@ class MakeActivateCommand(Command):
         script.newline()
 
         script.command(f"export PAV_CONFIG_DIR=\"{args.config_dir.resolve()}\"")
-        script.command("PAVBIN=\"{pav_bin}\"")
+        script.command(f"PAVBIN=\"{pav_bin}\"")
         script.newline()
 
         script.comment("Only prepend PAVBIN to path if it hasn't already been done.")
@@ -43,8 +47,10 @@ class MakeActivateCommand(Command):
         script.newline()
 
         script.comment("Source the script for the cd command.")
-        script.command(f"source {this_dir / "cd.sh"}")
+        script.command(f"source {this_dir / 'cd.sh'}")
         script.newline()
 
         script.command("echo \"PAVBIN         -- ${PAVBIN}\"")
         script.command("echo \"PAV_CONFIG_DIR -- ${PAV_CONFIG_DIR}\"")
+
+        script.write(args.dest / args.name)
