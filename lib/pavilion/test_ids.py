@@ -101,7 +101,7 @@ class TestID(ID):
     def is_absolute(self) -> bool:
         """Returns true if the ID is absolute (i.e. not series-relative)."""
 
-        return isinstance(self.id, str)
+        return self.series is None
 
     def is_relative(self) -> bool:
         """Returns true if the ID is relative to a particular series."""
