@@ -121,3 +121,6 @@ class Dummy(schedulers.SchedulerPluginAdvanced):
                          stderr=subprocess.PIPE)
 
         return JobInfo({'id': '1'})
+
+    def job_finished(self, test) -> bool:
+        return True

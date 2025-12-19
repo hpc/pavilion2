@@ -6,7 +6,7 @@ import os
 import sys
 import subprocess
 import time
-from typing import List, Union, Any, Tuple
+from typing import List, Union, Any, Tuple, Optional
 
 import yaml_config as yc
 from pavilion import sys_vars
@@ -15,6 +15,7 @@ from pavilion.output import dbg_print
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import dfr_var_method
+from pavilion.test_run import TestRun
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
 from ..scheduler import KickoffScriptHeader

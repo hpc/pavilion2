@@ -14,6 +14,7 @@ from pavilion.jobs import JobInfo, Job
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import var_method
+from pavilion.test_run import TestRun
 from ..basic import SchedulerPluginBasic
 from ..scheduler import KickoffScriptHeader
 from ..vars import SchedulerVariables
@@ -127,6 +128,9 @@ class Raw(SchedulerPluginBasic):
 
     def job_finished(self, test: TestRun) -> bool:
         """Return True if the test's job has finished running, or False otherwise."""
+        if test.job is None:
+            # No job means the test hasn't run yet
+            return False
 
         return not self._pid_running(test.job.info)
 

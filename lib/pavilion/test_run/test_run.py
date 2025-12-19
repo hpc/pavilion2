@@ -29,6 +29,7 @@ from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion import create_files
 from pavilion import resolve
+from pavilion import schedulers
 from pavilion.build_tracker import BuildTracker, MultiBuildTracker
 from pavilion.deferred import DeferredVariable
 from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError, ResultError, \
@@ -841,7 +842,7 @@ class TestRun(TestAttributes):
             else:
                 # Check the job to see if it has completed
                 sched = schedulers.get_plugin(self.scheduler)
-                self._complete = sched.job_finished(test)
+                self._complete = sched.job_finished(self)
 
         return self._complete
 

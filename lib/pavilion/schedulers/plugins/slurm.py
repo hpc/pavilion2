@@ -15,6 +15,7 @@ from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import dfr_var_method
+from pavilion.test_run import TestRun
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
 from ..scheduler import KickoffScriptHeader

@@ -361,6 +361,11 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return status
 
+    def job_finished(self, test: TestRun) -> bool:
+        """Return True if the test's job has finished running, or False otherwise."""
+
+        raise NotImplementedError
+
     def get_conf(self) -> Tuple[Union[yc.KeyedElem, None], dict, dict]:
         """Return the configuration object suitable for adding scheduler specific
         keys under 'scheduler.<scheduler_name> in the test configuration."""
