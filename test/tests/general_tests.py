@@ -129,7 +129,7 @@ class GeneralTests(PavTestCase):
             build_dst = dst_path/build_dst
             (dst_path/'build_dir').rename(build_dst)
 
-            test = TestRun.load_from_raw_id(self.pav_cfg, run_id, legacy=True)
+            test = TestRun.load_from_raw_id(self.pav_cfg, run_id)
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 
