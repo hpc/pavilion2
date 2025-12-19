@@ -443,9 +443,11 @@ class TestRun(TestAttributes):
         :param pav_cfg: The pavilion config
         :param working_dir: The working directory where this test run lives.
         :param test_id: The test's id number.
-        :param legacy: Whether or not to treat the ID as a legacy ID.
         :rtype: TestRun
         """
+
+        if test_id.is_relative():
+            test_id = resolve_relative_id(pav_cfg, working_dir, test_id)
 
         path = working_dir / cls.RUN_DIR / str(test_id.id)
 
