@@ -384,6 +384,13 @@ class Flux(SchedulerPluginAdvanced):
             }
         )
 
+    SCHED_FINISHED = [
+        "COMPLETED",
+        "CANCELED",
+        "TIMEOUT",
+        "FAILED"
+    ]
+
     def _job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
         """
         Get the current status of the flux job for the given test.
@@ -395,10 +402,9 @@ class Flux(SchedulerPluginAdvanced):
                 "Job started on a different cluster ({}).".format(sys_name),
             )
 
-        listing = flux.job.list.JobList(flux.Flux(), ids=[job_info["jobid"]])
-        jobs = listing.jobs()
+        flux_job = self._get_job_info(job_info)
 
-        if not jobs:
+        if flux_job is None:
             return TestStatusInfo(
                 state=STATES.COMPLETE,
                 note="Could not find job {}, must have finished".format(job_info["id"]),
@@ -407,7 +413,6 @@ class Flux(SchedulerPluginAdvanced):
 
         # Status list is here
         # https://flux-framework.readthedocs.io/projects/flux-core/en/latest/man1/flux-jobs.html#job-status
-        flux_job = jobs[0]
         if flux_job.status == "COMPLETED":
             return TestStatusInfo(
                 state=STATES.COMPLETE,
@@ -467,6 +472,19 @@ class Flux(SchedulerPluginAdvanced):
             note=("Could not find info on flux job '{}'.".format(job_info["id"])),
             when=time.time(),
         )
+
+    def _get_job_state(self, job_info: JobInfo) -> Optional[str]:
+        """Get the job state, according to flux."""
+
+        listing = flux.job.list.JobList(flux.Flux(), ids=[job_info["jobid"]])
+        jobs = listing.jobs()
+
+        return next(iter(jobs), None)
+
+    def job_finished(self, test: TestRun) -> bool:
+        """Return True if the test's job has finished running, or False otherwise."""
+
+        self._get_job_state(test.job.info) in self.SCHED_FINISHED
 
     def cancel(self, job_info: JobInfo) -> Union[str, None]:
         """

@@ -819,6 +819,32 @@ class TestRun(TestAttributes):
 
         return ret
 
+    @property
+    def complete(self) -> bool:
+        """Returns whether the test is complete."""
+
+        if not self._complete:
+            run_complete_path = self.path / self.COMPLETE_FN
+
+            if not self.path.exists():
+                # The test directory was removed by something external to Pavilion
+                self.status.set(STATES.WARNING, f"Test directory at {self.path} is missing.")
+
+                return True
+
+            # This will force a meta-data update on the directory.
+            list(self.path.iterdir())
+
+            if run_complete_path.exists():
+                self._complete = True
+                return True
+            else:
+                # Check the job to see if it has completed
+                sched = schedulers.get_plugin(self.scheduler)
+                self._complete = sched.job_finished(test)
+
+        return self._complete
+
     @staticmethod
     def _create_complete_file(complete_path: Path) -> Path:
         """Create a temporary RUN_COMPLETE file for the test. This exists as a separate function

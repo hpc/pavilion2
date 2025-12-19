@@ -125,6 +125,11 @@ class Raw(SchedulerPluginBasic):
         else:
             return None
 
+    def job_finished(self, test: TestRun) -> bool:
+        """Return True if the test's job has finished running, or False otherwise."""
+
+        return not self._pid_running(test.job.info)
+
     def available(self):
         """The raw scheduler is always available."""
 
