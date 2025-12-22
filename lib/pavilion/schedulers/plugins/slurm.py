@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 import time
-from typing import List, Union, Any, Tuple, Dict, Optional
+from typing import List, Union, Any, Tuple, Dict
 
 import hostlist
 import yaml_config as yc
@@ -15,7 +15,6 @@ from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import dfr_var_method
-from pavilion.test_run import TestRun
 from ..advanced import SchedulerPluginAdvanced
 from ..config import validate_list
 from ..scheduler import KickoffScriptHeader
@@ -87,7 +86,7 @@ slurm kickoff script.
         if tasks is not None:
             lines.append('#SBATCH --ntasks {}'.format(tasks))
         elif tpn is not None:
-            lines.append('#SBATCH --')
+            lines.append('#SBATCH --ntasks-per-node {}'.format(tpn))
 
         for line in self._config['slurm']['sbatch_extra']:
             lines.append('#SBATCH {}'.format(line))
@@ -686,8 +685,6 @@ class Slurm(SchedulerPluginAdvanced):
         'SUSPENDED',
     ]
 
-    SCHED_FINISHED = SCHED_CANCELLED + SCHED_ERROR + ['COMPLETED']
-
     def _job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
         """Get the current status of the slurm job for the given test."""
 
@@ -698,7 +695,7 @@ class Slurm(SchedulerPluginAdvanced):
                 "Job started on a different cluster ({}).".format(sys_name))
 
         try:
-            job_state = self._get_job_state(job_info)
+            job_data = self._scontrol_show('job', job_info['id'])
         except ValueError as err:
             return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
@@ -712,13 +709,25 @@ class Slurm(SchedulerPluginAdvanced):
                 when=time.time()
             )
 
-        if job_state is None:
+        if len(job_data) == 0:
             return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
                 note="Could not find job {}".format(job_info['id']),
                 when=time.time()
             )
 
+        # scontrol show returns a list. There should only be one item in that
+        # list though.
+        if len(job_data) > 0:
+            job_data = job_data.pop(0)
+        else:
+            return TestStatusInfo(
+                state=STATES.SCHEDULED,
+                note=("Could not find info on slurm job '{}' in slurm."
+                      .format(job_info['id'])),
+                when=time.time())
+
+        job_state = job_data.get('JobState', 'UNKNOWN')
         if job_state in self.SCHED_WAITING:
             return TestStatusInfo(
                 state=STATES.SCHEDULED,
@@ -753,24 +762,6 @@ class Slurm(SchedulerPluginAdvanced):
                  "idea what is going on.".format(job_info['id'], job_state),
             when=time.time()
         )
-
-    def _get_job_state(self, job_info: JobInfo) -> Optional[str]:
-        """Get the current state of the job, according to slurm."""
-
-        job_data = self._scontrol_show('job', job_info['id'])
-
-        # scontrol show returns a list. There should only be one item in that list though.
-        job_data = next(iter(job_data), None)
-
-        if job_data is None:
-            return None
-
-        return job_data.get('JobState', 'UNKNOWN')
-
-    def job_finished(self, test: TestRun) -> bool:
-        """Return True if the test's job has finished running, or False otherwise."""
-
-        self._get_job_state(test.job.info) in self.SCHED_FINISHED
 
     def cancel(self, job_info: JobInfo) -> Union[str, None]:
         """Scancel the job attached to the given test."""
