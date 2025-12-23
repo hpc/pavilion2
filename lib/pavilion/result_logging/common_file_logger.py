@@ -53,13 +53,12 @@ class CommonFileResultLogger(ResultLogger):
         if self.dest.is_dir():
             self.dest /= RESULTS_FN
 
-        self.lockfile = FuzzyLock(self.dest.parent / "results.lock", timeout=10)
         self.outfile = outfile or io.StringIO()
 
     def log(self, results: Dict) -> None:
         output.fprint(self.outfile, f"{type(self).__name__}: Logging {results} to {self.dest}...")
 
-        with self.lockfile:
+        with FuzzyLock(self.dest.parent / "results.lock", timeout=10):
             with open(self.dest, "a") as fout:
                 json.dump(results, fout)
                 fout.write("\n")
