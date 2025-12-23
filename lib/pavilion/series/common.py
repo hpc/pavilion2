@@ -149,9 +149,9 @@ def set_complete(path: Path, when: float = None) -> dict:
         if 'ERROR' not in state:
             series_status.set(status_file.SERIES_STATES.COMPLETE, "Series has completed.")
 
-        with NamedTemporaryFile("w", dir=path, delete=False) as tf:
+        with NamedTemporaryFile("w", dir=path, delete=False) as temp:
             try:
-                json.dump(complete_data, tf)
+                json.dump(complete_data, temp)
             except (OSError, ValueError) as err:
                 raise TestSeriesError("Error saving completion file.", err)
 
