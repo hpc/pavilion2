@@ -155,7 +155,7 @@ def set_complete(path: Path, when: float = None) -> dict:
             except (OSError, ValueError) as err:
                 raise TestSeriesError("Error saving completion file.", err)
 
-            temp_path = Path(tf.name)
+            temp_path = Path(temp.name)
 
         temp_path.rename(complete_fn)
 
