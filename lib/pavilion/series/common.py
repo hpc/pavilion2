@@ -5,6 +5,7 @@ import json
 import os
 import time
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Optional, Dict, Union
 
 from pavilion import config
@@ -148,20 +149,21 @@ def set_complete(path: Path, when: float = None) -> dict:
         if 'ERROR' not in state:
             series_status.set(status_file.SERIES_STATES.COMPLETE, "Series has completed.")
 
-        complete_fn_tmp = complete_fn.with_suffix('.tmp')
-        try:
-            with complete_fn_tmp.open('w') as series_complete:
-                json.dump(complete_data, series_complete)
-        except (OSError, ValueError) as err:
-            raise TestSeriesError("Error saving completion file.", err)
+        with NamedTemporaryFile("w", dir=path, delete=False) as temp:
+            try:
+                json.dump(complete_data, temp)
+            except (OSError, ValueError) as err:
+                raise TestSeriesError("Error saving completion file.", err)
 
-        wait(
-            complete_fn_tmp.exists,
-            interval=0.1,
-            timeout=5,
-            msg=f"Timed out waiting for file {complete_fn_tmp} to be created.")
+            temp_path = Path(temp.name)
 
-        complete_fn_tmp.rename(complete_fn)
+            # Set the umask correctly, since NamedTemporaryFile uses more restrictive permissions
+            # than we want
+            umask = os.umask(0o666)
+            os.umask(umask)
+            os.chmod(temp_path, 0o666 & ~umask)
+
+        temp_path.rename(complete_fn)
 
     # Note that this might be a bit off from reality if something else set the
     # complete time, but it will be close enough.
