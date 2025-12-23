@@ -161,7 +161,7 @@ def set_complete(path: Path, when: float = None) -> dict:
             # than we want
             umask = os.umask(0o666)
             os.umask(umask)
-            os.chmod(tm_path, 0o666 & ~umask)
+            os.chmod(temp_path, 0o666 & ~umask)
 
         temp_path.rename(complete_fn)
 
