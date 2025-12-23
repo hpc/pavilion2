@@ -368,7 +368,7 @@ class FuzzyLock:
         try:
             self._lock_dir.mkdir(exist_ok=True)
         except OSError as err:
-            raise LockFileError(f"Unable to create lockfile directory {self._lock_dir}.",
+            raise LockfileError(f"Unable to create lockfile directory {self._lock_dir}.",
                                  prior_error=err)
 
         try:
@@ -381,7 +381,7 @@ class FuzzyLock:
             else:
                 msg = f"Unable to create lockfile ({self._lockfile})"
 
-            raise LockFileError(msg, prior_error=err)
+            raise LockfileError(msg, prior_error=err)
 
         first = False
         start = time.time()

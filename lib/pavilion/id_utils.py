@@ -63,7 +63,7 @@ def resolve_relative_id(pav_cfg: PavConfig, working_dir: Path, test_id: TestID) 
             continue
 
         for test in test_set.iterdir():
-            if test.name == str(test_id.series.as_int()):
+            if test.name == str(test_id.id):
                 return TestID(test.resolve().name)
 
     raise TestIDError(f"Unable to resolve relative test ID '{test_id}' to absolute ID. "
