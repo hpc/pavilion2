@@ -194,7 +194,7 @@ class RunCommand(Command):
                 msg = "Error reading given test list files.\n{}".format(err)
 
                 output.fprint(self.errfile, msg)
-                json_out["errors"].append(msg)
+                self.json_out["errors"].append(msg)
 
                 return errno.EINVAL
 
@@ -207,7 +207,7 @@ class RunCommand(Command):
                                 outfile=self.outfile)
         testset_name = cmd_utils.get_testset_name(pav_cfg, tests, args.files)
 
-        json_out["testset_name"] = testset_name
+        self.json_out["testset_name"] = testset_name
 
         if args.group:
             ret = self._add_to_group(pav_cfg, series_obj, args.group)
@@ -236,7 +236,7 @@ class RunCommand(Command):
             self.last_tests = list(series_obj.tests.values())
 
 
-            json_out["errors"].append(err)
+            self.json_out["errors"].append(err)
             output.fprint(self.errfile, err, color=output.RED)
 
             return errno.EAGAIN
@@ -249,7 +249,7 @@ class RunCommand(Command):
             )
 
         if args.json:
-            output.json_dump(json_out, self.outfile)
+            output.json_dump(self.json_out, self.outfile)
 
         return 0
 
