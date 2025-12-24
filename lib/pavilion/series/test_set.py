@@ -276,6 +276,8 @@ class TestSet:
                             "Skipped test named '{}' from series '{}' - We're just "
                             "building locally, and this test builds only on nodes."
                             .format(ptest.config.get('name'), ptest.config.get('suite')))
+                        self.json_out["skipped_tests"].append(ptest.config.get("name"))
+
                         continue
 
                 try:
@@ -290,6 +292,8 @@ class TestSet:
                         if self.verbosity in (Verbose.HIGH, Verbose.MAX):
                             output.fprint(self.outfile, 'Created and saved test run {} - {}'
                                                    .format(test_run.id, test_run.name))
+
+                        self.json_out["created_tests"].append(test_run.name)
                     else:
                         skip_count += 1
                         msg = "{} - {}" \
@@ -302,6 +306,8 @@ class TestSet:
                             self.status.set(
                                 S_STATES.TESTS_SKIPPED,
                                 "Cleanup of skipped test {} was unsuccessful.")
+
+                        self.json_out["skipped_tests"].append(test_run.name)
 
                 except (TestRunError, TestConfigError) as err:
                     tcfg = ptest.config
@@ -614,9 +620,13 @@ class TestSet:
                               "The following tests were not started:\n{}\n"
                               .format(self.name, test_bullets))
 
+                self.json_out["not_started"].append(test.name for test in err_tests)
+
                 output.fprint(self.outfile, "Errors:")
                 for err in sched_errors:
                     output.fprint(self.outfile, err.pformat(), '\n')
+
+                self.json_out["errors"].extend(sched_errors)
 
         jobs = dict()
         for test in new_started:

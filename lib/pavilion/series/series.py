@@ -295,6 +295,7 @@ class TestSeries:
                 status=self.status,
                 simultaneous= _simultaneous,
                 outfile=self.outfile,
+                json_out=self.json_out,
                 verbosity=self.verbosity,
                 ignore_errors=self.ignore_errors,
             )
@@ -412,8 +413,7 @@ class TestSeries:
         return False
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False, log_results: bool = True,
-            json: Optional[Dict[str, Any]] = None) -> None:
+            local_builds_only: bool = False, log_results: bool = True) -> None:
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -455,10 +455,8 @@ class TestSeries:
         except TestSeriesError as err:
             msg = "Error creating test sets:\n{}".format(err.args[0])
 
-            if json is not None:
-                json["errors"].append(msg)
-            else:
-                fprint(self.outfile, msg)
+            self.json_out["errors"].append(msg)
+            fprint(self.outfile, msg)
 
             self.status.set(SERIES_STATES.ERROR, msg)
             raise
@@ -490,12 +488,10 @@ class TestSeries:
                 if not test_set.should_run:
                     test_set.mark_completed()
 
-                    if json is not None:
-                        json["skipped"].append(test_set.name)
-                    else:
-                        output.fprint(self.outfile,
-                                      "Skipping test set '{}' due to parents not passing."
-                                      .format(test_set.name))
+                    self.json_out["skipped"].append(test_set.name)
+                    output.fprint(self.outfile,
+                                    "Skipping test set '{}' due to parents not passing."
+                                    .format(test_set.name))
                     continue
 
                 try:

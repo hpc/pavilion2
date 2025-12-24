@@ -155,11 +155,12 @@ class RunCommand(Command):
         self.json_out = {
             'series_name': None,
             'sid': None,
-            'testset_name': None,
+            'test_sets': [],
+            'skipped_test_sets': [],
             'tests': [],
-            'created': [],
-            'skipped': [],
-            'not_started': [],
+            'created_tests': [],
+            'skipped_tests': [],
+            'not_started_tests': [],
             'build_success': None,
             'errors': []
         }
@@ -204,10 +205,10 @@ class RunCommand(Command):
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
                                 verbosity=Verbose[args.verbosity],
-                                outfile=self.outfile)
+                                outfile=self.outfile, json_out=self.json_out)
         testset_name = cmd_utils.get_testset_name(pav_cfg, tests, args.files)
 
-        self.json_out["testset_name"] = testset_name
+        self.json_out["test_sets"].append(testset_name)
 
         if args.group:
             ret = self._add_to_group(pav_cfg, series_obj, args.group)
