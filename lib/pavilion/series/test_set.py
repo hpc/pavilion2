@@ -53,7 +53,7 @@ class TestSet:
                  simultaneous: Union[int, None] = None,
                  ignore_errors: bool = False,
                  outfile: TextIO = StringIO(),
-                 json_out: Optional[Dict[str, Any]] = None
+                 json_out: Optional[Dict[str, Any]] = None,
                  verbosity=Verbose.QUIET):
         """Initialize the tests given these options, creating TestRun objects.
 
