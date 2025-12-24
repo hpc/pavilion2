@@ -63,7 +63,7 @@ class TestSeries:
 
     def __init__(self,
                  pav_cfg: config.PavConfig,
-                 series_cfg: Dict[str, ANy],
+                 series_cfg: Dict[str, Any],
                  _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH,
                  outfile: Optional[TextIO] = None,
