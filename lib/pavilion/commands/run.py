@@ -150,6 +150,7 @@ class RunCommand(Command):
 
         json_out = {
             'series_name': None,
+            'testset_name': None,
             'sid': None,
             'skipped': [],
             'errors': []
@@ -204,6 +205,9 @@ class RunCommand(Command):
                                 verbosity=Verbose[args.verbosity],
                                 outfile=outfile)
         testset_name = cmd_utils.get_testset_name(pav_cfg, tests, args.files)
+
+        if args.json:
+            json_output["testset_name"] = testset_name
 
         if args.group:
             ret = self._add_to_group(pav_cfg, series_obj, args.group)
