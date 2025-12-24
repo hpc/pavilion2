@@ -407,7 +407,7 @@ class TestSeries:
 
     def run(self, build_only: bool = False, rebuild: bool = False,
             local_builds_only: bool = False, log_results: bool = True,
-            json: Dict[str, Any]) -> None:
+            json: Optional[Dict[str, Any]] = None) -> None:
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
