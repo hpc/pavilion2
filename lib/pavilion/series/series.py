@@ -406,7 +406,8 @@ class TestSeries:
         return False
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False, log_results: bool = True):
+            local_builds_only: bool = False, log_results: bool = True,
+            json: Dict[str, Any]) -> None:
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -446,9 +447,14 @@ class TestSeries:
         try:
             self._create_test_sets()
         except TestSeriesError as err:
-            fprint(self.outfile, "Error creating test sets:\n{}".format(err.args[0]))
-            self.status.set(SERIES_STATES.ERROR,
-                            "Error creating test sets: {}".format(err.args[0]))
+            msg = "Error creating test sets:\n{}".format(err.args[0])
+
+            if json is not None:
+                json["errors"].append(msg)
+            else:
+                fprint(self.outfile, msg)
+
+            self.status.set(SERIES_STATES.ERROR, msg)
             raise
 
         if self.check_cancelled():
@@ -477,8 +483,13 @@ class TestSeries:
                 # Make sure it's ok to run this test set based on parent status.
                 if not test_set.should_run:
                     test_set.mark_completed()
-                    output.fprint(self.outfile, "Skipping test set '{}' due to parents not passing."
-                                  .format(test_set.name))
+
+                    if json is not None:
+                        json["skipped"].append(test_set.name)
+                    else:
+                        output.fprint(self.outfile,
+                                      "Skipping test set '{}' due to parents not passing."
+                                      .format(test_set.name))
                     continue
 
                 try:

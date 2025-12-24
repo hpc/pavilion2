@@ -114,6 +114,10 @@ class RunCommand(Command):
                  "under which Pavilion runs has changed."
         )
         parser.add_argument(
+            '-j', '--json', action='store_true', default=False,
+            help="Output information as json."
+        )
+        parser.add_argument(
             'tests', nargs='*', action='store', metavar='TEST_NAME',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
@@ -143,10 +147,20 @@ class RunCommand(Command):
         # Note: We have to get a few arguments this way because this code
         # is reused between the build and run commands, and the don't quite have the
         # same arguments.
+
+        json_out = {
+            'series_name': None,
+            'sid': None,
+            'skipped': [],
+            'errors': []
+        }
+
         if args.name:
             series_name = args.name
         else:
             series_name = 'cmdline'
+
+        json_out['series_name'] = series_name
 
         series_cfg = generate_series_config(
             name=series_name,
@@ -168,17 +182,27 @@ class RunCommand(Command):
             try:
                 tests.extend(cmd_utils.read_test_files(pav_cfg, args.files))
             except PavilionError as err:
-                output.fprint(self.errfile, "Error reading given test list files.\n{}"
-                              .format(err))
+                msg = "Error reading given test list files.\n{}".format(err)
+
+                if not args.json:
+                    output.fprint(self.errfile, msg)
+
+                json_out["errors"].append(msg)
+
                 return errno.EINVAL
 
         local_builds_only = getattr(args, 'local_builds_only', False)
         report_status = getattr(args, 'status', False)
 
+        if args.json:
+            outfile = None
+        else:
+            outfile = self.outfile
+
         # create brand-new series object
         series_obj = TestSeries(pav_cfg, series_cfg=series_cfg,
                                 verbosity=Verbose[args.verbosity],
-                                outfile=self.outfile)
+                                outfile=outfile)
         testset_name = cmd_utils.get_testset_name(pav_cfg, tests, args.files)
 
         if args.group:
@@ -187,7 +211,7 @@ class RunCommand(Command):
             if ret != 0:
                 return ret
 
-        else:
+        elif not args.json:
             output.fprint(self.outfile, "Created Test Series {}.".format(series_obj.name))
 
         series_obj.add_test_set_config(
@@ -207,7 +231,12 @@ class RunCommand(Command):
             self.last_tests = list(series_obj.tests.values())
         except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
-            output.fprint(self.errfile, err, color=output.RED)
+
+            if args.json:
+                json_out["errors"].append(err)
+            else:
+                output.fprint(self.errfile, err, color=output.RED)
+
             return errno.EAGAIN
 
         if report_status:
@@ -216,6 +245,9 @@ class RunCommand(Command):
                 tests=self.last_tests,
                 outfile=self.outfile
             )
+
+        if args.json:
+            output.json_dump(json_out, self.outfile)
 
         return 0
 
