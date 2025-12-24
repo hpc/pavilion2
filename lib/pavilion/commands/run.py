@@ -249,7 +249,7 @@ class RunCommand(Command):
             )
 
         if args.json:
-            output.json_dump(self.json_out, self.outfile)
+            output.json_dump(self.json_out, sys.stdout)
 
         return 0
 
