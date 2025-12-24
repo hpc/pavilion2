@@ -620,7 +620,7 @@ class TestSet:
                               "The following tests were not started:\n{}\n"
                               .format(self.name, test_bullets))
 
-                self.json_out["not_started_tests"].append(test.name for test in err_tests)
+                self.json_out["not_started_tests"].extend(test.name for test in err_tests)
 
                 output.fprint(self.outfile, "Errors:")
                 for err in sched_errors:
