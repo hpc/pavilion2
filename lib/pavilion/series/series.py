@@ -61,8 +61,13 @@ class TestSeries:
     TESTSET_DIRNAME = "test_sets"
     LOG_RESULTS_LOG_FN = "log_results.log"
 
-    def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
-                 verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
+    def __init__(self,
+                 pav_cfg: config.PavConfig,
+                 series_cfg: Dict[str, ANy],
+                 _id: Optional[SeriesID] = None,
+                 verbosity: Verbose = Verbose.HIGH,
+                 outfile: Optional[TextIO] = None,
+                 json_out: Optional[Dict[str, Any]] = None,
                  cancel_cooldown: float = 0.5):
         """Initialize the series. Test sets may be added via 'add_tests()'.
 
@@ -79,6 +84,7 @@ class TestSeries:
         self.config = series_cfg or SeriesConfigLoader().load_empty()
 
         self.outfile = io.StringIO() if outfile is None else outfile
+        self.json_out = json_out if json_out is not None else {}
         self.verbosity = verbosity
         self.cancel_limiter = TimeLimiter(self.has_cancel_file, cooldown=cancel_cooldown)
 

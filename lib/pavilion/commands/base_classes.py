@@ -115,6 +115,7 @@ class Command(IPlugin.IPlugin):
         # These are to allow tests to redirect output as needed.
         self.outfile = sys.stdout
         self.errfile = sys.stderr
+        self.json_out = {}
 
         self.sub_cmds = {}
         if sub_commands:

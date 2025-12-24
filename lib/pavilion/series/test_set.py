@@ -8,7 +8,7 @@ import time
 import math
 from collections import defaultdict
 from io import StringIO
-from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple
+from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple, Optional, Any
 
 import pavilion.errors
 from pavilion import output, result, schedulers, cancel_utils
@@ -53,6 +53,7 @@ class TestSet:
                  simultaneous: Union[int, None] = None,
                  ignore_errors: bool = False,
                  outfile: TextIO = StringIO(),
+                 json_out: Optional[Dict[str, Any]] = None
                  verbosity=Verbose.QUIET):
         """Initialize the tests given these options, creating TestRun objects.
 
@@ -83,6 +84,7 @@ class TestSet:
         self.iter_name = '{}.{}'.format(iteration, name)
         self.verbosity = verbosity
         self.outfile = outfile
+        self.json_out = json_out if json_out is not None else {}
         self.ignore_errors = ignore_errors
 
         self.simultaneous = 2**32 if simultaneous is None else simultaneous
