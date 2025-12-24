@@ -626,7 +626,7 @@ class TestSet:
                 for err in sched_errors:
                     output.fprint(self.outfile, err.pformat(), '\n')
 
-                self.json_out["errors"].extend(sched_errors)
+                self.json_out["errors"].extend(err.pformat() for err in sched_errs)
 
         jobs = dict()
         for test in new_started:
