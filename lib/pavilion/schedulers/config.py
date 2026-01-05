@@ -310,6 +310,8 @@ def _validate_nodes(val) -> Union[float, int, None]:
 
     if val is None:
         return None
+    elif isinstance(val, (int, float)):
+        return val
     elif val == 'all':
         val = 1.0
     elif val.endswith('%'):
