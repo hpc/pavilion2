@@ -269,7 +269,8 @@ def min_int(name, min_val, required=True):
     def validator(val):
         """Validate that val > min_val"""
 
-        val = val.strip()
+        if isinstance(val, str):
+            val = val.strip()
 
         if not required and val in (None, ''):
             return None

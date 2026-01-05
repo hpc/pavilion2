@@ -70,7 +70,7 @@ slurm kickoff script.
                          .format(hostlist.collect_hostlist(self._exclude_nodes)))
 
         if self._sched_vars.requested_nodes() != '':
-            lines.append('#SBATCH --nodes {}'.format(self.sched_vars.requested_nodes()))
+            lines.append('#SBATCH --nodes {}'.format(self._sched_vars.requested_nodes()))
 
         tasks = self._config['tasks']
         tpn = self._sched_vars.tasks_per_node()

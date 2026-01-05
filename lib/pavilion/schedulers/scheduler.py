@@ -36,7 +36,7 @@ class KickoffScriptHeader(ScriptHeader):
     def __init__(self,
                  job_name: str,
                  sched_config: Dict[str, Any],
-                 sched_var: SchedulerVariables,
+                 sched_vars: SchedulerVariables,
                  nodes: Optional[NodeList] = None,
                  node_range: Optional[Tuple[int, int]] = None,
                  shebang: Optional[str] = None):
