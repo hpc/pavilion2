@@ -81,8 +81,12 @@ slurm kickoff script.
             lines.append('#SBATCH --nodes {}'.format(self._node_min))
 
         tasks = self._config['tasks']
+        tpn = self._config["tasks_per_node"]
+
         if tasks is not None:
             lines.append('#SBATCH --ntasks {}'.format(tasks))
+        elif tpn is not None:
+            lines.append('#SBATCH --ntasks-per-node {}'.format(tpn))
 
         for line in self._config['slurm']['sbatch_extra']:
             lines.append('#SBATCH {}'.format(line))
