@@ -320,3 +320,19 @@ class StatusCmdTests(PavTestCase):
         self.pav_cfg.working_dir = self.pav_cfg.working_dir.parent
 
         self.assertEqual(ret, 0)
+
+    def test_status_relative_id(self):
+        """Test that the status command behaves properly when given a relative test ID."""
+
+        status_cmd = commands.get_command('status')
+        status_cmd.silence()
+
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+
+        test = self._quick_test()
+        raw = schedulers.get_plugin('raw')
+        raw.schedule_tests(self.pav_cfg, [test])
+
+        args = parser.parse_args(["s1.1"])
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
