@@ -230,12 +230,14 @@ class SchedulerPlugin(IPlugin.IPlugin):
               account'
             - 'account' - Account that tracks node sharing information.
             - 'time_limit' - Provided in 'seconds'. Overall job time limit.
-            - 'nodes' - From the 'nodes' argument. If provided, the job should ask for
-                        exactly the nodes listed. Only advanced schedulers provide this.
-            - 'include_nodes' - The list of nodes to request. When 'nodes' is provided,
-              these will already be included.
+            - 'nodes' - The number of nodes to request.
+            - 'include_nodes' - A list of nodes to include. These nodes are guaranteed to be
+              included, but the final set of nodes may include other nodes as well. When 'nodes'
+              is provided, these will already be included.
             - 'exclude_nodes' - The list of nodes to exclude. When 'nodes' is provided,
               these will already be excluded.
+            - 'across_nodes' - A complete list of nodes to use. When provided, these nodes, and
+              only these nodes (or potentially a subset of them) will be used for scheduling.
             - 'node_range' - From the 'node_range' argument. The minimum and maximum number of
               nodes to request.
             - 'job_name' - What to label the job.
