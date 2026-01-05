@@ -23,7 +23,7 @@ Pavilion comes with three scheduler plugins:
     -----------+------------------------------------------------------
      raw       | Schedules tests as local processes.
      slurm     | Schedules tests via the Slurm scheduler.
-     flux      | Schedules tests via the Flux Framework scheduler. 
+     flux      | Schedules tests via the Flux Framework scheduler.
 
 Scheduler Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -241,6 +241,40 @@ With ``schedule.share_allocation`` set to ``max``, Pavilion forces as many test 
 job as possible.
 
 .. _tests.scheduling.chunking:
+
+Node Filtering Exceptions
+-------------------------
+
+Advanced schedulers filter nodes down to only those which are currently usable. Pavilion offers
+several mechanisms for providing exceptions to filtering rules. There are three scheduler options
+that control this behavior:
+
+1. `include_nodes`: specifies a set of nodes to be included in every chunk. Other nodes may be
+                    used as well, but those specified are guaranteed to be among the final set of
+                    nodes on which the test is scheduled (provided they are in an 'available'
+                    state).
+2. `exclude_nodes`: specifies a set of nodes to be excluded when scheduling tests.
+3. `across_nodes`: specifies a set of nodes to be considered exclusively when scheduling tests. No
+                   nodes beyond those requested will be scheduled. The final set of nodes on which
+                   the test is scheduled may be a subset of those specified.
+
+The syntax for specifying nodes is identical to that used with Slurm's `--nodelist` option; it can
+combine full names of nodes (e.g. `nid001`) with node ranges (e.g. `nid[007-023]`), which can in
+turn be combined with commas.
+
+For example, the following test excludes nodes 1, 3, and 7-23 from being scheduled:
+
+.. code-block:: yaml
+
+    mytest:
+      schedule:
+        exclude_nodes: 'nid001,nid003,nid[007-023]'
+
+To accomplish the same thing via a command-line override:
+
+.. code-block:: bash
+
+  pav run mytest -c schedule.exclude_nodes='nid001,nid003,nid[007-023]'
 
 Chunking
 --------
