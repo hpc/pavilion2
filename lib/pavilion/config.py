@@ -600,8 +600,15 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     """
 
     configs = OrderedDict()
-    config_dirs = list(pav_cfg['config_dirs'])  # type: List[Path]
     loader = LocalConfigLoader()
+
+    config_dirs = []
+
+    for cfg_dir in list(pav_cfg['config_dirs']):
+        if Path(cfg_dir).is_absolute():
+            config_dirs.append(cfg_dir)
+        else:
+            config_dirs.append(PAV_CONFIG_DIR / cfg_dir)
 
     label_i = 1
 
