@@ -20,7 +20,7 @@ from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
 from pavilion.series import TestSeries, SeriesInfo, list_series_tests, mk_series_info_transform
-from pavilion.id_utils import load_user_series_id
+from pavilion.id_utils import load_user_series_id, resolve_relative_id
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
 from pavilion.test_run import TestRun, load_tests, TestAttributes
@@ -306,7 +306,10 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
                 output.fprint(errfile, err, color=output.YELLOW)
                 continue
 
-            test_path = test_wd/TestRun.RUN_DIR/str(_id)
+            if raw_id.is_relative():
+                raw_id = resolve_relative_id(pav_cfg, test_wd, raw_id)
+
+            test_path = test_wd/TestRun.RUN_DIR/str(raw_id)
             test_paths.append(test_path)
             if not test_path.exists():
                 output.fprint(errfile,
