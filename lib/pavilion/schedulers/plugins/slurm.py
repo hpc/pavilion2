@@ -41,16 +41,16 @@ slurm kickoff script.
         core_spec = self._config['core_spec']
         if core_spec:
             lines.append('#SBATCH --core-spec {}'.format(core_spec))
-        partition = self._config['partition']
+        partition = self._sched_vars.partition()
         if partition:
             lines.append('#SBATCH -p {}'.format(partition))
-        reservation = self._config['reservation']
+        reservation = self._sched_vars.reservation()
         if reservation:
             lines.append('#SBATCH --reservation {}'.format(reservation))
-        if self._config.get('qos') is not None:
-            lines.append('#SBATCH --qos {}'.format(self._config['qos']))
-        if self._config.get('account') is not None:
-            lines.append('#SBATCH --account {}'.format(self._config['account']))
+        if self._sched_vars.qos() != '':
+            lines.append('#SBATCH --qos {}'.format(self._sched_vars.qos()))
+        if self._sched_vars.account() != '':
+            lines.append('#SBATCH --account {}'.format(self._sched_vars.account()))
         features = self._config['slurm']['features']
         if features:
             constraint = []
@@ -69,19 +69,11 @@ slurm kickoff script.
             lines.append('#SBATCH -x {}'
                          .format(hostlist.collect_hostlist(self._exclude_nodes)))
 
-        if self._node_max is None:
-            # The job is defined by # of tasks.
-            if self._node_min != 1:
-                lines.append('#SBATCH --nodes {}'.format(self._node_min))
-        elif self._node_min != self._node_max:
-            # Specify a node range.
-            lines.append('#SBATCH --nodes {}-{}'.format(self._node_min, self._node_max))
-        else:
-            # Specify the minimum number of nodes.
-            lines.append('#SBATCH --nodes {}'.format(self._node_min))
+        if self._sched_vars.requested_nodes() != '':
+            lines.append('#SBATCH --nodes {}'.format(self._sched_vars.requested_nodes()))
 
         tasks = self._config['tasks']
-        tpn = self._config["tasks_per_node"]
+        tpn = self._sched_vars.tasks_per_node()
 
         if tasks is not None:
             lines.append('#SBATCH --ntasks {}'.format(tasks))

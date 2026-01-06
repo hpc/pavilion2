@@ -300,7 +300,7 @@ each test right before it runs on an allocation in order to un-defer values.
 
         return ' '.join(arg_list)
 
-    @dfr_var_method
+    @var_method
     def tasks_per_node(self) -> int:
         """The number of tasks to create per node. If the scheduler does not support
         node info, just returns 1."""

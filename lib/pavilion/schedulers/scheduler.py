@@ -7,7 +7,7 @@ import os
 import time
 from abc import abstractmethod
 from pathlib import Path
-from typing import List, Union, Dict, NewType, Tuple, Type, Optional
+from typing import List, Union, Dict, NewType, Tuple, Type, Optional, Any
 
 import yaml_config as yc
 from pavilion.config import PavConfig
@@ -33,10 +33,13 @@ class KickoffScriptHeader(ScriptHeader):
     method to add custom header lines to the kickoff script.
     """
 
-    def __init__(self, job_name: str, sched_config: dict,
-                 nodes: Union[NodeList, None] = None,
-                 node_range: Union[Tuple[int, int], None] = None,
-                 shebang = None):
+    def __init__(self,
+                 job_name: str,
+                 sched_config: Dict[str, Any],
+                 sched_vars: SchedulerVariables,
+                 nodes: Optional[NodeList] = None,
+                 node_range: Optional[Tuple[int, int]] = None,
+                 shebang: Optional[str] = None):
         """Initialize the script header.
 
         The arguments are the same, and should be treated the same, as the
@@ -47,6 +50,7 @@ class KickoffScriptHeader(ScriptHeader):
 
         self._job_name = job_name
         self._config = sched_config
+        self._sched_vars = sched_vars
 
         if nodes is None:
             self._include_nodes = self._config['include_nodes']
@@ -509,6 +513,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         return self.KICKOFF_SCRIPT_HEADER_CLASS(
             job_name=job_name,
             sched_config=sched_config,
+            sched_vars=self.get_initial_vars(sched_config),
             nodes=nodes,
             node_range=node_range,
             shebang=shebang,

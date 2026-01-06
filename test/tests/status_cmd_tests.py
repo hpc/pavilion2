@@ -224,14 +224,14 @@ class StatusCmdTests(PavTestCase):
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['test.' + str(test.id)])
+        args = parser.parse_args([str(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0,
                          msg=status_cmd.clear_output())
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['-j', 'test.{}'.format(test.id)])
+        args = parser.parse_args(['-j', str(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
@@ -319,4 +319,20 @@ class StatusCmdTests(PavTestCase):
         # Reset working directory for other tests
         self.pav_cfg.working_dir = self.pav_cfg.working_dir.parent
 
-        self.assertEqual(ret, 0)
+        self.assertEqual(ret, 2)
+
+    def test_status_relative_id(self):
+        """Test that the status command behaves properly when given a relative test ID."""
+
+        status_cmd = commands.get_command('status')
+        status_cmd.silence()
+
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+
+        test = self._quick_test()
+        raw = schedulers.get_plugin('raw')
+        raw.schedule_tests(self.pav_cfg, [test])
+
+        args = parser.parse_args(["s1.1"])
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)

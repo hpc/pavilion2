@@ -86,6 +86,9 @@ class StatusCommand(Command):
 
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
+        if len(tests) == 0:
+            return 2
+
         statuses = status_utils.get_statuses(pav_cfg, tests)
         if args.summary:
             return self.print_summary(statuses)
