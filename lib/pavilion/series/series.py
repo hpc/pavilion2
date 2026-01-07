@@ -40,7 +40,7 @@ from pavilion.dir_db import create_id_dir
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
-from ..errors import TestSetError, TestSeriesError, TestSeriesWarning
+from ..errors import TestSetError, TestSeriesError, TestSeriesWarning, ResultLoggerPluginError
 from . import common
 
 
@@ -131,7 +131,12 @@ class TestSeries:
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
-        self.result_loggers = get_result_loggers(pav_cfg, self.id, self.outfile)
+
+        try:
+            self.result_loggers = get_result_loggers(pav_cfg, self.id, self.outfile)
+        except ResultLoggerPluginError as err:
+            raise TestSeriesError("Error loading result loggers.", err)
+
         self.log_proc = None
 
     def run_background(self):
