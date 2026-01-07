@@ -12,7 +12,7 @@ from pavilion import cmd_utils
 from pavilion import dir_db
 from pavilion import output
 from pavilion import utils
-from pavilion.test_ids import TestID
+from pavilion.test_ids import TestID, TestIDError
 from .base_classes import Command
 
 
@@ -86,12 +86,16 @@ class LSCommand(Command):
 
             if test_id is None:
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
-                return errno.EEXIST
+                return 1
 
-        tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
-        if not tests:
+        try:
+            tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
+        except TestIDError:
+            tests = []
+
+        if len(tests) == 0:
             output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
-            return errno.EEXIST
+            return 2
         elif len(tests) > 1:
             output.fprint(
                 self.errfile, "Matched multiple tests. Listing files for first "
@@ -106,7 +110,7 @@ class LSCommand(Command):
         if not test_dir.is_dir():
             output.fprint(sys.stderr, "Path {} is not a directory.".format(test_dir),
                           color=output.RED)
-            return errno.EEXIST
+            return 3
 
         if args.path is True:
             output.fprint(sys.stdout, test_dir, width=None)
@@ -134,7 +138,7 @@ class LSCommand(Command):
         if not dir_.is_dir():
             output.fprint(self.errfile, "directory '{}' does not exist.".format(dir_),
                           color=output.RED)
-            return errno.EEXIST
+            return 4
 
         files = []
         for file in dir_.iterdir():
