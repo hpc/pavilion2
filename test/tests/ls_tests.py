@@ -47,8 +47,6 @@ class LsTests(PavTestCase):
         run_args = ["run", "-H", "this", "hello_world.hello"]
         run_cmd.run(self.pav_cfg, parser.parse_args(run_args))
 
-        run_cmd.last_series.wait(2)
-
         self.assertEqual(ls_cmd.run(self.pav_cfg, ls_args), 0)
 
     def test_ls_nonexistent_test(self):
