@@ -129,7 +129,7 @@ flux kickoff script.
         if self._config['flux']['queue']:
             queue = self._config['flux']['queue']
         else:
-            queue = self._config['partition']
+            queue = self._sched_config.partititon()
 
         if queue:
             lines.append('#flux: -q {}'.format(queue))

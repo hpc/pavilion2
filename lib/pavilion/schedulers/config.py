@@ -269,7 +269,8 @@ def min_int(name, min_val, required=True):
     def validator(val):
         """Validate that val > min_val"""
 
-        val = val.strip()
+        if isinstance(val, str):
+            val = val.strip()
 
         if not required and val in (None, ''):
             return None
@@ -310,6 +311,8 @@ def _validate_nodes(val) -> Union[float, int, None]:
 
     if val is None:
         return None
+    elif isinstance(val, (int, float)):
+        return val
     elif val == 'all':
         val = 1.0
     elif val.endswith('%'):
@@ -332,6 +335,9 @@ def _validate_nodes(val) -> Union[float, int, None]:
 def _validate_tasks_per_node(val) -> Union[int, float]:
     """This accepts a positive integer, a percentage, or the keywords 'all' and
     'min'. All translates to 100%, and min to an integer 1."""
+
+    if isinstance(val, (int, float)):
+        return val
 
     val = val.strip()
 

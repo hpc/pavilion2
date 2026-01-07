@@ -19,6 +19,7 @@ _builtin_commands = {
     'build':      ('build', 'BuildCommand'),
     'cancel':     ('cancel', 'CancelCommand'),
     'cat':        ('cat', 'CatCommand'),
+    'cd':         ('cd_help', 'CDHelpCommand'),
     'clean':      ('clean', 'CleanCommand'),
     'config':     ('config', 'ConfigCommand'),
     'graph':      ('graph', 'GraphCommand'),
@@ -27,6 +28,7 @@ _builtin_commands = {
     'list':       ('list_cmd', 'ListCommand'),
     'log':        ('log', 'LogCommand'),
     'ls':         ('ls', 'LSCommand'),
+    'make-activate': ('make_activate', 'MakeActivateCommand'),
     'result':     ('result', 'ResultsCommand'),
     'run':        ('run', 'RunCommand'),
     'series':     ('series', 'RunSeries'),
@@ -88,7 +90,7 @@ def get_command(command_name: str) -> Union[None, Command]:
             "Could not find class '{}' for builtin command '{}' in module '{}'. "
             "If you're seeing this, then a class was improperly registered in "
             "'pavilion.commands.__init__.py'."
-            .format(command_class, command_name))
+            .format(command_class, command_name, mod))
 
     command: Command = getattr(mod, command_class)()
     command.activate()

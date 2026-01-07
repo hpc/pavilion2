@@ -420,35 +420,33 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def parse_raw_id(cls, pav_cfg: PavConfig, test_id: TestID, legacy: bool = False) -> ID_Pair:
+    def parse_raw_id(cls, pav_cfg: PavConfig, test_id: TestID) -> ID_Pair:
         """Parse a raw test run id and return the label, working_dir, and id
         for that test. The test run need not exist, but the label must."""
 
         return ID_Pair((pav_cfg.working_dir, test_id))
 
     @classmethod
-    def load_from_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID,
-                         legacy: bool = False) -> 'TestRun':
+    def load_from_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID) -> 'TestRun':
         """Load a test given a raw test id string, in the form
         [label].test_id. The optional label will allow us to look up the config
         path for the test."""
 
-        working_dir, test_id = cls.parse_raw_id(pav_cfg, raw_test_id, legacy)
+        working_dir, test_id = cls.parse_raw_id(pav_cfg, raw_test_id)
 
-        return cls.load(pav_cfg, working_dir, test_id, legacy)
+        return cls.load(pav_cfg, working_dir, test_id)
 
     @classmethod
-    def load(cls, pav_cfg, working_dir: Path, test_id: TestID, legacy: bool = False) -> 'TestRun':
+    def load(cls, pav_cfg, working_dir: Path, test_id: TestID) -> 'TestRun':
         """Load an old TestRun object given a test id.
 
         :param pav_cfg: The pavilion config
         :param working_dir: The working directory where this test run lives.
         :param test_id: The test's id number.
-        :param legacy: Whether or not to treat the ID as a legacy ID.
         :rtype: TestRun
         """
 
-        if test_id.is_relative() and not legacy:
+        if test_id.is_relative():
             test_id = resolve_relative_id(pav_cfg, working_dir, test_id)
 
         path = working_dir / cls.RUN_DIR / str(test_id.id)

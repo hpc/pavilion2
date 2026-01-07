@@ -7,7 +7,7 @@ import os
 import time
 from abc import abstractmethod
 from pathlib import Path
-from typing import List, Union, Dict, NewType, Tuple, Type, Optional
+from typing import List, Union, Dict, NewType, Tuple, Type, Optional, Any
 
 import yaml_config as yc
 from pavilion.config import PavConfig
@@ -33,10 +33,13 @@ class KickoffScriptHeader(ScriptHeader):
     method to add custom header lines to the kickoff script.
     """
 
-    def __init__(self, job_name: str, sched_config: dict,
-                 nodes: Union[NodeList, None] = None,
-                 node_range: Union[Tuple[int, int], None] = None,
-                 shebang = None):
+    def __init__(self,
+                 job_name: str,
+                 sched_config: Dict[str, Any],
+                 sched_vars: SchedulerVariables,
+                 nodes: Optional[NodeList] = None,
+                 node_range: Optional[Tuple[int, int]] = None,
+                 shebang: Optional[str] = None):
         """Initialize the script header.
 
         The arguments are the same, and should be treated the same, as the
@@ -47,6 +50,7 @@ class KickoffScriptHeader(ScriptHeader):
 
         self._job_name = job_name
         self._config = sched_config
+        self._sched_vars = sched_vars
 
         if nodes is None:
             self._include_nodes = self._config['include_nodes']
@@ -230,12 +234,14 @@ class SchedulerPlugin(IPlugin.IPlugin):
               account'
             - 'account' - Account that tracks node sharing information.
             - 'time_limit' - Provided in 'seconds'. Overall job time limit.
-            - 'nodes' - From the 'nodes' argument. If provided, the job should ask for
-                        exactly the nodes listed. Only advanced schedulers provide this.
-            - 'include_nodes' - The list of nodes to request. When 'nodes' is provided,
-              these will already be included.
+            - 'nodes' - The number of nodes to request.
+            - 'include_nodes' - A list of nodes to include. These nodes are guaranteed to be
+              included, but the final set of nodes may include other nodes as well. When 'nodes'
+              is provided, these will already be included.
             - 'exclude_nodes' - The list of nodes to exclude. When 'nodes' is provided,
               these will already be excluded.
+            - 'across_nodes' - A complete list of nodes to use. When provided, these nodes, and
+              only these nodes (or potentially a subset of them) will be used for scheduling.
             - 'node_range' - From the 'node_range' argument. The minimum and maximum number of
               nodes to request.
             - 'job_name' - What to label the job.
@@ -507,6 +513,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         return self.KICKOFF_SCRIPT_HEADER_CLASS(
             job_name=job_name,
             sched_config=sched_config,
+            sched_vars=self.get_initial_vars(sched_config),
             nodes=nodes,
             node_range=node_range,
             shebang=shebang,

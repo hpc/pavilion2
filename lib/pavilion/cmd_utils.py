@@ -20,7 +20,7 @@ from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
 from pavilion.series import TestSeries, SeriesInfo, list_series_tests, mk_series_info_transform
-from pavilion.id_utils import load_user_series_id
+from pavilion.id_utils import load_user_series_id, resolve_relative_id
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
 from pavilion.test_run import TestRun, load_tests, TestAttributes
@@ -37,11 +37,12 @@ def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[Tes
     try:
         series_id = load_user_series_id(pav_cfg)
     except TestSeriesError as err:
-        output.fprint(errfile, "Failed to find last series: {}".format(err.args[0]))
+        output.fprint(errfile, "Failed to find last series: {}".format(err.args[0]),
+                      color=output.YELLOW)
         return None
 
     if series_id is None:
-        output.fprint(errfile, "Failed to find last series.")
+        output.fprint(errfile, "Failed to find last series.", color=output.YELLOW)
         return None
 
     try:
@@ -306,7 +307,10 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
                 output.fprint(errfile, err, color=output.YELLOW)
                 continue
 
-            test_path = test_wd/TestRun.RUN_DIR/str(_id)
+            if raw_id.is_relative():
+                raw_id = resolve_relative_id(pav_cfg, test_wd, raw_id)
+
+            test_path = test_wd/TestRun.RUN_DIR/str(raw_id)
             test_paths.append(test_path)
             if not test_path.exists():
                 output.fprint(errfile,
@@ -516,13 +520,15 @@ def get_last_test_id(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[Tes
     if len(id_pairs) == 0:
         output.fprint(
             errfile,
-            f"Most recent series contains no tests.")
+            f"Most recent series contains no tests.",
+            color=output.YELLOW)
         return None
 
     if len(id_pairs) > 1:
         output.fprint(
             errfile,
-            f"Multiple tests exist in last series. Could not unambiguously identify last test.")
+            f"Multiple tests exist in last series. Could not unambiguously identify last test.",
+            color=output.YELLOW)
         return None
 
     return TestID(str(id_pairs[0][1]))

@@ -32,7 +32,7 @@ class RawSchedTests(PavTestCase):
             'partition': 'fake-partition',
             'concurrent_default': '100',
             'test_cmd': '',
-            'tasks_per_node': None,
+            'tasks_per_node': '1',
             'min_mem': '1000',
             'chunk_ids': [],
             'node_list': [],
