@@ -88,13 +88,15 @@ class LSCommand(Command):
                 output.fprint(self.errfile, "No last test found.", color=output.RED)
                 return 1
 
+            args.test_id = test_id
+
         try:
             tests = cmd_utils.get_tests_by_id(pav_cfg, [args.test_id], self.errfile)
         except TestIDError:
             tests = []
 
         if len(tests) == 0:
-            output.fprint(self.errfile, "Could not find test '{}'".format(test_id))
+            output.fprint(self.errfile, "Could not find test '{}'".format(args.test_id))
             return 2
         elif len(tests) > 1:
             output.fprint(
