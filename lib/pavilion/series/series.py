@@ -186,6 +186,9 @@ class TestSeries:
     def get_with_states(self, states: Union[str, List[str]]) -> List[TestRun]:
         """Get a list of tests with states in the given list of states."""
 
+        # If tests were added in another process, we need to search for tests again
+        self.tests.find_tests()
+
         return listfilter(lambda x: x.status.current().state in states, self.tests.values())
 
     def get_currently_running(self) -> List[TestRun]:
