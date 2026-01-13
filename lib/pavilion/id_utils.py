@@ -40,6 +40,9 @@ def load_user_series_id(pav_cfg: PavConfig, errfile: TextIO = None) -> Optional[
 def resolve_relative_id(pav_cfg: PavConfig, working_dir: Path, test_id: TestID) -> TestID:
     """Resolve a series-relative ID into an absolute ID."""
 
+    if test_id.is_absolute():
+        return test_id
+
     if test_id.series is None:
         sid = load_user_series_id(pav_cfg)
 
