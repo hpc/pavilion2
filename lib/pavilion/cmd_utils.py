@@ -425,7 +425,7 @@ def get_tests_by_id(pav_cfg: config.PavConfig, test_ids: List[Union[TestID, Seri
         # Just a plain test id.
         else:
             try:
-                test_id_pairs.append(TestRun.parse_raw_id(pav_cfg, raw_id))
+                test_id_pairs.append(resolve_relative_id(pav_cfg, pav_cfg.working_dir, raw_id))
 
             except TestRunError as err:
                 output.fprint(sys.stdout, "Error loading test '{}': {}"
