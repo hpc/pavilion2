@@ -125,6 +125,12 @@ class TestID(ID):
             raise TypeError("Incompatible test ID formats for numerical comparison: "\
                             "{self} and {other}")
 
+    def __hash__(self) -> int:
+        if is_relative():
+            raise ValueError(f"Series-relative test ID {self} has no defined hash value.")
+
+        return int(self.id, 16)
+
 
 class SeriesID(ID):
     """Represents a single series ID."""
