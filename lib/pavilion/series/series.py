@@ -545,7 +545,7 @@ class TestSeries:
         while not (self.complete or self.check_cancelled()):
             to_log = set(self.get_completed()) - logged
 
-            output.fprint(self.outfile, f"Found {len(to_log)} completed tests to log.")
+            output.fprint(self.outfile, f"Found {len(to_log)} completed test(s) to log.")
 
             # Apply all loggers to all tests ready to log
 
@@ -571,6 +571,8 @@ class TestSeries:
         output.fprint(self.outfile, f"Found {len(to_log)} remaining test(s) to log.")
 
         stardo(log, product(loggers, to_log))
+
+        logged |= to_log
 
         output.fprint(self.outfile, f"Finished logging results Logged {len(logged)} test(s) total.")
 
