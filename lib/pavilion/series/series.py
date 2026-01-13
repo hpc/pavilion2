@@ -574,7 +574,7 @@ class TestSeries:
 
         logged |= to_log
 
-        output.fprint(self.outfile, f"Finished logging results Logged {len(logged)} test(s) total.")
+        output.fprint(self.outfile, f"Finished logging results. Logged {len(logged)} test(s) total.")
 
         return len(logged)
 
