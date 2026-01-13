@@ -126,7 +126,7 @@ class TestID(ID):
                             "{self} and {other}")
 
     def __hash__(self) -> int:
-        if is_relative():
+        if self.is_relative():
             raise ValueError(f"Series-relative test ID {self} has no defined hash value.")
 
         return int(self.id, 16)
