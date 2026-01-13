@@ -127,8 +127,8 @@ class TestID(ID):
 
     def __hash__(self) -> int:
         if self.is_relative():
-            raise ValueError(f"Series-relative test ID {self} must be resolved to an absolute ID
-                               before its hash value can be determined.")
+            raise ValueError(f"Series-relative test ID {self} must be resolved to an absolute ID "
+                               "before its hash value can be determined.")
 
         return int(self.id, 16)
 
