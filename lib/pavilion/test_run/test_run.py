@@ -1338,5 +1338,5 @@ be set by the scheduler plugin as soon as it's known."""
     def __eq__(self, other: "TestRun") -> bool:
         return self.id == other.id
 
-    def __hash__(self, other: "TestRun") -> str:
+    def __hash__(self) -> str:
         return hash(self.id)
