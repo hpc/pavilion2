@@ -10,7 +10,7 @@ import collections
 import copy
 import re
 from collections import OrderedDict
-from typing import Union
+from typing import Union, Dict, TypeVar
 
 import yc_yaml as yaml
 import yaml_config as yc
@@ -21,6 +21,9 @@ TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
+
+
+T = TypeVar("T")
 
 
 class PathCategoryElem(yc.CategoryElem):
@@ -198,7 +201,7 @@ class VarCatElem(yc.CategoryElem):
 
         return validated
 
-    def merge(self, old, new):
+    def merge(self, old: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
         """Merge, but allow for special keys that change our merge behavior.
 
         'key?: value'
@@ -215,7 +218,7 @@ class VarCatElem(yc.CategoryElem):
             # Handle special key properties
 
             key_suffix = None
-            if key[-1] in '?+':
+            if key[-1] in '?+@':
                 key_suffix = key[-1]
                 key = key[:-1]
 
@@ -356,6 +359,15 @@ class VarCatElem(yc.CategoryElem):
                     existing.append(value)
 
                 base[key] = existing
+            elif key_suffix == '@':
+                existing = base.get(key, [])
+
+                if len(values) > len(existing):
+                    raise TestConfigError(
+                                f"Key {key} in convolve mode (has a '@' suffix) "
+                                f"but new list is longer than old list.")
+
+                self._convolve_lists(existing, values)
 
             else:
                 # Should never happen
@@ -363,6 +375,16 @@ class VarCatElem(yc.CategoryElem):
                                    .format(key_suffix, key))
 
         return base
+
+    def _convolve_lists(self, old: List[T], new: List[T]) -> List[T]:
+        """Merge the two lists such that non-None values in the second list override values in
+        the first list. Assumes that the second list is no longer than the first."""
+
+        for i, val in enumerate(new):
+            if val is not None:
+                old[i] = val
+
+        return old
 
     def _check_val_merge(self, old: dict, new: dict) -> Union[None, str]:
         """Check that every key in 'new' exists in 'old'. Returns the first

@@ -18,7 +18,9 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO, Optional, Iterable
+from functools import reduce
+from typing import (List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO, Optional,
+                    Iterable, TypeVar)
 
 import similarity
 import yc_yaml
@@ -36,7 +38,7 @@ from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.utils import union_dictionary
+from pavilion.utils import is_int, append_to_keys
 from pavilion.micro import first, listmap
 from pavilion.path_utils import append_to_path, exists
 from yaml_config import RequiredError, YamlConfigLoader
@@ -54,6 +56,9 @@ LOGGER = logging.getLogger('pav.' + __name__)
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 TestConfig = Dict
+
+
+T = TypeVar("T")
 
 
 class ConfigInfo:
@@ -415,7 +420,7 @@ class TestConfigResolver:
         for request in requests:
             # Convert each request into a list of RawProtoTest objects.
             try:
-                raw_tests.extend(self._load_raw_configs(request, options))
+                raw_tests.extend(self._load_prototests(request, options))
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
@@ -670,7 +675,49 @@ class TestConfigResolver:
 
         return raw_cfg
 
-    def _load_raw_configs(self, request: TestRequest, options: TestOptions) -> List[RawProtoTest]:
+    def _load_prototests(self, request: TestRequest, options: TestOptions) -> List[RawProtoTest]:
+        """Get a list of raw test configs given a host, list of modes,
+        and a list of tests. Each of these configs will be lightly modified with
+        a few extra variables about their name, suite, and suite_file, as well
+        as guaranteeing that they have 'variables' and 'permutations' sections.
+
+        :param request: A test request to load tests for.
+        :param modes: A list (possibly empty) of modes to layer onto the test.
+        :param conditions: A list (possibly empty) of conditions to apply to each test config.
+        :param overrides: A list of overrides to apply to each test config.
+        :return: A list of RawProtoTests.
+        """
+
+        raw_configs = self._load_raw_configs(request, options)
+
+        test_configs = []
+
+        for raw_test in raw_configs:
+            raw_test = self._apply_test_options(raw_test, options, request)
+            if raw_test is None:
+                continue
+
+            # Now that we've applied all general transforms to the config, make it into a ProtoTest.
+            try:
+                rproto_test = RawProtoTest(request, raw_test, self._base_var_man)
+            except TestConfigError as err:
+                err.request = request
+                self.errors.append(err)
+                continue
+
+            # Make sure all the variables in the test config are consistent in structure.
+            try:
+                rproto_test.check_variable_consistency()
+            except TestConfigError as err:
+                err.request = request
+                self.errors.append(err)
+                continue
+
+            test_configs.append(rproto_test)
+
+        return test_configs
+
+    def _load_raw_configs(self, request: TestRequest) -> List[TestConfig]:
         """Get a list of raw test configs given a host, list of modes,
         and a list of tests. Each of these configs will be lightly modified with
         a few extra variables about their name, suite, and suite_file, as well
@@ -716,32 +763,7 @@ class TestConfigResolver:
                     request=request))
             return []
 
-        test_configs = []
-        for raw_test in added_tests:
-            raw_test = self._apply_test_options(raw_test, options, request)
-            if raw_test is None:
-                continue
-
-            # Now that we've applied all general transforms to the config, make it into a ProtoTest.
-            try:
-                rproto_test = RawProtoTest(request, raw_test, self._base_var_man)
-            except TestConfigError as err:
-                err.request = request
-                self.errors.append(err)
-                continue
-
-            # Make sure all the variables in the test config are consistent in structure.
-            try:
-                rproto_test.check_variable_consistency()
-            except TestConfigError as err:
-                err.request = request
-                self.errors.append(err)
-                continue
-
-            test_configs.append(rproto_test)
-
-        return test_configs
-
+        return added_tests
 
     def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest) \
             -> Optional[Dict]:
@@ -749,44 +771,15 @@ class TestConfigResolver:
         test_cfg = copy.deepcopy(raw_test)
 
         test_cfg['modes'] = options.modes
-        suite_name = test_cfg['suite']
+        test_cfg['overrides'] = options.overrides
 
-        # Apply any additional conditions.
-        if options.conditions:
-            test_cfg['only_if'] = union_dictionary(
-                test_cfg['only_if'], options.conditions['only_if']
-            )
-            test_cfg['not_if'] = union_dictionary(
-                test_cfg['not_if'], options.conditions['not_if']
-            )
-
-        # Apply downstream configs.
         try:
-            test_cfg = self.apply_platform(test_cfg, self._platform, suite_name)
-            test_cfg = self.apply_host(test_cfg, self._host, suite_name)
-            test_cfg = self.apply_modes(test_cfg, options.modes, suite_name)
+            config_stack = self.load_config_stack(raw_test, options)
+            reduce(lambda x, y: self._loader.merge(x[2], y[2]), config_stack)
         except TestConfigError as err:
             err.request = request
             self.errors.append(err)
             return None
-
-        # Save the overrides as part of the test config
-        test_cfg['overrides'] = options.overrides
-
-        # Apply overrides
-        if options.overrides:
-            try:
-                test_cfg = self.apply_overrides(test_cfg, options.overrides)
-            except TestConfigError as err:
-                err.request = request
-                self.errors.append(err)
-                return None
-            except (KeyError, ValueError) as err:
-                self.errors.append(TestConfigError(
-                    'Error applying overrides to test {} from suite {} at:\n{}' \
-                    .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
-                    request, err))
-                return None
 
         # Result evaluations can be added to all tests at the root pavilion config level.
         result_evals = test_cfg['result_evaluate']
@@ -973,114 +966,76 @@ class TestConfigResolver:
                 "Incompatible with pavilion version '{}', compatible versions "
                 "'{}'.".format(PavVars()['version'], comp_versions))
 
-    def apply_host(self, test_cfg: TestConfig, hostname: str, suite_name: str = None) -> TestConfig:
-        """Apply the host configuration to the given config."""
+    def load_config_stack(self, raw_test_cfg: Dict[str, Any],
+                            options: TestOptions) -> List[Tuple[str, str, Dict[str, Any]]]:
+        """Get the stack of all configs to apply, labeled with the config type and config name and
+        ordered by their sequence of application."""
+
+        configs = [("test_config", raw_test_cfg["name"], raw_test_cfg)]
+
+        suite_name = raw_test_cfg["suite"]
+
+        configs.append(("conditions", "conditions", append_to_keys(options.conditions, "+")))
+        configs.append(("platform",
+                        self._platform,
+                        self.load_downstream_config("platform", self._platform, suite_name)))
+        configs.append(("host",
+                        self._host,
+                        self.load_downstream_config("host", self._host, suite_name)))
+
+        for mode in options.modes:
+            configs.append(("mode",
+                            mode,
+                            self.load_downstream_config("mode", mode, suite_name)))
+
+        for override in options.overrides:
+            configs.append(("override", "override", self._override_to_dict(override)))
+
+        return configs
+
+    def load_downstream_config(self, cfg_type: str, cfg_name: Optional[str] = None,
+                               suite_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Load the specified downstream config."""
 
         if suite_name is not None:
             from_suite = True
-            label, host_cfg_path = self._config_path_from_suite(suite_name, "host")
+            label, cfg_path = self._config_path_from_suite(suite_name, cfg_type)
             loader = self._suite_loader
         else:
             from_suite = False
-            label, host_cfg_path = self._get_test_config_path(hostname, "host")
+            label, cfg_path = self._get_test_config_path(cfg_name, cfg_type)
             loader = self._loader
 
-        cfg_info = ConfigInfo(hostname, "host", host_cfg_path, label, from_suite)
+        cfg_info = ConfigInfo(cfg_name, cfg_type, cfg_path, label, from_suite)
 
-        raw_host_cfg = self._load_raw_config(cfg_info, loader, optional=True)
+        raw_cfg = self._load_raw_config(cfg_info, loader, optional=True)
 
-        if raw_host_cfg is None:
-            return test_cfg
-
-        try:
-            host_cfg = self._loader.normalize(
-                raw_host_cfg,
-                root_name=f"the top level of the host file.")
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                f"Error loading host config '{hostname}' from file '{host_cfg_path}'.")
+        if raw_cfg is None:
+            return None
 
         try:
-            return self._loader.merge(test_cfg, host_cfg)
+            cfg = self._loader.normalize(
+                raw_cfg,
+                root_name=f"the top level of the {cfg_type} file.")
         except (KeyError, ValueError) as err:
             raise TestConfigError(
-                "Error merging host configuration for host '{}'".format(hostname))
+                f"Error loading host config '{cfg_name}' from file '{cfg_path}'.")
 
-    def apply_platform(self, test_cfg: TestConfig, platform: str,
-                        suite_name: str = None) -> TestConfig:
-        """Apply the platform configuration to the given config."""
+        return cfg
 
-        if suite_name is not None:
-            from_suite = True
-            label, platform_cfg_path = self._config_path_from_suite(suite_name, "platform")
-            loader = self._suite_loader
-        else:
-            from_suite = False
-            label, platform_cfg_path = self._get_test_config_path(platform, "platform")
-            loader = self._loader
-
-        cfg_info = ConfigInfo(platform, "platform", platform_cfg_path, label, from_suite)
-
-        raw_platform_cfg = self._load_raw_config(cfg_info, loader, optional=True)
-
-        if raw_platform_cfg is None:
-            return test_cfg
+    def apply_config(self, test_cfg: TestConfig, downstream_cfg: Dict[str, Any],
+                     cfg_type: str, cfg_name: Optional[str] = None) -> TestConfig:
+        """Apply a downstream config to the base test_config."""
 
         try:
-            platform_cfg = self._loader.normalize(
-                raw_platform_cfg,
-                root_name=f"the top level of the platform file.")
+            return self._loader.merge(test_cfg, downstream_cfg)
         except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                f"Error loading host config '{platform}' from file '{platform_cfg_path}'")
-
-        try:
-            return self._loader.merge(test_cfg, platform_cfg)
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Error merging configuration for platform '{}'".format(platform))
-
-    def apply_modes(self, test_cfg, modes: List[str], suite_name: str = None):
-        """Apply each of the mode files to the given test config.
-
-        :param test_cfg: The raw test configuration.
-        :param modes: A list of mode names.
-        """
-
-        for mode in modes:
-            mode_cfg_path = None
-
-            if suite_name is not None:
-                label, mode_cfg_path = self._config_path_from_suite(suite_name, "mode")
-            if mode_cfg_path is None:
-                from_suite = False
-                label, mode_cfg_path = self._get_test_config_path(mode, "mode")
-                loader = self._loader
+            if cfg_name is not None:
+                msg = f"Error merging {cfg_type} configuration for {cfg_type} '{cfg_name}'."
             else:
-                from_suite = True
-                loader = self._suite_loader
+                msg = f"Error merging {cfg_type} configuration."
 
-            cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, label, from_suite)
-
-            raw_mode_cfg = self._load_raw_config(cfg_info, loader)
-
-            try:
-                mode_cfg = self._loader.normalize(
-                    raw_mode_cfg,
-                    root_name=f"the top level of the OS file.")
-            except (KeyError, ValueError) as err:
-                raise TestConfigError(
-                    f"Error loading host config '{mode}' from file '{mode_cfg_path}'.")
-
-            try:
-                test_cfg = self._loader.merge(test_cfg, mode_cfg)
-            except (KeyError, ValueError) as err:
-                raise TestConfigError(
-                    "Error merging mode configuration for mode '{}'".format(mode))
-
-            test_cfg = resolve.cmd_inheritance(test_cfg)
-
-        return test_cfg
+            raise TestConfigError(msg)
 
     def resolve_inheritance(self, suite_cfg, suite_path) \
             -> Dict[str, dict]:
@@ -1190,40 +1145,60 @@ class TestConfigResolver:
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path',
                        'base_name', 'host', 'platform', 'modes']
 
-    def apply_overrides(self, test_cfg, overrides) -> Dict:
-        """Apply overrides to this test.
+    @classmethod
+    def _override_to_dict(cls, override: str) -> Dict[str, Any]:
+        """Convert an override string to a dictionary."""
 
-        :param dict test_cfg: The test configuration.
-        :param list overrides: A list of raw overrides in a.b.c=value form.
-        :raises: (ValueError,KeyError, TestConfigError)
-    """
+        if '=' not in override:
+            raise ValueError(
+                "Invalid override value. Must be in the form: "
+                "<key>=<value>. Ex. -c run.modules=['gcc'] ")
 
-        config_loader = self._loader
+        key, value = ovr.split('=', 1)
+        key = key.strip()
 
-        for ovr in overrides:
-            if '=' not in ovr:
-                raise ValueError(
-                    "Invalid override value. Must be in the form: "
-                    "<key>=<value>. Ex. -c run.modules=['gcc'] ")
+        if key == '':
+            raise ValueError("Override '{}' given a blank key.".format(ovr))
 
-            key, value = ovr.split('=', 1)
-            key = key.strip()
-            if not key:
-                raise ValueError("Override '{}' given a blank key.".format(ovr))
+        key = key.split('.')
 
-            key = key.split('.')
-            for part in key:
-                if ' ' in part:
-                    raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
-                if not part:
-                    raise ValueError("Override '{}' has an empty key part.".format(ovr))
+        if key[0] in cls.NOT_OVERRIDABLE:
+            raise KeyError("You can't override the '{}' key in a test config"
+                           .format(key[0]))
 
-            self._apply_override(test_cfg, key, value)
+        return cls._override_list_to_dict(key, value)
 
-        try:
-            return config_loader.normalize(test_cfg, root_name='overrides')
-        except TypeError as err:
-            raise TestConfigError("Invalid override", prior_error=err)
+    @classmethod
+    def _override_list_to_dict(cls, key: List[str], value: Any) -> Dict[str, Any]:
+        """Convert a list of override keys and a value to a dictionary."""
+
+        if key[0] == ' ':
+            raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
+        if key[0] == '':
+            raise ValueError("Override '{}' has an empty key part.".format(ovr))
+
+        if len(key) == 1:
+            if is_int(key):
+                value = [None] * (int(key) - 1) + [value]
+
+            return {key + "@": value}
+        else:
+            return {key[0]: cls._override_list_to_dict(key[1:], value)}
+
+    @staticmethod
+    def _override_list(base_list: List[T], override: List[T]) -> List[T]:
+        """Override one list with the contents of another."""
+
+        if len(override) > len(base_list):
+            raise IndexError(f"Override index {len(override) -1} is out of range.")
+
+        res = base_list.copy()
+
+        #Only the last value should ever be anything other than None
+        base_list[len(override) - 1] = override[-1]
+
+        return base_list
+
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.

@@ -599,14 +599,14 @@ def hr_cutoff_to_ts(cutoff_time: str,
     raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))
 
 
-def union_dictionary(dict1, dict2):
-    """Combines two dictionaries with nested lists."""
+def append_to_keys(dict: Dict[str, Any], suffix: str) -> Dict[str, Any]:
+    """Append the given string to the keys of the dictionary."""
 
-    for key in dict2.keys():
-        dict1[key] = dict1.get(key, []) + dict2[key]
+    for key, val in dict.items():
+        dict[key + suffix] = val
+        del dict[key]
 
-    return dict1
-
+    return dict
 
 def flatten_nested_dict(dict_in, keycollect='', new_d=None, keysplit='.'):
     """ Takes a nested dictionary and concatenates its nested keys
