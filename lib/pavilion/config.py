@@ -278,9 +278,8 @@ class PavConfig(PavConfigDict):
                 labels = [label] * len(suites)
                 suite_infos.extend(zip(labels, names, suites))
 
-                suites = [sdir / "suite.yaml" for sdir in suites_dir.iterdir()]
-                suites = list(filter(exists, suites))
-                names = [suite.parent.name for suite in suites]
+                suites = [sdir for sdir in suites_dir.iterdir() if (sdir/"suite.yaml").exists()]
+                names = [suite.name for suite in suites]
                 labels = [label] * len(suites)
 
                 suite_infos.extend(zip(labels, names, suites))
