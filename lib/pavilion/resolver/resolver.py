@@ -784,20 +784,20 @@ class TestConfigResolver:
                 if raw_test is None:
                     raw_suite_cfg[test_name] = {}
 
-            suite_tests = self.resolve_inheritance(raw_suite_cfg, cfg_info.path)
+            suite_tests = self.resolve_inheritance(raw_suite_cfg, path)
 
             # Perform essential transformations to each test config.
             for test_cfg_name, test_cfg in list(suite_tests.items()):
 
                 # Basic information that all test configs should have.
                 test_cfg['name'] = test_cfg_name
-                test_cfg['cfg_label'] = cfg_info.label
-                working_dir = self.pav_cfg['configs'][cfg_info.label]['working_dir']
+                test_cfg['cfg_label'] = label
+                working_dir = self.pav_cfg['configs'][label]['working_dir']
                 test_cfg['working_dir'] = working_dir.as_posix()
                 test_cfg['suite'] = suite_name
                 test_cfg['host'] = self._host
                 test_cfg['platform'] = self._platform
-                test_cfg['suite_path'] = cfg_info.path.as_posix()
+                test_cfg['suite_path'] = path.as_posix()
 
             self._suites[suite_name] = suite_tests
             matching_suites[suite_name] = suite_tests
@@ -922,10 +922,7 @@ class TestConfigResolver:
         elif cfg_path is None:
             return {}
 
-        if cfg_path.stem in ("hosts", "platforms", "modes"):
-            from_suite == True
-        else:
-            from_suite = False
+        from_suite = cfg_path.stem in ("hosts", "platforms", "modes")
 
         if from_suite:
             loader = self._suite_loader
@@ -942,15 +939,18 @@ class TestConfigResolver:
                 f"Could not find {cfg_type} config with name {cfg_name}"
                 f" in file {cfg_path}.")
 
-        try:
-            cfg = self._loader.normalize(
-                raw_cfg,
-                root_name=f"the top level of the {cfg_type} file.")
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                f"Error loading host config '{cfg_name}' from file '{cfg_path}'.")
+        if cfg_type != "suite":
+            try:
+                cfg = self._loader.normalize(
+                    raw_cfg,
+                    root_name=f"the top level of the {cfg_type} file.")
+            except (KeyError, ValueError) as err:
+                raise TestConfigError(
+                    f"Error loading '{cfg_type}' config '{cfg_name}' from file '{cfg_path}'.")
 
-        return cfg
+            return cfg
+
+        return raw_cfg
 
     def _apply_config(base: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
         try:
