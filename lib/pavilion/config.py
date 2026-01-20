@@ -15,7 +15,7 @@ from typing import List, Union, Dict, NewType, Iterator, Tuple
 
 import yaml_config as yc
 from pavilion import errors
-from pavilion.micro import first, flatten, remove_none, set_default
+from pavilion.micro import first_with, flatten, remove_none, set_default
 from pavilion.path_utils import Pathlike, append_to_path, exists, path_product
 
 # Figure out what directories we'll search for the base configuration.
@@ -327,7 +327,7 @@ class PavConfig(PavConfigDict):
         files = list(map(append_to_path(file), paths))
 
         # Return the first path to the file that exists (or None)
-        return first(exists, files)
+        return first_with(exists, files)
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""

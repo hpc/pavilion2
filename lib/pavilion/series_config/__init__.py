@@ -82,9 +82,7 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
 
     series_config_loader = SeriesConfigLoader()
     resolver = TestConfigResolver(pav_cfg)
-    cfg_info = resolver.find_config('series', series_name)
-
-    series_file_path = cfg_info.path
+    series_file_path = resolver.get_config_path('series', series_name)
 
     if not series_file_path:
         raise SeriesConfigError('Cannot find series config: {}'.

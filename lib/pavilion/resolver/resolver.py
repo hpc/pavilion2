@@ -138,7 +138,8 @@ class TestConfigResolver:
 
         if cfg_type == "suite" and not use_suites_dir:
             return "tests"
-
+        if cfg_type == "series":
+            return "series"
         if dirname[-1] != 's':
             dirname += 's'
 
@@ -171,7 +172,7 @@ class TestConfigResolver:
         """Return an iterator over all config labels."""
         return self.pav_cfg.configs.keys()
 
-    def _get_config_path(self, cfg_type: str, cfg_name: str,
+    def get_config_path(self, cfg_type: str, cfg_name: str,
                             suite_path: Optional[Path] = None) -> Optional[Tuple[str, Path]]:
         """Given a config name and type, find the path to that config, if it exists.
         If no such config exists, return None."""
@@ -188,7 +189,7 @@ class TestConfigResolver:
         cfg_dir = self._get_config_dirname(cfg_type)
         paths.extend(map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.config_paths))
 
-        return first_with(lambda x: x.exists(), paths)
+        return first_with(exists, paths)
 
     def find_similar_configs(self, conf_type: str, conf_name: str) -> List[str]:
         """Find configs with a name similar to the one specified."""
@@ -691,7 +692,8 @@ class TestConfigResolver:
 
         try:
             config_stack = self.load_config_stack(raw_test, options)
-            reduce(lambda x, y: self._loader.merge, select(2, config_stack))
+            import pdb; pdb.set_trace()
+            test_cfg = reduce(self._apply_config, select(2, config_stack))
         except TestConfigError as err:
             err.request = request
             self.errors.append(err)
@@ -751,8 +753,8 @@ class TestConfigResolver:
 
         # Get the base, empty config, then apply the host config on top of it.
         configs = [self._loader.load_empty()]
-        configs.append(self.load_config("platform", platform, optional=True))
-        configs.append(self.load_config("host", host, optional=True))
+        configs.append(self.load_config("platform", platform, required=False))
+        configs.append(self.load_config("host", host, required=False))
 
         return reduce(self._loader.merge, configs)
 
@@ -878,34 +880,39 @@ class TestConfigResolver:
 
         configs = [("test_config", raw_test_cfg["name"], raw_test_cfg)]
 
-        suite_path = raw_test_cfg["suite_path"]
+        suite_path = Path(raw_test_cfg["suite_path"])
 
-        configs.append(("conditions", "conditions", append_to_keys(options.conditions, "+")))
+        conditions = append_to_keys(self._loader.normalize(options.conditions), "+")
+        configs.append(("conditions", "conditions", conditions))
         configs.append(("platform",
                         self._platform,
-                        self.load_config("platform", self._platform, suite_path, optional=True)))
+                        self.load_config("platform", self._platform, suite_path, required=False)))
         configs.append(("host",
                         self._host,
-                        self.load_config("host", self._host, suite_path, optional=True)))
+                        self.load_config("host", self._host, suite_path, required=False)))
 
         for mode in options.modes:
             configs.append(("mode",
                             mode,
-                            self.load_config("mode", mode, suite_path, optional=True)))
+                            self.load_config("mode", mode, suite_path, required=False)))
 
         for override in options.overrides:
-            configs.append(("override", "override", self._override_to_dict(override)))
+            configs.append(("override", "override", self._loader.normalize(self._override_to_dict(override))))
 
         return configs
 
-    def load_config(self, cfg_type: str, cfg_name: str,
-                        suite_path: Optional[Path] = None, optional: bool = False) -> Dict[str, Any]:
-        """Load the specified downstream config. Returns an empty dict if the config does not
-        exist."""
+    def load_config(self,
+                    cfg_type: str,
+                    cfg_name: str,
+                    suite_path: Optional[Path] = None,
+                    loader: Optional[YamlConfigLoader] = None,
+                    required: bool = True) -> Dict[str, Any]:
+        """Load the config, optionally raising an error if it cannot be found. Returns an empty dict
+        if the config does not exist."""
 
-        cfg_path = self._get_config_path(cfg_type, cfg_name, suite_path)
+        cfg_path = self.get_config_path(cfg_type, cfg_name, suite_path)
 
-        if cfg_path is None and not optional:
+        if cfg_path is None and required:
             similar = self.find_similar_configs(cfg_type, cfg_name)
 
             if similar:
@@ -924,22 +931,23 @@ class TestConfigResolver:
 
         from_suite = cfg_path.stem in ("hosts", "platforms", "modes")
 
-        if from_suite:
-            loader = self._suite_loader
-        else:
-            loader = self._loader
+        if loader is None:
+            if from_suite:
+                loader = self._suite_loader
+            else:
+                loader = self._loader
 
         raw_cfg = self._safe_load_config(cfg_type, cfg_path, loader)
 
         if from_suite and cfg_type != "suite":
             raw_cfg = raw_cfg.get(cfg_name, {})
 
-        if raw_cfg == {} and not optional:
+        if raw_cfg == {} and required:
             raise TestConfigError(
                 f"Could not find {cfg_type} config with name {cfg_name}"
                 f" in file {cfg_path}.")
 
-        if cfg_type != "suite":
+        if cfg_type not in  ("suite", "series"):
             try:
                 cfg = self._loader.normalize(
                     raw_cfg,
@@ -952,9 +960,9 @@ class TestConfigResolver:
 
         return raw_cfg
 
-    def _apply_config(base: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    def _apply_config(self, base: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            return self._loader.merge(test_cfg, platform_cfg)
+            return self._loader.merge(base, config)
         except (KeyError, ValueError) as err:
             raise TestConfigError("Error merging configuration")
 
@@ -1098,11 +1106,12 @@ class TestConfigResolver:
         if key[0] == '':
             raise ValueError("Override '{}' has an empty key part.".format(ovr))
 
-        if len(key) == 1:
-            if is_int(key):
-                value = [None] * (int(key) - 1) + [value]
+        if len(key) == 2 and is_int(key[1]):
+            value = [None] * (int(key[1]) - 1) + [value]
 
             return {key[0] + "@": value}
+        elif len(key) == 1:
+            return {key[0]: value}
         else:
             return {key[0]: cls._override_list_to_dict(key[1:], value)}
 

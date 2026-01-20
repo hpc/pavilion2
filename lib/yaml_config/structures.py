@@ -195,7 +195,7 @@ class ListElem(ConfigElement):
         events.append(yaml.SequenceEndEvent())
         return events
 
-    def merge(self, old, new, extend=False):
+    def merge(self, old, new, extend=False, convolve=False):
         """When merging lists, a new list simply replaces the old list, unless
         the new list is empty."""
 
@@ -207,9 +207,19 @@ class ListElem(ConfigElement):
             else:
                 return old
 
-
         if extend and old:
             return old.copy() + new.copy()
+        elif convolve and old:
+            res = old.copy()
+
+            for idx, item in enumerate(new):
+                if new is not None:
+                    try:
+                        res[idx] = item
+                    except IndexError:
+                        raise IndexError(f"Attempted to convolve lists, but overriding list {new} "
+                                         f"is longer than base list {old}.")
+            return res
         else:
             return new.copy()
 
@@ -272,7 +282,7 @@ class _DictElem(ConfigElement):
             else:
                 key_mod = key
 
-            if key_mod and key_mod.endswith('+'):
+            if key_mod and key_mod.endswith(('+', '@')):
                 key_mod = key_mod[:-1]
 
             keys[key_mod].append(key)
@@ -300,6 +310,16 @@ class _DictElem(ConfigElement):
                            "isn't a list.".format(key, self.name))
 
         return sub_elem.merge(old_value, value, extend=True)
+
+    def _merge_convolve(self, key, sub_elem, old_value, value):
+        """Convolve list items with a list element."""
+
+        if not isinstance(sub_elem, ListElem):
+            raise KeyError("Key '{}@' given under '{}', but underlying config item "
+                           "isn't a list.".format(key, self.name))
+
+        return sub_elem.merge(old_value, value, convolve=True)
+
 
 class KeyedElem(_DictElem):
     """A dictionary configuration item with predefined keys that may have
@@ -423,6 +443,9 @@ class KeyedElem(_DictElem):
                 key = key[:-1]
                 base[key] = self._merge_extend(key, self.config_elems[key],
                                                old[key], value)
+            elif key and key.endswith('@'):
+                key = key[:-1]
+                base[key] = self._merge_convolve(key, self.config_elems[key], old[key], value)
             elif value is not None:
                 try:
                     base[key] = self.config_elems[key].merge(old.get(key), new[key])
@@ -509,7 +532,7 @@ class KeyedElem(_DictElem):
         ndict = self.type()
 
         for key, val in value.items():
-            if key and key.endswith('+'):
+            if key and key.endswith(('+', '@')):
                 final_key = key[:-1]
             else:
                 final_key = key
@@ -581,12 +604,12 @@ class KeyedElem(_DictElem):
                 new_key = key
 
             # Make sure extended keys are trying to extend lists.
-            if new_key and new_key.endswith('+'):
+            if new_key and new_key.endswith(('+', '@')):
                 sub_elem = self.config_elems.get(key[:-1], None)
                 if not isinstance(sub_elem, ListElem):
                     raise KeyError(
-                        "Key '{}' given (which would extend the list of values under key '{}'), "
-                        "but the values under that key aren't a list."
+                        "Key '{}' given (which would extend or convolve the list of values under key "
+                        "'{}'), but the values under that key aren't a list."
                         .format(key, new_key[:-1]))
 
                 # When validating, it's ok if we end up with a '+' key. Just
@@ -754,10 +777,10 @@ class CategoryElem(_DictElem):
             else:
                 new_key = key
 
-            if new_key and new_key.endswith('+'):
+            if new_key and new_key.endswith(('+', '@')):
                 if not isinstance(self._sub_elem, ListElem):
                     raise KeyError(
-                        "Key '{}' tried to extend non-list key '{}'."
+                        "Key '{}' tried to extend or convolve non-list key '{}'."
                         .format(key, new_key[:-1]))
                 new_key = new_key[:-1]
 
@@ -801,7 +824,7 @@ class CategoryElem(_DictElem):
             return base
 
         for key, value in new.items():
-            if key and key.endswith('+'):
+            if key and key.endswith(('+', '@')):
                 key = key[:-1]
                 old_value = old.get(key, [])
                 base[key] = self._merge_extend(key, self._sub_elem, old_value, value)
