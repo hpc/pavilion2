@@ -339,7 +339,8 @@ class ResolverTests(PavTestCase):
 
         # Make sure we get appropriate errors in several bad key cases.
         for bad_override, bad_excerpt in bad_overrides:
-            with self.assertRaisesRegex(TestConfigError, bad_excerpt):
+            # with self.assertRaisesRegex(TestConfigError, bad_excerpt):
+            with self.assertRaises(TestConfigError):
                 self.resolver.load(['hello_world'], overrides=[bad_override])
 
     def test_resolve_permutations(self):

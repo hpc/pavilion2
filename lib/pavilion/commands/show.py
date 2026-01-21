@@ -492,18 +492,14 @@ class ShowCommand(Command):
         """Show the variables of a config, each variable is displayed as a
         table."""
 
-        cfg_info = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
-        file = cfg_info.path
+        cfg = resolver.TestConfigResolver(pav_cfg).load_config(conf_type, cfg, required=False)
 
-        if file is None:
+        if cfg == {}:
             output.fprint(
                 self.errfile,
                 f"Could not find a config for {conf_type} '{cfg}'",
                 color=output.YELLOW)
             return 1
-
-        with file.open() as config_file:
-            cfg = file_format.TestConfigLoader().load(config_file)
 
         simple_vars = []
         complex_vars = []
@@ -606,17 +602,10 @@ class ShowCommand(Command):
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
         """Show the full config of a given os/host/mode."""
 
-        cfg_info = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
-        file = cfg_info.path
+        cfg = resolver.TestConfigResolver(pav_cfg).load_config(conf_type, cfg_name, required=False)
 
-        config_data = None
-        if file is not None:
-            with file.open() as config_file:
-                config_data = file_format.TestConfigLoader()\
-                              .load_raw(config_file)
-
-        if config_data is not None:
-            output.fprint(self.outfile, pprint.pformat(config_data, compact=False))
+        if cfg != {}:
+            output.fprint(self.outfile, pprint.pformat(cfg, compact=False))
         else:
             output.fprint(sys.stdout, "No {} config found for "
                                       "{}.".format(conf_type.strip('s'), cfg_name))

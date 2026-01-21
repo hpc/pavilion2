@@ -602,8 +602,13 @@ def hr_cutoff_to_ts(cutoff_time: str,
 def append_to_keys(dict: Dict[str, Any], suffix: str) -> Dict[str, Any]:
     """Append the given string to the keys of the dictionary."""
 
-    for key, val in dict.items():
-        dict[key + suffix] = val
+    keys = set(dict.keys())
+
+    for key in keys:
+        if key.endswith(suffix):
+            continue
+
+        dict[key + suffix] = dict[key]
         del dict[key]
 
     return dict
