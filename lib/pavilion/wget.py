@@ -116,10 +116,12 @@ def head(pav_cfg, url):
 
     redirects = 0
 
+    headers = { 'Cache-Control':'no-cache' }
     try:
         response = session.head(url,
                                 proxies=proxies,
                                 verify=ca_cert_path(),
+                                headers=headers,
                                 timeout=pav_cfg.wget_timeout)
         # The location header is the redirect location. While the requests
         # library resolves these automatically, it still returns the first
@@ -135,6 +137,7 @@ def head(pav_cfg, url):
             response = session.head(redirect_url,
                                     proxies=proxies,
                                     verify=ca_cert_path(),
+                                    headers=headers,
                                     timeout=pav_cfg.wget_timeout)
 
     except requests.exceptions.RequestException as err:
@@ -263,12 +266,10 @@ def update(pav_cfg, url, dest):
         # depends on the transfer encoding. It should match for any already
         # compressed files, but other data types are frequently compressed.
         elif (not (
-                info.get('ETag') == head_data.get('ETag') or
+                info.get('ETag') == head_data.get('ETag') and
                 # If the old content length is the same, it's probably
                 # unchanged. Probably...
-                head_data.get('Content-Length') == info.get('Content-Length') or
-                # Or if the content length matches the actual size.
-                head_data.get('Content-Length') == info['size'])):
+                head_data.get('Content-Length') == info.get('Content-Length')) ):
             fetch = True
 
     if fetch:
