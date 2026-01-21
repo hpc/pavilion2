@@ -4,6 +4,7 @@ from typing import List
 import yc_yaml
 import yaml_config
 from pavilion.resolver import TestConfigResolver
+from pavilion.micro import first
 from ..errors import TestConfigError, SeriesConfigError
 from .file_format import SeriesConfigLoader
 
@@ -82,7 +83,7 @@ def load_series_config(pav_cfg, series_name: str) -> dict:
 
     series_config_loader = SeriesConfigLoader()
     resolver = TestConfigResolver(pav_cfg)
-    series_file_path = resolver.get_config_path('series', series_name)
+    series_file_path = first(resolver.get_config_paths('series', series_name))
 
     if not series_file_path:
         raise SeriesConfigError('Cannot find series config: {}'.

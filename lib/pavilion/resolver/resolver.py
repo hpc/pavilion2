@@ -156,7 +156,7 @@ class TestConfigResolver:
 
         paths = []
 
-        if suite_name is not None:
+        if suite_name is not None and cfg_type != "series":
             cfg_path = Path("suites") / suite_name / self._get_config_fname(cfg_type)
             paths.append(cfg_path.with_suffix(".yaml"))
             paths.append(cfg_path.with_suffix(".yml"))
@@ -193,11 +193,18 @@ class TestConfigResolver:
 
             if cfg_dir.exists():
                 for file in type_path.iterdir():
-                    if file.name.endswith('.yaml') and not file.is_dir():
+                    if file.name.endswith(('.yaml', '.yml')) and not file.is_dir():
                         names.append(file.name[:-5])
 
             if suite_name is not None:
+                # Only check within the specified suite for similar names, since configs
+                # in other suites don't apply.
                 cfg_path = (path / "suites" / suite_name / cfg_type).with_suffix(".yaml")
+                cfg = self._safe_load_config(cfg_type, cfg_path, self._suite_loader)
+
+                names.extend(cfg.keys())
+
+                cfg_path = (path / "suites" / suite_name / cfg_type).with_suffix(".yml")
                 cfg = self._safe_load_config(cfg_type, cfg_path, self._suite_loader)
 
                 names.extend(cfg.keys())
@@ -685,7 +692,7 @@ class TestConfigResolver:
         test_cfg['overrides'] = options.overrides
 
         try:
-            config_stack = self.load_config_stack(raw_test, options)
+            config_stack = self.load_config_stack(test_cfg, options)
             test_cfg = reduce(self._apply_config, select(2, config_stack))
         except TestConfigError as err:
             err.request = request
@@ -749,7 +756,7 @@ class TestConfigResolver:
         configs.append(self.load_config("platform", platform, required=False))
         configs.append(self.load_config("host", host, required=False))
 
-        return reduce(self._loader.merge, configs)
+        return reduce(self._apply_config, configs)
 
     def _load_suite_tests(self, request: TestRequest) -> Dict[str, Dict]:
         """Load the suite config, with standard info applied to """
@@ -916,6 +923,8 @@ class TestConfigResolver:
         raw_cfg = {}
 
         for path in cfg_paths:
+            # If the path is to a suite-style config, make sure it actually contains the config
+            # we want.
             if path.stem in ("hosts", "platforms", "modes"):
                 raw_cfg = self._safe_load_config(cfg_type, path, self._suite_loader)
                 raw_cfg = raw_cfg.get(cfg_name, {})
