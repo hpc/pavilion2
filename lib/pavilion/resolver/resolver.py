@@ -40,12 +40,13 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import is_int, append_to_keys
-from pavilion.micro import first_with, listfilter, select
+from pavilion.micro import first_with, listfilter, select, set_default
 from pavilion.path_utils import exists, path_product
 from yaml_config import RequiredError, YamlConfigLoader
 
 from .proto_test import RawProtoTest, ProtoTest
 from .request import TestRequest
+from .test_suite import TestSuite
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -117,9 +118,6 @@ class TestConfigResolver:
             self._platform = self._base_var_man['sys.platform']
         else:
             self._platform = platform
-
-        # This may throw an exception. It's expected to be caught by the caller.
-        self._base_config = self._load_base_config(self._platform, self._host)
 
         # Raw loaded test suites
         self._suites: Dict[Dict] = {}
@@ -245,47 +243,41 @@ class TestConfigResolver:
             else:
                 suites[name]['supersedes'].append(path)
 
-            if path.is_dir():
-                path /= "suite.yaml"
+            suite = TestSuite(path)
 
             try:
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
-                with path.open('r') as suite_file:
-                    try:
-                        suite_cfg = self._suite_loader.load(suite_file, partial=True)
-                    except (TypeError,
-                            KeyError,
-                            ValueError,
-                            yc_yaml.YAMLError) as err:
-                        suites[name]['err'] = err
-                        continue
+                suite.load("suite", partial=True)
+            except (TypeError, KeyError, ValueError, yc_yaml.YAMLError) as err:
+                suites[name]['err'] = err
+                continue
             except FileNotFoundError as err:
                 # This can happen in the case of a broken symlink
                 suites[name]["err"] = err
 
-            try:
-                suite_cfgs = self.resolve_inheritance(
-                    suite_cfg=suite_cfg,
-                    suite_path=path)
-            except Exception as err:  # pylint: disable=W0703
-                suites[name]['err'] = err
-                continue
+            platform_cfg = self.load_config("platform", self._platform, path, required=False)
+            host_cfg = self.load_config("host", self._host, path, required=False)
 
-            def default(val, dval):
-                """Return the dval if val is None."""
+            for test in suite.test_names:
+                try:
+                    stack = list(reversed(suite.ancestors(test)))
+                    stack.insert(1, platform_cfg)
+                    stack.insert(2, host_cfg)
+                    cfg = self.resolve_config_stack(stack)
+                except Exception as err:  # pylint: disable=W0703
+                    suites[name]['err'] = err
+                    continue
 
-                return dval if val is None else val
-
-            for test_name, conf in suite_cfgs.items():
                 suites[name]['tests'][test_name] = {
-                    'conf': conf,
-                    'maintainer': default(
-                        conf['maintainer']['name'], ''),
-                    'email': default(conf['maintainer']['email'], ''),
-                    'summary': default(conf.get('summary', ''), ''),
-                    'doc': default(conf.get('doc', ''), ''),
+                    'conf': cfg,
+                    'maintainer': set_default(
+                        cfg['maintainer']['name'], ''),
+                    'email': set_default(cfg['maintainer']['email'], ''),
+                    'summary': set_default(cfg.get('summary', ''), ''),
+                    'doc': set_default(cfg.get('doc', ''), ''),
                 }
+
         return suites
 
     def find_all_configs(self, conf_type: str):
@@ -693,7 +685,7 @@ class TestConfigResolver:
 
         try:
             config_stack = self.load_config_stack(test_cfg, options)
-            test_cfg = reduce(self._apply_config, select(2, config_stack))
+            test_cfg = self.resolve_config_stack(select(2, config_stack))
         except TestConfigError as err:
             err.request = request
             self.errors.append(err)
@@ -748,16 +740,6 @@ class TestConfigResolver:
 
         return test_cfg
 
-    def _load_base_config(self, platform: str, host: str) -> TestConfig:
-        """Load the base configuration for the given host.  This is done once and saved."""
-
-        # Get the base, empty config, then apply the host config on top of it.
-        configs = [self._loader.load_empty()]
-        configs.append(self.load_config("platform", platform, required=False))
-        configs.append(self.load_config("host", host, required=False))
-
-        return reduce(self._apply_config, configs)
-
     def _load_suite_tests(self, request: TestRequest) -> Dict[str, Dict]:
         """Load the suite config, with standard info applied to """
 
@@ -774,25 +756,22 @@ class TestConfigResolver:
                 matching_suites[name] = self._suites[name]
                 continue
 
-            try:
-                raw_suite_cfg = self.load_config("suite", suite_name, path)
-            except TestConfigError as err:
-                err.request = request
-                self.errors.append(err)
-                continue
+            suite = TestSuite(path)
 
-            # Make sure each test has a dict as contents.
-            for test_name, raw_test in raw_suite_cfg.items():
-                if raw_test is None:
-                    raw_suite_cfg[test_name] = {}
+            platform_config = self.load_config("platform", self._platform, path, required=False)
+            host_config = self.load_config("host", self._host, path, required=False)
 
-            suite_tests = self.resolve_inheritance(raw_suite_cfg, path)
+            suite_tests = {}
 
-            # Perform essential transformations to each test config.
-            for test_cfg_name, test_cfg in list(suite_tests.items()):
+            for test in suite.test_names:
+                config_stack = list(reversed(suite.ancestors(test)))
+                config_stack.insert(1, platform_config)
+                config_stack.insert(2, host_config)
+
+                test_cfg = self.resolve_config_stack(config_stack)
 
                 # Basic information that all test configs should have.
-                test_cfg['name'] = test_cfg_name
+                test_cfg['name'] = test
                 test_cfg['cfg_label'] = label
                 working_dir = self.pav_cfg['configs'][label]['working_dir']
                 test_cfg['working_dir'] = working_dir.as_posix()
@@ -800,6 +779,8 @@ class TestConfigResolver:
                 test_cfg['host'] = self._host
                 test_cfg['platform'] = self._platform
                 test_cfg['suite_path'] = path.as_posix()
+
+                suite_tests[test] = test_cfg
 
             self._suites[suite_name] = suite_tests
             matching_suites[suite_name] = suite_tests
@@ -878,9 +859,9 @@ class TestConfigResolver:
         """Get the stack of all configs to apply, labeled with the config type and config name and
         ordered by their sequence of application."""
 
-        configs = [("test_config", raw_test_cfg["name"], raw_test_cfg)]
-
         suite_path = Path(raw_test_cfg["suite_path"])
+
+        configs = [("base", "base", self._loader.load_empty())]
 
         conditions = self._conditions_to_dict(options.conditions)
         configs.append(("conditions", "conditions", conditions))
@@ -890,6 +871,8 @@ class TestConfigResolver:
         configs.append(("host",
                         self._host,
                         self.load_config("host", self._host, suite_path, required=False)))
+
+        configs.append(("test_config", raw_test_cfg["name"], raw_test_cfg))
 
         for mode in options.modes:
             configs.append(("mode",
@@ -906,6 +889,11 @@ class TestConfigResolver:
                     raw_test_cfg['suite_path']), prior_error=err)
 
         return configs
+
+    def resolve_config_stack(self, configs: List[TestConfig]) -> TestConfig:
+        """Resolve a list of test configs into a single test config."""
+
+        return reduce(self._apply_config, configs)
 
     def load_config(self,
                     cfg_type: str,
@@ -969,110 +957,6 @@ class TestConfigResolver:
             return self._loader.merge(base, config)
         except (KeyError, ValueError, IndexError) as err:
             raise TestConfigError("Error merging configuration")
-
-    def resolve_inheritance(self, suite_cfg: Dict[str, Any],
-                            suite_path: Path) -> Dict[str, TestConfig]:
-        """Resolve inheritance between tests in a test suite. There's potential
-        for loops in the inheritance hierarchy, so we have to be careful of
-        that.
-
-        :param base_config: Forms the 'defaults' for each test.
-        :param suite_cfg: The suite configuration, loaded from a suite file.
-        :param suite_path: The path to the suite file.
-        :return: A dictionary of test configs.
-        """
-
-        self._loader = self._loader
-
-        # This iterative algorithm recursively resolves the inheritance tree
-        # from the root ('__base__') downward. Nodes that have been resolved are
-        # separated from those that haven't. We then resolve any nodes whose
-        # dependencies are all resolved and then move those nodes to the
-        # resolved list. When we run out of nodes that can be resolved,
-        # we're done. If there are still unresolved nodes, then a loop must
-        # exist.
-
-        test_ldr = self._loader
-
-        # Organize tests into an inheritance tree.
-        depended_on_by = defaultdict(list)
-        # All the tests for this suite.
-        suite_tests = {}
-        # A list of tests whose parent's have had their dependencies
-        # resolved.
-        ready_to_resolve = list()
-        if suite_cfg is None:  # Catch null test suites.
-            raise TestConfigError("Test Suite {} is empty.".format(suite_path))
-        try:
-            for test_cfg_name, test_cfg in suite_cfg.items():
-                if test_cfg is None:
-                    raise TestConfigError(
-                        "{} in {} is empty. Nothing will execute."
-                        .format(test_cfg_name, suite_path))
-                if test_cfg.get('inherits_from') is None:
-                    test_cfg['inherits_from'] = '__base__'
-                    # Tests that depend on nothing are ready to resolve.
-                    ready_to_resolve.append(test_cfg_name)
-                else:
-                    depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
-
-                try:
-                    suite_tests[test_cfg_name] = test_ldr.normalize(test_cfg,
-                                                                    root_name=test_cfg_name)
-                except (TypeError, KeyError, ValueError) as err:
-                    raise TestConfigError(
-                        "Test '{}' in suite '{}' has an error.\n"
-                        "See 'pav show test_config' for the pavilion test config format."
-                        .format(test_cfg_name, suite_path), prior_error=err)
-        except AttributeError:
-            raise TestConfigError(
-                "Test Suite {} has an invalid structure.\n"
-                "Test suites should be structured as a yaml dict/mapping of tests.\n"
-                "Example:\n"
-                "  test_foo: \n"
-                "    run:\n"
-                "      cmds: \n"
-                "        - echo 'I am a test!'\n"
-                " See `pav show test_config` for more info on the test config format."
-                .format(suite_path))
-        # Add this so we can cleanly depend on it.
-        suite_tests['__base__'] = self._base_config
-
-        # Resolve all the dependencies
-        while ready_to_resolve:
-            # Grab a test whose parent's are resolved and the parent test.
-            test_cfg_name = ready_to_resolve.pop(0)
-            test_cfg = suite_tests[test_cfg_name]
-            parent = suite_tests[test_cfg['inherits_from']]
-
-            # Merge the parent and test.
-            try:
-                suite_tests[test_cfg_name] = self._loader.merge(parent, test_cfg)
-            except TestConfigError as err:
-                raise TestConfigError("Error merging in config '{}' from test suite '{}'."
-                                      .format(test_cfg_name, suite_path), prior_error=err)
-
-            suite_tests[test_cfg_name] = resolve.cmd_inheritance(suite_tests[test_cfg_name])
-
-            # Now all tests that depend on this one are ready to resolve.
-            ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
-            # Delete this test from here, for a sanity check to know we
-            # resolved it.
-            if test_cfg_name in depended_on_by:
-                del depended_on_by[test_cfg_name]
-
-        # If there's anything with dependencies left, that's bad. It
-        # generally means there are cycles in our dependency tree.
-        if depended_on_by:
-            raise TestConfigError(
-                "Tests in suite '{}' have dependencies on {} that "
-                "could not be resolved."
-                .format(suite_path, tuple(depended_on_by.keys())))
-
-        # Remove the test base
-        del suite_tests['__base__']
-
-        return suite_tests
 
     def _conditions_to_dict(self, conditions: Dict[str, Any]) -> Dict[str, Any]:
         """Create the conditions dict."""

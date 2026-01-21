@@ -26,6 +26,7 @@ class BuildCmdTests(PavTestCase):
         ])
 
         build_cmd = commands.get_command(args.command_name)
+
         build_ret = build_cmd.run(self.pav_cfg, args)
 
         build_cmd.outfile.seek(0)

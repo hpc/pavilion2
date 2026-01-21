@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
 
 import yaml_config as yc
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
@@ -38,13 +38,13 @@ class TestSuite:
         """Get the path to the config of the given type, if it exists."""
 
         if self.is_suite_dir:
-            return first(cfg in self.configs if cfg.stem.strip("s") == cfg_type)
+            return first(cfg for cfg in self.configs if cfg.stem.strip("s") == cfg_type)
         elif cfg_type == "suite":
             return self.path
 
         return None
 
-    def load(self, cfg_type: str) -> TestConfig:
+    def load(self, cfg_type: str, partial: bool = False) -> TestConfig:
         """Load the config of the given type from the suite."""
 
         path = self.config_path(cfg_type)
@@ -52,12 +52,28 @@ class TestSuite:
         if path is None:
             return {}
 
-        if self.is_suite_dir and cfg_type != "suite":
+        if self.is_suite_dir or cfg_type == "suite":
             loader = self._suite_loader
         else:
             loader = self._loader
 
-        return self._safe_load_config(cfg_type, path, loader)
+        with path.open("r") as fin:
+            return loader.load(fin, partial)
+
+    def load_platform(self, platform: str) -> TestConfig:
+        """Load the plaform with the given name."""
+
+        return self.load("platform").get(platform, {})
+
+    def load_host(self, host: str) -> TestConfig:
+        """Load the host with the given name."""
+
+        return self.load("host").get(host, {})
+
+    def load_mode(self, mode: str) -> TestConfig:
+        """Load the mode with the given name."""
+
+        return self.load("mode").get(mode, {})
 
     @property
     def test_names(self) -> List[str]:
@@ -82,6 +98,44 @@ class TestSuite:
         """Get a list of modes in the suite."""
 
         return list(self.load("mode").keys())
+
+    def get_test(self, test: str) -> TestConfig:
+        """"Get the (unresolved) test config with the specified name."""
+
+        return self.load("suite").get(test, {})
+
+    def ancestors(self, test: str) -> List[TestConfig]:
+        """Get a list of configs of the test's ancestors, including the test itself."""
+
+        config = self.get_test(test)
+
+        configs = [config]
+        visited = [test]
+
+        parent_name = config.get("inherits_from")
+
+        while parent_name is not None:
+            parent = self.get_test(parent_name)
+
+            try:
+                configs.append(self._loader.normalize(parent))
+            except (TypeError, KeyError, ValueError) as err:
+                    raise TestConfigError(
+                        "Test '{}' in suite '{}' has an error.\n"
+                        "See 'pav show test_config' for the pavilion test config format."
+                        .format(test_cfg_name, suite_path), prior_error=err)
+
+            visited.append(parent_name)
+            parent_name = parent.get("inherits_from")
+
+            if parent_name in visited:
+                raise TestConfigError(
+                    "Tests in suite '{}' have dependencies on {} that could not be resolved."
+                    .format(suite_path, tuple(depended_on_by.keys())))
+
+        configs.append(self._loader.load_empty())
+
+        return configs
 
     @staticmethod
     def _safe_load_config(cfg_type: str, path: Path, loader: yc.YamlConfigLoader) -> TestConfig:
