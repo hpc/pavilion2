@@ -14,6 +14,7 @@ import textwrap
 import zipfile
 import string
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable
 
 
@@ -668,6 +669,22 @@ def flatten_dictionary(nested_dict: Dict) -> Dict:
 
     return flat_dict
 
+def recursive_update(dict1: Dict, dict2: Dict) -> Dict:
+    """Recursively update a nested dictionary with another dictionary, in place."""
+
+    for k, v in dict2.items():
+        if isinstance(v, Mapping):
+            sub_dict = dict1.get(k, {})
+
+            if not isinstance(sub_dict, Mapping):
+                raise ValueError(
+                    f"Expected Mapping for dict1[{k}], but found {type(sub_dict).__name__}.")
+
+            dict1[k] = recursive_update(sub_dict, dict2.get(k))
+        else:
+            dict1[k] = v
+
+    return dict1
 
 def auto_type_convert(value):
     """Try to convert 'value' to a int, float, or bool. Otherwise leave

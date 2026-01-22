@@ -23,6 +23,7 @@ from typing import List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO,
 import similarity
 import yc_yaml
 import yaml_config as yc
+from pavilion.config import PavConfig
 from pavilion.enums import Verbose
 from pavilion import output, variables
 from pavilion import pavilion_variables
@@ -36,8 +37,8 @@ from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.utils import union_dictionary
-from pavilion.micro import first, listmap
+from pavilion.utils import union_dictionary, recursive_update
+from pavilion.micro import first, listmap, listfilter
 from pavilion.path_utils import append_to_path, exists
 from yaml_config import RequiredError, YamlConfigLoader
 
@@ -53,11 +54,11 @@ LOGGER = logging.getLogger('pav.' + __name__)
 
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
-TestConfig = Dict
+TestConfig = Dict[str, Any]
 
 
 class ConfigInfo:
-    def __init__(self, name: str, type: str, path: Path, label: str = None,
+    def __init__(self, name: str, type: str, path: Path, label: Optional[str] = None,
         from_suite: bool = False):
 
         self.name = name
@@ -70,18 +71,31 @@ class ConfigInfo:
 class TestOptions:
     """Test options from the command line or series configs."""
 
-    def __init__(self, modes: List[str], overrides: List[str], conditions: Dict):
-        self.modes = modes if modes is not None else []
-        self.overrides = overrides if overrides is not None else []
-        self.conditions = conditions if conditions is not None else {}
+    def __init__(self,
+                 platform: str,
+                 host: str,
+                 modes: Optional[List[str]] = None,
+                 overrides: Optional[TestConfig] = None,
+                 conditions: Optional[Dict] = None):
+        self.platform = platform
+        self.host = host
+        self.modes = modes or []
+        self.overrides = overrides or {}
+        self.conditions = conditions or {}
 
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
 
-    def __init__(self, pav_cfg, platform: str = None, host: str = None,
-                 outfile: TextIO = None, verbosity: int = Verbose.QUIET):
+    CONFIG_TYPES = ("platform", "host", "mode")
+
+    def __init__(self,
+                 pav_cfg: PavConfig,
+                 platform: Optional[str] = None,
+                 host: Optional[str] = None,
+                 outfile: Optional[TextIO] = None,
+                 verbosity: int = Verbose.QUIET):
         """Initialize the resolver.
 
         :param platform: The platform to configure tests for.
@@ -141,8 +155,8 @@ class TestConfigResolver:
 
     @staticmethod
     def _get_config_fname(cfg_type: str) -> str:
-        """Given a config type, returns the name of the file in the
-        suites directory corresponding to that type."""
+        """Given a config type, returns the name of the file in the suite directory corresponding to
+        that type."""
 
         fname = cfg_type.lower()
 
@@ -166,47 +180,74 @@ class TestConfigResolver:
         """Return an iterator over all config labels."""
         return self.pav_cfg.configs.keys()
 
-    def _get_test_config_path(self, cfg_name: str, cfg_type: str) -> Tuple[str, Optional[Path]]:
+    def _get_test_config_path(self,
+                              cfg_name: str,
+                              cfg_type: str) -> Tuple[Optional[str], Optional[Path]]:
         """Given a config name and type, find the path to that config, if it exists,
         excluding configs in the suites directory. If no such config exists,
         return None."""
 
         cfg_dir = self._get_config_dirname(cfg_type)
         paths = map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.config_paths)
+
         pairs = zip(self.config_labels, paths)
+        pairs = listfilter(lambda p: p[1].exists(), pairs)
 
-        res = first(lambda x: x[1].exists(), pairs)
+        if len(pairs) > 1:
+            raise TestConfigError(f"Could not unambiguously find config with name {cfg_name}: "
+                                  f"Found {len(pairs)} in the following locations: "
+                                  f"{listmap(lambda p: p[1], pairs)}.")
+        elif len(pairs) == 0:
+            return None, None
+        else:
+            return pairs[0]
 
-        if res is None:
-            return '', None
+    def _get_suite_path(self, suite_name: str) -> Tuple[Optional[str], Optional[Path]]:
+        """Get the path to the suite with the given name, if it exists, along with its corresponding
+        config label. Returns None if no suite is found."""
 
-        return res
+        suite_paths = listmap(append_to_path(f"{suite_name}.yaml"), self.suites_dirs)
+        suite_paths.extend(map(append_to_path(f"{suite_name}"), self.suites_dirs))
 
-    def _config_path_from_suite(self, suite_name: str,
-                                conf_type: str) -> Tuple[str, Optional[Path]]:
-        """Given a suite name, return the path to the config file of the specified
-        type, if one exists. If the file does not exist in any known suites directory,
-        returns None."""
+        pairs = zip(list(self.config_labels) * 2, suite_paths)
+        pairs = listfilter(lambda p: p[1].exists(), pairs)
 
-        paths = []
-        labels = list(self.config_labels)
+        if len(pairs) > 1:
+            raise TestConfigError(f"Could not unambiguously find suite with name {suite_name}: "
+                                  f"Found {len(pairs)} in the following locations: "
+                                  f"{listmap(lambda p: p[1], pairs)}.")
+        elif len(pairs) == 0:
+            return None, None
+        else:
+            return pairs[0]
 
-        cfg_fname = self._get_config_fname(conf_type)
+    def _config_path_from_suite(self, suite_name: Optional[str],
+                                cfg_type: str) -> Tuple[Optional[str], Optional[Path]]:
+        """Given a suite name, return the path to the config file of the specified type, if one
+        exists, along with its corresponding config label. If the file does not exist in any known
+        suites directory, returns None."""
 
-        if conf_type == "suite":
-            paths.extend(listmap(append_to_path(f"{suite_name}.yaml"), self.suites_dirs))
-            labels *= 2
+        if suite_name is None:
+            return None, None
 
-        paths.extend(listmap(append_to_path(f"{suite_name}/{cfg_fname}"), self.suites_dirs))
+        label, suite_path = self._get_suite_path(suite_name)
 
-        pairs = zip(labels, paths)
+        if suite_path is None:
+            return None, None
 
-        res = first(lambda x: x[1].exists(), pairs)
+        cfg_fname = self._get_config_fname(cfg_type)
 
-        if res is None:
-            return '', None
+        if suite_path.is_dir():
+            cfg_path = suite_path / cfg_fname
+        elif cfg_type == "suite":
+            cfg_path = suite_path
+        else:
+            return None, None
 
-        return res
+        if cfg_path.exists():
+            return label, cfg_path
+
+        return None, None
 
     def find_config(self, cfg_type: str, cfg_name: str, suite_name: str = None) -> ConfigInfo:
         """Search all of the known configuration directories for a config of the
@@ -382,8 +423,12 @@ class TestConfigResolver:
 
     PROGRESS_PERIOD = 0.5
 
-    def load_iter(self, tests: List[str], modes: List[str] = None, overrides: List[str] = None,
-             conditions=None, batch_size=None) -> Iterator[List[ProtoTest]]:
+    def load_iter(self,
+                  tests: List[str],
+                  modes: Optional[List[str]] = None,
+                  overrides: Optional[TestConfig] = None,
+                  conditions: Optional[Dict] = None,
+                  batch_size: Optional[int] = None) -> Iterator[List[ProtoTest]]:
         """Load and fully resolve the requested tests. This returns an iterator
         of ProtoTest objects, which can be used to create the final test objects.
         Test resolution is delayed as long as possible, to keep in sync with system
@@ -406,7 +451,11 @@ class TestConfigResolver:
 
         batch_size = 2**32 if batch_size is None else batch_size
 
-        options = TestOptions(modes, overrides, conditions)
+        options = TestOptions(platform=self._platform,
+                              host=self._host,
+                              modes=modes,
+                              overrides=overrides,
+                              conditions=conditions)
 
         requests = [TestRequest(req) for req in tests]
 
@@ -500,9 +549,12 @@ class TestConfigResolver:
                         "Is `permute_on` set for that test?"
                         .format(request.request, request.permutation)))
 
-    def load(self, tests: List[str],
-             modes: List[str] = None, overrides: List[str] = None,
-             conditions=None, throw_errors: bool = True) -> List[ProtoTest]:
+    def load(self,
+             tests: List[str],
+             modes: Optional[List[str]] = None,
+             overrides: Optional[TestConfig] = None,
+             conditions: Optional[Dict] = None,
+             throw_errors: bool = True) -> List[ProtoTest]:
         """As per ``load_iter`` except just return a list of all generated tests
         without any batching. This method is entirely meant for testing -
         the primary code should always use the iterator.
@@ -603,6 +655,48 @@ class TestConfigResolver:
         return multiplied_tests
 
     @staticmethod
+    def config_from_overrides(overrides: List[str]) -> TestConfig:
+        """Parse a list of override strings and convert them into a test config."""
+
+        cfg = {}
+
+        for ovr in overrides:
+            if '=' not in ovr:
+                raise ValueError(
+                    f"Invalid override value {ovr}. Must be in the form: "
+                    "<key>=<value>. Ex. -c run.modules=['gcc'] ")
+
+            key, value = ovr.split('=', 1)
+            key = key.strip()
+
+            if not key:
+                raise ValueError("Override '{}' given a blank key.".format(ovr))
+
+            key = key.split('.')
+
+            for part in key:
+                if ' ' in part:
+                    raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
+                if not part:
+                    raise ValueError("Override '{}' has an empty key part.".format(ovr))
+
+            ovr_dict = {}
+            sub_cfg = ovr_dict
+
+            for part in key[-1]:
+                sub_cfg[part] = {}
+                sub_cfg = sub_cfg.get(part)
+
+            sub_cfg[key[-1]] = value
+
+            try:
+                recursive_update(cfg, ovr_dict)
+            except ValueError as err:
+                raise TestConfigError("Error parsing override {ovr}.")
+
+            return TestConfigLoader().normalize(cfg)
+
+    @staticmethod
     def _safe_load_config(cfg: ConfigInfo, loader: yc.YamlConfigLoader) -> TestConfig:
         """Given a path to a config, load the config, and raise an appropriate
         error if it can't be loaded"""
@@ -635,35 +729,18 @@ class TestConfigResolver:
 
         return raw_cfg
 
-    def _load_raw_config(self, cfg_info: ConfigInfo, loader: yc.YamlConfigLoader,
-                         optional: bool = False) -> Optional[TestConfig]:
+    def _load_raw_config(self,
+                         cfg_info: ConfigInfo,
+                         loader: yc.YamlConfigLoader) -> TestConfig:
         """Given a path to a config file and a loader, attempt to load the config, handle errors
         appropriately."""
-
-        if cfg_info.path is None and optional:
-            return None
-
-        if cfg_info.path is None and not optional:
-            similar = self.find_similar_configs(cfg_info.type, cfg_info.name)
-
-            if similar:
-                raise TestConfigError(
-                    "Could not find {} config {}.yaml.\n"
-                    "Did you mean one of these? {}"
-                    .format(cfg_info.type, cfg_info.name, ', '.join(similar)))
-            else:
-                raise TestConfigError(
-                    "Could not find {0} config file '{1}.yaml' in any of the "
-                    "Pavilion config directories.\n"
-                    "Run `pav show {2}` to get a list of available {0} files."
-                    .format(cfg_info.type, cfg_info.name, cfg_info.type))
 
         raw_cfg = self._safe_load_config(cfg_info, loader)
 
         if cfg_info.from_suite and cfg_info.type != "suite":
             raw_cfg = raw_cfg.get(cfg_info.name)
 
-        if raw_cfg is None and not optional:
+        if raw_cfg is None:
             raise TestConfigError(
                 f"Could not find {cfg_info.type} config with name {cfg_info.name}"
                 f" in file {cfg_info.path}.")
@@ -677,9 +754,7 @@ class TestConfigResolver:
         as guaranteeing that they have 'variables' and 'permutations' sections.
 
         :param request: A test request to load tests for.
-        :param modes: A list (possibly empty) of modes to layer onto the test.
-        :param conditions: A list (possibly empty) of conditions to apply to each test config.
-        :param overrides: A list of overrides to apply to each test config.
+        :param options: A set of test options, including modes and overrides.
         :return: A list of RawProtoTests.
         """
 
@@ -742,9 +817,151 @@ class TestConfigResolver:
 
         return test_configs
 
+    def apply_aux_configs(self, test_cfg: TestConfig, options: TestOptions) -> TestConfig:
+        """Apply the sequence of auxiliary configs to the test config."""
 
-    def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest) \
-            -> Optional[Dict]:
+        suite_name = test_cfg.get("suite")
+
+        aux_cfgs = self._load_aux_configs(options, suite_name)
+
+        for cfg_info, cfg in aux_cfgs:
+            try:
+                test_cfg = self._loader.merge(test_cfg, cfg)
+            except (KeyError, ValueError) as err:
+                if cfg_info.type == "overrides":
+                    msg = "Error merging overrides configuration."
+                else:
+                    msg = (f"Error merging {cfg_info.type} configuration for {cfg_info.type} "
+                           "'{cfg_info.name}'")
+                raise TestConfigError(msg)
+
+            if cfg_info.type == "mode":
+                test_cfg = resolve.cmd_inheritance(test_cfg)
+
+        return test_cfg
+
+    def _load_aux_configs(self,
+                          options: TestOptions,
+                          suite_name: Optional[str] = None) -> Tuple[str, TestConfig]:
+        """Load platform, host, and mode configs, and construct the override configs,
+        returning them in the order in which they will be applied."""
+
+        configs = []
+
+        aux_paths = self._get_aux_config_paths(options, suite_name)
+
+        for cfg_info in aux_paths:
+            if cfg_info.from_suite:
+                loader = self._suite_loader
+            else:
+                loader = self._loader
+
+            raw_cfg = self._load_raw_config(cfg_info, loader)
+
+            try:
+                cfg = self._loader.normalize(
+                                    raw_cfg,
+                                    root_name=f"the top level of the {cfg_info.type} file.")
+            except (KeyError, ValueError) as err:
+                raise TestConfigError(
+                    f"Error loading {cfg_info.type} config '{cfg_info.name}' from file "
+                    f"'{cfg_info.path}'.")
+
+            configs.append((cfg_info, cfg))
+
+        if options.overrides is not None:
+            overrides = self._loader.normalize(options.overrides)
+
+            cfg_info = ConfigInfo(
+                                name=None,
+                                type="overrides",
+                                label=None,
+                                path=None,
+                                from_suite=False)
+
+            configs.append((cfg_info, overrides))
+
+            return configs
+
+    def _get_aux_config_paths(self,
+                              options: TestOptions,
+                              suite_name: Optional[str] = None) -> List[ConfigInfo]:
+        """Get a list of auxiliary config paths in the order in which they will be applied."""
+
+        cfg_names = {"platform": options.platform, "host": options.host}
+
+        paths = []
+
+        for cfg_type in ("platform", "host"):
+            # If a config exists in both the suite directory and the config-type specific
+            # directory, we'll just stack them, with the config from the suite directory taking
+            # higher precedence.
+            label, path = self._get_test_config_path(cfg_names.get(cfg_type), cfg_type)
+
+            if path is not None:
+                paths.append(ConfigInfo(
+                                    name=cfg_names.get(cfg_type),
+                                    type=cfg_type,
+                                    label=label,
+                                    path=path,
+                                    from_suite=False))
+
+            label, path = self._config_path_from_suite(suite_name, cfg_type)
+
+            if path is not None:
+                paths.append(ConfigInfo(
+                                    name=cfg_names.get(cfg_type),
+                                    type=cfg_type,
+                                    label=label,
+                                    path=path,
+                                    from_suite=True))
+
+        for mode in options.modes:
+            global_mode_label, global_mode_path = self._get_test_config_path(mode, "mode")
+            suite_mode_label, suite_mode_path = self._config_path_from_suite(mode, "mode")
+
+            if suite_mode_path is not None:
+                if global_mode_path is not None:
+                    raise TestConfigError(f"Found multiple mode files with name {mode} in the "
+                                          "following locations: "
+                                          f"{[global_mode_path, suite_mode_path]}")
+                else:
+                    path = suite_mode_path
+                    label = suite_mode_label
+                    from_suite = True
+            else:
+                if global_mode_path is None:
+                    similar = self.find_similar_configs("mode", mode)
+
+                    if len(similar) > 0:
+                        raise TestConfigError(
+                            "Could not find mode config {}.yaml.\n"
+                            "Did you mean one of these? {}"
+                            .format(mode, ', '.join(similar)))
+                    else:
+                        raise TestConfigError(
+                            "Could not find mode config file '{}.yaml' in any of the "
+                            "Pavilion config directories.\n"
+                            "Run `pav show mode` to get a list of available mode files."
+                            .format(mode))
+                else:
+                    path = global_mode_path
+                    label = global_mode_label
+                    from_suite = False
+
+            paths.append(ConfigInfo(
+                    name=mode,
+                    type="mode",
+                    label=label,
+                    path=path,
+                    from_suite=from_suite))
+
+        return paths
+
+    def _apply_test_options(self,
+                            raw_test: TestConfig,
+                            options: TestOptions,
+                            request: TestRequest) -> Optional[Dict]:
 
         test_cfg = copy.deepcopy(raw_test)
 
@@ -762,9 +979,7 @@ class TestConfigResolver:
 
         # Apply downstream configs.
         try:
-            test_cfg = self.apply_platform(test_cfg, self._platform, suite_name)
-            test_cfg = self.apply_host(test_cfg, self._host, suite_name)
-            test_cfg = self.apply_modes(test_cfg, options.modes, suite_name)
+            test_cfg = self.apply_aux_configs(test_cfg, options)
         except TestConfigError as err:
             err.request = request
             self.errors.append(err)
@@ -772,21 +987,6 @@ class TestConfigResolver:
 
         # Save the overrides as part of the test config
         test_cfg['overrides'] = options.overrides
-
-        # Apply overrides
-        if options.overrides:
-            try:
-                test_cfg = self.apply_overrides(test_cfg, options.overrides)
-            except TestConfigError as err:
-                err.request = request
-                self.errors.append(err)
-                return None
-            except (KeyError, ValueError) as err:
-                self.errors.append(TestConfigError(
-                    'Error applying overrides to test {} from suite {} at:\n{}' \
-                    .format(test_cfg['name'], test_cfg['suite'], test_cfg['suite_path']),
-                    request, err))
-                return None
 
         # Result evaluations can be added to all tests at the root pavilion config level.
         result_evals = test_cfg['result_evaluate']
@@ -842,9 +1042,9 @@ class TestConfigResolver:
 
         # Get the base, empty config, then apply the host config on top of it.
         base_config = self._loader.load_empty()
-        base_config = self.apply_platform(base_config, platform)
+        options = TestOptions(platform=platform, host=host)
 
-        return self.apply_host(base_config, host)
+        return self.apply_aux_configs(base_config, options)
 
     def _load_suite_tests(self, request: TestRequest) -> Dict[str, Dict]:
         """Load the suite config, with standard info applied to """
@@ -973,115 +1173,6 @@ class TestConfigResolver:
                 "Incompatible with pavilion version '{}', compatible versions "
                 "'{}'.".format(PavVars()['version'], comp_versions))
 
-    def apply_host(self, test_cfg: TestConfig, hostname: str, suite_name: str = None) -> TestConfig:
-        """Apply the host configuration to the given config."""
-
-        if suite_name is not None:
-            from_suite = True
-            label, host_cfg_path = self._config_path_from_suite(suite_name, "host")
-            loader = self._suite_loader
-        else:
-            from_suite = False
-            label, host_cfg_path = self._get_test_config_path(hostname, "host")
-            loader = self._loader
-
-        cfg_info = ConfigInfo(hostname, "host", host_cfg_path, label, from_suite)
-
-        raw_host_cfg = self._load_raw_config(cfg_info, loader, optional=True)
-
-        if raw_host_cfg is None:
-            return test_cfg
-
-        try:
-            host_cfg = self._loader.normalize(
-                raw_host_cfg,
-                root_name=f"the top level of the host file.")
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                f"Error loading host config '{hostname}' from file '{host_cfg_path}'.")
-
-        try:
-            return self._loader.merge(test_cfg, host_cfg)
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Error merging host configuration for host '{}'".format(hostname))
-
-    def apply_platform(self, test_cfg: TestConfig, platform: str,
-                        suite_name: str = None) -> TestConfig:
-        """Apply the platform configuration to the given config."""
-
-        if suite_name is not None:
-            from_suite = True
-            label, platform_cfg_path = self._config_path_from_suite(suite_name, "platform")
-            loader = self._suite_loader
-        else:
-            from_suite = False
-            label, platform_cfg_path = self._get_test_config_path(platform, "platform")
-            loader = self._loader
-
-        cfg_info = ConfigInfo(platform, "platform", platform_cfg_path, label, from_suite)
-
-        raw_platform_cfg = self._load_raw_config(cfg_info, loader, optional=True)
-
-        if raw_platform_cfg is None:
-            return test_cfg
-
-        try:
-            platform_cfg = self._loader.normalize(
-                raw_platform_cfg,
-                root_name=f"the top level of the platform file.")
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                f"Error loading host config '{platform}' from file '{platform_cfg_path}'")
-
-        try:
-            return self._loader.merge(test_cfg, platform_cfg)
-        except (KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Error merging configuration for platform '{}'".format(platform))
-
-    def apply_modes(self, test_cfg, modes: List[str], suite_name: str = None):
-        """Apply each of the mode files to the given test config.
-
-        :param test_cfg: The raw test configuration.
-        :param modes: A list of mode names.
-        """
-
-        for mode in modes:
-            mode_cfg_path = None
-
-            if suite_name is not None:
-                label, mode_cfg_path = self._config_path_from_suite(suite_name, "mode")
-            if mode_cfg_path is None:
-                from_suite = False
-                label, mode_cfg_path = self._get_test_config_path(mode, "mode")
-                loader = self._loader
-            else:
-                from_suite = True
-                loader = self._suite_loader
-
-            cfg_info = ConfigInfo(mode, "mode", mode_cfg_path, label, from_suite)
-
-            raw_mode_cfg = self._load_raw_config(cfg_info, loader)
-
-            try:
-                mode_cfg = self._loader.normalize(
-                    raw_mode_cfg,
-                    root_name=f"the top level of the OS file.")
-            except (KeyError, ValueError) as err:
-                raise TestConfigError(
-                    f"Error loading host config '{mode}' from file '{mode_cfg_path}'.")
-
-            try:
-                test_cfg = self._loader.merge(test_cfg, mode_cfg)
-            except (KeyError, ValueError) as err:
-                raise TestConfigError(
-                    "Error merging mode configuration for mode '{}'".format(mode))
-
-            test_cfg = resolve.cmd_inheritance(test_cfg)
-
-        return test_cfg
-
     def resolve_inheritance(self, suite_cfg, suite_path) \
             -> Dict[str, dict]:
         """Resolve inheritance between tests in a test suite. There's potential
@@ -1185,157 +1276,3 @@ class TestConfigResolver:
         del suite_tests['__base__']
 
         return suite_tests
-
-
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path',
-                       'base_name', 'host', 'platform', 'modes']
-
-    def apply_overrides(self, test_cfg, overrides) -> Dict:
-        """Apply overrides to this test.
-
-        :param dict test_cfg: The test configuration.
-        :param list overrides: A list of raw overrides in a.b.c=value form.
-        :raises: (ValueError,KeyError, TestConfigError)
-    """
-
-        config_loader = self._loader
-
-        for ovr in overrides:
-            if '=' not in ovr:
-                raise ValueError(
-                    "Invalid override value. Must be in the form: "
-                    "<key>=<value>. Ex. -c run.modules=['gcc'] ")
-
-            key, value = ovr.split('=', 1)
-            key = key.strip()
-            if not key:
-                raise ValueError("Override '{}' given a blank key.".format(ovr))
-
-            key = key.split('.')
-            for part in key:
-                if ' ' in part:
-                    raise ValueError("Override '{}' has whitespace in its key.".format(ovr))
-                if not part:
-                    raise ValueError("Override '{}' has an empty key part.".format(ovr))
-
-            self._apply_override(test_cfg, key, value)
-
-        try:
-            return config_loader.normalize(test_cfg, root_name='overrides')
-        except TypeError as err:
-            raise TestConfigError("Invalid override", prior_error=err)
-
-    def _apply_override(self, test_cfg, key, value):
-        """Set the given key to the given value in test_cfg.
-
-        :param dict test_cfg: The test configuration.
-        :param [str] key: A list of key components, like
-            ``[`slurm', 'num_nodes']``
-        :param str value: The value to assign. If this looks like a json
-            structure, it will be decoded and treated as one.
-        """
-
-        cfg = test_cfg
-
-        disp_key = '.'.join(key)
-
-        if key[0] in self.NOT_OVERRIDABLE:
-            raise KeyError("You can't override the '{}' key in a test config"
-                           .format(key[0]))
-
-        key_copy = list(key)
-        last_cfg = None
-        last_key = None
-
-        # Normalize simple variable values.
-        if key[0] == 'variables' and len(key) in (2, 3):
-            is_var_value = True
-        else:
-            is_var_value = False
-
-        # Validate the key by walking the config according to the key
-        while key_copy:
-            part = key_copy.pop(0)
-
-            if isinstance(cfg, list):
-                try:
-                    idx = int(part)
-                except ValueError:
-                    raise KeyError("Trying to override list item with a "
-                                   "non-integer '{}' in key '{}'."
-                                   .format(part, disp_key))
-
-                try:
-                    last_cfg = cfg
-                    last_key = idx
-                    cfg = cfg[idx]
-                except IndexError:
-                    raise KeyError(
-                        "Trying to override index '{}' from key '{}' "
-                        "but the index is out of range."
-                        .format(part, disp_key))
-            elif isinstance(cfg, dict):
-
-                if part not in cfg and key_copy:
-                    raise KeyError("Trying to override '{}' from key '{}', "
-                                   "but there is no such key."
-                                   .format(part, disp_key))
-
-                # It's ok to override a key that doesn't exist if it's the
-                # last key component. We'll validate everything anyway.
-                last_cfg = cfg
-                last_key = part
-                cfg = cfg.get(part, None)
-            else:
-                raise KeyError("Tried, to override key '{}', but '{}' isn't "
-                               "a dict or list."
-                               .format(disp_key, part))
-
-        if last_cfg is None:
-            # Should never happen.
-            raise RuntimeError(
-                "Trying to override an empty key: {}".format(key))
-
-        # We should be at the final place where the value should go.
-        try:
-            dummy_file = io.StringIO(value)
-            value = yc_yaml.safe_load(dummy_file)
-        except (yc_yaml.YAMLError, ValueError, KeyError) as err:
-            raise TestConfigError("Invalid value '{}' for key '{}' in overrides"
-                                  .format(value, disp_key), prior_error=err)
-
-        last_cfg[last_key] = self.normalize_override_value(value, is_var_value)
-
-    def normalize_override_value(self, value, is_var_value=False):
-        """Normalize a value to one compatible with Pavilion configs. It can
-        be any structure of dicts and lists, as long as the leaf values are
-        strings.
-
-        :param value: The value to normalize.
-        :param is_var_value: True if the value will be used to set a variable value.
-        :returns: A string or a structure of dicts/lists whose leaves are
-            strings.
-        """
-
-        if isinstance(value, (int, float, bool, bytes)):
-            value = str(value)
-
-        if isinstance(value, str):
-            if is_var_value:
-                # Normalize a simple value into the standard variable format.
-                return [{None: value}]
-            else:
-                return value
-        elif isinstance(value, (list, tuple)):
-            return [self.normalize_override_value(v) for v in value]
-        elif isinstance(value, dict):
-            dict_val = {str(k): self.normalize_override_value(v)
-                        for k, v in value.items()}
-
-            if is_var_value:
-                # Normalize a single dict item into a list of them for variables.
-                return [dict_val]
-            else:
-                return dict_val
-        else:
-            raise ValueError("Invalid type in override value: {}".format(value))

@@ -16,6 +16,7 @@ _builtin_commands = {
     '_log_results': ('_log_results', 'LogResults'),
     '_run':       ('_run', '_RunCommand'),
     '_series':    ('_series', 'AutoSeries'),
+    'bisect':     ('bisect', 'BisectCommand'),
     'build':      ('build', 'BuildCommand'),
     'cancel':     ('cancel', 'CancelCommand'),
     'cat':        ('cat', 'CatCommand'),

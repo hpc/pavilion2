@@ -11,11 +11,12 @@ import signal
 import sys
 import subprocess
 import time
+import copy
 from collections import defaultdict, OrderedDict
 from pathlib import Path
 from operator import attrgetter
 from itertools import product
-from typing import List, Dict, Set, Union, TextIO, Iterator, Optional
+from typing import List, Dict, Set, Union, TextIO, Iterator, Optional, Any
 
 import pavilion
 from pavilion.config import PavConfig
@@ -282,6 +283,10 @@ class TestSeries:
             else:
                 _simultaneous = self.simultaneous
 
+            # Update overrides with set-specific overrides
+            overrides = copy.deepcopy(self.config.get("overrides", {}))
+            utils.recursive_update(overrides, set_info.get("overrides", {}))
+
             set_obj = TestSet(
                 pav_cfg=self.pav_cfg,
                 name=set_name,
@@ -290,10 +295,10 @@ class TestSeries:
                 modes=universal_modes + set_info['modes'],
                 platform=self.config.get('platform'),
                 host=self.config.get('host'),
+                overrides=overrides,
                 only_if=set_info['only_if'],
                 not_if=set_info['not_if'],
                 parents_must_pass=set_info['depends_pass'],
-                overrides=self.config.get('overrides', []),
                 status=self.status,
                 simultaneous= _simultaneous,
                 outfile=self.outfile,
@@ -716,13 +721,17 @@ class TestSeries:
 
         return self._pgid
 
-    def add_test_set_config(
-            self, name, test_names: List[str], modes: List[str] = None,
-            only_if: Dict[str, List[str]] = None,
-            not_if: Dict[str, List[str]] = None,
-            simultaneous: int = None,
-            save: bool = True,
-            _depends_on: List[str] = None, _depends_pass: bool = False):
+    def add_test_set_config(self,
+                            name: str,
+                            test_names: List[str],
+                            modes: Optional[List[str]] = None,
+                            overrides: Optional[Dict[str, Any]] = None,
+                            only_if: Optional[Dict[str, List[str]]] = None,
+                            not_if: Optional[Dict[str, List[str]]] = None,
+                            simultaneous: Optional[int] = None,
+                            save: bool = True,
+                            _depends_on: Optional[List[str]] = None,
+                            _depends_pass: bool = False):
         """Manually add a test set to this series. The set will be added to the
         series config, and created when we create all sets for the series. After
         adding all set configs, call save_config to update the saved config.
@@ -750,6 +759,7 @@ class TestSeries:
             'depends_pass': _depends_pass,
             'depends_on': _depends_on or [],
             'modes': modes or [],
+            'overrides': overrides or {},
             'only_if': only_if or {},
             'not_if': not_if or {},
             'simultaneous': simultaneous,

@@ -16,6 +16,7 @@ from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
 from pavilion.test_ids import GroupID
+from pavilion.resolver import TestConfigResolver
 from .base_classes import Command
 
 
@@ -154,7 +155,7 @@ class RunCommand(Command):
             platform=args.platform,
             host=args.host,
             repeat=getattr(args, 'repeat', None),
-            overrides=args.overrides,
+            overrides=TestConfigResolver.config_from_overrides(args.overrides),
             ignore_errors=args.ignore_errors,
         )
 
