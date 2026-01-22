@@ -57,8 +57,7 @@ class TestSuite:
         else:
             loader = self._loader
 
-        with path.open("r") as fin:
-            return loader.load(fin, partial)
+        return self._safe_load_config(cfg_type, path, loader)
 
     def load_platform(self, platform: str) -> TestConfig:
         """Load the plaform with the given name."""
