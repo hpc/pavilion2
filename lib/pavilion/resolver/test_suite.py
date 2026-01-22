@@ -1,9 +1,11 @@
 from pathlib import Path
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Tuple
 
+import yc_yaml
 import yaml_config as yc
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.micro import first
+from pavilion.errors import TestConfigError
 
 
 TestConfig = Dict[str, Any]
@@ -12,8 +14,9 @@ TestConfig = Dict[str, Any]
 class TestSuite:
     CONFIG_NAMES = ("suite", "hosts", "platforms", "modes")
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, cfg_label: str):
         self.path = path
+        self.cfg_label = cfg_label
         self.is_suite_dir = path.is_dir()
         self.name = path.stem
         self._loader = TestConfigLoader()
@@ -44,35 +47,65 @@ class TestSuite:
 
         return None
 
-    def load(self, cfg_type: str, partial: bool = False) -> TestConfig:
+    def load(self, cfg_type: str, partial: bool = False) -> yc.ConfigDict:
         """Load the config of the given type from the suite."""
 
         path = self.config_path(cfg_type)
 
         if path is None:
-            return {}
+            return yc.ConfigDict()
 
         if self.is_suite_dir or cfg_type == "suite":
             loader = self._suite_loader
         else:
             loader = self._loader
 
-        return self._safe_load_config(cfg_type, path, loader)
+        cfg = self._safe_load_config(cfg_type, path, loader)
+        cfg = loader.normalize(cfg)
 
-    def load_platform(self, platform: str) -> TestConfig:
+        if cfg_type != "suite":
+            cfg["suite"] = self.name
+            # TODO: Do this the right way - HW
+            cfg["suite_path"] = str(self.path)
+            cfg["cfg_label"] = self.cfg_label
+
+        return cfg
+
+    def load_platform(self, platform: str) -> yc.ConfigDict:
         """Load the plaform with the given name."""
 
-        return self.load("platform").get(platform, {})
+        cfg = self.load("platform").get(platform)
 
-    def load_host(self, host: str) -> TestConfig:
+        if cfg is None:
+            return yc.ConfigDict()
+
+        cfg["platform"] = platform
+
+        return cfg
+
+    def load_host(self, host: str) -> yc.ConfigDict:
         """Load the host with the given name."""
 
-        return self.load("host").get(host, {})
+        cfg = self.load("host").get(host)
 
-    def load_mode(self, mode: str) -> TestConfig:
+        if cfg is None:
+            return yc.ConfigDict()
+
+        cfg["host"] = host
+
+        return cfg
+
+    def load_mode(self, mode: str) -> yc.ConfigDict:
         """Load the mode with the given name."""
 
-        return self.load("mode").get(mode, {})
+        cfg = self.load("mode").get(mode, {})
+
+        if cfg is None:
+            return yc.ConfigDict()
+
+        cfg["mode+"] = [mode]
+
+        return cfg
 
     @property
     def test_names(self) -> List[str]:
@@ -98,31 +131,45 @@ class TestSuite:
 
         return list(self.load("mode").keys())
 
-    def get_test(self, test: str) -> TestConfig:
+    def load_test(self, test_name: str) -> yc.ConfigDict:
         """"Get the (unresolved) test config with the specified name."""
 
-        return self.load("suite").get(test, {})
+        cfg = self.load("suite").get(test_name)
 
-    def ancestors(self, test: str) -> List[TestConfig]:
+        if cfg is None:
+            return yc.ConfigDict()
+
+        cfg["name"] = test_name
+        cfg["suite"] = self.name
+        # TODO: Do this the right way - HW
+        cfg["suite_path"] = str(self.path)
+        cfg["cfg_label"] = self.cfg_label
+
+        return cfg
+
+    def ancestors(self,
+                  test_name: str,
+                  platform_cfg: yc.ConfigDict,
+                  host_cfg: yc.ConfigDict) -> List[Tuple[str, str, yc.ConfigDict]]:
         """Get a list of configs of the test's ancestors, including the test itself."""
 
-        config = self.get_test(test)
+        config = self.load_test(test_name)
 
-        configs = [config]
-        visited = [test]
+        configs = [("test_config", test_name, config)]
+        visited = [test_name]
 
         parent_name = config.get("inherits_from")
 
         while parent_name is not None:
-            parent = self.get_test(parent_name)
+            parent = self.load_test(parent_name)
 
             try:
-                configs.append(self._loader.normalize(parent))
+                configs.append(("test", parent_name, self._loader.normalize(parent)))
             except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
                         "Test '{}' in suite '{}' has an error.\n"
                         "See 'pav show test_config' for the pavilion test config format."
-                        .format(test_cfg_name, suite_path), prior_error=err)
+                        .format(test_name, self.path), prior_error=err)
 
             visited.append(parent_name)
             parent_name = parent.get("inherits_from")
@@ -132,7 +179,9 @@ class TestSuite:
                     "Tests in suite '{}' have dependencies on {} that could not be resolved."
                     .format(suite_path, tuple(depended_on_by.keys())))
 
-        configs.append(self._loader.load_empty())
+        configs.append(("host", host_cfg.get("host"), host_cfg))
+        configs.append(("platform", platform_cfg.get("platform"), platform_cfg))
+        configs.append(("base", "base", self._loader.load_empty()))
 
         return configs
 

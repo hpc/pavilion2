@@ -259,7 +259,10 @@ class VarCatElem(yc.CategoryElem):
                                 "is trying to add a new sub-key '{}'. Existing subkeys are '{}'."
                                 .format(key, subkey, list(old_defaults.keys())))
 
-                    value.defaults = old_defaults
+                    # If the key doesn't exist in base, use the existing defaults on the new value
+                    if existing:
+                        value.defaults = old_defaults
+
                     base[key].append(value)
 
             elif key_suffix == '?':
