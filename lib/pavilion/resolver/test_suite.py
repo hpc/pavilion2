@@ -1,10 +1,10 @@
 from pathlib import Path
-from typing import Any, Optional, Dict, List, Tuple
+from typing import Any, Optional, Dict, List, Tuple, Set
 
 import yc_yaml
 import yaml_config as yc
-from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.micro import first
+from pavilion.test_config.file_format import TestSuiteLoader
+from pavilion.micro import first, set_default, listmap
 from pavilion.errors import TestConfigError
 
 
@@ -19,14 +19,13 @@ class TestSuite:
         self.cfg_label = cfg_label
         self.is_suite_dir = path.is_dir()
         self.name = path.stem
-        self._loader = TestConfigLoader()
-        self._suite_loader = TestSuiteLoader()
+        self._loader = TestSuiteLoader()
 
     @property
     def files(self) -> List[Path]:
         """Get a list of all files comprising the suite."""
 
-        return self.path.iterdir()
+        return list(self.path.iterdir())
 
     @property
     def configs(self) ->  List[Path]:
@@ -41,176 +40,99 @@ class TestSuite:
         """Get the path to the config of the given type, if it exists."""
 
         if self.is_suite_dir:
-            return first(cfg for cfg in self.configs if cfg.stem.strip("s") == cfg_type)
+            paths = listmap(lambda x: x.stem.strip("s") == cfg_type, self.configs)
+
+            if len(paths) > 1:
+                raise TestConfigError(f"Multiple {cfg_type }config files found in suite "
+                                      f"{self.name}: {paths}")
+            return first(paths)
+
         elif cfg_type == "suite":
             return self.path
 
         return None
 
-    def load(self, cfg_type: str, partial: bool = False) -> yc.ConfigDict:
+    def load(self, cfg_type: str, cfg_name: str) -> Optional[yc.ConfigDict]:
         """Load the config of the given type from the suite."""
+
+        if not self.is_suite_dir and cfg_type != "suite":
+            return yc.ConfigDict()
 
         path = self.config_path(cfg_type)
 
         if path is None:
             return yc.ConfigDict()
 
-        if self.is_suite_dir or cfg_type == "suite":
-            loader = self._suite_loader
-        else:
-            loader = self._loader
+        cfg = safe_load_config(cfg_type, path, self._loader)
+        cfg = self._loader.normalize(cfg).get(cfg_name)
 
-        cfg = self._safe_load_config(cfg_type, path, loader)
-        cfg = loader.normalize(cfg)
+        if cfg is None:
+            return yc.ConfigDict()
 
-        if cfg_type != "suite":
+        if cfg_type == "suite":
+            cfg["name"] = cfg_name
             cfg["suite"] = self.name
             # TODO: Do this the right way - HW
             cfg["suite_path"] = str(self.path)
             cfg["cfg_label"] = self.cfg_label
+        elif cfg_type == "mode":
+            cfg["modes+"] = cfg_name
+        else:
+            cfg[cfg_type] = cfg_name
 
         return cfg
 
-    def load_platform(self, platform: str) -> yc.ConfigDict:
-        """Load the plaform with the given name."""
+    def load_raw(self, cfg_type: str) -> Dict[str, Any]:
+        """Load the config of the given type as raw YAML, without normalizing."""
 
-        cfg = self.load("platform").get(platform)
+        if not self.is_suite_dir and cfg_type != "suite":
+            return {}
 
-        if cfg is None:
-            return yc.ConfigDict()
+        path = self.config_path(cfg_type)
 
-        cfg["platform"] = platform
+        if path is None:
+            return {}
 
-        return cfg
-
-    def load_host(self, host: str) -> yc.ConfigDict:
-        """Load the host with the given name."""
-
-        cfg = self.load("host").get(host)
-
-        if cfg is None:
-            return yc.ConfigDict()
-
-        cfg["host"] = host
-
-        return cfg
-
-    def load_mode(self, mode: str) -> yc.ConfigDict:
-        """Load the mode with the given name."""
-
-        cfg = self.load("mode").get(mode, {})
-
-        if cfg is None:
-            return yc.ConfigDict()
-
-        cfg["mode+"] = [mode]
-
-        return cfg
+        return safe_load_config(cfg_type, path, self._loader)
 
     @property
     def test_names(self) -> List[str]:
         """Get a list of names of tests in the suite."""
 
-        return list(self.load("suite").keys())
+        return self.get_names("suite")
 
-    @property
-    def hosts(self) -> List[str]:
-        """Get a list of hosts in the suite."""
+    def get_names(cfg_type: str) -> List[str]:
+        """Get a list of names of the given config type."""
 
-        return list(self.load("host").keys())
+        return list(self.load_raw(cfg_type).keys())
 
-    @property
-    def platforms(self) -> List[str]:
-        """Get a list of platforms in the suite."""
+    def ancestors(self, test_name: str,
+                  visited: Optional[Set[str]] = None) -> List[Tuple[str, str, yc.ConfigDict]]:
+        """Get a list of configs of the test's ancestors, including the test itself, but not
+        including the base config."""
 
-        return list(self.load("platform").keys())
+        visited = set_default(visited, set())
+        visited.add(test_name)
 
-    @property
-    def modes(self) -> List[str]:
-        """Get a list of modes in the suite."""
+        config = self.load("suite", test_name)
 
-        return list(self.load("mode").keys())
-
-    def load_test(self, test_name: str) -> yc.ConfigDict:
-        """"Get the (unresolved) test config with the specified name."""
-
-        cfg = self.load("suite").get(test_name)
-
-        if cfg is None:
-            return yc.ConfigDict()
-
-        cfg["name"] = test_name
-        cfg["suite"] = self.name
-        # TODO: Do this the right way - HW
-        cfg["suite_path"] = str(self.path)
-        cfg["cfg_label"] = self.cfg_label
-
-        return cfg
-
-    def ancestors(self,
-                  test_name: str,
-                  platform_cfg: yc.ConfigDict,
-                  host_cfg: yc.ConfigDict) -> List[Tuple[str, str, yc.ConfigDict]]:
-        """Get a list of configs of the test's ancestors, including the test itself."""
-
-        config = self.load_test(test_name)
-
-        configs = [("test_config", test_name, config)]
-        visited = [test_name]
+        try:
+            config = self._loader.normalize(config)
+        except (TypeError, KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Test '{}' in suite '{}' has an error.\n"
+                "See 'pav show test_config' for the pavilion test config format."
+                .format(test_name, self.path), prior_error=err)
 
         parent_name = config.get("inherits_from")
 
-        while parent_name is not None:
-            parent = self.load_test(parent_name)
+        if parent_name in visited:
+            raise TestConfigError(f"Tests in suite '{self.path}' have a circular dependency.")
 
-            try:
-                configs.append(("test", parent_name, self._loader.normalize(parent)))
-            except (TypeError, KeyError, ValueError) as err:
-                    raise TestConfigError(
-                        "Test '{}' in suite '{}' has an error.\n"
-                        "See 'pav show test_config' for the pavilion test config format."
-                        .format(test_name, self.path), prior_error=err)
+        res = [("test_config", test_name, config)]
 
-            visited.append(parent_name)
-            parent_name = parent.get("inherits_from")
+        if parent_name is None:
+            return res
 
-            if parent_name in visited:
-                raise TestConfigError(
-                    "Tests in suite '{}' have dependencies on {} that could not be resolved."
-                    .format(suite_path, tuple(depended_on_by.keys())))
+        return res + self.ancestors(parent_name, visited)
 
-        configs.append(("host", host_cfg.get("host"), host_cfg))
-        configs.append(("platform", platform_cfg.get("platform"), platform_cfg))
-        configs.append(("base", "base", self._loader.load_empty()))
-
-        return configs
-
-    @staticmethod
-    def _safe_load_config(cfg_type: str, path: Path, loader: yc.YamlConfigLoader) -> TestConfig:
-        """Given a path to a config, load the config, and raise an appropriate
-        error if it can't be loaded"""
-
-        try:
-            with path.open() as cfg_file:
-                raw_cfg = loader.load_raw(cfg_file)
-        except (IOError, OSError) as err:
-            raise TestConfigError("Could not open {} config '{}'"
-                                  .format(cfg_type, path), prior_error=err)
-        except ValueError as err:
-            raise TestConfigError(
-                "{} config '{}' has invalid value."
-                .format(cfg_type.capitalize(), path), prior_error=err)
-        except KeyError as err:
-            raise TestConfigError(
-                "{} config '{}' has an invalid key."
-                .format(cfg_type.capitalize(), path), prior_error=err)
-        except yc_yaml.YAMLError as err:
-            raise TestConfigError(
-                "{} config '{}' has a YAML Error"
-                .format(cfg_type.capitalize(), path), prior_error=err)
-        except TypeError as err:
-            raise TestConfigError(
-                "Structural issue with {} config '{}'"
-                .format(cfg_type, path), prior_error=err)
-
-        return raw_cfg

@@ -42,3 +42,8 @@ def path_product(roots: Iterable[Path], stems: Iterable[Pathlike]) -> Iterator[P
     over all paths formed by the Cartesian products of those lists."""
 
     return starmap(truediv, product(roots, stems))
+
+def with_suffixes(stem: Path, suffixes: Iterable[str]) -> Iterator[Path]:
+    """Get all variants of the given path with the given suffixes."""
+
+    return map(lambda x: stem.with_suffix(x), suffixes)

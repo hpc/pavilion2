@@ -50,6 +50,9 @@ class ConfigDict(dict):
     def copy(self):
         return ConfigDict(self)
 
+    def empty(self):
+        return len(self) == 0
+
 
 class NullList(list):
     """A list with no extra attributes other than the fact that it is a
@@ -447,13 +450,13 @@ class ConfigElement:
 
 class DiscontinuedElem(ConfigElement):
     """This element expects to never get a value. If a value other than
-    None is given, it throws a ValueError with a predefined warning to 
+    None is given, it throws a ValueError with a predefined warning to
     the user."""
 
-    _type_name = 'Discontinued' 
+    _type_name = 'Discontinued'
 
     def __init__(self, name=None, hidden=True, help_text=""):
-        
+
         super().__init__(name=name, hidden=hidden, help_text=help_text)
 
     def normalize(self, value, root_name='root'):
