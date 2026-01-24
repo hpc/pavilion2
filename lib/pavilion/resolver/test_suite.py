@@ -1,17 +1,21 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional, Dict, List, Tuple, Set
 
 import yc_yaml
 import yaml_config as yc
 from pavilion.test_config.file_format import TestSuiteLoader
-from pavilion.micro import first, set_default, listmap
+from pavilion.micro import first, set_default, listmap, listfilter
 from pavilion.errors import TestConfigError
+from .utils import get_yaml_files
 
 
 TestConfig = Dict[str, Any]
 
 
 class TestSuite:
+    """Represnts a single test suite."""
+
     CONFIG_NAMES = ("suite", "hosts", "platforms", "modes")
 
     def __init__(self, path: Path, cfg_label: str):
@@ -20,19 +24,25 @@ class TestSuite:
         self.is_suite_dir = path.is_dir()
         self.name = path.stem
         self._loader = TestSuiteLoader()
+        self._ancestors = {} # ancestor cache
 
     @property
+    @lru_cache(maxsize=None)
     def files(self) -> List[Path]:
         """Get a list of all files comprising the suite."""
+
+        if not self.is_suite_dir:
+            return [self.path]
 
         return list(self.path.iterdir())
 
     @property
+    @lru_cache(maxsize=None)
     def configs(self) ->  List[Path]:
-        """Get a list of all configs contained within the suite, including the suite config."""
+        """Get a list of all config paths contained within the suite, including the suite config."""
 
         if self.is_suite_dir:
-            return [path for path in self.path.iterdir() if path.stem in self.CONFIG_NAMES]
+            return listfilter(lambda x: x.stem in self.CONFIG_NAMES, get_yaml_files(self.path))
 
         return [self.path]
 
@@ -52,7 +62,8 @@ class TestSuite:
 
         return None
 
-    def load(self, cfg_type: str, cfg_name: str) -> Optional[yc.ConfigDict]:
+    @lru_cache(maxsize=None)
+    def load(self, cfg_type: str, cfg_name: str) -> yc.ConfigDict:
         """Load the config of the given type from the suite."""
 
         if not self.is_suite_dir and cfg_type != "suite":
@@ -64,7 +75,14 @@ class TestSuite:
             return yc.ConfigDict()
 
         cfg = safe_load_config(cfg_type, path, self._loader)
-        cfg = self._loader.normalize(cfg).get(cfg_name)
+
+        try:
+            cfg = self._loader.normalize(config)
+        except (TypeError, KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Test '{}' in suite '{}' has an error.\n"
+                "See 'pav show test_config' for the pavilion test config format."
+                .format(test_name, self.path), prior_error=err)
 
         if cfg is None:
             return yc.ConfigDict()
@@ -82,6 +100,7 @@ class TestSuite:
 
         return cfg
 
+    @lru_cache(maxsize=None)
     def load_raw(self, cfg_type: str) -> Dict[str, Any]:
         """Load the config of the given type as raw YAML, without normalizing."""
 
@@ -111,18 +130,13 @@ class TestSuite:
         """Get a list of configs of the test's ancestors, including the test itself, but not
         including the base config."""
 
+        if test_name in self._ancestors:
+            return self._ancestors.get(test_name)
+
         visited = set_default(visited, set())
         visited.add(test_name)
 
         config = self.load("suite", test_name)
-
-        try:
-            config = self._loader.normalize(config)
-        except (TypeError, KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Test '{}' in suite '{}' has an error.\n"
-                "See 'pav show test_config' for the pavilion test config format."
-                .format(test_name, self.path), prior_error=err)
 
         parent_name = config.get("inherits_from")
 
@@ -135,4 +149,3 @@ class TestSuite:
             return res
 
         return res + self.ancestors(parent_name, visited)
-

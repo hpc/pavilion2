@@ -12,19 +12,19 @@ from pavilion.path_utils import append_suffix, exists
 class ConfigDirectory:
     """Represents a single configuration directory."""
 
-    DIRNAMES = {
-                "test": "tests",
-                "suite", "suites",
-                "platform": "platforms",
-                "host": "hosts",
-                "mode": "modes",
-                "series": "series"
-                }
-
     def __init__(self, path: Path, label: str):
         self.path = path
         self.label = label
         self._loader = TestConfigLoader()
+
+    @classmethod
+    def get_dirname(cfg_type: str) -> str:
+        """Get the directory name for configs of the given type."""
+
+        if cfg_type.endswith("s"):
+            return cfg_type
+
+        return cfg_type + "s"
 
     @property
     def suites(self) -> List[TestSuite]:

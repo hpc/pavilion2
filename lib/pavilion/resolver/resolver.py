@@ -124,64 +124,6 @@ class TestConfigResolver:
         # Raw loaded test suites
         self._suites: Dict[Dict] = {}
 
-    @staticmethod
-    def _get_config_dirname(cfg_type: str) -> str:
-        """Returns the canonical config directory name for a given config type."""
-
-        dirname = cfg_type.lower()
-
-        if cfg_type == "series":
-            return "series"
-        if dirname[-1] != 's':
-            dirname += 's'
-
-        return dirname
-
-    @staticmethod
-    def _get_config_fname(cfg_type: str) -> str:
-        """Given a config type, returns the name of the file in the
-        suites directory corresponding to that type."""
-
-        fname = cfg_type.lower()
-
-        if fname in ("host", "mode", "platform"):
-            fname += 's'
-
-        return f"{fname}"
-
-    def _get_relative_config_paths(self, cfg_type: str, cfg_name: str,
-                                   suite_name: Optional[str] = None) -> List[Path]:
-        """Get a list of possible paths, relative to the config directory, for the given config
-        type and name."""
-
-        paths = []
-
-        if suite_name is not None and cfg_type != "series":
-            cfg_path = Path("suites") / suite_name / self._get_config_fname(cfg_type)
-            paths.append(cfg_path.with_suffix(".yaml"))
-            paths.append(cfg_path.with_suffix(".yml"))
-
-        if cfg_type is "suite":
-            # Check in deprecated 'tests' directory
-            cfg_path = Path("tests") / suite_name
-            paths.append(cfg_path.with_suffix(".yaml"))
-            paths.append(cfg_path.with_suffix(".yml"))
-
-        cfg_path = Path(self._get_config_dirname(cfg_type)) / cfg_name
-        paths.append(cfg_path.with_suffix(".yaml"))
-        paths.append(cfg_path.with_suffix(".yml"))
-
-        return paths
-
-    def get_config_paths(self, cfg_type: str, cfg_name: str,
-                         suite_name: Optional[str] = None) -> List[Path]:
-        """Given a config name and type, get a list of possible paths to the config."""
-
-        cfg_paths = self.pav_cfg.config_paths
-        rel_paths = self._get_relative_config_paths(cfg_type, cfg_name, suite_name)
-
-        return listfilter(exists, path_product(cfg_paths, rel_paths))
-
     def find_similar_configs(self, cfg_type: str, cfg_name: str,
                              suite: Optional[TestSuite] = None) -> List[str]:
         """Find configs with a name similar to the one specified."""
@@ -220,23 +162,8 @@ class TestConfigResolver:
 
         suites = {}
 
-        cfg_dirs = map(lambda x, y: ConfigDirectory(y["path"], x), self.pav_cfg.configs.items())
-        platform_paths = map(lambda x: x.get_config_path("platform", self._platform), cfg_dirs)
-        platform_paths = remove_none(platform_paths)
-
-        if len(platform_paths) > 1:
-            raise TestConfigError(f"Multiple config files found for platform config with name "
-                                  f"{self._platform}: {platform_paths}")
-        if len(platform_paths) == 0:
-            platform_cfg = None
-        else:
-            platform_cfg =
-
         for label, cfg in self.pav_cfg.configs.items():
             cfg_dir = ConfigDirectory(cfg["path"], label)
-
-            platform_cfg = cfg_dir.load("platform", self._platform)
-            host_cfg = cfg_dir.load("host", self._host)
 
             for suite in cfg_dir.suites:
                 if suite.name not in suites:
@@ -250,12 +177,16 @@ class TestConfigResolver:
                 else:
                     suites[name]['supersedes'].append(path)
 
+                base_cfg = self._loader.load_empty()
+                platform_cfg = self.load_config("platform", self._platform, suite, required=False)
+                host_cfg = self.load_config("host", self._host, suite, required=False)
+
                 for test in suite.test_names:
                     try:
                         stack = suite.ancestors(test)
-                        stack.append(suite.load_host(self._host, default=host_cfg))
-                        stack.append(suite.load_platform(self._platform, default=platform_cfg))
-                        stack.append(self._loader.load_empty())
+                        stack.append(host_cfg)
+                        stack.append(platform_cfg)
+                        stack.append(base_cfg)
                         stack.reverse()
                         cfg = self.resolve_config_stack(stack)
                     except Exception as err:  # pylint: disable=W0703
@@ -290,8 +221,6 @@ class TestConfigResolver:
             }
 
         """
-
-        conf_dir = self._get_config_dirname(conf_type)
 
         configs = {}
         for label, config in self.pav_cfg.configs.values():
@@ -707,10 +636,7 @@ class TestConfigResolver:
         """Load the suite config, with standard info applied to """
 
         # Look for matching suites from amongst all test suites.
-        suite_matches = []
-        for label, name, path in self.pav_cfg.suite_info:
-            if request.matches_suite_name(name):
-                suite_matches.append((label, name, path))
+        suite_matches = filter(lambda x:, request.matches_suite_name(x[1]), self.pav_cfg.suite_info)
 
         matching_suites = {}
         for label, suite_name, path in suite_matches:
@@ -721,16 +647,18 @@ class TestConfigResolver:
 
             suite = TestSuite(path, label)
 
-            platform_config = self.load_config("platform",
-                                               self._platform,
-                                               TestSuite(path),
-                                               required=False)
-            host_config = self.load_config("host", self._host, TestSuite(path), required=False)
+            base_config = self._loader.load_empty()
+            platform_config = self.load_config("platform", self._platform, suite, required=False)
+            host_config = self.load_config("host", self._host, suite, required=False)
 
             suite_tests = {}
 
             for test in suite.test_names:
-                config_stack = list(reversed(suite.ancestors(test, platform_config, host_config)))
+                config_stack = suite.ancestors(test)
+                config_stack.append(host_config)
+                config_stack.append(platform_config)
+                config_stack.append(base_config)
+                config_stack.reverse()
 
                 suite_tests[test] = config_stack
 
@@ -874,8 +802,9 @@ class TestConfigResolver:
                     "Run `pav show {2}` to get a list of available {0} files."
                     .format(cfg_type, cfg_name, cfg_type))
         elif len(cfg_paths) == 0:
-            return yc.ConfigDict(raw_cfg)
+            return yc.ConfigDict()
 
+        # This should always return something, since we've verified exactly one path exists
         return first_with(
                     lambda x: not x.empty(),
                     map(lambda x: x.load(cfg_type, cfg_name), cfg_dirs))
@@ -895,11 +824,14 @@ class TestConfigResolver:
 
         return yc.ConfigDict(conditions)
 
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path',
-                       'base_name', 'host', 'platform', 'modes']
+    NOT_OVERRIDABLE = ('name', 'suite', 'suite_path',
+                       'base_name', 'host', 'platform', 'modes')
 
     def _make_override_config(self, override: str) -> yc.ConfigDict:
         """Convert an override string to a ConfigDict object."""
+
+        # TODO: Rewrite so that this makes a single config from all overrides, rather than one
+        # for each - HW
 
         if '=' not in override:
             raise ValueError(
