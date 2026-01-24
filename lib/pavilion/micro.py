@@ -135,3 +135,8 @@ def select(idx: int, lst: Iterable[Tuple[T,...]]) -> T:
     idx."""
 
     return map(lambda x: x[idx], lst)
+
+def fallback(lst: Iterable[Callable[[], Optional[T]]]) -> Optional[T]:
+    """Return the output of the first function in the list which returns a non-None value."""
+
+    return first_with(lambda x: x is not None, map(lambda f: f(), lst))

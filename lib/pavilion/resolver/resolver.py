@@ -19,6 +19,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 from functools import reduce
+from itertools import starmap
 from typing import (List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO, Optional,
                     Iterable, TypeVar)
 
@@ -227,20 +228,17 @@ class TestConfigResolver:
             cfg_dir = ConfigDirectory(config["path"], label)
 
             for path in cfg_dir.get_config_paths(conf_type):
-
-            for file in os.listdir(path.as_posix()):
-                name = file.stem
+                name = path.stem
                 configs[name] = {}
 
                 try:
-                    with file.open() as config_file:
-                        config = self._loader.load(config_file)
-                    configs[name]['path'] = file
+                    config = cfg_dir.load_from_path(path)
+                    configs[name]['path'] = path
                     configs[name]['config'] = config
                     configs[name]['status'] = ''
                     configs[name]['error'] = ''
                 except (TestConfigError, TypeError) as err:
-                    configs[name]['path'] = full_path
+                    configs[name]['path'] = path
                     configs[name]['config'] = ''
                     configs[name]['status'] = ('Loading the config failed.'
                                                 ' For more info run \'pav '
@@ -569,7 +567,7 @@ class TestConfigResolver:
                             options: TestOptions,
                             request: TestRequest) -> Optional[Dict]:
 
-        # TODO: This is kind of kludgy. Figure out a better way to transmit the suite name
+        # TODO: This is kind of kludgy. Figure out a better way to transmit the suite name - HW
         suite_name = base_stack[-1][2]["suite"]
         cfg_label = base_stack[-1][2]["cfg_label"]
 
@@ -636,18 +634,20 @@ class TestConfigResolver:
         """Load the suite config, with standard info applied to """
 
         # Look for matching suites from amongst all test suites.
-        suite_matches = filter(lambda x:, request.matches_suite_name(x[1]), self.pav_cfg.suite_info)
+        suites = starmap(lambda x, y: TestSuite(y["path"], x), self.pav_cfg.configs.items())
+        suite_matches = filter(lambda x: request.matches_suite_name(x.name), suites)
 
         matching_suites = {}
-        for label, suite_name, path in suite_matches:
-            if name in self._suites:
+        for suite in suite_matches:
+            if suite.name in self._suites:
                 # We've already loaded it.
-                matching_suites[name] = self._suites[name]
+                matching_suites[suite.name] = self._suites[suite.name]
                 continue
 
-            suite = TestSuite(path, label)
-
             base_config = self._loader.load_empty()
+
+            # TODO: At present, this is reloading general platform and host configs for each
+            # suite. Make it not do that. - HW
             platform_config = self.load_config("platform", self._platform, suite, required=False)
             host_config = self.load_config("host", self._host, suite, required=False)
 
@@ -660,6 +660,8 @@ class TestConfigResolver:
                 config_stack.append(base_config)
                 config_stack.reverse()
 
+                # Hold off on resolving the config stack until we have the conditions, overrides,
+                # and mode configs
                 suite_tests[test] = config_stack
 
             self._suites[suite_name] = suite_tests
