@@ -5,16 +5,17 @@ from typing import Any, Optional, Dict, List, Tuple, Set
 import yc_yaml
 import yaml_config as yc
 from pavilion.test_config.file_format import TestSuiteLoader
-from pavilion.micro import first, set_default, listmap, listfilter
+from pavilion.micro import first, set_default, listfilter
 from pavilion.errors import TestConfigError
 from .utils import get_yaml_files
+from .load_config import safe_load_config
 
 
 TestConfig = Dict[str, Any]
 
 
 class TestSuite:
-    """Represnts a single test suite."""
+    """Represents a single test suite."""
 
     CONFIG_NAMES = ("suite", "hosts", "platforms", "modes")
 
@@ -50,7 +51,7 @@ class TestSuite:
         """Get the path to the config of the given type, if it exists."""
 
         if self.is_suite_dir:
-            paths = listmap(lambda x: x.stem.strip("s") == cfg_type, self.configs)
+            paths = listfilter(lambda x: x.stem.strip("s") == cfg_type, self.configs)
 
             if len(paths) > 1:
                 raise TestConfigError(f"Multiple {cfg_type }config files found in suite "
@@ -77,12 +78,14 @@ class TestSuite:
         cfg = safe_load_config(cfg_type, path, self._loader)
 
         try:
-            cfg = self._loader.normalize(config)
+            cfg = self._loader.normalize(cfg)
         except (TypeError, KeyError, ValueError) as err:
             raise TestConfigError(
-                "Test '{}' in suite '{}' has an error.\n"
+                "Config '{}' in suite '{}' has an error.\n"
                 "See 'pav show test_config' for the pavilion test config format."
-                .format(test_name, self.path), prior_error=err)
+                .format(cfg_name, self.path), prior_error=err)
+
+        cfg = cfg.get(cfg_name)
 
         if cfg is None:
             return yc.ConfigDict()
@@ -120,7 +123,7 @@ class TestSuite:
 
         return self.get_names("suite")
 
-    def get_names(cfg_type: str) -> List[str]:
+    def get_names(self, cfg_type: str) -> List[str]:
         """Get a list of names of the given config type."""
 
         return list(self.load_raw(cfg_type).keys())
@@ -143,7 +146,7 @@ class TestSuite:
         if parent_name in visited:
             raise TestConfigError(f"Tests in suite '{self.path}' have a circular dependency.")
 
-        res = [("test_config", test_name, config)]
+        res = [("test", test_name, config)]
 
         if parent_name is None:
             return res

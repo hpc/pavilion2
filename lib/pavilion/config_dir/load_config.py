@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, Any
 
+import yc_yaml
 from yaml_config import YamlConfigLoader
 from pavilion.errors import TestConfigError
 

@@ -11,10 +11,12 @@ import stat
 from collections import OrderedDict
 from operator import itemgetter
 from pathlib import Path
+from itertools import starmap
 from typing import List, Union, Dict, NewType, Iterator, Tuple
 
 import yaml_config as yc
 from pavilion import errors
+from pavilion.config_dir import ConfigDirectory
 from pavilion.micro import first_with, flatten, remove_none, set_default
 from pavilion.path_utils import Pathlike, append_to_path, exists, path_product
 
@@ -189,7 +191,7 @@ class PavConfig(PavConfigDict):
     def __init__(self, set_attrs=None):
         """Predefine all the pav_config keys and their types."""
 
-        self.config_dirs: List[Path] = []
+        # self.config_dirs: List[Path] = []
         self.user_config: bool = False
         self.working_dir: Path = DEFAULT_WORKING_DIR
         self.spack_path: Union[None, Path] = None
@@ -219,9 +221,10 @@ class PavConfig(PavConfigDict):
         super().__init__(set_attrs)
 
     @property
-    def config_paths(self) -> Iterator[Path]:
-        """Return an iterator of paths to all config directories"""
-        return (Path(cfg['path']) for cfg in self.configs.values())
+    def config_dirs(self) -> Iterator[ConfigDirectory]:
+        """Return an iterator of config directory objects"""
+
+        return list(starmap(lambda x, y: ConfigDirectory(y["path"], x), self.configs.items()))
 
     @property
     def result_logs(self) -> List[Path]:

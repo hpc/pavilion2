@@ -40,16 +40,14 @@ from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
+from pavilion.config_dir import ConfigDirectory, TestSuite
 from pavilion.utils import is_int, append_to_keys
-from pavilion.micro import listfilter, select, set_default, listmap, remove_none, first_with
+from pavilion.micro import select, set_default, remove_none, first_with, flatten
 from pavilion.path_utils import exists, path_product
 from yaml_config import RequiredError, YamlConfigLoader
 
 from .proto_test import RawProtoTest, ProtoTest
 from .request import TestRequest
-from .test_suite import TestSuite
-from .config_dir import ConfigDirectory
-from .load_config import safe_load_config
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -634,7 +632,8 @@ class TestConfigResolver:
         """Load the suite config, with standard info applied to """
 
         # Look for matching suites from amongst all test suites.
-        suites = starmap(lambda x, y: TestSuite(y["path"], x), self.pav_cfg.configs.items())
+        cfg_dirs = starmap(lambda x, y: ConfigDirectory(y["path"], x), self.pav_cfg.configs.items())
+        suites = flatten(map(lambda x: x.suites, cfg_dirs))
         suite_matches = filter(lambda x: request.matches_suite_name(x.name), suites)
 
         matching_suites = {}
@@ -655,17 +654,17 @@ class TestConfigResolver:
 
             for test in suite.test_names:
                 config_stack = suite.ancestors(test)
-                config_stack.append(host_config)
-                config_stack.append(platform_config)
-                config_stack.append(base_config)
+                config_stack.append(("host", self._host, host_config))
+                config_stack.append(("platform", self._platform, platform_config))
+                config_stack.append(("base", "base", base_config))
                 config_stack.reverse()
 
                 # Hold off on resolving the config stack until we have the conditions, overrides,
                 # and mode configs
                 suite_tests[test] = config_stack
 
-            self._suites[suite_name] = suite_tests
-            matching_suites[suite_name] = suite_tests
+            self._suites[suite.name] = suite_tests
+            matching_suites[suite.name] = suite_tests
 
         return matching_suites
 
@@ -782,7 +781,7 @@ class TestConfigResolver:
             if not cfg.empty():
                 return cfg
 
-        cfg_dirs = listmap(lambda x, y: ConfigDirectory(y["path"], x), self.pav_cfg.configs.items())
+        cfg_dirs = starmap(lambda x, y: ConfigDirectory(y["path"], x), self.pav_cfg.configs.items())
         cfg_paths = map(lambda x: x.get_config_path(cfg_type, cfg_name), cfg_dirs)
         cfg_paths = list(remove_none(cfg_paths))
 

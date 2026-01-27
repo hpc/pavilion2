@@ -9,7 +9,7 @@ YAML_SUFFIXES = (".yaml", ".yml", ".YAML", ".YML")
 SUITE_CONFIG_STEM = "suite"
 
 
-def get_yaml_files(cls, dir: Path) -> List[Path]:
+def get_yaml_files(dir: Path) -> List[Path]:
     """Get a list of all yaml files in the given directory."""
 
     return listfilter(is_yaml_file, dir.iterdir())
@@ -19,10 +19,10 @@ def is_yaml_file(file: Path) -> bool:
 
     return file.suffix in YAML_SUFFIXES and file.is_file()
 
-def is_suite_dir(cls, dir: Path) -> bool:
+def is_suite_dir(dir: Path) -> bool:
     """Determine whether the given directory is a suite directory."""
 
-    return any(filter(lambda x: x.stem == SUITE_CONFIG_STEM, get_yaml_files(dir)))
+    return dir.is_dir() and any(filter(lambda x: x.stem == SUITE_CONFIG_STEM, get_yaml_files(dir)))
 
 def yaml_fnames(stem: str) -> List[Path]:
     """Get all possible yaml filename variants with the given stem."""

@@ -1,10 +1,12 @@
 import os
+from itertools import starmap
 from typing import List
 
 import yc_yaml
 import yaml_config
 from pavilion.resolver import TestConfigResolver
-from pavilion.micro import first
+from pavilion.resolver import ConfigDirectory
+from pavilion.micro import flatten, first
 from ..errors import TestConfigError, SeriesConfigError
 from .file_format import SeriesConfigLoader
 
@@ -27,44 +29,38 @@ The returned data structure looks like: ::
 
     found_series = []
 
-    for config in pav_cfg.configs.values():
-        path = config['path'] / 'series'
+    cfg_dirs = starmap(lambda x, y: ConfigDirectory(y["path"], x), pav_cfg.configs.items())
+    series_cfg_paths = flatten(map(lambda x: x.get_config_paths("series")))
 
-        if not (path.exists() and path.is_dir()):
-            continue
+    for path in series_cfg_paths:
+        series_name = path.stem
+        series_info = {
+            'path':       path,
+            'name':       path.stem,
+            'err':        '',
+            'test_sets':  [],
+            'supersedes': [],
+            'summary':    '',
+        }
 
-        for file in os.listdir(path.as_posix()):
+        if series_name in found_series:
+            series_info['supersedes'].append(file)
 
-            file = path / file
-            if file.suffix == '.yaml' and file.is_file():
-                series_name = file.stem
-                series_info = {
-                    'path':       file,
-                    'name':       file.stem,
-                    'err':        '',
-                    'test_sets':  [],
-                    'supersedes': [],
-                    'summary':    '',
-                }
+        with path.open('r') as series_file:
+            try:
+                series_cfg = SeriesConfigLoader().load(
+                    series_file, partial=True)
+                series_info['test_sets'] = list(series_cfg['test_sets'].keys())
+                series_info['summary'] = series_cfg['summary']
+            except (
+                    TypeError,
+                    KeyError,
+                    ValueError,
+                    yc_yaml.YAMLError,
+            ) as err:
+                series_info['err'] = err
 
-                if series_name in found_series:
-                    series_info['supersedes'].append(file)
-
-                with file.open('r') as series_file:
-                    try:
-                        series_cfg = SeriesConfigLoader().load(
-                            series_file, partial=True)
-                        series_info['test_sets'] = list(series_cfg['test_sets'].keys())
-                        series_info['summary'] = series_cfg['summary']
-                    except (
-                            TypeError,
-                            KeyError,
-                            ValueError,
-                            yc_yaml.YAMLError,
-                    ) as err:
-                        series_info['err'] = err
-
-                found_series.append(series_info)
+        found_series.append(series_info)
 
     return found_series
 

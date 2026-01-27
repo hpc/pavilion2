@@ -4,11 +4,12 @@ from typing import List, Iterator, Optional
 import yaml_config as yc
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.errors import TestConfigError
-from pavilion.micro import listmap
+from pavilion.micro import listmap, listfilter
 from pavilion.path_utils import append_suffix, exists
 
 from .test_suite import TestSuite
 from .utils import get_yaml_files, is_yaml_file, is_suite_dir, yaml_fnames
+from .load_config import safe_load_config
 
 
 class ConfigDirectory:
@@ -19,25 +20,34 @@ class ConfigDirectory:
         self.label = label
         self._loader = TestConfigLoader()
 
-    def get_dirpath(self, cfg_type: str) -> str:
-        """Get the directory path for configs of the given type."""
+    def get_dirpath(self, cfg_type: str) -> Optional[Path]:
+        """Get the directory path for configs of the given type, if the path exists."""
 
         if cfg_type.endswith("s"):
             dirname = cfg_type
         else:
             dirname = cfg_type + "s"
 
-        return self.path / dirname
+        dirpath = self.path / dirname
+
+        if dirpath.exists() and dirpath.is_dir():
+            return dirpath
+
+        return None
 
     @property
     def suites(self) -> List[TestSuite]:
         """Get a list of all test suites in this config directory."""
 
+        paths = []
+
         tests_dir = self.get_dirpath("test")
         suites_dir = self.get_dirpath("suite")
 
-        paths = get_yaml_files(tests_dir)
-        paths.extend(filter(lambda x: is_yaml_file(x) or is_suite_dir(x), suites_dir.iterdir()))
+        if tests_dir is not None:
+            paths.extend(get_yaml_files(tests_dir))
+        if suites_dir is not None:
+            paths.extend(filter(lambda x: is_yaml_file(x) or is_suite_dir(x), suites_dir.iterdir()))
 
         return listmap(lambda x: TestSuite(x, self.label), paths)
 
@@ -45,12 +55,16 @@ class ConfigDirectory:
         """Get the path to the specified config, if it exists."""
 
         cfg_dir = self.get_dirpath(cfg_type)
+
+        if cfg_dir is None:
+            return None
+
         possible_files = listmap(append_suffix(cfg_dir), yaml_fnames(cfg_name))
 
         if cfg_type == "suite":
             possible_files.append(cfg_dir / cfg_name)
 
-        paths = listmap(exists, possible_files)
+        paths = listfilter(exists, possible_files)
 
         if len(paths) > 1:
             raise TestConfigError(f"Multiple config files found for {cfg_type} config with name "
