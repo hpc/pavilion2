@@ -15,8 +15,8 @@ WGET_MISSING_LIBS = wget.missing_libs()
 
 class TestWGet(PavTestCase):
 
-    GET_TARGET = "https://github.com/lanl/Pavilion/raw/master/README.md"
-    TARGET_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
+    GET_TARGET = "https://raw.githubusercontent.com/hpc/pavilion2/bf3c9d6e84eb844cb2b2992ed7e34a11619e8ce6/README.md"
+    TARGET_HASH = "e5bf8b0b446db298fbf411342c5f78dca821a742"
 
     _logger = logging.getLogger(__file__)
 
