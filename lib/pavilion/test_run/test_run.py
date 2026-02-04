@@ -351,8 +351,11 @@ class TestRun(TestAttributes):
             download_dest = self.suite_path
 
             # Check the deprecated directory
-            if not download_dest.exists() or not download_dest.is_dir():
-                download_dest = self.suite_path.parents[1] / 'test_src'
+            try:
+                if not download_dest.exists() or not download_dest.is_dir():
+                    download_dest = self.suite_path.parents[1] / 'test_src'
+            except PermissionError:
+                download_dest = None
         else:
             download_dest = None
 
