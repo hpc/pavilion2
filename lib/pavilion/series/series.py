@@ -25,6 +25,7 @@ from pavilion import dir_db
 from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
+from pavilion import lockfile
 from pavilion.enums import Verbose
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
@@ -32,7 +33,7 @@ from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.types import ID_Pair
-from pavilion.micro import partition, do, listfilter, stardo
+from pavilion.micro import partition, do, listfilter, stardo, flatten
 from pavilion.timing import TimeLimiter
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.result_logging import get_result_loggers
@@ -60,6 +61,8 @@ class TestSeries:
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
     TESTSET_DIRNAME = "test_sets"
     LOG_RESULTS_LOG_FN = "log_results.log"
+    NEXT_ID_FN = "next_id"
+    LOCKFILE_FN = ".lockfile"
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
@@ -223,6 +226,17 @@ class TestSeries:
             for dir in (self.path/self.TESTSET_DIRNAME).iterdir():
                 if dir.is_dir():
                     yield dir
+
+    def test_run_dirs(self) -> Iterator[Path]:
+        """Return an iterator over the test run directories for this series."""
+
+        return filter(lambda x: x.is_dir(),
+                      flatten(map(lambda x: x.iterdir(), self.test_set_dirs())))
+
+    def test_ids(self) -> Iterator[TestID]:
+        """Return an iterator over the test IDs belonging to existing tests in this series."""
+
+        return map(lambda x: TestID(x.name), self.test_run_dirs())
 
     @classmethod
     def load(cls, pav_cfg: PavConfig, sid: SeriesID, outfile: TextIO = None) -> "TestSeries":
@@ -587,7 +601,7 @@ class TestSeries:
         failed_builds = dict()
         tests_running = 0
 
-        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only):
+        for test_batch in test_set.make_iter(self, build_only, rebuild, local_builds_only):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)
@@ -786,27 +800,15 @@ class TestSeries:
                 "Could not create test set directory {} under series {}."
                 .format(set_path, self.id), err)
 
-        # attempt to make symlink
-        rel_id, link_path = create_id_dir(set_path,
-                                          link_target=test.path,
-                                          next_fn=self.path/self.TESTSET_DIRNAME/"next_id")
+        self._link_test(test_set_name, test)
 
-        # Set test's series-relative ID
-        test.series_rel_id = TestID(f"{self.id}.{rel_id}")
-        test.save()
+    def _link_test(self, test_set_name: str, test: TestRun) -> None:
+        """Symlink the series to the test directory, and vice versa."""
 
-        self.tests[test.id_pair] = test
+        set_path = self.path / self.TESTSET_DIRNAME / test_set_name
 
-        # Create a symlink from each test to its series
-        (test.path/'series').symlink_to(self.path)
-
-        if not link_path.exists():
-            try:
-                link_path.symlink_to(test.path)
-            except OSError as err:
-                raise TestSeriesError(
-                    "Could not link test '{}' in series at '{}'"
-                    .format(test.path, link_path), err)
+        (set_path / str(test.id)).symlink_to(test.path)
+        (test.path / "series").symlink_to(self.path)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user
@@ -856,3 +858,47 @@ class TestSeries:
 modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.
         return self.path.stat().st_mtime
+
+    def next_test_id(self) -> TestID:
+        """Get the next available test ID for this series."""
+
+        next_id_path = self.path / self.NEXT_ID_FN
+
+        with LockFile(self.path / self.LOCKFILE_FN):
+            next_valid = True
+
+            if next_id_path.exists():
+                try:
+                    with next_id_path.open() as next_file:
+                        next_id = int(next_file.read())
+
+                    if self._test_id_from_int(next_id) in self.test_ids():
+                        next_valid = False
+
+                except (OSError, ValueError):
+                    # In either case, on failure, invalidate the next file.
+                    next_valid = False
+            else:
+                next_valid = False
+
+            if not next_valid:
+                # If the next file's id wasn't valid, then find the next available
+                # id directory the hard way.
+
+                ids = list(self.test_ids())
+
+                # Find the first unused id.
+                next_id = 1
+
+                while self._test_id_from_int(next_id) in ids:
+                    next_id += 1
+
+            with next_id_path.open('w') as next_file:
+                next_file.write(str(next_id + 1))
+
+            return self._test_id_from_int(next_id)
+
+    def _test_id_from_int(self, id: int) -> TestID:
+        """Construct a test ID from the given integer value."""
+
+        return TestID(f"{self.id}.{id}")

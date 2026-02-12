@@ -36,38 +36,3 @@ def load_user_series_id(pav_cfg: PavConfig, errfile: TextIO = None) -> Optional[
             output.fprint(errfile, "Failed to read series id file '{}'"
                                    .format(last_series_fn), err)
         return None
-
-def resolve_relative_id(pav_cfg: PavConfig, working_dir: Path, test_id: TestID) -> TestID:
-    """Resolve a series-relative ID into an absolute ID."""
-
-    if test_id.is_absolute():
-        return test_id
-
-    if test_id.series is None:
-        sid = load_user_series_id(pav_cfg)
-
-        if sid is None:
-            raise TestIDError(f"Unable to resolve test ID '{test_id}' with implicit series "
-                            "'last'. No last series found.")
-
-        test_id.series = sid
-
-    series_dir = working_dir / "series" / str(test_id.series.as_int()) / "test_sets"
-
-    if not series_dir.exists():
-        raise TestIDError(f"Unable to resolve relative test ID '{test_id}' to absolute ID. "
-                          f"No series '{test_id.series}' found.")
-
-    # Search the series directory for the symlink matching the relative test ID, then resolve
-    # it to the absolute test ID.
-    for test_set in series_dir.iterdir():
-
-        if not test_set.is_dir():
-            continue
-
-        for test in test_set.iterdir():
-            if test.name == str(test_id.id):
-                return TestID(test.resolve().name)
-
-    raise TestIDError(f"Unable to resolve relative test ID '{test_id}' to absolute ID. "
-                      f"No test '{test_id.id}' found in series '{test_id.series}'.")

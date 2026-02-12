@@ -1,6 +1,7 @@
 # pylint: disable=invalid-name
 
 import re
+import uuid
 from typing import Union, Tuple, List, Iterable, Optional, Dict, Any, TextIO
 from abc import ABC, abstractmethod
 
@@ -108,6 +109,12 @@ class TestID(ID):
 
         return not self.is_absolute()
 
+    @classmethod
+    def new(cls) -> "TestID":
+        """Randomly generate a new test ID."""
+
+        return cls(uuid.uuid4().hex)
+
     def __gt__(self, other: "TestID") -> bool:
         if not isinstance(other, self.__class__):
             raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
@@ -124,21 +131,6 @@ class TestID(ID):
         else:
             raise TypeError("Incompatible test ID formats for numerical comparison: "\
                             "{self} and {other}")
-
-    def __hash__(self) -> int:
-        if self.is_relative():
-            raise ValueError(f"Series-relative test ID {self} must be resolved to an absolute ID "
-                               "before its hash value can be determined.")
-
-        if isinstance(self.id, str):
-            # It's probably a hash
-            if len(self.id) == 32:
-                return int(self.id, 16)
-            else:
-                return int(self.id)
-        else:
-            return self.id
-
 
 class SeriesID(ID):
     """Represents a single series ID."""

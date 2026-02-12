@@ -19,6 +19,7 @@ from pavilion.config import PavConfig
 from pavilion import lockfile
 from pavilion import output
 from pavilion import utils
+from pavilion.test_ids import TestID
 
 ID_DIGITS = 7
 ID_FMT = '{id:d}'
@@ -32,19 +33,6 @@ LOGGER = logging.getLogger(__file__)
 SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
                                          ('paths', List[Path])])
 T = TypeVar("T")
-
-
-def make_id_path(base_path: Path, id_: Union[str, int], fn_base: int) -> Path:
-    """Create the full path to an id directory given its base path and
-    the id.
-
-    :param Path base_path: The path to where id directories are stored.
-    :param int id_: The id number
-    :param int fn_base: The base to use when converting the ID number to a string.
-    :rtype: Path
-    """
-
-    return base_path / utils.int_to_base(id_, fn_base)
 
 
 def reset_pkey(id_dir: Path) -> None:
@@ -146,8 +134,7 @@ def index(pav_cfg: PavConfig,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
           refresh_period: int = 1,
-          verbose: Optional[IO[str]] = None,
-          fn_base: int = 16) -> Index:
+          verbose: Optional[IO[str]] = None) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
     the transformed data.
@@ -192,17 +179,17 @@ def index(pav_cfg: PavConfig,
 
     files = [file.path for file in os.scandir(id_dir.as_posix())]
 
-    def make_int_ids(paths: List[Path]) -> List[Tuple[int, Path]]:
-        """Convert an filename to an integer if we can."""
+    def make_ids(paths: List[Path]) -> List[Tuple[TestID, Path]]:
+        """Convert an filename to a test ID if we can."""
 
         id_results = []
 
         for id_path in paths:
             id_path = Path(id_path)
 
-            try:
-                id_results.append((int(id_path.name, fn_base), id_path))
-            except ValueError:
+            if TestID.is_valid_id(id_path.name):
+                id_results.append((TestID(id_path.name), id_path))
+            else:
                 pass
 
         return id_results
@@ -224,7 +211,7 @@ def index(pav_cfg: PavConfig,
         chunk_size = int(math.ceil(len(files)/float(thread_max)))
         chunks = [files[i*chunk_size:(i+1)*chunk_size] for i in range(thread_max)]
 
-        id_pairs = pool.map(make_int_ids, chunks)
+        id_pairs = pool.map(make_ids, chunks)
         # Grab the set of all ids. We'll use it to identify missing ids.
         all_seen_ids = set()
         update_id_pairs = []
@@ -274,8 +261,7 @@ def index(pav_cfg: PavConfig,
 def select_one(path: Path,
                ffunc: Optional[Callable[[Path], bool]],
                trans: Optional[Callable[[Path], T]],
-               ofunc: Callable[[T], Any],
-               fnb: int) -> Optional[T]:
+               ofunc: Callable[[T], Any]) -> Optional[T]:
     """Allows the objects to be filtered and transformed in parallel with map.
 
     :param path: Path to filter and transform (input to reduced function)
@@ -286,8 +272,6 @@ def select_one(path: Path,
         returned by this.
     :param ofunc: A function that returns a comparable value for sorting
         validate against output.
-    :param fnb: Number base for file names. 10 by default, ensure dir name
-        is a valid integer.
     :returns: A filtered, transformed object.
     """
 
@@ -296,10 +280,9 @@ def select_one(path: Path,
 
     if not path.is_dir():
         return None
-    try:
-        int(path.name, fnb)
+    if TestID.is_valid_id(path.name):
         item = trans(path)
-    except ValueError:
+    else:
         return None
 
     if not ffunc(item):
@@ -317,7 +300,6 @@ def select(pav_cfg: PavConfig,
            transform: Optional[Callable[[Path], Any]] = None,
            order_func: Optional[Callable[[Dict[str, Any]], Any]] = None,
            order_asc: bool = True,
-           fn_base: int = 16,
            idx_complete_key: 'str' = 'complete',
            use_index: Union[bool, str] = True,
            verbose: IO[str] = None,
@@ -343,8 +325,6 @@ def select(pav_cfg: PavConfig,
     :param idx_complete_key: The key used to identify directories as 'complete'
         for indexing purposes. Incomplete directories will be re-indexed until
         complete.
-    :param fn_base: Number base for file names. 10 by default, ensure dir name
-        is a valid integer.
     :param limit: The max items to return. None denotes return all.
     :param verbose: A file like object to print status info to.
     :returns: A filtered, ordered list of transformed objects, and the list
@@ -368,7 +348,7 @@ def select(pav_cfg: PavConfig,
         idx = index(pav_cfg, id_dir, index_name, transform,
                     complete_key=idx_complete_key, verbose=verbose)
         for id_, data in idx.items():
-            path = make_id_path(id_dir, id_, fn_base=fn_base)
+            path = id_dir / str(id_)
 
             if order_func is not None and order_func(data) is None:
                 continue
@@ -392,7 +372,6 @@ def select(pav_cfg: PavConfig,
             filter_func=filter_func,
             order_func=order_func,
             order_asc=order_asc,
-            fn_base=fn_base,
             limit=limit)
 
 def select_from(pav_cfg: PavConfig,
@@ -401,7 +380,6 @@ def select_from(pav_cfg: PavConfig,
                 transform: Optional[Callable[[Path], T]] = None,
                 order_func: Optional[Callable[[T], Any]] = None,
                 order_asc: bool = True,
-                fn_base: int = 16,
                 limit: int = None) -> SelectItems:
     """Filter, order, and truncate the given paths based on the filter and
     other parameters.
@@ -417,8 +395,6 @@ def select_from(pav_cfg: PavConfig,
         as per the list.sort keys argument. Items for which this returns
         None are removed.
     :param order_asc: Whether to sort in ascending or descending order.
-    :param fn_base: Number base for file names. 10 by default, ensure dir name
-        is a valid integer.
     :param limit: The max items to return. None denotes return all.
     :returns: A filtered, ordered list of transformed objects, and the list
               of untransformed paths.
@@ -427,8 +403,7 @@ def select_from(pav_cfg: PavConfig,
     paths = list(paths)
     max_threads = min(pav_cfg.get('max_threads', 1), len(paths))
 
-    selector = partial(select_one, ffunc=filter_func, trans=transform,
-                       ofunc=order_func, fnb=fn_base)
+    selector = partial(select_one, ffunc=filter_func, trans=transform, ofunc=order_func)
 
     if max_threads > 1:
         with ThreadPoolExecutor(max_workers=max_threads) as pool:
