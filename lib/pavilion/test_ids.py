@@ -130,7 +130,10 @@ class TestID(ID):
             raise ValueError(f"Series-relative test ID {self} must be resolved to an absolute ID "
                                "before its hash value can be determined.")
 
-        return int(self.id, 16)
+        if isinstance(self.id, str):
+            return int(self.id, 16)
+        else:
+            return self.id
 
 
 class SeriesID(ID):
