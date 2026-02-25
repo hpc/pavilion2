@@ -117,7 +117,6 @@ class RunCommand(Command):
             '--run-data', default=None, type=Path,
             help="Write file containing some info on the started test series. This is useful "
                  "for scripting Pavilion.")
-        )
         parser.add_argument(
             'tests', nargs='*', action='store', metavar='TEST_NAME',
             help='The name of the tests to run. These may be suite names (in '
