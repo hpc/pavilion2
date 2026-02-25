@@ -252,7 +252,7 @@ class RunCommand(Command):
 
         started = datetime.datetime.now().isoformat(' ')
         output.fprint(outfile, '-------------------------')
-        output.fprint(outfile, f' sid: {series_obj.id}')
-        output.fprint(outfile, f' tests: {len(series_obj.tests)}')
-        output.fprint(outfile, f' started: {started}')
+        output.fprint(outfile, f'sid: {series_obj.id}')
+        output.fprint(outfile, f'tests: {len(series_obj.tests)}')
+        output.fprint(outfile, f'started: {started}')
         output.fprint(outfile, '-------------------------')
