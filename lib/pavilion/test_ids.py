@@ -131,7 +131,11 @@ class TestID(ID):
                                "before its hash value can be determined.")
 
         if isinstance(self.id, str):
-            return int(self.id, 16)
+            # It's probably a hash
+            if len(self.id) == 32:
+                return int(self.id, 16)
+            else:
+                return int(self.id)
         else:
             return self.id
 
