@@ -99,7 +99,7 @@ class WaitCommand(Command):
             if sid == SeriesID("last"):
                 series_obj = cmd_utils.load_last_series(pav_cfg, self.errfile)
                 if series_obj is None:
-                    output.fprint(self.errfile, 
+                    output.fprint(self.errfile,
                         "The 'last' series was specified, by default or explicitely, but no "
                         "'last' series could be found.")
                     continue
@@ -144,7 +144,7 @@ class WaitCommand(Command):
         completed_tests = []
         newly_completed = []
 
-        status_time = 0 
+        status_time = 0
         while (series or tests) and (end_time is None or time.time() < end_time):
 
             for test_state in tests:
@@ -181,7 +181,7 @@ class WaitCommand(Command):
             self._print_test_state_summary(pav_cfg, all_tests())
         fprint(self.outfile, '\n')
 
-    LAST_SUMMARY_WIDTH = 1
+    last_summary_width = 1
 
     def _print_test_state_summary(self, pav_cfg, tests: List[TestRun]):
         """Print a summary of the status for the tests we're waiting on."""
@@ -197,11 +197,11 @@ class WaitCommand(Command):
         status_counts = []
         for state, count in states.items():
             status_counts.append(state + ': ' + str(count))
-        
+
         summary = ' | '.join(status_counts)
-        fprint(self.outfile, ' '*self.LAST_SUMMARY_WIDTH, width=None, end='\r')
+        fprint(self.outfile, ' '*self.last_summary_width, width=None, end='\r')
         fprint(self.outfile, summary, width=None, end='\r')
-        self.LAST_SUMMARY_WIDTH = len(summary)
+        self.last_summary_width = len(summary)
 
     def _print_completed(self, pav_cfg, tests: List[TestRun]):
         """Print a long form version of the tests status for each test we're waiting on."""
@@ -210,11 +210,11 @@ class WaitCommand(Command):
         
         fmt = '{:10s} {:10s} {:5s} {} {}'
         for test_state in stats:
-            ts = datetime.datetime.fromtimestamp(test_state['time']).isoformat(" ")
+            timestamp = datetime.datetime.fromtimestamp(test_state['time']).isoformat(" ")
             data = [str(test_state['test_id']),
                     test_state['state'],
                     test_state['result'],
-                    ts,
+                    timestamp,
                     test_state['name'],
                     ]
             fprint(self.outfile, fmt.format(*data), width=None)

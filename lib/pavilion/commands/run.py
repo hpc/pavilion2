@@ -248,7 +248,8 @@ class RunCommand(Command):
             try:
                 outfile = out_path.open('w')
             except (OSError, PermissionError) as err:
-                output.fprint(self.errfile, f"Warning: Could not open specified file for run data '{out_path}': {err}")
+                output.fprint(self.errfile, f"Warning: Could not open specified file for "
+                                            f"run data '{out_path}': {err}")
 
         started = datetime.datetime.now().isoformat(' ')
         output.fprint(outfile, '-------------------------')
