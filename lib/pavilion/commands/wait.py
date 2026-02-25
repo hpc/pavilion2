@@ -81,18 +81,14 @@ class WaitCommand(Command):
         # get start time
         start_time = time.time()
 
-        print('args.tests', args.tests)
         ids = resolve_mixed_ids(args.tests, auto_last=True)
         test_ids = ids["tests"]
         series_ids = ids["series"]
-        print('args.tests2', test_ids)
-        print('args.tests2', series_ids)
 
         if args.out_mode is None:
             args.out_mode = self.OUT_FULL
 
         tests = cmd_utils.get_tests_by_id(pav_cfg, test_ids, self.errfile)
-        print('tests', tests)
 
         series = []
         for sid in series_ids:
@@ -206,8 +202,7 @@ class WaitCommand(Command):
     def _print_completed(self, pav_cfg, tests: List[TestRun]):
         """Print a long form version of the tests status for each test we're waiting on."""
         stats = status_utils.get_statuses(pav_cfg, tests)
-        stats_out = []
-        
+
         fmt = '{:10s} {:10s} {:5s} {} {}'
         for test_state in stats:
             timestamp = datetime.datetime.fromtimestamp(test_state['time']).isoformat(" ")
