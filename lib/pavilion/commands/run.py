@@ -221,6 +221,8 @@ class RunCommand(Command):
                 outfile=self.outfile
             )
 
+        self._write_run_data(args.run_data, series_obj)
+
         return 0
 
     def _add_to_group(self, pav_cfg: "PavConfig", series: "TestSeries", group: str) -> int:
@@ -238,7 +240,7 @@ class RunCommand(Command):
             output.fprint(self.errfile, err.pformat())
             return errno.EINVAL
 
-    def _write_run_data(self, out_path: Path, series_obj: Series):
+    def _write_run_data(self, out_path: Path, series_obj: TestSeries):
         """Output info about the series. Print to stdout by default."""
 
         outfile = self.outfile
