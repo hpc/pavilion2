@@ -331,9 +331,10 @@ class StatusCmdTests(PavTestCase):
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
 
-        test = self._quick_test(_id=TestID("s1.1"))
+        # Choose a big number so we don't collide with other tests
+        test = self._quick_test(_id=TestID("s1000000.1"))
         raw = schedulers.get_plugin('raw')
         raw.schedule_tests(self.pav_cfg, [test])
 
-        args = parser.parse_args(["s1.1"])
+        args = parser.parse_args(["s1000000.1"])
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)

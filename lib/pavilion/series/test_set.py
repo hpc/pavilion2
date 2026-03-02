@@ -279,7 +279,7 @@ class TestSet:
 
                 try:
                     if series is not None:
-                        _id = series.next_test_id()
+                        _id = series.get_next_test_id()
                     else:
                         _id = None
 

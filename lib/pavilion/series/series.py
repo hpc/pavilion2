@@ -61,8 +61,6 @@ class TestSeries:
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
     TESTSET_DIRNAME = "test_sets"
     LOG_RESULTS_LOG_FN = "log_results.log"
-    NEXT_ID_FN = "next_id"
-    LOCKFILE_FN = ".lockfile"
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
@@ -125,6 +123,7 @@ class TestSeries:
             self._save_series_id()
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
             self.status.set(SERIES_STATES.CREATED, "Created series.")
+            self.next_test_id = TestID(f"s{_id}.1")
 
         # We're not creating this from scratch (an object was made ahead of
         # time).
@@ -132,6 +131,13 @@ class TestSeries:
             self.id = _id
             self.path = series_path / str(self.id.as_int())
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
+
+            test_ids = list(self.test_ids())
+
+            if len(test_ids) > 0:
+                self.next_test_id = max(test_ids).next()
+            else:
+                self.next_test_id = TestID(f"{_id}.1")
 
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
 
@@ -859,46 +865,11 @@ modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.
         return self.path.stat().st_mtime
 
-    def next_test_id(self) -> TestID:
+    def get_next_test_id(self) -> TestID:
         """Get the next available test ID for this series."""
 
-        next_id_path = self.path / self.NEXT_ID_FN
+        next_id = self.next_test_id
 
-        with LockFile(self.path / self.LOCKFILE_FN):
-            next_valid = True
+        self.next_test_id = next_id.next()
 
-            if next_id_path.exists():
-                try:
-                    with next_id_path.open() as next_file:
-                        next_id = int(next_file.read())
-
-                    if self._test_id_from_int(next_id) in self.test_ids():
-                        next_valid = False
-
-                except (OSError, ValueError):
-                    # In either case, on failure, invalidate the next file.
-                    next_valid = False
-            else:
-                next_valid = False
-
-            if not next_valid:
-                # If the next file's id wasn't valid, then find the next available
-                # id directory the hard way.
-
-                ids = list(self.test_ids())
-
-                # Find the first unused id.
-                next_id = 1
-
-                while self._test_id_from_int(next_id) in ids:
-                    next_id += 1
-
-            with next_id_path.open('w') as next_file:
-                next_file.write(str(next_id + 1))
-
-            return self._test_id_from_int(next_id)
-
-    def _test_id_from_int(self, id: int) -> TestID:
-        """Construct a test ID from the given integer value."""
-
-        return TestID(f"{self.id}.{id}")
+        return next_id

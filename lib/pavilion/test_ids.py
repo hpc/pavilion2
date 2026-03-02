@@ -115,6 +115,14 @@ class TestID(ID):
 
         return cls(uuid.uuid4().hex)
 
+    def next(self) -> "TestID":
+        """Get the next ID after this one."""
+
+        if self.is_absolute():
+            raise ValueError(f"Absolute TestID {self} has no well-defined next ID.")
+
+        return self.__class__(f"{self.series}.{self.id + 1}")
+
     def __gt__(self, other: "TestID") -> bool:
         if not isinstance(other, self.__class__):
             raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
@@ -122,14 +130,14 @@ class TestID(ID):
 
         if self.is_absolute() and other.is_absolute():
             return int(self.id_str, 16) > int(other.id_str, 16)
-        elif self.is_series_relative() and other.is_series_relative():
+        elif self.is_relative() and other.is_relative():
             if self.series == other.series:
                 return int(self.id) > int(other.id)
             else:
-                raise TypeError(f"Cannot compare test IDs {self} and {other} "
+                raise ValueError(f"Cannot compare test IDs {self} and {other} "
                                 "from different series.")
         else:
-            raise TypeError("Incompatible test ID formats for numerical comparison: "\
+            raise ValueError("Incompatible test ID formats for numerical comparison: "\
                             "{self} and {other}")
 
 class SeriesID(ID):
@@ -175,6 +183,11 @@ class SeriesID(ID):
         """Create a new SeriesID from an int."""
 
         return cls(f"s{id}")
+
+    def next(self) -> "SeriesID":
+        """Get the next SeriesID after this one."""
+
+        return self.__class__(f"s{self.as_int() + 1}")
 
     def __gt__(self, other: "SeriesID"):
         if not isinstance(other, self.__class__):
