@@ -8,6 +8,7 @@ from pavilion import commands
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion import status_file
+from pavilion.test_ids import TestID
 from pavilion.series.series import TestSeries
 from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
@@ -330,7 +331,7 @@ class StatusCmdTests(PavTestCase):
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
 
-        test = self._quick_test()
+        test = self._quick_test(_id=TestID("s1.1"))
         raw = schedulers.get_plugin('raw')
         raw.schedule_tests(self.pav_cfg, [test])
 

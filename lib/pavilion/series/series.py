@@ -601,7 +601,7 @@ class TestSeries:
         failed_builds = dict()
         tests_running = 0
 
-        for test_batch in test_set.make_iter(self, build_only, rebuild, local_builds_only):
+        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only, self):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)
