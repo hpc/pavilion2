@@ -104,24 +104,25 @@ class TestRun(TestAttributes):
     """Pavilion bash utilities"""
 
     def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
-                 var_man: Optional[VariableSetManager] = None, _id: Optional[TestID] = None,
+                 var_man: Optional[VariableSetManager] = None, test_id: Optional[TestID] = None,
                  rebuild: bool = False, build_only: bool = False, from_existing: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
     :param pav_cfg: The pavilion configuration.
     :param dict config: The test configuration dictionary.
-    :param bool build_only: Only build this test run, do not run it.
+    :param VariableSetManager var_man: The variable manager to manage this test's variables.
+    :param int test_id: The test ID to assign to the test.
     :param bool rebuild: After determining the build name, deprecate it and
         select a new, non-deprecated build.
-    :param int _id: The test id of an existing test. (You should be using
-        TestRun.load)."""
+    :param bool build_only: Only build this test run, do not run it.
+    :param bool from_existing: Whether the test object should be loaded from an existing test."""
 
         self.saved = False
 
-        if _id is None:
+        if test_id is None:
             # The test doesn't belong to a series. Generate an arbitrary ID.
-            _id = TestID.new()
+            test_id = TestID.new()
 
         # Just about every method needs this
         self._pav_cfg = pav_cfg
@@ -136,9 +137,9 @@ class TestRun(TestAttributes):
         self.config = config
         self._validate_config()
 
-        path = self.working_dir / self.RUN_DIR / str(_id)
+        path = self.working_dir / self.RUN_DIR / str(test_id)
         super().__init__(path=path, load=from_existing)
-        self.id = _id
+        self.id = test_id
 
         # Create a brand new test
         if not from_existing:
