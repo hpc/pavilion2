@@ -352,7 +352,7 @@ The default config is: ::
 
         cfg = resolve.test_config(cfg, var_man)
 
-        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man, _id=_id)
+        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man, test_id=_id)
 
         if test.skipped:
             # You can't proceed further with a skipped test.
