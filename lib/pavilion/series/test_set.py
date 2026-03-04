@@ -279,13 +279,13 @@ class TestSet:
 
                 try:
                     if series is not None:
-                        _id = series.get_next_test_id()
+                        test_id = series.get_next_test_id()
                     else:
-                        _id = None
+                        test_id = None
 
                     test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
                                        var_man=ptest.var_man, rebuild=rebuild,
-                                       build_only=build_only, test_id=_id)
+                                       build_only=build_only, test_id=test_id)
                     if not test_run.skipped:
                         test_run.save()
                         self.tests.append(test_run)
