@@ -332,7 +332,7 @@ class StatusCmdTests(PavTestCase):
         status_cmd._setup_arguments(parser)
 
         # Choose a big number so we don't collide with other tests
-        test = self._quick_test(_id=TestID("s1000000.1"))
+        test = self._quick_test(test_id=TestID("s1000000.1"))
         raw = schedulers.get_plugin('raw')
         raw.schedule_tests(self.pav_cfg, [test])
 
