@@ -285,7 +285,7 @@ class TestSet:
 
                     test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
                                        var_man=ptest.var_man, rebuild=rebuild,
-                                       build_only=build_only, _id=_id)
+                                       build_only=build_only, test_id=_id)
                     if not test_run.skipped:
                         test_run.save()
                         self.tests.append(test_run)
