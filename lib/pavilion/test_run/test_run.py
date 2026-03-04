@@ -446,7 +446,7 @@ class TestRun(TestAttributes):
 
         config = cls._load_config(path)
 
-        test_run = TestRun(pav_cfg, config, _id=test_id, from_existing=True)
+        test_run = TestRun(pav_cfg, config, test_id=test_id, from_existing=True)
         test_run.saved = True
         # Force the completion check to ensure that ._complete is populated.
 
