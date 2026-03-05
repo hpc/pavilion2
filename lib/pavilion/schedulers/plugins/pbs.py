@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """The Pbs Scheduler Plugin."""
 
 import os
@@ -15,11 +16,11 @@ from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
 from pavilion.var_dict import dfr_var_method
-from pavilion import schedulers
-from pavilion.schedulers.config import validate_list
-from pavilion.schedulers import KickoffScriptHeader
-from pavilion.schedulers import SchedulerVariables
-from pavilion.errors import SchedulerPluginError
+from ..advanced import SchedulerPluginAdvanced
+from ..config import validate_list
+from ..scheduler import KickoffScriptHeader
+from ..vars import SchedulerVariables
+from ...errors import SchedulerPluginError
 
 class QsubHeader(KickoffScriptHeader):
    """Provides header information specific to qsub files for the
@@ -148,7 +149,7 @@ def pbs_states(state):
 
     return states
 
-class PBS(schedulers.SchedulerPluginAdvanced):
+class PBS(SchedulerPluginAdvanced):
    """Schedule tests with Pbs!"""
 
    VAR_CLASS = PBSVars
@@ -157,7 +158,7 @@ class PBS(schedulers.SchedulerPluginAdvanced):
    def __init__(self):
      super().__init__('pbs', "Schedules tests via the PBS scheduler.")
 
-   JOB_SHARE_KEY_ATTRS = schedulers.SchedulerPluginAdvanced.JOB_SHARE_KEY_ATTRS + ['pbs.qsub_extra']
+   JOB_SHARE_KEY_ATTRS = SchedulerPluginAdvanced.JOB_SHARE_KEY_ATTRS + ['pbs.qsub_extra']
 
    MPI_CMD_MPIRUN = 'mpirun'
    MPIRUN_BIND_OPTS = ('slot', 'hwthread', 'core', 'L1cache', 'L2cache', 'L3cache',
