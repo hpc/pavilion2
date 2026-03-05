@@ -17,6 +17,7 @@ _builtin_scheduler_plugins = [
     Raw,
     Slurm,
     Flux,
+    PBS
 ]
 
 
