@@ -305,6 +305,7 @@ class TestConfigResolver:
 
             try:
                 suite_cfgs = self.resolve_inheritance(
+                    suite_name=name,
                     suite_cfg=suite_cfg,
                     suite_path=path)
             except Exception as err:  # pylint: disable=W0703
@@ -762,8 +763,6 @@ class TestConfigResolver:
 
         # Apply downstream configs.
         try:
-            test_cfg = self.apply_platform(test_cfg, self._platform, suite_name)
-            test_cfg = self.apply_host(test_cfg, self._host, suite_name)
             test_cfg = self.apply_modes(test_cfg, options.modes, suite_name)
         except TestConfigError as err:
             err.request = request
@@ -882,7 +881,7 @@ class TestConfigResolver:
                 if raw_test is None:
                     raw_suite_cfg[test_name] = {}
 
-            suite_tests = self.resolve_inheritance(raw_suite_cfg, cfg_info.path)
+            suite_tests = self.resolve_inheritance(suite_name, raw_suite_cfg, cfg_info.path)
 
             # Perform essential transformations to each test config.
             for test_cfg_name, test_cfg in list(suite_tests.items()):
@@ -1082,7 +1081,7 @@ class TestConfigResolver:
 
         return test_cfg
 
-    def resolve_inheritance(self, suite_cfg, suite_path) \
+    def resolve_inheritance(self, suite_name, suite_cfg, suite_path) \
             -> Dict[str, dict]:
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
@@ -1149,6 +1148,16 @@ class TestConfigResolver:
                 .format(suite_path))
         # Add this so we can cleanly depend on it.
         suite_tests['__base__'] = self._base_config
+
+        # Apply suite-specific platform and host configs
+        suite_tests['__base__'] = self.apply_platform(
+                                                suite_tests['__base__'],
+                                                self._platform,
+                                                suite_name)
+        suite_tests['__base__'] = self.apply_host(
+                                                suite_tests['__base__'],
+                                                self._host,
+                                                suite_name)
 
         # Resolve all the dependencies
         while ready_to_resolve:

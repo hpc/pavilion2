@@ -42,7 +42,6 @@ from pavilion.types import ID_Pair
 from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
-from pavilion.id_utils import resolve_relative_id
 from .test_attrs import TestAttributes
 
 
@@ -105,22 +104,25 @@ class TestRun(TestAttributes):
     """Pavilion bash utilities"""
 
     def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
-                 var_man: Optional[VariableSetManager] = None, _id: Optional[TestID] = None,
-                 rebuild: bool = False, build_only: bool = False):
+                 var_man: Optional[VariableSetManager] = None, test_id: Optional[TestID] = None,
+                 rebuild: bool = False, build_only: bool = False, from_existing: bool = False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
     :param pav_cfg: The pavilion configuration.
     :param dict config: The test configuration dictionary.
-    :param bool build_only: Only build this test run, do not run it.
+    :param VariableSetManager var_man: The variable manager to manage this test's variables.
+    :param int test_id: The test ID to assign to the test.
     :param bool rebuild: After determining the build name, deprecate it and
         select a new, non-deprecated build.
-    :param int _id: The test id of an existing test. (You should be using
-        TestRun.load)."""
+    :param bool build_only: Only build this test run, do not run it.
+    :param bool from_existing: Whether the test object should be loaded from an existing test."""
 
         self.saved = False
 
-        new_test = _id is None
+        if test_id is None:
+            # The test doesn't belong to a series. Generate an arbitrary ID.
+            test_id = TestID.new()
 
         # Just about every method needs this
         self._pav_cfg = pav_cfg
@@ -132,22 +134,16 @@ class TestRun(TestAttributes):
         else:
             self.working_dir = Path(config['working_dir'])
 
-        tests_path = self.working_dir/self.RUN_DIR
-
         self.config = config
         self._validate_config()
 
-        test_uuid = uuid.uuid4().hex
-        series_rel_id = None
+        path = self.working_dir / self.RUN_DIR / str(test_id)
+        super().__init__(path=path, load=from_existing)
+        self.id = test_id
 
-        # Get an id for the test, if we weren't given one.
-        if new_test:
-            uuid_path = tests_path / test_uuid
-            uuid_path.mkdir()
-
-            super().__init__(path=uuid_path, load=False)
-
-            self.id = TestID(test_uuid)
+        # Create a brand new test
+        if not from_existing:
+            self.path.mkdir()
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
@@ -174,17 +170,12 @@ class TestRun(TestAttributes):
                 var_man = VariableSetManager()
             self.var_man = var_man
         else:
-            uuid_path = tests_path / str(_id)
-            # Load the test info from the given id path.
-            super().__init__(path=uuid_path)
-            self.id = _id
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))
 
             self._variables_path = self.path / 'variables'
             self.status = TestStatusFile(self.path / self.STATUS_FN)
-            self.suite_path = self.suite_path
 
             try:
                 self.var_man = VariableSetManager.load(self._variables_path)
@@ -238,7 +229,7 @@ class TestRun(TestAttributes):
         self.run_tmpl_path = self.path/'run.tmpl'
         self.run_script_path = self.path/'run.sh'
 
-        if not new_test and self._build_needed():
+        if from_existing and self._build_needed():
             self.builder = self._make_builder()
 
         # This will be set by the scheduler
@@ -280,10 +271,7 @@ class TestRun(TestAttributes):
         """Return the series ID that this test belongs to. Returns None if it doesn't
         belong to any series."""
 
-        if self.series_rel_id is None:
-            return None
-
-        return self.series_rel_id.series
+        return self.id.series
 
     def _build_trivial(self) -> None:
         """Skip the actual build step, but create the correct files and directories,
@@ -449,10 +437,7 @@ class TestRun(TestAttributes):
         :rtype: TestRun
         """
 
-        if test_id.is_relative():
-            test_id = resolve_relative_id(pav_cfg, working_dir, test_id)
-
-        path = working_dir / cls.RUN_DIR / str(test_id.id)
+        path = working_dir / cls.RUN_DIR / str(test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -461,7 +446,7 @@ class TestRun(TestAttributes):
 
         config = cls._load_config(path)
 
-        test_run = TestRun(pav_cfg, config, _id=test_id)
+        test_run = TestRun(pav_cfg, config, test_id=test_id, from_existing=True)
         test_run.saved = True
         # Force the completion check to ensure that ._complete is populated.
 

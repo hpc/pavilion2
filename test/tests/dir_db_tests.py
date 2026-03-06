@@ -8,6 +8,7 @@ from typing import Dict
 
 from pavilion import dir_db
 from pavilion import unittest
+from pavilion.test_ids import TestID
 
 
 def entry_transform(path: Path) -> Dict:
@@ -26,7 +27,7 @@ class DirDBTests(unittest.PavTestCase):
 
         entries = {}
         for i in range(20):
-            entries[i] = self._make_entry(index_path, i,
+            entries[TestID(str(i))] = self._make_entry(index_path, i,
                                           # Every entry divisible by five will
                                           # be incomplete
                                           complete=bool(i % 5))
@@ -50,7 +51,7 @@ class DirDBTests(unittest.PavTestCase):
         for i in 3, 6, 9:
             path = index_path/str(i)
             shutil.rmtree(path.as_posix())
-            del entries[i]
+            del entries[TestID(str(i))]
 
         idx = dir_db.index(
             self.pav_cfg,
@@ -66,11 +67,11 @@ class DirDBTests(unittest.PavTestCase):
 
         # Make sure these new entries get picked up.
         for i in 43, 57, 28:
-            entries[i] = self._make_entry(index_path, i)
+            entries[TestID(str(i))] = self._make_entry(index_path, i)
 
         # The entry should be updated for these incomplete items.
-        entries[5] = self._make_entry(index_path, 5, d=1)
-        entries[10] = self._make_entry(index_path, 10, complete=False, d=1)
+        entries[TestID(str(5))] = self._make_entry(index_path, 5, d=1)
+        entries[TestID(str(10))] = self._make_entry(index_path, 10, complete=False, d=1)
         # This is already complete, so the entry should never be updated.
         self._make_entry(index_path, 11, d=1)
 
@@ -95,8 +96,7 @@ class DirDBTests(unittest.PavTestCase):
                  'd': d,
                  'complete': complete}
 
-        key = hex(id_)[2:]
-        path = index_path / key
+        path = index_path / str(id_)
         path.mkdir(exist_ok=True)
         with (path / 'data').open('w') as data_file:
             json.dump(value, data_file)

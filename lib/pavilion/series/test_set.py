@@ -8,7 +8,7 @@ import time
 import math
 from collections import defaultdict
 from io import StringIO
-from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple
+from typing import List, Dict, TextIO, Union, Set, Iterator, Tuple, Optional
 
 import pavilion.errors
 from pavilion import output, result, schedulers, cancel_utils
@@ -192,7 +192,8 @@ class TestSet:
     def make_iter(self,
                   build_only: bool = False,
                   rebuild: bool = False,
-                  local_builds_only: bool = False) -> Iterator[List[TestRun]]:
+                  local_builds_only: bool = False,
+                  series: Optional["TestSeries"] = None) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).
@@ -277,9 +278,14 @@ class TestSet:
                         continue
 
                 try:
+                    if series is not None:
+                        test_id = series.get_next_test_id()
+                    else:
+                        test_id = None
+
                     test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
                                        var_man=ptest.var_man, rebuild=rebuild,
-                                       build_only=build_only)
+                                       build_only=build_only, test_id=test_id)
                     if not test_run.skipped:
                         test_run.save()
                         self.tests.append(test_run)
@@ -341,12 +347,13 @@ class TestSet:
         self.all_tests_made = True
 
 
-    def make(self, build_only=False, rebuild=False, local_builds_only=False):
+    def make(self, build_only: bool = False, rebuild: bool = False, local_builds_only: bool =False,
+             series: Optional["TestSeries"] = None) -> List[TestRun]:
         """As per make_iter(), but create all of the tests. This doesn't
         respect batch sizes, etc, and is entirely for simplifying unit testing."""
 
         all_tests = []
-        for test_batch in self.make_iter(build_only, rebuild, local_builds_only):
+        for test_batch in self.make_iter(build_only, rebuild, local_builds_only, series):
             all_tests.extend(test_batch)
 
         return all_tests

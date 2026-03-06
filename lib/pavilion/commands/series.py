@@ -264,7 +264,7 @@ class RunSeries(Command):
         rows = [ser.attr_dict() for ser in matched_series]
 
         fields = [
-            'sid',
+            'id',
             'name',
             'status',
             'num_tests',

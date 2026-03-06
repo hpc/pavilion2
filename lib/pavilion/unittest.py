@@ -318,7 +318,7 @@ The default config is: ::
     del __config_lines
 
     def _quick_test(self, cfg=None, name="quick_test",
-                    build=True, finalize=True):
+                    build=True, finalize=True, test_id=None):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
@@ -352,7 +352,7 @@ The default config is: ::
 
         cfg = resolve.test_config(cfg, var_man)
 
-        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
+        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man, test_id=test_id)
 
         if test.skipped:
             # You can't proceed further with a skipped test.

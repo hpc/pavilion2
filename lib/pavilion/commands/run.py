@@ -1,7 +1,7 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
+import datetime
 import errno
-import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -114,6 +114,10 @@ class RunCommand(Command):
                  "under which Pavilion runs has changed."
         )
         parser.add_argument(
+            '--run-data', default=None, type=Path,
+            help="Write file containing some info on the started test series. This is useful "
+                 "for scripting Pavilion.")
+        parser.add_argument(
             'tests', nargs='*', action='store', metavar='TEST_NAME',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
@@ -217,6 +221,8 @@ class RunCommand(Command):
                 outfile=self.outfile
             )
 
+        self._write_run_data(args.run_data, series_obj)
+
         return 0
 
     def _add_to_group(self, pav_cfg: "PavConfig", series: "TestSeries", group: str) -> int:
@@ -233,3 +239,21 @@ class RunCommand(Command):
                           color=output.RED)
             output.fprint(self.errfile, err.pformat())
             return errno.EINVAL
+
+    def _write_run_data(self, out_path: Path, series_obj: TestSeries):
+        """Output info about the series. Print to stdout by default."""
+
+        outfile = self.outfile
+        if out_path is not None:
+            try:
+                outfile = out_path.open('w')
+            except (OSError, PermissionError) as err:
+                output.fprint(self.errfile, f"Warning: Could not open specified file for "
+                                            f"run data '{out_path}': {err}")
+
+        started = datetime.datetime.now().isoformat(' ')
+        output.fprint(outfile, '-------------------------')
+        output.fprint(outfile, f'sid: {series_obj.id}')
+        output.fprint(outfile, f'tests: {len(series_obj.tests)}')
+        output.fprint(outfile, f'started: {started}')
+        output.fprint(outfile, '-------------------------')
