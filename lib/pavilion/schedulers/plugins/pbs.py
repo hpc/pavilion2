@@ -408,9 +408,6 @@ class PBS(SchedulerPluginAdvanced):
         _ = self
         cmd = ["qsub"]
 
-        print("Scheduler variables:")
-        print(json.dumps(sched_config["pbs"], indent=5))
-
         if sched_config["pbs"]["walltime"]:
             cmd.append("-l walltime={}".format(sched_config["pbs"]["walltime"]))
 
