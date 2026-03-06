@@ -7,11 +7,12 @@ import shutil
 import subprocess
 import time
 import json
-from typing import List, Union, Any, Tuple, Dict
+from typing import List, Union, Any, Tuple, Dict, Optional
 
 import hostlist
 import yaml_config as yc
 from pavilion import sys_vars
+from pavilion.config import PavConfig
 from pavilion.jobs import Job, JobInfo
 from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.types import NodeInfo, NodeList
@@ -56,8 +57,8 @@ class QsubHeader(KickoffScriptHeader):
         return lines
 
 
-def validate_pbs_states(states):
-    """Should be a list of strings (with no punctuation) or None."""
+def validate_pbs_states(states: List[str]) -> List[str]:
+    """Validate a list of PBS states to ensure they have the proper form."""
 
     # We can assume that if this isn't None it's a list.
     for state in states:
@@ -71,10 +72,11 @@ def validate_pbs_states(states):
 class PBSVars(SchedulerVariables):
     """Scheduler variables for the Pbs scheduler."""
 
-    def _test_cmd(self):
+    def _test_cmd(self) -> str:
         """Construct a cmd to run a process under this scheduler, with the
         criteria specified by this test.
         """
+
         pbs_conf = self._sched_config["pbs"]
         nodes = len(self._nodes)
         tasks = self._sched_config["tasks"]
@@ -83,7 +85,6 @@ class PBSVars(SchedulerVariables):
             tasks = int(self.tasks_per_node()) * nodes
 
         if self._sched_config["pbs"]["mpi_cmd"] != "":
-            # cmd: mpirun
             cmd = ["mpirun"]
             cmd.extend(self.mpirun_opts())
             cmd.extend(["--host", ",".join(self._nodes.keys())])
@@ -91,7 +92,7 @@ class PBSVars(SchedulerVariables):
         return " ".join(cmd)
 
     @dfr_var_method
-    def test_cmd(self):
+    def test_cmd(self) -> str:
         """Calls the actual test command and then wraps the return with the wrapper
         provided in the schedule section of the configuration."""
 
@@ -118,40 +119,45 @@ class PBSVars(SchedulerVariables):
             return None
 
 
-def pbs_float(val):
-    """PBS 'float' values might also be 'N/A'."""
+def pbs_float(val: str) -> Optional[float]:
+    """Parse PBS float values. PBS 'float' values might also be 'N/A'."""
+
     if val == "N/A":
         return None
     else:
         return float(val)
 
 
-def pbs_int(val):
-    """PBS 'int' values might also be 'N/A'."""
+def pbs_int(val: str) -> Optional[int]:
+    """Parse PVS int values. PBS 'int' values might also be 'N/A'."""
+
     if val == "N/A":
         return None
     else:
         return int(val)
 
 
-def pbs_str(val):
-    """PBS 'str' values might also be 'N/A'."""
+def pbs_str(val: str) -> Optional[str]:
+    """Parse PBS string values. PBS 'str' values might also be 'N/A'."""
+
     if val == "N/A":
         return None
     else:
         return str(val)
 
 
-def validate_mpi(val):
+def validate_mpi(val: str) -> Optional[str]:
     """PBS 'str' values might also be 'N/A'."""
+
     if val == "N/A":
         return None
     else:
         return str(val)
 
 
-def pbs_states(state):
+def pbs_states(state: str) -> List[str]:
     """Parse a PBS state down to something reasonable."""
+
     states = state.split("+")
 
     if not states:
@@ -192,7 +198,8 @@ class PBS(SchedulerPluginAdvanced):
         "node",
     )
 
-    def _get_config_elems(self):
+    def _get_config_elems(self) -> List[yc.ConfigElement]:
+        """Get the list of config elements for the PBS scheduler plugin."""
 
         elems = [
             yc.ListElem(
@@ -270,7 +277,9 @@ class PBS(SchedulerPluginAdvanced):
         return elems, validators, defaults
 
     @classmethod
-    def parse_node_list(cls, node_list) -> NodeList:
+    def parse_node_list(cls, node_list: List[str]) -> NodeList:
+        """Parse a list of nodes, returning a NodeList object."""
+
         nodes = []
         if node_list is None or node_list == "":
             return NodeList([])
@@ -281,7 +290,7 @@ class PBS(SchedulerPluginAdvanced):
 
         return NodeList(nodes)
 
-    def _get_alloc_nodes(self, job) -> NodeList:
+    def _get_alloc_nodes(self, job: Job) -> NodeList:
         """Get the list of allocated nodes."""
 
         _ = job
@@ -299,9 +308,11 @@ class PBS(SchedulerPluginAdvanced):
             )
 
     @staticmethod
-    def _get_raw_node_data(sched_config) -> Tuple[Union[List[Any], None], Any]:
+    def _get_raw_node_data(sched_config: Dict[str, Any]
+                            ) -> Tuple[List[Dict[str, Dict]], Dict[str, Dict]]:
         """Use the `pbsnodes` command to collect data on nodes.
         Types are converted according to self.FIELD_TYPES."""
+
         try:
             output = subprocess.check_output(
                 ["pbsnodes", "-avFjson"], stderr=subprocess.PIPE
@@ -319,7 +330,10 @@ class PBS(SchedulerPluginAdvanced):
 
         return raw_node_data, {"reservations": {}}
 
-    def _transform_raw_node_data(self, sched_config, node_data, extra) -> NodeInfo:
+    def _transform_raw_node_data(self,
+                                 sched_config: Dict[str, Any],
+                                 node_data: Dict[str, str],
+                                 extra: Dict[str, Any]) -> NodeInfo:
         """Translate the gathered data into a NodeInfo dict."""
 
         parsed_data = self._pbsnodes_parse(node_data)
@@ -364,9 +378,10 @@ class PBS(SchedulerPluginAdvanced):
 
         return node_info
 
-    def _filter_custom(
-        self, sched_config: dict, node_name: str, node: NodeInfo
-    ) -> Union[str, None]:
+    def _filter_custom(self,
+                       sched_config: Dict[str, Any],
+                       node_name: str,
+                       node: NodeInfo) -> Optional[str]:
         """Filter nodes by features. (Returns why a node should be filtered out, or None if it
         shouldn't be."""
 
@@ -396,13 +411,12 @@ class PBS(SchedulerPluginAdvanced):
 
     def _kickoff(
         self,
-        pav_cfg,
+        pav_cfg: PavConfig,
         job: Job,
-        sched_config: dict,
+        sched_config: Dict[str, Any],
         job_name: str,
-        nodes: Union[NodeList, None] = None,
-        node_range: Union[Tuple[int, int], None] = None,
-    ) -> JobInfo:
+        nodes: Optional[NodeList] = None,
+        node_range: Optional[Tuple[int, int]] = None) -> JobInfo:
         """Submit the kick off script using qsub."""
 
         _ = self
@@ -441,9 +455,9 @@ class PBS(SchedulerPluginAdvanced):
         )
 
     @staticmethod
-    def _pbsnodes_parse(section: str) -> Dict[str, str]:
-        # pbsnodes json output imports cleanly into dicts
-        # without modification
+    def _pbsnodes_parse(section: Dict[str, str]) -> Dict[str, str]:
+        """Transform pbsnodes output into a dictionary. pbsnodes json output imports
+        cleanly into dicts without modification."""
 
         node_info = {}
 
@@ -453,7 +467,7 @@ class PBS(SchedulerPluginAdvanced):
         return node_info
 
     @staticmethod
-    def _qstat(*args, timeout=30) -> List[Dict]:
+    def _qstat(*args, timeout: int = 30) -> List[Dict[str, Any]]:
         """Run qstat show and return the parsed output.
 
         :param list(str) args: Additional args to pbsnodes.
@@ -514,7 +528,7 @@ class PBS(SchedulerPluginAdvanced):
         "T",
     ]
 
-    def _job_status(self, pav_cfg, job_info: JobInfo) -> TestStatusInfo:
+    def _job_status(self, pav_cfg: PavConfig, job_info: JobInfo) -> TestStatusInfo:
         """Get the current status of the PBS job for the given test."""
 
         sys_name = sys_vars.get_vars(True)["sys_name"]
@@ -599,7 +613,7 @@ class PBS(SchedulerPluginAdvanced):
             when=time.time(),
         )
 
-    def cancel(self, job_info: JobInfo) -> Union[str, None]:
+    def cancel(self, job_info: JobInfo) -> Optional[str]:
         """qdel the job attached to the given test."""
 
         _ = self
