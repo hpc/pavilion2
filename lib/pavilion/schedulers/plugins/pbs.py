@@ -298,7 +298,8 @@ class PBS(SchedulerPluginAdvanced):
                 "Invalid pbs nodelist: '{}'".format(node_list), err
             )
 
-    def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
+    @staticmethod
+    def _get_raw_node_data(sched_config) -> Tuple[Union[List[Any], None], Any]:
         """Use the `pbsnodes` command to collect data on nodes.
         Types are converted according to self.FIELD_TYPES."""
         try:
