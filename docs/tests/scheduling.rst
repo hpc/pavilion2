@@ -11,7 +11,7 @@ covers the basics of how scheduler plugins operate.
 Included Scheduler Plugins
 --------------------------
 
-Pavilion comes with three scheduler plugins:
+Pavilion comes with four scheduler plugins:
 
 .. code-block:: bash
 
@@ -24,6 +24,7 @@ Pavilion comes with three scheduler plugins:
      raw       | Schedules tests as local processes.
      slurm     | Schedules tests via the Slurm scheduler.
      flux      | Schedules tests via the Flux Framework scheduler.
+     pbs       | Schedules tests via the PBS scheduler.
 
 Scheduler Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
