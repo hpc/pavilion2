@@ -47,8 +47,7 @@ class QsubHeader(KickoffScriptHeader):
             lines.append("#PBS -A {}".format(self._sched_vars.account()))
 
         if self._sched_vars.walltime() != "":
-            walltime = "00:01:00"
-            lines.append("#PBS -l walltime={}".format(walltime))
+            lines.append("#PBS -l walltime={}".format(self._sched_vars.walltime()))
 
         # Extra Qsub arguments
         for line in self._config["pbs"]["qsub_extra"]:
@@ -91,6 +90,8 @@ class PBSVars(SchedulerVariables):
         if tasks is None:
             tasks = int(self.tasks_per_node()) * nodes
 
+        cmd = []
+
         if self._sched_config["pbs"]["mpi_cmd"] != "":
             cmd = ["mpirun"]
             cmd.extend(self.mpirun_opts())
@@ -121,7 +122,7 @@ class PBSVars(SchedulerVariables):
         return walltime
 
     @dfr_var_method
-    def queue(self) -> str:
+    def queue(self) -> Optional[str]:
         """Queue to run job in."""
 
         if self._sched_config["pbs"]["queue"] is not None:
@@ -270,7 +271,7 @@ class PBS(SchedulerPluginAdvanced):
             "walltime": "00:01:00",
             "queue": None,
             "qsub_extra": [],
-            "mpi_cmd": [],
+            "mpi_cmd": "",
         }
 
         validators = {
@@ -288,7 +289,7 @@ class PBS(SchedulerPluginAdvanced):
         return elems, validators, defaults
 
     @classmethod
-    def parse_node_list(cls, node_list: List[str]) -> NodeList:
+    def parse_node_list(cls, node_list: Union[str, List[str], None]) -> NodeList:
         """Parse a list of nodes, returning a NodeList object."""
 
         nodes = []
@@ -308,8 +309,12 @@ class PBS(SchedulerPluginAdvanced):
         node_list = []
 
         nodefile = os.environ["PBS_NODEFILE"]
-        with open(nodefile, "r") as fin:
-            node_list = fin.read().split("\n")
+
+        try:
+            with open(nodefile, "r") as fin:
+                node_list = fin.read().split("\n")
+        except OSError as err:
+            raise SchedulerPluginError(f"Could not open PBS nodefile: {nodefile}.", err)
 
         try:
             return self.parse_node_list(node_list)
@@ -399,7 +404,8 @@ class PBS(SchedulerPluginAdvanced):
 
         _ = self
 
-        pbs_config = sched_config["pbs"]
+        # For now, don't do any special filtering. We may want to revisit this later.
+        return None
 
     def _available(self) -> bool:
         """Looks for several pbs commands, and tests pbs can talk to the
@@ -510,35 +516,35 @@ class PBS(SchedulerPluginAdvanced):
 
     # Pbs status mappings
     # SCHED_WAITING - The job is still queued and waiting to start.
-    SCHED_WAITING = [
+    SCHED_WAITING = (
         "Q",
         "W",
-    ]
-    # SCHED_OK - From pavilion's perspective, these all mean Pavilion should
+    )
+    # SCHED_RUN - From pavilion's perspective, these all mean Pavilion should
     # look to the test's status file for more information.
-    SCHED_RUN = [
+    SCHED_RUN = (
         "R",
         "B",
-    ]
+    )
     # SCHED_CANCELLED - The job was cancelled. We can't expect to see more
     # from the test status, as the test probably never started.
-    SCHED_CANCELLED = [
+    SCHED_CANCELLED = (
         "E",
         "X",
-    ]
+    )
     # SCHED_ERROR - Something went wrong, but the job was running at some
     # point.
-    SCHED_ERROR = [
+    SCHED_ERROR = (
         "F",
-    ]
+    )
     # SCHED_OTHER - Pavilion shouldn't see these, and will log them when it
     # does.
-    SCHED_OTHER = [
+    SCHED_OTHER = (
         "H",
         "U",
         "S",
         "T",
-    ]
+    )
 
     def _job_status(self, pav_cfg: PavConfig, job_info: JobInfo) -> TestStatusInfo:
         """Get the current status of the PBS job for the given test."""
