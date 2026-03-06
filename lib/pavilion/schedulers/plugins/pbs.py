@@ -72,6 +72,13 @@ def validate_pbs_states(states: List[str]) -> List[str]:
 class PBSVars(SchedulerVariables):
     """Scheduler variables for the Pbs scheduler."""
 
+    EXAMPLE = SchedulerVariables.EXAMPLE.copy()
+    EXAMPLE.update({
+        "test_cmd": "mpirun -np 16 --host node01:8,node02:8",
+        "walltime": "00:01:00",
+        "queue": "normal"
+    })
+
     def _test_cmd(self) -> str:
         """Construct a cmd to run a process under this scheduler, with the
         criteria specified by this test.
@@ -107,12 +114,16 @@ class PBSVars(SchedulerVariables):
 
     @dfr_var_method
     def walltime(self):
+        """Walltime to add to job in PBS format."""
+
         walltime = self._sched_config["pbs"]["walltime"]
 
         return walltime
 
     @dfr_var_method
     def queue(self):
+        """Queue to run job in."""
+
         if self._sched_config["pbs"]["queue"] is not None:
             return self._sched_config["pbs"]["queue"]
         else:
