@@ -4,6 +4,7 @@ from typing import Union
 from .plugins.raw import Raw
 from .plugins.slurm import Slurm
 from .plugins.flux import Flux
+from .plugins.pbs import PBS
 from .advanced import SchedulerPluginAdvanced
 from .basic import SchedulerPluginBasic
 from .config import validate_config
@@ -17,6 +18,7 @@ _builtin_scheduler_plugins = [
     Raw,
     Slurm,
     Flux,
+    PBS
 ]
 
 
