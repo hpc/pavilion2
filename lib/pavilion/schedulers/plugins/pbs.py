@@ -113,7 +113,7 @@ class PBSVars(SchedulerVariables):
         )
 
     @dfr_var_method
-    def walltime(self):
+    def walltime(self) -> str:
         """Walltime to add to job in PBS format."""
 
         walltime = self._sched_config["pbs"]["walltime"]
@@ -121,7 +121,7 @@ class PBSVars(SchedulerVariables):
         return walltime
 
     @dfr_var_method
-    def queue(self):
+    def queue(self) -> str:
         """Queue to run job in."""
 
         if self._sched_config["pbs"]["queue"] is not None:
