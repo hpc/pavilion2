@@ -318,9 +318,10 @@ class PBS(SchedulerPluginAdvanced):
                 "Invalid pbs nodelist: '{}'".format(node_list), err
             )
 
-    @staticmethod
-    def _get_raw_node_data(sched_config: Dict[str, Any]
-                            ) -> Tuple[List[Dict[str, Dict]], Dict[str, Dict]]:
+    # pylint: disable=no-self-use
+    def _get_raw_node_data(self,
+                           sched_config: Dict[str, Any]
+                          ) -> Tuple[List[Dict[str, Dict]], Dict[str, Dict]]:
         """Use the `pbsnodes` command to collect data on nodes.
         Types are converted according to self.FIELD_TYPES."""
 
