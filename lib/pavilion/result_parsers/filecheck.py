@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
 
 from pavilion.errors import ResultError
 from pavilion.result_parsers import base_classes
