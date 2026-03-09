@@ -1,6 +1,7 @@
 """Split line by a substring."""
 
-from typing import Tuple, List
+from pathlib import Path
+from typing import Tuple, List, Optional
 
 from pavilion.utils import IndentedLog
 from pavilion.result_parsers import base_classes
@@ -24,7 +25,10 @@ class Split(base_classes.ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, sep=None) -> Tuple[List, IndentedLog]:
+    def __call__(self,
+                 working_dir: Path,
+                 file: Path,
+                 sep: Optional[str] = None) -> Tuple[List[str], IndentedLog]:
         """Simply use the split string method to split"""
 
         log = IndentedLog()

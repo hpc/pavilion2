@@ -2,7 +2,8 @@
 
 import re
 import sre_constants
-from typing import Tuple, List
+from pathlib import Path
+from typing import Tuple, List, Optional
 
 from pavilion.utils import IndentedLog
 
@@ -55,7 +56,10 @@ class Regex(ResultParser):
         return kwargs
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, regex=None) -> Tuple[List, IndentedLog]:
+    def __call__(self,
+                 working_dir: Path,
+                 file: Path,
+                 regex: Optional[str] = None) -> Tuple[List, IndentedLog]:
 
         log = IndentedLog()
 

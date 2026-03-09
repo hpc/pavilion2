@@ -1,7 +1,8 @@
 """Parse values from tables."""
 
 import re
-from typing import Tuple, Dict
+from pathlib import Path
+from typing import Tuple, Dict, List, Optional
 
 import yaml_config as yc
 from pavilion import utils
@@ -92,10 +93,16 @@ class Table(ResultParser):
     NON_WORD_RE = re.compile(r'\W')
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, delimiter_re=None,
-                 col_names=None, by_column=True, lstrip=False,
-                 table_end_re=None, has_row_labels=False,
-                 row_ignore_re=None) -> Tuple[Dict, utils.IndentedLog]:
+    def __call__(self,
+                 working_dir: Path,
+                 file: Path,
+                 delimiter_re: Optional[str] = None,
+                 col_names: List[str] = None,
+                 by_column: bool = True,
+                 lstrip: bool = False,
+                 table_end_re: Optional[str] = None,
+                 has_row_labels: bool =False,
+                 row_ignore_re: Optional[str] = None) -> Tuple[Dict[str, Any], utils.IndentedLog]:
         log = utils.IndentedLog()
 
         lines = []
