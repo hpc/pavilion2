@@ -4,6 +4,9 @@ RELEASE=2.5
 
 ## 2.6 Pre-release notes
 
+- Test run directories are now named based on the series-relative IDs of test runs (e.g. `s1.1`).
+  This reduced lock contention when creating test runs, since IDs in different series are now
+  independent of one another.
 - Fixed a pair of bugs in the `outliers` expression function which result in dividing by zero
   when passed the empty list or a list in which all values are the same.
 
