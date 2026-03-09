@@ -1142,3 +1142,46 @@ class ResultParserTests(PavTestCase):
                 unflattened = _result["per_file"]
 
         self.assertEqual(unflattened, answer)
+
+    def test_command_parser(self):
+        """Test that the command result parser works correctly."""
+
+        cfg = self._quick_test_cfg()
+
+        cfg["run"]["create_files"] = {
+            "hello.txt": ["Hello, World!"]
+        }
+
+        cfg["result_parse"] = {
+            "command": {
+                "true": {
+                    "command": "true",
+                    "output_type": "return_value"
+                },
+                "hello": {
+                    "command": "echo 'Hello, World!'",
+                    "output_type": "stdout"
+                },
+                "pwd": {
+                    "command": "pwd",
+                    "output_type": "stdout"
+                },
+                "hello_cat": {
+                    "command": "cat hello.txt",
+                    "output_type": "stdout"
+                },
+            }
+        }
+
+        expected = {
+            "true": 0,
+            "hello": "Hello, World!\n",
+            "hello_cat": "Hello, World!\n",
+        }
+
+        test = self._quick_test(cfg, "command_test")
+        test.run()
+        results = test.gather_results(0)
+
+        for key in expected:
+            self.assertEqual(results[key], expected[key])
