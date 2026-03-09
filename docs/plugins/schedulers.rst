@@ -53,23 +53,23 @@ the 'pavilion.schedulers.scheduler.SchedulerPlugin' class.
 
 All scheduler plugin require that you extend the base class by providing:
 
-1. A ``_kickoff()`` method — a means to acquire an allocation given the scheduler parameters
+1. A ``_kickoff`` method — a means to acquire an allocation given the scheduler parameters
    and run a script on it. Also needs to return a 'serializable' job ID, to uniquely
    identify a scheduler job.
-2. A ``_job_status()`` method, that asks the scheduler whether a given job ID is
+2. A ``_job_status`` method, that asks the scheduler whether a given job ID is
    scheduled, had a scheduling error, was cancelled, or is running.
-3. A ``cancel()`` method, to cancel a given job ID.
-4. A ``_get_alloc_nodes()`` method, to get the list of nodes in an allocation that
+3. A ``cancel`` method, to cancel a given job ID.
+4. A ``_get_alloc_nodes`` method, to get the list of nodes in an allocation that
    Pavilion is currently running under.
-5. An ``_available()`` method, to tell Pavilion if your scheduler can be used at all.
+5. An ``_available`` method, to tell Pavilion if your scheduler can be used at all.
 
 
 Advanced schedulers must also override the following. They are fully documented
 in the ``pavilion.schedulers.SchedulerPluginAdvanced`` class.
 
-1. ``_get_raw_node_data()`` - Should fetch and return a list of information about each node.
+1. ``_get_raw_node_data`` - Should fetch and return a list of information about each node.
     This is the per-node information mentioned above.
-2. ``_transform_raw_node_data()`` - Converts that data into a ``{node: info_dict}`` dictionary.
+2. ``_transform_raw_node_data`` - Converts that data into a ``{node: info_dict}`` dictionary.
 
    There are several required keys each node's ``info_dict`` must contain. See the method
    documentation for info on the required and optional keys.
