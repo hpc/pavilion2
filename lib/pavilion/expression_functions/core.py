@@ -579,6 +579,10 @@ class Outliers(CoreFunctionPlugin):
 
         deviations = {}
 
+        if stddev == 0.0:
+            # Avoid division by zero
+            return deviations
+
         for i in range(len(values)):
             val = values[i]
 

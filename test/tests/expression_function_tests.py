@@ -50,7 +50,8 @@ class ExprFuncTests(PavTestCase):
             'outliers': [(([1, 2, 3, 4, 5, 6, 7, 99, 108],
                            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
                            1.5),
-                          {'h': 1.7581382586345833, 'i': 1.9752254521550119})],
+                          {'h': 1.7581382586345833, 'i': 1.9752254521550119}),
+                          (([0], ["foo"], 2.0), {})],
             'high_pass_filter': [(({'a': 1, 'b': 2, 'c': 3}, 2), {'c': 3}),
                                  (({'a': {'i': 1}, 'b': {'i': 2}}, 1.5, 'i'), {'b': {'i': 2}})],
             'low_pass_filter': [(({'a': 1, 'b': 2, 'c': 3}, 2), {'a': 1}),
@@ -93,7 +94,7 @@ class ExprFuncTests(PavTestCase):
                 if answer is None:
                     continue
 
-                self.assertEqual(result, answer, 
+                self.assertEqual(result, answer,
                                  msg="Result for func {} does not match: {} != {}"
                                      .format(func_name, result, answer))
                 self.assertEqual(type(result), type(answer))
