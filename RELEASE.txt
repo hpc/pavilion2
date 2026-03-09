@@ -9,6 +9,8 @@ RELEASE=2.5
   independent of one another.
 - Fixed a pair of bugs in the `outliers` expression function which result in dividing by zero
   when passed the empty list or a list in which all values are the same.
+- Fixed a bug in which the `command` result parser did not run commands inside the build
+  directory'
 
 # Release History
 
