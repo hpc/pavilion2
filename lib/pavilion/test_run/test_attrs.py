@@ -49,7 +49,6 @@ class TestAttributes(Mapping):
 
     serializers = {
         "id": str,
-        "series_rel_id": str,
         "status": lambda s: s.path.as_posix(),
         'suite_path': lambda p: p.as_posix(),
     }
@@ -58,7 +57,6 @@ class TestAttributes(Mapping):
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
         'id': lambda x: TestID(str(x)),
-        'series_rel_id': TestID,
         'started': utils.deserialize_datetime,
         "status": lambda s: TestStatusFile(Path(s)),
         'suite_path': lambda p: Path(p) if p is not None else None,
@@ -374,9 +372,6 @@ class TestAttributes(Mapping):
     skipped = basic_attr(
         name='skipped',
         doc="Did this test's skip conditions evaluate as 'skipped'?")
-    series_rel_id = basic_attr(
-        name="series_rel_id",
-        doc="The test ID relative to its series.")
     started = basic_attr(
         name='started',
         doc="The start time for this test run.")
