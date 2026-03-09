@@ -5,6 +5,7 @@ import inspect
 import logging
 import re
 import textwrap
+from pathlib import Path
 from typing import List
 
 import pavilion.deferred
@@ -75,6 +76,16 @@ def match_pos_validator(match_pos):
         raise ValueError("Invalid regular expression.\n{}"
                          .format(match_pos, err.args[0]))
 
+def working_dir_validator(working_dir: str):
+    """Validate working directory."""
+
+    try:
+        Path(working_dir).resolve()
+    except (OSError, TypeError):
+        raise ValueError(f"Invalid path: {working_dir}.")
+
+    if not Path(working_dir).is_dir():
+        raise ValueError(f"Not a directory: {working_dir}.")
 
 # Validators are used to check the attribute values. When a attribute
 # is a list, they are applied against each list item.
@@ -84,6 +95,7 @@ BASE_VALIDATORS = {
     'for_lines_matching': match_pos_validator,
     'action': tuple(ACTIONS.keys()),
     'per_file': tuple(PER_FILES.keys()),
+    'working_dir': working_dir_validator
 }
 
 
@@ -211,7 +223,7 @@ deferred args. On error, should raise a ResultParserError.
             args[key] = kwargs[key]
         kwargs = args
 
-        base_keys = ('action', 'per_file', 'files', 'match_select',
+        base_keys = ('action', 'per_file', 'working_dir', 'files', 'match_select',
                      'for_lines_matching', 'preceded_by')
 
         for key in base_keys:
@@ -305,6 +317,11 @@ deferred args. On error, should raise a ResultParserError.
                     TRUE=ACTION_TRUE,
                     FALSE=ACTION_FALSE,
                     COUNT=ACTION_COUNT))
+        ),
+        yc.StrElem(
+            "working_dir",
+            help_text="Directory from which the result parser will run. "
+                      "By default, the test's build directory."
         ),
         # The default for the file is handled by the test object.
         yc.ListElem(
@@ -470,6 +487,7 @@ Example: ::
     _DEFAULTS = {
         'per_file':           PER_FIRST,
         'action':             ACTION_STORE,
+        'working_dir':        ".",
         'files':              ['../run.log'],
         'match_select':       MATCH_FIRST,
         'for_lines_matching': '',

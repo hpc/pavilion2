@@ -1,6 +1,7 @@
 """Execute a command and get its output or return value."""
 import subprocess
-from typing import Tuple
+from pathlib import Path
+from typing import Tuple, Optional
 
 import yaml_config as yc
 from pavilion import errors
@@ -44,8 +45,9 @@ class Command(base_classes.ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self, file, command=None, output_type=None,
-                 stderr_dest=None) -> Tuple[int, IndentedLog]:
+    def __call__(self, working_dir: Path, file: Path, command: Optional[str] = None,
+                 output_type: Optional[str] = None,
+                 stderr_dest: Optional[str] = None) -> Tuple[int, IndentedLog]:
 
         log = IndentedLog()
 
@@ -61,7 +63,8 @@ class Command(base_classes.ResultParser):
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=err,
-                encoding="utf-8"
+                encoding="utf-8",
+                cwd=working_dir
             )
         except subprocess.CalledProcessError as err:
             raise errors.ResultError(
