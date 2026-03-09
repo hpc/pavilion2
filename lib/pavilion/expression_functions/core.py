@@ -574,10 +574,13 @@ class Outliers(CoreFunctionPlugin):
             raise FunctionPluginError(
                 "The 'values' and 'names' arguments must be lists of equal length.")
 
+        deviations = {}
+
+        if len(values) == 0:
+            return deviations
+
         mean = sum(values)/len(values)
         stddev = (sum([(val - mean)**2 for val in values])/len(values))**0.5
-
-        deviations = {}
 
         if stddev == 0.0:
             # Avoid division by zero
