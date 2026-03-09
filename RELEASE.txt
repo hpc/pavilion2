@@ -4,6 +4,10 @@ RELEASE=2.4
 
 # Release History
 
+## 2.6 Pre-release notes
+
+- Minor documentation improvements.
+
 ## 2.5 Release Notes
 
  - Tests can (and should) now be structured as suites directories, which can contain test, host,

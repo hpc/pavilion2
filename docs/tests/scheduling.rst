@@ -240,8 +240,6 @@ nodes.
 With ``schedule.share_allocation`` set to ``max``, Pavilion forces as many test runs into the same
 job as possible.
 
-.. _tests.scheduling.chunking:
-
 Node Filtering Exceptions
 -------------------------
 
@@ -275,6 +273,8 @@ To accomplish the same thing via a command-line override:
 .. code-block:: bash
 
   pav run mytest -c schedule.exclude_nodes='nid001,nid003,nid[007-023]'
+
+.. _tests.scheduling.chunking:
 
 Chunking
 --------
