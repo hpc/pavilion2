@@ -317,10 +317,10 @@ of the chunk of which it is a member.
     # full coverage of the system.
     mytest:
       # Creates separate instance of the test for each chunk.
-      permute_on: chunk_ids
+      permute_on: sched.chunk_ids
 
       # Each test instance stores the ID of the chunk it belongs to
-      chunk: '{{chunk_ids}}'
+      chunk: '{{sched.chunk_ids}}'
       schedule:
         # When using chunking, 'all' refers to all nodes in the chunk
         # rather than on the whole system.
