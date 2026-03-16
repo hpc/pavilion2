@@ -13,7 +13,6 @@ from pavilion import utils
 from ..result_parsers import base_classes
 from .base import base_results, BASE_RESULTS, RESULT_ERRORS
 from .evaluations import check_expression, evaluate_results
-from .base import BASE_RESULTS
 from .evaluations import check_expression
 from ..errors import StringParserError, ResultError
 from .parse import parse_results, DEFAULT_KEY
