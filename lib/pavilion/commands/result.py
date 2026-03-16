@@ -231,11 +231,17 @@ class ResultsCommand(Command):
         else:
             fields = self.key_fields(args)
             flat_results = []
+            key_results = set()
             all_passed = True
             for rslt in results:
                 flat_results.append(utils.flatten_dictionary(rslt))
                 if rslt['result'] != TestRun.PASS:
                     all_passed = False
+
+                key_results = key_results.union(set(rslt.get('key_results', [])))
+
+            fields += key_results
+
             field_info = {
                 'created': {'transform': output.get_relative_timestamp},
                 'started': {'transform': output.get_relative_timestamp},

@@ -1142,3 +1142,38 @@ class ResultParserTests(PavTestCase):
                 unflattened = _result["per_file"]
 
         self.assertEqual(unflattened, answer)
+
+    def test_key_results(self):
+        """Check that specifying key results causes those values to show up
+        in the results table."""
+
+        cfg = self._quick_test_cfg()
+
+        cfg['run']['cmds'] = [
+            'echo hello'
+        ]
+        cfg['result_parse']['regex'] = {
+            'hello': {
+                'regex': 'hello',
+            }
+        }
+        cfg['key_results'] = ['hello']
+
+        test = self._quick_test(cfg, name="key_results_test")
+        run_result = test.run()
+        results = test.gather_results(run_result)
+        test.save_results(results)
+
+        result_cmd = commands.get_command('result')
+        result_cmd.silence()
+
+        arg_parser = arguments.get_parser()
+        res_args = arg_parser.parse_args(("result", test.full_id))
+
+        result_cmd.run(self.pav_cfg, res_args)
+        cmd_out, cmd_err = result_cmd.clear_output()
+
+        lines = cmd_out.split('\n')
+
+        self.assertIn("Hello", lines[2])
+        self.assertIn("hello", lines[4])

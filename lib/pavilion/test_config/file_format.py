@@ -858,6 +858,12 @@ expected to be added to by various plugins.
                       "strings). Other result values (including those "
                       "from result parsers and other evaluations are "
                       "available to reference as variables."),
+        yc.ListElem(
+            'key_results',
+            sub_elem=yc.StrElem(),
+            help_text="The list of result keys that should be considered "
+                      "'key results'. These results appear automatically "
+                      "when running 'pav results'."),
         ModuleWrapperCatElem(
             'module_wrappers',
             help_text="Whenever the given module[/version] is asked for in the 'build.modules' "
