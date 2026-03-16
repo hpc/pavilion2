@@ -51,6 +51,7 @@ SEP = '^' if sys.platform == 'win32' else '|'
 # server should return, but some Linux versions return ENOENT.
 ERRORS = (errno.ENOENT, errno.ESTALE)
 
+logging.basicConfig(filename="flufl.lock.log", level=logging.DEBUG)
 
 log = logging.getLogger('flufl.lock')
 
@@ -458,7 +459,7 @@ class Lock:
         # XXX Can the link count ever be > 2?
         if self._linkcount != 2:
             return False
-        return self._read() == self._claimfile
+        return self._read() == str(elf._claimfile)
 
     @property
     def is_locked(self) -> bool:
@@ -510,7 +511,7 @@ class Lock:
         """Write our claim file's name to the claim file."""
         # Make sure it's group writable.
         with open(self._claimfile, 'w') as fp:
-            fp.write(self._claimfile)
+            fp.write(str(self._claimfile))
 
     @property
     def retry_errnos(self) -> List[int]:
