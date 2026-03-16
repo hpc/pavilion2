@@ -51,8 +51,6 @@ SEP = '^' if sys.platform == 'win32' else '|'
 # server should return, but some Linux versions return ENOENT.
 ERRORS = (errno.ENOENT, errno.ESTALE)
 
-logging.basicConfig(filename="flufl.lock.log", level=logging.DEBUG)
-
 log = logging.getLogger('flufl.lock')
 
 # Install a null handler to avoid warnings when applications don't set their
@@ -459,7 +457,7 @@ class Lock:
         # XXX Can the link count ever be > 2?
         if self._linkcount != 2:
             return False
-        return self._read() == str(elf._claimfile)
+        return self._read() == str(self._claimfile)
 
     @property
     def is_locked(self) -> bool:
