@@ -6,10 +6,10 @@ from typing import List, Tuple
 
 from pavilion import dir_db
 from pavilion import groups
-from pavilion import lockfile
-from pavilion import utils
 from pavilion.builder import TestBuilder
-from pavilion.test_run import test_run_attr_transform, TestAttributes
+from pavilion.test_run import TestAttributes
+
+from flufl.lock import Lock
 
 
 def delete_tests(pav_cfg, id_dir: Path, filter_func, verbose: bool = False):
@@ -57,7 +57,7 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
 
     lock_path = builds_dir.with_suffix('.lock')
     msgs = []
-    with lockfile.LockFile(lock_path) as lock:
+    with Lock(lock_path) as lock:
         for path in dir_db.select(pav_cfg, builds_dir, filter_builds)[0]:
             lock.renew(rate_limit=True)
             try:

@@ -8,8 +8,7 @@ import traceback
 from pathlib import Path
 from typing import TextIO
 
-from pavilion import output
-from pavilion.lockfile import LockFile
+from flufl.lock import Lock
 
 
 class LockFileRotatingFileHandler(logging.Handler):
@@ -45,8 +44,8 @@ class LockFileRotatingFileHandler(logging.Handler):
         self.encoding = encoding
         self.lock_timeout = lock_timeout
         lockfile_path = self.file_name.parent/(self.file_name.name + '.lock')
-        self.lock_file = LockFile(lockfile_path,
-                                  timeout=self.lock_timeout)
+        self.lock_file = Lock(lockfile_path,
+                                  default_timeout=self.lock_timeout)
 
         super().__init__()
 

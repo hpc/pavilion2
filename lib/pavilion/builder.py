@@ -20,9 +20,9 @@ from contextlib import ExitStack
 
 import pavilion.config
 import pavilion.errors
-from pavilion import extract, lockfile, utils, wget, create_files
+from pavilion import extract, utils, wget, create_files
 from pavilion.build_tracker import BuildTracker
-from pavilion.lockfile import FuzzyLock
+from flufl.lock import Lock
 from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
@@ -482,9 +482,9 @@ class TestBuilder:
             mb_tracker = tracker.tracker
             locks = [mb_tracker.make_lock_context(self.build_hash)]
 
-            # Only use FuzzyLock if building on nodes
+            # Only use NFS Lock if building on nodes
             if self._pav_cfg.get('build', {}).get('on_nodes', 'false').lower() == 'true':
-                locks.append(FuzzyLock(self.path.parent / f"{self.name}.lock"))
+                locks.append(Lock(self.path.parent / f"{self.name}.lock"))
 
             # Allows for variable number of locks
             with ExitStack() as stack:

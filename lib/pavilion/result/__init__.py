@@ -9,14 +9,12 @@ from pathlib import Path
 from typing import List
 
 import pavilion.deferred
-from pavilion import lockfile as _lockfile
 from pavilion import utils
 from ..result_parsers import base_classes
-from .base import base_results, BASE_RESULTS, RESULT_ERRORS
-from .evaluations import check_expression, evaluate_results
+from .base import BASE_RESULTS
+from .evaluations import check_expression
 from ..errors import StringParserError, ResultError
-from .parse import parse_results, DEFAULT_KEY
-
+from .parse import parse_result
 
 def check_config(parser_conf, evaluate_conf):
     """Make sure the result config is sensible, both for result parsers and
@@ -117,7 +115,7 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
     rewrite_log_path = log_path.with_suffix('.rewrite')
     lockfile_path = log_path.with_suffix(log_path.suffix + '.lock')
 
-    with _lockfile.LockFile(lockfile_path) as lock, \
+    with Lock(lockfile_path) as lock, \
          log_path.open() as result_log, \
             rewrite_log_path.open('w') as rewrite_log:
 

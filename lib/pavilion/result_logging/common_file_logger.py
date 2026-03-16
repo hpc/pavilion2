@@ -5,8 +5,9 @@ from typing import Dict, Optional, TextIO
 
 from pavilion import output
 from pavilion.errors import ResultLoggerPluginError
-from pavilion.lockfile import FuzzyLock
 from .base_classes import ResultLoggerPlugin, ResultLogger
+
+from flufl.lock import Lock
 
 
 class CommonFileLoggerFactory(ResultLoggerPlugin):
@@ -58,7 +59,7 @@ class CommonFileResultLogger(ResultLogger):
     def log(self, results: Dict) -> None:
         output.fprint(self.outfile, f"{type(self).__name__}: Logging {results} to {self.dest}...")
 
-        with FuzzyLock(self.dest.parent / "results.lock", timeout=10):
+        with Lock(self.dest.parent / "results.lock", default_timeout=10):
             with open(self.dest, "a") as fout:
                 json.dump(results, fout)
                 fout.write("\n")

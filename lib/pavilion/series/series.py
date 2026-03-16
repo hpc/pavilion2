@@ -8,14 +8,13 @@ import math
 import os
 import re
 import signal
-import sys
 import subprocess
 import time
 from collections import defaultdict, OrderedDict
 from pathlib import Path
 from operator import attrgetter
 from itertools import product
-from typing import List, Dict, Set, Union, TextIO, Iterator, Optional
+from typing import List, Dict, Union, TextIO, Iterator, Optional
 
 import pavilion
 from pavilion.config import PavConfig
@@ -25,24 +24,22 @@ from pavilion import dir_db
 from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion import lockfile
 from pavilion.enums import Verbose
-from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
-from pavilion.types import ID_Pair
 from pavilion.micro import partition, do, listfilter, stardo, flatten
 from pavilion.timing import TimeLimiter
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.result_logging import get_result_loggers
-from pavilion.dir_db import create_id_dir
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
 from ..errors import TestSetError, TestSeriesError, TestSeriesWarning, ResultLoggerPluginError
 from . import common
+
+from flufl.lock import Lock
 
 
 class TestSeries:
@@ -828,7 +825,7 @@ class TestSeries:
 
         lockfile_path = json_file.with_suffix('.lock')
 
-        with LockFile(lockfile_path):
+        with Lock(lockfile_path):
             data = {}
             try:
                 with json_file.open() as json_series_file:
