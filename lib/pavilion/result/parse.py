@@ -114,8 +114,6 @@ configured for that test.
     per_file = {}
     # Action values by key
     actions = {}
-    # Parser working directories by key
-    working_dirs = {}
 
     # A list of encountered error messages.
     errors = []
@@ -330,9 +328,12 @@ def parse_result(key: str, parser_cfg: Dict, working_dir: Path, file: TextIO,
     except ResultError as err:
         return ParseErrorMsg(parser, err.args[0], key), log
 
+    # Only pass the working directory if the parser accepts it as an argument.
+    if "working_dir" in inspect.signature(parser.__call__).parameters:
+        stripped_cfg["working_dir"] = working_dir
+
     try:
         res, elog = extract_result(
-            working_dir=working_dir,
             file=file,
             parser=parser, parser_args=stripped_cfg,
             pos_regexes=match_cond_rex,
@@ -359,7 +360,7 @@ def parse_result(key: str, parser_cfg: Dict, working_dir: Path, file: TextIO,
         return ParseErrorMsg(parser, msg, key), log
 
 
-def extract_result(working_dir: Path, file: TextIO, parser: ResultParser, parser_args: dict,
+def extract_result(file: TextIO, parser: ResultParser, parser_args: dict,
                    match_idx: Union[int, str],
                    pos_regexes: List[Pattern]) -> Tuple[Any, IndentedLog]:
     """Parse a result from a result file.
@@ -389,7 +390,7 @@ def extract_result(working_dir: Path, file: TextIO, parser: ResultParser, parser
                 .format(file.tell()))
         try:
             # Apply to the parser to that file starting on that line.
-            res, plog = parser(working_dir, file, **parser_args)
+            res, plog = parser(file, **parser_args)
             log.indent(plog)
         except (ValueError, LookupError, OSError) as err:
             log("Error calling result parser {}.".format(parser.name))

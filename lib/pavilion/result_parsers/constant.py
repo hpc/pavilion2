@@ -1,6 +1,5 @@
 """Return a constant."""
 
-from pathlib import Path
 from typing import Tuple, Any
 
 from pavilion.utils import IndentedLog
@@ -33,6 +32,6 @@ class Constant(ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self, working_dir: Path, file: Path, const: Any = None) -> Tuple[Any, IndentedLog]:
+    def __call__(self, file, const=None) -> Tuple[Any, IndentedLog]:
         log = IndentedLog()
         return const, log

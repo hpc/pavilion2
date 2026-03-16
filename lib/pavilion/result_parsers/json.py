@@ -2,8 +2,7 @@
 
 import json
 import re
-from pathlib import Path
-from typing import Dict, Tuple, Optional, List, Any
+from typing import Dict, Tuple, Optional
 
 from pavilion.utils import IndentedLog
 
@@ -45,12 +44,8 @@ class Json(base_classes.ResultParser):
         )
 
     # pylint: disable=arguments-differ
-    def __call__(self,
-                 working_dir: Path,
-                 file: Path,
-                 include_only: Optional[List[str]] = None,
-                 exclude: Optional[List[str]] = None,
-                 stop_at: Optional[str] = None) -> Tuple[Optional[Dict[str, Any]], IndentedLog]:
+    def __call__(self, file, include_only=None, exclude=None,
+                    stop_at=None) -> Tuple[Optional[Dict], IndentedLog]:
         log = IndentedLog()
 
         if include_only is None:
