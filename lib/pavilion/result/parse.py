@@ -128,10 +128,12 @@ configured for that test.
             per_file[key] = rconf['per_file']
             actions[key] = rconf['action']
 
-            if not rconf["working_dir"].startswith("/"):
-                working_dir = test.path / BUILD_DIR / rconf["working_dir"]
+            working_dir = rconf.get("working_dir", ".")
+
+            if not working_dir.startswith("/"):
+                working_dir = (test.path / BUILD_DIR / working_dir).resolve()
             else:
-                working_dir = Path(rconf["working_dir"])
+                working_dir = Path(working_dir)
 
             for file_glob in rconf['files']:
                 base_glob = file_glob
