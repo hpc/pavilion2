@@ -17,10 +17,10 @@ class ScriptComposerError(RuntimeError):
 class ScriptHeader:
     """Class to serve as a struct for the script header."""
 
-    def __init__(self, shebang='#!/bin/bash'):
+    def __init__(self, shebang='#!/usr/bin/env bash'):
         """The header values for a script.
-        :param string shebang: Shell path specification.  Typically
-                                  '/bin/bash'.  default = None.
+        :param string shebang: Shell path specification. Defaults to '#!/usr/bin/env bash'
+            for portability.
         """
 
         # Set _shebang so that style_check doesn't complain at the setter block.
