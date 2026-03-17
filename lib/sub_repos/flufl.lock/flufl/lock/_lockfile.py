@@ -1,5 +1,6 @@
 # Adapted from: flufl.lock/_lockfile.py (https://gitlab.com/warsaw/flufl.lock/-/tree/6.0)
 # Copyright 2021 Barry Warsaw
+# Modifications Copyright 2026 Los Alamos National Laboratory
 # Licensed under the Apache License, Version 2.0
 #
 # Modifications:
