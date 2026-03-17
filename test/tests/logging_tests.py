@@ -4,13 +4,13 @@ import io
 import logging
 import uuid
 import json
-from pathlib import Path
-import threading
 
 from pavilion import commands
 from pavilion import arguments
 from pavilion.log_setup import LockFileRotatingFileHandler, setup_loggers
 from pavilion.unittest import PavTestCase
+
+from flufl.lock import Lock
 
 
 class LoggingTests(PavTestCase):
@@ -130,9 +130,14 @@ class LoggingTests(PavTestCase):
 
         # If the lock times out, this should catch the exception and print
         # the error.
-        with handler.lock_file:
+        other_lock = Lock(handler.lock_file._lockfile, default_timeout=handler.lock_timeout)
+        other_lock.lock()
+
+        try:
             rec, ident = self._make_record('timeout')
             handler.handle(rec)
+        finally:
+            other_lock.unlock()
 
         self.assertIn(ident, handler.ERR_OUT.getvalue())
         self.assertNotIn(ident, logfile_path.open().read())
