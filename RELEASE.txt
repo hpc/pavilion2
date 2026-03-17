@@ -11,6 +11,7 @@ RELEASE=2.5
   when passed the empty list or a list in which all values are the same.
 - Fixed a bug in which the `command` result parser did not run commands inside the build
   directory'
+- Improved locking for NFS systems.
 
 # Release History
 
