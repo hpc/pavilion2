@@ -57,9 +57,9 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
 
     lock_path = builds_dir.with_suffix('.lock')
     msgs = []
-    with Lock(lock_path) as lock:
+    with Lock(lock_path, lifetime=3) as lock:
         for path in dir_db.select(pav_cfg, builds_dir, filter_builds)[0]:
-            lock.renew(rate_limit=True)
+            lock.refresh()
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()

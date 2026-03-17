@@ -130,7 +130,7 @@ class LoggingTests(PavTestCase):
 
         # If the lock times out, this should catch the exception and print
         # the error.
-        other_lock = Lock(handler.lock_file._lockfile, default_timeout=handler.lock_timeout)
+        other_lock = Lock(handler.lock_file._lockfile, default_timeout=handler.lock_timeout, lifetime=3)
         other_lock.lock()
 
         try:

@@ -59,7 +59,7 @@ class CommonFileResultLogger(ResultLogger):
     def log(self, results: Dict) -> None:
         output.fprint(self.outfile, f"{type(self).__name__}: Logging {results} to {self.dest}...")
 
-        with Lock(self.dest.parent / "results.lock", default_timeout=10):
+        with Lock(self.dest.parent / "results.lock", default_timeout=10, lifetime=3):
             with open(self.dest, "a") as fout:
                 json.dump(results, fout)
                 fout.write("\n")

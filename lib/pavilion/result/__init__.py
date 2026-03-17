@@ -16,6 +16,8 @@ from .evaluations import check_expression, evaluate_results
 from ..errors import StringParserError, ResultError
 from .parse import parse_results, DEFAULT_KEY
 
+from flufl.lock import Lock
+
 def check_config(parser_conf, evaluate_conf):
     """Make sure the result config is sensible, both for result parsers and
 evaluations.
@@ -115,12 +117,12 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
     rewrite_log_path = log_path.with_suffix('.rewrite')
     lockfile_path = log_path.with_suffix(log_path.suffix + '.lock')
 
-    with Lock(lockfile_path) as lock, \
+    with Lock(lockfile_path, lifetime=3) as lock, \
          log_path.open() as result_log, \
             rewrite_log_path.open('w') as rewrite_log:
 
         for line in result_log:
-            lock.renew(rate_limit=True)
+            lock.refresh()
             try:
                 result = json.loads(line)
             except json.JSONDecodeError:
