@@ -4,6 +4,7 @@
 #
 # Modifications:
 # - Adapted to remove dependency on `public` package (2026, Hank Wikle, Los Alamos National Laboratory)
+# - Removed custom `TimeOutError` in favor of native Python `TimeoutError` (2026, Hank Wikle, Los Alamos National Laboratory)
 #
 # Original license text is included in LICENSE file.
 
@@ -15,7 +16,6 @@ from flufl.lock._lockfile import (
     LockState,
     NotLockedError,
     SEP,
-    TimeOutError,
 )
 
 

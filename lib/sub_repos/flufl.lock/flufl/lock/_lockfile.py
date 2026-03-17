@@ -5,6 +5,7 @@
 # Modifications:
 # - Adapted to remove dependency on `psutil` and `public` packages (2026, Hank Wikle, Los Alamos National Laboratory)
 # - Modified Lock class to take `Path` object instead of string (2026, Hank Wikle, Los Alamos National Laboratory)
+# - Replaced custom `TimeOutError` with native Python `TimeoutError` (2026, Hank Wikle, Los Alamos National Laboratory)
 #
 # Original license text is included in LICENSE file.
 
@@ -68,10 +69,6 @@ class AlreadyLockedError(LockError):
 
 class NotLockedError(LockError):
     """An attempt is made to unlock an object that isn't locked."""
-
-
-class TimeOutError(LockError):
-    """The timeout interval elapsed before the lock succeeded."""
 
 
 class LockState(Enum):
@@ -331,13 +328,13 @@ class Lock:
         """Acquire the lock.
 
         This blocks until the lock is acquired unless optional timeout is not
-        None, in which case a ``TimeOutError`` is raised when the timeout
+        None, in which case a ``TimeoutError`` is raised when the timeout
         expires without lock acquisition.
 
         :param timeout: Approximately how long the lock acquisition attempt
             should be made.  None (the default) means keep trying forever.
         :raises AlreadyLockedError: if the lock is already acquired.
-        :raises TimeOutError: if ``timeout`` is not None and the indicated
+        :raises TimeoutError: if ``timeout`` is not None and the indicated
             time interval expires without a lock acquisition.
         """
         timeout_time = _interval_to_datetime(
@@ -402,7 +399,7 @@ class Lock:
             if timeout_time is not None and timeout_time < datetime.now():
                 os.unlink(self._claimfile)
                 log.error('timed out')
-                raise TimeOutError('Could not acquire the lock')
+                raise TimeoutError('Could not acquire the lock')
             # Okay, we haven't timed out, but we didn't get the lock.  Let's
             # find out if the lock lifetime has expired.  Cache the release
             # time to avoid race conditions.  (LP: #827052)
