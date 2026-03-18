@@ -50,7 +50,7 @@ class TestScriptWriter(PavTestCase):
         # Testing initialization defaults.
         composer = scriptcomposer.ScriptComposer()
 
-        self.assertEqual(composer.header.shebang, '#!/usr/bin/env bash')
+        self.assertEqual(composer.header.shebang, '#!/bin/bash')
 
         # Testing individual assignment
         test_header_shell = "/usr/env/python"
@@ -67,7 +67,7 @@ class TestScriptWriter(PavTestCase):
 
         composer = scriptcomposer.ScriptComposer()
 
-        self.assertEqual(composer.header.shebang, '#!/usr/bin/env bash')
+        self.assertEqual(composer.header.shebang, '#!/bin/bash')
 
         # Testing object assignment.
         header = scriptcomposer.ScriptHeader(

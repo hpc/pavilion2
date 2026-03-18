@@ -221,7 +221,7 @@ class TestRun(TestAttributes):
 
         self.permute_vars = self._get_permute_vars()
 
-        self.shebang = self.config.get('shebang', '#!/usr/bin/env bash')
+        self.shebang = self.config.get('shebang', '#!/usr/bin/bash')
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
