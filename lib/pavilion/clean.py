@@ -8,6 +8,7 @@ from pavilion import dir_db
 from pavilion import groups
 from pavilion.builder import TestBuilder
 from pavilion.test_run import TestAttributes
+from pavilion.timing import RateLimiter
 
 from flufl.lock import Lock
 
@@ -58,8 +59,10 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
     lock_path = builds_dir.with_suffix('.lock')
     msgs = []
     with Lock(lock_path, lifetime=3) as lock:
+        refresh_limiter = RateLimiter(lock.refresh, cooldown=0.3)
+
         for path in dir_db.select(pav_cfg, builds_dir, filter_builds)[0]:
-            lock.refresh()
+            refresh_limiter()
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()
