@@ -7,7 +7,7 @@ from typing import Callable, Tuple, Any
 from pavilion.micro import set_default
 
 
-class TimeLimiter:
+class RateLimiter:
     """Wraps a call to a function and only calls it if the specified
     cooldown (in seconds) has elapsed since the last call."""
 

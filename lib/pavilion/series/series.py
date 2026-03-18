@@ -30,7 +30,7 @@ from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
 from pavilion.micro import partition, do, listfilter, stardo, flatten
-from pavilion.timing import TimeLimiter
+from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.result_logging import get_result_loggers
 from yaml_config import YAMLError, RequiredError
@@ -78,7 +78,7 @@ class TestSeries:
 
         self.outfile = io.StringIO() if outfile is None else outfile
         self.verbosity = verbosity
-        self.cancel_limiter = TimeLimiter(self.has_cancel_file, cooldown=cancel_cooldown)
+        self.cancel_limiter = RateLimiter(self.has_cancel_file, cooldown=cancel_cooldown)
 
         name = self.config.get('name') or 'unnamed'
         if not self.NAME_RE.match(name):
