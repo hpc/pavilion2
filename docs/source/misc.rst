@@ -5,16 +5,6 @@ Various Pavilion support code modules.
 
 .. contents:: Table of Contents
 
-.. _lockfile:
-
-LockFiles
----------
-
-.. automodule:: pavilion.lockfile
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 .. _scriptcomposer:
 
 Script Composition
