@@ -17,6 +17,7 @@ from pavilion.var_dict import var_method
 from ..basic import SchedulerPluginBasic
 from ..scheduler import KickoffScriptHeader
 from ..vars import SchedulerVariables
+from ...errors import SchedulerPluginError
 
 
 class RawKickoffHeader(KickoffScriptHeader):
@@ -162,21 +163,44 @@ class Raw(SchedulerPluginBasic):
             (False otherwise)
         """
 
-        cmd_fn = Path('/proc')/str(job_info['pid'])/'cmdline'
+        cmdline = None
+        pid = str(job_info['pid'])
 
-        if not cmd_fn.exists():
-            # It's definitely not running if the cmdline file doesn't exit.
-            return False
+        if platform.system() == 'Darwin':
+            try:
+                result = subprocess.run(
+                    ['ps', '-p', pid, '-o', 'command='],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                )
+            except (OSError, IOError):
+                return False
 
-        try:
-            with cmd_fn.open('rb') as cmd_file:
-                cmdline = cmd_file.read()
-        except (IOError, OSError):
-            # The file might have stopped existing suddenly. That's
-            # ok, but it means the process isn't running anymore
-            return False
+            if result.returncode != 0:
+                return False
 
-        cmdline = cmdline.replace(b'\x00', b' ').decode('utf8')
+            cmdline = result.stdout.decode('utf8', errors='replace').strip()
+            if not cmdline:
+                return False
+        elif platform.system() == 'Linux':
+            cmd_fn = Path('/proc')/pid/'cmdline'
+
+            if not cmd_fn.exists():
+                # It's definitely not running if the cmdline file doesn't exit.
+                return False
+
+            try:
+                with cmd_fn.open('rb') as cmd_file:
+                    cmdline = cmd_file.read()
+            except (IOError, OSError):
+                # The file might have stopped existing suddenly. That's
+                # ok, but it means the process isn't running anymore
+                return False
+
+            cmdline = cmdline.replace(b'\x00', b' ').decode('utf8', errors='replace')
+        else:
+            raise SchedulerPluginError("Unsupported platform: {}".format(platform.system()))
 
         # Make sure we're looking at the same job.
         if 'kickoff' in cmdline and job_info['uniq_id'] in cmdline:
