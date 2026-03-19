@@ -115,6 +115,12 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
 
                     # Any value errors should be converted to this error type.
                     raise StringParserError(err.args[0], err.get_context(expr))
+                except TypeError as err:
+                    log("Error resolving evaluation: {}".format(err.args[0]))
+
+                    raise ResultError(
+                        "Type error evaluating expression '{}' for key '{}':\n{}"
+                        .format(expr, key, err.args[0]))
                 resolved.append(key)
                 log("Value resolved to: '{}'".format(results[key]))
 
