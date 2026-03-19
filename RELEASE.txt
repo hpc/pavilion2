@@ -12,6 +12,7 @@ RELEASE=2.5
 - Fixed a bug in which the `command` result parser did not run commands inside the build
   directory'
 - Improved locking for NFS systems.
+- Various minor bug fixes.
 
 # Release History
 
