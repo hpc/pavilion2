@@ -1,4 +1,13 @@
-import distutils.spawn
+try:
+    import distutils.spawn as _dist_spawn
+except ImportError:
+    import shutil as _dist_spawn
+
+# alias find_executable to appropriate function
+if hasattr(_dist_spawn, 'find_executable'):
+    find_executable = _dist_spawn.find_executable
+else:
+    find_executable = _dist_spawn.which
 import os
 import re
 import io
@@ -9,9 +18,9 @@ from collections import defaultdict
 
 from pavilion.unittest import PavTestCase
 
-_PYLINT_PATH = distutils.spawn.find_executable('pylint')
+_PYLINT_PATH = find_executable('pylint')
 if _PYLINT_PATH is None:
-    _PYLINT_PATH = distutils.spawn.find_executable('pylint3')
+    _PYLINT_PATH = find_executable('pylint3')
 
 _MIN_PYLINT_VERSION = (2, 5, 0)
 

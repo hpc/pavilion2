@@ -79,6 +79,99 @@ class TestOptions:
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
+    def get_unmerged_config_stack(self, full_test_name: str, modes: List[str] = None, platform: str = None, host: str = None, overrides: List[str] = None) -> List[Tuple[str, Dict, Optional[Path]]]:
+        """Return the unmerged configuration stack for a given test.
+
+        The stack includes the base empty config, the suite test config after
+        inheritance, and optional platform, host, mode, and overrides layers.
+        Each item is a tuple ``(label, cfg, path)`` where ``path`` is the source
+        file path for the config, or ``None`` for generated configs.
+        """
+        # Parse suite and test names.
+        suite_name = None
+        test_name = None
+        if '.' in full_test_name:
+            suite_name, test_name = full_test_name.split('.', 1)
+        else:
+            # Locate the test in any suite.
+            all_suites = self.find_all_tests()
+            for sname, sdata in all_suites.items():
+                if full_test_name in sdata['tests']:
+                    suite_name = sname
+                    test_name = full_test_name
+                    break
+        if suite_name is None:
+            raise ValueError(f"Test '{full_test_name}' not found in any suite")
+
+        # Load raw suite configuration (without resolving inheritance).
+        # First locate the suite file.
+        suite_cfg_info = self.find_config('suite', suite_name, suite_name)
+        loader = self._suite_loader if suite_cfg_info.from_suite else self._loader
+        raw_suite_cfg = self._load_raw_config(suite_cfg_info, loader)
+        if raw_suite_cfg is None:
+            raise ValueError(f"Suite '{suite_name}' could not be loaded")
+
+        # Walk the inheritance chain for the requested test, adding each ancestor.
+        stack: List[Tuple[str, Dict, Optional[Path]]] = []
+        # Base empty config.
+        base_cfg = self._loader.load_empty()
+        stack.append(("base", base_cfg, None))
+
+        # Helper to fetch a test dict and its source path.
+        def get_test_entry(name: str) -> Tuple[Dict, Optional[Path]]:
+            cfg = raw_suite_cfg.get(name, {}) or {}
+            # The suite_path is the path to the suite file.
+            path = Path(suite_cfg_info.path) if suite_cfg_info.path else None
+            return cfg, path
+
+        # Build ancestor list (oldest first).
+        ancestors: List[Tuple[str, Dict, Optional[Path]]] = []
+        cur_name = test_name
+        visited = set()
+        while cur_name and cur_name not in visited:
+            visited.add(cur_name)
+            cfg, path = get_test_entry(cur_name)
+            ancestors.append((f"test:{cur_name}", cfg, path))
+            inherits = cfg.get('inherits_from')
+            if not inherits or inherits == '__base__':
+                break
+            cur_name = inherits
+        # Reverse to have base ancestor first, then child.
+        ancestors.reverse()
+        # Add each ancestor to the stack.
+        for label, cfg, path in ancestors:
+            stack.append((label, cfg, path))
+
+        # Helper to load raw config file for platform/host/mode.
+        def load_cfg(cfg_info):
+            if cfg_info.path and cfg_info.path.exists():
+                with cfg_info.path.open() as f:
+                    return file_format.TestConfigLoader().load(f)
+            return {}
+
+        # Platform config.
+        if platform:
+            cfg_info = self.find_config('platform', platform)
+            stack.append((f"platform:{platform}", load_cfg(cfg_info), cfg_info.path))
+        # Host config.
+        if host:
+            cfg_info = self.find_config('host', host)
+            stack.append((f"host:{host}", load_cfg(cfg_info), cfg_info.path))
+        # Mode configs.
+        if modes:
+            for mode in modes:
+                cfg_info = self.find_config('mode', mode)
+                stack.append((f"mode:{mode}", load_cfg(cfg_info), cfg_info.path))
+        # Overrides.
+        if overrides:
+            # Apply overrides to an empty config to get the dict representation.
+            empty_cfg = self._loader.load_empty()
+            try:
+                ov_cfg = self.apply_overrides(empty_cfg, overrides)
+            except Exception as err:
+                raise err
+            stack.append(("overrides", ov_cfg, None))
+        return stack
 
     def __init__(self, pav_cfg, platform: str = None, host: str = None,
                  outfile: TextIO = None, verbosity: int = Verbose.QUIET):
@@ -317,15 +410,17 @@ class TestConfigResolver:
 
                 return dval if val is None else val
 
-            for test_name, conf in suite_cfgs.items():
-                suites[name]['tests'][test_name] = {
-                    'conf': conf,
-                    'maintainer': default(
-                        conf['maintainer']['name'], ''),
-                    'email': default(conf['maintainer']['email'], ''),
-                    'summary': default(conf.get('summary', ''), ''),
-                    'doc': default(conf.get('doc', ''), ''),
-                }
+        for test_name, conf in suite_cfgs.items():
+            suites[name]['tests'][test_name] = {
+                'conf': conf,
+                'maintainer': default(
+                    conf['maintainer']['name'], ''),
+                'email': default(conf['maintainer']['email'], ''),
+                'summary': default(conf.get('summary', ''), ''),
+                'doc': default(conf.get('doc', ''), ''),
+            }
+        # End of suite processing
+
         return suites
 
     def find_all_configs(self, conf_type: str):
