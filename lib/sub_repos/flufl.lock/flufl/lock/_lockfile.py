@@ -4,7 +4,7 @@
 # Licensed under the Apache License, Version 2.0
 #
 # Modifications:
-# - Adapted to remove dependency on `psutil` and `public` packages (2026, Hank Wikle, Los Alamos National Laboratory)
+# - Remove dependencies on third-party `psutil`, `public`, and `typing_extensions` packages (2026, Hank Wikle, Los Alamos National Laboratory)
 # - Modified Lock class to take `Path` object instead of string (2026, Hank Wikle, Los Alamos National Laboratory)
 # - Replaced custom `TimeOutError` with native Python `TimeoutError` (2026, Hank Wikle, Los Alamos National Laboratory)
 #
@@ -25,12 +25,6 @@ from logging import NullHandler
 from pathlib import Path
 from types import TracebackType
 from typing import cast, List, Optional, Tuple, Type, Union
-
-
-try:
-    from typing import Literal
-except ImportError:                                 # pragma: nocover
-    from typing_extensions import Literal  # type: ignore
 
 
 Interval = Union[timedelta, int]
@@ -483,7 +477,7 @@ class Lock:
         exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
-    ) -> Literal[False]:
+    ) -> bool:
         self.unlock()
         # Don't suppress any exception that might have occurred.
         return False
