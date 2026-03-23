@@ -50,18 +50,16 @@ def reset_pkey(id_dir: Path) -> None:
         pass
 
 
-def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
-                  next_fn: Optional[Path] = None) -> Tuple[int, Path]:
-    """In the given directory, create the lowest numbered (positive integer)
-    directory that doesn't already exist. If link_target is given, create a
-    symlink to that target instead of a directory.
+def create_series_id_dir(series_dir: Path, test_runs_dir: Path,
+                         next_fn: Optional[Path] = None) -> Tuple[int, Path]:
+    """In the given directory, create the lowest numbered (positive integer N)
+    directory that doesn't already exist, such that <test_runs_dir>/s<N>.1
+    does not exist.
 
-    :param id_dir: Path to the directory that contains these 'id'
-        directories
-    :param link_target: Create the ID path as a symlink to the given target, rather than as
-                        a directory.
-    :param: next_fn: File from which to read the next ID.
-    :returns: The id and path to the created directory.
+    :param series_dir: Path to the series directory that contains these ID directories
+    :param test_runs_dir: Path to the test_runs directory
+    :param: next_fn: File from which to read the next series ID.
+    :returns: The ID and path to the created directory.
     :raises OSError: on directory creation failure.
     :raises TimeoutError: If we couldn't get the lock in time.
     """
@@ -81,6 +79,11 @@ def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
 
                 if next_id_path.exists():
                     next_valid = False
+                else:
+                    test_id = TestID(f"s{next_id}.1")
+
+                    if (test_runs_dir / str(test_id)).exists():
+                        next_valid = False
 
             except (OSError, ValueError):
                 # In either case, on failure, invalidate the next file.
@@ -92,7 +95,7 @@ def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
             # If the next file's id wasn't valid, then find the next available
             # id directory the hard way.
 
-            ids = list(os.listdir(str(id_dir)))
+            ids = list(os.listdir(str(series_dir)))
             # Only return the test directories that could be integers.
             ids = [id_ for id_ in ids if id_.isdigit()]
             ids = [int(id_) for id_ in ids]
@@ -100,15 +103,14 @@ def create_id_dir(id_dir: Path, link_target: Optional[Path] = None,
 
             # Find the first unused id.
             next_id = 1
-            while next_id in ids:
+
+            while next_id in ids or (test_runs_dir / f"s{next_id}.1").exists():
                 next_id += 1
 
-            next_id_path = id_dir / str(next_id)
+            next_id_path = series_dir / str(next_id)
 
-        if link_target is None:
-            next_id_path.mkdir()
-        else:
-            next_id_path.symlink_to(link_target)
+        next_id_path.mkdir()
+
         with next_fn.open('w') as next_file:
             next_file.write(str(next_id + 1))
 

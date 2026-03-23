@@ -58,6 +58,8 @@ class TestSeries:
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
     TESTSET_DIRNAME = "test_sets"
     LOG_RESULTS_LOG_FN = "log_results.log"
+    TEST_RUNS_DIRNAME = "test_runs"
+    SERIES_DIRNAME
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
@@ -87,7 +89,8 @@ class TestSeries:
                 "contain numbers, dashes and underscores.".format(series_cfg['name']))
         self.name = name
 
-        series_path = self.pav_cfg.working_dir/'series'
+        series_path = self.pav_cfg.working_dir / self.SERIES_DIRNAME
+        test_runs_path = self.pav_cfg.working_dir / self.TEST_RUNS_DIRNAME
 
         self.simultaneous = self.config.get('simultaneous')
         if self.simultaneous in (0, None):
@@ -106,7 +109,7 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                _id, self.path = dir_db.create_id_dir(series_path)
+                _id, self.path = dir_db.create_series_id_dir(series_path, test_runs_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}'"
