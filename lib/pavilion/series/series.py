@@ -59,7 +59,7 @@ class TestSeries:
     TESTSET_DIRNAME = "test_sets"
     LOG_RESULTS_LOG_FN = "log_results.log"
     TEST_RUNS_DIRNAME = "test_runs"
-    SERIES_DIRNAME
+    SERIES_DIRNAME = "series"
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
