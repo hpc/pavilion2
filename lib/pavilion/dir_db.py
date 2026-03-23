@@ -64,8 +64,8 @@ def create_series_id_dir(series_dir: Path, test_runs_dir: Path,
     :raises TimeoutError: If we couldn't get the lock in time.
     """
 
-    lockfile_path = id_dir/'.lockfile'
-    next_fn = next_fn or id_dir/PKEY_FN
+    lockfile_path = series_dir / '.lockfile'
+    next_fn = next_fn or series_dir / PKEY_FN
 
     with Lock(lockfile_path, default_timeout=1, lifetime=3):
         next_valid = True
@@ -75,7 +75,7 @@ def create_series_id_dir(series_dir: Path, test_runs_dir: Path,
                 with next_fn.open() as next_file:
                     next_id = int(next_file.read())
 
-                next_id_path = id_dir / str(next_id)
+                next_id_path = series_dir / str(next_id)
 
                 if next_id_path.exists():
                     next_valid = False
