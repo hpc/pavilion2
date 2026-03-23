@@ -10,15 +10,12 @@ are all handled by the TestConfigResolver
 import copy
 import io
 import logging
-import math
 import multiprocessing as mp
 import os
-import pprint
 import re
-import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import List, IO, Dict, Tuple, NewType, Union, Any, Iterator, TextIO, Optional, Iterable
+from typing import List, Dict, Tuple, Iterator, TextIO, Optional, Literal
 
 import similarity
 import yc_yaml
@@ -30,16 +27,13 @@ from pavilion import resolve
 from pavilion import schedulers
 from pavilion import sys_vars
 from pavilion.errors import SystemPluginError
-from pavilion.errors import VariableError, TestConfigError, PavilionError, SchedulerPluginError
+from pavilion.errors import TestConfigError
 from pavilion.pavilion_variables import PavVars
-from pavilion.test_config import file_format
-from pavilion.test_config.file_format import (TEST_NAME_RE,
-                                             KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
 from pavilion.micro import first, listmap
-from pavilion.path_utils import append_to_path, exists
-from yaml_config import RequiredError, YamlConfigLoader
+from pavilion.path_utils import append_to_path
+from yaml_config import RequiredError
 
 from .proto_test import RawProtoTest, ProtoTest
 from .request import TestRequest
@@ -56,15 +50,22 @@ TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 TestConfig = Dict
 
 
-class ConfigInfo:
-    def __init__(self, name: str, type: str, path: Path, label: str = None,
-        from_suite: bool = False):
+class Config:
+    """A Pavilion configuration file (host, platform or mode)."""
+    def __init__(self, name: str, type: str, path: Path, from_suite: bool = False):
 
         self.name = name
         self.type = type
-        self.label = label
         self.path = path
         self.from_suite = from_suite
+
+class SuiteConfig(Config):
+    """A Pavilon suite configuration file. May contain many test configs."""
+
+    def __init__(self, name: str, path: Path):
+
+        self.name = name
+        self.path = path
 
 
 class TestOptions:
@@ -80,8 +81,8 @@ class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
 
-    def __init__(self, pav_cfg, platform: str = None, host: str = None,
-                 outfile: TextIO = None, verbosity: int = Verbose.QUIET):
+    def __init__(self, pav_cfg, platform: Optional[str] = None, host: Optional[str] = None,
+                 outfile: Optional[TextIO] = None, verbosity: Verbose = Verbose.QUIET):
         """Initialize the resolver.
 
         :param platform: The platform to configure tests for.
@@ -104,16 +105,14 @@ class TestConfigResolver:
                 'sys', sys_vars.get_vars(defer=True)
             )
         except SystemPluginError as err:
-            raise TestConfigError(
-                "Error in system variables"
-                .format(prior_error=err)
-            )
+            raise TestConfigError("Error in system variables", prior_error=err)
 
         self._base_var_man.add_var_set(
             'pav', pavilion_variables.PavVars()
         )
 
         self._host = self._base_var_man['sys.sys_name'] if host is None else host
+        self._host_config = self._load_config()
         if platform is None:
             self._platform = self._base_var_man['sys.platform']
         else:
@@ -123,7 +122,7 @@ class TestConfigResolver:
         self._base_config = self._load_base_config(self._platform, self._host)
 
         # Raw loaded test suites
-        self._suites: Dict[Dict] = {}
+        self._suites: Dict[str, Dict] = {}
 
     @staticmethod
     def _get_config_dirname(cfg_type: str, use_suites_dir: bool = False) -> str:
@@ -151,64 +150,39 @@ class TestConfigResolver:
 
         return f"{fname}.yaml"
 
-    @property
-    def config_paths(self) -> Iterator[Path]:
-        """Return an iterator over all config paths."""
-        return self.pav_cfg.config_paths
-
-    @property
-    def suites_dirs(self) -> Iterator[Path]:
-        """Return an iterator over all suites directories."""
-        return self.pav_cfg.suites_dirs
-
-    @property
-    def config_labels(self) -> Iterator[str]:
-        """Return an iterator over all config labels."""
-        return self.pav_cfg.configs.keys()
-
-    def _get_test_config_path(self, cfg_name: str, cfg_type: str) -> Tuple[str, Optional[Path]]:
-        """Given a config name and type, find the path to that config, if it exists,
-        excluding configs in the suites directory. If no such config exists,
-        return None."""
+    def find_config(self, cfg_name: str, cfg_type: str) -> Optional[Config]:
+        """Look for a host, platform, or mode config in all Pavilion config areas."""
 
         cfg_dir = self._get_config_dirname(cfg_type)
-        paths = map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.config_paths)
-        pairs = zip(self.config_labels, paths)
+        paths = map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.pav_cfg.config_paths)
 
-        res = first(lambda x: x[1].exists(), pairs)
+        res = first(lambda x: x.exists(), paths)
 
         if res is None:
-            return '', None
+            return None
 
-        return res
+        return Config(cfg_name, cfg_type, res)
 
-    def _config_path_from_suite(self, suite_name: str,
-                                conf_type: str) -> Tuple[str, Optional[Path]]:
+    def _config_path_from_suite(self, suite_name: str, conf_type: str) -> Optional[Config]:
         """Given a suite name, return the path to the config file of the specified
         type, if one exists. If the file does not exist in any known suites directory,
         returns None."""
 
         paths = []
-        labels = list(self.config_labels)
 
         cfg_fname = self._get_config_fname(conf_type)
 
+        suite_dirs = self.pav_cfg.suites_dirs
+
         if conf_type == "suite":
-            paths.extend(listmap(append_to_path(f"{suite_name}.yaml"), self.suites_dirs))
-            labels *= 2
+            paths.extend(listmap(append_to_path(f"{suite_name}.yaml"), suite_dirs))
 
-        paths.extend(listmap(append_to_path(f"{suite_name}/{cfg_fname}"), self.suites_dirs))
+        paths.extend(listmap(append_to_path(f"{suite_name}/{cfg_fname}"), suite_dirs))
 
-        pairs = zip(labels, paths)
+        res = first(lambda x: x.exists(), paths)
 
-        res = first(lambda x: x[1].exists(), pairs)
 
-        if res is None:
-            return '', None
-
-        return res
-
-    def find_config(self, cfg_type: str, cfg_name: str, suite_name: str = None) -> ConfigInfo:
+    def find_asdfconfig(self, cfg_type: str, cfg_name: str, suite_name: Optional[str] = None) -> ConfigInfo:
         """Search all of the known configuration directories for a config of the
         given type and name, and report whether it was found in the suites directory.
 
@@ -221,15 +195,15 @@ class TestConfigResolver:
         cfg_path = None
 
         if suite_name is not None:
-            label, cfg_path = self._config_path_from_suite(suite_name, cfg_type)
+            cfg_path = self._config_path_from_suite(suite_name, cfg_type)
 
         if cfg_path is not None:
             from_suite = True
         else:
-            label, cfg_path = self._get_test_config_path(cfg_name, cfg_type)
+            cfg_path = self._get_test_config_path(cfg_name, cfg_type)
             from_suite = False
 
-        return ConfigInfo(cfg_name, cfg_type, cfg_path, label, from_suite)
+        return ConfigInfo(cfg_name, cfg_type, cfg_path, from_suite)
 
     def find_similar_configs(self, conf_type: str, conf_name: str) -> List[str]:
         """Find configs with a name similar to the one specified."""
