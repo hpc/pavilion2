@@ -17,7 +17,6 @@ class Counter(Iterator[int]):
         if not self._dir.is_dir():
             raise FileNotFoundError(f"Directory does not exist: {self._dir}")
 
-        # Sanitize filename – keep only the final component (no sub‑dirs)
         self._path = self._dir / next_id_fn
         self._start = start
 
@@ -25,12 +24,11 @@ class Counter(Iterator[int]):
 
     def _setup(self) -> None:
         """Set up the next ID file, ensuring that it exists and is populated with the
-        correct starting value."""
+        correct starting value. If an existing next ID file is found, the current value
+        is retained."""
         
         if not self._path.exists():
             self._path.write_text(f"{self._start}\n", encoding="utf-8")
-        else:
-            self.reset()
 
     def __iter__(self) -> "Counter":
         return self
