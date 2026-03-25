@@ -29,7 +29,6 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
-        pip install coverage
 
     - name: setup
       run: |
@@ -44,8 +43,8 @@ jobs:
         COLUMNS: 120
         LINES: 40
       run: |
-        ./test/run_tests
-
+        coverage run ./test/run_tests
+        coverage html -d coverage_html
     - name: zip_working_dir
       if: always()
       run: |
@@ -117,6 +116,12 @@ jobs:
 
     - name: run_tests
       run: ./test/run_tests -o 'doc*' -q
+    - name: Upload docs artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: docs-html
+        path: docs/_build/html/
 
   unittests-3_7:
     runs-on: ubuntu-22.04
@@ -140,10 +145,8 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
-        pip install coverage
         sphinx-build --version
         pylint --version
-
 
     - name: setup
       run: |
@@ -154,8 +157,15 @@ jobs:
 
     - name: run_tests
       run: |
-        ./test/run_tests
-        #coverage xml
+        coverage run ./test/run_tests
+        coverage html -d coverage_html
+
+    - name: Upload coverage artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report_3.7
+        path: coverage_html/
 
     - name: zip_working_dir
       if: failure()
@@ -170,14 +180,8 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.6
+        name: test_output_3.7
         path: test/working_dir.zip
-
-#    - name: codecov-upload
-#      uses: codecov/codecov-action@v2
-#      with:
-#        fail_ci_if_error: true
-#        token: c1100f28-f36f-4b92-8ba5-ec907a1bfea6
 
   unittests-3_10:
     runs-on: ubuntu-latest
@@ -210,7 +214,14 @@ jobs:
 
     - name: run_tests
       run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+        sudo -E su $USER -c "PATH=$PATH; coverage run ./test/run_tests && coverage html -d coverage_html"
+
+    - name: Upload coverage artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report_3.10
+        path: coverage_html/
 
     - name: zip_working_dir
       if: failure()
@@ -225,7 +236,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.10
+        name: test_output_3.10
         path: test/working_dir.zip
 
   unittests-3_12:
@@ -259,7 +270,14 @@ jobs:
 
     - name: run_tests
       run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+        sudo -E su $USER -c "PATH=$PATH; coverage run ./test/run_tests && coverage html -d coverage_html"
+
+    - name: Upload coverage artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report_3.12
+        path: coverage_html/
 
     - name: zip_working_dir
       if: failure()
@@ -274,5 +292,5 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.10
+        name: test_output_3.12
         path: test/working_dir.zip
