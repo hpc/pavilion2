@@ -52,17 +52,6 @@ The project does not require a compiled build step, but the following commands a
   pip install -r test/requirements.txt   # pylint, matplotlib
   pip install -r docs/requirements.txt   # sphinx, theme
   ```
-* **Refresh vendored sub‑repos** (if they have been removed):
-  ```bash
-  git submodule update --init --recursive
-  ```
-* **Package the library** (useful for downstream CI):
-  ```bash
-  # No `setup.py` at the top level – the library lives in lib/
-  # To create a source distribution:
-  python -m pip install build
-  python -m build lib/pavilion
-  ```
 
 ---
 
