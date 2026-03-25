@@ -8,6 +8,24 @@ from pavilion.counter import Counter
 
 class CounterTests(PavTestCase):
 
+    def test_existing_file_not_reset(self):
+        """If a next ID file already exists, Counter should not reset its value."""
+
+        with tempfile.TemporaryDirectory() as td:
+            dir_path = Path(td)
+
+            # Pre‑populate the next_id file with a specific value
+            existing_path = dir_path / "next_id"
+            existing_path.write_text("42\n", encoding="utf-8")
+
+            # Initialize Counter – it should read the existing value
+            c = Counter(dir_path)
+            self.assertEqual(next(c), 42)
+
+            # The file should now contain the incremented value (43)
+            self.assertTrue(existing_path.is_file())
+            self.assertEqual(existing_path.read_text(encoding="utf-8").strip(), "43")
+
     def test_basic_sequence_and_reset(self):
         """Verify normal counting and reset behavior."""
 
