@@ -1,17 +1,28 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.5
+RELEASE=2.6
 
-## 2.6 Pre-release notes
+## 2.6 Release Notes
 
 - Test run directories are now named based on the series-relative IDs of test runs (e.g. `s1.1`).
-  This reduced lock contention when creating test runs, since IDs in different series are now
+  This reduces lock contention when creating test runs, since IDs in different series are now
   independent of one another.
+- Added a `--run-data` option to `pav run`, which outputs information about the started test
+  series.
+- Added the `pav cd` command, which navigates to the test run directory for the given test.
+- Added the `pav isolate` command, which isolates tests so that they can be run independently
+  of Pavilion for ease of debugging.
+- Improved locking for NFS systems.
+- Added logging for result loggers.
 - Fixed a pair of bugs in the `outliers` expression function which result in dividing by zero
   when passed the empty list or a list in which all values are the same.
 - Fixed a bug in which the `command` result parser did not run commands inside the build
   directory'
-- Improved locking for NFS systems.
+- Fixed a bug in which host and platform configs were applied in the wrong order.
+- Fixed a bug in which the `tasks_per_node` scheduler option was not properly set in generated
+  sbatch scripts.
+- Various minor bug mixes.
+- Minor documentation edits.
 
 # Release History
 
@@ -42,8 +53,6 @@ RELEASE=2.5
  - Fixed a bug in which tests would occasionally transition to a `BUILD_CREATED` status after
    failure.
  - Various minor bug fixes for stability.
-
-## 2.5 Pre-release notes
  - In the 'modules' section of 'run' or 'build' in test configs, modules specified without a version
    no longer verify that the default was loaded.
  - Added the ability to configure module wrappers in test/host configs.
