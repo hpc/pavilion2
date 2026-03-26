@@ -1,18 +1,19 @@
-"""Counter utility for sequential integer IDs stored in a file.
-
-Provides a simple persistent counter that writes the next integer to a file on each call to ``next()``.
-"""
+"""Counter utilities for sequential series and test IDs."""
 
 from pathlib import Path
 from typing import Iterator
 
+from pavilion.test_ids import SeriesID, TestID
 
-class Counter(Iterator[int]):
-    """A lightweight persistent counter. It is the resposibility of the caller to implement
-    correct locking behavior."""
 
-    def __init__(self, directory: Path, next_id_fn: str = "next_id", start: int = 1):
-        self._dir = directory
+class SeriesIDCounter(Iterator[SeriesID]):
+    """A file-based counter for generating series IDs.
+
+    Note: It is the resposibility of the caller to implement correct locking behavior."""
+
+    def __init__(self, series_dir: Path, next_id_fn: str = "next_id",
+                 start_id: SeriesID = SeriesID("s1")):
+        self._dir = series_dir
 
         if not self._dir.is_dir():
             raise FileNotFoundError(f"Directory does not exist: {self._dir}")
@@ -26,28 +27,60 @@ class Counter(Iterator[int]):
         """Set up the next ID file, ensuring that it exists and is populated with the
         correct starting value. If an existing next ID file is found, the current value
         is retained."""
-        
+
         if not self._path.exists():
             self._path.write_text(f"{self._start}\n", encoding="utf-8")
 
-    def __iter__(self) -> "Counter":
+    def __iter__(self) -> "SeriesIDCounter":
         return self
 
-    def __next__(self) -> int:
-        """Return the current value and advance the counter."""
+    def __next__(self) -> SeriesID:
+        """Return the next SeriesID and advance the counter, skipping IDs that already
+        have a series directory."""
 
         try:
             raw = self._path.read_text(encoding="utf-8").strip()
-            current = int(raw)
+            current_id = SeriesID(raw)
         except (OSError, ValueError) as err:
             raise ValueError(f"Unable to read next value from {self._path}: {err}")
 
-        next_val = current + 1
-        self._path.write_text(f"{next_val}\n", encoding="utf-8")
+        while (self._dir / str(current_id.as_int())).exists():
+            current_id = current_id.next()
 
-        return current
+        self._path.write_text(f"{current_id.next()}\n", encoding="utf-8")
+
+        return current_id
 
     def reset(self) -> None:
         """Reset the counter to the start value."""
 
         self._path.write_text(f"{self._start}\n", encoding="utf-8")
+
+
+class TestIDCounter(Iterator[TestID]):
+    """A counter for generating test IDs.
+
+    Note: It is the resposibility of the caller to implement correct locking behavior."""
+
+    def __init__(self, series: SeriesID, test_run_dir: Path, start_id: int = 1):
+        self._test_run_dir = test_run_dir
+        self._current_id = TestID(f"{series}.{start_id}")
+
+        if not self._test_run_dir.is_dir():
+            raise FileNotFoundError(f"Directory does not exist: {self._dir}")
+
+    def __iter__(self) -> "TestIDCounter":
+        return self
+
+    def __next__(self) -> TestID:
+        """Return the next valid TestID, skipping IDs that already have a test run directory."""
+
+        while (test_run_dir / str(self._current_id)).exists():
+            self._current_id = self._current_id.next()
+
+        res = self._current_id
+
+        self._current_id = self._current_id.next()
+
+        return res
+
