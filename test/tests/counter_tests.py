@@ -1,69 +1,79 @@
-import os
+import shutil
 import tempfile
 from pathlib import Path
 
 from pavilion.unittest import PavTestCase
-from pavilion.counter import Counter
+from pavilion.counter import SeriesIDCounter, TestIDCounter
+from pavilion.test_ids import SeriesID, TestID
 
 
 class CounterTests(PavTestCase):
+    """Tests for the SeriesIDCounter and TestIDCounter utilities."""
 
-    def test_existing_file_not_reset(self):
-        """If a next ID file already exists, Counter should not reset its value."""
+    def setUp(self):
+        super().set_up()
+        # Create temporary directories for series and test runs.
+        self._tmp_dir = Path(tempfile.mkdtemp())
+        self.series_dir = self._tmp_dir / "series"
+        self.series_dir.mkdir()
+        self.test_run_dir = self._tmp_dir / "test_runs"
+        self.test_run_dir.mkdir()
 
-        with tempfile.TemporaryDirectory() as td:
-            dir_path = Path(td)
+    def tearDown(self):
+        # Clean up temporary directory.
+        shutil.rmtree(self._tmp_dir, ignore_errors=True)
+        super().tear_down()
 
-            # Pre‑populate the next_id file with a specific value
-            existing_path = dir_path / "next_id"
-            existing_path.write_text("42\n", encoding="utf-8")
+    def test_series_id_counter_missing_dir(self):
+        """Initializing SeriesIDCounter with a non‑existent directory should raise FileNotFoundError."""
 
-            # Initialize Counter – it should read the existing value
-            c = Counter(dir_path)
-            self.assertEqual(next(c), 42)
-
-            # The file should now contain the incremented value (43)
-            self.assertTrue(existing_path.is_file())
-            self.assertEqual(existing_path.read_text(encoding="utf-8").strip(), "43")
-
-    def test_basic_sequence_and_reset(self):
-        """Verify normal counting and reset behavior."""
-
-        with tempfile.TemporaryDirectory() as td:
-            dir_path = Path(td)
-            c = Counter(dir_path)  # uses default filename "next_id"
-            self.assertEqual(next(c), 1)
-            self.assertEqual(next(c), 2)
-            c.reset()
-            self.assertEqual(next(c), 1)
-
-    def test_custom_filename(self):
-        """Counter should respect a custom filename for the ID file."""
-        
-        with tempfile.TemporaryDirectory() as td:
-            dir_path = Path(td)
-            c = Counter(dir_path, next_id_fn="my_counter")
-            self.assertEqual(next(c), 1)
-            # ensure file was created with custom name
-            self.assertTrue(os.path.isfile(os.path.join(td, "my_counter")))
-
-    def test_missing_directory_raises(self):
-        """Initializing Counter with a non‑existent directory should raise FileNotFoundError."""
+        missing_dir = self._tmp_dir / "no_such_dir"
 
         with self.assertRaises(FileNotFoundError):
-            Counter(Path("/nonexistent/path"))
+            SeriesIDCounter(missing_dir)
 
-    def test_invalid_file_contents(self):
-        """If the counter file contains non‑integer data, next() should raise ValueError."""
+    def test_series_id_counter_initializes_file(self):
+        """SeriesIDCounter should create a next_id file with the start value when it does not exist."""
 
-        with tempfile.TemporaryDirectory() as td:
-            dir_path = Path(td)
-            # pre‑populate file with bad data
-            bad_path = dir_path / "next_id"
-            c = Counter(dir_path)
+        counter = SeriesIDCounter(self.series_dir, start_id=SeriesID("s5"))
+        next_id_path = self.series_dir / "next_id"
 
-            with open(bad_path, "w", encoding="utf-8") as f:
-                f.write("not_an_int\n")
+        self.assertTrue(next_id_path.is_file())
+        self.assertEqual(next_id_path.read_text().strip(), "s5")
 
-            with self.assertRaises(ValueError):
-                next(c)
+    def test_series_id_counter_next_advances(self):
+        """__next__ should return the current SeriesID and write the next one to the file.
+        It should also skip IDs that already have a directory with the numeric name.
+        """
+
+        # Pre‑create a directory named '5' to force the counter to skip it.
+        (self.series_dir / "5").mkdir()
+        counter = SeriesIDCounter(self.series_dir, start_id=SeriesID("s5"))
+
+        # First call should skip the existing '5' and return s6, writing s7.
+        sid = next(counter)
+
+        self.assertIsInstance(sid, SeriesID)
+        self.assertEqual(str(sid), "s6")
+        self.assertEqual((self.series_dir / "next_id").read_text().strip(), "s7")
+
+    def test_test_id_counter_missing_dir(self):
+        """Initializing TestIDCounter with a non‑existent test run directory should raise FileNotFoundError."""
+
+        missing_dir = self._tmp_dir / "no_test_dir"
+
+        with self.assertRaises(FileNotFoundError):
+            TestIDCounter(SeriesID("s1"), missing_dir)
+
+    def test_test_id_counter_next_skips_existing(self):
+        """TestIDCounter.__next__ should skip IDs that already have a directory."""
+
+        # Create a directory for an existing test ID.
+        existing = self.test_run_dir / "s1.1"
+        existing.mkdir()
+        counter = TestIDCounter(SeriesID("s1"), self.test_run_dir, start_id=1)
+
+        # The first generated ID should be s1.2 because s1.1 exists.
+        tid = next(counter)
+        self.assertIsInstance(tid, TestID)
+        self.assertEqual(str(tid), "s1.2")

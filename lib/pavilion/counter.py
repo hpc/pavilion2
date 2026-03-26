@@ -19,7 +19,7 @@ class SeriesIDCounter(Iterator[SeriesID]):
             raise FileNotFoundError(f"Directory does not exist: {self._dir}")
 
         self._path = self._dir / next_id_fn
-        self._start = start
+        self._start = start_id
 
         self._setup()
 
@@ -67,7 +67,7 @@ class TestIDCounter(Iterator[TestID]):
         self._current_id = TestID(f"{series}.{start_id}")
 
         if not self._test_run_dir.is_dir():
-            raise FileNotFoundError(f"Directory does not exist: {self._dir}")
+            raise FileNotFoundError(f"Directory does not exist: {self._test_run_dir}")
 
     def __iter__(self) -> "TestIDCounter":
         return self
@@ -75,7 +75,7 @@ class TestIDCounter(Iterator[TestID]):
     def __next__(self) -> TestID:
         """Return the next valid TestID, skipping IDs that already have a test run directory."""
 
-        while (test_run_dir / str(self._current_id)).exists():
+        while (self._test_run_dir / str(self._current_id)).exists():
             self._current_id = self._current_id.next()
 
         res = self._current_id
