@@ -87,4 +87,3 @@ class TestIDCounter(Iterator[TestID]):
         self._current_id = self._current_id.next()
 
         return res
-
