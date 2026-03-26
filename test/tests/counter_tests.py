@@ -1,6 +1,8 @@
 import shutil
 import tempfile
 from pathlib import Path
+import multiprocessing
+import os
 
 from pavilion.unittest import PavTestCase
 from pavilion.counter import SeriesIDCounter, TestIDCounter
@@ -77,3 +79,37 @@ class CounterTests(PavTestCase):
         tid = next(counter)
         self.assertIsInstance(tid, TestID)
         self.assertEqual(str(tid), "s1.2")
+
+    def test_series_id_counter_locking(self):
+        """Ensure that concurrent access using the lock prevents duplicate IDs.
+
+        This test creates two separate SeriesIDCounter instances pointing to the same
+        directory and invokes ``next`` on each in separate processes. The lock file
+        should serialize access so that the generated IDs are distinct.
+        """
+
+        # Helper function executed in a subprocess.
+        def worker(tmp_dir, result_queue):
+            counter = SeriesIDCounter(tmp_dir)
+            sid = next(counter)
+            result_queue.put(str(sid))
+
+        # Use a multiprocessing.Queue to collect results.
+        result_queue = multiprocessing.Queue()
+        
+        # Start two processes that both use the same directory.
+        p1 = multiprocessing.Process(target=worker, args=(self.series_dir, result_queue))
+        p2 = multiprocessing.Process(target=worker, args=(self.series_dir, result_queue))
+        p1.start()
+        p2.start()
+        p1.join()
+        p2.join()
+
+        ids = []
+
+        while not result_queue.empty():
+            ids.append(result_queue.get())
+
+        # There should be exactly two IDs and they should be different.
+        self.assertEqual(len(ids), 2)
+        self.assertNotEqual(ids[0], ids[1])

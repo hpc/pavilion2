@@ -3,13 +3,15 @@
 from pathlib import Path
 from typing import Iterator
 
+from flufl.lock import Lock
+
 from pavilion.test_ids import SeriesID, TestID
 
 
 class SeriesIDCounter(Iterator[SeriesID]):
-    """A file-based counter for generating series IDs.
+    """A file-based counter for generating series IDs."""
 
-    Note: It is the resposibility of the caller to implement correct locking behavior."""
+    LOCKFILE_FN = ".lockfile"
 
     def __init__(self, series_dir: Path, next_id_fn: str = "next_id",
                  start_id: SeriesID = SeriesID("s1")):
@@ -20,6 +22,7 @@ class SeriesIDCounter(Iterator[SeriesID]):
 
         self._path = self._dir / next_id_fn
         self._start = start_id
+        self._lockfile = Lock(self._dir / self.LOCKFILE_FN, lifetime=3)
 
         self._setup()
 
@@ -28,8 +31,9 @@ class SeriesIDCounter(Iterator[SeriesID]):
         correct starting value. If an existing next ID file is found, the current value
         is retained."""
 
-        if not self._path.exists():
-            self._path.write_text(f"{self._start}\n", encoding="utf-8")
+        with self._lockfile:
+            if not self._path.exists():
+                self._path.write_text(f"{self._start}\n", encoding="utf-8")
 
     def __iter__(self) -> "SeriesIDCounter":
         return self
@@ -38,29 +42,29 @@ class SeriesIDCounter(Iterator[SeriesID]):
         """Return the next SeriesID and advance the counter, skipping IDs that already
         have a series directory."""
 
-        try:
-            raw = self._path.read_text(encoding="utf-8").strip()
-            current_id = SeriesID(raw)
-        except (OSError, ValueError) as err:
-            raise ValueError(f"Unable to read next value from {self._path}: {err}")
+        with self._lockfile:
+            try:
+                raw = self._path.read_text(encoding="utf-8").strip()
+                current_id = SeriesID(raw)
+            except (OSError, ValueError) as err:
+                raise ValueError(f"Unable to read next value from {self._path}: {err}")
 
-        while (self._dir / str(current_id.as_int())).exists():
-            current_id = current_id.next()
+            while (self._dir / str(current_id.as_int())).exists():
+                current_id = current_id.next()
 
-        self._path.write_text(f"{current_id.next()}\n", encoding="utf-8")
+            self._path.write_text(f"{current_id.next()}\n", encoding="utf-8")
 
         return current_id
 
     def reset(self) -> None:
         """Reset the counter to the start value."""
 
-        self._path.write_text(f"{self._start}\n", encoding="utf-8")
+        with self._lockfile:
+            self._path.write_text(f"{self._start}\n", encoding="utf-8")
 
 
 class TestIDCounter(Iterator[TestID]):
-    """A counter for generating test IDs.
-
-    Note: It is the resposibility of the caller to implement correct locking behavior."""
+    """A counter for generating test IDs."""
 
     def __init__(self, series: SeriesID, test_run_dir: Path, start_id: int = 1):
         self._test_run_dir = test_run_dir
