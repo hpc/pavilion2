@@ -32,6 +32,7 @@ from pavilion.test_run import TestRun
 from pavilion.micro import partition, do, listfilter, stardo, flatten
 from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
+from pavilion.counter import SeriesIDCounter, TestIDCounter
 from pavilion.result_logging import get_result_loggers
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
@@ -107,15 +108,17 @@ class TestSeries:
 
         # We're creating this series from scratch.
         if _id is None:
-            # Get the series id and path.
+            # Get the series id
             try:
-                _id, self.path = dir_db.create_series_id_dir(series_path, test_runs_path)
+                self.id = next(SeriesIDCounter(series_path))
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}'"
                     .format(series_path), err)
 
-            self.id = SeriesID.from_int(_id)
+            self.path = series_path / str(self.id.as_int())
+            self.path.mkdir()
+
             # save series config
             self.save_config()
 
@@ -123,7 +126,6 @@ class TestSeries:
             self._save_series_id()
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
             self.status.set(SERIES_STATES.CREATED, "Created series.")
-            self.next_test_id = TestID(f"s{_id}.1")
 
         # We're not creating this from scratch (an object was made ahead of
         # time).
@@ -132,13 +134,9 @@ class TestSeries:
             self.path = series_path / str(self.id.as_int())
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
-            test_ids = list(self.test_ids())
-
-            if len(test_ids) > 0:
-                self.next_test_id = max(test_ids).next()
-            else:
-                self.next_test_id = TestID(f"{_id}.1")
-
+        # In theory, we shouldn't need to lock here, since the lock for SeriesIDCounter should
+        # ensure no two processes get the same series ID.
+        self.test_id_counter = TestIDCounter(self.id, test_runs_path)
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
 
         try:
@@ -607,7 +605,11 @@ class TestSeries:
         failed_builds = dict()
         tests_running = 0
 
-        for test_batch in test_set.make_iter(build_only, rebuild, local_builds_only, self):
+        for test_batch in test_set.make_iter(
+                                        build_only,
+                                        rebuild,
+                                        local_builds_only,
+                                        self.test_id_counter):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)
@@ -864,12 +866,3 @@ class TestSeries:
 modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.
         return self.path.stat().st_mtime
-
-    def get_next_test_id(self) -> TestID:
-        """Get the next available test ID for this series."""
-
-        next_id = self.next_test_id
-
-        self.next_test_id = next_id.next()
-
-        return next_id

@@ -21,6 +21,7 @@ from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
 from pavilion.micro import set_default
+from pavilion.counter import TestIDCounter
 
 S_STATES = SERIES_STATES
 
@@ -193,7 +194,7 @@ class TestSet:
                   build_only: bool = False,
                   rebuild: bool = False,
                   local_builds_only: bool = False,
-                  series: Optional["TestSeries"] = None) -> Iterator[List[TestRun]]:
+                  id_counter: Optional[TestIDCounter] = None) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).
@@ -278,8 +279,8 @@ class TestSet:
                         continue
 
                 try:
-                    if series is not None:
-                        test_id = series.get_next_test_id()
+                    if id_counter is not None:
+                        test_id = next(id_counter)
                     else:
                         test_id = None
 
