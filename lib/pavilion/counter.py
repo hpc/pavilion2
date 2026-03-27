@@ -33,7 +33,7 @@ class SeriesIDCounter(Iterator[SeriesID]):
 
         with self._lockfile:
             if not self._path.exists():
-                self._path.write_text(f"{self._start}\n", encoding="utf-8")
+                self._path.write_text(f"{self._start.as_int()}\n", encoding="utf-8")
 
     def __iter__(self) -> "SeriesIDCounter":
         return self
@@ -44,15 +44,16 @@ class SeriesIDCounter(Iterator[SeriesID]):
 
         with self._lockfile:
             try:
-                raw = self._path.read_text(encoding="utf-8").strip()
-                current_id = SeriesID(raw)
+                id_int = int(self._path.read_text(encoding="utf-8").strip())
             except (OSError, ValueError) as err:
                 raise ValueError(f"Unable to read next value from {self._path}: {err}")
+
+            current_id = SeriesID.from_int(id_int)
 
             while (self._dir / str(current_id.as_int())).exists():
                 current_id = current_id.next()
 
-            self._path.write_text(f"{current_id.next()}\n", encoding="utf-8")
+            self._path.write_text(f"{current_id.next().as_int()}\n", encoding="utf-8")
 
         return current_id
 
@@ -60,7 +61,7 @@ class SeriesIDCounter(Iterator[SeriesID]):
         """Reset the counter to the start value."""
 
         with self._lockfile:
-            self._path.write_text(f"{self._start}\n", encoding="utf-8")
+            self._path.write_text(f"{self._start.as_int()}\n", encoding="utf-8")
 
 
 class TestIDCounter(Iterator[TestID]):

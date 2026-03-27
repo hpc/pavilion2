@@ -41,7 +41,7 @@ class CounterTests(PavTestCase):
         next_id_path = self.series_dir / "next_id"
 
         self.assertTrue(next_id_path.is_file())
-        self.assertEqual(next_id_path.read_text().strip(), "s5")
+        self.assertEqual(next_id_path.read_text().strip(), "5")
 
     def test_series_id_counter_next_advances(self):
         """__next__ should return the current SeriesID and write the next one to the file.
@@ -57,7 +57,7 @@ class CounterTests(PavTestCase):
 
         self.assertIsInstance(sid, SeriesID)
         self.assertEqual(str(sid), "s6")
-        self.assertEqual((self.series_dir / "next_id").read_text().strip(), "s7")
+        self.assertEqual((self.series_dir / "next_id").read_text().strip(), "7")
 
     def test_test_id_counter_missing_dir(self):
         """Initializing TestIDCounter with a non‑existent test run directory should raise FileNotFoundError."""
