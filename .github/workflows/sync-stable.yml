@@ -1,0 +1,38 @@
+name: Open stable -> develop PR after merge into stable
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [stable]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-sync-pr:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create PR from stable to develop if one does not exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing_pr="$(gh pr list \
+            --base develop \
+            --head stable \
+            --state open \
+            --json number \
+            --jq '.[0].number')"
+
+          if [ -n "$existing_pr" ]; then
+            echo "An open PR already exists: #$existing_pr"
+            exit 0
+          fi
+
+          gh pr create \
+            --base develop \
+            --head stable \
+            --title "Sync stable into develop" \
+            --body "Automatically opened because a pull request into \`stable\` was merged."
