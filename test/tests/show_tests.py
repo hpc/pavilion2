@@ -2,6 +2,8 @@ from pavilion import unittest
 from pavilion import arguments
 from pavilion import plugins
 from pavilion import commands
+import io
+import json
 
 
 class ShowTests(unittest.PavTestCase):
@@ -58,3 +60,33 @@ class ShowTests(unittest.PavTestCase):
         for arg_list in arg_lists:
             args = parser.parse_args(arg_list)
             self.assertEqual(show_cmd.run(self.pav_cfg, args), 0)
+
+    def test_show_format_json(self):
+        """Iterate over all show sub‑commands and verify JSON output."""
+        subcommands = [
+            'config', 'config_dirs', 'collections', 'functions',
+            'platform', 'hosts', 'modes', 'module_wrappers',
+            'pav_vars', 'result_parsers', 'result_base',
+            'schedulers', 'states', 'sys_vars', 'suites',
+            'tests', 'series', 'test_config'
+        ]
+
+        parser = arguments.get_parser()
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+        # Capture output
+        show_cmd.outfile = io.StringIO()
+
+        for sub in subcommands:
+            args = parser.parse_args(['show', sub, '--format', 'json'])
+            ret = show_cmd.run(self.pav_cfg, args)
+            self.assertEqual(ret, 0)
+            output = show_cmd.outfile.getvalue()
+            try:
+                data = json.loads(output)
+            except Exception as e:
+                self.fail(f"JSON parsing failed for subcommand '{sub}': {e}")
+            self.assertIsInstance(data, list, f"Expected JSON list for '{sub}'")
+            # Reset for next iteration
+            show_cmd.outfile.truncate(0)
+            show_cmd.outfile.seek(0)
