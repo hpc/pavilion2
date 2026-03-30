@@ -63,6 +63,7 @@ class ShowTests(unittest.PavTestCase):
 
     def test_show_format_json(self):
         """Iterate over all show sub‑commands and verify JSON output."""
+
         subcommands = [
             'config', 'config_dirs', 'collections', 'functions',
             'platform', 'hosts', 'modes', 'module_wrappers',
@@ -74,19 +75,73 @@ class ShowTests(unittest.PavTestCase):
         parser = arguments.get_parser()
         show_cmd = commands.get_command('show')
         show_cmd.silence()
+
         # Capture output
         show_cmd.outfile = io.StringIO()
 
         for sub in subcommands:
             args = parser.parse_args(['show', sub, '--format', 'json'])
             ret = show_cmd.run(self.pav_cfg, args)
+
             self.assertEqual(ret, 0)
+
             output = show_cmd.outfile.getvalue()
+
             try:
                 data = json.loads(output)
             except Exception as e:
                 self.fail(f"JSON parsing failed for subcommand '{sub}': {e}")
+
             self.assertIsInstance(data, list, f"Expected JSON list for '{sub}'")
+
             # Reset for next iteration
+            show_cmd.outfile.truncate(0)
+            show_cmd.outfile.seek(0)
+
+    def test_show_format_table(self):
+        """Iterate over all show sub‑commands and verify table output."""
+        subcommands = [
+            'config', 'config_dirs', 'collections', 'functions',
+            'platform', 'hosts', 'modes', 'module_wrappers',
+            'pav_vars', 'result_parsers', 'result_base',
+            'schedulers', 'states', 'sys_vars', 'suites',
+            'tests', 'series', 'test_config'
+        ]
+
+        parser = arguments.get_parser()
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+        show_cmd.outfile = io.StringIO()
+
+        for sub in subcommands:
+            args = parser.parse_args(['show', sub, '--format', 'table'])
+            ret = show_cmd.run(self.pav_cfg, args)
+            self.assertEqual(ret, 0)
+            output = show_cmd.outfile.getvalue()
+            self.assertTrue(output.strip(), f"Expected non-empty table output for '{sub}'")
+            show_cmd.outfile.truncate(0)
+            show_cmd.outfile.seek(0)
+
+    def test_show_format_list(self):
+        """Iterate over all show sub‑commands and verify list output."""
+        subcommands = [
+            'config', 'config_dirs', 'collections', 'functions',
+            'platform', 'hosts', 'modes', 'module_wrappers',
+            'pav_vars', 'result_parsers', 'result_base',
+            'schedulers', 'states', 'sys_vars', 'suites',
+            'tests', 'series', 'test_config'
+        ]
+
+        parser = arguments.get_parser()
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+        show_cmd.outfile = io.StringIO()
+
+        for sub in subcommands:
+            args = parser.parse_args(['show', sub, '--format', 'list'])
+            ret = show_cmd.run(self.pav_cfg, args)
+            self.assertEqual(ret, 0)
+            output = show_cmd.outfile.getvalue()
+            self.assertTrue(output.strip(), f"Expected non-empty list output for '{sub}'")
             show_cmd.outfile.truncate(0)
             show_cmd.outfile.seek(0)
