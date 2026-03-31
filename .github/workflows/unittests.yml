@@ -178,7 +178,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: .coverage
-        path: .coverage
+        path: .coverage*
 
 #    - name: codecov-upload
 #      uses: codecov/codecov-action@v2
@@ -285,7 +285,7 @@ jobs:
         path: test/working_dir.zip
 
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [unittests-3_7]
 
     steps:

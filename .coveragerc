@@ -1,6 +1,8 @@
 [run]
 source = lib/pavilion
 branch = True
+parallel = True
+patch = subprocess
 
 [report]
 fail_under = 85
