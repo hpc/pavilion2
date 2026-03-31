@@ -1,0 +1,7 @@
+[run]
+source = lib/pavilion
+branch = True
+
+[report]
+fail_under = 85
+show_missing = True
