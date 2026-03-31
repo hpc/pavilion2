@@ -102,24 +102,26 @@ class ShowTests(unittest.PavTestCase):
             self.fail(f"pav show functions --detail nonexistant raised the following error:\n{err}")
 
     def test_functions_subcommand_format_argument(self):
-        """Test that the functions subcommand --format behaves as expected."""
+        """Test that the functions subcommand --format argument behaves as expected."""
 
         parser = arguments.get_parser()
 
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "functions", "--json"))
+        args = parser.parse_args(("show", "functions", "--format", "json"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show functions --json terminated with non-zero error code.')
+                         msg='pav show functions --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"JSON parsing failed for subcommand '{sub}'.\nOutput:\n{output}\n{e}")
+            self.fail(f"pav show functions --format json did not produce valid JSON. Output\n{output}")
 
-        self.assertIsInstance(data, list, f"Expected JSON list for '{sub}'.\nData:\n{data}")
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
     def test_functions_subcommand_mutual_exclusion(self):
         """Test that the functions subcommand does not allow the --detail and --format
@@ -130,10 +132,13 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "functions", "--json", "--detail", "int"))
+        try:
+            args = parser.parse_args(("show", "functions", "--format", "json", "--detail", "int"))
+        except SystemExit as err:
+            self.fail("pav show functions --format json --detail int produced the following error instead of terminating gracefully:\n{err}")
 
         self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show functions --json terminated with error code 0 despite bad combination of arguments.')
+                        msg='pav show functions --format json --detail int terminated with error code 0 despite bad combination of arguments.')
 
     def test_show_cmds(self):
 
