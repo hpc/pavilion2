@@ -61,16 +61,12 @@ class ShowTests(unittest.PavTestCase):
             args = parser.parse_args(arg_list)
             self.assertEqual(show_cmd.run(self.pav_cfg, args), 0)
 
+    FORMATTABLE_SUBCMDS = ('config_dirs', 'collections', 'functions', 'platform', 'hosts', 'modes',
+                        'module_wrappers', 'pav_vars', 'result_parsers', 'result_base',
+                        'scheduler', 'states', 'sys_vars', 'suites', 'tests', 'series')
+
     def test_show_format_json(self):
         """Iterate over all show sub‑commands and verify JSON output."""
-
-        subcommands = [
-            'config', 'config_dirs', 'collections', 'functions',
-            'platform', 'hosts', 'modes', 'module_wrappers',
-            'pav_vars', 'result_parsers', 'result_base',
-            'schedulers', 'states', 'sys_vars', 'suites',
-            'tests', 'series', 'test_config'
-        ]
 
         parser = arguments.get_parser()
         show_cmd = commands.get_command('show')
@@ -79,7 +75,7 @@ class ShowTests(unittest.PavTestCase):
         # Capture output
         show_cmd.outfile = io.StringIO()
 
-        for sub in subcommands:
+        for sub in self.FORMATTABLE_SUBCMDS:
             args = parser.parse_args(['show', sub, '--format', 'json'])
             ret = show_cmd.run(self.pav_cfg, args)
 
@@ -90,9 +86,9 @@ class ShowTests(unittest.PavTestCase):
             try:
                 data = json.loads(output)
             except Exception as e:
-                self.fail(f"JSON parsing failed for subcommand '{sub}': {e}")
+                self.fail(f"JSON parsing failed for subcommand '{sub}'.\nOutput:\n{output}\n{e}")
 
-            self.assertIsInstance(data, list, f"Expected JSON list for '{sub}'")
+            self.assertIsInstance(data, list, f"Expected JSON list for '{sub}'.\nData:\n{data}")
 
             # Reset for next iteration
             show_cmd.outfile.truncate(0)
@@ -100,20 +96,13 @@ class ShowTests(unittest.PavTestCase):
 
     def test_show_format_table(self):
         """Iterate over all show sub‑commands and verify table output."""
-        subcommands = [
-            'config', 'config_dirs', 'collections', 'functions',
-            'platform', 'hosts', 'modes', 'module_wrappers',
-            'pav_vars', 'result_parsers', 'result_base',
-            'schedulers', 'states', 'sys_vars', 'suites',
-            'tests', 'series', 'test_config'
-        ]
 
         parser = arguments.get_parser()
         show_cmd = commands.get_command('show')
         show_cmd.silence()
         show_cmd.outfile = io.StringIO()
 
-        for sub in subcommands:
+        for sub in self.FORMATTABLE_SUBCMDS:
             args = parser.parse_args(['show', sub, '--format', 'table'])
             ret = show_cmd.run(self.pav_cfg, args)
             self.assertEqual(ret, 0)
@@ -137,7 +126,7 @@ class ShowTests(unittest.PavTestCase):
         show_cmd.silence()
         show_cmd.outfile = io.StringIO()
 
-        for sub in subcommands:
+        for sub in self.FORMATTABLE_SUBCMDS:
             args = parser.parse_args(['show', sub, '--format', 'list'])
             ret = show_cmd.run(self.pav_cfg, args)
             self.assertEqual(ret, 0)
