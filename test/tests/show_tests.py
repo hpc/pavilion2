@@ -101,7 +101,7 @@ class ShowTests(unittest.PavTestCase):
         except Exception as err:
             self.fail(f"pav show functions --detail nonexistant raised the following error:\n{err}")
 
-        # Check that an error was printed to standard output
+        # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
         self.assertNotEqual(error, "")
 
@@ -222,11 +222,11 @@ class ShowTests(unittest.PavTestCase):
 
         try:
             self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
-                            msg='pav show platforms terminated with error code 0 despite bad input.')
+                            msg='pav show platforms --config nonexistant terminated with error code 0 despite bad input.')
         except Exception as err:
             self.fail(f"pav show platforms --config nonexistant raised the following error:\n{err}")
 
-        # Check that an error was printed to standard output
+        # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
         self.assertNotEqual(error, "")
 
@@ -346,7 +346,7 @@ class ShowTests(unittest.PavTestCase):
         except Exception as err:
             self.fail(f"pav show platforms --vars nonexistant raised the following error:\n{err}")
 
-        # Check that an error was printed to standard output
+        # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
         self.assertNotEqual(error, "")
 
