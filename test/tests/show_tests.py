@@ -101,6 +101,10 @@ class ShowTests(unittest.PavTestCase):
         except Exception as err:
             self.fail(f"pav show functions --detail nonexistant raised the following error:\n{err}")
 
+        # Check that an error was printed to standard output
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
     def test_functions_subcommand_format_argument(self):
         """Test that the functions subcommand --format argument behaves as expected."""
 
@@ -125,20 +129,17 @@ class ShowTests(unittest.PavTestCase):
 
     def test_functions_subcommand_mutual_exclusion(self):
         """Test that the functions subcommand does not allow the --detail and --format
-        arguments to be passed at the same time."""
+        arguments to be passed at the same time.
+
+        Note that this test does not test whether main.py catches the error raised by argparse."""
 
         parser = arguments.get_parser()
 
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        try:
+        with self.assertRaises(SystemExit):
             args = parser.parse_args(("show", "functions", "--format", "json", "--detail", "int"))
-        except SystemExit as err:
-            self.fail("pav show functions --format json --detail int produced the following error instead of terminating gracefully:\n{err}")
-
-        self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
-                        msg='pav show functions --format json --detail int terminated with error code 0 despite bad combination of arguments.')
 
     def test_show_cmds(self):
 

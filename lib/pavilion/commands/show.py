@@ -506,6 +506,13 @@ class ShowCommand(Command):
         if args.detail:
             func = expression_functions.get_plugin(args.detail)
 
+            if func is None:
+                output.fprint(self.errfile,
+                f"No function plugin found with name {args.detail}.",
+                color=output.YELLOW)
+
+                return 1
+
             output.fprint(self.outfile, func.signature, color=output.CYAN)
             output.fprint(self.outfile, '-' * len(func.signature))
             output.fprint(self.outfile, func.long_description)
