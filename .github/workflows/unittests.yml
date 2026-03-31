@@ -177,7 +177,7 @@ jobs:
     - name: Upload coverage data
       uses: actions/upload-artifact@v4
       with:
-        name: .coverage
+        name: coverage-artifacts
         path: .coverage*
 
 #    - name: codecov-upload
@@ -307,7 +307,8 @@ jobs:
 
       - name: Generate and show report
         run: |
-          cp coverage-artifacts/.coverage .coverage
+          cp coverage-artifacts/.coverage* .
+          python -m coverage combine
           python -m coverage report
           python -m coverage xml
           python -m coverage html
