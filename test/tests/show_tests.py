@@ -19,6 +19,7 @@ class ShowTests(unittest.PavTestCase):
         show_cmd.silence()
 
         args = parser.parse_args(("show", "config"))
+
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show config terminated with non-zero error code.')
 
@@ -38,23 +39,105 @@ class ShowTests(unittest.PavTestCase):
         show_cmd.silence()
 
         args = parser.parse_args(("show", "config", "--template"))
+
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show config --template terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
         expected = io.StringIO()
-        config.PavilionConfigLoader().dump(expected, self.pav_cfg)
+        config.PavilionConfigLoader().dump(expected)
 
-        self.assertNotEqual(output, expected.getvalue(),
+        self.assertEqual(output, expected.getvalue(),
                          msg='Loaded Pavilion config was printed instead of the template.')
+
+    def test_functions_subcommand(self):
+        """Test that the functions subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "functions"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show functions terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show functions gave empty output")
+
+    def test_functions_subcommand_detail_argument(self):
+        """Test that the functions subcommand --detail argument works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "functions", "--detail", "int"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show functions terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show functions gave empty output")
+
+    def test_functions_subcommand_detail_argument_nonexistant(self):
+        """Test that the functions subcommand --detail argument does not raise an exception when
+        passed a non-existant function."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "functions", "--detail", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show functions terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show functions --detail nonexistant raised the following error:\n{err}")
+
+    def test_functions_subcommand_format_argument(self):
+        """Test that the functions subcommand --format behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "functions", "--json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show functions --json terminated with non-zero error code.')
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"JSON parsing failed for subcommand '{sub}'.\nOutput:\n{output}\n{e}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list for '{sub}'.\nData:\n{data}")
+
+    def test_functions_subcommand_mutual_exclusion(self):
+        """Test that the functions subcommand does not allow the --detail and --format
+        arguments to be passed at the same time."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "functions", "--json", "--detail", "int"))
+
+        self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show functions --json terminated with error code 0 despite bad combination of arguments.')
 
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'config'),
-            ('show', 'config', '--template'),
-            ('show', 'functions'),
-            ('show', 'functions', '--detail', 'int'),
             ('show', 'platform'),
             ('show', 'platform', '--verbose'),
             ('show', 'platform', '--vars', 'that'),

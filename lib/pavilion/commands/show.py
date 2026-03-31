@@ -446,16 +446,12 @@ class ShowCommand(Command):
         for sp in (cfg_dirs_group, collections_group, func_group, platform_parser, hosts, modes,
                    module_wrappers, nodes_parser, pav_vars, result_parsers, result_base, sched,
                    series, states, sys_vars_cmd, suites, tests):
-            try:
-                sp.add_argument(
-                    '--format',
-                    choices=['table', 'list', 'json'],
-                    default='table',
-                    help='Output format (default: table).'
-                )
-            except:
-                print(f"Error adding --format argument to subparser {sp}")
-                raise
+            sp.add_argument(
+                '--format',
+                choices=['table', 'list', 'json'],
+                default='table',
+                help='Output format (default: table).'
+            )
 
     def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command."""
