@@ -140,7 +140,6 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
-        pip install coverage
         sphinx-build --version
         pylint --version
 
@@ -154,9 +153,7 @@ jobs:
 
     - name: run_tests
       run: |
-        # We only need to generate coverage data for one set of unit tests, so we'll use the
-        # data for the lowest version of Python supported (or close to it)
-        python -m coverage run ./test/run_tests
+        ./test/run_tests
 
     - name: zip_working_dir
       if: failure()
@@ -173,12 +170,6 @@ jobs:
       with:
         name: test_output_2.6
         path: test/working_dir.zip
-
-    - name: Upload coverage data
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-artifacts
-        path: .coverage*
 
 #    - name: codecov-upload
 #      uses: codecov/codecov-action@v2
@@ -256,6 +247,7 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
+        pip install -r coverage>=7.10,<8
 
     - name: setup
       run: |
@@ -266,7 +258,7 @@ jobs:
 
     - name: run_tests
       run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+        sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests"
 
     - name: zip_working_dir
       if: failure()
@@ -284,21 +276,27 @@ jobs:
         name: test_output_2.10
         path: test/working_dir.zip
 
+    - name: Upload coverage data
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-artifacts
+        path: .coverage*
+
   coverage:
-    runs-on: ubuntu-22.04
-    needs: [unittests-3_7]
+    runs-on: ubuntu-latest
+    needs: [unittests-3_12]
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.7"
+          python-version: "3.12"
 
       - name: Install coverage
         run: |
           python -m pip install --upgrade pip
-          pip install "coverage>=7,<8"
+          pip install coverage>=7,<8
 
       - name: Download coverage artifacts
         uses: actions/download-artifact@v4
