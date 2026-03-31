@@ -21,7 +21,6 @@ def list_plugins():
 
     return _FUNCTIONS.keys()
 
-
 def register_core_plugins():
     """Find all the core function plugins and activate them."""
 

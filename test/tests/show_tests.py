@@ -78,11 +78,11 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "functions", "--detail", "int"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show functions terminated with non-zero error code.')
+                         msg='pav show functions --detail int terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
-        self.assertNotEqual(output, "", "pav show functions gave empty output")
+        self.assertNotEqual(output, "", "pav show functions --detail int gave empty output")
 
     def test_functions_subcommand_detail_argument_nonexistant(self):
         """Test that the functions subcommand --detail argument does not raise an exception when
@@ -97,7 +97,7 @@ class ShowTests(unittest.PavTestCase):
 
         try:
             self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
-                            msg='pav show functions terminated with error code 0 despite bad input.')
+                            msg='pav show functions --detail nonexistant terminated with error code 0 despite bad input.')
         except Exception as err:
             self.fail(f"pav show functions --detail nonexistant raised the following error:\n{err}")
 
@@ -152,7 +152,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "platforms"))
 
         self.assertEqual(show_cmd.run(self.platforms, args), 0,
-                         msg='pav show functions terminated with non-zero error code.')
+                         msg='pav show platforms terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
@@ -178,7 +178,24 @@ class ShowTests(unittest.PavTestCase):
         except Exception as e:
             self.fail(f"pav show platforms --format json did not produce valid JSON. Output\n{output}")
 
-    def test_platforms_subcommand_mutual_exclusion(self):
+    def test_platforms_subcommand_config_argument(self):
+        """Test that the platforms subcommand works as expected when the --config argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "platforms", "--config", "that"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show platforms --config that terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show platforms --config that gave empty output")
+
+    def test_platforms_subcommand_config_mutual_exclusion(self):
         """Test that the platforms subcommand does not allow the --config and --format
         arguments to be passed at the same time.
 
@@ -190,7 +207,7 @@ class ShowTests(unittest.PavTestCase):
         show_cmd.silence()
 
         with self.assertRaises(SystemExit):
-            args = parser.parse_args(("show", "platforms", "--format", "json", "--config", "cos-3"))
+            args = parser.parse_args(("show", "platforms", "--format", "json", "--config", "that"))
 
     def test_platforms_subcommand_config_argument_nonexistant(self):
         """Test that the platforms subcommand --config argument does not raise an exception when
@@ -243,22 +260,122 @@ class ShowTests(unittest.PavTestCase):
 
 
         self.assertEqual(show_cmd.run(self.platforms, args), 0,
-                         msg='pav show platforms --verbose terminated with non-zero error code.')
+                         msg='pav show platforms --verbose --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"pav show platforms --format json did not produce valid JSON. Output\n{output}")
+            self.fail(f"pav show platforms --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_platforms_subcommand_err_argument(self):
+        """Test that the platforms subcommand --err argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "platforms", "--err"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show platforms --err terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show platforms --err gave empty output")
+
+    def test_platforms_subcommand_err_format(self):
+        """Test that the platforms subcommand --err argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "platforms", "--err", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show platforms --err --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show platforms --err --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_platforms_subcommand_vars_argument(self):
+        """Test that the platforms subcommand --vars argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "platforms", "--vars", "that"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show platforms --vars that terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show platforms --vars that gave empty output")
+
+    def test_platforms_subcommand_vars_argument_nonexistant(self):
+        """Test that the platforms subcommand --vars argument does not raise an exception when
+        passed a non-existant platform."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "platforms", "--vars", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show platforms --vars nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show platforms --vars nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard output
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_platforms_subcommand_vars_format(self):
+        """Test that the platforms subcommand --vars argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "platforms", "--vars", "that", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show platforms --vars that --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show platforms --vars that --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'platform', '--vars', 'that'),
-            ('show', 'platform', '--config', 'that'),
             ('show', 'hosts'),
             ('show', 'hosts', '--verbose'),
             ('show', 'hosts', '--vars', 'this'),
