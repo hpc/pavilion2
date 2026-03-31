@@ -1,12 +1,52 @@
+import io
+import json
+
 from pavilion import unittest
 from pavilion import arguments
 from pavilion import plugins
 from pavilion import commands
-import io
-import json
+from pavilion import config
 
 
 class ShowTests(unittest.PavTestCase):
+
+    def test_config_subcommand(self):
+        """Test that the config subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "config"))
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show config terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+        expected = io.StringIO()
+        config.PavilionConfigLoader().dump(expected, self.pav_cfg)
+
+        self.assertEqual(output, expected.getvalue(),
+                         msg='pav show config output does not match loaded Pavilion config.')
+
+    def test_config_subcommand_template_arg(self):
+        """Test that the config subcommand --template argument works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "config", "--template"))
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show config --template terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+        expected = io.StringIO()
+        config.PavilionConfigLoader().dump(expected, self.pav_cfg)
+
+        self.assertNotEqual(output, expected.getvalue(),
+                         msg='Loaded Pavilion config was printed instead of the template.')
 
     def test_show_cmds(self):
 

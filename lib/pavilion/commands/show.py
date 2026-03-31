@@ -105,43 +105,46 @@ class ShowCommand(Command):
             help="List collections found in config dirs."
         )
 
-        func_group = subparsers.add_parser(
+        funcs = subparsers.add_parser(
             'functions',
             aliases=['func', 'function'],
             help="Show available expression functions plugins.",
             description="Expression function plugins allow you to dynamically "
                         "add complex (or simple) new functionality to "
                         "Pavilion value expressions.")
+
+        func_group = funcs.add_mutually_exclusive_group()
+
         func_group.add_argument(
             '--detail',
             action='store',
             help="Show full documentation on the requested plugin."
         )
 
-        os_parser = subparsers.add_parser(
+        platform_parser = subparsers.add_parser(
             'platform',
             help="Show available platform configs.",
             description="Pavilion can support different default configs "
                         "depending on the platform."
         )
 
-        os_group = os_parser.add_mutually_exclusive_group()
-        os_group.add_argument(
-            '--config', action='store', type=str, metavar='<os>',
-            help="Show full os config for desired operating system."
+        platform_group = platform_parser.add_mutually_exclusive_group()
+        platform_group.add_argument(
+            '--config', action='store', type=str, metavar='<platform>',
+            help="Show full platform config for desired operating system."
         )
 
-        os_group.add_argument(
+        platform_group.add_argument(
             '--err', action='store_true', default=False,
-            help="Display any errors encountered while reading a operating system file."
+            help="Display any errors encountered while reading a platform file."
         )
 
-        os_group.add_argument(
-            '--vars', action='store', type=str, metavar='<os>',
-            help="Show defined variables for desired operating system config."
+        platform_group.add_argument(
+            '--vars', action='store', type=str, metavar='<platform>',
+            help="Show defined variables for desired platform config."
         )
 
-        os_group.add_argument(
+        platform_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
             help="Display paths to the operating system files."
@@ -440,7 +443,7 @@ class ShowCommand(Command):
                         "configs, except without the test name.")
 
         # Add --format argument only to those subparsers to which it makes sense as an argument
-        for sp in (cfg_dirs_group, collections_group, func_group, os_parser, hosts, modes,
+        for sp in (cfg_dirs_group, collections_group, func_group, platform_parser, hosts, modes,
                    module_wrappers, nodes_parser, pav_vars, result_parsers, result_base, sched,
                    series, states, sys_vars_cmd, suites, tests):
             try:
