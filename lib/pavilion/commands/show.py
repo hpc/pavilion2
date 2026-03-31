@@ -122,7 +122,7 @@ class ShowCommand(Command):
         )
 
         platform_parser = subparsers.add_parser(
-            'platform',
+            'platforms',
             help="Show available platform configs.",
             description="Pavilion can support different default configs "
                         "depending on the platform."
