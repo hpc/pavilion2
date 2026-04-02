@@ -1,7 +1,7 @@
 import io
 import json
 
-from itertools import product
+from itertools import combinations
 
 from pavilion import unittest
 from pavilion import arguments
@@ -214,7 +214,7 @@ class ShowTests(unittest.PavTestCase):
         ]
 
         for mutex_args in mutex_sets:
-            for combo in product(mutex_args, repeat=2):
+            for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "platforms"] + list(combo)
 
                 with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
@@ -455,7 +455,7 @@ class ShowTests(unittest.PavTestCase):
         ]
 
         for mutex_args in mutex_sets:
-            for combo in product(mutex_args, repeat=2):
+            for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "hosts"] + list(combo)
 
                 with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
@@ -696,7 +696,7 @@ class ShowTests(unittest.PavTestCase):
         ]
 
         for mutex_args in mutex_sets:
-            for combo in product(mutex_args, repeat=2):
+            for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "modes"] + list(combo)
 
                 with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
@@ -1191,7 +1191,7 @@ class ShowTests(unittest.PavTestCase):
         ]
 
         for mutex_args in mutex_sets:
-            for combo in product(mutex_args, repeat=2):
+            for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "result_parsers"] + list(combo)
 
                 with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
@@ -1346,7 +1346,7 @@ class ShowTests(unittest.PavTestCase):
         ]
 
         for mutex_args in mutex_sets:
-            for combo in product(mutex_args, repeat=2):
+            for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "schedulers"] + list(combo)
 
                 with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
