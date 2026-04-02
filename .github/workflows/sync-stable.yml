@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   open-sync-pr:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -34,4 +33,4 @@ jobs:
             --base develop \
             --head stable \
             --title "Sync stable into develop" \
-            --body "Automatically opened because a changes were pushed to \`stable\`."
+            --body "Automatically opened because changes were pushed to \`stable\`."
