@@ -2291,9 +2291,6 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        # Capture output
-        show_cmd.outfile = io.StringIO()
-
         for sub in self.FORMATTABLE_SUBCMDS:
             args = parser.parse_args(['show', sub, '--format', 'json'])
             ret = show_cmd.run(self.pav_cfg, args)
@@ -2319,7 +2316,6 @@ class ShowTests(unittest.PavTestCase):
         parser = arguments.get_parser()
         show_cmd = commands.get_command('show')
         show_cmd.silence()
-        show_cmd.outfile = io.StringIO()
 
         for sub in self.FORMATTABLE_SUBCMDS:
             args = parser.parse_args(['show', sub, '--format', 'table'])
@@ -2336,7 +2332,6 @@ class ShowTests(unittest.PavTestCase):
         parser = arguments.get_parser()
         show_cmd = commands.get_command('show')
         show_cmd.silence()
-        show_cmd.outfile = io.StringIO()
 
         for sub in self.FORMATTABLE_SUBCMDS:
             args = parser.parse_args(['show', sub, '--format', 'list'])
@@ -2346,3 +2341,28 @@ class ShowTests(unittest.PavTestCase):
             self.assertTrue(output.strip(), f"Expected non-empty list output for '{sub}'")
             show_cmd.outfile.truncate(0)
             show_cmd.outfile.seek(0)
+
+    def test_show_format_list_parsable(self):
+        """Test that the output from --format list is parsable by simple Linux utilities and
+        that it does not output a header."""
+
+        parser = arguments.get_parser()
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(['show', 'schedulers', '--format', 'list'])
+
+        ret = show_cmd.run(self.pav_cfg, args)
+        self.assertEqual(ret, 0)
+
+        output = show_cmd.outfile.getvalue()
+
+        lines = subprocess.run(
+            ["wc", "-l"],
+            input=output,
+            universal_newlines=True,
+            capture_output=True,
+            check=True
+        )
+
+        self.assertEqual(int(lines.stdout.strip()), 3, msg='Expected three lines of output from pav show schedulers --format list')
