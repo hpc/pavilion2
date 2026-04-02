@@ -443,10 +443,10 @@ class ShowCommand(Command):
                         "configs, except without the test name.")
 
         # Add --format argument only to those subparsers to which it makes sense as an argument
-        for sp in (cfg_dirs_group, collections_group, func_group, platform_parser, hosts, modes,
+        for subp in (cfg_dirs_group, collections_group, func_group, platform_parser, hosts, modes,
                    module_wrappers, nodes_parser, pav_vars, result_parsers, result_base, sched,
                    series, states, sys_vars_cmd, suites, tests):
-            sp.add_argument(
+            subp.add_argument(
                 '--format',
                 choices=['table', 'list', 'json'],
                 default='table',
