@@ -218,8 +218,10 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        with self.assertRaises(SystemExit):
-            args = parser.parse_args(("show", "functions", "--format", "json", "--detail", "int"))
+        cmd = ("show", "functions", "--format", "json", "--detail", "int")
+
+        with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: ('--format json', '--detail int')"):
+            args = parser.parse_args(cmd)
 
     def test_platforms_subcommand(self):
         """Test that the platforms subcommand, with no arguments, works as expected."""
@@ -295,7 +297,7 @@ class ShowTests(unittest.PavTestCase):
             for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "platforms"] + list(combo)
 
-                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: {combo}"):
                     args = parser.parse_args(cmd)
 
     def test_platforms_subcommand_config_argument_nonexistant(self):
@@ -536,7 +538,7 @@ class ShowTests(unittest.PavTestCase):
             for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "hosts"] + list(combo)
 
-                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: {combo}"):
                     args = parser.parse_args(cmd)
 
     def test_hosts_subcommand_config_argument_nonexistant(self):
@@ -777,7 +779,7 @@ class ShowTests(unittest.PavTestCase):
             for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "modes"] + list(combo)
 
-                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: {combo}"):
                     args = parser.parse_args(cmd)
 
     def test_modes_subcommand_config_argument_nonexistant(self):
@@ -1272,7 +1274,7 @@ class ShowTests(unittest.PavTestCase):
             for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "result_parsers"] + list(combo)
 
-                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: {combo}"):
                     args = parser.parse_args(cmd)
 
     def test_result_parsers_subcommand_verbose_argument(self):
@@ -1427,7 +1429,7 @@ class ShowTests(unittest.PavTestCase):
             for combo in combinations(mutex_args, repeat=2):
                 cmd = ["show", "schedulers"] + list(combo)
 
-                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: {combo}"):
                     args = parser.parse_args(cmd)
 
     def test_schedulers_subcommand_verbose_argument(self):
@@ -2064,25 +2066,219 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertNotEqual(output, "", "pav show test_config gave empty output")
 
-    def test_show_cmds(self):
-
-        arg_lists = [
-            ('show', 'tests'),
-            ('show', 'tests', 'name_filter'),
-            ('show', 'tests', '--err'),
-            ('show', 'tests', '--doc', 'hello_world.narf'),
-            ('show', 'tests', '--hidden'),
-            ('show', 'tests', '--verbose'),
-        ]
+    def test_tests_subcommand(self):
+        """Test that the tests subcommand, with no arguments, works as expected."""
 
         parser = arguments.get_parser()
 
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        for arg_list in arg_lists:
-            args = parser.parse_args(arg_list)
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0)
+        args = parser.parse_args(("show", "tests"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show tests gave empty output")
+
+     def test_tests_subcommand_format_argument(self):
+        """Test that the tests subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show tests --format json did not produce valid JSON. Output\n{output}")
+
+    def test_tests_subcommand_verbose_argument(self):
+        """Test that the tests subcommand works as expected when the --verbose argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--verbose"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --verbose terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show tests --verbose gave empty output")
+
+    def test_tests_subcommand_verbose_format(self):
+        """Test that the tests subcommand --verbose argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--verbose", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --verbose --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show tests --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_tests_subcommand_hidden_argument(self):
+        """Test that the tests subcommand works as expected when the --hidden argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--hidden"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --hidden terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show tests --hidden gave empty output")
+
+    def test_tests_subcommand_hidden_format(self):
+        """Test that the tests subcommand --hidden argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--hidden", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --hidden --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show tests --hidden --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_tests_subcommand_err_argument(self):
+        """Test that the tests subcommand works as expected when the --err argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--err"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --err terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show tests --err gave empty output")
+
+    def test_tests_subcommand_err_format(self):
+        """Test that the tests subcommand --err argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--err", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --err --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show tests --hidden --err json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_tests_subcommand_doc_argument(self):
+        """Test that the tests subcommand works as expected when the --doc argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--doc", "hello_world.narf"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests --doc hello_world.narf terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show tests --doc hello_world.narf gave empty output")
+
+    def test_tests_subcommand_doc_argument_nonexistant(self):
+        """Test that the tests subcommand --doc argument does not raise an exception when
+        passed a non-existant test."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "--doc", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show tests --doc nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show tests --doc nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_tests_subcommand_mutual_exclusion(self):
+        """Test that the tests subcommand does not allow the --doc and --format
+        arguments to be passed at the same time.
+
+        Note that this test does not test whether main.py catches the error raised by argparse."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        cmd = ("show", "tests", "--format", "json", "--doc", "hello_world.narf")
+
+        with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: ('--format json', '--doc hello_world.narf')"):
+            args = parser.parse_args(cmd)
 
     FORMATTABLE_SUBCMDS = ('config_dirs', 'collections', 'functions', 'platform', 'hosts', 'modes',
                         'module_wrappers', 'pav_vars', 'result_parsers', 'result_base',
