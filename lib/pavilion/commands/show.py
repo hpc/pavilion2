@@ -123,6 +123,7 @@ class ShowCommand(Command):
 
         platform_parser = subparsers.add_parser(
             'platforms',
+            aliases=["platform"],
             help="Show available platform configs.",
             description="Pavilion can support different default configs "
                         "depending on the platform."
@@ -535,7 +536,7 @@ class ShowCommand(Command):
                 title="Available Expression Functions"
             )
 
-    def show_vars(self, pav_cfg, cfg, conf_type, args):
+    def show_vars(self, pav_cfg, cfg, conf_type, args) -> int:
         """Show the variables of a config, each variable is displayed as a
         table."""
 
@@ -665,8 +666,10 @@ class ShowCommand(Command):
 
         if config_data is not None:
             output.fprint(self.outfile, pprint.pformat(config_data, compact=False))
+
+            return 0
         else:
-            output.fprint(sys.stdout, "No {} config found for "
+            output.fprint(self.errfile, "No {} config found for "
                                       "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
@@ -688,13 +691,14 @@ class ShowCommand(Command):
         """List all known host files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args, args.vars, 'hosts')
+            ret = self.show_vars(pav_cfg, args, args.vars, 'hosts')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'hosts')
+            ret = self.show_full_config(pav_cfg, args.config, 'hosts')
         else:
-            self.show_configs_table(pav_cfg, args, 'hosts',
+            ret = self.show_configs_table(pav_cfg, args, 'hosts',
                                     verbose=args.verbose,
                                     errors=args.err)
+        return ret
 
     @sub_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
@@ -874,7 +878,7 @@ class ShowCommand(Command):
             )
 
     @sub_cmd("sched", "scheduler")
-    def _scheduler_cmd(self, _, args):
+    def _schedulers_cmd(self, _, args):
         """
         :param argparse.Namespace args:
         """

@@ -1,5 +1,6 @@
 import io
 import json
+import subprocess
 
 from itertools import combinations
 
@@ -1032,14 +1033,14 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes"))
+        args = parser.parse_args(("show", "nodes", "slurm"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes terminated with non-zero error code.')
+                         msg='pav show nodes slurm terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
-        self.assertNotEqual(output, "", "pav show nodes gave empty output")
+        self.assertNotEqual(output, "", "pav show nodes slurm gave empty output")
 
     def test_nodes_subcommand_format_argument(self):
         """Test that the nodes subcommand --format argument behaves as expected."""
@@ -1049,17 +1050,17 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes", "--format", "json"))
+        args = parser.parse_args(("show", "nodes", "slurm", "--format", "json"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes --format json terminated with non-zero error code.')
+                         msg='pav show nodes slurm --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"pav show nodes --format json did not produce valid JSON. Output\n{output}")
+            self.fail(f"pav show nodes slurm --format json did not produce valid JSON. Output\n{output}")
 
     def test_nodes_subcommand_show_filtered_argument(self):
         """Test that the module_wrappers subcommand --show-filtered argument behaves as expected."""
@@ -1069,14 +1070,14 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes", "--show-filtered"))
+        args = parser.parse_args(("show", "nodes", "slurm", "--show-filtered"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes --show-filtered terminated with non-zero error code.')
+                         msg='pav show nodes slurm --show-filtered terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
-        self.assertNotEqual(output, "", "pav show nodes --show-filtered gave empty output")
+        self.assertNotEqual(output, "", "pav show nodes slurm --show-filtered gave empty output")
 
     def test_nodes_subcommand_show_filtered_format(self):
         """Test that the nodes subcommand --show-filtered argument behaves as expected when the
@@ -1087,18 +1088,18 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes", "--show-filtered", "--format", "json"))
+        args = parser.parse_args(("show", "nodes", "slurm", "--show-filtered", "--format", "json"))
 
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes --show-filtered --format json terminated with non-zero error code.')
+                         msg='pav show nodes slurm --show-filtered --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"pav show nodes --show-filtered --format json did not produce valid JSON. Output\n{output}")
+            self.fail(f"pav show nodes slurm --show-filtered --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
@@ -2360,8 +2361,9 @@ class ShowTests(unittest.PavTestCase):
         lines = subprocess.run(
             ["wc", "-l"],
             input=output,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             universal_newlines=True,
-            capture_output=True,
             check=True
         )
 
