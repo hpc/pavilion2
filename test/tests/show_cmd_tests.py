@@ -91,7 +91,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
-     def test_collections_subcommand(self):
+    def test_collections_subcommand(self):
         """Test that the collections subcommand, with no arguments, works as expected."""
 
         parser = arguments.get_parser()
@@ -1355,7 +1355,7 @@ class ShowTests(unittest.PavTestCase):
         except Exception as e:
             self.fail(f"pav show result_base --format json did not produce valid JSON. Output\n{output}")
 
-      def test_schedulers_subcommand(self):
+    def test_schedulers_subcommand(self):
         """Test that the schedulers subcommand, with no arguments, works as expected."""
 
         parser = arguments.get_parser()
@@ -1812,7 +1812,7 @@ class ShowTests(unittest.PavTestCase):
         except Exception as e:
             self.fail(f"pav show states --format json did not produce valid JSON. Output\n{output}")
 
-     def test_suites_subcommand(self):
+    def test_suites_subcommand(self):
         """Test that the suites subcommand, with no arguments, works as expected."""
 
         parser = arguments.get_parser()
@@ -1971,7 +1971,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
-     def test_system_variables_subcommand(self):
+    def test_system_variables_subcommand(self):
         """Test that the system_variables subcommand, with no arguments, works as expected."""
 
         parser = arguments.get_parser()
@@ -2083,7 +2083,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertNotEqual(output, "", "pav show tests gave empty output")
 
-     def test_tests_subcommand_format_argument(self):
+    def test_tests_subcommand_format_argument(self):
         """Test that the tests subcommand --format argument behaves as expected."""
 
         parser = arguments.get_parser()
