@@ -1,8 +1,7 @@
-name: Open stable -> develop PR after merge into stable
+name: Open stable -> develop PR after push to stable
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [stable]
 
 permissions:
@@ -35,4 +34,4 @@ jobs:
             --base develop \
             --head stable \
             --title "Sync stable into develop" \
-            --body "Automatically opened because a pull request into \`stable\` was merged."
+            --body "Automatically opened because a changes were pushed to \`stable\`."
