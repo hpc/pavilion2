@@ -1,6 +1,8 @@
 import io
 import json
 
+from itertools import product
+
 from pavilion import unittest
 from pavilion import arguments
 from pavilion import plugins
@@ -196,8 +198,8 @@ class ShowTests(unittest.PavTestCase):
         self.assertNotEqual(output, "", "pav show platforms --config that gave empty output")
 
     def test_platforms_subcommand_config_mutual_exclusion(self):
-        """Test that the platforms subcommand does not allow the --config and --format
-        arguments to be passed at the same time.
+        """Test that the platforms subcommand correctly disallows certain combinations of
+        arguments.
 
         Note that this test does not test whether main.py catches the error raised by argparse."""
 
@@ -206,8 +208,13 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        with self.assertRaises(SystemExit):
-            args = parser.parse_args(("show", "platforms", "--format", "json", "--config", "that"))
+        mutex_args = ("--format json", "--config that", "--err", "--vars", "--verbose")
+
+        for combo in product(mutex_args, repeat=2):
+            cmd = ["show", "platforms"] + list(combo)
+
+            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                args = parser.parse_args(cmd)
 
     def test_platforms_subcommand_config_argument_nonexistant(self):
         """Test that the platforms subcommand --config argument does not raise an exception when
@@ -428,8 +435,8 @@ class ShowTests(unittest.PavTestCase):
         self.assertNotEqual(output, "", "pav show hosts --config this gave empty output")
 
     def test_hosts_subcommand_config_mutual_exclusion(self):
-        """Test that the hosts subcommand does not allow the --config and --format
-        arguments to be passed at the same time.
+        """Test that the hosts subcommand correctly disallows certain combinations of
+        arguments.
 
         Note that this test does not test whether main.py catches the error raised by argparse."""
 
@@ -438,8 +445,13 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        with self.assertRaises(SystemExit):
-            args = parser.parse_args(("show", "hosts", "--format", "json", "--config", "this"))
+        mutex_args = ("--format json", "--config this", "--err", "--vars", "--verbose")
+
+        for combo in product(mutex_args, repeat=2):
+            cmd = ["show", "hosts"] + list(combo)
+
+            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                args = parser.parse_args(cmd)
 
     def test_hosts_subcommand_config_argument_nonexistant(self):
         """Test that the hosts subcommand --config argument does not raise an exception when
@@ -660,8 +672,8 @@ class ShowTests(unittest.PavTestCase):
         self.assertNotEqual(output, "", "pav show modes --config defaulted gave empty output")
 
     def test_modes_subcommand_config_mutual_exclusion(self):
-        """Test that the modes subcommand does not allow the --config and --format
-        arguments to be passed at the same time.
+        """Test that the modes subcommand correctly disallows certain combinations of
+        arguments.
 
         Note that this test does not test whether main.py catches the error raised by argparse."""
 
@@ -670,8 +682,13 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        with self.assertRaises(SystemExit):
-            args = parser.parse_args(("show", "modes", "--format", "json", "--config", "defaulted"))
+        mutex_args = ("--format json", "--config that", "--err", "--vars", "--verbose")
+
+        for combo in product(mutex_args, repeat=2):
+            cmd = ["show", "modes"] + list(combo)
+
+            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                args = parser.parse_args(cmd)
 
     def test_modes_subcommand_config_argument_nonexistant(self):
         """Test that the modes subcommand --config argument does not raise an exception when
@@ -1146,8 +1163,8 @@ class ShowTests(unittest.PavTestCase):
         self.assertNotEqual(error, "")
 
     def test_result_parsers_subcommand_mutual_exclusion(self):
-        """Test that the result_parsers subcommand does not allow the --doc and --format
-        arguments to be passed at the same time.
+        """Test that the platforms subcommand correctly disallows certain combinations of
+        arguments.
 
         Note that this test does not test whether main.py catches the error raised by argparse."""
 
@@ -1156,8 +1173,12 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        with self.assertRaises(SystemExit):
-            args = parser.parse_args(("show", "result_parsers", "--format", "json", "--doc", "regex"))
+        mutex_args = ("--format json", "--list", "--doc regex", "--verbose")
+
+        for combo in product(mutex_args, repeat=2):
+            cmd = ["show", "result_parsers"] + list(combo)
+
+            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
 
      def test_result_parsers_subcommand_verbose_argument(self):
         """Test that the result_parsers subcommand --verbose argument behaves as expected."""
