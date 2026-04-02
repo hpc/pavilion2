@@ -564,6 +564,47 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_hosts_subcommand_err_argument(self):
+        """Test that the hosts subcommand --err argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--err"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts --err terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show hosts --err gave empty output")
+
+    def test_hosts_subcommand_err_format(self):
+        """Test that the hosts subcommand --err argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--err", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts --err --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show hosts --err --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
     def test_modes_subcommand(self):
         """Test that the modes subcommand, with no arguments, works as expected."""
 
@@ -752,6 +793,47 @@ class ShowTests(unittest.PavTestCase):
             data = json.loads(output)
         except Exception as e:
             self.fail(f"pav show modes --vars defaulted --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_modes_subcommand_err_argument(self):
+        """Test that the modes subcommand --err argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--err"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes --err terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show modes --err gave empty output")
+
+    def test_modes_subcommand_err_format(self):
+        """Test that the modes subcommand --err argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--err", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes --err --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show modes --err --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
