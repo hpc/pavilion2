@@ -993,11 +993,46 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_pav_vars_subcommand(self):
+        """Test that the pav_vars subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "pav_vars"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show pav_vars terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show pav_vars gave empty output")
+
+    def test_pav_vars_subcommand_format_argument(self):
+        """Test that the pav_vars subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "pav_vars", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show pav_vars --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show nodes --format json did not produce valid JSON. Output\n{output}")
 
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'pav_vars'),
             ('show', 'result_parsers'),
             ('show', 'result_parsers', '--doc=regex'),
             ('show', 'result_parsers', '--verbose'),
