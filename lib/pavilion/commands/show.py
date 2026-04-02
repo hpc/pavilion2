@@ -442,7 +442,7 @@ class ShowCommand(Command):
                         "file. The same format applies to host and mode "
                         "configs, except without the test name.")
 
-        # Add --format argument only to those subparsers to which it makes sense as an argument
+        # Add --format argument only to those subparsers for which it makes sense as an argument
         for subp in (cfg_dirs_group, collections_group, func_group, platform_parser, hosts, modes,
                    module_wrappers, nodes_parser, pav_vars, result_parsers, result_base, sched,
                    series, states, sys_vars_cmd, suites, tests):
@@ -450,7 +450,10 @@ class ShowCommand(Command):
                 '--format',
                 choices=['table', 'list', 'json'],
                 default='table',
-                help='Output format (default: table).'
+                help='Specify an output format for this subcommand. Options are:'
+                     '  table (default) - output a table'
+                     '  list - output as a simple list, with no header, suitable for scripting'
+                     '  json - output as JSON'
             )
 
     def run(self, pav_cfg, args):
