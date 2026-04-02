@@ -1671,10 +1671,46 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_states_subcommand(self):
+        """Test that the states subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "states"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show states terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show states gave empty output")
+
+    def test_states_subcommand_format_argument(self):
+        """Test that the states subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "states", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show states --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show states --format json did not produce valid JSON. Output\n{output}")
+
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'states'),
             ('show', 'suites'),
             ('show', 'suites', '--err'),
             ('show', 'suites', '--supersedes'),
