@@ -2047,10 +2047,26 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_test_config_subcommand(self):
+        """Test that the test_config subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "test_config"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show test_config terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show test_config gave empty output")
+
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'test_config'),
             ('show', 'tests'),
             ('show', 'tests', 'name_filter'),
             ('show', 'tests', '--err'),
