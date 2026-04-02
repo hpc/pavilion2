@@ -837,7 +837,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
-     def test_module_wrappers_subcommand(self):
+    def test_module_wrappers_subcommand(self):
         """Test that the module_wrappers subcommand, with no arguments, works as expected."""
 
         parser = arguments.get_parser()
