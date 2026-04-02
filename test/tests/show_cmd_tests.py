@@ -153,7 +153,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "platforms"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -190,7 +190,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "platforms", "--config", "that"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms --config that terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -251,7 +251,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "platforms", "--verbose"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms --verbose terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -270,7 +270,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "platforms", "--verbose", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms --verbose --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -292,7 +292,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "platforms", "--err"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms --err terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -311,7 +311,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "platforms", "--err", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms --err --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -333,7 +333,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "platforms", "--vars", "that"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms --vars that terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -372,7 +372,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "platforms", "--vars", "that", "--format", "json"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show platforms --vars that --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -394,7 +394,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "hosts"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -431,7 +431,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "hosts", "--config", "this"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts --config this terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -492,7 +492,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "hosts", "--verbose"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts --verbose terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -511,7 +511,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "hosts", "--verbose", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts --verbose --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -533,7 +533,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "hosts", "--vars", "this"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts --vars this terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -572,7 +572,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "hosts", "--vars", "this", "--format", "json"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts --vars this --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -594,7 +594,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "hosts", "--err"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts --err terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -613,7 +613,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "hosts", "--err", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show hosts --err --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -635,7 +635,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "modes"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -672,7 +672,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "modes", "--config", "defaulted"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes --config defaulted terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -733,7 +733,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "modes", "--verbose"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes --verbose terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -752,7 +752,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "modes", "--verbose", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes --verbose --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -774,7 +774,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "modes", "--vars", "defaulted"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes --vars defaulted terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -813,7 +813,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "modes", "--vars", "defaulted", "--format", "json"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes --vars defaulted --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -835,7 +835,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "modes", "--err"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes --err terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -854,7 +854,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "modes", "--err", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show modes --err --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -876,7 +876,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "module_wrappers"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show module_wrappers terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -913,7 +913,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "module_wrappers", "--verbose"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show module_wrappers --verbose terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -932,7 +932,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "module_wrappers", "--verbose", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show module_wrappers --verbose --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -954,7 +954,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "nodes"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show nodes terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -991,7 +991,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "nodes", "--show-filtered"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show nodes --show-filtered terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1010,7 +1010,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "nodes", "--show-filtered", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show nodes --show-filtered --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1032,7 +1032,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "pav_vars"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show pav_vars terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1069,7 +1069,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "result_parsers"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show result_parsers terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1106,7 +1106,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "result_parsers", "--list"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show result_parsers --list terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1124,7 +1124,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "result_parsers", "--list", "--format", "json"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show result_parsers --list --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1146,7 +1146,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "result_parsers", "--doc", "regex"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show result_parsers --doc regex terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1207,7 +1207,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "result_parsers", "--verbose"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show result_parsers --verbose terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1226,7 +1226,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "result_parsers", "--verbose", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show result_parsers --verbose --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1248,7 +1248,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "result_base"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show result_base terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1285,7 +1285,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "schedulers"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1322,7 +1322,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "schedulers", "--config"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers --config terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1362,7 +1362,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "schedulers", "--verbose"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers --verbose terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1381,7 +1381,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "schedulers", "--verbose", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers --verbose --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1403,7 +1403,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "schedulers", "--vars", "slurm"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers --vars slurm terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1442,7 +1442,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "schedulers", "--vars", "slurm", "--format", "json"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers --vars slurm --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1464,7 +1464,7 @@ class ShowTests(unittest.PavTestCase):
 
         args = parser.parse_args(("show", "schedulers", "--list"))
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers --list terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1483,7 +1483,7 @@ class ShowTests(unittest.PavTestCase):
         args = parser.parse_args(("show", "schedulers", "--list", "--format", "json"))
 
 
-        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
                          msg='pav show schedulers --list --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
@@ -1495,6 +1495,181 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_series_subcommand(self):
+        """Test that the series subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show series gave empty output")
+
+    def test_series_subcommand_format_argument(self):
+        """Test that the series subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show series --format json did not produce valid JSON. Output\n{output}")
+
+    def test_series_subcommand_path_argument(self):
+        """Test that the series subcommand works as expected when the --path argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--path"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --path terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show series --path gave empty output")
+
+    def test_series_subcommand_test_sets_argument(self):
+        """Test that the series subcommand --test-sets argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--test-sets"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --test-sets terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show series --test-sets gave empty output")
+
+    def test_series_subcommand_test_sets_format(self):
+        """Test that the series subcommand --test-sets argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--test-sets", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --test-sets --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show series --test-sets --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_series_subcommand_err_argument(self):
+        """Test that the series subcommand --err argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--err"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --err terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show series --err gave empty output")
+
+    def test_series_subcommand_err_format(self):
+        """Test that the series subcommand --err argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--err", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --err --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show series --err --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_series_subcommand_conflicts_argument(self):
+        """Test that the series subcommand --conflicts argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--conflicts"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --conflicts terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show series --conflicts gave empty output")
+
+    def test_series_subcommand_conflicts_format(self):
+        """Test that the series subcommand --conflicts argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--conflicts", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --conflicts --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show series --conflicts --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
     def test_show_cmds(self):
 
