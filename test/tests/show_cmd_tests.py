@@ -891,7 +891,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertNotEqual(output, "", "pav show module_wrappers --verbose gave empty output")
 
-    def test_moddule_wrappers_subcommand_verbose_format(self):
+    def test_module_wrappers_subcommand_verbose_format(self):
         """Test that the module_wrappers subcommand --verbose argument behaves as expected when the
         --format argument is also passed."""
 
@@ -914,6 +914,85 @@ class ShowTests(unittest.PavTestCase):
             self.fail(f"pav show module_wrappers --verbose --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_nodes_subcommand(self):
+        """Test that the nodes subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "nodes"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show nodes terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show nodes gave empty output")
+
+    def test_nodes_subcommand_format_argument(self):
+        """Test that the nodes subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "nodes", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show nodes --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show nodes --format json did not produce valid JSON. Output\n{output}")
+
+    def test_nodes_subcommand_show_filtered_argument(self):
+        """Test that the module_wrappers subcommand --show-filtered argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "nodes", "--show-filtered"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show nodes --show-filtered terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show nodes --show-filtered gave empty output")
+
+    def test_nodes_subcommand_show_filtered_format(self):
+        """Test that the nodes subcommand --show-filtered argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "nodes", "--show-filtered", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show nodes --show-filtered --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show nodes --show-filtered --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
 
     def test_show_cmds(self):
 
