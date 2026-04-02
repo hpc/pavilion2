@@ -373,13 +373,201 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_hosts_subcommand(self):
+        """Test that the hosts subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show hosts gave empty output")
+
+    def test_hosts_subcommand_format_argument(self):
+        """Test that the hosts subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show hosts --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show hosts --format json did not produce valid JSON. Output\n{output}")
+
+    def test_hosts_subcommand_config_argument(self):
+        """Test that the hosts subcommand works as expected when the --config argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--config", "this"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts --config this terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show hosts --config this gave empty output")
+
+    def test_hosts_subcommand_config_mutual_exclusion(self):
+        """Test that the hosts subcommand does not allow the --config and --format
+        arguments to be passed at the same time.
+
+        Note that this test does not test whether main.py catches the error raised by argparse."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        with self.assertRaises(SystemExit):
+            args = parser.parse_args(("show", "hosts", "--format", "json", "--config", "this"))
+
+    def test_hosts_subcommand_config_argument_nonexistant(self):
+        """Test that the hosts subcommand --config argument does not raise an exception when
+        passed a non-existant platform."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--config", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show hosts --config nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show hosts --config nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_hosts_subcommand_verbose_argument(self):
+        """Test that the hosts subcommand --verbose argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--verbose"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts --verbose terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show hosts --verbose gave empty output")
+
+    def test_hosts_subcommand_verbose_format(self):
+        """Test that the hosts subcommand --verbose argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--verbose", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts --verbose --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show hosts --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_hosts_subcommand_vars_argument(self):
+        """Test that the hosts subcommand --vars argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--vars", "this"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts --vars this terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show hosts --vars this gave empty output")
+
+    def test_hosts_subcommand_vars_argument_nonexistant(self):
+        """Test that the hosts subcommand --vars argument does not raise an exception when
+        passed a non-existant host."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--vars", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show hosts --vars nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show hosts --vars nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_hosts_subcommand_vars_format(self):
+        """Test that the platforms subcommand --vars argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "hosts", "--vars", "this", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show hosts --vars this --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show hosts --vars this --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+
     def test_show_cmds(self):
 
-        arg_lists = [
-            ('show', 'hosts'),
-            ('show', 'hosts', '--verbose'),
-            ('show', 'hosts', '--vars', 'this'),
-            ('show', 'hosts', '--config', 'this'),
+        arg_lists = []
             ('show', 'modes'),
             ('show', 'modes', '--verbose'),
             ('show', 'modes', '--vars', 'defaulted'),
