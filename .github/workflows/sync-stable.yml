@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # safer for branch-based operations
+
       - name: Create PR from stable to develop if one does not exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
