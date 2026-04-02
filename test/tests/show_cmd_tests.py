@@ -197,7 +197,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertNotEqual(output, "", "pav show platforms --config that gave empty output")
 
-    def test_platforms_subcommand_config_mutual_exclusion(self):
+    def test_platforms_subcommand_mutual_exclusion(self):
         """Test that the platforms subcommand correctly disallows certain combinations of
         arguments.
 
@@ -208,13 +208,17 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        mutex_args = ("--format json", "--config that", "--err", "--vars", "--verbose")
+        mutex_sets = [
+            ("--config that", "--err", "--vars", "--verbose"),
+            ("--format json", "--config that")
+        ]
 
-        for combo in product(mutex_args, repeat=2):
-            cmd = ["show", "platforms"] + list(combo)
+        for mutex_args in mutex_sets:
+            for combo in product(mutex_args, repeat=2):
+                cmd = ["show", "platforms"] + list(combo)
 
-            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
-                args = parser.parse_args(cmd)
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                    args = parser.parse_args(cmd)
 
     def test_platforms_subcommand_config_argument_nonexistant(self):
         """Test that the platforms subcommand --config argument does not raise an exception when
@@ -434,7 +438,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertNotEqual(output, "", "pav show hosts --config this gave empty output")
 
-    def test_hosts_subcommand_config_mutual_exclusion(self):
+    def test_hosts_subcommand_mutual_exclusion(self):
         """Test that the hosts subcommand correctly disallows certain combinations of
         arguments.
 
@@ -445,13 +449,17 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        mutex_args = ("--format json", "--config this", "--err", "--vars", "--verbose")
+        mutex_sets = [
+            ("--config this", "--err", "--vars", "--verbose"),
+            ("--format json", "--config this")
+        ]
 
-        for combo in product(mutex_args, repeat=2):
-            cmd = ["show", "hosts"] + list(combo)
+        for mutex_args in mutex_sets:
+            for combo in product(mutex_args, repeat=2):
+                cmd = ["show", "hosts"] + list(combo)
 
-            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
-                args = parser.parse_args(cmd)
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                    args = parser.parse_args(cmd)
 
     def test_hosts_subcommand_config_argument_nonexistant(self):
         """Test that the hosts subcommand --config argument does not raise an exception when
@@ -671,7 +679,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertNotEqual(output, "", "pav show modes --config defaulted gave empty output")
 
-    def test_modes_subcommand_config_mutual_exclusion(self):
+    def test_modes_subcommand_mutual_exclusion(self):
         """Test that the modes subcommand correctly disallows certain combinations of
         arguments.
 
@@ -682,13 +690,17 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        mutex_args = ("--format json", "--config that", "--err", "--vars", "--verbose")
+        mutex_sets = [
+            ("--config that", "--err", "--vars", "--verbose"),
+            ("--format json", "--config that")
+        ]
 
-        for combo in product(mutex_args, repeat=2):
-            cmd = ["show", "modes"] + list(combo)
+        for mutex_args in mutex_sets:
+            for combo in product(mutex_args, repeat=2):
+                cmd = ["show", "modes"] + list(combo)
 
-            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
-                args = parser.parse_args(cmd)
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                    args = parser.parse_args(cmd)
 
     def test_modes_subcommand_config_argument_nonexistant(self):
         """Test that the modes subcommand --config argument does not raise an exception when
@@ -1173,13 +1185,17 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        mutex_args = ("--format json", "--list", "--doc regex", "--verbose")
+        mutex_sets = [
+            ("--list", "--doc regex", "--verbose"),
+            ("--format json", "--doc regex")
+        ]
 
-        for combo in product(mutex_args, repeat=2):
-            cmd = ["show", "result_parsers"] + list(combo)
+        for mutex_args in mutex_sets:
+            for combo in product(mutex_args, repeat=2):
+                cmd = ["show", "result_parsers"] + list(combo)
 
-            with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
-                args = parser.parse_args(cmd)
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                    args = parser.parse_args(cmd)
 
     def test_result_parsers_subcommand_verbose_argument(self):
         """Test that the result_parsers subcommand --verbose argument behaves as expected."""
@@ -1259,12 +1275,230 @@ class ShowTests(unittest.PavTestCase):
         except Exception as e:
             self.fail(f"pav show result_base --format json did not produce valid JSON. Output\n{output}")
 
+      def test_schedulers_subcommand(self):
+        """Test that the schedulers subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show schedulers gave empty output")
+
+    def test_schedulers_subcommand_format_argument(self):
+        """Test that the schedulers subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show schedulers --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show schedulers --format json did not produce valid JSON. Output\n{output}")
+
+    def test_schedulers_subcommand_config_argument(self):
+        """Test that the schedulers subcommand works as expected when the --config argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--config"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers --config terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show modes --config gave empty output")
+
+    def test_schedulers_subcommand_mutual_exclusion(self):
+        """Test that the schedulers subcommand correctly disallows certain combinations of
+        arguments.
+
+        Note that this test does not test whether main.py catches the error raised by argparse."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        mutex_sets = [
+            ("--list", "--config", "--vars", "--verbose"),
+            ("--format json", "--config")
+        ]
+
+        for mutex_args in mutex_sets:
+            for combo in product(mutex_args, repeat=2):
+                cmd = ["show", "schedulers"] + list(combo)
+
+                with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                    args = parser.parse_args(cmd)
+
+    def test_schedulers_subcommand_verbose_argument(self):
+        """Test that the schedulers subcommand --verbose argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--verbose"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers --verbose terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show schedulers --verbose gave empty output")
+
+    def test_schedulers_subcommand_verbose_format(self):
+        """Test that the schedulers subcommand --verbose argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--verbose", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers --verbose --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show schedulers --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_schedulers_subcommand_vars_argument(self):
+        """Test that the schedulers subcommand --vars argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--vars", "slurm"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers --vars slurm terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show schedulers --vars slurm gave empty output")
+
+    def test_schedulers_subcommand_vars_argument_nonexistant(self):
+        """Test that the schedulers subcommand --vars argument does not raise an exception when
+        passed a non-existant host."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--vars", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show schedulers --vars nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show schedulers --vars nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_schedulers_subcommand_vars_format(self):
+        """Test that the schedulers subcommand --vars argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--vars", "slurm", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers --vars slurm --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show schedulers --vars slurm --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_schedulers_subcommand_list_argument(self):
+        """Test that the schedulers subcommand --list argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--list"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers --list terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show schedulers --list gave empty output")
+
+    def test_schedulers_subcommand_list_format(self):
+        """Test that the schedulers subcommand --list argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "schedulers", "--list", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show schedulers --list --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show schedulers --list --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'sched'),
-            ('show', 'sched', '--config'),
-            ('show', 'sched', '--vars=slurm'),
             ('show', 'states'),
             ('show', 'suites'),
             ('show', 'suites', '--err'),
