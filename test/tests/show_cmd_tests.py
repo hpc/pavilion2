@@ -1030,12 +1030,179 @@ class ShowTests(unittest.PavTestCase):
         except Exception as e:
             self.fail(f"pav show nodes --format json did not produce valid JSON. Output\n{output}")
 
+    def test_result_parsers_subcommand(self):
+        """Test that the result_parsers subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show result_parsers terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show result_parsers gave empty output")
+
+    def test_result_parsers_subcommand_format_argument(self):
+        """Test that the result_parsers subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show result_parsers --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show result_parsers --format json did not produce valid JSON. Output\n{output}")
+
+    def test_result_parsers_subcommand_list_argument(self):
+        """Test that the result_parsers subcommand --list argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers", "--list"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show result_parsers --list terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show result_parsers --list gave empty output")
+
+    def test_result_parsers_subcommand_list_format(self):
+        """Test that the modes subcommand --list argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers", "--list", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show result_parsers --list --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show result_parsers --list --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+      def test_result_parsers_subcommand_doc_argument(self):
+        """Test that the modes subcommand --doc argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers", "--doc", "regex"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show result_parsers --doc regex terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show result_parsers --doc regex gave empty output")
+
+    def test_result_parsers_subcommand_doc_argument_nonexistant(self):
+        """Test that the result_parsers subcommand --doc argument does not raise an exception when
+        passed a non-existant result parser."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers", "--doc", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show result_parsers --doc nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show result_parsers --doc nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_result_parsers_subcommand_mutual_exclusion(self):
+        """Test that the result_parsers subcommand does not allow the --doc and --format
+        arguments to be passed at the same time.
+
+        Note that this test does not test whether main.py catches the error raised by argparse."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        with self.assertRaises(SystemExit):
+            args = parser.parse_args(("show", "result_parsers", "--format", "json", "--doc", "regex"))
+
+     def test_result_parsers_subcommand_verbose_argument(self):
+        """Test that the result_parsers subcommand --verbose argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers", "--verbose"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show result_parsers --verbose terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show result_parsers --verbose gave empty output")
+
+    def test_result_parsers_subcommand_verbose_format(self):
+        """Test that the result_parsers subcommand --verbose argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "result_parsers", "--verbose", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show result_parsers --verbose --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show result_parsers --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'result_parsers'),
-            ('show', 'result_parsers', '--doc=regex'),
-            ('show', 'result_parsers', '--verbose'),
             ('show', 'sched'),
             ('show', 'sched', '--config'),
             ('show', 'sched', '--vars=slurm'),
