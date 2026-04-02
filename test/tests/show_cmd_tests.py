@@ -1549,6 +1549,30 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertNotEqual(output, "", "pav show series --path gave empty output")
 
+    def test_series_subcommand_path_format(self):
+        """Test that the series subcommand --path argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "series", "--path", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show series --path --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show series --path --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
     def test_series_subcommand_test_sets_argument(self):
         """Test that the series subcommand --test-sets argument behaves as expected."""
 
@@ -1708,13 +1732,168 @@ class ShowTests(unittest.PavTestCase):
         except Exception as e:
             self.fail(f"pav show states --format json did not produce valid JSON. Output\n{output}")
 
+     def test_suites_subcommand(self):
+        """Test that the suites subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show suites gave empty output")
+
+    def test_suites_subcommand_format_argument(self):
+        """Test that the suites subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show suites --format json did not produce valid JSON. Output\n{output}")
+
+    def test_suites_subcommand_verbose_argument(self):
+        """Test that the suites subcommand works as expected when the --verbose argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites", "--verbose"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites --verbose terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show suites --verbose gave empty output")
+
+    def test_suites_subcommand_verbose_format(self):
+        """Test that the suites subcommand --verbose argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites", "--verbose", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites --verbose --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show suites --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_suites_subcommand_err_argument(self):
+        """Test that the suites subcommand --err argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites", "--err"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites --err terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show suites --err gave empty output")
+
+    def test_suites_subcommand_err_format(self):
+        """Test that the suites subcommand --err argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites", "--err", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites --err --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show suites --err --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_suites_subcommand_supersedes_argument(self):
+        """Test that the suites subcommand --supersedes argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites", "--supersedes"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites --supersedes terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show suites --supersedes gave empty output")
+
+    def test_suites_subcommand_supersedes_format(self):
+        """Test that the suites subcommand --supersedes argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "suites", "--supersedes", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show suites --supersedes --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show suites --supersedes --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'suites'),
-            ('show', 'suites', '--err'),
-            ('show', 'suites', '--supersedes'),
-            ('show', 'suites', '--verbose'),
             ('show', 'system_variables'),
             ('show', 'system_variables', '--verbose'),
             ('show', 'test_config'),
