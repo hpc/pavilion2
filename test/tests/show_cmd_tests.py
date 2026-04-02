@@ -1124,7 +1124,7 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
-      def test_result_parsers_subcommand_doc_argument(self):
+    def test_result_parsers_subcommand_doc_argument(self):
         """Test that the modes subcommand --doc argument behaves as expected."""
 
         parser = arguments.get_parser()
