@@ -542,7 +542,7 @@ class ShowTests(unittest.PavTestCase):
         self.assertNotEqual(error, "")
 
     def test_hosts_subcommand_vars_format(self):
-        """Test that the platforms subcommand --vars argument behaves as expected when the
+        """Test that the hosts subcommand --vars argument behaves as expected when the
         --format argument is also passed."""
 
         parser = arguments.get_parser()
@@ -564,14 +564,201 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_modes_subcommand(self):
+        """Test that the modes subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show modes gave empty output")
+
+    def test_modes_subcommand_format_argument(self):
+        """Test that the modes subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show modes --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show modes --format json did not produce valid JSON. Output\n{output}")
+
+    def test_modes_subcommand_config_argument(self):
+        """Test that the modes subcommand works as expected when the --config argument is passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--config", "defaulted"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes --config defaulted terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show modes --config defaulted gave empty output")
+
+    def test_modes_subcommand_config_mutual_exclusion(self):
+        """Test that the modes subcommand does not allow the --config and --format
+        arguments to be passed at the same time.
+
+        Note that this test does not test whether main.py catches the error raised by argparse."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        with self.assertRaises(SystemExit):
+            args = parser.parse_args(("show", "modes", "--format", "json", "--config", "defaulted"))
+
+    def test_modes_subcommand_config_argument_nonexistant(self):
+        """Test that the modes subcommand --config argument does not raise an exception when
+        passed a non-existant platform."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--config", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show modes --config nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show modes --config nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_modes_subcommand_verbose_argument(self):
+        """Test that the modes subcommand --verbose argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--verbose"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes --verbose terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show modes --verbose gave empty output")
+
+    def test_modes_subcommand_verbose_format(self):
+        """Test that the modes subcommand --verbose argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--verbose", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes --verbose --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show modes --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_modes_subcommand_vars_argument(self):
+        """Test that the modes subcommand --vars argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--vars", "defaulted"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes --vars defaulted terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show modes --vars defaulted gave empty output")
+
+    def test_modes_subcommand_vars_argument_nonexistant(self):
+        """Test that the modes subcommand --vars argument does not raise an exception when
+        passed a non-existant host."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--vars", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show modes --vars nonexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show modes --vars nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
+    def test_modes_subcommand_vars_format(self):
+        """Test that the modes subcommand --vars argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "modes", "--vars", "defaulted", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show modes --vars defaulted --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show modes --vars defaulted --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
 
     def test_show_cmds(self):
 
-        arg_lists = []
-            ('show', 'modes'),
-            ('show', 'modes', '--verbose'),
-            ('show', 'modes', '--vars', 'defaulted'),
-            ('show', 'modes', '--config', 'defaulted'),
+        arg_lists = [
             ('show', 'module_wrappers'),
             ('show', 'module_wrappers', '--verbose'),
             ('show', 'pav_vars'),
