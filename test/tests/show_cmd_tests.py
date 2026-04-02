@@ -837,12 +837,87 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+     def test_module_wrappers_subcommand(self):
+        """Test that the module_wrappers subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "module_wrappers"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show module_wrappers terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show module_wrappers gave empty output")
+
+    def test_module_wrappers_format_argument(self):
+        """Test that the module_wrappers subcommand --format argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "module_wrappers", "--format", "json"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show module_wrappers --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show module_wrappers --format json did not produce valid JSON. Output\n{output}")
+
+    def test_module_wrappers_subcommand_verbose_argument(self):
+        """Test that the module_wrappers subcommand --verbose argument behaves as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "module_wrappers", "--verbose"))
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show module_wrappers --verbose terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show module_wrappers --verbose gave empty output")
+
+    def test_moddule_wrappers_subcommand_verbose_format(self):
+        """Test that the module_wrappers subcommand --verbose argument behaves as expected when the
+        --format argument is also passed."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "module_wrappers", "--verbose", "--format", "json"))
+
+
+        self.assertEqual(show_cmd.run(self.platforms, args), 0,
+                         msg='pav show module_wrappers --verbose --format json terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        try:
+            data = json.loads(output)
+        except Exception as e:
+            self.fail(f"pav show module_wrappers --verbose --format json did not produce valid JSON. Output\n{output}")
+
+        self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
     def test_show_cmds(self):
 
         arg_lists = [
-            ('show', 'module_wrappers'),
-            ('show', 'module_wrappers', '--verbose'),
             ('show', 'pav_vars'),
             ('show', 'result_parsers'),
             ('show', 'result_parsers', '--doc=regex'),
