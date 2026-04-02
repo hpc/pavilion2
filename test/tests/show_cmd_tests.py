@@ -1179,8 +1179,9 @@ class ShowTests(unittest.PavTestCase):
             cmd = ["show", "result_parsers"] + list(combo)
 
             with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not correctly disallow the following combination of arguments: {combo}"):
+                args = parser.parse_args(cmd)
 
-     def test_result_parsers_subcommand_verbose_argument(self):
+    def test_result_parsers_subcommand_verbose_argument(self):
         """Test that the result_parsers subcommand --verbose argument behaves as expected."""
 
         parser = arguments.get_parser()
