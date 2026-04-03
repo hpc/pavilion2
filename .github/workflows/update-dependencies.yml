@@ -21,12 +21,12 @@ env:
 jobs:
   update-lockfiles:
     name: Regenerate lockfiles
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.6.15", "3.10", "3.12"]
+        python-version: ["3.6", "3.10", "3.12"]
 
     steps:
       - name: Check out source
