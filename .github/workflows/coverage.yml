@@ -4,6 +4,13 @@ on:
   schedule:
     # Run at midnight on Sundays
     - cron: "0 0 * * 0"
+  workflow_dispatch:
+    inputs:
+      timeout:
+        description: "Timeout value (in seconds) for Pavilion unit tests"
+        required: true
+        default: 60
+        type: number
 
 jobs:
   coverage:
@@ -34,6 +41,9 @@ jobs:
         ./test/utils/spack_setup test
 
     - name: run_tests
+      env:
+        # coverage causes unit tests to run significantly slower, so we need to increase the timeout
+        PAV_UNITTEST_UNIVERSAL_TIMEOUT: ${{ inputs.timeout || 60}}
       run: |
         sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests"
 
