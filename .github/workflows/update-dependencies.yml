@@ -1,0 +1,118 @@
+name: Update Python Dependencies
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: "Branch against which to open the PR"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || github.event.repository.default_branch }}
+
+jobs:
+  update-lockfiles:
+    name: Regenerate lockfiles
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.6", "3.10", "3.12"]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compute lockfile path
+        id: vars
+        shell: bash
+        run: |
+          PY_TAG="py${{ matrix.python-version }}"
+          PY_TAG="${PY_TAG/./}"
+          echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
+          echo "lockfile=requirements/requirements-${PY_TAG}-lock.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Install pip-tools
+        run: |
+          python -m pip install --upgrade pip pip-tools
+
+      - name: Regenerate lockfile
+        run: |
+          python -m piptools compile \
+            --upgrade \
+            --generate-hashes \
+            --output-file "${{ steps.vars.outputs.lockfile }}" \
+            requirements/requirements.in
+
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockfile-${{ steps.vars.outputs.py_tag }}
+          path: ${{ steps.vars.outputs.lockfile }}
+
+  create-pr:
+    name: Commit updated lockfile and open PR
+    runs-on: ubuntu-latest
+    needs: update-lockfiles
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Download py36 lockfile
+        uses: actions/download-artifact@v4
+        with:
+          name: lockfile-py36
+          path: requirements
+
+      - name: Download py310 lockfile
+        uses: actions/download-artifact@v4
+        with:
+          name: lockfile-py310
+          path: requirements
+
+      - name: Download py312 lockfile
+        uses: actions/download-artifact@v4
+        with:
+          name: lockfile-py312
+          path: requirements
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          base: $BASE_BRANCH
+          branch: ci/update-python-dependencies
+          commit-message: "Update Python dependency lockfiles"
+          title: "Update Python dependency lockfiles"
+          body: |
+            This PR regenerates the Python dependency lockfiles from:
+
+            - `requirements/requirements.in`
+
+            Updated files:
+            - `requirements/requirements-py36-lock.txt`
+            - `requirements/requirements-py310-lock.txt`
+            - `requirements/requirements-py312-lock.txt`
+
+            These lockfiles are generated automatically with `pip-compile --upgrade --generate-hashes`.
+          delete-branch: true
+          add-paths: |
+            requirements/requirements-py36-lock.txt
+            requirements/requirements-py310-lock.txt
+            requirements/requirements-py312-lock.txt
