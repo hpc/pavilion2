@@ -53,6 +53,22 @@ class ShowTests(unittest.PavTestCase):
         self.assertEqual(output, expected.getvalue(),
                          msg='Loaded Pavilion config was printed instead of the template.')
 
+    def test_config_subcommand_aliases(self):
+        """Test that the aliases for the config subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("config", "conf")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
     def test_config_dirs_subcommand(self):
         """Test that the config_dirs subcommand, with no arguments, works as expected."""
 
@@ -92,6 +108,23 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_config_dirs_subcommand_aliases(self):
+        """Test that the aliases for the config_dirs subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("config_dirs", "config_dir")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
+
     def test_collections_subcommand(self):
         """Test that the collections subcommand, with no arguments, works as expected."""
 
@@ -130,6 +163,23 @@ class ShowTests(unittest.PavTestCase):
             self.fail(f"pav show collections --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_collections_subcommand_aliases(self):
+        """Test that the aliases for the collections subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("collections", "collection")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
 
     def test_functions_subcommand(self):
         """Test that the functions subcommand, with no arguments, works as expected."""
@@ -223,6 +273,22 @@ class ShowTests(unittest.PavTestCase):
 
         with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: ('--format json', '--detail int')"):
             args = parser.parse_args(cmd)
+
+    def test_functions_subcommand_aliases(self):
+        """Test that the aliases for the functions subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("functions", "functions", "func")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
 
     def test_platforms_subcommand(self):
         """Test that the platforms subcommand, with no arguments, works as expected."""
@@ -465,6 +531,22 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_platforms_subcommand_aliases(self):
+        """Test that the aliases for the platforms subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("platforms", "platform")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
     def test_hosts_subcommand(self):
         """Test that the hosts subcommand, with no arguments, works as expected."""
 
@@ -705,6 +787,22 @@ class ShowTests(unittest.PavTestCase):
             self.fail(f"pav show hosts --err --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_hosts_subcommand_aliases(self):
+        """Test that the aliases for the hosts subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("hosts", "host")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
 
     def test_modes_subcommand(self):
         """Test that the modes subcommand, with no arguments, works as expected."""
@@ -947,6 +1045,22 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_modes_subcommand_aliases(self):
+        """Test that the aliases for the modes subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("modes", "mode")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
     def test_module_wrappers_subcommand(self):
         """Test that the module_wrappers subcommand, with no arguments, works as expected."""
 
@@ -1024,6 +1138,22 @@ class ShowTests(unittest.PavTestCase):
             self.fail(f"pav show module_wrappers --verbose --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_module_wrappers_subcommand_aliases(self):
+        """Test that the aliases for the module_wrappers subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("module_wrappers", "module_wrapper", "mod", "modules", "module", "wrappers", "wrapper")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
 
     def test_nodes_subcommand(self):
         """Test that the nodes subcommand, with no arguments, works as expected."""
@@ -1103,42 +1233,74 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
-    def test_pav_vars_subcommand(self):
-        """Test that the pav_vars subcommand, with no arguments, works as expected."""
+    def test_nodes_subcommand_aliases(self):
+        """Test that the aliases for the nodes subcommand work correctly."""
 
         parser = arguments.get_parser()
 
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "pav_vars"))
+        aliases = ("nodes", "node")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
+    def test_pavilion_variables_subcommand(self):
+        """Test that the pavilion_variables subcommand, with no arguments, works as expected."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "pavilion_variables"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show pav_vars terminated with non-zero error code.')
+                         msg='pav show pavilion_variables terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
-        self.assertNotEqual(output, "", "pav show pav_vars gave empty output")
+        self.assertNotEqual(output, "", "pav show pavilion_variables gave empty output")
 
-    def test_pav_vars_subcommand_format_argument(self):
-        """Test that the pav_vars subcommand --format argument behaves as expected."""
+    def test_pavilion_variables_subcommand_format_argument(self):
+        """Test that the pavilion_variables subcommand --format argument behaves as expected."""
 
         parser = arguments.get_parser()
 
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "pav_vars", "--format", "json"))
+        args = parser.parse_args(("show", "pavilion_variables", "--format", "json"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show pav_vars --format json terminated with non-zero error code.')
+                         msg='pav show pavilion_variables --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"pav show nodes --format json did not produce valid JSON. Output\n{output}")
+            self.fail(f"pav show pavilion_variables --format json did not produce valid JSON. Output\n{output}")
+
+    def test_pavilion_variables_subcommand_aliases(self):
+        """Test that the aliases for the pavilion_variables subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("pavilion_variables", "pavilion_variable", "pav_vars", "pav_vars", "pav")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
 
     def test_result_parsers_subcommand(self):
         """Test that the result_parsers subcommand, with no arguments, works as expected."""
@@ -1318,6 +1480,22 @@ class ShowTests(unittest.PavTestCase):
             self.fail(f"pav show result_parsers --verbose --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_result_parsers_subcommand_aliases(self):
+        """Test that the aliases for the result_parsers subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("result_parsers", "result_parser", "parsers", "parser", "result")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
 
     def test_result_base_subcommand(self):
         """Test that the result_base subcommand, with no arguments, works as expected."""
@@ -1576,6 +1754,22 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_schedulers_subcommand_aliases(self):
+        """Test that the aliases for the schedulers subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("schedulers", "scheduler", "sched")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
     def test_series_subcommand(self):
         """Test that the series subcommand, with no arguments, works as expected."""
 
@@ -1813,6 +2007,22 @@ class ShowTests(unittest.PavTestCase):
         except Exception as e:
             self.fail(f"pav show states --format json did not produce valid JSON. Output\n{output}")
 
+    def test_states_subcommand_aliases(self):
+        """Test that the aliases for the states subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("states", "state")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
     def test_suites_subcommand(self):
         """Test that the suites subcommand, with no arguments, works as expected."""
 
@@ -1972,6 +2182,22 @@ class ShowTests(unittest.PavTestCase):
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
+    def test_suites_subcommand_aliases(self):
+        """Test that the aliases for the suites subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("suites", "suite")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
+
     def test_system_variables_subcommand(self):
         """Test that the system_variables subcommand, with no arguments, works as expected."""
 
@@ -2049,6 +2275,22 @@ class ShowTests(unittest.PavTestCase):
             self.fail(f"pav show system_variables --verbose --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
+
+    def test_system_variables_subcommand_aliases(self):
+        """Test that the aliases for the system_variables subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("system_variables", "system_variable", "sys_vars", "sys_var", "sys")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
 
     def test_test_config_subcommand(self):
         """Test that the test_config subcommand, with no arguments, works as expected."""
@@ -2280,6 +2522,22 @@ class ShowTests(unittest.PavTestCase):
 
         with self.assertRaises(SystemExit, msg=f"{' '.join(cmd)} did not disallow the following combination of arguments: ('--format json', '--doc hello_world.narf')"):
             args = parser.parse_args(cmd)
+
+    def test_tests_subcommand_aliases(self):
+        """Test that the aliases for the tests subcommand work correctly."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        aliases = ("tests", "test")
+
+        for alias in aliases:
+            args = parser.parse_args(("show", alias))
+
+            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"Alias pav show {alias} was not recognized.")
 
     FORMATTABLE_SUBCMDS = ('config_dirs', 'collections', 'functions', 'platform', 'hosts', 'modes',
                         'module_wrappers', 'pav_vars', 'result_parsers', 'result_base',
