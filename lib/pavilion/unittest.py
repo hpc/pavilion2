@@ -109,7 +109,7 @@ base class.
         self.build_docs_timeout = os.environ.get("PAV_UNITTEST_BUILD_DOCS_TIMEOUT",
                                                  universal_timeout or 30)
         self.lockfile_timeout = os.environ.get("PAV_UNITTEST_LOCKFILE_TIMEOUT",
-                                               universal_timeout or 30)
+                                               universal_timeout or 1)
         self.result_logger_timeout = os.environ.get("PAV_UNITTEST_LOCKFILE_TIMEOUT",
                                                     universal_timeout or 10)
         self.testset_wait_timeout = os.environ.get("PAV_UNITTEST_TESTSET_WAIT_TIMEOUT",
