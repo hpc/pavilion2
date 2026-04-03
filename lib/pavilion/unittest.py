@@ -91,7 +91,7 @@ base class.
         universal_timeout = os.environ.get("PAV_UNITTEST_UNIVERSAL_TIMEOUT")
 
         self.testrun_wait_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_WAIT_TIMEOUT",
-                                                   universal_timeout or 20)
+                                                   universal_timeout or 10)
         self.testrun_start_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_START_TIMEOUT",
                                                     universal_timeout or 10)
         self.testrun_build_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_BUILD_TIMEOUT",
