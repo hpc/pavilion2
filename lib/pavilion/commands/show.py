@@ -213,7 +213,7 @@ class ShowCommand(Command):
 
         module_wrappers = subparsers.add_parser(
             'module_wrappers',
-            aliases=['mod', 'module', 'modules', 'wrappers'],
+            aliases=['module_wrapper', 'mod', 'module', 'modules', 'wrappers', 'wrapper'],
             help="Show the installed module wrappers.",
             description="""Module wrappers allow you to customize how
             pavilion loads modules. They can be used in conjunction with
@@ -231,6 +231,7 @@ class ShowCommand(Command):
 
         nodes_parser = subparsers.add_parser(
             'nodes',
+            aliases=['node'],
             help="Show node status for the current machine, from Pavilion's perspective.",
             description="Display a table of information on the current state of "
                         "system nodes for a given scheduler."
@@ -254,7 +255,7 @@ class ShowCommand(Command):
 
         pav_vars = subparsers.add_parser(
             'pavilion_variables',
-            aliases=['pav_vars', 'pav_var', 'pav'],
+            aliases=['pavilion_variable', 'pav_vars', 'pav_var', 'pav'],
             help="Show the available pavilion variables.",
             description="""Pavilion variables are available for use in test
             configurations. Simply put the name of the variable in curly
@@ -266,7 +267,7 @@ class ShowCommand(Command):
 
         result_parsers = subparsers.add_parser(
             "result_parsers",
-            aliases=['parsers', 'result'],
+            aliases=['result_parser', 'parsers', 'parser', 'result'],
             help="Show result_parser plugin info.",
             description="""Pavilion provides result parsers to allow tests
             parse results out of a variety of formats. These can add keys to
@@ -364,7 +365,7 @@ class ShowCommand(Command):
 
         sys_vars_cmd = subparsers.add_parser(
             'system_variables',
-            aliases=['sys_vars', 'sys', 'sys_var'],
+            aliases=['system_variable', 'sys_vars', 'sys', 'sys_var'],
             help="Show the available system variables.",
             description="System variables are available for use in test "
                         "configurations. Simply put the name in curly "
@@ -713,7 +714,7 @@ class ShowCommand(Command):
                                     verbose=args.verbose,
                                     errors=args.err)
 
-    @sub_cmd('mod', 'module', 'modules', 'wrappers')
+    @sub_cmd('module_wrapper', 'mod', 'module', 'modules', 'wrappers', 'wrapper')
     def _module_wrappers_cmd(self, _, args):
         """List the various module wrapper plugins."""
 
@@ -739,7 +740,7 @@ class ShowCommand(Command):
             title="Available Module Wrapper Plugins"
         )
 
-    @sub_cmd()
+    @sub_cmd('node')
     def _nodes_cmd(self, pav_cfg, args):
         """Lists the nodes as seen by a given scheduler."""
         # pylint: disable=protected-access
@@ -804,7 +805,7 @@ class ShowCommand(Command):
             }
         )
 
-    @sub_cmd('pav_vars', 'pav_var', 'pav')
+    @sub_cmd('pavilion_variable', 'pav_vars', 'pav_var', 'pav')
     def _pavilion_variables_cmd(self, pav_cfg, args):
 
         rows = []
@@ -839,7 +840,7 @@ class ShowCommand(Command):
             title=None
         )
 
-    @sub_cmd('parsers', 'result')
+    @sub_cmd('result_parser', 'parsers', 'parser', 'result')
     def _result_parsers_cmd(self, _, args):
         """Show all the result parsers."""
 
@@ -963,7 +964,7 @@ class ShowCommand(Command):
             title="Pavilion Test States"
         )
 
-    @sub_cmd("sys_var", "sys", "sys_vars")
+    @sub_cmd("system_variable", "sys_var", "sys", "sys_vars")
     def _system_variables_cmd(self, _, args):
 
         rows = []

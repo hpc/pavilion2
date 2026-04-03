@@ -1259,7 +1259,7 @@ class ShowTests(unittest.PavTestCase):
 
         for alias in aliases:
             try:
-                args = parser.parse_args(("show", alias))
+                args = parser.parse_args(("show", alias, "slurm"))
             except SystemExit:
                 self.fail(f"Alias pav show {alias} was not recognized.")
 
