@@ -112,7 +112,7 @@ class SeriesCmdTests(PavTestCase):
         self.assertEqual(run_result, 0)
 
         ser = series_cmd.last_run_series
-        self._wait_for_all_start(ser)
+        self._wait_for_all_start(ser, timeout=self.series_start_timeout)
 
         cancel_args = arg_parser.parse_args(['series', 'cancel', str(series_cmd.last_run_series.id)])
         cancel_result = series_cmd.run(self.pav_cfg, cancel_args)
@@ -157,7 +157,7 @@ class SeriesCmdTests(PavTestCase):
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
 
-        self._wait_for_all_start(series_cmd.last_run_series)
+        self._wait_for_all_start(series_cmd.last_run_series, timeout=self.series_start_timeout)
 
         list_args = [
             ['series', 'list'],
@@ -182,7 +182,7 @@ class SeriesCmdTests(PavTestCase):
         run_result = series_cmd.run(self.pav_cfg, args)
         self.assertEqual(run_result, 0)
 
-        self._wait_for_all_start(series_cmd.last_run_series)
+        self._wait_for_all_start(series_cmd.last_run_series, timeout=self.series_start_timeout)
 
         list_args = [
             ['series', 'state_history', '--text'],
@@ -192,7 +192,7 @@ class SeriesCmdTests(PavTestCase):
             args = arg_parser.parse_args(raw_args)
             self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
 
-    def _wait_for_all_start(self, ser: series.TestSeries, timeout=self.series_start_timeout):
+    def _wait_for_all_start(self, ser: series.TestSeries, timeout):
         # Wait for the series to start.
         start_time = time.time()
         while not ser.status.has_state(SERIES_STATES.ALL_STARTED):
