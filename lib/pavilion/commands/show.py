@@ -853,18 +853,18 @@ class ShowCommand(Command):
         """Show all the result parsers."""
 
         if args.doc:
-            try:
-                res_plugin = result_parsers.get_plugin(args.doc)
-            except errors.ResultError:
-                output.fprint(sys.stdout, "Invalid result parser '{}'.".format(args.doc),
+            res_plugin = result_parsers.get_plugin(args.doc)
+
+            if res_plugin is None:
+                output.fprint(self.errfile, "Invalid result parser '{}'.".format(args.doc),
                               color=output.RED)
                 return errno.EINVAL
 
             output.fprint(self.outfile, res_plugin.doc())
 
         else:
-
             rps = []
+
             for rp_name in result_parsers.list_plugins():
                 res_plugin = result_parsers.get_plugin(rp_name)
                 desc = " ".join(str(res_plugin.__doc__).split())
@@ -895,10 +895,10 @@ class ShowCommand(Command):
         if args.vars is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
-            try:
-                sched = schedulers.get_plugin(sched_name)
-            except errors.SchedulerPluginError:
-                output.fprint(sys.stdout, "Invalid scheduler plugin '{}'.".format(sched_name),
+            sched = schedulers.get_plugin(sched_name)
+
+            if sched is None:
+                output.fprint(self.errfile, "Invalid scheduler plugin '{}'.".format(sched_name),
                               color=output.RED)
                 return errno.EINVAL
 
@@ -1063,8 +1063,7 @@ class ShowCommand(Command):
     def _tests_cmd(self, pav_cfg, args):
 
         if args.test_name is not None:
-            self._test_docs_subcmd(pav_cfg, args)
-            return
+            return self._test_docs_subcmd(pav_cfg, args)
 
         resolv = resolver.TestConfigResolver(pav_cfg)
         suites = resolv.find_all_tests()
@@ -1100,6 +1099,12 @@ class ShowCommand(Command):
                     'err':     'None'
                 })
 
+        if len(rows) == 0:
+            output.fprint(self.errfile, f"No tests found matching name {suite_name}.",
+                          color=output.RED)
+
+            return 1
+
         fields = ['name', 'summary']
         if args.verbose or args.err:
             fields.append('path')
@@ -1113,6 +1118,8 @@ class ShowCommand(Command):
             format=args.format,
             title="Available Tests"
         )
+
+        return 0
 
     @sub_cmd('series')
     def _series_cmd(self, pav_cfg, args):
@@ -1167,24 +1174,24 @@ class ShowCommand(Command):
 
         parts = args.test_name.split('.')
         if len(parts) != 2:
-            output.fprint(self.outfile, "You must give a test name as '<suite>.<test>'.",
+            output.fprint(self.errfile, "You must give a test name as '<suite>.<test>'.",
                           color=output.RED)
-            return
+            return 1
 
         suite_name, test_name = parts
 
         if suite_name not in suites:
-            output.fprint(self.outfile, "No such suite: '{}'.\n"
+            output.fprint(self.errfile, "No such suite: '{}'.\n"
                                         "Available test suites:\n{}"
                           .format(suite_name, "\n".join(sorted(suites.keys()))), color=output.RED)
-            return
+            return 1
         tests = suites[suite_name]['tests']
         if test_name not in tests:
-            output.fprint(sys.stdout, "No such test '{}' in suite '{}'.\n"
+            output.fprint(self.errfile, "No such test '{}' in suite '{}'.\n"
                                       "Available tests in suite:\n{}"
                           .format(test_name, suite_name,
                                   "\n".join(sorted(tests.keys()))))
-            return
+            return 1
 
         test = tests[test_name]
 
@@ -1200,6 +1207,7 @@ class ShowCommand(Command):
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
 
+        return 0
 
     DOC_KEYS = ['summary', 'doc']
     PERMUTATION_KEYS = ['permute_on', 'subtitle']

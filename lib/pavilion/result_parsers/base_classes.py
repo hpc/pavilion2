@@ -34,7 +34,7 @@ def get_plugin(name):
 :rtype: ResultParser
 """
 
-    return _RESULT_PARSERS[name]
+    return _RESULT_PARSERS.get(name)
 
 
 def list_plugins():

@@ -238,7 +238,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show functions --detail nonexistant should have written a message to stderr, but did not.')
 
     def test_functions_subcommand_format_argument(self):
         """Test that the functions subcommand --format argument behaves as expected."""
@@ -392,7 +392,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show platforms --config nonexistant should have written a message to stderr, but did not.')
 
     def test_platforms_subcommand_verbose_argument(self):
         """Test that the platforms subcommand --verbose argument behaves as expected."""
@@ -512,7 +512,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show platforms --vars nonexistant should have written a message to stderr, but did not.')
 
     def test_platforms_subcommand_vars_format(self):
         """Test that the platforms subcommand --vars argument behaves as expected when the
@@ -651,7 +651,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show hosts --config nonexistant should have written a message to stderr, but did not.')
 
     def test_hosts_subcommand_verbose_argument(self):
         """Test that the hosts subcommand --verbose argument behaves as expected."""
@@ -730,7 +730,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show hosts --vars nonexistant should have written a message to stderr, but did not.')
 
     def test_hosts_subcommand_vars_format(self):
         """Test that the hosts subcommand --vars argument behaves as expected when the
@@ -910,7 +910,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show modes --config nonexistant should have written a message to stderr, but did not.')
 
     def test_modes_subcommand_verbose_argument(self):
         """Test that the modes subcommand --verbose argument behaves as expected."""
@@ -989,7 +989,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show modes --vars nonexistant should have written a message to stderr, but did not.')
 
     def test_modes_subcommand_vars_format(self):
         """Test that the modes subcommand --vars argument behaves as expected when the
@@ -1433,7 +1433,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show result_parsers --doc nonexistant should have written a message to stderr, but did not.')
 
     def test_result_parsers_subcommand_mutual_exclusion(self):
         """Test that the platforms subcommand correctly disallows certain combinations of
@@ -1708,7 +1708,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show schedulers --vars nonexistant should have written a message to stderr, but did not.')
 
     def test_schedulers_subcommand_vars_format(self):
         """Test that the schedulers subcommand --vars argument behaves as expected when the
@@ -2533,7 +2533,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show tests --doc nonexistant should have written a message to stderr, but did not.')
 
     def test_tests_subcommand_name_filter_argument(self):
         """Test that name filtering works for the tests subcommand."""
@@ -2571,7 +2571,7 @@ class ShowTests(unittest.PavTestCase):
 
         # Check that an error was printed to standard error
         error = show_cmd.errfile.getvalue()
-        self.assertNotEqual(error, "")
+        self.assertNotEqual(error, "", msg='pav show tests nonexistant should have written a message to stderr, but did not.')
 
     def test_tests_subcommand_mutual_exclusion(self):
         """Test that the tests subcommand does not allow the --doc and --format
@@ -2693,4 +2693,4 @@ class ShowTests(unittest.PavTestCase):
             check=True
         )
 
-        self.assertEqual(int(lines.stdout.strip()), 3, msg='Expected three lines of output from pav show schedulers --format list')
+        self.assertEqual(int(lines.stdout.strip()), 3, msg=f'Expected three lines of output from pav show schedulers --format list. Output\n{lines.stdout}')
