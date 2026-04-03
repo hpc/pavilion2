@@ -537,7 +537,7 @@ class ShowCommand(Command):
                 title="Available Expression Functions"
             )
 
-    def show_vars(self, pav_cfg, cfg, conf_type, args) -> int:
+    def show_vars(self, pav_cfg, args, cfg, conf_type) -> int:
         """Show the variables of a config, each variable is displayed as a
         table."""
 
@@ -679,7 +679,7 @@ class ShowCommand(Command):
         """List all known platform files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, 'platforms', args=args)
+            self.show_vars(pav_cfg, args, args.vars, 'platforms')
         elif args.config:
             self.show_full_config(pav_cfg, args.config, 'platforms')
         else:
