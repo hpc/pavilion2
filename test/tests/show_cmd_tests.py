@@ -1177,14 +1177,14 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes", "slurm"))
+        args = parser.parse_args(("show", "nodes", "dummy"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes slurm terminated with non-zero error code.')
+                         msg='pav show nodes dummy terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
-        self.assertNotEqual(output, "", "pav show nodes slurm gave empty output")
+        self.assertNotEqual(output, "", "pav show nodes dummy gave empty output")
 
     def test_nodes_subcommand_format_argument(self):
         """Test that the nodes subcommand --format argument behaves as expected."""
@@ -1194,17 +1194,17 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes", "slurm", "--format", "json"))
+        args = parser.parse_args(("show", "nodes", "dummy", "--format", "json"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes slurm --format json terminated with non-zero error code.')
+                         msg='pav show nodes dummy --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"pav show nodes slurm --format json did not produce valid JSON. Output\n{output}")
+            self.fail(f"pav show nodes dummy --format json did not produce valid JSON. Output\n{output}")
 
     def test_nodes_subcommand_show_filtered_argument(self):
         """Test that the module_wrappers subcommand --show-filtered argument behaves as expected."""
@@ -1214,14 +1214,14 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes", "slurm", "--show-filtered"))
+        args = parser.parse_args(("show", "nodes", "dummy", "--show-filtered"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes slurm --show-filtered terminated with non-zero error code.')
+                         msg='pav show nodes dummy --show-filtered terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
-        self.assertNotEqual(output, "", "pav show nodes slurm --show-filtered gave empty output")
+        self.assertNotEqual(output, "", "pav show nodes dummy --show-filtered gave empty output")
 
     def test_nodes_subcommand_show_filtered_format(self):
         """Test that the nodes subcommand --show-filtered argument behaves as expected when the
@@ -1232,18 +1232,18 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "nodes", "slurm", "--show-filtered", "--format", "json"))
+        args = parser.parse_args(("show", "nodes", "dummy", "--show-filtered", "--format", "json"))
 
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show nodes slurm --show-filtered --format json terminated with non-zero error code.')
+                         msg='pav show nodes dummy --show-filtered --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"pav show nodes slurm --show-filtered --format json did not produce valid JSON. Output\n{output}")
+            self.fail(f"pav show nodes dummy --show-filtered --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
@@ -1259,7 +1259,7 @@ class ShowTests(unittest.PavTestCase):
 
         for alias in aliases:
             try:
-                args = parser.parse_args(("show", alias, "slurm"))
+                args = parser.parse_args(("show", alias, "dummy"))
             except SystemExit:
                 self.fail(f"Alias pav show {alias} was not recognized.")
 
@@ -1680,14 +1680,14 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "schedulers", "--vars", "slurm"))
+        args = parser.parse_args(("show", "schedulers", "--vars", "dummy"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show schedulers --vars slurm terminated with non-zero error code.')
+                         msg='pav show schedulers --vars dummy terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
-        self.assertNotEqual(output, "", "pav show schedulers --vars slurm gave empty output")
+        self.assertNotEqual(output, "", "pav show schedulers --vars dummy gave empty output")
 
     def test_schedulers_subcommand_vars_argument_nonexistant(self):
         """Test that the schedulers subcommand --vars argument does not raise an exception when
@@ -1719,17 +1719,17 @@ class ShowTests(unittest.PavTestCase):
         show_cmd = commands.get_command('show')
         show_cmd.silence()
 
-        args = parser.parse_args(("show", "schedulers", "--vars", "slurm", "--format", "json"))
+        args = parser.parse_args(("show", "schedulers", "--vars", "dummy", "--format", "json"))
 
         self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg='pav show schedulers --vars slurm --format json terminated with non-zero error code.')
+                         msg='pav show schedulers --vars dummy --format json terminated with non-zero error code.')
 
         output = show_cmd.outfile.getvalue()
 
         try:
             data = json.loads(output)
         except Exception as e:
-            self.fail(f"pav show schedulers --vars slurm --format json did not produce valid JSON. Output\n{output}")
+            self.fail(f"pav show schedulers --vars dummy --format json did not produce valid JSON. Output\n{output}")
 
         self.assertIsInstance(data, list, f"Expected JSON list.\nReceived:\n{data}")
 
