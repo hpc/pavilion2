@@ -81,6 +81,8 @@ base class.
 
         super().__init__(*args, **kwargs)
 
+        self._get_timeouts()
+
     def _get_timeouts(self) -> None:
         """Get the various timeout values from the environment, if defined. Otherwise, use
         default values."""
