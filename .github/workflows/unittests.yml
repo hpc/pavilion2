@@ -2,9 +2,13 @@ name: unittests
 
 on:
   push:
-    branches: [ develop ]
+    branches:
+      - develop
+      - stable
   pull_request:
-    branches: [ develop ]
+    branches:
+      - develop
+      - stable
 
 jobs:
   # The debug job is meant for debugging CI related issues.

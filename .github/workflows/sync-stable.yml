@@ -1,8 +1,7 @@
-name: Open stable -> develop PR after merge into stable
+name: Open stable -> develop PR after push to stable
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [stable]
 
 permissions:
@@ -11,10 +10,14 @@ permissions:
 
 jobs:
   open-sync-pr:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # safer for branch-based operations
+
       - name: Create PR from stable to develop if one does not exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -35,4 +38,4 @@ jobs:
             --base develop \
             --head stable \
             --title "Sync stable into develop" \
-            --body "Automatically opened because a pull request into \`stable\` was merged."
+            --body "Automatically opened because changes were pushed to \`stable\`."

@@ -110,7 +110,7 @@ class ResultsCommand(Command):
         )
         group.add_argument(
             "-f", "--full", action="store_true", default=False,
-            help="Print results as json with all keys."
+            help="Print results with all keys."
         )
         parser.add_argument(
             '-r', '--re-run', dest="re_run",
