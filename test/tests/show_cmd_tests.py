@@ -2507,6 +2507,44 @@ class ShowTests(unittest.PavTestCase):
         error = show_cmd.errfile.getvalue()
         self.assertNotEqual(error, "")
 
+    def test_tests_subcommand_name_filter_argument(self):
+        """Test that name filtering works for the tests subcommand."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "hello*"))
+
+        self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
+                         msg='pav show tests hello* terminated with non-zero error code.')
+
+        output = show_cmd.outfile.getvalue()
+
+        self.assertNotEqual(output, "", "pav show tests hello* gave empty output")
+
+    def test_tests_subcommand_name_filter_nonexistant(self):
+        """Test that the tests subcommand does not raise an exception when a name filter is
+        passed that does not match any tests."""
+
+        parser = arguments.get_parser()
+
+        show_cmd = commands.get_command('show')
+        show_cmd.silence()
+
+        args = parser.parse_args(("show", "tests", "nonexistant"))
+
+        try:
+            self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
+                            msg='pav show tests onexistant terminated with error code 0 despite bad input.')
+        except Exception as err:
+            self.fail(f"pav show tests nonexistant raised the following error:\n{err}")
+
+        # Check that an error was printed to standard error
+        error = show_cmd.errfile.getvalue()
+        self.assertNotEqual(error, "")
+
     def test_tests_subcommand_mutual_exclusion(self):
         """Test that the tests subcommand does not allow the --doc and --format
         arguments to be passed at the same time.
