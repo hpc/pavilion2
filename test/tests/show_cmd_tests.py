@@ -2693,4 +2693,4 @@ class ShowTests(unittest.PavTestCase):
             check=True
         )
 
-        self.assertEqual(int(lines.stdout.strip()), 3, msg=f'Expected three lines of output from pav show schedulers --format list. Output\n{lines.stdout}')
+        self.assertEqual(int(lines.stdout.strip()), 6, msg=f'Expected 6 lines of output from pav show schedulers --format list. Output:\n{output}')

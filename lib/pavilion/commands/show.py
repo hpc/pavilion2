@@ -431,7 +431,10 @@ class ShowCommand(Command):
             action='store_true', default=False,
             help='Display any errors encountered while reading the test.'
         )
-        tests.add_argument(
+
+        tests_group = tests.add_mutually_exclusive_group()
+
+        tests_group.add_argument(
             '--doc', action='store', type=str, dest='test_name',
             help="Show test documentation string."
         )
@@ -447,7 +450,7 @@ class ShowCommand(Command):
         # Add --format argument only to those subparsers for which it makes sense as an argument
         for subp in (cfg_dirs_group, collections_group, func_group, platform_parser, hosts, modes,
                    module_wrappers, nodes_parser, pav_vars, result_parsers, result_base, sched,
-                   series, states, sys_vars_cmd, suites, tests):
+                   series, states, sys_vars_cmd, suites, tests_group):
             subp.add_argument(
                 '--format',
                 choices=['table', 'list', 'json'],
