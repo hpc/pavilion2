@@ -549,6 +549,7 @@ class ShowCommand(Command):
                 self.errfile,
                 f"Could not find a config for {conf_type} '{cfg}'",
                 color=output.YELLOW)
+
             return 1
 
         with file.open() as config_file:
@@ -620,6 +621,8 @@ class ShowCommand(Command):
                                                            compact=True))
             output.fprint(self.outfile, "\n")
 
+        return 0
+
     def show_configs_table(self, pav_cfg, args, conf_type, errors=False,
                            verbose=False):
         """Default config table, shows the config name and if it can be
@@ -653,6 +656,8 @@ class ShowCommand(Command):
             title=None
         )
 
+        return 0
+
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
         """Show the full config of a given os/host/mode."""
 
@@ -679,13 +684,15 @@ class ShowCommand(Command):
         """List all known platform files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args, args.vars, 'platforms')
+            ret = self.show_vars(pav_cfg, args, args.vars, 'platforms')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'platforms')
+            ret = self.show_full_config(pav_cfg, args.config, 'platforms')
         else:
-            self.show_configs_table(pav_cfg, args, 'platforms',
+            ret = self.show_configs_table(pav_cfg, args, 'platforms',
                                     verbose=args.verbose,
                                     errors=args.err)
+
+        return ret
 
     @sub_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):
@@ -706,13 +713,14 @@ class ShowCommand(Command):
         """List all known mode files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args, args.vars, 'modes')
+            ret = self.show_vars(pav_cfg, args, args.vars, 'modes')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'modes')
+            ret = self.show_full_config(pav_cfg, args.config, 'modes')
         else:
-            self.show_configs_table(pav_cfg, args, 'modes',
+            ret = self.show_configs_table(pav_cfg, args, 'modes',
                                     verbose=args.verbose,
                                     errors=args.err)
+        return ret
 
     @sub_cmd('module_wrapper', 'mod', 'module', 'modules', 'wrappers', 'wrapper')
     def _module_wrappers_cmd(self, _, args):
