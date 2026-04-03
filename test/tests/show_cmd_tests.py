@@ -66,8 +66,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_config_dirs_subcommand(self):
         """Test that the config_dirs subcommand, with no arguments, works as expected."""
@@ -121,9 +123,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
-
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_collections_subcommand(self):
         """Test that the collections subcommand, with no arguments, works as expected."""
@@ -177,9 +180,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
-
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_functions_subcommand(self):
         """Test that the functions subcommand, with no arguments, works as expected."""
@@ -287,8 +291,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_platforms_subcommand(self):
         """Test that the platforms subcommand, with no arguments, works as expected."""
@@ -544,8 +550,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_hosts_subcommand(self):
         """Test that the hosts subcommand, with no arguments, works as expected."""
@@ -801,8 +809,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_modes_subcommand(self):
         """Test that the modes subcommand, with no arguments, works as expected."""
@@ -1058,8 +1068,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_module_wrappers_subcommand(self):
         """Test that the module_wrappers subcommand, with no arguments, works as expected."""
@@ -1152,8 +1164,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_nodes_subcommand(self):
         """Test that the nodes subcommand, with no arguments, works as expected."""
@@ -1246,8 +1260,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_pavilion_variables_subcommand(self):
         """Test that the pavilion_variables subcommand, with no arguments, works as expected."""
@@ -1299,8 +1315,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_result_parsers_subcommand(self):
         """Test that the result_parsers subcommand, with no arguments, works as expected."""
@@ -1494,8 +1512,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_result_base_subcommand(self):
         """Test that the result_base subcommand, with no arguments, works as expected."""
@@ -1767,8 +1787,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_series_subcommand(self):
         """Test that the series subcommand, with no arguments, works as expected."""
@@ -2020,8 +2042,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_suites_subcommand(self):
         """Test that the suites subcommand, with no arguments, works as expected."""
@@ -2195,8 +2219,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_system_variables_subcommand(self):
         """Test that the system_variables subcommand, with no arguments, works as expected."""
@@ -2289,8 +2315,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     def test_test_config_subcommand(self):
         """Test that the test_config subcommand, with no arguments, works as expected."""
@@ -2537,7 +2565,7 @@ class ShowTests(unittest.PavTestCase):
 
         try:
             self.assertNotEqual(show_cmd.run(self.pav_cfg, args), 0,
-                            msg='pav show tests onexistant terminated with error code 0 despite bad input.')
+                            msg='pav show tests nonexistant terminated with error code 0 despite bad input.')
         except Exception as err:
             self.fail(f"pav show tests nonexistant raised the following error:\n{err}")
 
@@ -2574,8 +2602,10 @@ class ShowTests(unittest.PavTestCase):
         for alias in aliases:
             args = parser.parse_args(("show", alias))
 
-            self.assertEqual(show_cmd.run(self.pav_cfg, args), 0,
-                         msg=f"Alias pav show {alias} was not recognized.")
+            try:
+                show_cmd.run(self.pav_cfg, args)
+            except SystemExit:
+                self.fail(f"Alias pav show {alias} was not recognized.")
 
     FORMATTABLE_SUBCMDS = ('config_dirs', 'collections', 'functions', 'platform', 'hosts', 'modes',
                         'module_wrappers', 'pav_vars', 'result_parsers', 'result_base',
