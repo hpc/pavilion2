@@ -92,7 +92,7 @@ class LoggingTests(PavTestCase):
             file_name=logfile_path,
             max_bytes=1024,
             backup_count=2,
-            lock_timeout=1
+            lock_timeout=self.lockfile_timeout
         )
 
         rec, ident = self._make_record("My first record")
@@ -200,8 +200,8 @@ class LoggingTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series2 = run_cmd.last_series
 
-        series1.wait_log(timeout=10)
-        series2.wait_log(timeout=10)
+        series1.wait_log(timeout=self.result_logger_timeout)
+        series2.wait_log(timeout=self.result_logger_timeout)
 
         with open(log_path) as fin:
             results = fin.readlines()

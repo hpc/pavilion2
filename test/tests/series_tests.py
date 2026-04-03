@@ -114,7 +114,7 @@ class SeriesTests(PavTestCase):
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(timeout=10)
+        test_series_obj.wait(timeout=self.series_wait_timeout)
 
         durations = []
 
@@ -146,7 +146,7 @@ class SeriesTests(PavTestCase):
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(timeout=10)
+        test_series_obj.wait(timeout=self.series_wait_timeout)
 
         durations = []
 
@@ -305,7 +305,7 @@ class SeriesTests(PavTestCase):
         series_obj = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         series_obj.run()
 
-        series_obj.wait(timeout=10)
+        series_obj.wait(timeout=self.series_wait_timeout)
 
         for test in series_obj.tests.values():
             if test.name in ['test_set_errors.good', 'hello_world.hello']:
@@ -392,7 +392,7 @@ class SeriesTests(PavTestCase):
         )
 
         series_obj.run()
-        series_obj.wait(timeout=10)
+        series_obj.wait(timeout=self.series_wait_timeout)
 
         return series_obj
 

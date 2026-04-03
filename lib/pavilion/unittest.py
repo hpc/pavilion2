@@ -81,6 +81,39 @@ base class.
 
         super().__init__(*args, **kwargs)
 
+        self._get_timeouts()
+
+    def _get_timeouts(self) -> None:
+        """Get the various timeout values from the environment, if defined. Otherwise, use
+        default values."""
+
+        # Allow fine grained control over timeout values via environment variables
+        universal_timeout = os.environ.get("PAV_UNITTEST_UNIVERSAL_TIMEOUT")
+
+        self.testrun_wait_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_WAIT_TIMEOUT",
+                                                   universal_timeout or 20)
+        self.testrun_start_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_START_TIMEOUT",
+                                                    universal_timeout or 10)
+        self.testrun_build_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_BUILD_TIMEOUT",
+                                                    universal_timeout or 5)
+        self.testrun_run_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_RUN_TIMEOUT",
+                                                  universal_timeout or 10)
+        self.testrun_cancel_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_CANCEL_TIMEOUT",
+                                                     universal_timeout or 1)
+        self.series_wait_timeout = os.environ.get("PAV_UNITTEST_SERIES_WAIT_TIMEOUT",
+                                                  universal_timeout or 10)
+        self.series_start_timeout = os.environ.get("PAV_UNITTEST_SERIES_START_TIMEOUT",
+                                                   universal_timeout or 10)
+        self.log_cmd_timeout = os.environ.get("PAV_UNITTEST_LOG_CMD_TIMEOUT",
+                                              universal_timeout or 5)
+        self.build_docs_timeout = os.environ.get("PAV_UNITTEST_BUILD_DOCS_TIMEOUT",
+                                                 universal_timeout or 30)
+        self.lockfile_timeout = os.environ.get("PAV_UNITTEST_LOCKFILE_TIMEOUT",
+                                               universal_timeout or 1)
+        self.result_logger_timeout = os.environ.get("PAV_UNITTEST_LOCKFILE_TIMEOUT",
+                                                    universal_timeout or 10)
+        self.testset_wait_timeout = os.environ.get("PAV_UNITTEST_TESTSET_WAIT_TIMEOUT",
+                                                   universal_timeout or 10)
 
     def set_up(self):
         """By default, initialize plugins before every test."""
