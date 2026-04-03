@@ -414,12 +414,12 @@ class BuilderTests(PavTestCase):
         thread.start()
 
         # Wait for the test to actually start building.
-        timeout = 5 + time.time()
+        timeout = time.time() + self.testrun_build_timeout
         states = [status.state for status in test.status.history()]
         while STATES.BUILDING not in states:
             if time.time() > timeout:
-                self.fail("Test {} did not complete within 5 seconds."
-                          .format(test.id))
+                self.fail("Test {} did not complete within {} seconds."
+                          .format(test.id, self.tesrun_build_timeout))
             time.sleep(.5)
             states = [status.state for status in test.status.history()]
 
@@ -427,7 +427,7 @@ class BuilderTests(PavTestCase):
         cancel_event.set()
 
         try:
-            thread.join(timeout=1)
+            thread.join(timeout=self.testrun_cancel_timeout)
         except TimeoutError:
             self.fail("Build did not respond quickly enough to being canceled.")
 

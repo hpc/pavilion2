@@ -36,7 +36,7 @@ class SeriesCmdTests(PavTestCase):
             run_result = run_cmd.run(self.pav_cfg, args)
             self.assertEqual(run_result, 0)
 
-            run_cmd.last_run_series.wait(timeout=10)
+            run_cmd.last_run_series.wait(timeout=self.series_wait_timeout)
             self.assertEqual(run_cmd.last_run_series.complete, True)
             self.assertEqual(run_cmd.last_run_series.info().passed, 1)
 
@@ -59,7 +59,7 @@ class SeriesCmdTests(PavTestCase):
         self.assertEqual(run_result, 0)
 
         series_obj = run_cmd.last_run_series
-        series_obj.wait(timeout=10)
+        series_obj.wait(timeout=self.series_wait_timeout)
         self.assertEqual(series_obj.complete, True)
         self.assertEqual(series_obj.info().passed, 1)
 
@@ -86,7 +86,7 @@ class SeriesCmdTests(PavTestCase):
         self.assertEqual(run_result, 0)
 
         series_obj = run_cmd.last_run_series
-        series_obj.wait(timeout=10)
+        series_obj.wait(timeout=self.series_wait_timeout)
         self.assertEqual(series_obj.complete, True)
         self.assertEqual(series_obj.info().passed, 1)
 
@@ -128,7 +128,7 @@ class SeriesCmdTests(PavTestCase):
 
         args = arg_parser.parse_args(['series', 'run', 'multi'])
         self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
-        series_cmd.last_run_series.wait(timeout=10)
+        series_cmd.last_run_series.wait(timeout=self.series_wait_timeout)
         sid = str(series_cmd.last_run_series.id)
 
         arg_lists = [
@@ -192,7 +192,7 @@ class SeriesCmdTests(PavTestCase):
             args = arg_parser.parse_args(raw_args)
             self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
 
-    def _wait_for_all_start(self, ser: series.TestSeries, timeout=10):
+    def _wait_for_all_start(self, ser: series.TestSeries, timeout=self.series_start_timeout):
         # Wait for the series to start.
         start_time = time.time()
         while not ser.status.has_state(SERIES_STATES.ALL_STARTED):

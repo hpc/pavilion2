@@ -34,9 +34,6 @@ def has_slurm():
 
 class SlurmTests(PavTestCase):
 
-    # How long to wait for tests to complete
-    TEST_TIMEOUT = 30
-
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -242,7 +239,7 @@ class SlurmTests(PavTestCase):
         test = self._quick_test(cfg, name='slurm_vars2', finalize=False)
         slurm.schedule_tests(self.pav_cfg, [test])
 
-        timeout = time.time() + self.TEST_TIMEOUT
+        timeout = time.time() + self.testrun_wait_timeout
         state = test.status.current()
         while time.time() < timeout:
             state = test.status.current()

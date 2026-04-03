@@ -65,7 +65,7 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_ret, 0, msg=run_cmd.outfile.read())
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=10)
+            test.wait(timeout=self.testrun_wait_timeout)
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]
@@ -124,7 +124,7 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_ret, 0, msg=run_cmd.outfile.read())
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=10)
+            test.wait(timeout=self.testrun_wait_timeout)
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]
@@ -232,7 +232,7 @@ class RunCmdTests(PavTestCase):
         out, err = run_cmd.clear_output()
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0, msg=out+err)
 
-        run_cmd.last_series.wait(timeout=10)
+        run_cmd.last_series.wait(timeout=self.series_wait_timeout)
 
         # The test fails if it ever catches more tests running than its concurrency limit
         for test in run_cmd.last_tests:

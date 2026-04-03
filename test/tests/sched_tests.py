@@ -491,7 +491,7 @@ class SchedTests(PavTestCase):
 
         for test in tests:
             try:
-                test.wait(timeout=20)
+                test.wait(timeout=self.testrun_wait_timeout)
             except TimeoutError:
                 run_log_path = test.path / 'run.log'
                 if run_log_path.exists():
@@ -530,7 +530,7 @@ class SchedTests(PavTestCase):
 
         for test in tests:
             try:
-                test.wait(timeout=20)
+                test.wait(timeout=self.testrun_wait_timeout)
             except TimeoutError:
                 run_log_path = test.path/'run.log'
                 if run_log_path.exists():
