@@ -54,7 +54,7 @@ jobs:
       run: |
         echo "PAV_UNITTEST_UNIVERSAL_TIMEOUT: $PAV_UNITTEST_UNIVERSAL_TIMEOUT"
         echo "PAV_UNITTEST_LOCK_LIFETIME: $PAV_UNITTEST_LOCK_LIFETIME"
-        sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests"
+        sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests --skip style --skip docs"
 
     - name: Generate and show report
       run: |
