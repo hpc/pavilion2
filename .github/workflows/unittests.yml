@@ -128,7 +128,7 @@ jobs:
     # `setup-python` action, but it will still work in a container
     name: Run unit tests on Python 3.6 (containerized)
     runs-on: ubuntu-latest
-    container: python:3.6
+    container: python:3.6-buster
     needs:
     - style
     - docs
