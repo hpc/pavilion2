@@ -18,12 +18,14 @@ env:
 
 jobs:
   update-lockfile-python-36:
-    name: Regenerate lockfile for Python 3.6
+    name: Regenerate ${{ matrix.dep_type }} lockfile for Python 3.6
     runs-on: ubuntu-latest
     container: python:3.6
 
     strategy:
       fail-fast: false
+      matrix:
+        dep_type: [base, test, docs]
 
     steps:
       - name: Check out source
@@ -40,14 +42,14 @@ jobs:
           python -m piptools compile \
             --upgrade \
             --generate-hashes \
-            --output-file "requirements/requirements-py36-lock.txt" \
-            requirements/requirements.in
+            --output-file "requirements/${{ matrix.dep_type }}-py36-lock.txt" \
+            requirements/${{ matrix.dep_type }}.in
 
       - name: Upload generated lockfile
         uses: actions/upload-artifact@v4
         with:
           name: lockfile-py36
-          path: requirements/requirements-py36-lock.txt
+          path: requirements/${{ matrix.dep_type }}-py36-lock.txt
 
   update-lockfiles-modern-python:
     name: Regenerate lockfiles for modern Python
@@ -56,6 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        dep_type: [base, test, docs]
         python-version: ["3.10", "3.12"]
 
     steps:
@@ -76,7 +79,7 @@ jobs:
           PY_TAG="py${{ matrix.python-version }}"
           PY_TAG="${PY_TAG/./}"
           echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
-          echo "lockfile=requirements/requirements-${PY_TAG}-lock.txt" >> "$GITHUB_OUTPUT"
+          echo "lockfile=requirements/${{ matrix.dep_type }}-${PY_TAG}-lock.txt" >> "$GITHUB_OUTPUT"
 
       - name: Install pip-tools
         run: |
@@ -88,7 +91,7 @@ jobs:
             --upgrade \
             --generate-hashes \
             --output-file "${{ steps.vars.outputs.lockfile }}" \
-            requirements/requirements.in
+            requirements/${{ matrix.dep_type }}.in
 
       - name: Upload generated lockfile
         uses: actions/upload-artifact@v4
