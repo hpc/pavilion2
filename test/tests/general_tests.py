@@ -106,7 +106,11 @@ class GeneralTests(PavTestCase):
         if (ret != 0) == run_succeeds:
             out = proc.stdout.read().decode()
             self.fail("Error running command.\n{}".format(out))
-        self.wait_tests(self.working_dir)
+
+        try:
+            self.wait_tests(self.working_dir, timeout=self.testrun_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting on tests after {self.testrun_wait_timeout} seconds.")
 
     def test_legacy_runs(self):
         """Check loading of legacy run dirs."""
