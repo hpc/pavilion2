@@ -2,8 +2,8 @@ name: coverage
 
 on:
   schedule:
-    # Run at midnight on Sundays
-    - cron: "0 0 * * 0"
+    # Run at midnight on the first of the month
+    - cron: "0 0 1 * *"
   workflow_dispatch:
     inputs:
       timeout:
@@ -48,7 +48,7 @@ jobs:
 
     - name: run_tests
       env:
-        # coverage causes unit tests to run significantly slower, so we need to increase the timeout
+        # coverage causes unit tests to run several times slower, so we need to increase the timeout
         PAV_UNITTEST_UNIVERSAL_TIMEOUT: ${{ inputs.timeout || 300}}
         PAV_UNITTEST_LOCK_LIFETIME: ${{ inputs.lock_lifetime || 300}}
       run: |
@@ -57,6 +57,7 @@ jobs:
         sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests --skip style --skip docs"
 
     - name: Generate and show report
+      if: always()
       run: |
         python -m coverage combine
         python -m coverage report
@@ -64,12 +65,14 @@ jobs:
         python -m coverage html
 
     - name: Upload HTML coverage report
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: coverage-html
         path: htmlcov
 
     - name: Upload XML coverage report
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: coverage-xml
