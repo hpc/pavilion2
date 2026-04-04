@@ -548,6 +548,6 @@ class FiltersTest(PavTestCase):
         query = "sys_name=123abc"
 
         try:
-            parse_query()
+            parse_query(query)
         except FilterParseError:
             self.fail(f"Failed to parse sys_name beginning with digit: {query}")
