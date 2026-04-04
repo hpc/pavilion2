@@ -57,13 +57,27 @@ jobs:
         sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests --skip style --skip docs"
 
     - name: Generate and show report
-      if: always()
-      continue-on-error: true # We still want to generate the XML and HTML reports, even if we don't meet the coverage threshold
       run: |
         python -m coverage combine
         python -m coverage report
+
+    - name: Generate XML and HTML reports
+      if: always()
+      run: |
         python -m coverage xml
         python -m coverage html
+
+    - name: List generated files
+      if: always()
+      run: |
+        ls
+
+    - name: Upload XML coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-xml
+        path: coverage.xml
 
     - name: Upload HTML coverage report
       if: always()
@@ -71,10 +85,3 @@ jobs:
       with:
         name: coverage-html
         path: htmlcov
-
-    - name: Upload XML coverage report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-xml
-        path: xmlcov
