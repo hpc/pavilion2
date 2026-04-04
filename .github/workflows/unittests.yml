@@ -170,8 +170,8 @@ jobs:
     - name: Install zip
       if: failure()
       run: |
-        sudo apt update
-        sudo apt install zip
+        apt-get update
+        apt-get install -y zip
 
     - name: Zip working directory
       if: failure()
