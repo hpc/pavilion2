@@ -58,6 +58,7 @@ jobs:
 
     - name: Generate and show report
       if: always()
+      continue-on-error: true # We still want to generate the XML and HTML reports, even if we don't meet the coverage threshold
       run: |
         python -m coverage combine
         python -m coverage report
