@@ -1,4 +1,4 @@
-name: Update Python Dependencies
+name: Update Python dependencies
 
 on:
   workflow_dispatch:
