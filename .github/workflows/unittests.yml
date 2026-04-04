@@ -137,6 +137,7 @@ jobs:
     - name: Make sure bash exists where Pavilion expects it
       run: |
         /bin/bash --version
+        /usr/bin/bash --version
 
     - name: Check Python version
       run: |
@@ -182,11 +183,11 @@ jobs:
         ./utils/make_symlinks_relative working_dir
         zip -yr working_dir.zip working_dir
 
-    - name: Upload logs
+    - name: Upload working directory
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_3.6
+        name: working_dir_3.6
         path: test/working_dir.zip
 
   unittests-modern-python:
@@ -249,9 +250,9 @@ jobs:
         ./utils/make_symlinks_relative working_dir
         zip -yr working_dir.zip working_dir
 
-    - name: Upload logs
+    - name: Upload working directory
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_${{ matrix.environment.python }}
+        name: working_dir_${{ matrix.environment.python }}
         path: test/working_dir.zip
