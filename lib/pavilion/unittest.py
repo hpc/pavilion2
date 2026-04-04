@@ -86,7 +86,7 @@ base class.
         "lockfile": 1,
         "result_logger": 10,
         "testset_wait": 10,
-        "test_cmd_timeout": 3
+        "test_cmd": 3
     }
 
     DEFAULT_LOCK_LIFETIME = 3

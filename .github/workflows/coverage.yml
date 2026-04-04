@@ -14,7 +14,7 @@ on:
       lock_lifetime:
         description: "Lifetime (in seconds) after which a lock may be 'stolen' by other processes"
         required: true
-        default: 60
+        default: 300
         type: number
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
       env:
         # coverage causes unit tests to run significantly slower, so we need to increase the timeout
         PAV_UNITTEST_UNIVERSAL_TIMEOUT: ${{ inputs.timeout || 300}}
-        PAV_UNITTEST_LOCK_LIFETIME: ${{ inputs.lock_lifetime || 60}}
+        PAV_UNITTEST_LOCK_LIFETIME: ${{ inputs.lock_lifetime || 300}}
       run: |
         echo "PAV_UNITTEST_UNIVERSAL_TIMEOUT: $PAV_UNITTEST_UNIVERSAL_TIMEOUT"
         echo "PAV_UNITTEST_LOCK_LIFETIME: $PAV_UNITTEST_LOCK_LIFETIME"
