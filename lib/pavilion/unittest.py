@@ -452,7 +452,7 @@ The default config is: ::
                 continue
         else:
             raise TimeoutError(
-                f"Timed out out after {} seconds. Waiting on tests: {}"
+                "Timed out out after {} seconds. Waiting on tests: {}"
                 .format(timeout, [test.name for test in dir_db.select(self.pav_cfg,
                                                             runs_dir).paths
                         if is_complete(test)]))
