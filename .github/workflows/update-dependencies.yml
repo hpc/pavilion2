@@ -118,8 +118,9 @@ jobs:
       - name: Download lockfiles
         uses: actions/download-artifact@v4
         with:
-          name: lockfiles
-          path: requirements/*-py*-lock.txt
+          pattern: lockfile-py*-*
+          path: requirements
+          merge-multiple: true
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
