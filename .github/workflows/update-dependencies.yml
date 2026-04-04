@@ -150,12 +150,4 @@ jobs:
             These lockfiles are generated automatically with `pip-compile --upgrade --generate-hashes`.
           delete-branch: true
           add-paths: |
-            - `requirements/base-py36-lock.txt`
-            - `requirements/base-py310-lock.txt`
-            - `requirements/base-py312-lock.txt`
-            - `requirements/test-py36-lock.txt`
-            - `requirements/test-py310-lock.txt`
-            - `requirements/test-py312-lock.txt`
-            - `requirements/docs-py36-lock.txt`
-            - `requirements/docs-py310-lock.txt`
-            - `requirements/docs-py312-lock.txt`
+              requirements/*-py*-lock.txt
