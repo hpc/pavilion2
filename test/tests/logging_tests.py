@@ -162,7 +162,12 @@ class LoggingTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
         series = run_cmd.last_series
-        series.wait_log(timeout=10)
+
+        try:
+            series.wait_log(timeout=self.result_logger_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for result logger to complete after "
+                      f"{self.result_logger_timeout} seconds.")
 
         log_path = next(iter(series.get_result_paths()))
 
@@ -200,8 +205,17 @@ class LoggingTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series2 = run_cmd.last_series
 
-        series1.wait_log(timeout=self.result_logger_timeout)
-        series2.wait_log(timeout=self.result_logger_timeout)
+        try:
+            series1.wait_log(timeout=self.result_logger_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for result logger to complete after "
+                      f"{self.result_logger_timeout} seconds.")
+
+        try:
+            series2.wait_log(timeout=self.result_logger_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for result logger to complete after "
+                      f"{self.result_logger_timeout} seconds.")
 
         with open(log_path) as fin:
             results = fin.readlines()

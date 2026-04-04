@@ -73,6 +73,21 @@ base class.
         'users',
         ]
 
+    DEFAULT_TIMEOUTS = {
+        "testrun_wait": 20,
+        "testrun_start": 10,
+        "testrun_build": 5,
+        "testrun_run": 10,
+        "testrun_cancel": 1,
+        "series_wait": 10,
+        "series_start": 10,
+        "log_cmd": 5,
+        "build_docs": 30,
+        "lockfile": 1,
+        "result_logger": 10,
+        "testset_wait": 10
+    }
+
     def __init__(self, *args, **kwargs):
         """Setup the pav_cfg object, and do other initialization required by
         pavilion."""
@@ -88,32 +103,22 @@ base class.
         default values."""
 
         # Allow fine grained control over timeout values via environment variables
-        universal_timeout = os.environ.get("PAV_UNITTEST_UNIVERSAL_TIMEOUT")
+        try:
+            universal_timeout = int(os.environ.get("PAV_UNITTEST_UNIVERSAL_TIMEOUT"))
+        except (ValueError, TypeError):
+            universal_timeout = None
 
-        self.testrun_wait_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_WAIT_TIMEOUT",
-                                                   universal_timeout or 20)
-        self.testrun_start_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_START_TIMEOUT",
-                                                    universal_timeout or 10)
-        self.testrun_build_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_BUILD_TIMEOUT",
-                                                    universal_timeout or 5)
-        self.testrun_run_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_RUN_TIMEOUT",
-                                                  universal_timeout or 10)
-        self.testrun_cancel_timeout = os.environ.get("PAV_UNITTEST_TESTRUN_CANCEL_TIMEOUT",
-                                                     universal_timeout or 1)
-        self.series_wait_timeout = os.environ.get("PAV_UNITTEST_SERIES_WAIT_TIMEOUT",
-                                                  universal_timeout or 10)
-        self.series_start_timeout = os.environ.get("PAV_UNITTEST_SERIES_START_TIMEOUT",
-                                                   universal_timeout or 10)
-        self.log_cmd_timeout = os.environ.get("PAV_UNITTEST_LOG_CMD_TIMEOUT",
-                                              universal_timeout or 5)
-        self.build_docs_timeout = os.environ.get("PAV_UNITTEST_BUILD_DOCS_TIMEOUT",
-                                                 universal_timeout or 30)
-        self.lockfile_timeout = os.environ.get("PAV_UNITTEST_LOCKFILE_TIMEOUT",
-                                               universal_timeout or 1)
-        self.result_logger_timeout = os.environ.get("PAV_UNITTEST_LOCKFILE_TIMEOUT",
-                                                    universal_timeout or 10)
-        self.testset_wait_timeout = os.environ.get("PAV_UNITTEST_TESTSET_WAIT_TIMEOUT",
-                                                   universal_timeout or 10)
+        for timeout_type, default_val in self.DEFAULT_TIMEOUTS.items():
+            attr_name = f"{timeout_type}_timeout"
+            try:
+                setattr(self,
+                        attr_name,
+                        int(os.environ.get(f"PAV_UNITTEST_{timeout_type.upper()}_TIMEOUT")))
+            except (ValueError, TypeError):
+                if universal_timeout is not None:
+                    setattr(self, attr_name, universal_timeout)
+                else:
+                    setattr(self, attr_name, default_val)
 
     def set_up(self):
         """By default, initialize plugins before every test."""

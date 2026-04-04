@@ -32,7 +32,10 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(build_ret, 0, msg=build_cmd.outfile.read())
 
         for test in build_cmd.last_tests:
-            test.wait(timeout=self.testrun_wait_timeout)
+            try:
+                test.wait(timeout=self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out after {self.testrun_wait_timeout} seconds.")
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
@@ -64,7 +67,10 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(build_ret, 0, msg=build_cmd.outfile.read())
 
         for test in build_cmd.last_tests:
-            test.wait(timeout=self.testrun_wait_timeout)
+            try:
+                test.wait(timeout=self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out after {self.testrun_wait_timeout} seconds.")
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
@@ -92,7 +98,10 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(build_cmd.run(self.pav_cfg, args), 0)
 
         for test in build_cmd.last_tests:
-            test.wait(timeout=self.testrun_wait_timeout)
+            try:
+                test.wait(timeout=self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out after {self.testrun_wait_timeout} seconds.")
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
@@ -118,7 +127,10 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(build_cmd.run(self.pav_cfg, args), 0)
 
         for test in build_cmd.last_tests:
-            test.wait(timeout=self.testrun_wait_timeout)
+            try:
+                test.wait(timeout=self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out after {self.testrun_wait_timeout} seconds.")
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]

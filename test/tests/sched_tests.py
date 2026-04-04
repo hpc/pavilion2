@@ -496,9 +496,9 @@ class SchedTests(PavTestCase):
                 run_log_path = test.path / 'run.log'
                 if run_log_path.exists():
                     with open(test.path / 'run.log') as run_log:
-                        self.fail(msg="Test timed out: \n{}".format(run_log.read()))
+                        self.fail(msg=f"Test timed out after {self.testrun_wait_timeout}: \n{run_log.read()}")
                 else:
-                    self.fail(msg="Test timed out (no run log).")
+                    self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} (no run log).")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -535,9 +535,9 @@ class SchedTests(PavTestCase):
                 run_log_path = test.path/'run.log'
                 if run_log_path.exists():
                     with open(test.path/'run.log') as run_log:
-                        self.fail(msg="Test timed out: \n{}".format(run_log.read()))
+                        self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds: \n{run_log.read()}")
                 else:
-                    self.fail(msg="Test timed out (no run log).")
+                    self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds (no run log).")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')

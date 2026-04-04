@@ -86,7 +86,12 @@ class DocTests(PavTestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
 
-        out, _ = proc.communicate(timeout=self.build_docs_timeout)
+        try:
+            out, _ = proc.communicate(timeout=self.build_docs_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for documentation to build after "
+                      "{self.build_docs_timeout} seconds.")
+
         out = out.decode('utf8')
         result = proc.poll()
 

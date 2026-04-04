@@ -114,7 +114,12 @@ class SeriesTests(PavTestCase):
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(timeout=self.series_wait_timeout)
+
+        try:
+            test_series_obj.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for series to complete after "
+                      f"{self.series_wait_timeout} seconds.")
 
         durations = []
 
@@ -146,7 +151,12 @@ class SeriesTests(PavTestCase):
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(timeout=self.series_wait_timeout)
+
+        try:
+            test_series_obj.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for series to complete after "
+                      f"{self.series_wait_timeout} seconds.")
 
         durations = []
 
@@ -305,7 +315,11 @@ class SeriesTests(PavTestCase):
         series_obj = series.TestSeries(self.pav_cfg, series_cfg=cfg)
         series_obj.run()
 
-        series_obj.wait(timeout=self.series_wait_timeout)
+        try:
+            series_obj.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for series to complete after "
+                      f"{self.series_wait_timeout} seconds.")
 
         for test in series_obj.tests.values():
             if test.name in ['test_set_errors.good', 'hello_world.hello']:
@@ -392,7 +406,12 @@ class SeriesTests(PavTestCase):
         )
 
         series_obj.run()
-        series_obj.wait(timeout=self.series_wait_timeout)
+
+        try:
+            series_obj.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail("Timed out waiting for series to complete after "
+                      f"{self.series_wait_timeout} seconds.")
 
         return series_obj
 

@@ -65,7 +65,11 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_ret, 0, msg=run_cmd.outfile.read())
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=self.testrun_wait_timeout)
+            try:
+                test.wait(timeout=self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail("Timed out waiting for test to complete after "
+                      f"{self.testrun_wait_timeout} seconds.")
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]
@@ -124,7 +128,11 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_ret, 0, msg=run_cmd.outfile.read())
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=self.testrun_wait_timeout)
+            try:
+                test.wait(timeout=self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail("Timed out waiting for test to complete after "
+                        f"{self.testrun_wait_timeout} seconds.")
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]

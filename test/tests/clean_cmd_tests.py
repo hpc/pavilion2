@@ -27,7 +27,11 @@ class CancelCmdTests(PavTestCase):
         run_cmd.run(self.pav_cfg, args)
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=self.testrun_wait_timeout)
+            try:
+                test.wait(timeout=self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail("Timed out waiting for test to complete after "
+                          f"{self.testrun_wait_timeout} seconds.")
 
         args = arg_parser.parse_args([
             'clean'

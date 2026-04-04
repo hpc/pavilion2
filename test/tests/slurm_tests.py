@@ -247,7 +247,7 @@ class SlurmTests(PavTestCase):
             if state.state == STATES.COMPLETE:
                 return 0
         else:
-            self.fail("Test never completed. Has state: {}".format(state))
+            self.fail(f"Test timed out after {self.testrun_wait_timeout} seconds. Has state: {state}")
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_schedule(self):

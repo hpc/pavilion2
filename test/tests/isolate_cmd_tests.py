@@ -29,7 +29,11 @@ class IsolateCmdTests(PavTestCase):
         run_cmd.run(self.pav_cfg, parser.parse_args(run_args))
         last_test = next(iter(run_cmd.last_tests))
 
-        last_test.wait(timeout=self.testrun_wait_timeout)
+        try:
+            last_test.wait(timeout=self.testrun_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} "
+                "seconds.")
 
         with tempfile.TemporaryDirectory() as dir:
             isolate_args = parser.parse_args(["isolate", str(Path(dir) / "dest")])
