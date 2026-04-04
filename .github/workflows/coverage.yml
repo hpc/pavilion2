@@ -53,6 +53,7 @@ jobs:
         PAV_UNITTEST_LOCK_LIFETIME: ${{ inputs.lock_lifetime || 60}}
       run: |
         echo "PAV_UNITTEST_UNIVERSAL_TIMEOUT: $PAV_UNITTEST_UNIVERSAL_TIMEOUT"
+        echo "PAV_UNITTEST_LOCK_LIFETIME: $PAV_UNITTEST_LOCK_LIFETIME"
         sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests"
 
     - name: Generate and show report
