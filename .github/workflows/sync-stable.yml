@@ -21,7 +21,11 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
+<<<<<<< HEAD
         uses: actions/checkout@v6
+=======
+        uses: actions/checkout@v4
+>>>>>>> 75e920f1 (Give better names to workflows)
         with:
           ref: ${{ env.HEAD_BRANCH }}
           fetch-depth: 0

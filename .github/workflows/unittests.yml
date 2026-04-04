@@ -1,4 +1,4 @@
-name: unittests
+name: Run unit tests
 
 on:
   push:
@@ -13,15 +13,18 @@ on:
 jobs:
   # The debug job is meant for debugging CI related issues.
   debug:
+    name: Debug CI-related issues
     # Comment out the following line to enable.
     if: ${{ false }}
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v4
       with:
         submodules: recursive
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
@@ -40,12 +43,11 @@ jobs:
         #echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         #./test/utils/spack_setup test
 
-    # Set run_tests to run only the specific tests you need to fix.
-    - name: run_tests
+    - name: Run unit tests
       run: |
         ./test/run_tests
 
-    - name: zip_working_dir
+    - name: Zip working directory
       if: always()
       run: |
         # If we don't zip this ourselves, it will run infinitely due to
@@ -54,7 +56,7 @@ jobs:
         ./utils/make_symlinks_relative working_dir
         zip -yr working_dir.zip working_dir
 
-    - name: logs
+    - name: Upload logs
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -62,12 +64,15 @@ jobs:
         path: test/working_dir.zip
 
   style:
+    name: Run Python style checks
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v4
       with:
         submodules: recursive
+
     - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
@@ -79,23 +84,26 @@ jobs:
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
-    - name: setup
+    - name: Set up Pavilion application-level config
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
-    - name: run_tests
+    - name: Run style tests
       run: |
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style -o debug_prints"
 
   docs:
+    name: Run documentation checks
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v4
       with:
         submodules: recursive
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
@@ -106,18 +114,19 @@ jobs:
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
-    - name: setup
+    - name: Set up Pavilion application-level config
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
-    - name: run_tests
+    - name: Run documentation tests
       run: ./test/run_tests -o 'doc*' -q
 
   unittests-python-36:
     # We run this as a separate job because Python 3.6 is deprecated by GitHub, but it will still
     # work in a container
+    name: Run unit tests on Python 3.6
     runs-on: ubuntu-latest
     container: python:3.6
     needs:
@@ -125,7 +134,8 @@ jobs:
     - docs
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v4
       with:
         submodules: recursive
 
@@ -137,18 +147,18 @@ jobs:
         sphinx-build --version
         pylint --version
 
-    - name: setup
+    - name: Set up Pavilion application-level config
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
 
-    - name: run_tests
+    - name: Run unit tests
       run: |
         ./test/run_tests
 
-    - name: zip_working_dir
+    - name: Zip working directory
       if: failure()
       run: |
         # If we don't zip this ourselves, it will run infinitely due to
@@ -157,7 +167,7 @@ jobs:
         ./utils/make_symlinks_relative working_dir
         zip -yr working_dir.zip working_dir
 
-    - name: logs
+    - name: Upload logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
@@ -165,6 +175,7 @@ jobs:
         path: test/working_dir.zip
 
   unittests-modern-python:
+    name: Run unit tests on Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     needs:
         - style
@@ -175,7 +186,8 @@ jobs:
         python-version: ["3.7", "3.10", "3.12"]
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v4
       with:
         submodules: recursive
 
@@ -192,18 +204,18 @@ jobs:
         sphinx-build --version
         pylint --version
 
-    - name: setup
+    - name: Set up Pavilion application-level config
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
 
-    - name: run_tests
+    - name: Run unit tests
       run: |
         ./test/run_tests
 
-    - name: zip_working_dir
+    - name: Zip working directory
       if: failure()
       run: |
         # If we don't zip this ourselves, it will run infinitely due to
@@ -212,7 +224,7 @@ jobs:
         ./utils/make_symlinks_relative working_dir
         zip -yr working_dir.zip working_dir
 
-    - name: logs
+    - name: Upload logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
