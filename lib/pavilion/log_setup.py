@@ -8,7 +8,7 @@ import traceback
 from pathlib import Path
 from typing import TextIO
 
-from flufl.lock import Lock
+from flufl.lock import Lock, TimeOutError
 
 
 class LockFileRotatingFileHandler(logging.Handler):
@@ -77,7 +77,7 @@ class LockFileRotatingFileHandler(logging.Handler):
                     file.write(msg)
                     file.write(self.TERMINATOR)
 
-        except (OSError, IOError, TimeoutError):
+        except (OSError, IOError, TimeOutError):
             self.handleError(record)
 
     def handleError(self, record: logging.LogRecord) -> None:

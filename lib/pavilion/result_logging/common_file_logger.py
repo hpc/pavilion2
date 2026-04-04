@@ -7,7 +7,7 @@ from pavilion import output
 from pavilion.errors import ResultLoggerPluginError
 from .base_classes import ResultLoggerPlugin, ResultLogger
 
-from flufl.lock import Lock
+from flufl.lock import Lock, TimeOutError
 
 
 class CommonFileLoggerFactory(ResultLoggerPlugin):
@@ -59,7 +59,11 @@ class CommonFileResultLogger(ResultLogger):
     def log(self, results: Dict) -> None:
         output.fprint(self.outfile, f"{type(self).__name__}: Logging {results} to {self.dest}...")
 
-        with Lock(self.dest.parent / "results.lock", default_timeout=10, lifetime=3):
-            with open(self.dest, "a") as fout:
-                json.dump(results, fout)
-                fout.write("\n")
+        try:
+            with Lock(self.dest.parent / "results.lock", default_timeout=10, lifetime=3):
+                with open(self.dest, "a") as fout:
+                    json.dump(results, fout)
+                    fout.write("\n")
+         except TimeOutError:
+            # Convert flufl.lock.TimeOutError into native Python TimeoutError
+            raise TimeoutError

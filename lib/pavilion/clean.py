@@ -10,7 +10,7 @@ from pavilion.builder import TestBuilder
 from pavilion.test_run import TestAttributes
 from pavilion.timing import RateLimiter
 
-from flufl.lock import Lock
+from flufl.lock import Lock, TimeOutError
 
 
 def delete_tests(pav_cfg, id_dir: Path, filter_func, verbose: bool = False):
@@ -58,21 +58,26 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
 
     lock_path = builds_dir.with_suffix('.lock')
     msgs = []
-    with Lock(lock_path, lifetime=3) as lock:
-        refresh_limiter = RateLimiter(lock.refresh, cooldown=0.3)
 
-        for path in dir_db.select(pav_cfg, builds_dir, filter_builds)[0]:
-            refresh_limiter()
-            try:
-                shutil.rmtree(path.as_posix())
-                path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()
-            except OSError as err:
-                msgs.append("Could not remove build {}: {}"
-                            .format(path, err))
-                continue
-            count += 1
-            if verbose:
-                msgs.append('Removed build {}.'.format(path.name))
+    try:
+        with Lock(lock_path, lifetime=3) as lock:
+            refresh_limiter = RateLimiter(lock.refresh, cooldown=0.3)
+
+            for path in dir_db.select(pav_cfg, builds_dir, filter_builds)[0]:
+                refresh_limiter()
+                try:
+                    shutil.rmtree(path.as_posix())
+                    path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()
+                except OSError as err:
+                    msgs.append("Could not remove build {}: {}"
+                                .format(path, err))
+                    continue
+                count += 1
+                if verbose:
+                    msgs.append('Removed build {}.'.format(path.name))
+    except TimeOutError:
+        # Convert flufl.lock.TimeOutError into native Python TimeoutError
+        raise TimeoutError
 
     return count, msgs
 
