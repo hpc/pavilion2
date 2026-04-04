@@ -85,8 +85,11 @@ base class.
         "build_docs": 30,
         "lockfile": 1,
         "result_logger": 10,
-        "testset_wait": 10
+        "testset_wait": 10,
+        "test_cmd_timeout": 3
     }
+
+    DEFAULT_LOCK_LIFETIME = 3
 
     def __init__(self, *args, **kwargs):
         """Setup the pav_cfg object, and do other initialization required by
@@ -97,6 +100,7 @@ base class.
         super().__init__(*args, **kwargs)
 
         self._get_timeouts()
+        self._get_lock_lifetime()
 
     def _get_timeouts(self) -> None:
         """Get the various timeout values from the environment, if defined. Otherwise, use
@@ -119,6 +123,15 @@ base class.
                     setattr(self, attr_name, universal_timeout)
                 else:
                     setattr(self, attr_name, default_val)
+
+    def _get_lock_lifetime(self) -> None:
+        """Get the lock lifetime from the environment, if defined. Otherwise, use
+        default values."""
+
+        try:
+            self.lock_lifetime = int(os.environ.get("PAV_UNITTEST_LOCK_LIFETIME"))
+        except (ValueError, TypeError):
+            self.lock_lifetime = self.DEFAULT_LOCK_LIFETIME
 
     def set_up(self):
         """By default, initialize plugins before every test."""
