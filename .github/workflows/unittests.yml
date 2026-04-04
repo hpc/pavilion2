@@ -167,6 +167,12 @@ jobs:
       run: |
         ./test/run_tests
 
+    - name: Install zip
+      if: failure()
+      run: |
+        sudo apt update
+        sudo apt install zip
+
     - name: Zip working directory
       if: failure()
       run: |
