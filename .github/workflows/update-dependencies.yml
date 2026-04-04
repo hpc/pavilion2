@@ -1,8 +1,6 @@
 name: Update Python Dependencies
 
 on:
-  push:
-    branches: [hwikle/offline-release-ci]
   workflow_dispatch:
     inputs:
       base_branch:
@@ -16,7 +14,7 @@ permissions:
   pull-requests: write
 
 env:
-  BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || 'hwikle/offline-release-ci' }}
+  BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || github.event.repository.default_branch }}
 
 jobs:
   update-lockfile-python-36:
