@@ -136,7 +136,7 @@ jobs:
     steps:
     - name: Make sure bash exists where Pavilion expects it
       run: |
-        test -f /bin/bash
+        /bin/bash --version
 
     - name: Check Python version
       run: |
