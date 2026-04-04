@@ -188,7 +188,11 @@ class SeriesTests(PavTestCase):
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(5)
+
+        try:
+            test_series_obj.wait(self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} seconds.")
 
         self.assertNotEqual(test_series_obj.tests, {})
 
@@ -216,7 +220,12 @@ class SeriesTests(PavTestCase):
 
         test_series_obj = series.TestSeries(self.pav_cfg, series_cfg=series_cfg)
         test_series_obj.run()
-        test_series_obj.wait(5)
+
+        try:
+            test_series_obj.wait(self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} seconds.")
+
         self.assertNotEqual(test_series_obj.tests, {})
 
         test = list(test_series_obj.tests.values())[0]

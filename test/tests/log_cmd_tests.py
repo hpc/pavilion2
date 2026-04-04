@@ -24,10 +24,10 @@ class LogCmdTest(PavTestCase):
 
         raw.schedule_tests(self.pav_cfg, [test])
 
-        end = time.time() + 5
-
-        while not test.complete and time.time() < end:
-            time.sleep(.1)
+        try:
+            test.wait(self.testrun_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         # test `pav log run test`
         args = parser.parse_args(['run', str(test.id)])
@@ -85,9 +85,10 @@ class LogCmdTest(PavTestCase):
         raw = schedulers.get_plugin('raw')
         raw.schedule_tests(self.pav_cfg, [test])
 
-        end = time.time() + 5
-        while not test.complete and time.time() < end:
-            time.sleep(.1)
+        try:
+            test.wait(self.testrun_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         args = parser.parse_args(['--tail', '3', 'run', str(test.id)])
         result = log_cmd.run(self.pav_cfg, args)

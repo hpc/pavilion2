@@ -97,7 +97,13 @@ class GeneralTests(PavTestCase):
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
-        if (proc.wait(3) != 0) == run_succeeds:
+
+        try:
+            ret = proc.wait(self.test_cmd_timeout)
+        except TimeoutError:
+            self.fail(f"Command {' '.join(cmd)} timed out after {self.test_cmd_timeout} seconds")
+
+        if (ret != 0) == run_succeeds:
             out = proc.stdout.read().decode()
             self.fail("Error running command.\n{}".format(out))
         self.wait_tests(self.working_dir)

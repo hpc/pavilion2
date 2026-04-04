@@ -372,7 +372,10 @@ class SchedTests(PavTestCase):
             self.assertTrue(all([test.job == job1 for test in share_group]))
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -420,7 +423,10 @@ class SchedTests(PavTestCase):
             self.assertEqual(len(test.job.get_test_id_pairs()), 1)
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -459,7 +465,10 @@ class SchedTests(PavTestCase):
             self.assertTrue(all([test.job == job1 for test in share_group]))
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -496,9 +505,9 @@ class SchedTests(PavTestCase):
                 run_log_path = test.path / 'run.log'
                 if run_log_path.exists():
                     with open(test.path / 'run.log') as run_log:
-                        self.fail(msg=f"Test timed out after {self.testrun_wait_timeout}: \n{run_log.read()}")
+                        self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds: \n{run_log.read()}")
                 else:
-                    self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} (no run log).")
+                    self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds (no run log).")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -589,8 +598,13 @@ class SchedTests(PavTestCase):
             test = self._quick_test(test_cfg, finalize=False)
             test2 = self._quick_test(test_cfg, finalize=False)
             dummy.schedule_tests(self.pav_cfg, [test, test2])
-            test.wait()
-            test2.wait()
+
+            try:
+                test.wait(self.testrun_wait_timeout)
+                test2.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
+
             self.assertIn("tasks: 21", (test.path/'run.log').open().read())
 
         self.assertIn("tasks: 21", (test.path/'run.log').open().read())
@@ -614,7 +628,10 @@ class SchedTests(PavTestCase):
         dummy = pavilion.schedulers.get_plugin('dummy')
         dummy.schedule_tests(self.pav_cfg, [test])
         # Wait few seconds for the test to be scheduled to run.
-        test.wait()
+        try:
+            test.wait(self.testrun_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         # Check if it actually echoed to log
         with (test.path/'run.log').open('r') as runlog:
