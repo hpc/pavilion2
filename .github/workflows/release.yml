@@ -2,6 +2,8 @@ name: Build and Release Pavilion
 
 on:
   push:
+    branches:
+      - hwikle/offline-release-ci
     tags:
       - "v*"
   workflow_dispatch:
@@ -270,5 +272,6 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          name: Pavilion ${{ github.ref_name }} (test)
           files: dist/*.tar.gz
           generate_release_notes: true
