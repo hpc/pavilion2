@@ -60,10 +60,6 @@ jobs:
       run: |
         python -m coverage combine
         python -m coverage report
-
-    - name: Generate XML and HTML reports
-      if: always()
-      run: |
         python -m coverage xml
         python -m coverage html
 

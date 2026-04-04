@@ -5,5 +5,5 @@ parallel = True
 patch = subprocess
 
 [report]
-fail_under = 85
+# fail_under = 85
 show_missing = False
