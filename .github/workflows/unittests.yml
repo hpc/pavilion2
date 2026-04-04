@@ -42,9 +42,6 @@ jobs:
 
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
-      env:
-        COLUMNS: 120
-        LINES: 40
       run: |
         ./test/run_tests
 
@@ -118,21 +115,19 @@ jobs:
     - name: run_tests
       run: ./test/run_tests -o 'doc*' -q
 
-  unittests-3_7:
-    runs-on: ubuntu-22.04
+  unittests-python-36:
+    # We run this as a separate job because Python 3.6 is deprecated by GitHub, but it will still
+    # work in a container
+    runs-on: ubuntu-latest
+    container: python:3.6
     needs:
-        - style
-        - docs
+    - style
+    - docs
 
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.7
 
     - name: Install dependencies
       run: |
@@ -166,30 +161,36 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.6
+        name: test_output_3.6
         path: test/working_dir.zip
 
-  unittests-3_10:
+  unittests-modern-python:
     runs-on: ubuntu-latest
     needs:
         - style
         - docs
+
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.10", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    - name: Set up Python 3.10
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
+        python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
+        sphinx-build --version
+        pylint --version
 
     - name: setup
       run: |
@@ -200,7 +201,7 @@ jobs:
 
     - name: run_tests
       run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+        ./test/run_tests
 
     - name: zip_working_dir
       if: failure()
@@ -215,54 +216,5 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.10
-        path: test/working_dir.zip
-
-  unittests-3_12:
-    runs-on: ubuntu-latest
-    needs:
-        - style
-        - docs
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
-
-    - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
-
-    - name: run_tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
-
-    - name: zip_working_dir
-      if: failure()
-      run: |
-        # If we don't zip this ourselves, it will run infinitely due to
-        # symlink loops.
-        cd test
-        ./utils/make_symlinks_relative working_dir
-        zip -yr working_dir.zip working_dir
-
-    - name: logs
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test_output_2.10
+        name: test_output_${{ matrix.python-version }}
         path: test/working_dir.zip
