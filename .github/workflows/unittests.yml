@@ -134,11 +134,6 @@ jobs:
     - docs
 
     steps:
-    - name: Make sure bash exists where Pavilion expects it
-      run: |
-        /bin/bash --version
-        /usr/bin/bash --version
-
     - name: Check Python version
       run: |
         PY_VERSION=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
