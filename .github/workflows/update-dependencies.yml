@@ -132,7 +132,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          base: $BASE_BRANCH
+          base: ${{ env.BASE_BRANCH }}
           branch: ci/update-python-dependencies
           commit-message: "Update Python dependency lockfiles"
           title: "Update Python dependency lockfiles"
