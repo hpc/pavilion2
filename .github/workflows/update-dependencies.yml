@@ -51,11 +51,11 @@ jobs:
       - name: Upload generated lockfile
         uses: actions/upload-artifact@v4
         with:
-          name: lockfile-py36
+          name: lockfile-py36-${{ matrix.dep_type }}
           path: requirements/${{ matrix.dep_type }}-py36-lock.txt
 
   update-lockfiles-modern-python:
-    name: Regenerate lockfiles for modern Python
+    name: Regenerate ${{ matrix.dep_type }} lockfile for modern Python
     runs-on: ubuntu-latest
 
     strategy:
@@ -99,7 +99,7 @@ jobs:
       - name: Upload generated lockfile
         uses: actions/upload-artifact@v4
         with:
-          name: lockfile-${{ steps.vars.outputs.py_tag }}
+          name: lockfile-${{ steps.vars.outputs.py_tag }}-${{ matrix.dep_type }}
           path: ${{ steps.vars.outputs.lockfile }}
 
   create-pr:
@@ -115,23 +115,11 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
-      - name: Download py36 lockfile
+      - name: Download lockfiles
         uses: actions/download-artifact@v4
         with:
-          name: lockfile-py36
-          path: requirements
-
-      - name: Download py310 lockfile
-        uses: actions/download-artifact@v4
-        with:
-          name: lockfile-py310
-          path: requirements
-
-      - name: Download py312 lockfile
-        uses: actions/download-artifact@v4
-        with:
-          name: lockfile-py312
-          path: requirements
+          name: lockfiles
+          path: requirements/*-py*-lock.txt
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
@@ -143,16 +131,30 @@ jobs:
           body: |
             This PR regenerates the Python dependency lockfiles from:
 
-            - `requirements/requirements.in`
+            - `requirements/base.in`
+            - `requirements/test.in`
+            - `requirements/docs.in`
 
             Updated files:
-            - `requirements/requirements-py36-lock.txt`
-            - `requirements/requirements-py310-lock.txt`
-            - `requirements/requirements-py312-lock.txt`
+            - `requirements/base-py36-lock.txt`
+            - `requirements/base-py310-lock.txt`
+            - `requirements/base-py312-lock.txt`
+            - `requirements/test-py36-lock.txt`
+            - `requirements/test-py310-lock.txt`
+            - `requirements/test-py312-lock.txt`
+            - `requirements/docs-py36-lock.txt`
+            - `requirements/docs-py310-lock.txt`
+            - `requirements/docs-py312-lock.txt`
 
             These lockfiles are generated automatically with `pip-compile --upgrade --generate-hashes`.
           delete-branch: true
           add-paths: |
-            requirements/requirements-py36-lock.txt
-            requirements/requirements-py310-lock.txt
-            requirements/requirements-py312-lock.txt
+            - `requirements/base-py36-lock.txt`
+            - `requirements/base-py310-lock.txt`
+            - `requirements/base-py312-lock.txt`
+            - `requirements/test-py36-lock.txt`
+            - `requirements/test-py310-lock.txt`
+            - `requirements/test-py312-lock.txt`
+            - `requirements/docs-py36-lock.txt`
+            - `requirements/docs-py310-lock.txt`
+            - `requirements/docs-py312-lock.txt`
