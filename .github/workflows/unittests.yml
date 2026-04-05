@@ -1,4 +1,4 @@
-name: unittests
+name: Run Pavilion unit tests
 
 on:
   push:
