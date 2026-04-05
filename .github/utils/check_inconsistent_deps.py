@@ -1,3 +1,5 @@
+"""Identify inconsistencies in dependency versions between environments, given a set of lockfiles.
+"""
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
