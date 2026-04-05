@@ -23,7 +23,7 @@ env:
   # This default is present only for ease of testing. It should be removed and replaced with the above line
   # before this workflow is merged into develop.
   BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || 'hwikle/offline-release-ci' }}
-  DEPENDENCY_TYPES: base test docs
+  DEPENDENCY_TYPES: base test docs dev
 
 jobs:
   load-python-versions:
