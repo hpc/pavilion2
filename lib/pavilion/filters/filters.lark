@@ -77,12 +77,12 @@ WEEK: "WEEK"i
 MONTH: "MONTH"i
 YEAR: "YEAR"i
 
-GLOB: /[^\d][^\s\(\)]*/
+GLOB: /[^\s\(\)]+/
 TIMESTAMP: /\d+[\.\dT\-:]*/
 
 %import common.INT
 %import common.NUMBER
 %import common.WS
 
-// Ignore all whitespace between tokens. 
+// Ignore all whitespace between tokens.
 %ignore  / +(?=[^.])/
