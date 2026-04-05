@@ -63,11 +63,6 @@ jobs:
         python -m coverage xml
         python -m coverage html
 
-    - name: List generated files
-      if: always()
-      run: |
-        ls
-
     - name: Upload XML coverage report
       if: always()
       uses: actions/upload-artifact@v4
