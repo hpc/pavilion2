@@ -182,7 +182,6 @@ jobs:
       - name: Remove old lockfiles
         run: |
           git rm requirements/*-py*-lock.txt
-          git status
 
       - name: Download lockfiles
         uses: actions/download-artifact@v4
@@ -194,9 +193,33 @@ jobs:
       - name: Stage new lockfiles
         run: |
           git add requirements/*-py*-lock.txt
-          git status
 
-      - name: Create Pull Request
+      - name: Collect git status output
+        id: pr-changes
+        shell: bash
+        run: |
+          {
+            echo 'inputs<<EOF'
+            printf '%s\n' requirements/*.in | sort | awk '{print "- `" $0 "`"}'
+            echo 'EOF'
+          }
+          {
+            echo 'added<<EOF'
+            git status --porcelain | sort | awk 'substr($0,1,1) == "A" {print "- `" substr($0,4) "`"}'
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo 'modified<<EOF'
+            git status --porcelain | sort | awk 'substr($0,1,1) == "M" {print "- `" substr($0,4) "`"}'
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo 'deleted<<EOF'
+            git status --porcelain | sort | awk 'substr($0,1,1) == "D" {print "- `" substr($0,4) "`"}'
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
         uses: peter-evans/create-pull-request@v6
         with:
           base: ${{ env.BASE_BRANCH }}
@@ -206,24 +229,16 @@ jobs:
           body: |
             This PR regenerates the Python dependency lockfiles from:
 
-            - `requirements/base.in`
-            - `requirements/test.in`
-            - `requirements/docs.in`
-            - `requirements/dev.in`
+            ${{ steps.pr-changes.outputs.inputs}}
 
-            Updated files:
-            - `requirements/base-py36-lock.txt`
-            - `requirements/base-py310-lock.txt`
-            - `requirements/base-py312-lock.txt`
-            - `requirements/test-py36-lock.txt`
-            - `requirements/test-py310-lock.txt`
-            - `requirements/test-py312-lock.txt`
-            - `requirements/docs-py36-lock.txt`
-            - `requirements/docs-py310-lock.txt`
-            - `requirements/docs-py312-lock.txt`
-            - `requirements/dev-py36-lock.txt`
-            - `requirements/dev-py310-lock.txt`
-            - `requirements/dev-py312-lock
+            ${{ steps.pr-changes.outputs.added != '' && format('New files:\n{0}\n', steps.pr-changes.outputs.added) || '' }}
+
+            ${{ steps.pr-changes.outputs.modified != '' && format('Updated files:\n{0}\n', steps.pr-changes.outputs.modified) || '' }}
+
+            ${{ steps.pr-changes.outputs.deleted != '' && format('Deleted files:\n{0}\n', steps.pr-changes.outputs.deleted) || '' }}
 
             These lockfiles are generated automatically with `pip-compile --upgrade --generate-hashes`.
+
+            **This PR was generated automatically by the `update-dependencies` workflow. Please
+            review if carefully.**
           delete-branch: true
