@@ -133,7 +133,7 @@ jobs:
           path: requirements/*-${{ steps.py_tag.outputs.py_tag}}-lock.txt
 
   create-pr:
-    name: Commit updated lockfile and open PR
+    name: Commit updated lockfiles and open PR
     runs-on: ubuntu-latest
     needs:
       - update-lockfiles-python-36
