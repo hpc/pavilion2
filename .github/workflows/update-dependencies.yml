@@ -51,14 +51,13 @@ jobs:
             python -m piptools compile \
               --upgrade \
               --generate-hashes \
-              --no-strip-extras \
               --output-file "requirements/${dep_type}-py36-lock.txt" \
               "requirements/${dep_type}.in"
           done
 
       - name: Check for inconsistencies between environments
         run: |
-          python -m .github/utils/check_inconsistent_deps.py "requirements/*-py36-lock.txt"
+          python .github/utils/check_inconsistent_deps.py "requirements/*-py36-lock.txt"
 
       - name: Upload generated lockfiles
         uses: actions/upload-artifact@v4
@@ -115,7 +114,7 @@ jobs:
 
       - name: Check for inconsistencies between environments
         run: |
-          python -m .github/utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
+          python .github/utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
 
       - name: Upload generated lockfiles
         uses: actions/upload-artifact@v4
