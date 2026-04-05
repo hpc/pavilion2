@@ -44,7 +44,7 @@ class LockFileRotatingFileHandler(logging.Handler):
         self.encoding = encoding
         self.lock_timeout = lock_timeout
         lockfile_path = self.file_name.parent/(self.file_name.name + '.lock')
-        self.lock_file = Lock(lockfile_path,
+        self.lock_file = Lock(str(lockfile_path),
                                   default_timeout=self.lock_timeout, lifetime=3)
 
         super().__init__()

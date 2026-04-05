@@ -484,7 +484,7 @@ class TestBuilder:
 
             # Only use NFS Lock if building on nodes
             if self._pav_cfg.get('build', {}).get('on_nodes', 'false').lower() == 'true':
-                locks.append(Lock(self.path.parent / f"{self.name}.lock", lifetime=3))
+                locks.append(Lock(str(self.path.parent / f"{self.name}.lock"), lifetime=3))
 
             # Allows for variable number of locks
             with ExitStack() as stack:

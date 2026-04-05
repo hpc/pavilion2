@@ -119,7 +119,7 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
     lockfile_path = log_path.with_suffix(log_path.suffix + '.lock')
 
     try:
-        with Lock(lockfile_path, lifetime=3) as lock, \
+        with Lock(str(lockfile_path), lifetime=3) as lock, \
             log_path.open() as result_log, \
                 rewrite_log_path.open('w') as rewrite_log:
 

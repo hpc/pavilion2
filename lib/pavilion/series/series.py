@@ -831,7 +831,7 @@ class TestSeries:
         lockfile_path = json_file.with_suffix('.lock')
 
         try:
-            with Lock(lockfile_path, lifetime=3):
+            with Lock(str(lockfile_path), lifetime=3):
                 data = {}
                 try:
                     with json_file.open() as json_series_file:

@@ -22,7 +22,7 @@ class SeriesIDCounter(Iterator[SeriesID]):
 
         self._path = self._dir / next_id_fn
         self._start = start_id
-        self._lockfile = Lock(self._dir / self.LOCKFILE_FN, lifetime=3)
+        self._lockfile = Lock(str(self._dir / self.LOCKFILE_FN), lifetime=3)
 
         self._setup()
 

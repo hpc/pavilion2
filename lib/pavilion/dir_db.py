@@ -41,7 +41,7 @@ def reset_pkey(id_dir: Path) -> None:
     the pkey file ('next_id') if present."""
 
     try:
-        with Lock(id_dir/'.lockfile', default_timeout=1, lifetime=3):
+        with Lock(str(id_dir/'.lockfile'), default_timeout=1, lifetime=3):
             try:
                 (id_dir/PKEY_FN).unlink()
             except OSError:
@@ -392,7 +392,7 @@ def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_
 
     lock_path = id_dir.with_suffix('.lock')
     try:
-        with Lock(lock_path, default_timeout=1, lifetime=3):
+        with Lock(str(lock_path), default_timeout=1, lifetime=3):
             for path in select(pav_cfg, id_dir=id_dir, filter_func=filter_func,
                                transform=transform).paths:
                 try:

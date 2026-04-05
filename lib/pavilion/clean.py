@@ -60,7 +60,7 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
     msgs = []
 
     try:
-        with Lock(lock_path, lifetime=3) as lock:
+        with Lock(str(lock_path), lifetime=3) as lock:
             refresh_limiter = RateLimiter(lock.refresh, cooldown=0.3)
 
             for path in dir_db.select(pav_cfg, builds_dir, filter_builds)[0]:
