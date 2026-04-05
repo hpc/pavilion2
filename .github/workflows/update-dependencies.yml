@@ -190,6 +190,10 @@ jobs:
           path: requirements
           merge-multiple: true
 
+      - name: Stage new lockfiles
+        run:
+          git add requirements/*-py*-lock.txt
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
@@ -203,6 +207,7 @@ jobs:
             - `requirements/base.in`
             - `requirements/test.in`
             - `requirements/docs.in`
+            - `requirements/docs.in`
 
             Updated files:
             - `requirements/base-py36-lock.txt`
@@ -214,8 +219,9 @@ jobs:
             - `requirements/docs-py36-lock.txt`
             - `requirements/docs-py310-lock.txt`
             - `requirements/docs-py312-lock.txt`
+            - `requirements/dev-py36-lock.txt`
+            - `requirements/dev-py310-lock.txt`
+            - `requirements/dev-py312-lock
 
             These lockfiles are generated automatically with `pip-compile --upgrade --generate-hashes`.
           delete-branch: true
-          add-paths: |
-              requirements/*-py*-lock.txt
