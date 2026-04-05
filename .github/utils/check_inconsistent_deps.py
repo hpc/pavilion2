@@ -137,7 +137,7 @@ def _setup_parser() -> ArgumentParser:
     parser = ArgumentParser(
                     description="Checks for inconsistent dependencies between two or more "
                                 "lockfiles.")
-    parser.add_argument("lockfiles", nargs='*', type=Path,
+    parser.add_argument("lockfiles", nargs='*',
                         help="The paths to the lockfiles to compare against one another. These may "
                              "be globs.")
 
