@@ -179,6 +179,10 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
+      - name: Remove old lockfiles
+        run:
+          git rm requirements/*-py*-lock.txt
+
       - name: Download lockfiles
         uses: actions/download-artifact@v4
         with:
