@@ -180,7 +180,7 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Remove old lockfiles
-        run:
+        run: |
           git rm requirements/*-py*-lock.txt
           git status
 
@@ -192,7 +192,7 @@ jobs:
           merge-multiple: true
 
       - name: Stage new lockfiles
-        run:
+        run: |
           git add requirements/*-py*-lock.txt
           git status
 
@@ -209,7 +209,7 @@ jobs:
             - `requirements/base.in`
             - `requirements/test.in`
             - `requirements/docs.in`
-            - `requirements/docs.in`
+            - `requirements/dev.in`
 
             Updated files:
             - `requirements/base-py36-lock.txt`
