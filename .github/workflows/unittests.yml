@@ -33,6 +33,7 @@ jobs:
           echo "supported_py_versions=$(jq -c '.supported_py_versions' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
           echo "legacy_py_versions=$(jq -c '.legacy_py_versions' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
           echo "default_py_version=$(jq -c '.default_py_version' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
+          cat $"GITHUB_OUTPUT"
 
   style:
     name: Run style checks
