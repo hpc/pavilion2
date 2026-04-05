@@ -163,7 +163,7 @@ jobs:
       - name: Upload generated lockfiles
         uses: actions/upload-artifact@v4
         with:
-          name: lockfiles-py${{ steps.py_tag.outputs.py_tag }}
+          name: lockfiles-${{ steps.py_tag.outputs.py_tag }}
           path: requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt
 
   create-pr:
@@ -182,6 +182,7 @@ jobs:
       - name: Remove old lockfiles
         run:
           git rm requirements/*-py*-lock.txt
+          git status
 
       - name: Download lockfiles
         uses: actions/download-artifact@v4
@@ -193,6 +194,7 @@ jobs:
       - name: Stage new lockfiles
         run:
           git add requirements/*-py*-lock.txt
+          git status
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
