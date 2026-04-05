@@ -40,9 +40,9 @@ jobs:
         run: |
           PY_TAG="py${{ matrix.python-version }}"
           PY_TAG="${PY_TAG/./}"
-          pip install requirements/base-py$"{PY_TAG}"-lock.txt
-          pip install requirements/test-py$"{PY_TAG}"-lock.txt
-          pip install requirements/docs-py$"{PY_TAG}"-lock.txt
+          pip install requirements/base-py$"${PY_TAG}"-lock.txt
+          pip install requirements/test-py$"${PY_TAG}"-lock.txt
+          pip install requirements/docs-py$"${PY_TAG}"-lock.txt
 
       - name: Setup Pavilion application-level config
         run: |
