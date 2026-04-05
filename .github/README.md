@@ -12,6 +12,6 @@ which versions unit tests run.
     the version of Python under which those unit tests run. Ideally, the default version should
     be among the supported versions.
 
-For each version, a compatible OS must be specified. This controls the OS on the virtual machine
+For each version, a compatible OS must be specified. This controls the OS of the virtual machine
 on which unit tests for that version of Python run. Typically, this is the latest version of
 Ubuntu with which that version of Python is compatible.
