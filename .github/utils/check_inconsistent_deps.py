@@ -37,6 +37,8 @@ def main() -> int:
         _print_package_inconsistencies(inconsts, errfile=sys.stderr)
 
         # We'll still give return code 0 here, since we just want to warn, not fail completely.
+    else:
+        print("No package inconsistencies found between environments.")
 
     sys.exit(0)
 
