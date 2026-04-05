@@ -31,8 +31,8 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      supported_py_versions: ${{ steps.load-py-versions.outputs.supported-py-versions }}
-      legacy_py_versions: ${{ steps.load-py-versions.outputs.legacy-py-versions }}
+      supported_py_versions: ${{ steps.load-py-versions.outputs.supported_py_versions }}
+      legacy_py_versions: ${{ steps.load-py-versions.outputs.legacy_py_versions }}
       default_py_version: ${{steps.load-py-versions.outputs.default_py_version}}
 
     steps:
