@@ -56,6 +56,7 @@ jobs:
           done
 
       - name: Check for inconsistencies between environments
+        # For now we'll just issue a warning, and not fail, if inconsistencies are found.
         run: |
           python .github/utils/check_inconsistent_deps.py "requirements/*-py36-lock.txt"
 
@@ -113,6 +114,7 @@ jobs:
           done
 
       - name: Check for inconsistencies between environments
+        # For now we'll just issue a warning, and not fail, if inconsistencies are found.
         run: |
           python .github/utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
 

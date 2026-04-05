@@ -24,7 +24,7 @@ def main() -> int:
     for lockfile in lockfiles:
         try:
             with lockfile.open("r", encoding="utf-8") as fin:
-                dependency_groups[str(lockfile)] = dependency_groups.append(_parse_lockfile(lockfile))
+                dependency_groups[str(lockfile)] = dependency_groups[str(lockfile)].append(_parse_lockfile(lockfile))
         except (OSError, ValueError) as err:
             print(f"Error reading lockfile at {lockfile}: {err}")
 
