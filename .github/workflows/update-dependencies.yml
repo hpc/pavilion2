@@ -1,6 +1,11 @@
 name: Update Python dependencies
 
 on:
+  # The on.push trigger is present only for ease of testing. It should be removed before this
+  # workflow is merged into develop.
+  push:
+    branches:
+      - 'hwikle/offline-release-ci'
   workflow_dispatch:
     inputs:
       base_branch:
@@ -14,7 +19,10 @@ permissions:
   pull-requests: write
 
 env:
-  BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || github.event.repository.default_branch }}
+  # BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || github.event.repository.default_branch }}
+  # This default is present only for ease of testing. It should be removed and replaced with the above line
+  # before this workflow is merged into develop.
+  BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || 'hwikle/offline-release-ci' }}
 
 jobs:
   update-lockfile-python-36:
