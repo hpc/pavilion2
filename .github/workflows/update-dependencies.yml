@@ -55,6 +55,10 @@ jobs:
               "requirements/${dep_type}.in"
           done
 
+      - name: Install dependencies for check_inconsistent_deps.py
+        run:
+          python -m pip install packaging
+
       - name: Check for inconsistencies between environments
         # For now we'll just issue a warning, and not fail, if inconsistencies are found.
         run: |
@@ -112,6 +116,10 @@ jobs:
               --output-file "requirements/${dep_type}-${{ steps.py_tag.outputs.py_tag }}-lock.txt" \
               requirements/${dep_type}.in
           done
+
+      - name: Install dependencies for check_inconsistent_deps.py
+        run:
+          python -m pip install packaging
 
       - name: Check for inconsistencies between environments
         # For now we'll just issue a warning, and not fail, if inconsistencies are found.
