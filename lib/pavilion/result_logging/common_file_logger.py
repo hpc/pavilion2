@@ -64,6 +64,6 @@ class CommonFileResultLogger(ResultLogger):
                 with open(self.dest, "a") as fout:
                     json.dump(results, fout)
                     fout.write("\n")
-         except TimeOutError:
+        except TimeOutError:
             # Convert flufl.lock.TimeOutError into native Python TimeoutError
             raise TimeoutError
