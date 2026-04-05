@@ -47,7 +47,8 @@ jobs:
         # but we should think about using a tool like Poetry that supports a single lockfile
         # with multiple dependency groups.
         run: |
-          for dep_type in "${DEPENDENCY_TYPES}"; do
+          for dep_type in $DEPENDENCY_TYPES; do
+            echo "Generating lockfile for ${dep_type}..."
             python -m piptools compile \
               --upgrade \
               --generate-hashes \
@@ -103,7 +104,7 @@ jobs:
         # but we should think about using a tool like Poetry that supports a single lockfile
         # with multiple dependency groups.
         run: |
-          for dep_type in "${DEPENDENCY_TYPES}"; do
+          for dep_type in $DEPENDENCY_TYPES; do
             echo "Generating lockfile for ${dep_type}..."
             python -m piptools compile \
               --upgrade \
