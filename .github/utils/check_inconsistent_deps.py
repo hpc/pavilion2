@@ -4,7 +4,7 @@ from pathlib import Path
 from collections import defaultdict
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
-from typing import TextIO, Dict, Tuple
+from typing import TextIO, Dict, Tuple, List
 
 
 def main() -> int:
