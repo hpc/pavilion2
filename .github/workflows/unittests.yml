@@ -116,7 +116,7 @@ jobs:
       run: ./test/run_tests -o 'doc*' -q
 
   unittests-modern-python:
-    name: "Run unit tests on Python ${{ matrix.python }}"
+    name: Run unit tests on Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     needs:
         - load-python-versions
