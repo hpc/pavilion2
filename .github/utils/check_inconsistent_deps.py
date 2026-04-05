@@ -21,7 +21,7 @@ def main() -> int:
 
     dependency_groups = {}
 
-    for lockfile in args.lockfiles:
+    for lockfile in lockfiles:
         try:
             with lockfile.open("r", encoding="utf-8") as fin:
                 dependency_groups[str(lockfile)] = dependency_groups.append(_parse_lockfile(lockfile))
