@@ -489,7 +489,7 @@ expected to be added to by various plugins.
             help_text="Set by pavilion. An id to identify the base config shared by "
                       "a set of permutations."),
         yc.StrElem(
-            'shebang', default='#!/usr/bin/bash',
+            'shebang', default='#!/bin/bash',
             help_text="The shebang to put at the top of build/run/kickoff scripts. "
                       "Should always point to 'bash', but the path and options may vary "
                       "per-system."),
