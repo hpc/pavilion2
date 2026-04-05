@@ -187,7 +187,7 @@ jobs:
       - name: Download lockfiles
         uses: actions/download-artifact@v4
         with:
-          pattern: lockfile-py*-*
+          pattern: lockfiles-py*
           path: requirements
           merge-multiple: true
 
