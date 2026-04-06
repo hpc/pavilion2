@@ -2,6 +2,10 @@
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
 RELEASE=2.6
 
+## 2.6.1 Pre-Release Notes
+
+- Various minor bug fixes.
+
 ## 2.6 Release Notes
 
 - Test run directories are now named based on the series-relative IDs of test runs (e.g. `s1.1`).
