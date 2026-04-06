@@ -9,9 +9,9 @@ from pathlib import Path
 import unittest
 import shutil
 
-from pavilion import unittest
 from pavilion import utils
 from pavilion.cmd_utils import list_files
+from pavilion.unittest import PavTestCase
 
 
 def is_privileged() -> bool:
@@ -31,7 +31,7 @@ def is_privileged() -> bool:
     return result.returncode == 0
 
 
-class UtilsTests(unittest.PavTestCase):
+class UtilsTests(PavTestCase):
 
     def test_hr_cutoff(self):
         """Check hr_cutoff_to_datetime function."""
