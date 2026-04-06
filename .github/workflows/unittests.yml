@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Load Python version matrix
         id: load-py-versions
@@ -42,10 +42,10 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
 
@@ -79,10 +79,10 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
 
@@ -122,10 +122,10 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "${{ matrix.python }}"
 
@@ -164,7 +164,7 @@ jobs:
 
       - name: Upload working directory
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: working_dir_${{ steps.py_tag.outputs.py_tag }}
           path: test/working_dir.zip
@@ -186,7 +186,7 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Compute py_tag
         id: py_tag
@@ -231,7 +231,7 @@ jobs:
 
       - name: Upload working directory
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: working_dir_${{ steps.py_tag.outputs.py_tag }}
           path: test/working_dir.zip
