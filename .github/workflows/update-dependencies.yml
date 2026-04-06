@@ -63,7 +63,8 @@ jobs:
         id: groups
         run: |
           groups=$(find requirements -type f -name "*.in" -print | xargs basename -s .in)
-          echo "requirements-groups=$groups" >> $GITHUB_OUTPUT
+          echo "$groups"
+          echo "requirements-groups=$groups" >> "$GITHUB_OUTPUT"
 
   update-lockfiles-modern-python:
     name: Regenerate lockfiles for Python ${{ matrix.python }}
