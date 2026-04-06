@@ -16,6 +16,7 @@ on:
         required: true
         default: 300
         type: number
+
 permissions:
   contents: read
 
