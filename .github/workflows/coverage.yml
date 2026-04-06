@@ -20,9 +20,6 @@ on:
 permissions:
   contents: read
 
-permissions:
-  contents: read
-
 jobs:
   load-python-version:
     name: Load Python version
@@ -33,13 +30,11 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Load Python version matrix
         id: load-py-version
-        run: |
-          echo "default_py_version=$(jq -c '.default_py_version' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
+        run: echo "default_py_version=$(jq -c '.default_py_version' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
 
   coverage:
     name: Generate coverage report
@@ -68,8 +63,7 @@ jobs:
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
     - name: Set up Spack
-      run: |
-        ./test/utils/spack_setup test
+      run: ./test/utils/spack_setup test
 
     - name: Run unit tests under coverage.py
       env:
@@ -79,7 +73,7 @@ jobs:
       run: |
         echo "PAV_UNITTEST_UNIVERSAL_TIMEOUT: $PAV_UNITTEST_UNIVERSAL_TIMEOUT"
         echo "PAV_UNITTEST_LOCK_LIFETIME: $PAV_UNITTEST_LOCK_LIFETIME"
-        sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests --skip style --skip docs"
+        python -m coverage run ./test/run_tests --skip style --skip docs"
 
     - name: Combine data and generate report
       if: always()
