@@ -142,7 +142,7 @@ class PluginTests(PavTestCase):
         # Get an empty pavilion config and set some config dirs on it.
         plugins.initialize_plugins(self.pav_cfg)
 
-        host_arch = subprocess.check_output(['uname', '-i'])
+        host_arch = subprocess.check_output(['uname', '-m'])
         host_arch = host_arch.strip().decode('UTF-8')
 
         host_name = subprocess.check_output(['hostname', '-s'])
