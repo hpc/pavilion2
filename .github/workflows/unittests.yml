@@ -70,7 +70,7 @@ jobs:
           echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
       - name: Run style tests
-        run: ./test/run_tests -q -o style -o debug_prints"
+        run: ./test/run_tests -q -o style -o debug_prints
 
   docs:
     name: Run documentation checks
