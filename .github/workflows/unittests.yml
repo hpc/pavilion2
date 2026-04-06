@@ -43,8 +43,6 @@ jobs:
     steps:
     - name: Checkout Pavilion repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
       uses: actions/setup-python@v5
@@ -95,8 +93,6 @@ jobs:
     steps:
     - name: Checkout Pavilion repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
       uses: actions/setup-python@v5
@@ -147,8 +143,6 @@ jobs:
     steps:
     - name: Checkout Pavilion repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Setup Python ${{ matrix.python }}
       uses: actions/setup-python@v5
@@ -211,15 +205,8 @@ jobs:
         include: ${{ fromJson(needs.load-python-versions.outputs.legacy_py_versions) }}
 
     steps:
-    - name: Check Python version
-      run: |
-        PY_VERSION=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-        test "$PY_VERSION" = ${{ matrix.python }}
-
     - name: Checkout Pavilion repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Compute py_tag
       id: py_tag
@@ -245,6 +232,10 @@ jobs:
           pip install -r test/requirements.txt
           pip install -r docs/requirements.txt
 >>>>>>> a111b024 (Attempt to fix install dependencies step (again))
+
+    - name: Create bash symlink at /usr/bin/bash
+      # This is necessary because Pavilion's default shebang is /usr/bin/bash
+      run: test -e /usr/bin/bash || ln -s /bin/bash /usr/bin/bash
 
     - name: Setup Pavilion application-level config
       run: |
