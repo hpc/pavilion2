@@ -14,10 +14,6 @@ on:
         default: ""
         type: string
 
-permissions:
-  contents: write
-  pull-requests: write
-
 env:
   # BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || github.event.repository.default_branch }}
   # This default is present only for ease of testing. It should be removed and replaced with the above line
@@ -29,6 +25,9 @@ jobs:
   load-python-versions:
     name: Load Python versions
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     outputs:
       supported_py_versions: ${{ steps.load-py-versions.outputs.supported_py_versions }}
@@ -51,6 +50,9 @@ jobs:
     name: Regenerate lockfiles for Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     needs: load-python-versions
+
+    permissions:
+      contents: read
 
     strategy:
       matrix:
@@ -115,6 +117,10 @@ jobs:
     container: python:${{ matrix.python }}
     needs: load-python-versions
 
+    permissions:
+      contents:
+        read
+
     strategy:
       matrix:
         include: ${{ fromJson(needs.load-python-versions.outputs.legacy_py_versions) }}
@@ -172,6 +178,10 @@ jobs:
     needs:
       - update-lockfiles-modern-python
       - update-lockfiles-legacy-python
+
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: Check out source

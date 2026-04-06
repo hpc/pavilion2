@@ -10,6 +10,9 @@ on:
       - develop
       - stable
 
+permissions:
+  contents: read
+
 jobs:
   demo_runs:
     # Check to make sure Pavilion can auto-fetch it's dependencies.
