@@ -16,12 +16,9 @@ from pavilion.unittest import PavTestCase
 
 def user_in_two_groups() -> bool:
     login = utils.get_login()
-    def_gid = os.getgid()
-    candidates = [group for group in grp.getgrall() if
-                    (login in group.gr_mem
-                    and def_gid != group.gr_gid)]
+    groups = [group for group in grp.getgrall() if login in group.gr_mem]
 
-    return len(candidates > 0)
+    return len(groups) > 1
 
 
 class GeneralTests(PavTestCase):
