@@ -24,9 +24,6 @@ jobs:
   coverage:
     name: Generate coverage report
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
 
     steps:
     - name: Checkout Pavilion repository
