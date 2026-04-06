@@ -81,13 +81,13 @@ jobs:
         include: ${{ fromJson(needs.load-python-versions.outputs.supported_py_versions) }}
 
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
+      - name: Check out Pavilion repository
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.BASE_BRANCH }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
@@ -124,7 +124,7 @@ jobs:
         run: python dev-utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
 
       - name: Upload generated lockfiles
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lockfiles-${{ steps.py_tag.outputs.py_tag }}
           path: requirements/*-${{ steps.py_tag.outputs.py_tag}}-lock.txt
@@ -147,13 +147,12 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.BASE_BRANCH }}
 
       - name: Compute py_tag
         id: py_tag
-        shell: bash
         run: |
           PY_TAG="py${{ matrix.python }}"
           PY_TAG="${PY_TAG/./}"
@@ -189,7 +188,7 @@ jobs:
           python .github/utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
 
       - name: Upload generated lockfiles
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lockfiles-${{ steps.py_tag.outputs.py_tag }}
           path: requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt
@@ -206,8 +205,8 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
+      - name: Check out Pavilion repository
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
@@ -216,7 +215,7 @@ jobs:
           git rm requirements/*-py*-lock.txt
 
       - name: Download lockfiles
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: lockfiles-py*
           path: requirements
@@ -228,7 +227,6 @@ jobs:
 
       - name: Collect git status output
         id: pr-changes
-        shell: bash
         run: |
           {
             echo 'inputs<<EOF'
@@ -252,7 +250,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           base: ${{ env.BASE_BRANCH }}
           branch: ci/update-python-dependencies
