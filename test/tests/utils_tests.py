@@ -17,7 +17,18 @@ from pavilion.cmd_utils import list_files
 def is_privileged() -> bool:
     """Check if the current process can perform privileged actions."""
 
-    return shutil.which("sudo") is not None or os.geteuid() == 0
+    if os.geteuid() == 0:
+        return True
+    if shutil.which("sudo") is None:
+        return False
+
+    result = sp.run(
+        ["sudo", "-n", "true"],
+        stdout=sp.DEVNULL,
+        stderr=sp.DEVNULL,
+    )
+
+    return result.returncode == 0
 
 
 class UtilsTests(unittest.PavTestCase):
@@ -77,8 +88,10 @@ class UtilsTests(unittest.PavTestCase):
         self.assertEqual(utils.owner(path), getpass.getuser())
 
         # Try to set the permissions of the file to an unknown user.
-        proc = sp.Popen(['sudo', '-n', 'chown', '12341', path.as_posix()],
-                        stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
+        proc = sp.Popen(['sudo', '-n', 'chown', '12341', path.as_posix(), '||',
+                            'chown', '12341', path.as_posix()],
+                            stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
+
         if proc.wait(5) == 0:
             self.assertEqual(utils.owner(path), "<unknown user '12341'>")
 
