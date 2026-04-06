@@ -5,6 +5,7 @@ import shutil
 import subprocess as sp
 from pathlib import Path
 from typing import List
+import unittest
 
 import yc_yaml as yaml
 from pavilion.test_run import TestRun
@@ -54,11 +55,9 @@ class GeneralTests(PavTestCase):
 
         self.working_dir.mkdir()
 
-        if self.alt_group is None:
-            self.fail("Your user must be in at least two groups (other than "
-                      "the user's group) to run this test.")
+        if self.alt_group is not None:
+            raw_cfg['shared_group'] = self.alt_group.gr_name
 
-        raw_cfg['shared_group'] = self.alt_group.gr_name
         raw_cfg['umask'] = self.umask
         raw_cfg['working_dir'] = self.working_dir.as_posix()
 
@@ -69,6 +68,7 @@ class GeneralTests(PavTestCase):
     def tear_down(self):
         pass
 
+    @unittest.skipIf(self.alt_group is None, "Your user must be in at least two groups (other than the user's group) to run this test.")
     def test_permissions(self):
         """Make sure all files written by Pavilion have the correct
         permissions."""
@@ -133,6 +133,7 @@ class GeneralTests(PavTestCase):
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 
+    @unittest.skipIf(self.alt_group is None, "Your user must be in at least two groups (other than the user's group) to run this test.")
     def check_permissions(self, path: Path, group: grp.struct_group,
                           umask: int, exclude: List[Path] = None):
         """Perform a run and make sure they have correct permissions."""
