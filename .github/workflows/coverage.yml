@@ -24,14 +24,14 @@ jobs:
 
     steps:
     - name: Checkout Pavilion repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v6
       with:
-        python-version: "3.12"
+        python-version: "3.10"
 
     - name: Install dependencies
       run: |
@@ -59,7 +59,7 @@ jobs:
         echo "PAV_UNITTEST_LOCK_LIFETIME: $PAV_UNITTEST_LOCK_LIFETIME"
         sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests --skip style --skip docs"
 
-    - name: Generate and show report
+    - name: Combine data and generate report
       run: |
         python -m coverage combine
         python -m coverage report
@@ -68,14 +68,14 @@ jobs:
 
     - name: Upload XML coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-xml
         path: coverage.xml
 
     - name: Upload HTML coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-html
         path: htmlcov
