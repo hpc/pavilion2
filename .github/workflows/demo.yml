@@ -30,17 +30,17 @@ jobs:
 
   demo_runs:
     name: Run demo tests
-    runs-on: ${{ needs.load-python-version.outputs.default_py_version.os }}
+    runs-on: ${{ fromJson(needs.load-python-version.outputs.default_py_version).os }}
     needs: load-python-version
 
     steps:
     - name: Checkout Pavilion repository
       uses: actions/checkout@v4
 
-    - name: Set up Python ${{ needs.load-python-version.outputs.default_py_version.python }}
+    - name: Set up Python ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ needs.load-python-version.outputs.default_py_version.python }}
+        python-version: ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
 
     - name: Install dependencies
       run: sudo apt install gcc

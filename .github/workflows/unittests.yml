@@ -21,7 +21,7 @@ jobs:
     outputs:
       supported_py_versions: ${{ steps.load-py-versions.outputs.supported_py_versions }}
       legacy_py_versions: ${{ steps.load-py-versions.outputs.legacy_py_versions }}
-      default_py_version: ${{steps.load-py-versions.outputs.default_py_version}}
+      default_py_version: ${{ steps.load-py-versions.outputs.default_py_version }}
 
     steps:
       - name: Checkout Pavilion repository
@@ -37,7 +37,7 @@ jobs:
 
   style:
     name: Run style checks
-    runs-on: ${{ fromJson(needs.load-python-versions.outputs.default_py_version.os) }}
+    runs-on: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).os }}
     needs: load-python-versions
 
     steps:
@@ -46,16 +46,16 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version.python) }}
+    - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ fromJson(needs.load-python-versions.outputs.default_py_version.python) }}
+        python-version: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
 
     - name: Compute py_tag
       id: py_tag
       shell: bash
       run: |
-          PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version.python) }}"
+          PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
           PY_TAG="${PY_TAG/./}"
           echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
@@ -81,7 +81,7 @@ jobs:
 
   docs:
     name: Run documentation checks
-    runs-on: ${{ fromJson(needs.load-python-versions.outputs.default_py_version.os) }}
+    runs-on: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).os }}
     needs: load-python-versions
 
     steps:
@@ -90,16 +90,16 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version.python) }}
+    - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
       uses: actions/setup-python@v5
       with:
-        python-version: "${{ fromJson(needs.load-python-versions.outputs.default_py_version.python) }}"
+        python-version: "${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
 
     - name: Compute py_tag
       id: py_tag
       shell: bash
       run: |
-          PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version.python) }}"
+          PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
           PY_TAG="${PY_TAG/./}"
           echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
