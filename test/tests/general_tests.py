@@ -14,6 +14,16 @@ from pavilion.test_ids import TestID
 from pavilion.unittest import PavTestCase
 
 
+def user_in_two_groups() -> bool:
+    login = utils.get_login()
+    def_gid = os.getgid()
+    candidates = [group for group in grp.getgrall() if
+                    (login in group.gr_mem
+                    and def_gid != group.gr_gid)]
+
+    return len(candidates > 0)
+
+
 class GeneralTests(PavTestCase):
     """Tests that apply to the whole of Pavilion, rather than some particular
     part."""
@@ -68,7 +78,7 @@ class GeneralTests(PavTestCase):
     def tear_down(self):
         pass
 
-    @unittest.skipIf(self.alt_group is None, "Your user must be in at least two groups (other than the user's group) to run this test.")
+    @unittest.skipIf(not user_in_two_groups(), "Your user must be in at least two groups (other than the user's group) to run this test.")
     def test_permissions(self):
         """Make sure all files written by Pavilion have the correct
         permissions."""
@@ -133,7 +143,7 @@ class GeneralTests(PavTestCase):
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 
-    @unittest.skipIf(self.alt_group is None, "Your user must be in at least two groups (other than the user's group) to run this test.")
+    @unittest.skipIf(not user_in_two_groups(), "Your user must be in at least two groups (other than the user's group) to run this test.")
     def check_permissions(self, path: Path, group: grp.struct_group,
                           umask: int, exclude: List[Path] = None):
         """Perform a run and make sure they have correct permissions."""
