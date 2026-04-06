@@ -19,7 +19,6 @@ env:
   # This default is present only for ease of testing. It should be removed and replaced with the above line
   # before this workflow is merged into develop.
   BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || 'hwikle/offline-release-ci' }}
-  DEPENDENCY_TYPES: base test docs dev
 
 jobs:
   load-python-versions:
@@ -46,10 +45,32 @@ jobs:
           echo "default_py_version=$(jq -c '.default_py_version' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
+  discover-requirements-groups:
+    name: Discover requirements groups
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    outputs:
+      requirements-groups: ${{ steps.groups.outputs.requirements-groups }}
+
+    steps:
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v4
+
+      - name: Find *.in files
+        id: groups
+        run: |
+          groups=$(find requirements -type f -name "*.in" -print | xargs basename -s .in)
+          echo "requirements-groups=$groups" >> $GITHUB_OUTPUT
+
   update-lockfiles-modern-python:
     name: Regenerate lockfiles for Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    needs: load-python-versions
+    needs:
+      - load-python-versions
+      - discover-requirements-groups
 
     permissions:
       contents: read
@@ -77,9 +98,9 @@ jobs:
           PY_TAG="${PY_TAG/./}"
           echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Install pip-tools
+      - name: Install dev dependencies
         run: |
-          python -m pip install --upgrade pip pip-tools
+          python -m pip install -r requirements/dev-py${{ steps.py_tag.outputs.py_tag }}-lock.txt || python -m pip install -r requirements/dev.in
 
       - name: Regenerate lockfiles
         # There's a possibility of inconsistencies here between the test and runtime environments
@@ -87,7 +108,7 @@ jobs:
         # but we should think about using a tool like Poetry that supports a single lockfile
         # with multiple dependency groups.
         run: |
-          for dep_type in $DEPENDENCY_TYPES; do
+          for dep_type in $(${{ needs.discover-requirements-groups.outputs.requirements-groups }} | jq -r '.[]'); do
             python -m piptools compile \
               --upgrade \
               --generate-hashes \
@@ -95,10 +116,6 @@ jobs:
               --output-file "requirements/${dep_type}-${{ steps.py_tag.outputs.py_tag }}-lock.txt" \
               requirements/${dep_type}.in
           done
-
-      - name: Install dependencies for check_inconsistent_deps.py
-        run:
-          python -m pip install packaging
 
       - name: Check for inconsistencies between environments
         # For now we'll just issue a warning, and not fail, if inconsistencies are found.
@@ -115,7 +132,9 @@ jobs:
     name: Regenerate lockfiles for Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     container: python:${{ matrix.python }}
-    needs: load-python-versions
+    needs:
+      - load-python-versions
+      - discover-requirements-groups
 
     permissions:
       contents:
@@ -131,10 +150,6 @@ jobs:
         with:
           ref: ${{ env.BASE_BRANCH }}
 
-      - name: Install pip-tools
-        run: |
-          python -m pip install --upgrade pip pip-tools
-
       - name: Compute py_tag
         id: py_tag
         shell: bash
@@ -143,23 +158,23 @@ jobs:
           PY_TAG="${PY_TAG/./}"
           echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
+      - name: Install dev dependencies
+        run: |
+          python -m pip install -r requirements/dev-py${{ steps.py_tag.outputs.py_tag }}-lock.txt || python -m pip install -r requirements/dev.in
+
       - name: Regenerate lockfiles
         # There's a possibility of inconsistencies here between the test and runtime environments
         # if each requires a different version of the same transitive dependency. It's unlikely,
         # but we should think about using a tool like Poetry that supports a single lockfile
         # with multiple dependency groups.
         run: |
-          for dep_type in $DEPENDENCY_TYPES; do
+          for dep_type in $(${{ needs.discover-requirements-groups.outputs.requirements-groups }} | jq -r '.[]'); do
             python -m piptools compile \
               --upgrade \
               --generate-hashes \
               --output-file "requirements/${dep_type}-${{ steps.py_tag.outputs.py_tag }}-lock.txt" \
               "requirements/${dep_type}.in"
           done
-
-      - name: Install dependencies for check_inconsistent_deps.py
-        run:
-          python -m pip install packaging
 
       - name: Check for inconsistencies between environments
         # For now we'll just issue a warning, and not fail, if inconsistencies are found.
