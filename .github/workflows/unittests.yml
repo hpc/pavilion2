@@ -10,9 +10,6 @@ on:
       - develop
       - stable
 
-env:
-  DEPENDENCY_TYPES: base test docs
-
 jobs:
   load-python-versions:
     name: Load Python versions
@@ -62,6 +59,7 @@ jobs:
     - name: Install dependencies
       run: |
 <<<<<<< HEAD
+<<<<<<< HEAD
         python -m pip install --upgrade pip
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
@@ -72,6 +70,9 @@ jobs:
 =======
         pip install -r requirements.txt
 >>>>>>> 4150c1f3 (Attempt to fix unit test dependency installation)
+=======
+        pip install -r test/requirements.txt
+>>>>>>> a111b024 (Attempt to fix install dependencies step (again))
 
     - name: Setup Pavilion application-level config
       run: |
@@ -111,9 +112,13 @@ jobs:
       run: |
         pip install -r test/requirements.txt
 <<<<<<< HEAD
+<<<<<<< HEAD
         pip install -r docs/requirements.txt
 =======
 >>>>>>> 4150c1f3 (Attempt to fix unit test dependency installation)
+=======
+        pip install -r docs/requirements.txt
+>>>>>>> a111b024 (Attempt to fix install dependencies step (again))
 
     - name: Setup Pavilion application-level config
       run: |
@@ -157,11 +162,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-
-        for dep_type in $DEPENDENCY_TYPES; do
-          pip install -r requirements/${dep_type}-${{ steps.py_tag.outputs.py_tag }}-lock.txt
-        done
+          pip install -r test/requirements.txt
+          pip install -r docs/requirements.txt
 
     - name: Setup Pavilion application-level config
       run: |
@@ -226,6 +228,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+<<<<<<< HEAD
         python -m pip install --upgrade pip
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
@@ -235,6 +238,10 @@ jobs:
         for dep_type in $DEPENDENCY_TYPES; do
           pip install -r requirements/${dep_type}-${{ steps.py_tag.outputs.py_tag }}-lock.txt
         done
+=======
+          pip install -r test/requirements.txt
+          pip install -r docs/requirements.txt
+>>>>>>> a111b024 (Attempt to fix install dependencies step (again))
 
     - name: Setup Pavilion application-level config
       run: |
