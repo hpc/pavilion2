@@ -540,3 +540,14 @@ class FiltersTest(PavTestCase):
         list_cmd.silence()
 
         args = arguments.get_parser().parse_args(['list', 'test_runs', '--filter=user=sunstealer and sys_name=nostalgia'])
+
+    def test_filter_parse_string_starts_with_digit(self):
+        """Test that filters work with string values that begin with integers. This is a regression
+        test for a bug encountered in the wild."""
+
+        query = "sys_name=123abc"
+
+        try:
+            parse_query(query)
+        except FilterParseError:
+            self.fail(f"Failed to parse sys_name beginning with digit: {query}")
