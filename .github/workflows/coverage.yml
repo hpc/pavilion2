@@ -1,4 +1,4 @@
-name: coverage
+name: Generate unit test coverage report
 
 on:
   schedule:
@@ -19,10 +19,12 @@ on:
 
 jobs:
   coverage:
+    name: Generate coverage report
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v4
       with:
         submodules: recursive
 
@@ -33,22 +35,23 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
         pip install "coverage>=7.10,<8"
 
-    - name: setup
+    - name: Setup Pavilion application-level config
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+
+    - name: Setup Spack
+      run: |
         ./test/utils/spack_setup test
 
-    - name: run_tests
+    - name: Run unit tests under coverage.py
       env:
-        # coverage causes unit tests to run several times slower, so we need to increase the timeout
+        # coverage.py causes unit tests to run several times slower, so we need to increase the timeout
         PAV_UNITTEST_UNIVERSAL_TIMEOUT: ${{ inputs.timeout || 300}}
         PAV_UNITTEST_LOCK_LIFETIME: ${{ inputs.lock_lifetime || 300}}
       run: |
