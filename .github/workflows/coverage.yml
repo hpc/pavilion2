@@ -24,12 +24,13 @@ jobs:
   coverage:
     name: Generate coverage report
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
     - name: Checkout Pavilion repository
       uses: actions/checkout@v6
-      with:
-        submodules: recursive
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v6
@@ -63,6 +64,7 @@ jobs:
         sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests --skip style --skip docs"
 
     - name: Combine data and generate report
+      if: always()
       run: |
         python -m coverage combine
         python -m coverage report
@@ -70,14 +72,12 @@ jobs:
         python -m coverage html
 
     - name: Upload XML coverage report
-      if: always()
       uses: actions/upload-artifact@v6
       with:
         name: coverage-xml
         path: coverage.xml
 
     - name: Upload HTML coverage report
-      if: always()
       uses: actions/upload-artifact@v6
       with:
         name: coverage-html
