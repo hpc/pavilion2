@@ -101,6 +101,7 @@ jobs:
 
       - name: Install dev dependencies
         run: |
+          python -m pip install --upgrade pip
           python -m pip install -r requirements/dev-py${{ steps.py_tag.outputs.py_tag }}-lock.txt || python -m pip install -r requirements/dev.in
 
       - name: Regenerate lockfiles
@@ -120,8 +121,7 @@ jobs:
 
       - name: Check for inconsistencies between environments
         # For now we'll just issue a warning, and not fail, if inconsistencies are found.
-        run: |
-          python dev-utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
+        run: python dev-utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
 
       - name: Upload generated lockfiles
         uses: actions/upload-artifact@v4
@@ -159,8 +159,14 @@ jobs:
           PY_TAG="${PY_TAG/./}"
           echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
+      - name: Remove minimum version from coverage
+        # The features we need from coverage don't exist before version 7.10, but it doesn't
+        # really matter since we only run coverage under newer versions of Python.
+        run: sed -i 's/coverage>=7.10/coverage/' requirements/dev.in
+
       - name: Install dev dependencies
         run: |
+          python -m pip install --upgrade pip
           python -m pip install -r requirements/dev-py${{ steps.py_tag.outputs.py_tag }}-lock.txt || python -m pip install -r requirements/dev.in
 
       - name: Regenerate lockfiles
