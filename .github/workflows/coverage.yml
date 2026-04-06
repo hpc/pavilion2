@@ -20,6 +20,9 @@ on:
 permissions:
   contents: read
 
+permissions:
+  contents: read
+
 jobs:
   load-python-version:
     name: Load Python version
