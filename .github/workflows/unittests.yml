@@ -41,49 +41,36 @@ jobs:
     needs: load-python-versions
 
     steps:
-    - name: Checkout Pavilion repository
-      uses: actions/checkout@v4
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v4
 
-    - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
+      - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
 
-    - name: Compute py_tag
-      id: py_tag
-      shell: bash
-      run: |
-          PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
-          PY_TAG="${PY_TAG/./}"
-          echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
+      - name: Compute py_tag
+        id: py_tag
+        shell: bash
+        run: |
+            PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
+            PY_TAG="${PY_TAG/./}"
+            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
-    - name: Install dependencies
-      run: |
-<<<<<<< HEAD
-<<<<<<< HEAD
-        python -m pip install --upgrade pip
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r test/requirements.txt
+          pip install -r docs/requirements.txt
 
-        for dep_type in $DEPENDENCY_TYPES; do
-          pip install -r requirements/${dep_type}-${{ steps.py_tag.outputs.py_tag }}-lock.txt
-        done
-=======
-        pip install -r requirements.txt
->>>>>>> 4150c1f3 (Attempt to fix unit test dependency installation)
-=======
-        pip install -r test/requirements.txt
->>>>>>> a111b024 (Attempt to fix install dependencies step (again))
+      - name: Setup Pavilion application-level config
+        run: |
+          ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
+          echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
+          echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
-    - name: Setup Pavilion application-level config
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-
-    - name: Run style tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style -o debug_prints"
+      - name: Run style tests
+        run: ./test/run_tests -q -o style -o debug_prints"
 
   docs:
     name: Run documentation checks
@@ -91,42 +78,35 @@ jobs:
     needs: load-python-versions
 
     steps:
-    - name: Checkout Pavilion repository
-      uses: actions/checkout@v4
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v4
 
-    - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: "${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
+      - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
 
-    - name: Compute py_tag
-      id: py_tag
-      shell: bash
-      run: |
-          PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
-          PY_TAG="${PY_TAG/./}"
-          echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
+      - name: Compute py_tag
+        id: py_tag
+        shell: bash
+        run: |
+            PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
+            PY_TAG="${PY_TAG/./}"
+            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
-    - name: Install dependencies
-      run: |
-        pip install -r test/requirements.txt
-<<<<<<< HEAD
-<<<<<<< HEAD
-        pip install -r docs/requirements.txt
-=======
->>>>>>> 4150c1f3 (Attempt to fix unit test dependency installation)
-=======
-        pip install -r docs/requirements.txt
->>>>>>> a111b024 (Attempt to fix install dependencies step (again))
+      - name: Install dependencies
+        run: |
+          pip install -r test/requirements.txt
+          pip install -r docs/requirements.txt
 
-    - name: Setup Pavilion application-level config
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+      - name: Setup Pavilion application-level config
+        run: |
+          ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
+          echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
+          echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
-    - name: Run documentation tests
-      run: ./test/run_tests -o 'doc*' -q
+      - name: Run documentation tests
+        run: ./test/run_tests -o 'doc*' -q
 
   unittests-modern-python:
     name: Run unit tests on Python ${{ matrix.python }}
@@ -141,53 +121,53 @@ jobs:
         include: ${{ fromJson(needs.load-python-versions.outputs.supported_py_versions) }}
 
     steps:
-    - name: Checkout Pavilion repository
-      uses: actions/checkout@v4
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v4
 
-    - name: Setup Python ${{ matrix.python }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: "${{ matrix.python }}"
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python }}"
 
-    - name: Compute py_tag
-      id: py_tag
-      shell: bash
-      run: |
-          PY_TAG="py${{ matrix.python }}"
-          PY_TAG="${PY_TAG/./}"
-          echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
+      - name: Compute py_tag
+        id: py_tag
+        shell: bash
+        run: |
+            PY_TAG="py${{ matrix.python }}"
+            PY_TAG="${PY_TAG/./}"
+            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
-    - name: Install dependencies
-      run: |
-          pip install -r test/requirements.txt
-          pip install -r docs/requirements.txt
+      - name: Install dependencies
+        run: |
+            pip install -r test/requirements.txt
+            pip install -r docs/requirements.txt
 
-    - name: Setup Pavilion application-level config
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
+      - name: Setup Pavilion application-level config
+        run: |
+          ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
+          echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
+          echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+          ./test/utils/spack_setup test
 
-    - name: Run unit tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+      - name: Run unit tests
+        run: |
+          sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
 
-    - name: Zip working directory
-      if: failure()
-      run: |
-        # If we don't zip this ourselves, it will run infinitely due to
-        # symlink loops.
-        cd test
-        ./utils/make_symlinks_relative working_dir
-        zip -yr working_dir.zip working_dir
+      - name: Zip working directory
+        if: failure()
+        run: |
+          # If we don't zip this ourselves, it will run infinitely due to
+          # symlink loops.
+          cd test
+          ./utils/make_symlinks_relative working_dir
+          zip -yr working_dir.zip working_dir
 
-    - name: Upload working directory
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: working_dir_${{ steps.py_tag.outputs.py_tag }}
-        path: test/working_dir.zip
+      - name: Upload working directory
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: working_dir_${{ steps.py_tag.outputs.py_tag }}
+          path: test/working_dir.zip
 
   unittests-legacy-python:
     # We run this as a separate job because older versions of Python which are no longer supported
@@ -196,76 +176,62 @@ jobs:
     runs-on: ${{ matrix.os }}
     container: python:${{ matrix.python }}
     needs:
-    - load-python-versions
-    - style
-    - docs
+      - load-python-versions
+      - style
+      - docs
 
     strategy:
       matrix:
         include: ${{ fromJson(needs.load-python-versions.outputs.legacy_py_versions) }}
 
     steps:
-    - name: Checkout Pavilion repository
-      uses: actions/checkout@v4
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v4
 
-    - name: Compute py_tag
-      id: py_tag
-      shell: bash
-      run: |
-          PY_TAG="py${{ matrix.python }}"
-          PY_TAG="${PY_TAG/./}"
-          echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
+      - name: Compute py_tag
+        id: py_tag
+        shell: bash
+        run: |
+            PY_TAG="py${{ matrix.python }}"
+            PY_TAG="${PY_TAG/./}"
+            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
 
-    - name: Install dependencies
-      run: |
-<<<<<<< HEAD
-        python -m pip install --upgrade pip
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
-        sphinx-build --version
-        pylint --version
+      - name: Install dependencies
+        run: |
+            pip install -r test/requirements.txt
+            pip install -r docs/requirements.txt
 
-        for dep_type in $DEPENDENCY_TYPES; do
-          pip install -r requirements/${dep_type}-${{ steps.py_tag.outputs.py_tag }}-lock.txt
-        done
-=======
-          pip install -r test/requirements.txt
-          pip install -r docs/requirements.txt
->>>>>>> a111b024 (Attempt to fix install dependencies step (again))
+      - name: Create bash symlink at /usr/bin/bash
+        # This is necessary because Pavilion's default shebang is /usr/bin/bash
+        run: test -e /usr/bin/bash || ln -s /bin/bash /usr/bin/bash
 
-    - name: Create bash symlink at /usr/bin/bash
-      # This is necessary because Pavilion's default shebang is /usr/bin/bash
-      run: test -e /usr/bin/bash || ln -s /bin/bash /usr/bin/bash
+      - name: Setup Pavilion application-level config
+        run: |
+          ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
+          echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
+          echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+          ./test/utils/spack_setup test
 
-    - name: Setup Pavilion application-level config
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
+      - name: Run unit tests
+        run: ./test/run_tests
 
-    - name: Run unit tests
-      run: |
-        ./test/run_tests
+      - name: Install zip
+        if: failure()
+        run: |
+          apt-get update
+          apt-get install -y zip
 
-    - name: Install zip
-      if: failure()
-      run: |
-        apt-get update
-        apt-get install -y zip
+      - name: Zip working directory
+        if: failure()
+        run: |
+          # If we don't zip this ourselves, it will run infinitely due to symlink loops.
+          cd test
+          ./utils/make_symlinks_relative working_dir
+          zip -yr working_dir.zip working_dir
 
-    - name: Zip working directory
-      if: failure()
-      run: |
-        # If we don't zip this ourselves, it will run infinitely due to
-        # symlink loops.
-        cd test
-        ./utils/make_symlinks_relative working_dir
-        zip -yr working_dir.zip working_dir
-
-    - name: Upload working directory
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: working_dir_${{ steps.py_tag.outputs.py_tag }}
-        path: test/working_dir.zip
+      - name: Upload working directory
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: working_dir_${{ steps.py_tag.outputs.py_tag }}
+          path: test/working_dir.zip
