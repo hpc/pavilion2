@@ -103,7 +103,7 @@ jobs:
       - name: Check for inconsistencies between environments
         # For now we'll just issue a warning, and not fail, if inconsistencies are found.
         run: |
-          python .github/utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
+          python dev-utils/check_inconsistent_deps.py "requirements/*-${{ steps.py_tag.outputs.py_tag }}-lock.txt"
 
       - name: Upload generated lockfiles
         uses: actions/upload-artifact@v4
