@@ -1,2 +1,0 @@
-matplotlib > 3
-pylint==2.13.9

@@ -40,7 +40,7 @@ from .test_set import TestSet
 from ..errors import TestSetError, TestSeriesError, TestSeriesWarning, ResultLoggerPluginError
 from . import common
 
-from flufl.lock import Lock
+from flufl.lock import Lock, TimeOutError
 
 
 class TestSeries:
@@ -830,24 +830,28 @@ class TestSeries:
 
         lockfile_path = json_file.with_suffix('.lock')
 
-        with Lock(lockfile_path, lifetime=3):
-            data = {}
-            try:
-                with json_file.open() as json_series_file:
-                    try:
-                        data = json.load(json_series_file)
-                    except json.decoder.JSONDecodeError:
-                        # File was empty, therefore json couldn't be loaded.
-                        pass
-                with json_file.open('w') as json_series_file:
-                    data[sys_name] = str(self.id)
-                    json_series_file.write(json.dumps(data))
+        try:
+            with Lock(str(lockfile_path), lifetime=3):
+                data = {}
+                try:
+                    with json_file.open() as json_series_file:
+                        try:
+                            data = json.load(json_series_file)
+                        except json.decoder.JSONDecodeError:
+                            # File was empty, therefore json couldn't be loaded.
+                            pass
+                    with json_file.open('w') as json_series_file:
+                        data[sys_name] = str(self.id)
+                        json_series_file.write(json.dumps(data))
 
-            except FileNotFoundError:
-                # File hadn't been created yet.
-                with json_file.open('w') as json_series_file:
-                    data[sys_name] = str(self.id)
-                    json_series_file.write(json.dumps(data))
+                except FileNotFoundError:
+                    # File hadn't been created yet.
+                    with json_file.open('w') as json_series_file:
+                        data[sys_name] = str(self.id)
+                        json_series_file.write(json.dumps(data))
+        except TimeOutError:
+            # Convert flufl.lock.TimeOutError into native Python TimeoutError
+            raise TimeoutError
 
     def get_result_paths(self) -> List[Path]:
         """Get all results log paths."""

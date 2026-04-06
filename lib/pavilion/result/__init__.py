@@ -17,7 +17,7 @@ from .evaluations import check_expression, evaluate_results
 from ..errors import StringParserError, ResultError
 from .parse import parse_results, DEFAULT_KEY
 
-from flufl.lock import Lock
+from flufl.lock import Lock, TimeOutError
 
 def check_config(parser_conf, evaluate_conf):
     """Make sure the result config is sensible, both for result parsers and
@@ -118,32 +118,35 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
     rewrite_log_path = log_path.with_suffix('.rewrite')
     lockfile_path = log_path.with_suffix(log_path.suffix + '.lock')
 
-    with Lock(lockfile_path, lifetime=3) as lock, \
-         log_path.open() as result_log, \
-            rewrite_log_path.open('w') as rewrite_log:
+    try:
+        with Lock(str(lockfile_path), lifetime=3) as lock, \
+            log_path.open() as result_log, \
+                rewrite_log_path.open('w') as rewrite_log:
 
-        refresh_limiter = RateLimiter(lock.refresh, cooldown=0.3)
+            refresh_limiter = RateLimiter(lock.refresh, cooldown=0.3)
 
-        for line in result_log:
-            refresh_limiter()
-            try:
-                result = json.loads(line)
-            except json.JSONDecodeError:
-                # If we can't parse the line, just rewrite it as is.
-                rewrite_log.write(line)
-                continue
+            for line in result_log:
+                refresh_limiter()
+                try:
+                    result = json.loads(line)
+                except json.JSONDecodeError:
+                    # If we can't parse the line, just rewrite it as is.
+                    rewrite_log.write(line)
+                    continue
 
-            if not (str(result.get('id')) in ids
-                    or result.get('uuid') in ids):
-                rewrite_log.write(line)
-            else:
-                pruned.append(result)
+                if not (str(result.get('id')) in ids
+                        or result.get('uuid') in ids):
+                    rewrite_log.write(line)
+                else:
+                    pruned.append(result)
 
-        log_path.unlink()
-        rewrite_log_path.rename(log_path)
+            log_path.unlink()
+            rewrite_log_path.rename(log_path)
+    except TimeOutError:
+        # Convert flufl.lock.TimeOutError into native Python TimeoutError
+        raise TimeoutError
 
     return pruned
-
 
 def remove_temp_results(results: dict, log: utils.IndentedLog) -> None:
     """Remove all result keys that start with an underscore."""

@@ -10,6 +10,9 @@ on:
       - develop
       - stable
 
+permissions:
+  contents: read
+
 jobs:
   demo_runs:
     # Check to make sure Pavilion can auto-fetch it's dependencies.
@@ -23,10 +26,16 @@ jobs:
       with:
         python-version: "3.10"
 
-    - name: install-deps
+    - name: Install Python dependencies
+      run: |
+        pip install -r requirements/base-py310-lock.txt
+        pip install -r requirements/test-py310-lock.txt
+        pip install -r requirements/docs-py310-lock.txt
+
+    - name: Install GCC
       run: sudo apt install gcc
 
-    - name:
+    - name: Run demo tests
       run: |
         source examples/demo/activate.sh
         pav run -v QUIET demo advanced buildit

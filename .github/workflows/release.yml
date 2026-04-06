@@ -1,0 +1,300 @@
+name: Build and Release Pavilion
+
+on:
+  push:
+    branches:
+      - hwikle/offline-release-ci
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  PACKAGE_NAME: "pavilion"
+
+jobs:
+  test-standard:
+    name: Test standard install for Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Check out Pavilion repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade packaging tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install dependencies from lock file
+        run: |
+          PY_TAG="py${{ matrix.python-version }}"
+          PY_TAG="${PY_TAG/./}"
+          pip install requirements/base-py$"${PY_TAG}"-lock.txt
+          pip install requirements/test-py$"${PY_TAG}"-lock.txt
+          pip install requirements/docs-py$"${PY_TAG}"-lock.txt
+
+      - name: Setup Pavilion application-level config
+        run: |
+          ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
+          echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
+
+      - name: Run Pavilion unit tests
+        run: |
+          ./test/run_tests
+
+  build-wheelhouse:
+    name: Build offline wheelhouse artifact for Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    needs: test-standard
+
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Check out Pavilion repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade packaging tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+
+      - name: Create wheelhouse
+        run: |
+          PY_TAG="py${{ matrix.python-version }}"
+          PY_TAG="${PY_TAG/./}"
+          rm -rf dist wheelhouse release-offline
+          mkdir -p wheelhouse
+          python -m pip download \
+            --requirement requirements/{base,test,docs}-py"${PY_TAG}"-lock.txt \
+            --dest wheelhouse
+
+      - name: Build offline release tree
+        run: |
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          ROOT="release-offline/${PACKAGE_NAME}-offline-${VERSION}"
+
+          mkdir -p "${ROOT}"
+
+          rsync -a \
+            --exclude ".git" \
+            --exclude ".github" \
+            --exclude "__pycache__" \
+            --exclude ".pytest_cache" \
+            --exclude "dist" \
+            --exclude "release-offline" \
+            ./ "${ROOT}/"
+
+          cp -r wheelhouse "${ROOT}/wheelhouse"
+
+          cat > "${ROOT}/install_offline.sh" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          VENV="${1:-$ROOT/.venv}"
+
+          python3 -m venv "$VENV"
+          # shellcheck disable=SC1091
+          source "$VENV/bin/activate"
+
+          python -m pip install --upgrade pip
+          python -m pip install \
+            --no-index \
+            --find-links "$ROOT/wheelhouse" \
+            -r "$ROOT/requirements-lock.txt"
+
+          cat <<MSG
+          Offline environment created at:
+            $VENV
+
+          Activate it with:
+            source "$VENV/bin/activate"
+          MSG
+          EOF
+
+          chmod +x "${ROOT}/install_offline.sh"
+
+          cat > "${ROOT}/README.offline.md" <<'EOF'
+          # Pavilion Offline Install
+
+          This bundle includes a wheelhouse for offline dependency installation.
+
+          ## Install
+
+          ```bash
+          ./install_offline.sh
+          ```
+
+          Or choose a custom virtualenv location:
+
+          ```bash
+          ./install_offline.sh /path/to/venv
+          ```
+
+          ## Notes
+
+          - Installation uses only the bundled `wheelhouse/`
+          - No package index access is required
+          - Pavilion itself runs from this source tree
+          EOF
+
+          cat > "${ROOT}/build-metadata.json" <<EOF
+          {
+            "git_ref": "${GITHUB_REF_NAME:-unknown}",
+            "git_sha": "${GITHUB_SHA}",
+            "python_version": "${PYTHON_VERSION}"
+          }
+          EOF
+
+      - name: Archive offline bundle
+        run: |
+          mkdir -p dist
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          tar -C release-offline -czf "dist/${PACKAGE_NAME}-offline-${VERSION}.tar.gz" \
+            "${PACKAGE_NAME}-offline-${VERSION}"
+
+      - name: Upload offline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-release
+          path: dist/*.tar.gz
+
+  test-offline:
+    name: Test offline install
+    runs-on: ubuntu-latest
+    needs: build-wheelhouse
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download offline artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: offline-release
+          path: dist
+
+      - name: Extract offline artifact
+        run: |
+          mkdir -p extracted
+          tar -C extracted -xzf dist/*.tar.gz
+          find extracted -maxdepth 2 -type f | sort
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install from wheelhouse only
+        run: |
+          ROOT="$(find extracted -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          python -m venv /tmp/pav-offline-venv
+          # shellcheck disable=SC1091
+          source /tmp/pav-offline-venv/bin/activate
+
+          python -m pip install --upgrade pip
+          python -m pip install \
+            --no-index \
+            --find-links "$ROOT/wheelhouse" \
+            -r "$ROOT/requirements-lock.txt"
+
+      - name: Run Pavilion tests in offline-installed env
+        run: |
+          ROOT="$(find extracted -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          # shellcheck disable=SC1091
+          source /tmp/pav-offline-venv/bin/activate
+          cd "$ROOT"
+
+          # Replace with Pavilion's real test command.
+          pytest -q
+
+  build-standard:
+    name: Build standard source artifact
+    runs-on: ubuntu-latest
+    needs: test-offline
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Create standard release tarball
+        run: |
+          rm -rf dist release-standard
+          mkdir -p dist release-standard
+
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          ROOT="release-standard/${PACKAGE_NAME}-${VERSION}"
+
+          mkdir -p "${ROOT}"
+
+          rsync -a \
+            --exclude ".git" \
+            --exclude ".github" \
+            --exclude "__pycache__" \
+            --exclude ".pytest_cache" \
+            --exclude "dist" \
+            --exclude "release-standard" \
+            ./ "${ROOT}/"
+
+          tar -C release-standard -czf "dist/${PACKAGE_NAME}-${VERSION}.tar.gz" \
+            "${PACKAGE_NAME}-${VERSION}"
+
+      - name: Upload standard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: standard-release
+          path: dist/*.tar.gz
+
+  publish-release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - build-standard
+      - test-offline
+    if: startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download standard artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: standard-release
+          path: dist
+
+      - name: Download offline artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: offline-release
+          path: dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Pavilion ${{ github.ref_name }} (test)
+          files: dist/*.tar.gz
+          generate_release_notes: true

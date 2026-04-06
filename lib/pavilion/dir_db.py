@@ -19,7 +19,7 @@ from pavilion.config import PavConfig
 from pavilion import output
 from pavilion.test_ids import TestID
 
-from flufl.lock import Lock
+from flufl.lock import Lock, TimeOutError
 
 
 ID_DIGITS = 7
@@ -41,12 +41,12 @@ def reset_pkey(id_dir: Path) -> None:
     the pkey file ('next_id') if present."""
 
     try:
-        with Lock(id_dir/'.lockfile', default_timeout=1, lifetime=3):
+        with Lock(str(id_dir/'.lockfile'), default_timeout=1, lifetime=3):
             try:
                 (id_dir/PKEY_FN).unlink()
             except OSError:
                 pass
-    except TimeoutError:
+    except TimeOutError:
         pass
 
 def default_filter(_: Path) -> bool:
@@ -392,7 +392,7 @@ def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_
 
     lock_path = id_dir.with_suffix('.lock')
     try:
-        with Lock(lock_path, default_timeout=1, lifetime=3):
+        with Lock(str(lock_path), default_timeout=1, lifetime=3):
             for path in select(pav_cfg, id_dir=id_dir, filter_func=filter_func,
                                transform=transform).paths:
                 try:
@@ -404,7 +404,7 @@ def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_
                 count += 1
                 if verbose:
                     msgs.append("Removed {} {}.".format(id_dir.name, path.name))
-    except TimeoutError:
+    except TimeOutError:
         msgs.append("Could not delete in dir '{}', lock '{}' could not be acquired"
                     .format(id_dir, lock_path))
 

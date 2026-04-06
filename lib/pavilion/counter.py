@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Iterator
 
-from flufl.lock import Lock
+from flufl.lock import Lock, TimeOutError
 
 from pavilion.test_ids import SeriesID, TestID
 
@@ -22,7 +22,7 @@ class SeriesIDCounter(Iterator[SeriesID]):
 
         self._path = self._dir / next_id_fn
         self._start = start_id
-        self._lockfile = Lock(self._dir / self.LOCKFILE_FN, lifetime=3)
+        self._lockfile = Lock(str(self._dir / self.LOCKFILE_FN), lifetime=3)
 
         self._setup()
 
@@ -31,9 +31,13 @@ class SeriesIDCounter(Iterator[SeriesID]):
         correct starting value. If an existing next ID file is found, the current value
         is retained."""
 
-        with self._lockfile:
-            if not self._path.exists():
-                self._path.write_text(f"{self._start.as_int()}\n", encoding="utf-8")
+        try:
+            with self._lockfile:
+                if not self._path.exists():
+                    self._path.write_text(f"{self._start.as_int()}\n", encoding="utf-8")
+        except TimeOutError:
+            # Convert flufl.lock.TimeOutError into native Python TimeoutError
+            raise TimeoutError
 
     def __iter__(self) -> "SeriesIDCounter":
         return self
@@ -42,26 +46,34 @@ class SeriesIDCounter(Iterator[SeriesID]):
         """Return the next SeriesID and advance the counter, skipping IDs that already
         have a series directory."""
 
-        with self._lockfile:
-            try:
-                id_int = int(self._path.read_text(encoding="utf-8").strip())
-            except (OSError, ValueError) as err:
-                raise ValueError(f"Unable to read next value from {self._path}: {err}")
+        try:
+            with self._lockfile:
+                try:
+                    id_int = int(self._path.read_text(encoding="utf-8").strip())
+                except (OSError, ValueError) as err:
+                    raise ValueError(f"Unable to read next value from {self._path}: {err}")
 
-            current_id = SeriesID.from_int(id_int)
+                current_id = SeriesID.from_int(id_int)
 
-            while (self._dir / str(current_id.as_int())).exists():
-                current_id = current_id.next()
+                while (self._dir / str(current_id.as_int())).exists():
+                    current_id = current_id.next()
 
-            self._path.write_text(f"{current_id.next().as_int()}\n", encoding="utf-8")
+                self._path.write_text(f"{current_id.next().as_int()}\n", encoding="utf-8")
+        except TimeOutError:
+            # Convert flufl.lock.TimeOutError into native Python TimeoutError
+            raise TimeoutError
 
         return current_id
 
     def reset(self) -> None:
         """Reset the counter to the start value."""
 
-        with self._lockfile:
-            self._path.write_text(f"{self._start.as_int()}\n", encoding="utf-8")
+        try:
+            with self._lockfile:
+                self._path.write_text(f"{self._start.as_int()}\n", encoding="utf-8")
+        except TimeOutError:
+            # Convert flufl.lock.TimeOutError into native Python TimeoutError
+            raise TimeoutError
 
 
 class TestIDCounter(Iterator[TestID]):

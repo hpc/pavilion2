@@ -1,0 +1,12 @@
+{
+  "supported_py_versions": [
+    { "python": "3.10", "os": "ubuntu-latest" },
+    { "python": "3.12", "os": "ubuntu-latest" }
+  ],
+  "legacy_py_versions": [
+    { "python": "3.6", "os": "ubuntu-latest" }
+  ],
+  "default_py_version": {
+    "python": "3.10", "os": "ubuntu-latest"
+  }
+}

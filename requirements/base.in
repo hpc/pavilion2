@@ -1,0 +1,6 @@
+certifi
+flufl.lock
+lark
+requests
+urllib3
+yapsy
