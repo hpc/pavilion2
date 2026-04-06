@@ -6,10 +6,18 @@ import getpass
 import os
 import tempfile
 from pathlib import Path
+import unittest
+import shutil
 
 from pavilion import unittest
 from pavilion import utils
 from pavilion.cmd_utils import list_files
+
+
+def is_privileged() -> bool:
+    """Check if the current process can perform privileged actions."""
+
+    return shutil.which("sudo") is not None or os.geteuid() == 0
 
 
 class UtilsTests(unittest.PavTestCase):
@@ -55,8 +63,11 @@ class UtilsTests(unittest.PavTestCase):
             with self.assertRaises(ValueError):
                 utils.hr_cutoff_to_ts(example)
 
+    @unittest.skipIf(not is_privileged(), "Process cannot perform privileged actions.")
     def test_owner(self):
         """Check that the owner function works."""
+
+        # TODO: Re-write this test not to rely on privilege escalation.
 
         path = Path(tempfile.mktemp())
 
