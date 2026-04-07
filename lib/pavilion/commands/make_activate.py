@@ -37,9 +37,6 @@ class MakeActivateCommand(Command):
                             help="Name of the Pavilion source directory. If none is provided, "
                                  "defaults to using the name of the root directory of the current "
                                  "Pavilion repository.")
-        parser.add_argument("-s", "--shebang", default="#!/usr/bin/bash",
-                            help="The shebang value to use in the script. "
-                                 "Defaults to #!/usr/bin/bash")
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
         """Run the `make-activate` command."""
@@ -55,7 +52,8 @@ class MakeActivateCommand(Command):
         pav_bin_dir = f"{args.pav_src}/bin"
         pav_cd_path = f"{args.pav_src}/lib/pavilion/commands/cd.sh"
 
-        script = ScriptComposer(shebang=args.shebang)
+        # Don't write a shebang, since the script will be sourced
+        script = ScriptComposer(header=None)
 
         script.command(f"umask {args.umask}")
         script.newline()
@@ -71,7 +69,7 @@ class MakeActivateCommand(Command):
             script.command("else")
             script.command("    echo \"ERROR: PAV_CONFIG_DIR NOT SET: ${PAV_CONFIG_DIR} "
                            "is not a directory.\" >&2")
-            script.command("    exit 1")
+            script.command("    return 1")
             script.command("fi")
             script.newline()
 
@@ -82,7 +80,6 @@ class MakeActivateCommand(Command):
         script.newline()
 
         script.comment("Only prepend PAVBIN to path if it hasn't already been done.")
-        script.comment("Error out if PAVBIN doesn't exist.")
         script.command("if [[ -d $PAVBIN ]]; then")
         script.command("    export PAVBIN")
         script.command("    if [[ ! (\"${PATH}\" =~ \"${PAVBIN}\") ]]; then")
@@ -92,7 +89,7 @@ class MakeActivateCommand(Command):
         script.command("    echo \"ERROR: PAVBIN NOT SET: ${PAVBIN} is not a directory.\" >&2")
         script.command("    echo \"       PERHAPS git submodule update "
                        "--init --recursive hasn't been run.\" >&2")
-        script.command("    exit 1")
+        script.command("    return 1")
         script.command("fi")
         script.newline()
 
