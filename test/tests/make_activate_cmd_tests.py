@@ -1,11 +1,11 @@
 import subprocess
 import tempfile
 import os
+import unittest
 from contextlib import contextmanager
 
 from pavilion import commands
 from pavilion import arguments
-from pavilion import unittest
 from pavilion.unittest import PavTestCase
 
 
