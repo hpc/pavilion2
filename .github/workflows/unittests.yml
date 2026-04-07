@@ -168,8 +168,7 @@ jobs:
             pip install -r docs/requirements.txt
 
       - name: Install shellcheck
-        run: |
-            apt-get install shellcheck
+        run: apt-get install shellcheck
 
       - name: Create bash symlink at /usr/bin/bash
         # This is necessary because Pavilion's default shebang is /usr/bin/bash
