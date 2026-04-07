@@ -110,10 +110,13 @@ jobs:
         with:
           python-version: "${{ matrix.python }}"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
             pip install -r test/requirements.txt
             pip install -r docs/requirements.txt
+
+      - name: Install shellcheck
+        run: apt-get install shellcheck
 
       - name: Create Pavilion application-level config
         run: |
@@ -159,10 +162,14 @@ jobs:
       - name: Checkout Pavilion repository
         uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
             pip install -r test/requirements.txt
             pip install -r docs/requirements.txt
+
+      - name: Install shellcheck
+        run: |
+            apt-get install shellcheck
 
       - name: Create bash symlink at /usr/bin/bash
         # This is necessary because Pavilion's default shebang is /usr/bin/bash
