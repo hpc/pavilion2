@@ -37,7 +37,7 @@ class MakeActivateCmdTests(PavTestCase):
         args = self.parser.parse_args("make-activate")
 
         with tempfile.TemporaryDirectory() as td:
-            with change_dir(td)
+            with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
                 result = subprocess.run(["source", self.cmd.DEFAULT_SCRIPT_NAME],
@@ -51,7 +51,7 @@ class MakeActivateCmdTests(PavTestCase):
         """Test that the activate script is not set as executable."""
 
         with tempfile.TemporaryDirectory() as td:
-            with change_dir(td)
+            with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
                 st = Path(self.cmd.DEFAULT_SCRIPT_NAME).stat()
@@ -65,7 +65,7 @@ class MakeActivateCmdTests(PavTestCase):
         """Test that the activate script passes shellcheck."""
 
         with tempfile.TemporaryDirectory() as td:
-            with change_dir(td)
+            with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
 
@@ -89,7 +89,7 @@ class MakeActivateCmdTests(PavTestCase):
         """Check that the activate script has no shebang."""
 
         with tempfile.TemporaryDirectory() as td:
-            with change_dir(td)
+            with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
 
