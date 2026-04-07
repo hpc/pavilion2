@@ -5,30 +5,14 @@ import subprocess as sp
 import getpass
 import os
 import tempfile
+import pwd
 from pathlib import Path
-import unittest
-import shutil
+from unittest import mock
+from types import SimpleNamespace
 
 from pavilion import utils
 from pavilion.cmd_utils import list_files
 from pavilion.unittest import PavTestCase
-
-
-def is_privileged() -> bool:
-    """Check if the current process can perform privileged actions."""
-
-    if os.geteuid() == 0:
-        return True
-    if shutil.which("sudo") is None:
-        return False
-
-    result = sp.run(
-        ["sudo", "-n", "true"],
-        stdout=sp.DEVNULL,
-        stderr=sp.DEVNULL,
-    )
-
-    return result.returncode == 0
 
 
 class UtilsTests(PavTestCase):
@@ -74,7 +58,6 @@ class UtilsTests(PavTestCase):
             with self.assertRaises(ValueError):
                 utils.hr_cutoff_to_ts(example)
 
-    @unittest.skipIf(not is_privileged(), "Process cannot perform privileged actions.")
     def test_owner(self):
         """Check that the owner function works."""
 
@@ -87,13 +70,10 @@ class UtilsTests(PavTestCase):
 
         self.assertEqual(utils.owner(path), getpass.getuser())
 
-        # Try to set the permissions of the file to an unknown user.
-        proc = sp.Popen(['sudo', '-n', 'chown', '12341', path.as_posix(), '||',
-                            'chown', '12341', path.as_posix()],
-                            stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
-
-        if proc.wait(5) == 0:
-            self.assertEqual(utils.owner(path), "<unknown user '12341'>")
+        # Simulate a file owned by a UID that has no corresponding user entry
+        with mock.patch.object(Path, "stat", return_value=SimpleNamespace(st_uid=12341)):
+            with mock.patch.object(pwd, "getpwuid", side_effect=KeyError):
+                self.assertEqual(utils.owner(path), "<unknown user '12341'>")
 
     def test_relative_to(self):
         """Check relative path calculations."""
