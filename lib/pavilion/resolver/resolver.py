@@ -856,9 +856,9 @@ class TestConfigResolver:
 
         matching_suites = {}
         for label, suite_name, path in suite_matches:
-            if name in self._suites:
+            if suite_name in self._suites:
                 # We've already loaded it.
-                matching_suites[name] = self._suites[name]
+                matching_suites[suite_name] = self._suites[suite_name]
                 continue
 
             # We still use this because it preserves config order.
