@@ -5,14 +5,17 @@ import subprocess as sp
 import getpass
 import os
 import tempfile
+import pwd
 from pathlib import Path
+from unittest import mock
+from types import SimpleNamespace
 
-from pavilion import unittest
 from pavilion import utils
 from pavilion.cmd_utils import list_files
+from pavilion.unittest import PavTestCase
 
 
-class UtilsTests(unittest.PavTestCase):
+class UtilsTests(PavTestCase):
 
     def test_hr_cutoff(self):
         """Check hr_cutoff_to_datetime function."""
@@ -65,11 +68,10 @@ class UtilsTests(unittest.PavTestCase):
 
         self.assertEqual(utils.owner(path), getpass.getuser())
 
-        # Try to set the permissions of the file to an unknown user.
-        proc = sp.Popen(['sudo', '-n', 'chown', '12341', path.as_posix()],
-                        stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
-        if proc.wait(5) == 0:
-            self.assertEqual(utils.owner(path), "<unknown user '12341'>")
+        # Simulate a file owned by a UID that has no corresponding user entry
+        with mock.patch.object(Path, "stat", return_value=SimpleNamespace(st_uid=12341)):
+            with mock.patch.object(pwd, "getpwuid", side_effect=KeyError):
+                self.assertEqual(utils.owner(path), "<unknown user '12341'>")
 
     def test_relative_to(self):
         """Check relative path calculations."""
