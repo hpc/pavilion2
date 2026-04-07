@@ -7,15 +7,12 @@ from pathlib import Path
 from typing import List
 
 import yc_yaml as yaml
-from pavilion.test_run import TestRun
 from pavilion import utils
-from pavilion.test_ids import TestID
 from pavilion.unittest import PavTestCase
 
 
-class GeneralTests(PavTestCase):
-    """Tests that apply to the whole of Pavilion, rather than some particular
-    part."""
+class PermissionsTests(PavTestCase):
+    """Tests that check Pavilion's permissions."""
 
     def __init__(self, *args, **kwargs):
 
@@ -55,7 +52,7 @@ class GeneralTests(PavTestCase):
         self.working_dir.mkdir()
 
         if self.alt_group is None:
-            self.fail("Your user must be in at least two groups (other than "
+            self.skipTest("Your user must be in at least two groups (other than "
                       "the user's group) to run this test.")
 
         raw_cfg['shared_group'] = self.alt_group.gr_name
@@ -66,12 +63,8 @@ class GeneralTests(PavTestCase):
         with (self.config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
             yaml.dump(raw_cfg, stream=pav_cfg_file)
 
-    def tear_down(self):
-        pass
-
     def test_permissions(self):
-        """Make sure all files written by Pavilion have the correct
-        permissions."""
+        """Make sure all files written by Pavilion have the correct permissions."""
 
         tests = [
             'perm.base',
@@ -81,59 +74,16 @@ class GeneralTests(PavTestCase):
 
         cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run'] + tests
 
-        self.run_test_cmd(cmd)
+        self._run_test_cmd(cmd)
 
         builds = [p for p in (self.working_dir/'builds').iterdir()
                   if p.is_dir()]
-        self.check_permissions(self.working_dir, self.alt_group, self.umask,
+        self._check_permissions(self.working_dir, self.alt_group, self.umask,
                                exclude=builds)
         for build in builds:
-            self.check_permissions(build, self.alt_group, self.umask | 0o222)
+            self._check_permissions(build, self.alt_group, self.umask | 0o222)
 
-    def run_test_cmd(self, cmd, run_succeeds=True):
-        """Run the given test command and check that it succeeds."""
-
-        env = os.environ.copy()
-        env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
-
-        proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
-        if (proc.wait(3) != 0) == run_succeeds:
-            out = proc.stdout.read().decode()
-            self.fail("Error running command.\n{}".format(out))
-        self.wait_tests(self.working_dir)
-
-    def test_legacy_runs(self):
-        """Check loading of legacy run dirs."""
-
-        legacy_path = self.TEST_DATA_ROOT/'legacy'
-        runs_path = legacy_path/'runs.txt'
-        wdir = self.pav_cfg.working_dir
-
-        runs = []
-        with runs_path.open() as runs_file:
-            for line in runs_file:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    runs.append(line)
-
-        for run in runs:
-            run_path = legacy_path/run
-            dst_path = wdir/'test_runs'/run
-            shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
-                            symlinks=True)
-
-            run_id = TestID(run)
-
-            # Move the build directory into place
-            build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
-            build_dst = dst_path/build_dst
-            (dst_path/'build_dir').rename(build_dst)
-
-            test = TestRun.load_from_raw_id(self.pav_cfg, run_id)
-            self.assertTrue(test.results)
-            self.assertTrue(test.complete)
-
-    def check_permissions(self, path: Path, group: grp.struct_group,
+    def _check_permissions(self, path: Path, group: grp.struct_group,
                           umask: int, exclude: List[Path] = None):
         """Perform a run and make sure they have correct permissions."""
 
@@ -197,3 +147,15 @@ class GeneralTests(PavTestCase):
                                         stat.filemode(mode)))
             else:
                 self.fail("Found unhandled file {}.".format(file))
+
+    def _run_test_cmd(self, cmd, run_succeeds=True):
+        """Run the given test command and check that it succeeds."""
+
+        env = os.environ.copy()
+        env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
+
+        proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
+        if (proc.wait(3) != 0) == run_succeeds:
+            out = proc.stdout.read().decode()
+            self.fail("Error running command.\n{}".format(out))
+        self.wait_tests(self.working_dir)
