@@ -2,6 +2,7 @@ import subprocess
 import tempfile
 import os
 import unittest
+import shutil
 from contextlib import contextmanager
 
 from pavilion import commands
