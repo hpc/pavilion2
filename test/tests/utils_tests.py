@@ -61,8 +61,6 @@ class UtilsTests(PavTestCase):
     def test_owner(self):
         """Check that the owner function works."""
 
-        # TODO: Re-write this test not to rely on privilege escalation.
-
         path = Path(tempfile.mktemp())
 
         with path.open('w') as file:
