@@ -32,7 +32,7 @@ class CDHelpCommand(Command):
                       "The pav cd command must be activated before use. To activate, add the "
                       "following line to your activate.sh script, then source the script:\n\n"
                       "\tsource \"${PAV_CONFIG_DIR}/pav_src/lib/pavilion/commands/cd.sh\"\n\n"
-                      "If you do not have an activate.sh script, you can generate one by running"
+                      "If you do not have an activate.sh script, you can generate one by running "
                       "the following command:\n\n"
                       "\tpav make-activate",
                       color=output.RED)
