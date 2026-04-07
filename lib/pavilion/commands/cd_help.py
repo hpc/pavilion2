@@ -7,19 +7,22 @@ from .base_classes import Command
 
 
 class CDHelpCommand(Command):
-    """This command exists solely to provide help information for the cd command, which due to
-    technical reasons must be implemented in bash."""
+    """Display help and usage information for the `cd` command, which must be activated from the
+    `cd.sh` script."""
 
     def __init__(self):
         super().__init__(
             "cd",
-            "Change to the test directory of the test with the given ID.",
-            short_help="Change to test directory")
+            "Change to the test run directory of the test with the given ID."
+            short_help="Change to test run directory")
 
     def _setup_arguments(self, parser: ArgumentParser) -> None:
         """Set up the arguments for the cd command."""
 
-        parser.add_argument("test_id", type=TestID, help="test ID", nargs="?")
+        parser.add_argument("test_id", type=TestID,
+                            help="Test ID of the test run directory to change to. "
+                                 "If no ID is given, defaults to the most recent test.",
+                            nargs="?")
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
         """Dummy method to run the cd command. This should never be run. Instead, pav cd
