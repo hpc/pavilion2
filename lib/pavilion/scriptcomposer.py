@@ -64,9 +64,6 @@ class ScriptComposer:
             that simply adds ``#!/bin/bash`` as the file header.
         """
 
-        if header is None:
-            header = ScriptHeader()
-
         self.header = header
 
         self._script_lines = []
@@ -170,7 +167,9 @@ class ScriptComposer:
         """
 
         with path.open('w') as script_file:
-            script_file.write('\n'.join(self.header.get_lines()))
+            if self.header is not None:
+                script_file.write('\n'.join(self.header.get_lines()))
+
             script_file.write('\n\n')
 
             script_file.write('\n'.join(self._script_lines))
