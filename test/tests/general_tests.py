@@ -5,20 +5,12 @@ import shutil
 import subprocess as sp
 from pathlib import Path
 from typing import List
-import unittest
 
 import yc_yaml as yaml
 from pavilion.test_run import TestRun
 from pavilion import utils
 from pavilion.test_ids import TestID
 from pavilion.unittest import PavTestCase
-
-
-def user_in_two_groups() -> bool:
-    login = utils.get_login()
-    groups = [group for group in grp.getgrall() if login in group.gr_mem]
-
-    return len(groups) > 1
 
 
 class GeneralTests(PavTestCase):
@@ -46,8 +38,8 @@ class GeneralTests(PavTestCase):
 
         self.umask = 0o007
 
-    def set_up(self) -> None:
-        """Setup the special pav config for these tests."""
+    def _set_up_test_permissions(self) -> None:
+        """Setup the special pav config for the test_permissions test."""
 
         with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
             raw_cfg = yaml.load(pav_cfg_file)
@@ -62,9 +54,11 @@ class GeneralTests(PavTestCase):
 
         self.working_dir.mkdir()
 
-        if self.alt_group is not None:
-            raw_cfg['shared_group'] = self.alt_group.gr_name
+        if self.alt_group is None:
+            self.skipTest("Your user must be in at least two groups (other than "
+                      "the user's group) to run this test.")
 
+        raw_cfg['shared_group'] = self.alt_group.gr_name
         raw_cfg['umask'] = self.umask
         raw_cfg['working_dir'] = self.working_dir.as_posix()
 
@@ -72,13 +66,11 @@ class GeneralTests(PavTestCase):
         with (self.config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
             yaml.dump(raw_cfg, stream=pav_cfg_file)
 
-    def tear_down(self):
-        pass
-
-    @unittest.skipIf(not user_in_two_groups(), "Your user must be in at least two groups (other than the user's group) to run this test.")
     def test_permissions(self):
         """Make sure all files written by Pavilion have the correct
         permissions."""
+
+        self._set_up_test_permissions()
 
         tests = [
             'perm.base',
@@ -104,10 +96,20 @@ class GeneralTests(PavTestCase):
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
-        if (proc.wait(3) != 0) == run_succeeds:
+
+        try:
+            ret = proc.wait(self.test_cmd_timeout)
+        except TimeoutError:
+            self.fail(f"Command {' '.join(cmd)} timed out after {self.test_cmd_timeout} seconds")
+
+        if (ret != 0) == run_succeeds:
             out = proc.stdout.read().decode()
             self.fail("Error running command.\n{}".format(out))
-        self.wait_tests(self.working_dir)
+
+        try:
+            self.wait_tests(self.working_dir, timeout=self.testrun_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting on tests after {self.testrun_wait_timeout} seconds.")
 
     def test_legacy_runs(self):
         """Check loading of legacy run dirs."""
@@ -140,7 +142,6 @@ class GeneralTests(PavTestCase):
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 
-    @unittest.skipIf(not user_in_two_groups(), "Your user must be in at least two groups (other than the user's group) to run this test.")
     def check_permissions(self, path: Path, group: grp.struct_group,
                           umask: int, exclude: List[Path] = None):
         """Perform a run and make sure they have correct permissions."""
