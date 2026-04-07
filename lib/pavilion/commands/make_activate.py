@@ -9,6 +9,8 @@ from .base_classes import Command
 class MakeActivateCommand(Command):
     """Make the 'activate' bash script."""
 
+    DEFAULT_SCRIPT_NAME = "activate.sh"
+
     def __init__(self):
         super().__init__(
             "make-activate",
@@ -25,7 +27,7 @@ class MakeActivateCommand(Command):
                             type=Path, default=Path("."), nargs="?")
         parser.add_argument("-n", "--name",
                             help="Name of the script. Defaults to activate.sh.",
-                            default="activate.sh")
+                            default=self.DEFAULT_SCRIPT_NAME)
         parser.add_argument("-c", "--config-dir",
                             help="Config directory location. If none is provided, the script "
                                  "derives the value from the directory in which it is run.",
