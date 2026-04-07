@@ -60,7 +60,7 @@ class MakeActivateCmdTests(PavTestCase):
                 self.assertFalse(st.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH),
                                  f"{self.cmd.DEFAULT_SCRIPT_NAME} is executable, but should not be.")
 
-    @unittest.skipIf(not has_shellcheck(), "shellcheck is not installed")
+    @unittest.skipIf(not has_shellcheck(), "shellcheck is not installed.")
     def test_activate_script_passes_shellcheck(self):
         """Test that the activate script passes shellcheck."""
 
