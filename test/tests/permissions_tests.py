@@ -83,7 +83,7 @@ class PermissionsTests(PavTestCase):
         for build in builds:
             self._check_permissions(build, self.alt_group, self.umask | 0o222)
 
-     def _check_permissions(self, path: Path, group: grp.struct_group,
+    def _check_permissions(self, path: Path, group: grp.struct_group,
                           umask: int, exclude: List[Path] = None):
         """Perform a run and make sure they have correct permissions."""
 
