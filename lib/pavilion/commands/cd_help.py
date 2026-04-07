@@ -13,7 +13,7 @@ class CDHelpCommand(Command):
     def __init__(self):
         super().__init__(
             "cd",
-            "Change to the test run directory of the test with the given ID."
+            "Change to the test run directory of the test with the given ID.",
             short_help="Change to test run directory")
 
     def _setup_arguments(self, parser: ArgumentParser) -> None:
