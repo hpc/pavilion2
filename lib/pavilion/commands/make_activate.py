@@ -38,7 +38,8 @@ class MakeActivateCommand(Command):
                                  "defaults to using the name of the root directory of the current "
                                  "Pavilion repository.")
         parser.add_argument("-s", "--shebang", default="#!/usr/bin/bash",
-                            help="The shebang value to use in the script. Defaults to #!/usr/bin/bash")
+                            help="The shebang value to use in the script. "
+                                 "Defaults to #!/usr/bin/bash")
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
         """Run the `make-activate` command."""
@@ -68,7 +69,8 @@ class MakeActivateCommand(Command):
             script.command("if [[ -d $PAV_CONFIG_DIR ]]; then")
             script.command("    export PAV_CONFIG_DIR")
             script.command("else")
-            script.command("    echo \"ERROR: PAV_CONFIG_DIR NOT SET: ${PAV_CONFIG_DIR} is not a directory.\" >&2")
+            script.command("    echo \"ERROR: PAV_CONFIG_DIR NOT SET: ${PAV_CONFIG_DIR} "
+                           "is not a directory.\" >&2")
             script.command("    exit 1")
             script.command("fi")
             script.newline()
@@ -88,7 +90,8 @@ class MakeActivateCommand(Command):
         script.command("    fi")
         script.command("else")
         script.command("    echo \"ERROR: PAVBIN NOT SET: ${PAVBIN} is not a directory.\" >&2")
-        script.command("    echo \"       PERHAPS git submodule update --init --recursive hasn't been run.\" >&2")
+        script.command("    echo \"       PERHAPS git submodule update "
+                       "--init --recursive hasn't been run.\" >&2")
         script.command("    exit 1")
         script.command("fi")
         script.newline()
@@ -100,6 +103,7 @@ class MakeActivateCommand(Command):
         script.command("echo \"Success:\"")
         script.command("echo \"  PAVBIN         -- ${PAVBIN}\"")
         script.command("echo \"  PAV_CONFIG_DIR -- ${PAV_CONFIG_DIR}\"")
-        script.command(f"echo \"  PAV COMMIT     -- $(cd ${{PAV_CONFIG_DIR}}/{pav_bin_dir} && git rev-parse HEAD)\"")
+        script.command(f"echo \"  PAV COMMIT     -- $(cd ${{PAV_CONFIG_DIR}}/{pav_bin_dir} "
+                       "&& git rev-parse HEAD)\"")
 
         script.write(script_path)
