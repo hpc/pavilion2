@@ -16,7 +16,7 @@ jobs:
       BASE_BRANCH: ${{ github.event.repository.default_branch }}
       HEAD_BRANCH: stable
       REMOTE: origin
-      TEMP_BRANCH: ci/sync-stable-to-develop
+      STAGING_BRANCH: ci/sync-stable-to-develop
 
     steps:
       - name: Checkout Pavilion repository
@@ -25,25 +25,22 @@ jobs:
           ref: ${{ env.HEAD_BRANCH }}
           fetch-depth: 0
 
-      - name: Refresh refs
-        run: git fetch ${{ env.REMOTE }} ${{ env.BASE_BRANCH }} ${{ env.HEAD_BRANCH }}
-
-      - name: Rebase temporary branch onto ${{ env.BASE_BRANCH }}
+      - name: Create staging branch off of ${{ env.BASE_BRANCH }} to prepare merge
         run: |
-          git switch -C ${{ env.TEMP_BRANCH }} ${{ env.REMOTE }}/${{ env.HEAD_BRANCH }}
-          git rebase ${{ env.REMOTE }}/${{ env.BASE_BRANCH }}
+          git switch -C ${{ env.STAGING_BRANCH }} ${{ env.REMOTE }}/${{ env.HEAD_BRANCH }}
 
       - name: Create pull request from ${{ env.HEAD_BRANCH }} to ${{ env.BASE_BRANCH }}
         uses: peter-evans/create-pull-request@v8
         with:
           base: ${{ env.BASE_BRANCH }}
-          branch: ${{ env.TEMP_BRANCH }}
+          branch: ${{ env.STAGING_BRANCH }}
           commit-message: "Sync `${{ env.HEAD_BRANCH}}` into `${{ env.BASE_BRANCH }}`"
           title: "Sync `${{ env.HEAD_BRANCH }}` into `${{ env.BASE_BRANCH}}`"
           body: |
             **This PR was generated automatically by the `sync-stable` workflow because changes
             were pushed to the `${{ env.HEAD_BRANCH }}` branch. Please review if carefully.**
 
-            This PR merges the latest changes from `${{ env.HEAD_BRANCH }}` into `${{ env.BASE_BRANCH }}`
+            This PR proposes merging the latest changes from `${{ env.HEAD_BRANCH }}` into
+            `${{ env.BASE_BRANCH }}`. It requires a human developer to actually perform the merge.
 
           delete-branch: true
