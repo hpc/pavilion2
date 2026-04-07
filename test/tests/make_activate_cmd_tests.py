@@ -93,8 +93,34 @@ class MakeActivateCmdTests(PavTestCase):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
 
+            first_line = ""
+
             with open(self.cmd.DEFAULT_SCRIPT_NAME, "rb") as fin:
                 first_line = fin.readline()
 
             if first_line.startswith(b"#!"):
                 self.fail(f"{self.cmd.DEFAULT_SCRIPT_NAME} is meant to be sourced, but contains a shebang line: {first_line}")
+
+    def test_make_activate_does_not_overwrite_existing_scripts(self):
+        """Check that make-activate will refuse to overwrite an existing activate script."""
+
+        with tempfile.TemporaryDirectory() as td:
+            with change_dir(td):
+                expected = "This is the old activate script."
+
+                with open(self.cmd.DEFAULT_SCRIPT_NAME) as fout:
+                    fout.write(expected)
+
+                self.notEqual(self.cmd.run(self.pav_cfg, args), 0,
+                                f"make-activate ran successfully, but should have exited with a non-zero error code.")
+
+                script_contents = ""
+
+                with open(self.cmd.DEFAULT_SCRIPT_NAME) as fin:
+                    script_contents = fin.read()
+
+                self.assertEqual(script_contents, expected, f"{self.cmd.DEFAULT_SCRIPT_NAME} was overwritten by make-activate.")
+
+                errors = self.cmd.errfile.getvalue()
+
+                self.assertNotEqual(errors, "", "pav make-activate should have printed an error message, but did not.")
