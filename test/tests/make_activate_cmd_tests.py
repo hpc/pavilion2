@@ -5,7 +5,7 @@ from contextlib import contextmanager
 
 from pavilion import commands
 from pavilion import arguments
-from pavilion.unittest
+from pavilion import unittest
 from pavilion.unittest import PavTestCase
 
 
