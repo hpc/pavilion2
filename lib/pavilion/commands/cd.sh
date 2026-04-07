@@ -13,7 +13,7 @@ else
 fi
 
 
-# pav: Wrapper around pav CLI with to enable `cd` command
+# pav: Wrapper around pav CLI to enable `cd` command
 #
 # Usage:
 #   pav cd [TEST_ID]
