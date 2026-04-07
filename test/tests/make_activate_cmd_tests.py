@@ -111,7 +111,7 @@ class MakeActivateCmdTests(PavTestCase):
                 with open(self.cmd.DEFAULT_SCRIPT_NAME) as fout:
                     fout.write(expected)
 
-                self.notEqual(self.cmd.run(self.pav_cfg, args), 0,
+                self.assertNotEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate ran successfully, but should have exited with a non-zero error code.")
 
                 script_contents = ""
