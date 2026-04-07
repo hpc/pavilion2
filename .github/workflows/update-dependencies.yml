@@ -20,6 +20,10 @@ env:
   # before this workflow is merged into develop.
   BASE_BRANCH: ${{ inputs.base_branch != '' && inputs.base_branch || 'hwikle/offline-release-ci' }}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   load-python-versions:
     name: Load Python versions
@@ -93,7 +97,6 @@ jobs:
 
       - name: Compute py_tag
         id: py_tag
-        shell: bash
         run: |
           PY_TAG="py${{ matrix.python }}"
           PY_TAG="${PY_TAG/./}"
