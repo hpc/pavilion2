@@ -8,6 +8,8 @@ RELEASE=2.6
 
   - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
     or JSON.
+  - Added more options for `pav make-activate`
+  - Delayed resolution of paths in generated `activate.sh` script until script is run.
 
 ## 2.6.1 Pre-Release Notes
 
