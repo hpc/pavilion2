@@ -35,7 +35,7 @@ class MakeActivateCmdTests(PavTestCase):
     def test_activate_script_can_be_sourced(self):
         """Test that the activate script can be sourced without error."""
 
-        args = self.parser.parse_args("make-activate")
+        args = self.parser.parse_args(["make-activate"])
 
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
@@ -51,6 +51,8 @@ class MakeActivateCmdTests(PavTestCase):
     def test_activate_script_not_executable(self):
         """Test that the activate script is not set as executable."""
 
+        args = self.parser.parse_args(["make-activate"])
+
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
@@ -64,6 +66,8 @@ class MakeActivateCmdTests(PavTestCase):
     @unittest.skipIf(not has_shellcheck(), "shellcheck is not installed.")
     def test_activate_script_passes_shellcheck(self):
         """Test that the activate script passes shellcheck."""
+
+        args = self.parser.parse_args(["make-activate"])
 
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
@@ -89,6 +93,8 @@ class MakeActivateCmdTests(PavTestCase):
     def test_activate_script_no_shebang(self):
         """Check that the activate script has no shebang."""
 
+        args = self.parser.parse_args(["make-activate"])
+
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
@@ -104,6 +110,8 @@ class MakeActivateCmdTests(PavTestCase):
 
     def test_make_activate_does_not_overwrite_existing_scripts(self):
         """Check that make-activate will refuse to overwrite an existing activate script."""
+
+        args = self.parser.parse_args(["make-activate"])
 
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
