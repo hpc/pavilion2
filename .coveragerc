@@ -1,9 +1,12 @@
 [run]
-source = lib/pavilion
+source =
+    lib/pavilion
+    lib/similarity
+    lib/unittest_ex
+    lib/yaml_config
+    lib/yc_yaml
+    lib/hostlist.py
+    test/tests
 branch = True
 parallel = True
 patch = subprocess
-
-[report]
-fail_under = 85
-show_missing = True

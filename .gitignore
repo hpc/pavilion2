@@ -18,6 +18,9 @@ __pycache__/
 # Coverage Artifacts
 .coverage
 
+# Superpowers Specs
+docs/superpowers
+
 pav.pstats
 .local/
 examples/working_dir

@@ -816,7 +816,10 @@ class ResultParserTests(PavTestCase):
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
 
         for test in run_cmd.last_tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         res_args = arg_parser.parse_args(
             ('result', '--full') + tuple(str(t.id) for t in run_cmd.last_tests))
@@ -901,7 +904,10 @@ class ResultParserTests(PavTestCase):
             cmd_out, cmd_err = run_cmd.clear_output()
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
         for test in run_cmd.last_tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         res_args = arg_parser.parse_args(
             ('result', '--by-key-compat', str(run_cmd.last_tests[0].id)))
@@ -1091,8 +1097,15 @@ class ResultParserTests(PavTestCase):
         loggers = get_result_loggers(self.pav_cfg, series1.id)
         series1.log_results(loggers)
 
-        series1.wait(10)
-        series1.wait_log(10)
+        try:
+            series1.wait(self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} seconds.")
+
+        try:
+            series1.wait_log(self.result_logger_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for result_logger to complete after {self.result_logger_timeout} seconds.")
 
         result_log1 = series1.get_result_paths()[0]
 
@@ -1127,8 +1140,15 @@ class ResultParserTests(PavTestCase):
         loggers = get_result_loggers(self.pav_cfg, str(series2.id))
         series2.log_results(loggers)
 
-        series2.wait()
-        series2.wait_log()
+        try:
+            series2.wait(self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to finish after {self.series_wait_timeout} seconds.")
+
+        try:
+            series2.wait_log(self.result_logger_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for result logger to finish after {self.result_logger_timeout} seconds.")
 
         result_log2 = series2.get_result_paths()[0]
 

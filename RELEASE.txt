@@ -2,6 +2,10 @@
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
 RELEASE=2.6
 
+## 2.7 Pre-Release Notes
+  - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
+    or JSON.
+
 ## 2.6 Release Notes
 
 - Test run directories are now named based on the series-relative IDs of test runs (e.g. `s1.1`).

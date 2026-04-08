@@ -41,8 +41,10 @@ class PavConfigTests(PavTestCase):
 
         elem = config.ExPathElem("test")
 
+        os.environ['PATH_VAR'] = "foo"
+
         self.assertIsNone(elem.validate(None))
-        self.assertEqual(elem.validate("/tmp/$USER/blarg"),
-                         Path('/tmp', os.environ['USER'], 'blarg'))
+        self.assertEqual(elem.validate("/tmp/$PATH_VAR/blarg"),
+                         Path('/tmp', os.environ['PATH_VAR'], 'blarg'))
         self.assertEqual(elem.validate("/tmp/${NO_SUCH_VAR}/ok"),
                          Path("/tmp/${NO_SUCH_VAR}/ok"))
