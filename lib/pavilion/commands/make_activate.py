@@ -96,7 +96,7 @@ class MakeActivateCommand(Command):
         script.newline()
 
         script.comment("Source the script for the cd command.")
-        script.command(f"source \"${{PAV_CONFIG_DIR}}/{str(PAV_CD_PATH)}\"")
+        script.command(f"source \"${{PAV_CONFIG_DIR}}/{pav_cd_path}\"")
         script.newline()
 
         script.command("echo \"Success:\"")
