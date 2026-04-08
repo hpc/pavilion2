@@ -117,7 +117,7 @@ class MakeActivateCmdTests(PavTestCase):
             with change_dir(td):
                 expected = "This is the old activate script."
 
-                with open(self.cmd.DEFAULT_SCRIPT_NAME) as fout:
+                with open(self.cmd.DEFAULT_SCRIPT_NAME, "w") as fout:
                     fout.write(expected)
 
                 self.assertNotEqual(self.cmd.run(self.pav_cfg, args), 0,
@@ -125,7 +125,7 @@ class MakeActivateCmdTests(PavTestCase):
 
                 script_contents = ""
 
-                with open(self.cmd.DEFAULT_SCRIPT_NAME) as fin:
+                with open(self.cmd.DEFAULT_SCRIPT_NAME, "r") as fin:
                     script_contents = fin.read()
 
                 self.assertEqual(script_contents, expected, f"{self.cmd.DEFAULT_SCRIPT_NAME} was overwritten by make-activate.")
