@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout Pavilion repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Load Python version matrix
         id: load-py-version
@@ -38,17 +38,17 @@ jobs:
 
     steps:
     - name: Checkout Pavilion repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
-    - name: Set up Python ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
-      uses: actions/setup-python@v2
+    - name: Setup Python ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
 
     - name: Install dependencies
       run: sudo apt install gcc
 
-    - name: Ensure all tests pass
+    - name: Run demo tests and makes sure they pass
       run: |
         source examples/demo/activate.sh
         pav run -v QUIET demo advanced buildit

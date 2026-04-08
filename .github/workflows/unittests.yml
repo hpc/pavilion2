@@ -49,19 +49,10 @@ jobs:
         with:
           python-version: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
 
-      - name: Compute py_tag
-        id: py_tag
-        shell: bash
-        run: |
-            PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
-            PY_TAG="${PY_TAG/./}"
-            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Install dependencies
-        run: |
-          pip install -r test/requirements.txt
+        run: pip install -r test/requirements.txt
 
-      - name: Setup Pavilion application-level config
+      - name: Create Pavilion application-level config
         run: |
           ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
           echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
@@ -84,20 +75,12 @@ jobs:
         with:
           python-version: "${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
 
-      - name: Compute py_tag
-        id: py_tag
-        shell: bash
-        run: |
-            PY_TAG="py${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
-            PY_TAG="${PY_TAG/./}"
-            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Install dependencies
         run: |
           pip install -r test/requirements.txt
           pip install -r docs/requirements.txt
 
-      - name: Setup Pavilion application-level config
+      - name: Create Pavilion application-level config
         run: |
           ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
           echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
@@ -127,20 +110,12 @@ jobs:
         with:
           python-version: "${{ matrix.python }}"
 
-      - name: Compute py_tag
-        id: py_tag
-        shell: bash
-        run: |
-            PY_TAG="py${{ matrix.python }}"
-            PY_TAG="${PY_TAG/./}"
-            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Install dependencies
         run: |
             pip install -r test/requirements.txt
             pip install -r docs/requirements.txt
 
-      - name: Setup Pavilion application-level config
+      - name: Create Pavilion application-level config
         run: |
           ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
           echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
@@ -162,7 +137,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: working_dir_${{ steps.py_tag.outputs.py_tag }}
+          name: working_dir_py${{ matrix.python }}
           path: test/working_dir.zip
 
   unittests-legacy-python:
@@ -184,14 +159,6 @@ jobs:
       - name: Checkout Pavilion repository
         uses: actions/checkout@v6
 
-      - name: Compute py_tag
-        id: py_tag
-        shell: bash
-        run: |
-            PY_TAG="py${{ matrix.python }}"
-            PY_TAG="${PY_TAG/./}"
-            echo "py_tag=${PY_TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Install dependencies
         run: |
             pip install -r test/requirements.txt
@@ -201,7 +168,7 @@ jobs:
         # This is necessary because Pavilion's default shebang is /usr/bin/bash
         run: test -e /usr/bin/bash || ln -s /bin/bash /usr/bin/bash
 
-      - name: Setup Pavilion application-level config
+      - name: Create Pavilion application-level config
         run: |
           ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
           echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
@@ -229,5 +196,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: working_dir_${{ steps.py_tag.outputs.py_tag }}
+          name: working_dir_py${{ matrix.python }}
           path: test/working_dir.zip

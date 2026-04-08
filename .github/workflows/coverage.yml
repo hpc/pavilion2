@@ -45,7 +45,7 @@ jobs:
     - name: Checkout Pavilion repository
       uses: actions/checkout@v6
 
-    - name: Set up Python ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
+    - name: Setup Python ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
@@ -56,13 +56,13 @@ jobs:
         pip install -r docs/requirements.txt
         pip install "coverage>=7.10"
 
-    - name: Set up Pavilion application-level config
+    - name: Create Pavilion application-level config
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
-    - name: Set up Spack
+    - name: Setup Spack
       run: ./test/utils/spack_setup test
 
     - name: Run unit tests under coverage.py

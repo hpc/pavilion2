@@ -7,13 +7,10 @@ RELEASE=2.6
   - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
     or JSON.
 
-<<<<<<< HEAD
 ## 2.6.1 Pre-Release Notes
 
 - Fixed a bug which caused some tests in a series to be loaded multiple times and others not at all.
-=======
 # Release History
->>>>>>> 4bc18f45 (Fix inconsistent shebang defaults)
 
 ## 2.6 Release Notes
 
