@@ -41,6 +41,10 @@ class MakeActivateCmdTests(PavTestCase):
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
+
+                # Make the PAVBIN directory
+                (td / "pav_src" / "bin").mkdir(parents=True)
+
                 result = subprocess.run(["source", self.cmd.DEFAULT_SCRIPT_NAME],
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE,

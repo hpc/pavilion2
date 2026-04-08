@@ -10,6 +10,7 @@ class MakeActivateCommand(Command):
     """Make the 'activate' bash script."""
 
     DEFAULT_SCRIPT_NAME = "activate.sh"
+    PAV_CD_PATH = Path("lib/pavilion/commands/cd.sh")
 
     def __init__(self):
         super().__init__(
@@ -52,7 +53,7 @@ class MakeActivateCommand(Command):
             args.pav_src = Path(__file__).parents[3].name
 
         pav_bin_dir = f"{args.pav_src}/bin"
-        pav_cd_path = f"{args.pav_src}/lib/pavilion/commands/cd.sh"
+        pav_cd_path = f"{args.pav_src}/{str(self.PAV_CD_PATH)}"
 
         # Don't write a shebang, since the script will be sourced
         script = ScriptComposer(header=None)
