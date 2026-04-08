@@ -164,4 +164,4 @@ class MakeActivateCmdTests(PavTestCase):
                 self.assertEqual(result.returncode, 0, f"Failed to source {self.cmd.DEFAULT_SCRIPT_NAME}: {result.stderr}")
 
     def test_activate_script_sources_cd_command(self):
-        """Check that the activate script activates the cd command by sourcing `cd.sh`."
+        """Check that the activate script activates the cd command by sourcing `cd.sh`."""
