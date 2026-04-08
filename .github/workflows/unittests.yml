@@ -30,7 +30,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
@@ -80,7 +79,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
@@ -108,7 +106,6 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
@@ -140,7 +137,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
         sphinx-build --version
@@ -192,7 +188,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
@@ -242,7 +237,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
