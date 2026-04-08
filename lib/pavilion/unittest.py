@@ -73,6 +73,24 @@ base class.
         'users',
         ]
 
+    DEFAULT_TIMEOUTS = {
+        "testrun_wait": 20,
+        "testrun_start": 10,
+        "testrun_build": 5,
+        "testrun_run": 10,
+        "testrun_cancel": 1,
+        "series_wait": 10,
+        "series_start": 10,
+        "log_cmd": 5,
+        "build_docs": 30,
+        "lockfile": 1,
+        "result_logger": 10,
+        "testset_wait": 10,
+        "test_cmd": 3
+    }
+
+    DEFAULT_LOCK_LIFETIME = 3
+
     def __init__(self, *args, **kwargs):
         """Setup the pav_cfg object, and do other initialization required by
         pavilion."""
@@ -81,6 +99,39 @@ base class.
 
         super().__init__(*args, **kwargs)
 
+        self._get_timeouts()
+        self._get_lock_lifetime()
+
+    def _get_timeouts(self) -> None:
+        """Get the various timeout values from the environment, if defined. Otherwise, use
+        default values."""
+
+        # Allow fine grained control over timeout values via environment variables
+        try:
+            universal_timeout = int(os.environ.get("PAV_UNITTEST_UNIVERSAL_TIMEOUT"))
+        except (ValueError, TypeError):
+            universal_timeout = None
+
+        for timeout_type, default_val in self.DEFAULT_TIMEOUTS.items():
+            attr_name = f"{timeout_type}_timeout"
+            try:
+                setattr(self,
+                        attr_name,
+                        int(os.environ.get(f"PAV_UNITTEST_{timeout_type.upper()}_TIMEOUT")))
+            except (ValueError, TypeError):
+                if universal_timeout is not None:
+                    setattr(self, attr_name, universal_timeout)
+                else:
+                    setattr(self, attr_name, default_val)
+
+    def _get_lock_lifetime(self) -> None:
+        """Get the lock lifetime from the environment, if defined. Otherwise, use
+        default values."""
+
+        try:
+            self.lock_lifetime = int(os.environ.get("PAV_UNITTEST_LOCK_LIFETIME"))
+        except (ValueError, TypeError):
+            self.lock_lifetime = self.DEFAULT_LOCK_LIFETIME
 
     def set_up(self):
         """By default, initialize plugins before every test."""
@@ -401,7 +452,7 @@ The default config is: ::
                 continue
         else:
             raise TimeoutError(
-                "Waiting on tests: {}"
-                .format(test.name for test in dir_db.select(self.pav_cfg,
+                "Timed out out after {} seconds. Waiting on tests: {}"
+                .format(timeout, [test.name for test in dir_db.select(self.pav_cfg,
                                                             runs_dir).paths
-                        if is_complete(test)))
+                        if is_complete(test)]))

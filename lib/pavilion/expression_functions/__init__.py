@@ -3,25 +3,23 @@ used in Pavilion expressions, both within normal Pavilion strings and
 in result evaluations.
 """
 
+from typing import Optional
+
 from .base import (FunctionPlugin, _FUNCTIONS, num, __reset)
 from .core import CoreFunctionPlugin
 from ..errors import FunctionPluginError
 
 
-def get_plugin(name: str) -> FunctionPlugin:
-    """Get the function plugin called 'name'."""
+def get_plugin(name: str) -> Optional[FunctionPlugin]:
+    """Get the function plugin called 'name'. Returns None if a plugin with the given name
+    does not exist."""
 
-    if name not in _FUNCTIONS:
-        raise FunctionPluginError("No such function '{}'".format(name))
-    else:
-        return _FUNCTIONS[name]
-
+    return _FUNCTIONS.get(name)
 
 def list_plugins():
     """Return the list of function plugin names."""
 
     return _FUNCTIONS.keys()
-
 
 def register_core_plugins():
     """Find all the core function plugins and activate them."""

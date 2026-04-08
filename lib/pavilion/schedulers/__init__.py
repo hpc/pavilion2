@@ -32,7 +32,7 @@ SchedulerPlugin.register_core_plugins = register_core_plugins
 
 
 def get_plugin(name) -> Union[SchedulerPluginBasic,
-                              SchedulerPluginAdvanced]:
+                              SchedulerPluginAdvanced, None]:
     """Return a scheduler plugin
 
     :param str name: The name of the scheduler plugin.
@@ -41,11 +41,7 @@ def get_plugin(name) -> Union[SchedulerPluginBasic,
     if _SCHEDULER_PLUGINS is None:
         raise SchedulerPluginError("No scheduler plugins loaded.")
 
-    if name not in _SCHEDULER_PLUGINS:
-        raise SchedulerPluginError(
-            "Scheduler plugin not found: '{}'".format(name))
-
-    return _SCHEDULER_PLUGINS[name]
+    return _SCHEDULER_PLUGINS.get(name)
 
 
 def list_plugins():
