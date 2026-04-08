@@ -59,9 +59,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install -r test/requirements.txt
-          pip install -r docs/requirements.txt
 
       - name: Setup Pavilion application-level config
         run: |
@@ -150,14 +148,12 @@ jobs:
           ./test/utils/spack_setup test
 
       - name: Run unit tests
-        run: |
-          sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+        run: ./test/run_tests
 
       - name: Zip working directory
         if: failure()
         run: |
-          # If we don't zip this ourselves, it will run infinitely due to
-          # symlink loops.
+          # If we don't zip this ourselves, it will run infinitely due to symlink loops.
           cd test
           ./utils/make_symlinks_relative working_dir
           zip -yr working_dir.zip working_dir
