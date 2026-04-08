@@ -25,9 +25,10 @@ jobs:
           ref: ${{ env.HEAD_BRANCH }}
           fetch-depth: 0
 
-      - name: Create staging branch off of ${{ env.BASE_BRANCH }} to prepare merge
+      - name: Create (or reset) staging branch off of ${{ env.BASE_BRANCH }} to prepare merge
         run: |
-          git switch -C ${{ env.STAGING_BRANCH }} ${{ env.REMOTE }}/${{ env.HEAD_BRANCH }}
+          git checkout -B ${{ env.STAGING_BRANCH }}
+          git push -f ${{ env.REMOTE }} ${{ env.STAGING_BRANCH}}
 
       - name: Create pull request from ${{ env.HEAD_BRANCH }} to ${{ env.BASE_BRANCH }}
         uses: peter-evans/create-pull-request@v8
