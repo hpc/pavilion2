@@ -40,7 +40,7 @@ class MakeActivateCmdTests(PavTestCase):
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
-                                f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
+                                f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
 
                 # Make the PAVBIN directory
                 (td / "pav_src" / "bin").mkdir(parents=True)
@@ -60,7 +60,7 @@ class MakeActivateCmdTests(PavTestCase):
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
-                                f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
+                                f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
                 st = Path(self.cmd.DEFAULT_SCRIPT_NAME).stat()
 
 
@@ -76,7 +76,7 @@ class MakeActivateCmdTests(PavTestCase):
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
-                                f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
+                                f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
 
                 result = subprocess.run(
                     ["shellcheck", self.cmd.DEFAULT_SCRIPT_NAME],
@@ -102,7 +102,7 @@ class MakeActivateCmdTests(PavTestCase):
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
-                                f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
+                                f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
 
             first_line = ""
 
@@ -146,7 +146,7 @@ class MakeActivateCmdTests(PavTestCase):
         with tempfile.TemporaryDirectory() as td:
             with change_dir(td):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
-                                f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
+                                f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
 
                 # Make the PAVBIN directory
                 (td / "pav_src" / "bin").mkdir(parents=True)
