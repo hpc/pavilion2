@@ -137,3 +137,31 @@ class MakeActivateCmdTests(PavTestCase):
                 errors = self.cmd.errfile.getvalue()
 
                 self.assertNotEqual(errors, "", "pav make-activate should have printed an error message, but did not.")
+
+    def test_activate_script_sets_correct_env_variables(self):
+        """Test that the activate script sets the correct environment variables."""
+
+        args = self.parser.parse_args(["make-activate"])
+
+        with tempfile.TemporaryDirectory() as td:
+            with change_dir(td):
+                self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
+                                f"make-activate failed with the following error: {mkact_cmd.errfile.getvalue()}")
+
+                # Make the PAVBIN directory
+                (td / "pav_src" / "bin").mkdir(parents=True)
+
+                cmd = ["source", self.cmd.DEFAULT_SCRIPT_NAME]
+
+                result = subprocess.run(["source", self.cmd.DEFAULT_SCRIPT_NAME,
+                                         "&&", "test", "\"$PAVBIN\"", "-ef", f"\"{str(td / "pav_src" / "bin")}\"",
+                                         "&&", "test", "\"$PAV_CONFIG_DIR\"", "-ef", f"\"{str(td)}\""],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      text=True,
+                                      check=False)
+
+                self.assertEqual(result.returncode, 0, f"Failed to source {self.cmd.DEFAULT_SCRIPT_NAME}: {result.stderr}")
+
+    def test_activate_script_sources_cd_command(self):
+        """Check that the activate script activates the cd command by sourcing `cd.sh`."
