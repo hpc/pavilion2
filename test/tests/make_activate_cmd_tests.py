@@ -153,9 +153,10 @@ class MakeActivateCmdTests(PavTestCase):
 
                 cmd = ["source", self.cmd.DEFAULT_SCRIPT_NAME]
 
+                # TODO: Make this test better
                 result = subprocess.run(["source", self.cmd.DEFAULT_SCRIPT_NAME,
-                                         "&&", "test", "\"$PAVBIN\"", "-ef", f"\"{str(td / "pav_src" / "bin")}\"",
-                                         "&&", "test", "\"$PAV_CONFIG_DIR\"", "-ef", f"\"{str(td)}\""],
+                                         "&&", "test", "\"$PAVBIN\"", "-ef", f'"{td / "pav_src" / "bin"}"',
+                                         "&&", "test", "\"$PAV_CONFIG_DIR\"", "-ef", f'"{td}"'],
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE,
                                       text=True,
