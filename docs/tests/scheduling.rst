@@ -40,9 +40,8 @@ You may also notice scheduler specific sections in the listed options as well. T
 allow for custom configuration specific to a particular schedulers - options that are
 not generally applicable.
 
-Note that not all options are expected to be generally applicable either. We may, in the future,
-add a scheduler with concept of a QOS setting, for instance. When a setting is not applicable, it
-is simply ignored.
+Note that not all options are expected to be generally applicable either. When a setting is not
+applicable, it is simply ignored.
 
 .. code-block:: yaml
 
@@ -62,11 +61,11 @@ Scheduler Plugin Basics
 
 Scheduler plugins are responsible for the following:
 
-- Providing test runs with *scheduler* variables
+- Providing test runs with ``scheduler`` variables
 - (Optionally) writing kickoff scripts
-- Using kickoff scripts (or other mechanisms) to then run `pav _run
-  <test_run_id>` on allocations with reasonable environments
-- Generating a unique scheduler ``job_id`` for each test run
+- Using kickoff scripts (or other mechanisms) to then run ``pav _run
+  <test_run_id>`` on allocations with reasonable environments
+- Generating a unique scheduler job ID for each test run
 - Providing mechanisms for canceling tests
 - Providing mechanisms for checking test statuses
 
@@ -122,16 +121,16 @@ Jobs
 ----
 
 When Pavilion schedules a test, it also creates a job. Jobs organize all the information used
-to kick off a test (or tests!), including the kickoff script, kickoff log, job id, and symlinks
+to kick off a test (or tests!), including the kickoff script, kickoff log, job ID, and symlinks
 back to each test that's part of the job. Each job is named by a random hash located in the
-``working_dir>/jobs`` directory. Tests also refer back to their job through a symlink in each
+``working_dir>/jobs`` directory. Each test also refers back to its job through a symlink in its
 test run directory.
 
 The Kickoff Script
 ~~~~~~~~~~~~~~~~~~
 
 The kickoff script's job is to have Pavilion run specific test run instances under an
-allocation. This is generally expected to be a shell script of some sort that
+allocation. The script is generally expected to be a shell script of some sort that
 will both define the allocation (if possible) and run ``pav _run <test_run_id>``
 within that allocation under an environment that can find Pavilion and its
 libraries.
@@ -141,62 +140,61 @@ For slurm, the kickoff script would look something like this:
 .. code-block:: bash
 
     #!/bin/bash
-    #SBATCH --job-name "pav test #18697"
+    #SBATCH --job-name "pav test s3.7"
     #SBATCH -p standard
     #SBATCH -N 3-3
     #SBATCH --tasks-per-node=1
 
     # Redirect all output to kickoff.log
-    exec >/usr/local/pav/working_dir/test_runs/0018697/kickoff.log 2>&1
+    exec >/usr/local/pav/working_dir/test_runs/s3.7/kickoff.log 2>&1
     export PATH=/usr/local/pav/src/bin:${PATH}
     export PAV_CONFIG_FILE=/usr/local/pav/config/pavilion.yaml
     export PAV_CONFIG_DIR=/usr/local/pav/config
 
-    pav _run 18697
+    pav _run s3.7
 
 job_id
 ~~~~~~
 
-The plugin must assign the test run a job id. This will generally be used by
-the scheduler plugin to cancel or check the status of tests. It's saved in
-the job's 'job_id' file, and also as part of the test results.
+The plugin must assign each test run a job ID. This will generally be used by
+the scheduler plugin to cancel or check the status of the test. It's saved in
+the job's 'job_id' file and also as part of the test results.
 
 Cancel Mechanisms
 ~~~~~~~~~~~~~~~~~
 
-Pavilion scheduler plugins are required to provide a mechanism to cancel jobs
+Each Pavilion scheduler plugins is required to provide a mechanism to cancel jobs
 managed by that scheduler, whether they're currently running or queued under
-the scheduler. Generally this means just using the test_run's job id to
-cancel the test. Cancelled tests will be given the 'SCHED_CANCELLED' status.
+the scheduler. Generally this means just using the test_run's job ID to
+cancel the test. Cancelled tests will be given the ``SCHED_CANCELLED`` status.
 
 Status Mechanisms
 ~~~~~~~~~~~~~~~~~
 
 Similarly, Pavilion scheduler plugins must be able to query the status of
-jobs, and give useful feedback on their state in the scheduler. As long as
-the test is in the 'SCHEDULED' or 'RUNNING' states from the test run's perspective (in the
-run's status file), Pavilion will use the scheduler to look up the schedulers
-status for the job, in order to provide more up-to-date test status
-information.
+jobs and give useful feedback on their state in the scheduler. As long as
+a test is in the ``SCHEDULED`` or ``RUNNING`` states from the test run's perspective (in the
+run's status file), Pavilion will use the scheduler to look up the status for the job, in order to
+provide more up-to-date test status information.
 
 .. _tests.scheduling.types:
 
 Scheduler Plugin Types
 ----------------------
 
-Scheduler plugins come in two varieties: Basic and Advanced
+Scheduler plugins come in two varieties: basic and advanced
 
 Basic
 ~~~~~
 
-**The only 'basic' scheduler is 'raw' which only ever has one node. Most of this doesn't apply
-except to user added schedulers.**
+**The only basic scheduler is the raw scheduler, which only ever has one node. Most of this doesn't
+apply except to user added schedulers.**
 
-Basic Schedulers don't know anything about the system that isn't manually configured. This
+Basic schedulers don't know anything about the system that isn't manually configured. This
 information is given via the ``schedule.cluster_info`` section (see ``pav show sched --config``).
 This information should generally be set in the host config for a particular system.
 
-Asking for 'all' nodes on a basic scheduler will result in an allocation for the
+Asking for ``all`` nodes on a basic scheduler will result in an allocation for the
 configured number of nodes, regardless of the state of those nodes.
 
 .. code-block:: yaml
@@ -216,7 +214,7 @@ Advanced
 
 Advanced scheduler plugins are plugins that can get an inventory of nodes and node state
 from the system. Such schedulers are able to dynamically determine how many nodes are up or
-available, and create allocations based on that. As a result, asking for 'all' nodes via an
+available and create allocations based on that. As a result, asking for ``all`` nodes via an
 advanced scheduler will get you an allocation request for all nodes that are currently up and not
 otherwise filtered out by ``partition`` or other scheduler settings.
 
@@ -240,8 +238,6 @@ nodes.
 With ``schedule.share_allocation`` set to ``max``, Pavilion forces as many test runs into the same
 job as possible.
 
-.. _tests.scheduling.chunking:
-
 Node Filtering Exceptions
 -------------------------
 
@@ -249,17 +245,17 @@ Advanced schedulers filter nodes down to only those which are currently usable. 
 several mechanisms for providing exceptions to filtering rules. There are three scheduler options
 that control this behavior:
 
-1. `include_nodes`: specifies a set of nodes to be included in every chunk. Other nodes may be
+1. ``include_nodes``: specifies a set of nodes to be included in every chunk. Other nodes may be
                     used as well, but those specified are guaranteed to be among the final set of
-                    nodes on which the test is scheduled (provided they are in an 'available'
+                    nodes on which the test is scheduled (provided they are in an ``available``
                     state).
-2. `exclude_nodes`: specifies a set of nodes to be excluded when scheduling tests.
-3. `across_nodes`: specifies a set of nodes to be considered exclusively when scheduling tests. No
+2. ``exclude_nodes``: specifies a set of nodes to be excluded when scheduling tests.
+3. ``across_nodes``: specifies a set of nodes to be considered exclusively when scheduling tests. No
                    nodes beyond those requested will be scheduled. The final set of nodes on which
                    the test is scheduled may be a subset of those specified.
 
-The syntax for specifying nodes is identical to that used with Slurm's `--nodelist` option; it can
-combine full names of nodes (e.g. `nid001`) with node ranges (e.g. `nid[007-023]`), which can in
+The syntax for specifying nodes is identical to that used with Slurm's ``--nodelist`` option; it can
+combine full names of nodes (e.g. ``nid001``) with node ranges (e.g. ``nid[007-023]``), which can in
 turn be combined with commas.
 
 For example, the following test excludes nodes 1, 3, and 7-23 from being scheduled:
@@ -276,6 +272,8 @@ To accomplish the same thing via a command-line override:
 
   pav run mytest -c schedule.exclude_nodes='nid001,nid003,nid[007-023]'
 
+.. _tests.scheduling.chunking:
+
 Chunking
 --------
 
@@ -291,13 +289,13 @@ specific chunk size.
         # When using chunking, this is relative to the chunk and not the whole system.
         nodes: all
 
-        # Get 500 node chunks
+        # Get 500-node chunks
         chunking:
           size: 500
 
 When using chunking, Pavilion selects nodes for each job entirely in advance. This can lead
 to the tests being a bit more fragile than usual: the failure of a single node can keep a test
-from running even if the are 'spare' nodes outside of the chunk.
+from running even if there are spare nodes outside of the chunk.
 
 Chunk Selection
 ~~~~~~~~~~~~~~~
@@ -326,7 +324,7 @@ of the chunk of which it is a member.
         # rather than on the whole system.
         nodes: all
 
-        # Get 500 node chunks
+        # Get 500-node chunks
         chunking:
           size: 500
 
@@ -342,22 +340,22 @@ system (``dist``), or semi-randomly distributed (``rand-dist``). Regardless of t
 the number of chunks will be the same and they (mostly) won't overlap.
 
 It is likely that the chunk size won't divide evenly into the total number of nodes. Nodes which make
-up the remainder may be excluded or back-filled with nodes from another chunk (these nodes are always
-drawn from the second to last chunk). The default behavior is to 'backfill'.
+up the remainder may be excluded or backfilled with nodes from another chunk (these nodes are always
+drawn from the second to last chunk). The default behavior is to perform backfilling.
 
 Chunking behavior is set via the ``schedule.chunking.node_selection`` and ``schedule.chunking.extra``
 options.
 
 .. code-block:: yaml
 
-    # This test run over a random selection of 25% of the nodes on the system.
+    # This test runs over a random selection of 25% of the nodes on the system.
     mytest:
       schedule:
         # When using chunking, 'all' refers to all nodes in the chunk
         # rather than on the whole system.
         nodes: all
 
-        # Get 500 node chunks
+        # Get 500-node chunks
         chunking:
           size: 25%
           node_selection: random
@@ -367,7 +365,7 @@ options.
 Wrapper
 -------
 
-You can use the wrapper feature on any scheduler to wrap the scheduler test command and run the
+You can use the ``wrapper`` feature on any scheduler to wrap the scheduler test command and run the
 wrapper command before actually running the intended command.
 
 .. code-block:: yaml
@@ -386,7 +384,7 @@ wrapper command before actually running the intended command.
                 - '{{sched.test_cmd}} ./supermagic -a'
 
 When using the ``raw`` scheduler, ``{{sched.test_cmd}}`` normally evaluates to an empty string. You
-can use the wrapper setting to control a different scheduler directly.
+can use the ``wrapper`` setting to control a different scheduler directly.
 
 .. code-block:: yaml
 
