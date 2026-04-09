@@ -40,8 +40,7 @@ def get_result_loggers(pav_cfg: "PavConfig",
             raise ResultLoggerPluginError(
                 f"No result logger plugin found with name '{plugin_name}'")
 
-        loggers.add(factory.make_logger(log_config, sid, name=None,
-                    outfile=outfile, errfile=errfile))
+        loggers.add(factory.make_logger(log_config, sid, outfile))
 
     return loggers
 
@@ -74,7 +73,9 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
         self.priority = priority
         self.path = inspect.getfile(self.__class__)
         self.outfile = outfile
-        self.errfile = errfile
+
+        # If no separate errfile is specified, just use the outfile
+        self.errfile = set_default(self.errfile, self.outfile)
 
     @abstractmethod
     def validate_config(self, config: Dict) -> None:

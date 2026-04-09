@@ -13,6 +13,9 @@ RELEASE=2.6
   on timeout or cancellation.
 - Fixed a bug that that caused Spack to issue a traceback due to running in a non-interactive
   context.
+- Fixed a bug in which series file result loggers were not writing result logs.
+- Fixed a bug in which result logging sometimes created rogue processes. Result logging processes
+  now time out after one hour if no new results have been detected.
 
 ## 2.6 Release Notes
 
