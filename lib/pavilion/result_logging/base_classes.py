@@ -10,6 +10,7 @@ from yapsy import IPlugin
 
 from pavilion import output
 from pavilion.errors import ResultLoggerPluginError
+from pavilion.micro import set_default
 
 
 LOGGER = logging.getLogger(__file__)
@@ -59,8 +60,7 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__(self, name: str, description: str, priority: int = PRIO_COMMON,
-                 outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
+    def __init__(self, name: str, description: str, priority: int = PRIO_COMMON):
         super().__init__()
 
         if self.NAME_VERS_RE.match(name) is None:
@@ -72,10 +72,6 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
         self.help_text = description
         self.priority = priority
         self.path = inspect.getfile(self.__class__)
-        self.outfile = outfile
-
-        # If no separate errfile is specified, just use the outfile
-        self.errfile = set_default(self.errfile, self.outfile)
 
     @abstractmethod
     def validate_config(self, config: Dict) -> None:
@@ -85,22 +81,18 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
     def _make_logger(self,
                      config: Dict,
                      sid: str,
-                     name: Optional[str] = None,
-                     outfile: Optional[TextIO] = None,
-                     errfile: Optional[TextIO] = None) -> "ResultLogger":
+                     outfile: Optional[TextIO] = None) -> "ResultLogger":
         """Create the result logger from the given config and series ID."""
 
     def make_logger(self,
                     config: Dict,
                     sid: str,
-                    name: Optional[str] = None,
-                    outfile: Optional[TextIO] = None,
-                    errfile: Optional[TextIO] = None) -> "ResultLogger":
+                    outfile: Optional[TextIO] = None) -> "ResultLogger":
         """Validate the config and create the result logger."""
 
         self.validate_config(config)
 
-        return self._make_logger(config, sid, name, outfile, errfile)
+        return self._make_logger(config, sid, outfile=outfile)
 
     def activate(self):
         """Add this plugin to the result output plugin list."""
@@ -141,13 +133,15 @@ class ResultLogger(ABC):
 
     def __init__(self, name: Optional[str] = None,
                  outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
+
+        self.outfile = outfile
+        # If no separate errfile is specified, just use the outfile
+        self.errfile = set_default(errfile, outfile)
+
         self.outfile = outfile or io.StringIO()
         self.errfile = errfile or io.StringIO()
 
-        if name is None:
-            self.name = type(self).__name__
-        else:
-            self.name = name
+        self.name = set_default(name, type(self).__name__)
 
     def log(self, results: Dict) -> None:
         """Log a test's results dictionary."""

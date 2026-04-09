@@ -32,6 +32,7 @@ class SeriesFileLoggerFactory(ResultLoggerPlugin):
         if not Path(dest).is_absolute():
             raise ResultLoggerPluginError(f"Provided path {dest} is not an absolute path.")
 
+    # pylint: disable=arguments-renamed
     def _make_logger(self,
                      config: Dict,
                      sid: str,
