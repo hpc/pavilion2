@@ -551,7 +551,7 @@ class TestSeries:
         """Log the results of each test in the series as tests complete. Returns the total number
         of tests logged."""
 
-        loggers = set_default(loggers, self.loggers)
+        loggers = set_default(loggers, self.result_loggers)
 
         # Time out eventually so we don't end up with rogue processes
         timeout_time = set_default(timeout, math.inf) + time.time()
