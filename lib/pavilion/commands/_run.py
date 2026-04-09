@@ -44,7 +44,7 @@ class _RunCommand(Command):
         tests = []
         for test_id in args.test_ids:
             try:
-                tests.append(TestRun.load_from_raw_id(pav_cfg, test_id))
+                tests.append(TestRun.load(pav_cfg, test_id))
             except PavilionError as err:
                 fprint(self.outfile, "Error loading test '{}'".format(test_id))
                 fprint(self.outfile, err.pformat())

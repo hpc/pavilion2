@@ -191,7 +191,7 @@ class LogCommand(Command):
                         output.fprint(self.errfile, "No last test found.", color=output.RED)
                         return 1
 
-                    test = TestRun.load_from_raw_id(pav_cfg, args.id)
+                    test = TestRun.load(pav_cfg, args.id)
             except errors.TestRunError as err:
                 output.fprint(self.errfile, "Error loading test.", err, color=output.RED)
                 return 1
@@ -256,7 +256,7 @@ class LogCommand(Command):
         """Print the states for a test."""
 
         try:
-            test = TestRun.load_from_raw_id(pav_cfg, test_id)
+            test = TestRun.load(pav_cfg, test_id)
         except errors.TestRunError as err:
             output.fprint(self.errfile, "Error loading test.", err, color=output.RED)
             return 1
