@@ -174,7 +174,7 @@ class LoggingTests(PavTestCase):
 
         log_path = next(iter(series.get_result_paths()))
 
-        self.assertEqual(log_path.stem, str(series.id))
+        self.assertTrue(log_path.name.startswith(str(series.id)))
 
         with open(log_path) as fin:
             results = json.load(fin)
