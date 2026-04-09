@@ -47,7 +47,7 @@ class LazyTestRunDict(UserDict):
 
         if id_pair in self.data and self.data[id_pair] is None:
             working_dir, test_id = id_pair
-            self.data[id_pair] = TestRun.load(self._pav_cfg, working_dir, test_id)
+            self.data[id_pair] = TestRun.load(self._pav_cfg, test_id)
 
         return super().__getitem__(id_pair)
 

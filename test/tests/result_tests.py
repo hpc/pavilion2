@@ -861,8 +861,7 @@ class ResultParserTests(PavTestCase):
 
         # Make sure we didn't save any of the changes.
         orig_test = run_cmd.last_tests[0]
-        reloaded_test = TestRun.load(self.pav_cfg, orig_test.working_dir,
-                                     orig_test.id)
+        reloaded_test = TestRun.load(self.pav_cfg, orig_test.id)
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
 

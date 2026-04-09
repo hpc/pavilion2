@@ -47,7 +47,7 @@ class TestRunTests(PavTestCase):
         orig.build()
 
         # Make sure we can recreate the object from id.
-        loaded = TestRun.load(self.pav_cfg, orig.working_dir, orig.id)
+        loaded = TestRun.load(self.pav_cfg, orig.id)
 
         # Make sure the objects are identical
         # This tests the following functions
