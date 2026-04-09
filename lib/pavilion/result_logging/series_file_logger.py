@@ -1,6 +1,6 @@
 from pathlib import Path
 import io
-import datetime
+from datetime import datetime
 from typing import Dict, Optional, TextIO
 
 from pavilion.output import json_dump
