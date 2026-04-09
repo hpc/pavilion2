@@ -28,8 +28,10 @@ class CancelTests(unittest.PavTestCase):
         test1.cancel("For fun")
 
         # Wait till we know test2 is running
-        wait(lambda: test1.complete, interval=0.2, timeout=10)
-        wait(lambda: test2.status.has_state(STATES.RUNNING), interval=0.2, timeout=10)
+        wait(lambda: test1.complete, interval=0.2, timeout=10,
+             msg=f"Timed out waiting for {test1.id} to complete after 10 seconds.")
+        wait(lambda: test2.status.has_state(STATES.RUNNING), interval=0.2, timeout=10,
+             msg=msg=f"Timed out waiting for {test2.id} to begin running after 10 seconds.")
 
         jobs = cancel_utils.cancel_jobs(self.pav_cfg, [test1, test2])
         self.assertEqual(test2.status.current().state, STATES.RUNNING, msg=f"Test {test2.id} does not have state 'RUNNING'.")

@@ -2,7 +2,7 @@
 
 import time
 import math
-from typing import Callable, Tuple, Any
+from typing import Callable, Tuple, Any, Optional
 
 from pavilion.micro import set_default
 
@@ -32,15 +32,17 @@ class RateLimiter:
         return (False, None)
 
 
-def wait(cond: Callable[[], bool], interval: float,
-            timeout: float = None, msg: str = None) -> None:
+def wait(cond: Callable[[], bool], interval: float, timeout: Optional[float] = None,
+         msg: Optional[str] = None, cond_name: Optional[str] = None) -> None:
     """Waits until the given condition becomes true before continuing execution,
     optionally timing out after the given duration."""
+
+    cond_name = set_default(cond_name, cond.__name__)
 
     timeout = set_default(timeout, math.inf)
     msg = set_default(
                 msg,
-                f"Timeout exceeded while waiting for condition \"{cond.__name__}\" to become true"
+                f"Timeout exceeded while waiting for condition \"{cond_name}\" to become true"
                 )
 
     start_time = time.time()
