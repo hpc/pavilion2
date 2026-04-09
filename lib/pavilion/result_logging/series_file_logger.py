@@ -1,5 +1,6 @@
 from pathlib import Path
 import io
+import datetime
 from typing import Dict, Optional, TextIO
 
 from pavilion.output import json_dump
@@ -37,7 +38,7 @@ class SeriesFileLoggerFactory(ResultLoggerPlugin):
                      name: Optional[str] = None,
                      outfile: Optional[TextIO] = None,
                      errfile: Optional[TextIO] = None) -> "SeriesFileResultLogger":
-        dest = Path(config.get("dest")) / f"{sid}.log"
+        dest = Path(config.get("dest")) / f"{sid}-{datetime.now().isoformat()}.log"
 
         return SeriesFileResultLogger(dest, outfile, errfile)
 
