@@ -163,18 +163,23 @@ class LoggingTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
 
+        log_path = self.pav_cfg.working_dir / "results"
         self.pav_cfg = self.make_pav_config(result_loggers= [{
                                                 "plugin": "series_file",
-                                                "dest": self.pav_cfg.working_dir/'results'}])
+                                                "dest": str(log_path)}])
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
         series = run_cmd.last_series
         series.wait_log(timeout=10)
 
-        log_path = next(iter(series.get_result_paths()))
+        matches = list(log_path.glob(f"{series.id}*"))
 
-        self.assertTrue(log_path.name.startswith(str(series.id)))
+        self.assertEqual(len(matches), 1,
+                         msg=f"Expected exactly one log file matching '{series.id}*', "
+                             f"but found {len(matches)}: {matches}")
+
+        log_path = next(iter(matches))
 
         with open(log_path) as fin:
             results = json.load(fin)
@@ -195,15 +200,13 @@ class LoggingTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
 
+        log_path = self.pav_cfg.working_dir / "results.log"
         self.pav_cfg = self.make_pav_config(result_loggers=[{
                                                 "plugin": "common_file",
-                                                "dest": self.pav_cfg.working_dir / "results.log"}])
+                                                "dest": str(log_path)}])
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
-
         series1 = run_cmd.last_series
-
-        log_path = next(iter(series1.get_result_paths()))
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series2 = run_cmd.last_series

@@ -6,7 +6,8 @@ from typing import Optional
 from pavilion import output
 from pavilion import series
 from pavilion.test_ids import SeriesID
-from pavilion.errors import TestSeriesError
+from pavilion.result_logging import get_result_loggers
+from pavilion.errors import TestSeriesError, ResultLoggerPluginError
 from .base_classes import Command
 
 
@@ -37,18 +38,25 @@ class LogResults(Command):
             series_obj = series.TestSeries.load(
                 pav_cfg,
                 args.series_id,
-                outfile=self.outfile,
-                errfile=self.errfile)
+                outfile=self.outfile)
         except TestSeriesError as err:
             output.fprint(self.errfile, f"Error loading series {args.series_id}: {err}",
                           color=output.RED)
             return 1
+
         try:
-            series_obj.log_results(timeout=args.timeout)
+            result_loggers = get_result_loggers(pav_cfg, args.series_id, self.outfile)
+        except ResultLoggerPluginError as err:
+            output.fprint(self.errfile, f"Error making result loggers: {err}", color=output.RED)
+
+            return 2
+
+        try:
+            series_obj.log_results(loggers=result_loggers, timeout=args.timeout)
         except TestSeriesError as err:
             output.fprint(self.errfile,
                           f"Error while logging results for series '{args.seriesid}': {err}.",
                           color=output.RED)
-            return 2
+            return 3
 
         return 0

@@ -39,6 +39,7 @@ class SeriesFileLoggerFactory(ResultLoggerPlugin):
                      name: Optional[str] = None,
                      outfile: Optional[TextIO] = None,
                      errfile: Optional[TextIO] = None) -> "SeriesFileResultLogger":
+
         dest = Path(config.get("dest")) / f"{sid}-{datetime.now().isoformat()}.log"
 
         return SeriesFileResultLogger(dest, outfile, errfile)

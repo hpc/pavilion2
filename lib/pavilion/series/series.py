@@ -141,11 +141,6 @@ class TestSeries:
         self.test_id_counter = TestIDCounter(self.id, test_runs_path)
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
 
-        try:
-            self.result_loggers = get_result_loggers(pav_cfg, self.id, self.outfile)
-        except ResultLoggerPluginError as err:
-            raise TestSeriesError("Error loading result loggers.", err)
-
         self.log_proc = None
 
     def run_background(self):
@@ -546,12 +541,15 @@ class TestSeries:
 
         # Completion will be set when looked for.
 
-    def log_results(self, loggers: List["ResultLogger"] = None,
+    def log_results(self, loggers: List["ResultLogger"],
                     timeout: Optional[int] = None, sleep_time: float = 0.2) -> int:
         """Log the results of each test in the series as tests complete. Returns the total number
         of tests logged."""
 
-        loggers = set_default(loggers, self.result_loggers)
+        if len(loggers) == 0:
+            output.fprint(self.outfile, "No loggers registered.")
+
+            return 0
 
         # Time out eventually so we don't end up with rogue processes
         timeout_time = set_default(timeout, math.inf) + time.time()
@@ -862,17 +860,6 @@ class TestSeries:
                 with json_file.open('w') as json_series_file:
                     data[sys_name] = str(self.id)
                     json_series_file.write(json.dumps(data))
-
-    def get_result_paths(self) -> List[Path]:
-        """Get all results log paths."""
-
-        paths = []
-
-        for logger in self.result_loggers:
-            if hasattr(logger, "dest"):
-                paths.append(logger.dest)
-
-        return paths
 
     @property
     def timestamp(self):

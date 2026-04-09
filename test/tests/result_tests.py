@@ -1104,7 +1104,14 @@ class ResultParserTests(PavTestCase):
         series1.wait(10)
         series1.wait_log(10)
 
-        result_log1 = series1.get_result_paths()[0]
+        log_path = self.pav_cfg.working_dir / "results"
+        matches = list(log_path.glob(f"{series1.id}*"))
+
+        self.assertEqual(len(matches), 1,
+                         msg=f"Expected exactly one log file matching '{series1.id}*', "
+                             f"but found {len(matches)}: {matches}")
+
+        result_log1 = next(iter(matches))
 
         flattened = {}
 
@@ -1133,6 +1140,7 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
 
         series2 = run_cmd.last_series
+        series1.outfile = io.StringIO()
 
         loggers = get_result_loggers(self.pav_cfg, str(series2.id))
         series2.log_results(loggers)
@@ -1140,7 +1148,13 @@ class ResultParserTests(PavTestCase):
         series2.wait()
         series2.wait_log()
 
-        result_log2 = series2.get_result_paths()[0]
+        matches = list(log_path.glob(f"{series2.id}*"))
+
+        self.assertEqual(len(matches), 1,
+                         msg=f"Expected exactly one log file matching '{series2.id}*', "
+                             f"but found {len(matches)}: {matches}")
+
+        result_log2 = next(iter(matches))
 
         unflattened = {}
 
