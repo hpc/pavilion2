@@ -9,11 +9,14 @@ RELEASE=2.6
   configuration directories were used.
 - Fixed a bug in which the wrong suite was sometimes loaded when suites with the same name existed
   in different config directories.
+<<<<<<< HEAD
 - Fixed a bug that caused the build and run commands to sometimes leave behind orphan processes
   on timeout or cancellation.
 - Fixed a bug that that caused Spack to issue a traceback due to running in a non-interactive
   context.
 - Fixed a bug in which series file result loggers were not writing result logs.
+=======
+>>>>>>> d6b18738 (Remove incorrect release note)
 - Fixed a bug in which result logging sometimes created rogue processes. Result logging processes
   now time out after one hour if no new results have been detected.
 - Log files created by series file loggers are now named with both the series ID and date and time
