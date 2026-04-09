@@ -79,7 +79,6 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
     @abstractmethod
     def validate_config(self, config: Dict) -> None:
         """Validate the result logger config."""
-        pass
 
     @abstractmethod
     def _make_logger(self,
@@ -89,7 +88,6 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
                      outfile: Optional[TextIO] = None,
                      errfile: Optional[TextIO] = None) -> "ResultLogger":
         """Create the result logger from the given config and series ID."""
-        pass
 
     def make_logger(self,
                     config: Dict,
@@ -140,7 +138,8 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 class ResultLogger(ABC):
     """Abstract base class for all result loggers."""
 
-    def __init__(self, name: Optional[str] = None, outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
+    def __init__(self, name: Optional[str] = None,
+                 outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
         self.outfile = outfile or io.StringIO()
         self.errfile = errfile or io.StringIO()
 

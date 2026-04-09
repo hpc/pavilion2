@@ -583,7 +583,7 @@ class TestSeries:
 
         if self.complete:
             output.fprint(self.outfile, f"Series {self.id} has completed. Finishing up logging....")
-        elif time.time < timeout_time:
+        elif time.time() < timeout_time:
             output.fprint(self.errfile,
                           f"Timed out waiting for series {self.id} to complete "
                           f"after {timeout} seconds. Finishing up logging...",
@@ -601,7 +601,8 @@ class TestSeries:
 
         logged |= to_log
 
-        output.fprint(self.outfile, f"Finished logging results. Logged {len(logged)} test(s) total.")
+        output.fprint(self.outfile,
+                      f"Finished logging results. Logged {len(logged)} test(s) total.")
 
         return len(logged)
 

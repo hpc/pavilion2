@@ -51,7 +51,7 @@ class SeriesFileResultLogger(ResultLogger):
         self.dest = dest
         self.dest.parent.mkdir(exist_ok=True)
 
-    def log(self, results: Dict) -> None:
+    def _log(self, results: Dict) -> None:
         """Log a test's results dictionary."""
 
         try:

@@ -60,7 +60,7 @@ class CommonFileResultLogger(ResultLogger):
 
         self.outfile = outfile or io.StringIO()
 
-    def log(self, results: Dict) -> None:
+    def _log(self, results: Dict) -> None:
         try:
             with Lock(self.dest.parent / "results.lock", default_timeout=10, lifetime=3):
                 with open(self.dest, "a") as fout:
