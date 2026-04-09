@@ -29,7 +29,7 @@ from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
 from pavilion.status_file import SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun
-from pavilion.micro import partition, do, listfilter, stardo, flatten
+from pavilion.micro import partition, do, listfilter, stardo, flatten, set_default
 from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.counter import SeriesIDCounter, TestIDCounter
@@ -62,6 +62,7 @@ class TestSeries:
     LOG_RESULTS_LOG_FN = "log_results.log"
     TEST_RUNS_DIRNAME = "test_runs"
     SERIES_DIRNAME = "series"
+    SECS_PER_HOUR = 60 * 60
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
@@ -455,7 +456,8 @@ class TestSeries:
         if log_results:
             try:
                 # Create a new process to log test results as tests complete
-                log_res_args = [pav_exe, '_log_results', str(self.id)]
+                log_res_args = [pav_exe, '_log_results', str(self.id), "--timeout",
+                                str(self.SECS_PER_HOUR)]
 
                 with open(self.path / self.LOG_RESULTS_LOG_FN, "w") as log_results_log:
                     self.log_proc = subprocess.Popen(
@@ -463,7 +465,7 @@ class TestSeries:
                                                 start_new_session=True,
                                                 env=env,
                                                 stdout=log_results_log,
-                                                stderr=subprocess.STDOUT)
+                                                stderr=log_results_log)
             except OSError as err:
                 raise TestSeriesError(
                     "Could not start result logger in the background for series '{}'."
@@ -544,12 +546,15 @@ class TestSeries:
 
         # Completion will be set when looked for.
 
-    def log_results(self, loggers: List["ResultLogger"] = None) -> int:
+    def log_results(self, loggers: List["ResultLogger"] = None,
+                    timeout: Optional[int] = None, sleep_time: float = 0.2) -> int:
         """Log the results of each test in the series as tests complete. Returns the total number
         of tests logged."""
 
-        if loggers is None:
-            loggers = self.result_loggers
+        loggers = set_default(loggers, self.loggers)
+
+        # Time out eventually so we don't end up with rogue processes
+        timeout_time = set_default(timeout, math.inf) + time.time()
 
         if self.pav_cfg.get("flatten_results"):
             output.fprint(self.outfile, "Flattening results...")
@@ -561,25 +566,28 @@ class TestSeries:
 
         logged = set()
 
-        while not (self.complete or self.check_cancelled()):
+        while not (self.complete or self.check_cancelled()) and time.time() < timeout_time:
             to_log = set(self.get_completed()) - logged
 
-            output.fprint(self.outfile, f"Found {len(to_log)} completed test(s) to log.")
+            if len(to_log) > 0:
+                # Reset timeout when new tests complete
+                timeout_time = set_default(timeout, math.inf) + time.time()
+                output.fprint(self.outfile, f"Found {len(to_log)} completed test(s) to log.")
 
             # Apply all loggers to all tests ready to log
+            stardo(log, product(loggers, to_log))
+            logged |= to_log
+            output.fprint(self.outfile, f"Logged {len(to_log)} test(s) ({len(logged)} total).")
 
-            try:
-                stardo(log, product(loggers, to_log))
-                logged |= to_log
-                output.fprint(self.outfile, f"Logged {len(to_log)} test(s) ({len(logged)} total).")
-            except TimeoutError:
-                output.fprint(self.outfile, "Timed out waiting on lock for results log.",
-                              color=output.RED)
-
-            time.sleep(0.2)
+            time.sleep(sleep_time)
 
         if self.complete:
             output.fprint(self.outfile, f"Series {self.id} has completed. Finishing up logging....")
+        elif time.time < timeout_time:
+            output.fprint(self.errfile,
+                          f"Timed out waiting for series {self.id} to complete "
+                          f"after {timeout} seconds. Finishing up logging...",
+                          color=output.RED)
         else:
             output.fprint(self.outfile,
                           f"Series {self.id} has been cancelled. Finishing up logging....")
@@ -593,8 +601,7 @@ class TestSeries:
 
         logged |= to_log
 
-        output.fprint(self.outfile, f"Finished logging results. "
-                                     "Logged {len(logged)} test(s) total.")
+        output.fprint(self.outfile, f"Finished logging results. Logged {len(logged)} test(s) total.")
 
         return len(logged)
 

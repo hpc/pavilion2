@@ -1,12 +1,14 @@
 import re
 import logging
 import inspect
+import io
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Set, Optional, TextIO
 
 from yapsy import IPlugin
 
+from pavilion import output
 from pavilion.errors import ResultLoggerPluginError
 
 
@@ -24,7 +26,8 @@ def get_plugin(name: str) -> Optional["ResultOutputPlugin"]:
 
 def get_result_loggers(pav_cfg: "PavConfig",
                        sid: str,
-                       outfile: Optional[TextIO] = None) -> Set["ResultLogger"]:
+                       outfile: Optional[TextIO] = None,
+                       errfile: Optional[TextIO] = None) -> Set["ResultLogger"]:
     """Get all result logger instances defined in the given Pavilion config."""
 
     loggers = set()
@@ -37,7 +40,8 @@ def get_result_loggers(pav_cfg: "PavConfig",
             raise ResultLoggerPluginError(
                 f"No result logger plugin found with name '{plugin_name}'")
 
-        loggers.add(factory.make_logger(log_config, sid, outfile))
+        loggers.add(factory.make_logger(log_config, sid, name=None,
+                    outfile=outfile, errfile=errfile))
 
     return loggers
 
@@ -56,7 +60,8 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__(self, name: str, description: str, priority=PRIO_COMMON):
+    def __init__(self, name: str, description: str, priority: int = PRIO_COMMON,
+                 outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
         super().__init__()
 
         if self.NAME_VERS_RE.match(name) is None:
@@ -68,28 +73,35 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
         self.help_text = description
         self.priority = priority
         self.path = inspect.getfile(self.__class__)
+        self.outfile = outfile
+        self.errfile = errfile
 
     @abstractmethod
     def validate_config(self, config: Dict) -> None:
-        raise NotImplementedError
+        """Validate the result logger config."""
+        pass
 
     @abstractmethod
     def _make_logger(self,
                      config: Dict,
                      sid: str,
-                     outfile: Optional[TextIO] = None) -> "ResultLogger":
+                     name: Optional[str] = None,
+                     outfile: Optional[TextIO] = None,
+                     errfile: Optional[TextIO] = None) -> "ResultLogger":
         """Create the result logger from the given config and series ID."""
-        raise NotImplementedError
+        pass
 
     def make_logger(self,
                     config: Dict,
                     sid: str,
-                    outfile: Optional[TextIO] = None) -> "ResultLogger":
+                    name: Optional[str] = None,
+                    outfile: Optional[TextIO] = None,
+                    errfile: Optional[TextIO] = None) -> "ResultLogger":
         """Validate the config and create the result logger."""
 
         self.validate_config(config)
 
-        return self._make_logger(config, sid, outfile)
+        return self._make_logger(config, sid, name, outfile, errfile)
 
     def activate(self):
         """Add this plugin to the result output plugin list."""
@@ -128,10 +140,30 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 class ResultLogger(ABC):
     """Abstract base class for all result loggers."""
 
-    @abstractmethod
+    def __init__(self, name: Optional[str] = None, outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
+        self.outfile = outfile or io.StringIO()
+        self.errfile = errfile or io.StringIO()
+
+        if name is None:
+            self.name = type(self).__name__
+        else:
+            self.name = name
+
     def log(self, results: Dict) -> None:
         """Log a test's results dictionary."""
-        raise NotImplementedError
+
+        output.fprint(self.outfile, f"{self.name}: Logging {results} to {self.dest}...")
+
+        try:
+            self._log(results)
+        except ResultLoggerPluginError as err:
+            output.fprint(self.errfile,
+                          f"{self.name}: Error logging results: {err}.",
+                          color=output.RED)
+
+    @abstractmethod
+    def _log(self, results: Dict) -> None:
+        pass
 
     def __call__(self, results: Dict) -> None:
         self.log(results)

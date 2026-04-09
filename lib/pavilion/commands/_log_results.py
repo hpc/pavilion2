@@ -11,7 +11,8 @@ from .base_classes import Command
 
 
 class LogResults(Command):
-    """Command to kickoff series."""
+    """Command to log the results of a series on. Intended to be run in a child process of
+    the series object's process."""
 
     def __init__(self):
         super().__init__(
@@ -22,9 +23,11 @@ class LogResults(Command):
     def _setup_arguments(self, parser: "ArgParser") -> None:
         """Sets up arguments for _log_series command. Only needs series ID."""
 
-        parser.add_argument(
-            'series_id', type=SeriesID, action='store',
-            help="Series ID."
+        parser.add_argument('series_id', type=SeriesID, action='store',
+                            help="Series ID of the series whose tests will be logged.")
+        parser.add_argument("-t", "--timeout", type=int, action="store", default=None,
+                            help="Timeout value, in seconds, after which the process will "
+                                 " terminate if no new tests complete. Defaults to no timeout."
         )
 
     def run(self, pav_cfg: "PavConfig", args: "Namespace") -> Optional[int]:
@@ -34,15 +37,18 @@ class LogResults(Command):
             series_obj = series.TestSeries.load(
                 pav_cfg,
                 args.series_id,
-                outfile=self.outfile)
+                outfile=self.outfile,
+                errfile=self.errfile)
         except TestSeriesError as err:
-            output.fprint(self.outfile, "Error in _log_results cmd.", err)
-            sys.exit(1)
+            output.fprint(self.errfile, f"Error loading series {args.series_id}: {err}",
+                          color=output.RED)
+            return 1
         try:
-            series_obj.log_results()
+            series_obj.log_results(timeout=args.timeout)
         except TestSeriesError as err:
             output.fprint(self.errfile,
-                "Error while logging results for series '{}'.".format(args.series_id))
-            output.fprint(self.errfile, err.pformat())
+                          f"Error while logging results for series '{args.seriesid}': {err}.",
+                          color=output.RED)
+            return 2
 
         return 0
