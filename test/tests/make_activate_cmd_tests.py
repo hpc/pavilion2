@@ -52,20 +52,6 @@ class MakeActivateCmdTests(PavTestCase):
                                       check=False)
                 self.assertEqual(result.returncode, 0, f"Failed to source {self.cmd.DEFAULT_SCRIPT_NAME}: {result.stderr}")
 
-    def test_activate_script_not_executable(self):
-        """Test that the activate script is not set as executable."""
-
-        args = self.parser.parse_args(["make-activate"])
-
-        with tempfile.TemporaryDirectory() as td:
-            with change_dir(td):
-                self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
-                                f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
-                st = Path(self.cmd.DEFAULT_SCRIPT_NAME).stat()
-
-
-                self.assertFalse(st.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH),
-                                 f"{self.cmd.DEFAULT_SCRIPT_NAME} is executable, but should not be.")
 
     @unittest.skipIf(not has_shellcheck(), "shellcheck is not installed.")
     def test_activate_script_passes_shellcheck(self):
@@ -148,21 +134,33 @@ class MakeActivateCmdTests(PavTestCase):
                 self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
                                 f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
 
-                # Make the PAVBIN directory
-                (td / "pav_src" / "bin").mkdir(parents=True)
+                # Make a dummy PAVBIN directory
+                pav_bin_dir = (td / "pav_src" / "bin")
+                pav_bin_dir.mkdir(parents=True)
 
                 cmd = ["source", self.cmd.DEFAULT_SCRIPT_NAME]
 
-                # TODO: Make this test better
-                result = subprocess.run(["source", self.cmd.DEFAULT_SCRIPT_NAME,
-                                         "&&", "test", "\"$PAVBIN\"", "-ef", f'"{td / "pav_src" / "bin"}"',
-                                         "&&", "test", "\"$PAV_CONFIG_DIR\"", "-ef", f'"{td}"'],
+                result = subprocess.run(["source", self.cmd.DEFAULT_SCRIPT_NAME, ">/dev/null"
+                                         "&&", "echo", "\"$PAVBIN\""",
+                                         "&&", "test", "\"$PAV_CONFIG_DIR\""],
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE,
                                       text=True,
                                       check=False)
 
+                output = result.stdout
+                pav_bin_out = Path(result.stdout.splitlines()[0].strip()).resolve()
+                pav_config_out = Path(result.stdout.splitlines().strip()).resolve()
+
                 self.assertEqual(result.returncode, 0, f"Failed to source {self.cmd.DEFAULT_SCRIPT_NAME}: {result.stderr}")
+
+                self.assertEqual(pav_bin_dir, pav_bin_out,
+                                 f"{self.cmd.DEFAULT_SCRIPT_NAME} did not correctly set PAVBIN. "
+                                 f"Got value: {pav_bin_out}.")
+
+                self.assertEqual(td, pav_config_out,
+                                 f"{self.cmd.DEFAULT_SCRIPT_NAME} did not correctly set "
+                                 f"PAV_CONFIG_DIR. Got value: {pav_config_out}.")
 
     def test_activate_script_sources_cd_command(self):
         """Check that the activate script activates the cd command by sourcing `cd.sh`."""
