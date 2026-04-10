@@ -330,11 +330,20 @@ class StatusCmdTests(PavTestCase):
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
+        errfile = status_cmd.errfile
 
         # Choose a big number so we don't collide with other tests
-        test = self._quick_test(test_id=TestID("s1000000.1"))
+        test_id = TestID("s1000000.1")
+        test = self._quick_test(test_id=test_id)
+
+        # Create the correct directories that the series object would make
+        (self.pav_cfg.working_dir / "series" / str(test_id.series.as_int()) / "test_runs").mkdir(parents=True)
+        (self.pav_cfg.working_dir / "series" / str(test_id.series.as_int()) / "test_runs" / str(test_id)).symlink_to(test.path)
+
         raw = schedulers.get_plugin('raw')
         raw.schedule_tests(self.pav_cfg, [test])
 
-        args = parser.parse_args(["s1000000.1"])
-        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+        args = parser.parse_args([str(test.id)])
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav status {test_id} failed with the following error:\n "
+                             f"{errfile.getvalue()}")

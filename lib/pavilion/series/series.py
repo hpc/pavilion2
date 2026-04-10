@@ -818,7 +818,7 @@ class TestSeries:
         test_run_path = self.path / self.TESTRUN_DIRNAME
 
         (set_path / str(test.id)).symlink_to(test.path)
-        (test.path / "series").symlink_to(self.path)
+        (test.path / self.SERIES_DIRNAME).symlink_to(self.path)
 
         # Create symlinks directly to test runs, so we don't have to know which test set they're in
         test_run_path.mkdir(exist_ok=True)
