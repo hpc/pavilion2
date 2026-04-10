@@ -453,8 +453,12 @@ class TestSeries:
         if log_results:
             try:
                 # Create a new process to log test results as tests complete
-                log_res_args = [pav_exe, '_log_results', str(self.id), "--timeout",
-                                str(SECS_PER_HOUR)]
+                log_res_args = [pav_exe, '_log_results', str(self.id)]
+
+                logger_timeout = self.pav_cfg.result_logger_timeout
+
+                if logger_timeout is not None:
+                    log_res_args.extend(["--timeout", str(logger_timeout)])
 
                 with open(self.path / self.LOG_RESULTS_LOG_FN, "w") as log_results_log:
                     self.log_proc = subprocess.Popen(

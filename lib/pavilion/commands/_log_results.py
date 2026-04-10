@@ -27,12 +27,20 @@ class LogResults(Command):
         parser.add_argument('series_id', type=SeriesID, action='store',
                             help="Series ID of the series whose tests will be logged.")
         parser.add_argument("-t", "--timeout", type=int, action="store", default=None,
-                            help="Timeout value, in seconds, after which the process will "
-                                 " terminate if no new tests complete. Defaults to no timeout."
+                            help="Timeout value, in seconds, after which the result logging "
+                                 "process will  terminate if no new tests complete. Defaults to "
+                                 "no timeout."
         )
 
     def run(self, pav_cfg: "PavConfig", args: "Namespace") -> Optional[int]:
         """Loads series object from directory and runs series."""
+
+        if args.timeout is not None and args.timeout <= 0:
+            output.fprint(self.errfile,
+                          "Result logger timeout must be a positive integer. "
+                          f"Recieved: {args.timeout}.")
+
+            return 1
 
         try:
             series_obj = series.TestSeries.load(
@@ -42,14 +50,14 @@ class LogResults(Command):
         except TestSeriesError as err:
             output.fprint(self.errfile, f"Error loading series {args.series_id}: {err}",
                           color=output.RED)
-            return 1
+            return 2
 
         try:
             result_loggers = get_result_loggers(pav_cfg, args.series_id, self.outfile)
         except ResultLoggerPluginError as err:
             output.fprint(self.errfile, f"Error making result loggers: {err}", color=output.RED)
 
-            return 2
+            return 3
 
         try:
             series_obj.log_results(loggers=result_loggers, timeout=args.timeout)
@@ -57,6 +65,6 @@ class LogResults(Command):
             output.fprint(self.errfile,
                           f"Error while logging results for series '{args.seriesid}': {err}.",
                           color=output.RED)
-            return 3
+            return 4
 
         return 0
