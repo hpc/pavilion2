@@ -1,4 +1,2 @@
 default_results:
     def_results_test: '{{pav.user}}'
-
-result_logger_timeout: None
