@@ -17,31 +17,82 @@ jobs:
       HEAD_BRANCH: stable
       REMOTE: origin
       STAGING_BRANCH: ci/sync-stable-to-develop
+      PR_BODY_FILE: pr_body.md
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout Pavilion repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ env.HEAD_BRANCH }}
           fetch-depth: 0
 
-      - name: Create (or reset) staging branch off of ${{ env.BASE_BRANCH }} to prepare merge
+      - name: Check if an open pull request exists from ${{ env.STAGING_BRANCH }} to ${{ env.BASE_BRANCH }}
+        id: check-open-pr
         run: |
-          git checkout -B ${{ env.STAGING_BRANCH }}
-          git push -f ${{ env.REMOTE }} ${{ env.STAGING_BRANCH}}
+          open_pr="$(gh pr list \
+            --base ${{ env.BASE_BRANCH }} \
+            --head ${{ env.STAGING_BRANCH }} \
+            --json number \
+            --jq '.[0].number')"
 
-      - name: Create pull request from ${{ env.HEAD_BRANCH }} to ${{ env.BASE_BRANCH }}
-        uses: peter-evans/create-pull-request@v8
-        with:
-          base: ${{ env.BASE_BRANCH }}
-          branch: ${{ env.STAGING_BRANCH }}
-          commit-message: "Sync `${{ env.HEAD_BRANCH}}` into `${{ env.BASE_BRANCH }}`"
-          title: "Sync `${{ env.HEAD_BRANCH }}` into `${{ env.BASE_BRANCH}}`"
-          body: |
-            **This PR was generated automatically by the `sync-stable` workflow because changes
-            were pushed to the `${{ env.HEAD_BRANCH }}` branch. Please review if carefully.**
+          if [ -n "$open_pr" ]; then
+            echo "An open PR already exists: #$open_pr"
+            echo "open_pr=$open_pr" > "$GITHUB_OUTPUT"
+            exit 1
+          fi
 
-            This PR proposes merging the latest changes from `${{ env.HEAD_BRANCH }}` into
-            `${{ env.BASE_BRANCH }}`. It requires a human developer to actually perform the merge.
+          echo "open_pr=" > "$GITHUB_OUTPUT"
 
-          delete-branch: true
+      - name: Write file for pull request body
+        run: |
+          echo '**This PR was generated automatically by the `sync-stable` workflow because changes' >> ${{ env.PR_BODY_FILE }}
+          echo 'were pushed to the `${{ env.HEAD_BRANCH }}` branch. Please review if carefully.**' >> ${{ env.PR_BODY_FILE }}
+          echo
+          echo 'This PR proposes merging the latest changes from `${{ env.HEAD_BRANCH }}` into' >> ${{ env.PR_BODY_FILE }}
+          echo '`${{ env.BASE_BRANCH }}` (via a staging branch). It may require a human developer' >> ${{ env.PR_BODY_FILE}}
+          echo 'to actually perform the merge.' >> ${{ env.PR_BODY_FILE }}
+
+      - name: Create pull request from ${{ env.STAGING_BRANCH }} to ${{ env.BASE_BRANCH }}
+        id: new-pr
+        run: |
+          new_pr="$gh pr create \
+            --base ${{ env.BASE_BRANCH }} \
+            --head ${{ env.STAGING_BRANCH }} \
+            --title "Sync `${{ env.HEAD_BRANCH }}` into `${{ env.BASE_BRANCH}}`" \
+            --body-file ${{ env.PR_BODY_FILE}} \
+            --json number --jq '.number')"
+
+          echo "new_pr=$new_pr" >> "$GITHUB_OUTPUT"
+
+      - name: Attempt to merge ${{ env.BASE_BRANCH }} into ${{ env.STAGING_BRANCH }}
+        id: merge
+        if: always()
+        run: |
+          git checkout -B ${{ env.STAGING_BRANCH }} ${{ env.HEAD_BRANCH}}
+
+          if git merge --no-commit --no-ff ${{ env.BASE_BRANCH }}; then
+            git commit -m "Sync `${{ env.HEAD_BRANCH}}` into `${{ env.BASE_BRANCH }}`"
+            retcode=0
+          else
+            git merge --abort
+            retcode=1
+          fi
+
+          # This will reset the branch to its original state if the merge failed
+          git push -u ${{ env.REMOTE }} ${{ env.STAGING_BRANCH}} --force-with-lease
+
+          exit $retcode
+
+      - name: Notify of failed merge
+        if: steps.merge.outcome == 'failure'
+        env:
+          OPEN_PR: "${{ steps.check-open-pr.outputs.open_pr }}"
+          NEW_PR: "${{ steps.new-pr.outputs.new_pr }}"
+        run: |
+          if [ -n "$OPEN_PR"]; then
+            pr="$OPEN_PR"
+          else
+            pr="$NEW_PR"
+          fi
+
+          gh pr comment "$pr" --body "Automatic merge failed. Please checkout ${{ env.BASE_BRANCH }} and perform the merge manually."
