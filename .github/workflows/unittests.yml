@@ -116,7 +116,7 @@ jobs:
             pip install -r docs/requirements.txt
 
       - name: Install shellcheck
-        run: apt-get install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
 
       - name: Create Pavilion application-level config
         run: |
@@ -168,7 +168,7 @@ jobs:
             pip install -r docs/requirements.txt
 
       - name: Install shellcheck
-        run: apt-get install shellcheck
+        run: apt-get update && apt-get install -y shellcheck
 
       - name: Create bash symlink at /usr/bin/bash
         # This is necessary because Pavilion's default shebang is /usr/bin/bash
