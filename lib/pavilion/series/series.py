@@ -43,6 +43,9 @@ from . import common
 from flufl.lock import Lock
 
 
+SECS_PER_HOUR = 60 * 60
+
+
 class TestSeries:
     """Series are a well defined collection of tests, potentially with
     relationships, skip conditions, and other features by test set. The test runs
@@ -62,7 +65,6 @@ class TestSeries:
     LOG_RESULTS_LOG_FN = "log_results.log"
     TEST_RUNS_DIRNAME = "test_runs"
     SERIES_DIRNAME = "series"
-    SECS_PER_HOUR = 60 * 60
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
                  verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
@@ -452,7 +454,7 @@ class TestSeries:
             try:
                 # Create a new process to log test results as tests complete
                 log_res_args = [pav_exe, '_log_results', str(self.id), "--timeout",
-                                str(self.SECS_PER_HOUR)]
+                                str(SECS_PER_HOUR)]
 
                 with open(self.path / self.LOG_RESULTS_LOG_FN, "w") as log_results_log:
                     self.log_proc = subprocess.Popen(
@@ -547,7 +549,7 @@ class TestSeries:
         of tests logged."""
 
         if len(loggers) == 0:
-            output.fprint(self.outfile, "No loggers registered.")
+            output.fprint(self.outfile, "No loggers registered. Exiting...")
 
             return 0
 
@@ -570,7 +572,9 @@ class TestSeries:
             if len(to_log) > 0:
                 # Reset timeout when new tests complete
                 timeout_time = set_default(timeout, math.inf) + time.time()
-                output.fprint(self.outfile, f"Found {len(to_log)} completed test(s) to log.")
+                output.fprint(self.outfile,
+                              f"Found {len(to_log)} completed test(s) to log: "
+                              f"{[x.id for x in to_log]}.")
 
             # Apply all loggers to all tests ready to log
             stardo(log, product(loggers, to_log))
