@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+from pavilion import output
 from pavilion.config import PavConfig
 from pavilion.scriptcomposer import ScriptComposer
 from .base_classes import Command
@@ -23,7 +24,7 @@ class MakeActivateCommand(Command):
         """Setup the argument parser for the `make-activate` command."""
 
         parser.add_argument("dest",
-                            help="Location in which to save the script. "
+                            help="Directory in which to save the script. "
                                  "Defaults to the current directory.",
                             type=Path, default=Path("."), nargs="?")
         parser.add_argument("-n", "--name",
@@ -40,8 +41,11 @@ class MakeActivateCommand(Command):
                             help="Name of the Pavilion source directory. If none is provided, "
                                  "defaults to using the name of the root directory of the current "
                                  "Pavilion repository.")
+        parser.add_argument("-f", "--force",
+                            help="Forcibly overwrite the file, if a file with that name "
+                                 "already exists.")
 
-    def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
+    def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Run the `make-activate` command."""
 
         script_path = args.dest / args.name
@@ -106,4 +110,18 @@ class MakeActivateCommand(Command):
         script.command(f"echo \"  PAV COMMIT     -- $(cd ${{PAV_CONFIG_DIR}}/{pav_bin_dir} "
                        "&& git rev-parse HEAD)\"")
 
-        script.write(script_path)
+        if script_path.exists() and not args.force:
+            output.fprint(self.errfile, f"File {args.name} already exists. Refusing to overwrite it. "
+                                      "Use pav make-activate --force to overwrite.")
+
+            return 1
+
+        try:
+            script.write(script_path)
+        except OSError as err:
+            # TODO: Don't print the traceback
+            output.fprint(self.errfile, f"Error writing {script_path}: {err}")
+
+            return 1
+
+        return 0
