@@ -11,6 +11,8 @@ RELEASE=2.6
   - Delayed resolution of paths in generated `activate.sh` script until script is run.
   - Added additional options for `pav make-activate`. Run `pav make-activate --help` for more
     information.
+  - Removed `--umask` argument from `pav make-activate`. The umask should instead be set in
+    `pavilion.yaml`.
 
 ## 2.6.1 Pre-Release Notes
 

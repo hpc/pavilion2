@@ -34,9 +34,6 @@ class MakeActivateCommand(Command):
                             help="Config directory location. If none is provided, the script "
                                  "derives the value from the directory in which it is run.",
                             type=Path)
-        parser.add_argument("-u", "--umask",
-                            help="Umask value to set in the script. "
-                                  "Defaults to using the umask defined in pavilion.yaml")
         parser.add_argument("-p", "--pav-src",
                             help="Name of the Pavilion source directory. If none is provided, "
                                  "defaults to using the name of the root directory of the current "
@@ -61,9 +58,6 @@ class MakeActivateCommand(Command):
 
         # Don't write a shebang, since the script will be sourced
         script = ScriptComposer(header=None)
-
-        script.command(f"umask {args.umask}")
-        script.newline()
 
         if args.config_dir is None:
             script.command("this_dir=$(readlink -f \"$(dirname \"${BASH_SOURCE[0]}\")\")")
