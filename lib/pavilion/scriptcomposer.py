@@ -56,8 +56,8 @@ class ScriptHeader:
 class ScriptComposer:
     """Manages the building of bash scripts for Pavilion."""
 
-    self.EXECUTABLE = 0o110
-    self.NOT_EXECUTABLE = 0o666
+    EXECUTABLE = 0o110
+    NOT_EXECUTABLE = 0o666
 
     def __init__(self, header=None):
         """Function to initialize the class and the default values for all of
