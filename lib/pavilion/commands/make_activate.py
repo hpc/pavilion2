@@ -19,6 +19,7 @@ class MakeActivateCommand(Command):
             "Make the bash script to activate Pavilion.",
             short_help="Make Pavilion activation script"
         )
+        self.this_pav_src=args.pav_src = Path(__file__).parents[3].name
 
     def _setup_arguments(self, parser: ArgumentParser) -> None:
         """Setup the argument parser for the `make-activate` command."""
@@ -31,19 +32,17 @@ class MakeActivateCommand(Command):
                             help="Config directory location. If none is provided, the script "
                                  "derives the value from the directory in which it is run.",
                             type=Path)
-        parser.add_argument("-p", "--pav-src",
-                            help="Name of the Pavilion source directory. If none is provided, "
-                                 "defaults to using the name of the root directory of the current "
-                                 "Pavilion repository.")
+        parser.add_argument("-p", "--pav-src", type=Path, default=self.this_pav_src
+                            help="Path to the Pavilion source directory. If none is provided, "
+                                 "defaults to a subdirectory of directory in which the script is "
+                                 "run, with the same names as the root directory of the current "
+                                 f"Pavilion repository (currently {self.this_pav_src}).")
         parser.add_argument("-f", "--force",
                             help="Forcibly overwrite the file, if a file with that name "
                                  "already exists.")
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Run the `make-activate` command."""
-
-        if args.pav_src is None:
-            args.pav_src = Path(__file__).parents[3].name
 
         pav_bin_dir = f"{args.pav_src}/bin"
         pav_cd_path = f"{args.pav_src}/{str(self.PAV_CD_PATH)}"
@@ -106,7 +105,7 @@ class MakeActivateCommand(Command):
             script.write(args.file)
         except OSError as err:
             # TODO: Don't print the traceback
-            output.fprint(self.errfile, f"Error writing {script_path}: {err}")
+            output.fprint(self.errfile, f"Error writing {args.file}: {err}")
 
             return 1
 
