@@ -96,7 +96,7 @@ class MakeActivateCommand(Command):
                        "&& git rev-parse HEAD)\"")
 
         if args.file.exists() and not args.force:
-            output.fprint(self.errfile, f"File {args.name} already exists. Refusing to overwrite "
+            output.fprint(self.errfile, f"File {args.file} already exists. Refusing to overwrite "
                                         "it. Use pav make-activate --force to overwrite.")
 
             return 1
