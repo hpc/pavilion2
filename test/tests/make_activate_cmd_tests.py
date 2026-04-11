@@ -10,9 +10,6 @@ from pavilion import arguments
 from pavilion.unittest import PavTestCase
 
 
-def has_shellcheck() -> bool:
-    return shutil.which("shellcheck") is not None
-
 class MakeActivateCmdTests(PavTestCase):
     """Test the make-activate command."""
 
@@ -56,26 +53,6 @@ class MakeActivateCmdTests(PavTestCase):
                                 check=False)
 
         self.assertEqual(result.returncode, 0, f"Failed to source {self.cmd.DEFAULT_SCRIPT_NAME}: {result.stderr}")
-
-
-    @unittest.skipIf(not has_shellcheck(), "shellcheck is not installed.")
-    def test_activate_script_passes_shellcheck(self):
-        """Test that the activate script passes shellcheck."""
-
-        args = self.parser.parse_args(["make-activate"])
-
-        self.assertEqual(self.cmd.run(self.pav_cfg, args), 0,
-                        f"make-activate failed with the following error: {self.cmd.errfile.getvalue()}")
-
-        result = subprocess.run(
-            ["shellcheck", self.cmd.DEFAULT_SCRIPT_NAME],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            check=False,
-        )
-
-        self.assertEqual(result.returncode, 0, f"shellcheck failed with the following error: {result.stderr}")
 
     def test_activate_script_shared_group(self):
         """Check that the activate script has the correct shared group."""
