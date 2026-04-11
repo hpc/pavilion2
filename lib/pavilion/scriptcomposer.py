@@ -56,6 +56,9 @@ class ScriptHeader:
 class ScriptComposer:
     """Manages the building of bash scripts for Pavilion."""
 
+    self.EXECUTABLE = 0o110
+    self.NOT_EXECUTABLE = 0o666
+
     def __init__(self, header=None):
         """Function to initialize the class and the default values for all of
         the variables.
@@ -64,7 +67,7 @@ class ScriptComposer:
             that simply adds ``#!/bin/bash`` as the file header.
         """
 
-        self.header = header
+        self._header = header
 
         self._script_lines = []
 
@@ -159,21 +162,19 @@ class ScriptComposer:
         elif isinstance(command, str):
             self._script_lines.append(command)
 
-    def write(self, path: Path):
-        """Function to write the script out to file.
-
-        :return bool result: Returns either True for successfully writing the
-                             file or False otherwise.
-        """
+    def write(self, path: Path, executable: bool = False):
+        """Write the script to a file, optionally making it executable."""
 
         with path.open('w') as script_file:
-            if self.header is not None:
-                script_file.write('\n'.join(self.header.get_lines()))
+            if self._header is not None:
+                script_file.write('\n'.join(self._header.get_lines()))
 
             script_file.write('\n\n')
 
             script_file.write('\n'.join(self._script_lines))
             script_file.write('\n')
 
-        # Make the file executable.
-        path.chmod(path.stat().st_mode | 0o110)
+        if executable:
+            path.chmod(path.stat().st_mode | self.EXECUTABLE)
+        else:
+            path.chmod(path.stat().st_mode & self.NOT_EXECUTABLE)
