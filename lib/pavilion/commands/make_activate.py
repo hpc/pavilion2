@@ -35,7 +35,7 @@ class MakeActivateCommand(Command):
         parser.add_argument("-p", "--pav-src", type=Path, default=self.this_pav_src
                             help="Path to the Pavilion source directory. If none is provided, "
                                  "defaults to a subdirectory of directory in which the script is "
-                                 "run, with the same names as the root directory of the current "
+                                 "run, with the same name as the root directory of the current "
                                  f"Pavilion repository (currently {self.this_pav_src}).")
         parser.add_argument("-f", "--force",
                             help="Forcibly overwrite the file, if a file with that name "
