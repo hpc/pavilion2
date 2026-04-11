@@ -23,13 +23,10 @@ class MakeActivateCommand(Command):
     def _setup_arguments(self, parser: ArgumentParser) -> None:
         """Setup the argument parser for the `make-activate` command."""
 
-        parser.add_argument("dest",
-                            help="Directory in which to save the script. "
-                                 "Defaults to the current directory.",
-                            type=Path, default=Path("."), nargs="?")
-        parser.add_argument("-n", "--name",
-                            help="Name of the script. Defaults to activate.sh.",
-                            default=self.DEFAULT_SCRIPT_NAME)
+        parser.add_argument("file",
+                            help="File to which the script will be written. "
+                                 f"Defaults to ./{self.DEFAULT_SCRIPT_NAME}.",
+                            type=Path, default=self.DEFAULT_SCRIPT_NAME, nargs="?")
         parser.add_argument("-c", "--config-dir",
                             help="Config directory location. If none is provided, the script "
                                  "derives the value from the directory in which it is run.",
@@ -44,11 +41,6 @@ class MakeActivateCommand(Command):
 
     def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Run the `make-activate` command."""
-
-        script_path = args.dest / args.name
-
-        if args.umask is None:
-            args.umask = pav_cfg.umask
 
         if args.pav_src is None:
             args.pav_src = Path(__file__).parents[3].name
@@ -104,14 +96,14 @@ class MakeActivateCommand(Command):
         script.command(f"echo \"  PAV COMMIT     -- $(cd ${{PAV_CONFIG_DIR}}/{pav_bin_dir} "
                        "&& git rev-parse HEAD)\"")
 
-        if script_path.exists() and not args.force:
+        if args.file.exists() and not args.force:
             output.fprint(self.errfile, f"File {args.name} already exists. Refusing to overwrite "
                                         "it. Use pav make-activate --force to overwrite.")
 
             return 1
 
         try:
-            script.write(script_path)
+            script.write(args.file)
         except OSError as err:
             # TODO: Don't print the traceback
             output.fprint(self.errfile, f"Error writing {script_path}: {err}")
