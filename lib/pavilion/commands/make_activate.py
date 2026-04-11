@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+from pavilion import output
 from pavilion.config import PavConfig
 from pavilion.scriptcomposer import ScriptComposer
 from .base_classes import Command
@@ -9,51 +10,103 @@ from .base_classes import Command
 class MakeActivateCommand(Command):
     """Make the 'activate' bash script."""
 
+    DEFAULT_SCRIPT_NAME = "activate.sh"
+    PAV_CD_PATH = Path("lib/pavilion/commands/cd.sh")
+
     def __init__(self):
         super().__init__(
             "make-activate",
-            "Make the bash activation script.",
-            short_help="Make activation script"
+            "Make the bash script to activate Pavilion.",
+            short_help="Make Pavilion activation script"
         )
+        self.this_pav_src = Path(__file__).parents[3].name
 
     def _setup_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("dest", help="Location in which to save the script.", type=Path,
-                            default=Path("."), nargs="?")
-        parser.add_argument("-n", "--name", help="Name of the script", default="activate.sh")
-        parser.add_argument("-c", "--config-dir", help="Config directory location", type=Path)
-        parser.add_argument("-u", "--umask", help="Umask value to set in the script.",
-                            default="002")
+        """Setup the argument parser for the `make-activate` command."""
 
-    def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
-        this_dir = Path(__file__).parent.resolve()
-        pav_bin = this_dir.parents[2] / "bin"
-        script_path = args.dest / args.name
+        parser.add_argument("file",
+                            help="File to which the script will be written. "
+                                 f"Defaults to ./{self.DEFAULT_SCRIPT_NAME}.",
+                            type=Path, default=self.DEFAULT_SCRIPT_NAME, nargs="?")
+        parser.add_argument("-c", "--config-dir",
+                            help="Config directory location. If none is provided, the script "
+                                 "derives the value from the directory in which it is run.",
+                            type=Path)
+        parser.add_argument("-p", "--pav-src", type=Path, default=self.this_pav_src,
+                            help="Path to the Pavilion source directory. If none is provided, "
+                                 "defaults to a subdirectory of directory in which the script is "
+                                 "run, with the same name as the root directory of the current "
+                                 f"Pavilion repository (currently {self.this_pav_src}).")
+        parser.add_argument("-f", "--force",
+                            help="Forcibly overwrite the file, if a file with the same name "
+                                 "already exists.")
+
+    def run(self, pav_cfg: PavConfig, args: Namespace) -> int:
+        """Run the `make-activate` command."""
+
+        pav_bin_dir = f"{args.pav_src}/bin"
+        pav_cd_path = f"{args.pav_src}/{str(self.PAV_CD_PATH)}"
+
+        # Don't write a shebang, since the script will be sourced
+        script = ScriptComposer(header=None)
 
         if args.config_dir is None:
-            args.config_dir = args.dest
+            script.command("this_dir=$(readlink -f \"$(dirname \"${BASH_SOURCE[0]}\")\")")
+            script.newline()
+            script.command("export PAV_CONFIG_DIR=\"${this_dir}\"")
+        else:
+            script.command(f"PAV_CONFIG_DIR=\"{str(args.config_dir)}\"")
+            script.command("if [[ -d $PAV_CONFIG_DIR ]]; then")
+            script.command("    export PAV_CONFIG_DIR")
+            script.command("else")
+            script.command("    echo \"ERROR: PAV_CONFIG_DIR NOT SET: ${PAV_CONFIG_DIR} "
+                           "is not a directory.\" >&2")
+            script.command("    return 1")
+            script.command("fi")
+            script.newline()
 
-        script = ScriptComposer()
-
-        script.command(f"umask {args.umask}")
-        script.newline()
-
-        script.command(f"export PAV_CONFIG_DIR=\"{args.config_dir.resolve()}\"")
-        script.command(f"PAVBIN=\"{pav_bin}\"")
+        script.command(f"PAVBIN=\"${{PAV_CONFIG_DIR}}/{pav_bin_dir}\"")
+        script.command("echo \"THISPATH: $(readlink -f $PWD)\"")
+        script.command("echo \"PAVCPATH: $(readlink -f $PAV_CONFIG_DIR)\"")
+        script.command("echo \"BASH_SOURCE: ${BASH_SOURCE[0]}\"")
         script.newline()
 
         script.comment("Only prepend PAVBIN to path if it hasn't already been done.")
-        script.command("if [[ ! (\"${PATH}\" =~ \"${PAVBIN}\") ]]; then")
-        script.command("    export PATH=\"${PAVBIN}:${PATH}\"")
+        script.command("if [[ -d $PAVBIN ]]; then")
+        script.command("    export PAVBIN")
+        script.command("    if [[ ! (\"${PATH}\" =~ \"${PAVBIN}\") ]]; then")
+        script.command("        export PATH=\"${PAVBIN}:${PATH}\"")
+        script.command("    fi")
+        script.command("else")
+        script.command("    echo \"ERROR: PAVBIN NOT SET: ${PAVBIN} is not a directory.\" >&2")
+        script.command("    echo \"       PERHAPS git submodule update "
+                       "--init --recursive hasn't been run.\" >&2")
+        script.command("    return 1")
         script.command("fi")
         script.newline()
 
         script.comment("Source the script for the cd command.")
-        script.command(f"source {this_dir / 'cd.sh'}")
+        script.command(f"source \"${{PAV_CONFIG_DIR}}/{pav_cd_path}\"")
         script.newline()
 
-        script.command("echo \"PAVBIN         -- ${PAVBIN}\"")
-        script.command("echo \"PAV_CONFIG_DIR -- ${PAV_CONFIG_DIR}\"")
+        script.command("echo \"Success:\"")
+        script.command("echo \"  PAVBIN         -- ${PAVBIN}\"")
+        script.command("echo \"  PAV_CONFIG_DIR -- ${PAV_CONFIG_DIR}\"")
+        script.command(f"echo \"  PAV COMMIT     -- $(cd ${{PAV_CONFIG_DIR}}/{pav_bin_dir} "
+                       "&& git rev-parse HEAD)\"")
 
-        script.write(script_path)
+        if args.file.exists() and not args.force:
+            output.fprint(self.errfile, f"File {args.file} already exists. Refusing to overwrite "
+                                        "it. Use pav make-activate --force to overwrite.")
 
-        script_path.chmod(774)
+            return 1
+
+        try:
+            script.write(args.file)
+        except OSError as err:
+            # TODO: Don't print the traceback
+            output.fprint(self.errfile, f"Error writing {args.file}: {err}")
+
+            return 1
+
+        return 0

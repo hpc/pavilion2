@@ -4,10 +4,17 @@ RELEASE=2.6
 
 # Release History
 
-## 2.7 Pre-Release Notes
+## 2.7.0 Pre-Release Notes
 
   - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
     or JSON.
+  - Delayed resolution of paths in generated `activate.sh` script until script is run.
+  - Removed `--umask` argument from `pav make-activate`. The umask should instead be set in
+    `pavilion.yaml`.
+  - Replaced the `dest` and `--name` arguments to `pav make-activate` with a single `file`
+    argument, which takes the full path to which to write the script.
+  - Added additional options for `pav make-activate`. Run `pav make-activate --help` for more
+    information.
 
 ## 2.6.1 Pre-Release Notes
 
