@@ -64,6 +64,9 @@ jobs:
       - name: Run style tests
         run: ./test/run_tests -q -o style -o debug_prints
 
+      - name: Run shellcheck tests
+        run: ./test/tests/shellcheck_tests.sh
+
   docs:
     name: Run documentation checks
     runs-on: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).os }}

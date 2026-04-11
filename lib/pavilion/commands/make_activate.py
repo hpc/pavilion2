@@ -19,7 +19,7 @@ class MakeActivateCommand(Command):
             "Make the bash script to activate Pavilion.",
             short_help="Make Pavilion activation script"
         )
-        self.this_pav_src=args.pav_src = Path(__file__).parents[3].name
+        self.this_pav_src = Path(__file__).parents[3].name
 
     def _setup_arguments(self, parser: ArgumentParser) -> None:
         """Setup the argument parser for the `make-activate` command."""
