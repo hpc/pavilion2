@@ -16,14 +16,13 @@ class TestConfig(PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_files((
-                        Path("suites/config_tests.basics.yaml"),
-                        Path("suites/default_vars_test.yaml"),
-                        Path("suites/shebang.yaml"),
-                        Path("hosts/this.yaml"),
-                        Path("platforms/this.yaml"),
-                        Path("plugins/schedulers/dummy.py"),
-                        Path("plugins/schedulers/dummy.yapsy-plugin")))
+        self.link_files(
+                    "suites/config_tests.basics.yaml",
+                    "suites/default_vars_test.yaml",
+                    "suites/shebang.yaml",
+                    "hosts/this.yaml",
+                    "platforms/this.yaml",
+                    "plugins/schedulers/dummy.*")
 
     def test_valid_test_config(self):
         """Check that a valid config is read correctly."""

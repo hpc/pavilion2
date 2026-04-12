@@ -10,8 +10,7 @@ class CreateFileTests(PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_files("test_src/tmpl_test.pav")
-        self.link_files("test_src/tmpl_bad*")
+        self.link_files("test_src/tmpl_*")
 
     def test_create_file(self):
         """Ensure runtime file creation is working correctly."""

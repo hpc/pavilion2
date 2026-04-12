@@ -9,13 +9,7 @@ class conditionalTest(unittest.PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_files((
-                    Path("plugins/sys/dumb_os.py"),
-                    Path("plugins/sys/dumb_os.yapsy-plugin"),
-                    Path("plugins/sys/dumb_user.py"),
-                    Path("plugins/sys/dumb_user.yapsy-plugin"),
-                    Path("plugins/sys/dumb_sys_var.py"),
-                    Path("plugins/sys/dumb_sys_var.yapsy-plugin")))
+        self.link_files("plugins/sys/dumb*")
 
     def test_no_skip(self):  # this method runs some conditional successes
         test_list = []
