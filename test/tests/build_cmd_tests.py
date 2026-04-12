@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
@@ -12,8 +14,9 @@ class BuildCmdTests(PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_files("suites", ("build_parallel.yaml", "build_rebuild.yaml"))
-        self.link_files("hosts", ("this.yaml",))
+        self.link_files((Path("suites/build_parallel.yaml"),
+                         Path("suites/build_rebuild.yaml")))
+        self.link_files((Path("hosts/this.yaml"),))
 
     def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)

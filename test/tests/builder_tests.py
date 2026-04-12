@@ -20,25 +20,25 @@ class BuilderTests(PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_files("hosts", ("this.yaml",))
-        self.link_files("suites", ("circular_symlinks",))
-        self.link_files("test_src",
-                   ("binfile.gz",
-                    'binfile.bz2',
-                    'binfile.xz',
-                    "file_tests.tgz",
-                    'src.tar.gz',
-                    'src.xz',
+        self.link_files((Path("hosts/this.yaml"),))
+        self.link_files((Path("suites/circular_symlinks"),))
+        self.link_files(
+                   (Path("test_src/binfile.gz"),
+                    Path('test_src/binfile.bz2'),
+                    Path('test_src/binfile.xz'),
+                    Path("test_src/file_tests.tgz"),
+                    Path('test_src/src.tar.gz'),
+                    Path('test_src/src.xz'),
                     # A bz2 archive
-                    'src.extensions_dont_matter',
-                    'src.zip',
+                    Path('test_src/src.extensions_dont_matter'),
+                    Path('test_src/src.zip'),
                     # These archives don't have a containing directory.
-                    'no_encaps.tgz',
-                    'no_encaps.zip',
-                    'softlink.zip',
-                    'foo/bar/deep.zip',
-                    '../outside.zip',
-                    "src"))
+                    Path('test_src/no_encaps.tgz'),
+                    Path('test_src/no_encaps.zip'),
+                    Path('test_src/softlink.zip'),
+                    Path('test_src/foo/bar/deep.zip'),
+                    Path('test_src/../outside.zip'),
+                    Path("test_src/src")))
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)

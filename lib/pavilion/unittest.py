@@ -144,15 +144,12 @@ base class.
 
         return pav_cfg
 
-    def link_files(self, dirname: str, paths: List[str]) -> None:
+    def link_files(self, paths: List[Path]) -> None:
         """Link files from the test data directory into the current suite config directory."""
 
-        dirpath = self.pav_config_dir / dirname
-        dirpath.mkdir(exist_ok = True)
-
         for path in paths:
-            link_path = dirpath / Path(path)
-            target_path = self.TEST_DATA_DIR / "pav_config_dir" / dirname / Path(path)
+            link_path = self.pav_config_dir / path
+            target_path = self.TEST_DATA_DIR / "pav_config_dir" / path
 
             link_path.parent.mkdir(parents=True, exist_ok=True)
 
