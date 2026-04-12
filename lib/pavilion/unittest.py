@@ -132,7 +132,7 @@ base class.
         else:
             raw_pav_cfg.result_loggers = result_loggers
 
-        cfg_dir = self.pav_config_dir
+        raw_pav_cfg.working_dir = self.working_dir
 
         cfg_path = self.pav_config_dir / "pavilion.yaml"
 
