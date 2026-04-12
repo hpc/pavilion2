@@ -15,6 +15,14 @@ import json
 
 class TestGroupTests(unittest.PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "suites/hello_world.yaml",
+                    "series/basic.yaml",
+                    "plugins/schedulers/dummy.*")
+
     def _make_group_name(self):
         """Make a random group name."""
 

@@ -10,7 +10,7 @@ import inspect
 from hashlib import sha1
 from pathlib import Path
 from collections import abc
-from typing import List, Dict, Any, Union, Iterable
+from typing import List, Dict, Any, Union
 
 import pavilion.schedulers
 from pavilion import arguments
@@ -145,7 +145,7 @@ base class.
 
         return pav_cfg
 
-    def link_files(self, paths: Iterable[Union[Path, str]]) -> None:
+    def link_files(self, *paths: Union[Path, str]) -> None:
         """Link files from the test data directory into the current suite config directory."""
 
         if isinstance(paths, str) or not isinstance(paths, abc.Iterable):
