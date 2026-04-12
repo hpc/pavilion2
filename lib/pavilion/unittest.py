@@ -6,6 +6,7 @@ import os
 import pprint
 import tempfile
 import time
+import inspect
 from hashlib import sha1
 from pathlib import Path
 from typing import List, Dict, Any
@@ -26,13 +27,6 @@ from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
 from unittest_ex import TestCaseEx
 
-TEST_ROOT = Path(__file__).resolve().parents[3]/'test'
-WORKING_DIR = TEST_ROOT/'working_dir'
-VERBOSE = False
-
-
-#log_setup.setup_loggers(PavTestCase()._pav_cfg, verbose=False)
-
 
 class PavTestCase(TestCaseEx):
     """A unittest.TestCase with a lot of useful Pavilion features baked in.
@@ -43,7 +37,7 @@ base class.
     module resides).
 :cvar Path PAV_ROOT_DIR: The Path to Pavilion's root directory (the root of the
     git repo).
-:cvar Path TEST_DATA_ROOT: The unit test data directory.
+:cvar Path TEST_DATA_DIR: The unit test data directory.
 :cvar Path PAV_CONFIG_PATH: The path to the configuration used by unit tests.
 :cvar dict QUICK_TEST_BASE_CFG: The base configuration for tests generated
     by the ``_quick_test()`` and ``_quick_test_cfg()`` methods.
@@ -52,12 +46,6 @@ base class.
     use by unit tests. Unit tests should **always** use this pav_cfg. If it
     needs to be modified, copy it using copy.deepcopy.
 """
-
-    PAV_LIB_DIR = Path(__file__).resolve().parent  # type: Path
-    PAV_ROOT_DIR = PAV_LIB_DIR.parents[1]  # type: Path
-    TEST_DATA_ROOT = PAV_ROOT_DIR/'test'/'data'  # type: Path
-
-    PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
 
     TEST_URL = ('https://raw.githubusercontent.com/hpc/'
                 'pavilion2/2.1.1/README.md')
@@ -73,14 +61,20 @@ base class.
         'users',
         ]
 
-    def __init__(self, *args, **kwargs):
-        """Setup the pav_cfg object, and do other initialization required by
-        pavilion."""
+    PAV_ROOT_DIR = Path(__file__).resolve().parents[2]
+    PAV_LIB_DIR = PAV_ROOT_DIR / "lib"
+    PAV_TEST_DIR = PAV_ROOT_DIR / "test"
+    TEST_OUTPUT_DIR = PAV_TEST_DIR / "output"
+    TEST_DATA_DIR = PAV_TEST_DIR / "data"
+    DEFAULT_PAV_CONFIG_PATH = TEST_DATA_DIR/'pav_config_dir'/'pavilion.yaml'
 
-        self.pav_cfg: config.PavConfig = self.make_pav_config()
+    def __init__(self, *args, **kwargs):
+        """Make the output directory for the current test suite, and do other initialization
+        required by pavilion."""
 
         super().__init__(*args, **kwargs)
 
+        self.setup_suite_output_dir()
 
     def set_up(self):
         """By default, initialize plugins before every test."""
@@ -92,23 +86,42 @@ base class.
     def tear_down(self):
         """Nothing to do by default."""
 
+    def setup_suite_output_dir(self) -> None:
+        """Make the main Pavilion config directory for the current test suite."""
+
+        self.suite_name = Path(inspect.getfile(self.__class__)).stem
+        self.suite_output_dir = self.TEST_OUTPUT_DIR / self.suite_name
+        self.pav_config_dir = self.suite_output_dir / "pav_config_dir"
+        self.working_dir = self.suite_output_dir / "working_dir"
+        self.pav_src_dir = self.pav_config_dir / "pav_src"
+
+        self.pav_config_dir.mkdir(parents=True, exist_ok=True)
+        self.working_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            self.pav_src_dir.symlink_to(self.PAV_ROOT_DIR)
+        except FileExistsError:
+            pass
+
+        self.pav_cfg = self.make_pav_config()
+
     def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
         as the config directory.
         """
 
         if config_dirs is None:
-            config_dirs = [self.TEST_DATA_ROOT / 'pav_config_dir']
+            config_dirs = [self.pav_config_dir]
 
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
         # save the modified file to a temp location and read it instead.
-        with self.PAV_CONFIG_PATH.open() as cfg_file:
+        with self.DEFAULT_PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
         raw_pav_cfg.config_dirs = config_dirs
 
-        raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
+        raw_pav_cfg.working_dir = self.working_dir
         raw_pav_cfg.user_config = False
 
         if result_loggers is None:
@@ -118,16 +131,9 @@ base class.
         else:
             raw_pav_cfg.result_loggers = result_loggers
 
-        if not raw_pav_cfg.working_dir.exists():
-            raw_pav_cfg.working_dir.mkdir()
+        cfg_dir = self.pav_config_dir
 
-        cfg_dir = raw_pav_cfg.working_dir/'pav_cfgs'
-        if not cfg_dir.exists():
-            cfg_dir.mkdir()
-
-        cfg_path = Path(tempfile.mktemp(
-            suffix='.yaml',
-            dir=str(cfg_dir)))
+        cfg_path = self.pav_config_dir / "pavilion.yaml"
 
         with cfg_path.open('w') as pav_cfg_file:
             config.PavilionConfigLoader().dump(pav_cfg_file,
@@ -137,6 +143,34 @@ base class.
         pav_cfg.pav_vars = pavilion_variables.PavVars()
 
         return pav_cfg
+
+    def _link_files(self, dirname: str, fnames: List[str]) -> None:
+        """Link files from the test data directory into the current suite config directory."""
+
+        dirpath = self.pav_config_dir / dirname
+        dirpath.mkdir(exist_ok = True)
+
+        for fname in fnames:
+            link_path = dirpath / fname
+            target_path = self.TEST_DATA_DIR / "pav_config_dir" / dirname / fname
+
+            try:
+                link_path.symlink_to(target_path)
+            except FileExistsError:
+                pass
+
+    def link_test_src(self, fnames: List[str]) -> None:
+        """Link the given test source files into the current suite config directory."""
+
+        self._link_files("test_src", fnames)
+
+    def link_configs(self, dirname: str, cfg_names: List[str]) -> None:
+        """Link the given configs into the current suite config directory, appending the
+        appropriate suffix."""
+
+        fnames = list(map(lambda x: f"{x}.yaml", cfg_names))
+
+        self._link_files(dirname, fnames)
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files
@@ -266,7 +300,7 @@ The default config is: ::
 
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
-        loc_sched = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
+        loc_sched = (self.TEST_DATA_DIR/'pav_config_dir'/'modes' /
                      'local_sched.yaml')
 
         if loc_sched.exists():

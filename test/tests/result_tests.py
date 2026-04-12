@@ -39,6 +39,9 @@ class ResultParserTests(PavTestCase):
         # Don't limit the size of the error diff.
         self.maxDiff = None
 
+        self.link_test_src(("json-blob.txt", "tables.txt"))
+        self.link_configs("suites", ("result_tests", "permute_on", "re_search", "flatten_results"))
+
     def test_parse_results(self):
         """Check all the different ways in which we handle parsed results."""
 
