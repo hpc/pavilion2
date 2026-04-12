@@ -18,11 +18,10 @@ class CmdUtilsTests(unittest.PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_files((
-                    Path("suites/hello_world.yaml"),
-                    Path("suites/arg_filtered.yaml"),
-                    Path("plugins/schedulers/dummy.py"),
-                    Path("plugins/schedulers/dummy.yapsy-plugin")))
+        self.link_files(
+                    "suites/hello_world.yaml",
+                    "suites/arg_filtered.yaml",
+                    "plugins/schedulers/dummy.*")
 
     def test_load_last_series(self):
         """Checking loading the previous series."""
