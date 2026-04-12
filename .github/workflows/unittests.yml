@@ -35,35 +35,27 @@ jobs:
         pip install -r docs/requirements.txt
 
     - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        #echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        #./test/utils/spack_setup test
+      run: ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
 
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
-      env:
-        COLUMNS: 120
-        LINES: 40
-      run: |
-        ./test/run_tests
+      run: ./test/run_tests
 
-    - name: zip_working_dir
+    - name: zip_output_dir
       if: always()
       run: |
         # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd test
-        ./utils/make_symlinks_relative working_dir
-        zip -yr working_dir.zip working_dir
+        ./utils/make_symlinks_relative output
+        zip -yr test_output.zip output
 
     - name: logs
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test_output
-        path: test/working_dir.zip
+        path: test/test_output.zip
 
   style:
     runs-on: ubuntu-latest
@@ -87,12 +79,10 @@ jobs:
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
     - name: run_tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style -o debug_prints"
+      run: ./test/run_tests -q -o style -o debug_prints"
 
   docs:
     runs-on: ubuntu-latest
@@ -115,7 +105,6 @@ jobs:
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
     - name: run_tests
@@ -149,7 +138,6 @@ jobs:
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
 
@@ -157,21 +145,21 @@ jobs:
       run: |
         ./test/run_tests
 
-    - name: zip_working_dir
+    - name: zip_output_dir
       if: failure()
       run: |
         # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd test
-        ./utils/make_symlinks_relative working_dir
-        zip -yr working_dir.zip working_dir
+        ./utils/make_symlinks_relative output
+        zip -yr test_output.zip output
 
     - name: logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.6
-        path: test/working_dir.zip
+        name: test_output_3.7
+        path: test/test_output.zip
 
   unittests-3_10:
     runs-on: ubuntu-latest
@@ -199,29 +187,27 @@ jobs:
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
 
     - name: run_tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+      run: ./test/run_tests"
 
-    - name: zip_working_dir
+    - name: zip_output_dir
       if: failure()
       run: |
         # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd test
-        ./utils/make_symlinks_relative working_dir
-        zip -yr working_dir.zip working_dir
+        ./utils/make_symlinks_relative output
+        zip -yr test_output.zip output
 
     - name: logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.10
-        path: test/working_dir.zip
+        name: test_output_3.10
+        path: test/test_output.zip
 
   unittests-3_12:
     runs-on: ubuntu-latest
@@ -249,26 +235,24 @@ jobs:
     - name: setup
       run: |
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
 
     - name: run_tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests"
+      run: ./test/run_tests"
 
-    - name: zip_working_dir
+    - name: zip_output_dir
       if: failure()
       run: |
         # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd test
-        ./utils/make_symlinks_relative working_dir
-        zip -yr working_dir.zip working_dir
+        ./utils/make_symlinks_relative output
+        zip -yr test_output.zip output
 
     - name: logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test_output_2.10
-        path: test/working_dir.zip
+        name: test_output_3.12
+        path: test/test_output.zip
