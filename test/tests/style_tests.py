@@ -83,7 +83,7 @@ class StyleTests(PavTestCase):
             '--msg-template="{line},{column}:  {msg}  ({symbol} - {msg_id})"',
             '--reports=n',
             '--max-line-length=100',
-            self.PAV_LIB_DIR.as_posix()
+            (self.PAV_LIB_DIR / "pavilion").as_posix()
         ]
 
         proc = subprocess.Popen(
