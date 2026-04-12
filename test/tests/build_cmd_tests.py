@@ -9,6 +9,12 @@ class BuildCmdTests(PavTestCase):
     """The build command is really just the run command in disguise, so
     we only need to test the unique arguments that it enables."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_configs("suites", ("build_parallel", "build_rebuild"))
+        self.link_configs("hosts", ("this",))
+
     def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)
         build_cmd = commands.get_command('build')
