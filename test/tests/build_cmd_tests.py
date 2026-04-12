@@ -12,8 +12,8 @@ class BuildCmdTests(PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_configs("suites", ("build_parallel", "build_rebuild"))
-        self.link_configs("hosts", ("this",))
+        self.link_files("suites", ("build_parallel.yaml", "build_rebuild.yaml"))
+        self.link_files("hosts", ("this.yaml",))
 
     def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)

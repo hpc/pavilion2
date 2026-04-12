@@ -144,33 +144,22 @@ base class.
 
         return pav_cfg
 
-    def _link_files(self, dirname: str, fnames: List[str]) -> None:
+    def link_files(self, dirname: str, paths: List[str]) -> None:
         """Link files from the test data directory into the current suite config directory."""
 
         dirpath = self.pav_config_dir / dirname
         dirpath.mkdir(exist_ok = True)
 
-        for fname in fnames:
-            link_path = dirpath / fname
-            target_path = self.TEST_DATA_DIR / "pav_config_dir" / dirname / fname
+        for path in paths:
+            link_path = dirpath / Path(path)
+            target_path = self.TEST_DATA_DIR / "pav_config_dir" / dirname / Path(path)
+
+            link_path.parent.mkdir(parents=True, exist_ok=True)
 
             try:
                 link_path.symlink_to(target_path)
             except FileExistsError:
                 pass
-
-    def link_test_src(self, fnames: List[str]) -> None:
-        """Link the given test source files into the current suite config directory."""
-
-        self._link_files("test_src", fnames)
-
-    def link_configs(self, dirname: str, cfg_names: List[str]) -> None:
-        """Link the given configs into the current suite config directory, appending the
-        appropriate suffix."""
-
-        fnames = list(map(lambda x: f"{x}.yaml", cfg_names))
-
-        self._link_files(dirname, fnames)
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files
