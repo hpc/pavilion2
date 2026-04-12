@@ -9,7 +9,8 @@ import time
 import inspect
 from hashlib import sha1
 from pathlib import Path
-from typing import List, Dict, Any
+from collections import abc
+from typing import List, Dict, Any, Union, Iterable
 
 import pavilion.schedulers
 from pavilion import arguments
@@ -144,19 +145,26 @@ base class.
 
         return pav_cfg
 
-    def link_files(self, paths: List[Path]) -> None:
+    def link_files(self, paths: Iterable[Union[Path, str]]) -> None:
         """Link files from the test data directory into the current suite config directory."""
 
+        if isinstance(paths, str) or not isinstance(paths, abc.Iterable):
+            paths = [paths]
+
         for path in paths:
-            link_path = self.pav_config_dir / path
-            target_path = self.TEST_DATA_DIR / "pav_config_dir" / path
+            targets = (self.TEST_DATA_DIR / "pav_config_dir").glob(str(path))
 
-            link_path.parent.mkdir(parents=True, exist_ok=True)
+            for target in targets:
+                rel_path = target.relative_to(self.TEST_DATA_DIR / "pav_config_dir")
+                link_path = self.pav_config_dir / rel_path
+                target_path = self.TEST_DATA_DIR / "pav_config_dir" / rel_path
 
-            try:
-                link_path.symlink_to(target_path)
-            except FileExistsError:
-                pass
+                link_path.parent.mkdir(parents=True, exist_ok=True)
+
+                try:
+                    link_path.symlink_to(target_path)
+                except FileExistsError:
+                    pass
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files
