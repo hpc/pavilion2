@@ -14,8 +14,7 @@ class CancelTests(unittest.PavTestCase):
      def __init__(self, *args, **kwargs):
           super().__init__(*args, **kwargs)
 
-          self.link_files((Path("plugins/schedulers/dummy.py"),
-                           Path("plugins/schedulers/dummy.yapsy-plugin")))
+          self.link_files("plugins/schedulers/dummy.*")
 
      def test_cancel_jobs(self):
           """Test job cancellation function."""
