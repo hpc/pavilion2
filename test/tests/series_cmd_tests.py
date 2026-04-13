@@ -21,10 +21,10 @@ class SeriesCmdTests(PavTestCase):
                     "series/basic.yaml",
                     "series/sleepy.yaml",
                     "series/multi.yaml",
-                    "hosts/smode1.yaml",
+                    "modes/smode1.yaml",
                     "plugins/schedulers/dummy.*")
 
-    def tearDown(self):
+    def tear_down(self):
         plugins._reset_plugins()
 
     def test_run_series(self):

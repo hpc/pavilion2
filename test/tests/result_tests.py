@@ -1092,6 +1092,7 @@ class ResultParserTests(PavTestCase):
         args = arg_parser.parse_args(cmd)
 
         run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
 

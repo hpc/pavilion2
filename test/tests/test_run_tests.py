@@ -15,8 +15,9 @@ class TestRunTests(PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.link_files("test_src/file_tests.tgz")
-
+        self.link_files(
+            "test_src/file_tests.tgz",
+            "test_src/tmpl_test.pav")
 
     def test_obj(self):
         """Test pavtest object initialization."""
@@ -196,7 +197,7 @@ class TestRunTests(PavTestCase):
 
         test = self._quick_test(cfg)
         test_file = test.path/'build'/'foo'/'tmpl_out'
-        cmp_file = self.TEST_DATA_ROOT / 'create_files_results' / 'tmpl1.txt'
+        cmp_file = self.TEST_DATA_DIR / 'create_files_results' / 'tmpl1.txt'
         self.assertFalse(test_file.is_symlink())
         self.assertEqual(test_file.open().read(), cmp_file.open().read())
 
@@ -207,7 +208,7 @@ class TestRunTests(PavTestCase):
 
         test = self._quick_test(cfg)
         test_file = test.path / 'build' / 'foo' / 'tmpl_out'
-        cmp_file = self.TEST_DATA_ROOT / 'create_files_results' / 'tmpl1.txt'
+        cmp_file = self.TEST_DATA_DIR / 'create_files_results' / 'tmpl1.txt'
         self.assertTrue(test_file.is_symlink())
         self.assertEqual(test_file.open().read(), cmp_file.open().read())
 

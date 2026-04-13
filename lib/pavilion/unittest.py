@@ -77,13 +77,13 @@ base class.
         super().__init__(*args, **kwargs)
 
         self.setup_suite_output_dir(make_config_dir, make_working_dir, make_pav_src, write_config)
-        os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
 
     def set_up(self):
         """By default, initialize plugins before every test."""
 
         _ = self
 
+        os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
         plugins.initialize_plugins(self.pav_cfg)
 
     def tear_down(self):
@@ -115,11 +115,12 @@ base class.
 
         self.pav_cfg = self.make_pav_config(write=write_config)
 
-    def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None, write: bool = True):
+    def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None,
+                        write: bool = True):
         """Create a pavilion config for the current test suite."""
 
         # Open the default pav config file (found in
-        # test/data/pav_config_dir/pavilion.yaml), modify it, and then
+        # test/data/pav_config_dir/pavilion.yaml.in), modify it, and then
         # save the modified file to the suite-specific pav config directory and read it instead.
         with self.DEFAULT_PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
