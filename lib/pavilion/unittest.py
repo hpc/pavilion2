@@ -67,7 +67,7 @@ base class.
     PAV_TEST_DIR = PAV_ROOT_DIR / "test"
     TEST_OUTPUT_DIR = PAV_TEST_DIR / "output"
     TEST_DATA_DIR = PAV_TEST_DIR / "data"
-    DEFAULT_PAV_CONFIG_PATH = TEST_DATA_DIR/'pav_config_dir'/'pavilion.yaml'
+    DEFAULT_PAV_CONFIG_PATH = TEST_DATA_DIR / 'pav_config_dir' / 'pavilion.yaml.in'
 
     def __init__(self, *args, make_config_dir: bool = True, make_working_dir: bool = True,
                  make_pav_src: bool = True, write_config: bool = True, **kwargs):
