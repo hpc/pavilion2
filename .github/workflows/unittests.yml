@@ -22,6 +22,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
@@ -74,8 +75,7 @@ jobs:
         pip install -r docs/requirements.txt
 
     - name: run_tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style -o debug_prints"
+      run: ./test/run_tests -q -o style -o debug_prints"
 
   docs:
     runs-on: ubuntu-latest
@@ -123,9 +123,11 @@ jobs:
         sphinx-build --version
         pylint --version
 
+    - name: Set up Spack
+      run: ./test/utils/spack_setup test
+
     - name: run_tests
-      run: |
-        ./test/run_tests
+      run: ./test/run_tests
 
     - name: zip_output_dir
       if: failure()
@@ -165,6 +167,9 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
+
+    - name: Set up Spack
+      run: ./test/utils/spack_setup test
 
     - name: run_tests
       run: ./test/run_tests"
@@ -207,6 +212,9 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
+
+    - name: Set up Spack
+      run: ./test/utils/spack_setup test
 
     - name: run_tests
       run: ./test/run_tests"

@@ -26,9 +26,11 @@ jobs:
         pip install -r test/requirements.txt
         pip install "coverage>=7.10,<8"
 
+    - name: Set up Spack
+      run: ./test/utils/spack_setup test
+
     - name: run_tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests"
+      run: python -m coverage run ./test/run_tests"
 
     - name: Generate and show report
       run: |

@@ -70,13 +70,15 @@ base class.
     DEFAULT_PAV_CONFIG_PATH = TEST_DATA_DIR / 'pav_config_dir' / 'pavilion.yaml.in'
 
     def __init__(self, *args, make_config_dir: bool = True, make_working_dir: bool = True,
-                 make_pav_src: bool = True, write_config: bool = True, **kwargs):
+                 make_pav_src: bool = True, write_config: bool = True, setup_spack: bool = True,
+                 **kwargs):
         """Make the output directory for the current test suite, and do other initialization
         required by pavilion."""
 
         super().__init__(*args, **kwargs)
 
-        self.setup_suite_output_dir(make_config_dir, make_working_dir, make_pav_src, write_config)
+        self.setup_suite_output_dir(make_config_dir, make_working_dir, make_pav_src, write_config,
+                                    setup_spack)
 
     def set_up(self):
         """By default, initialize plugins before every test."""
@@ -90,7 +92,8 @@ base class.
         """Nothing to do by default."""
 
     def setup_suite_output_dir(self, make_config_dir: bool = True, make_working_dir: bool = True,
-                               make_pav_src: bool = True, write_config: bool = True) -> None:
+                               make_pav_src: bool = True, write_config: bool = True,
+                               setup_spack: bool = True) -> None:
         """Make the main Pavilion config directory for the current test suite."""
 
         self.suite_name = Path(inspect.getfile(self.__class__)).stem
@@ -113,10 +116,10 @@ base class.
             except FileExistsError:
                 pass
 
-        self.pav_cfg = self.make_pav_config(write=write_config)
+        self.pav_cfg = self.make_pav_config(write=write_config, setup_spack=setup_spack)
 
     def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None,
-                        write: bool = True):
+                        write: bool = True, setup_spack: bool = True):
         """Create a pavilion config for the current test suite."""
 
         # Open the default pav config file (found in
@@ -136,6 +139,9 @@ base class.
                 "dest": raw_pav_cfg.working_dir/'results'}]
         else:
             raw_pav_cfg.result_loggers = result_loggers
+
+        if setup_spack:
+            raw_pav_cfg.spack_path = (self.PAV_TEST_DIR / "spack").as_posix()
 
         raw_pav_cfg.working_dir = self.working_dir
 
