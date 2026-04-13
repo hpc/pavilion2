@@ -115,20 +115,15 @@ base class.
         self.pav_cfg = self.make_pav_config(write=write_config)
 
     def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None, write: bool = True):
-        """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
-        as the config directory.
-        """
-
-        if config_dirs is None:
-            config_dirs = [self.pav_config_dir]
+        """Create a pavilion config for the current test suite."""
 
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
-        # save the modified file to a temp location and read it instead.
+        # save the modified file to the suite-specific pav config directory and read it instead.
         with self.DEFAULT_PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        raw_pav_cfg.config_dirs = config_dirs
+        raw_pav_cfg.config_dirs = config_dirs or []
 
         raw_pav_cfg.working_dir = self.working_dir
         raw_pav_cfg.user_config = False
