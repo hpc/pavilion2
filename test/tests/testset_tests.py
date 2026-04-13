@@ -20,7 +20,9 @@ class TestSetTests(PavTestCase):
                     "suites/build_fail.yaml",
                     "suites/build_rebuild.yaml"
                     "suites/test_set_errors.yaml",
-                    "suites/varied_time.yaml")
+                    "suites/varied_time.yaml",
+                    "test_src/invalid_file.tar.gz",
+                    "plugins/schedulers/dummy.*")
 
     def test_init(self):
         """Check the init function."""

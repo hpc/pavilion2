@@ -25,11 +25,6 @@ LOGGER = logging.getLogger(__name__)
 
 class PluginTests(PavTestCase):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.link_files("suites/timeout_*_tests.yaml")
-
     def set_up(self):
         # This has to run before any command plugins are loaded.
         arguments.get_parser()

@@ -15,6 +15,11 @@ from pavilion.unittest import PavTestCase
 class SchedTests(PavTestCase):
     """Assorted tests to apply across all scheduler plugins."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files("plugins/schedulers/dummy.*")
+
     def test_check_examples(self):
         """Make sure scheduler examples are up-to-date."""
 

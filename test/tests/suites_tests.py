@@ -13,8 +13,8 @@ class SuitesTests(PavTestCase):
                     "hosts/this.yaml",
                     "suites/basic_suite_test",
                     "suites/bare_yaml.yaml",
-                    "suites/platform_suite_test",
-                    "suites/host_suite_test",
+                    "suites/platforms_suite_test",
+                    "suites/hosts_suite_test",
                     "suites/modes_suite_test",
                     "suites/hash_suite_test_*",
                     "suites/suite_with_source")
