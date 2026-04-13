@@ -77,13 +77,13 @@ base class.
         super().__init__(*args, **kwargs)
 
         self.setup_suite_output_dir(make_config_dir, make_working_dir, make_pav_src, write_config)
+        os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
 
     def set_up(self):
         """By default, initialize plugins before every test."""
 
         _ = self
 
-        os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
         plugins.initialize_plugins(self.pav_cfg)
 
     def tear_down(self):

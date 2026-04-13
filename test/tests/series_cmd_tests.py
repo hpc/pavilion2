@@ -16,13 +16,13 @@ class SeriesCmdTests(PavTestCase):
         super().__init__(*args, **kwargs)
 
         self.link_files(
+                    "suites/hello_world.yaml",
+                    "suites/sleepy.yaml",
                     "series/basic.yaml",
                     "series/sleepy.yaml",
                     "series/multi.yaml",
-                    "hosts/smode1.yaml")
-
-    def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg)
+                    "hosts/smode1.yaml",
+                    "plugins/schedulers/dummy.*")
 
     def tearDown(self):
         plugins._reset_plugins()
@@ -136,7 +136,8 @@ class SeriesCmdTests(PavTestCase):
         arg_parser = arguments.get_parser()
 
         args = arg_parser.parse_args(['series', 'run', 'multi'])
-        self.assertEqual(series_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(series_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav series run multi failed with the following output: {series_cmd.errfile.getvalue()}")
         series_cmd.last_run_series.wait(timeout=10)
         sid = str(series_cmd.last_run_series.id)
 

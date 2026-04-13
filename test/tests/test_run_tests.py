@@ -12,6 +12,12 @@ from pavilion.status_file import TestStatusFile
 
 class TestRunTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files("test_src/file_tests.tgz")
+
+
     def test_obj(self):
         """Test pavtest object initialization."""
 
