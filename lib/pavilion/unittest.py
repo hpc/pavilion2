@@ -83,6 +83,7 @@ base class.
 
         _ = self
 
+        os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
         plugins.initialize_plugins(self.pav_cfg)
 
     def tear_down(self):
