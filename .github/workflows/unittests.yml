@@ -34,9 +34,6 @@ jobs:
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
-    - name: setup
-      run: ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-
     # Set run_tests to run only the specific tests you need to fix.
     - name: run_tests
       run: ./test/run_tests
@@ -76,11 +73,6 @@ jobs:
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
-    - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-
     - name: run_tests
       run: |
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -q -o style -o debug_prints"
@@ -102,11 +94,6 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
-
-    - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
 
     - name: run_tests
       run: ./test/run_tests -o 'doc*' -q
@@ -135,12 +122,6 @@ jobs:
         pip install -r docs/requirements.txt
         sphinx-build --version
         pylint --version
-
-    - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
 
     - name: run_tests
       run: |
@@ -185,12 +166,6 @@ jobs:
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
 
-    - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
-
     - name: run_tests
       run: ./test/run_tests"
 
@@ -232,12 +207,6 @@ jobs:
         pip install -r requirements.txt
         pip install -r test/requirements.txt
         pip install -r docs/requirements.txt
-
-    - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
 
     - name: run_tests
       run: ./test/run_tests"

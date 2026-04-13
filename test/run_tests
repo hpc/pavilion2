@@ -104,7 +104,8 @@ def main():
     from pavilion.unittest import PavTestCase
     from pavilion import log_setup
 
-    config = PavTestCase.TEST_DATA_DIR/'pav_config_dir'/'pavilion.yaml'
+    config = PavTestCase.DEFAULT_PAV_CONFIG_PATH
+
     if not config.exists():
         msg("\nERROR")
         msg("Could not find a config file at '{}'".format(config))
