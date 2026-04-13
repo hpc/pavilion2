@@ -9,6 +9,11 @@ from pavilion.unittest import PavTestCase
 class TimeoutFileTests(PavTestCase):
     """Assorted tests to ensure that timeout files work as expected."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files("suites/timeout_*_tests.yaml")
+
     def test_build_timeouts(self):
         """Make sure build timeout file works as expected."""
 

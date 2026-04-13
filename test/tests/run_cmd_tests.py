@@ -11,6 +11,20 @@ from pavilion.unittest import PavTestCase
 
 class RunCmdTests(PavTestCase):
 
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "hosts/this.yaml",
+                    "suites/hello_world.yaml",
+                    "suites/build_parallel*.yaml",
+                    "suites/not_available.yaml",
+                    "suites/concurrent.yaml",
+                    "collections/testlist.txt",
+                    "plugins/schedulers/dummy.*",
+                    "plugins/schedulers/not_available.*")
+
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
         run_cmd = commands.get_command('run')

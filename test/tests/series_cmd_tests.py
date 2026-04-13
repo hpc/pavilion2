@@ -12,6 +12,15 @@ from pavilion.unittest import PavTestCase
 
 class SeriesCmdTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "series/basic.yaml",
+                    "series/sleepy.yaml",
+                    "series/multi.yaml",
+                    "hosts/smode1.yaml")
+
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
 

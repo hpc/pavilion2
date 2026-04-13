@@ -161,6 +161,7 @@ class LoggingTests(PavTestCase):
         ])
 
         run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
 
         self.pav_cfg = self.make_pav_config(result_loggers= [{
                                                 "plugin": "series_file",
