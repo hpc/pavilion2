@@ -11,10 +11,16 @@ from pavilion.utils import get_login
 
 class ConfigCmdTests(unittest.PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+
+        # Don't automatically create the pav_config_dir or working_dir
+        super().__init__(*args, make_config_dir=False, make_working_dir=False, make_pav_src=False,
+                         write_config=False, **kwargs)
+
     def test_config_cmds(self):
 
-        test_config_root = self.pav_cfg.working_dir/'config_cmds_config'
-        test_config_wd = self.pav_cfg.working_dir/'config_cmds_working_dir'
+        test_config_root = self.pav_config_dir
+        test_config_wd = self.working_dir
         test_pav_config_path = test_config_root/'pavilion.yaml'
 
         arg_parser = arguments.get_parser()

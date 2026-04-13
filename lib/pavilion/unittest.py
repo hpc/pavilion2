@@ -69,13 +69,14 @@ base class.
     TEST_DATA_DIR = PAV_TEST_DIR / "data"
     DEFAULT_PAV_CONFIG_PATH = TEST_DATA_DIR/'pav_config_dir'/'pavilion.yaml'
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, make_config_dir: bool = True, make_working_dir: bool = True,
+                 make_pav_src: bool = True, write_config: bool = True, **kwargs):
         """Make the output directory for the current test suite, and do other initialization
         required by pavilion."""
 
         super().__init__(*args, **kwargs)
 
-        self.setup_suite_output_dir()
+        self.setup_suite_output_dir(make_config_dir, make_working_dir, make_pav_src, write_config)
 
     def set_up(self):
         """By default, initialize plugins before every test."""
@@ -87,7 +88,8 @@ base class.
     def tear_down(self):
         """Nothing to do by default."""
 
-    def setup_suite_output_dir(self) -> None:
+    def setup_suite_output_dir(self, make_config_dir: bool = True, make_working_dir: bool = True,
+                               make_pav_src: bool = True, write_config: bool = True) -> None:
         """Make the main Pavilion config directory for the current test suite."""
 
         self.suite_name = Path(inspect.getfile(self.__class__)).stem
@@ -96,17 +98,23 @@ base class.
         self.working_dir = self.suite_output_dir / "working_dir"
         self.pav_src_dir = self.pav_config_dir / "pav_src"
 
-        self.pav_config_dir.mkdir(parents=True, exist_ok=True)
-        self.working_dir.mkdir(parents=True, exist_ok=True)
+        self.suite_output_dir.mkdir(parents=True, exist_ok=True)
 
-        try:
-            self.pav_src_dir.symlink_to(self.PAV_ROOT_DIR)
-        except FileExistsError:
-            pass
+        if make_config_dir:
+            self.pav_config_dir.mkdir(parents=True, exist_ok=True)
 
-        self.pav_cfg = self.make_pav_config()
+        if make_working_dir:
+            self.working_dir.mkdir(parents=True, exist_ok=True)
 
-    def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None):
+        if make_pav_src:
+            try:
+                self.pav_src_dir.symlink_to(self.PAV_ROOT_DIR)
+            except FileExistsError:
+                pass
+
+        self.pav_cfg = self.make_pav_config(write=write_config)
+
+    def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None, write: bool = True):
         """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
         as the config directory.
         """
@@ -136,9 +144,10 @@ base class.
 
         cfg_path = self.pav_config_dir / "pavilion.yaml"
 
-        with cfg_path.open('w') as pav_cfg_file:
-            config.PavilionConfigLoader().dump(pav_cfg_file,
-                                               raw_pav_cfg)
+        if write:
+            with cfg_path.open('w') as pav_cfg_file:
+                config.PavilionConfigLoader().dump(pav_cfg_file,
+                                                raw_pav_cfg)
 
         pav_cfg = config.find_pavilion_config(target=cfg_path)
         pav_cfg.pav_vars = pavilion_variables.PavVars()
