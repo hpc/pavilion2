@@ -16,6 +16,13 @@ from flufl.lock import Lock
 class LoggingTests(PavTestCase):
     """Test Pavilion logging mechanisms."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "hosts/this.yaml",
+                    "suites/results_log.yaml")
+
     def test_setup_logger(self):
 
         err_out = setup_loggers(self.pav_cfg)
