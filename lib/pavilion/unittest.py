@@ -144,6 +144,8 @@ base class.
                 config.PavilionConfigLoader().dump(pav_cfg_file,
                                                 raw_pav_cfg)
 
+        config.PAV_CONFIG_DIR = self.pav_config_dir
+
         pav_cfg = config.find_pavilion_config(target=cfg_path)
         pav_cfg.pav_vars = pavilion_variables.PavVars()
 
