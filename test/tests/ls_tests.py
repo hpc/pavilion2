@@ -7,6 +7,14 @@ from pavilion.unittest import PavTestCase
 
 class LsTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "hosts/this.yaml",
+                    "suites/hello_world.yaml",
+                    "plugins/schedulers/dummy.*")
+
     def test_ls(self):
         """Checking ls command functionality"""
         test = self._quick_test()
