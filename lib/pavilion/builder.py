@@ -393,6 +393,8 @@ class TestBuilder:
                 raise TestBuilderError(
                     "Could not retrieve source from the given url '{}'".format(src_url), err)
 
+            self.status.set(STATES.INFO,
+                            f"Source exists: {dwn_dest.exists()}")
             return dwn_dest
 
         if found_src_path is None:
