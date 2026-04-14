@@ -57,7 +57,7 @@ class PermissionsTests(PavTestCase):
         raw_cfg['umask'] = self.umask
         raw_cfg['working_dir'] = self.working_dir.as_posix()
 
-        self.link_file(self.TEST_DATA_ROOT / "configs-permissions", link_path=self.pav_config_dir)
+        self.link_file(self.TEST_DATA_DIR / "configs-permissions", link_path=self.pav_config_dir)
 
         with (self.pav_config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
             yaml.dump(raw_cfg, stream=pav_cfg_file)
