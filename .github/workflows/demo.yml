@@ -40,7 +40,7 @@ jobs:
         # If we don't zip this ourselves, it will run infinitely due to
         # symlink loops.
         cd examples/demo
-        ./utils/make_symlinks_relative working_dir
+        ../../test/utils/make_symlinks_relative working_dir
         zip -yr demo_working_dir.zip working_dir
 
     - name: Upload working directory
