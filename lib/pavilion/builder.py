@@ -710,7 +710,8 @@ class TestBuilder:
                 sub_dirs.append(self.suite_subdir)
 
             tracker.update(state=STATES.BUILDING, note=f"Searching subdirectories: {sub_dirs}...")
-            tracker.update(state=STATES.BUILDING, note=f"Searching the following locations: {list(self._pav_cfg.config_paths)}...")
+            tracker.update(state=STATES.BUILDING,
+                note=f"Searching the following locations: {list(self._pav_cfg.config_paths)}...")
             src_path = self._pav_cfg.find_file(raw_src_path, sub_dirs)
 
             # Only raise an error if a path that is explicitly identified is missing
