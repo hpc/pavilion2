@@ -162,7 +162,7 @@ base class.
         return pav_cfg
 
     def link_file(self, path: Union[Path, str], config_dir: Optional[Path] = None,
-                  with_name: Optional[str] = None):
+                  with_name: Optional[str] = None, link_path: Optional[Path] = None) -> None:
         """Link a file from the test data directory into the specified config directory, or into
         the unit test suite's main config directory, if no config directory is provided, using the
         file name specified by with_name. If no name is provided, the linked file retains its
@@ -181,10 +181,12 @@ base class.
             rel_path = target
 
         target_path = self.TEST_DATA_PAV_CONFIG_DIR / rel_path
-        link_path = config_dir / rel_path
 
-        if with_name is not None:
-            link_path = link_path.with_name(with_name)
+        if link_path is None:
+            link_path = config_dir / rel_path
+
+            if with_name is not None:
+                link_path = link_path.with_name(with_name)
 
         link_path.parent.mkdir(parents=True, exist_ok=True)
 

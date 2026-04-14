@@ -16,7 +16,7 @@ class PermissionsTests(PavTestCase):
 
     def __init__(self, *args, **kwargs):
 
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs, make_config_dir=False)
 
         # Find a group that isn't the user's default group (or sudo), and
         # use that as our default group.
@@ -44,8 +44,6 @@ class PermissionsTests(PavTestCase):
         if raw_cfg is None:
             raw_cfg = {}
 
-        self.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'/'wd_perms'
-
         if self.working_dir.exists():
             shutil.rmtree(self.working_dir.as_posix())
 
@@ -59,8 +57,9 @@ class PermissionsTests(PavTestCase):
         raw_cfg['umask'] = self.umask
         raw_cfg['working_dir'] = self.working_dir.as_posix()
 
-        self.config_dir = self.TEST_DATA_ROOT/'configs-permissions'
-        with (self.config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
+        self.link_file(self.TEST_DATA_ROOT / "configs-permissions", link_path=self.pav_config_dir)
+
+        with (self.pav_config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
             yaml.dump(raw_cfg, stream=pav_cfg_file)
 
     def test_permissions(self):
@@ -152,7 +151,7 @@ class PermissionsTests(PavTestCase):
         """Run the given test command and check that it succeeds."""
 
         env = os.environ.copy()
-        env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
+        env['PAV_CONFIG_DIR'] = self.pav_config_dir.as_posix()
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
         if (proc.wait(3) != 0) == run_succeeds:
