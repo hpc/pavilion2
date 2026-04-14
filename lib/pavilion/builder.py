@@ -384,6 +384,8 @@ class TestBuilder:
 
             self.status.set(STATES.BUILDING,
                             "Updating source at '{}'.".format(found_src_path))
+            self.status.set(STATES.BUILDING,
+                            f"Downloading source from {src_url} to {dwn_dest} (maybe)...")
 
             try:
                 wget.update(self._pav_cfg, src_url, dwn_dest)
