@@ -172,7 +172,7 @@ jobs:
       run: ./test/utils/spack_setup test
 
     - name: run_tests
-      run: ./test/run_tests"
+      run: ./test/run_tests
 
     - name: zip_output_dir
       if: failure()
@@ -217,7 +217,7 @@ jobs:
       run: ./test/utils/spack_setup test
 
     - name: run_tests
-      run: ./test/run_tests"
+      run: ./test/run_tests
 
     - name: zip_output_dir
       if: failure()
