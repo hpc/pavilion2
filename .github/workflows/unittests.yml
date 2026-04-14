@@ -75,7 +75,7 @@ jobs:
         pip install -r docs/requirements.txt
 
     - name: run_tests
-      run: ./test/run_tests -q -o style -o debug_prints"
+      run: ./test/run_tests -q -o style -o debug_prints
 
   docs:
     runs-on: ubuntu-latest
