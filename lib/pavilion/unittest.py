@@ -173,7 +173,7 @@ base class.
         config_dir = set_default(config_dir, self.pav_config_dir)
         target = Path(path)
 
-        if target.is_absolute():
+        if target.is_absolute() and link_path is None:
             try:
                 rel_path = target.relative_to(self.TEST_DATA_PAV_CONFIG_DIR)
             except ValueError:
