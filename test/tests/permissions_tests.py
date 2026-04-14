@@ -38,7 +38,7 @@ class PermissionsTests(PavTestCase):
     def set_up(self) -> None:
         """Setup the special pav config for these tests."""
 
-        with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
+        with self.DEFAULT_PAV_CONFIG_PATH.open() as pav_cfg_file:
             raw_cfg = yaml.load(pav_cfg_file)
 
         if raw_cfg is None:
