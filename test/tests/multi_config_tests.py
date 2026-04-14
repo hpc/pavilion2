@@ -31,9 +31,6 @@ class MultiConfigTests(PavTestCase):
 
         config_cmd.run(self.pav_cfg, args)
 
-        # Reload the pav config so that it has the new config directory
-        self.pav_cfg = self.make_pav_config(config_dirs=[self.config_dir2])
-
         # Link into main config directory
         self.link_files(
             "suites/hello_world.yaml",
@@ -46,17 +43,21 @@ class MultiConfigTests(PavTestCase):
              config_dir=self.config_dir2)
 
     def set_up(self):
+        try:
+            (self.config_dir2 / "suites" / "hello_world.yaml").unlink()
+            (self.config_dir2 / "test_src" / "hello.c").unlink()
+        except FileNotFoundError:
+            pass
+
+        # Reload the pav config so that it has the new config directory and correct suite info
+        self.pav_cfg = self.make_pav_config(config_dirs=[self.config_dir2])
+
         self.assertEqual(len(self.pav_cfg.configs), 3,
                          msg="Expected exactly 3 configs in the Pavilion config, but found "
                              f"{len(self.pav_cfg.configs)}:\n{[(label, cfg.path) for label, cfg in self.pav_cfg.configs.items()]}")
         self.assertEqual(len(self.pav_cfg.config_dirs), 1,
                          msg="Expected exactly 1 config directory in the Pavilion config, but found "
                              f"{len(self.pav_cfg.configs)}: {self.pav_cfg.config_dirs}")
-        try:
-            (self.config_dir2 / "suites" / "hello_world.yaml").unlink()
-            (self.config_dir2 / "test_src" / "hello.c").unlink()
-        except FileNotFoundError:
-            pass
 
         os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
         plugins.initialize_plugins(self.pav_cfg)
@@ -93,6 +94,10 @@ class MultiConfigTests(PavTestCase):
         """Test that each test run is placed in the working directory that corresponds to the
         config directory from which the test originated."""
 
+        self.assertEqual(len(self.pav_cfg.suite_info), 2,
+                    msg="Expected exactly 2 suite info tuples on the Pavilion config, "
+                        f"but found {len(self.pav_cfg.suite_info)}: {self.pav_cfg.suite_info}")
+
         self.assertTrue((self.working_dir / "test_runs" / f"{self.series1.id}.1").exists(),
                          msg=f"Series {self.series1.id} did not create its test run directories in {self.working_dir}")
         self.assertTrue((self.working_dir2 / "test_runs" / f"{self.series2.id}.1").exists(),
@@ -102,6 +107,10 @@ class MultiConfigTests(PavTestCase):
         """Test that series directories are created in the main working directory, regardless of
         where their tests suites originated from."""
 
+        self.assertEqual(len(self.pav_cfg.suite_info), 2,
+            msg="Expected exactly 2 suite info tuples on the Pavilion config, "
+                f"but found {len(self.pav_cfg.suite_info)}: {self.pav_cfg.suite_info}")
+
         self.assertTrue((self.working_dir / "series" / str(self.series1.id.as_int())).exists(),
                         msg=f"Expected directory for {self.series1.id} to exist at {self.working_dir / 'series' / str(self.series1.id.as_int())}, but it does not.")
         self.assertTrue((self.working_dir / "series" / str(self.series2.id.as_int())).exists(),
@@ -109,6 +118,10 @@ class MultiConfigTests(PavTestCase):
 
     def test_test_runs_loaded_from_correct_working_dir(self):
         """Test that test runs are loaded from the correct directory."""
+
+        self.assertEqual(len(self.pav_cfg.suite_info), 2,
+            msg="Expected exactly 2 suite info tuples on the Pavilion config, "
+                f"but found {len(self.pav_cfg.suite_info)}: {self.pav_cfg.suite_info}")
 
         test1_id = TestID(f"{self.series1.id}.1")
         test1 = TestRun.load(self.pav_cfg, test1_id)
@@ -122,47 +135,27 @@ class MultiConfigTests(PavTestCase):
                          msg=f"Test {test2_id} has the wrong path. Expected {self.working_dir2 / 'test_runs' / str(test2_id)} "
                              f"but found {test2.path}")
 
-    def test_pavilion_prefers_main_config_dir_when_name_collision(self):
+    def test_same_name_suite_in_different_config_dirs(self):
         """Test that Pavilion prefers suites from the main configuration directory when multiple
         suites exist with the same name."""
 
         self.link_file("suites/hello_c.yaml", config_dir=self.config_dir2, with_name="hello_world.yaml")
         self.link_file("test_src/hello.c", config_dir=self.config_dir2)
 
+        # Reload the pav config so that it has the new config directory and correct suite info
+        self.pav_cfg = self.make_pav_config(config_dirs=[self.config_dir2])
+
+        self.assertEqual(len(self.pav_cfg.suite_info), 3,
+                         msg="Expected exactly 3 suite info tuples on the Pavilion config, "
+                             f"but found {len(self.pav_cfg.suite_info)}: {self.pav_cfg.suite_info}")
+
         resolver = TestConfigResolver(self.pav_cfg)
-        print("Loading test suites...")
         suites = resolver._load_suite_tests(TestRequest("hello_world"))
 
-        self.assertEqual(len(suites), 1,
-                         msg="Expected exactly 1 suite to be found for test request 'hello_world', "
+        self.assertEqual(len(suites), 2,
+                         msg="Expected exactly 2 suite to be found for test request 'hello_world', "
                              f"but {len(suites)} were found.")
         self.assertTrue("hello" in suites.get("hello_world"),
                         msg="Expected hello_world suite from main config directory, but suite from "
                             "secondary config directory was loaded instead. Loaded suite contains "
                             f"the following tests: {list(suites.get('hello_world').keys())}")
-
-    def test_suites_can_be_referenced_by_config_label(self):
-        """Test that suites with the same name can be disambiguated using their config labels."""
-
-        self.link_file("suites/hello_c.yaml", config_dir=self.config_dir2, with_name="hello_world.yaml")
-        self.link_file("test_src/hello.c", config_dir=self.config_dir2)
-
-        resolver = TestConfigResolver(self.pav_cfg)
-        suites = resolver._load_suite_tests(TestRequest("main.hello_world"))
-
-        self.assertEqual(len(suites), 1,
-                         msg="Expected exactly 1 suite to be found for test request 'main.hello_world', "
-                             f"but {len(suites)} were found.")
-        self.assertTrue("hello" in suites.get("hello_world"),
-                        msg="Expected hello_world suite from main config directory, but suite from "
-                            "secondary config directory was loaded instead. Loaded suite contains "
-                            f"the following tests: {list(suites.get('hello_world').keys())}")
-
-        suites = resolver._load_suite_tests(TestRequest("config_dir2.hello_world"))
-
-        self.assertEqual(len(suites), 1,
-                        msg="Expected exactly 1 suite to be found for test request 'config_dir2.hello_world', "
-                            f"but {len(suites)} were found.")
-        self.assertTrue("hello_c" in suites.get("hello_world"),
-                        msg="Expected hello_world suite from secondary config directory, but suite from "
-                            "main config directory was loaded instead.")
