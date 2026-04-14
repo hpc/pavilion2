@@ -288,6 +288,10 @@ class TestConfigResolver:
             try:
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
+
+                if path.is_dir():
+                    path = path / "suite.yaml"
+
                 with path.open('r') as suite_file:
                     try:
                         suite_cfg = self._suite_loader.load(suite_file, partial=True)
@@ -608,7 +612,11 @@ class TestConfigResolver:
         """Given a path to a config, load the config, and raise an appropriate
         error if it can't be loaded"""
 
-        path = cfg.path
+        if cfg.path.is_dir():
+            path = cfg.path / "suite.yaml"
+        else:
+            path = cfg.path
+
         cfg_type = cfg.type
 
         try:
@@ -881,7 +889,12 @@ class TestConfigResolver:
                 if raw_test is None:
                     raw_suite_cfg[test_name] = {}
 
-            suite_tests = self.resolve_inheritance(suite_name, raw_suite_cfg, cfg_info.path)
+            if cfg_info.path.is_dir():
+                path = cfg_info.path / "suite.yaml"
+            else:
+                path = cfg_info.path
+
+            suite_tests = self.resolve_inheritance(suite_name, raw_suite_cfg, path)
 
             # Perform essential transformations to each test config.
             for test_cfg_name, test_cfg in list(suite_tests.items()):
@@ -894,11 +907,7 @@ class TestConfigResolver:
                 test_cfg['suite'] = suite_name
                 test_cfg['host'] = self._host
                 test_cfg['platform'] = self._platform
-
-                if cfg_info.from_suite:
-                    test_cfg['suite_path'] = cfg_info.path.parent.as_posix()
-                else:
-                    test_cfg['suite_path'] = cfg_info.path.as_posix()
+                test_cfg['suite_path'] = cfg_info.path.as_posix()
 
             self._suites[(label, suite_name)] = suite_tests
             matching_suites[(label, suite_name)] = suite_tests

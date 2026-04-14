@@ -251,8 +251,9 @@ class PavConfig(PavConfigDict):
 
     @property
     def suite_info(self) -> List[Tuple[str, str, Path]]:
-        """Get the label, name, and path for every suite the config
-        knows about."""
+        """Get the label, name, and path for every suite the config knows about. If the suite
+        uses a suite directory structure, the path with be the directory itself. Otherwise,
+        the path with be the suite config file."""
 
         suite_infos = []
 
