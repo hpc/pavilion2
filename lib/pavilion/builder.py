@@ -384,8 +384,6 @@ class TestBuilder:
 
             self.status.set(STATES.BUILDING,
                             "Updating source at '{}'.".format(found_src_path))
-            self.status.set(STATES.BUILDING,
-                            f"Downloading source from {src_url} to {dwn_dest} (maybe)...")
 
             try:
                 wget.update(self._pav_cfg, src_url, dwn_dest)
@@ -393,8 +391,6 @@ class TestBuilder:
                 raise TestBuilderError(
                     "Could not retrieve source from the given url '{}'".format(src_url), err)
 
-            self.status.set(STATES.INFO,
-                            f"Source exists: {dwn_dest.exists()}")
             return dwn_dest
 
         if found_src_path is None:
@@ -709,9 +705,6 @@ class TestBuilder:
             if self.suite_subdir is not None:
                 sub_dirs.append(self.suite_subdir)
 
-            tracker.update(state=STATES.BUILDING, note=f"Searching subdirectories: {sub_dirs}...")
-            tracker.update(state=STATES.BUILDING,
-                note=f"Searching the following locations: {list(self._pav_cfg.config_paths)}...")
             src_path = self._pav_cfg.find_file(raw_src_path, sub_dirs)
 
             # Only raise an error if a path that is explicitly identified is missing
