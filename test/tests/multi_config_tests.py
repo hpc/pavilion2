@@ -153,7 +153,7 @@ class MultiConfigTests(PavTestCase):
         suites = resolver._load_suite_tests(TestRequest("hello_world"))
 
         self.assertEqual(len(suites), 2,
-                         msg="Expected exactly 2 suite to be found for test request 'hello_world', "
+                         msg="Expected exactly 2 suites to be found for test request 'hello_world', "
                              f"but {len(suites)} were found.")
         self.assertTrue("hello" in suites.get("hello_world"),
                         msg="Expected hello_world suite from main config directory, but suite from "

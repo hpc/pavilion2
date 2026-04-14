@@ -112,13 +112,15 @@ base class.
         if make_working_dir:
             self.working_dir.mkdir(parents=True, exist_ok=True)
 
-        if make_pav_src:
+        if make_config_dir and make_pav_src:
             try:
                 self.pav_src_dir.symlink_to(self.PAV_ROOT_DIR)
             except FileExistsError:
                 pass
 
-        self.pav_cfg = self.make_pav_config(write=write_config, setup_spack=setup_spack)
+        self.pav_cfg = self.make_pav_config(
+                                    write=(make_config_dir and write_config),
+                                    setup_spack=setup_spack)
 
     def make_pav_config(self, config_dirs: List[Path] = None, result_loggers: List[Dict] = None,
                         write: bool = True, setup_spack: bool = True):
