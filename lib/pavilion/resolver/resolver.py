@@ -861,16 +861,10 @@ class TestConfigResolver:
                 matching_suites[suite_name] = self._suites[suite_name]
                 continue
 
-            # We still use this because it preserves config order.
-            cfg_info = self.find_config("suite", suite_name, suite_name)
-
-            if cfg_info.from_suite:
-                loader = self._suite_loader
-            else:
-                loader = self._loader
+            cfg_info = ConfigInfo(type="suite", name=suite_name, label=label, path=path, from_suite=True)
 
             try:
-                raw_suite_cfg = self._load_raw_config(cfg_info, loader)
+                raw_suite_cfg = self._load_raw_config(cfg_info, self._suite_loader)
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)

@@ -46,6 +46,12 @@ class MultiConfigTests(PavTestCase):
              config_dir=self.config_dir2)
 
     def set_up(self):
+        self.assertEqual(len(self.pav_cfg.configs), 3,
+                         msg="Expected exactly 3 configs in the Pavilion config, but found "
+                             f"{len(self.pav_cfg.configs)}:\n{[(label, cfg.path) for label, cfg in self.pav_cfg.configs.items()]}")
+        self.assertEqual(len(self.pav_cfg.config_dirs), 1,
+                         msg="Expected exactly 1 config directory in the Pavilion config, but found "
+                             f"{len(self.pav_cfg.configs)}: {self.pav_cfg.config_dirs}")
         try:
             (self.config_dir2 / "suites" / "hello_world.yaml").unlink()
             (self.config_dir2 / "test_src" / "hello.c").unlink()
@@ -124,6 +130,7 @@ class MultiConfigTests(PavTestCase):
         self.link_file("test_src/hello.c", config_dir=self.config_dir2)
 
         resolver = TestConfigResolver(self.pav_cfg)
+        print("Loading test suites...")
         suites = resolver._load_suite_tests(TestRequest("hello_world"))
 
         self.assertEqual(len(suites), 1,
