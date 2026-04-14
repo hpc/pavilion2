@@ -10,7 +10,7 @@ import inspect
 from hashlib import sha1
 from pathlib import Path
 from collections import abc
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 
 import pavilion.schedulers
 from pavilion import arguments
@@ -26,6 +26,7 @@ from pavilion.sys_vars import base_classes
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
+from pavilion.micro import set_default
 from unittest_ex import TestCaseEx
 
 
@@ -67,7 +68,8 @@ base class.
     PAV_TEST_DIR = PAV_ROOT_DIR / "test"
     TEST_OUTPUT_DIR = PAV_TEST_DIR / "output"
     TEST_DATA_DIR = PAV_TEST_DIR / "data"
-    DEFAULT_PAV_CONFIG_PATH = TEST_DATA_DIR / 'pav_config_dir' / 'pavilion.yaml.in'
+    TEST_DATA_PAV_CONFIG_DIR = TEST_DATA_DIR / "pav_config_dir"
+    DEFAULT_PAV_CONFIG_PATH = TEST_DATA_PAV_CONFIG_DIR / 'pavilion.yaml.in'
 
     def __init__(self, *args, make_config_dir: bool = True, make_working_dir: bool = True,
                  make_pav_src: bool = True, write_config: bool = True, setup_spack: bool = True,
@@ -159,26 +161,55 @@ base class.
 
         return pav_cfg
 
-    def link_files(self, *paths: Union[Path, str]) -> None:
-        """Link files from the test data directory into the current suite config directory."""
+    def link_file(self, path: Union[Path, str], config_dir: Optional[Path] = None,
+                  with_name: Optional[str] = None):
+        """Link a file from the test data directory into the specified config directory, or into
+        the unit test suite's main config directory, if no config directory is provided, using the
+        file name specified by with_name. If no name is provided, the linked file retains its
+        original name."""
+
+        config_dir = set_default(config_dir, self.pav_config_dir)
+        target = Path(path)
+
+        if target.is_absolute():
+            try:
+                rel_path = target.relative_to(self.TEST_DATA_PAV_CONFIG_DIR)
+            except ValueError:
+                raise ValueError(f"Absolute path {target} is not relative to "
+                                  "{self.TEST_DATA_PAV_CONFIG_DIR}. Unable to link.")
+        else:
+            rel_path = target
+
+        target_path = self.TEST_DATA_PAV_CONFIG_DIR / rel_path
+        link_path = config_dir / rel_path
+
+        if with_name is not None:
+            link_path = link_path.with_name(with_name)
+
+        link_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            link_path.symlink_to(target_path)
+        except FileExistsError:
+            pass
+
+    def link_files(self, *paths: Union[Path, str], config_dir: Optional[Path] = None) -> None:
+        """Link files from the test data directory into the specified config directory, or into
+        the unit test suite's main config directory, if no config directory is provided."""
+
+        config_dir = set_default(config_dir, self.pav_config_dir)
 
         if isinstance(paths, str) or not isinstance(paths, abc.Iterable):
             paths = [paths]
 
         for path in paths:
-            targets = (self.TEST_DATA_DIR / "pav_config_dir").glob(str(path))
+            if Path(path).is_absolute():
+                targets = Path("/").glob(str(path))
+            else:
+                targets = self.TEST_DATA_PAV_CONFIG_DIR.glob(str(path))
 
             for target in targets:
-                rel_path = target.relative_to(self.TEST_DATA_DIR / "pav_config_dir")
-                link_path = self.pav_config_dir / rel_path
-                target_path = self.TEST_DATA_DIR / "pav_config_dir" / rel_path
-
-                link_path.parent.mkdir(parents=True, exist_ok=True)
-
-                try:
-                    link_path.symlink_to(target_path)
-                except FileExistsError:
-                    pass
+                self.link_file(target, config_dir)
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files
