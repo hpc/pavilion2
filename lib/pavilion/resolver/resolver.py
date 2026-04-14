@@ -861,8 +861,13 @@ class TestConfigResolver:
                 matching_suites[(label, suite_name)] = self._suites[(label, suite_name)]
                 continue
 
+            if path.parent.name == "suites":
+                from_suite = True
+            else:
+                from_suite = False
+
             cfg_info = ConfigInfo(type="suite", name=suite_name, label=label, path=path,
-                                  from_suite=True)
+                                  from_suite=from_suite)
 
             try:
                 raw_suite_cfg = self._load_raw_config(cfg_info, self._suite_loader)

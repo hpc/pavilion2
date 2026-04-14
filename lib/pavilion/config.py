@@ -283,7 +283,7 @@ class PavConfig(PavConfigDict):
                 names = [suite.parent.name for suite in suites]
                 labels = [label] * len(suites)
 
-                suite_infos.extend(zip(labels, names, suites))
+                suite_infos.extend(zip(labels, names, (suite.parent for suite in suites)))
 
         # pylint: disable=attribute-defined-outside-init
         self._suite_info = suite_infos
