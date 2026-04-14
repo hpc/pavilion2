@@ -155,7 +155,9 @@ class MultiConfigTests(PavTestCase):
         self.assertEqual(len(suites), 2,
                          msg="Expected exactly 2 suites to be found for test request 'hello_world', "
                              f"but {len(suites)} were found.")
-        self.assertTrue("hello" in suites.get("hello_world"),
-                        msg="Expected hello_world suite from main config directory, but suite from "
-                            "secondary config directory was loaded instead. Loaded suite contains "
-                            f"the following tests: {list(suites.get('hello_world').keys())}")
+
+        self.assertTrue("hello" in suites.get(("_main", "hello_world")),
+                        msg="Expected hello_world suite from main config directory.")
+
+        self.assertTrue("hello_c" in suites.get(("config_dir2", "hello_world")),
+                msg="Expected hello_world suite from secondary config directory.")
