@@ -1336,12 +1336,17 @@ be set by the scheduler plugin as soon as it's known."""
             return None
 
     def is_active(self, timeout: int) -> Optional[bool]:
-        """Determine whether the test is still active."""
+        """Determines whether the test is still active, based on the given timeout."""
 
-        if self.cancelled or self.complete:
+        last_active = self.last_active()
+
+        if last_active is None:
+            return None
+
+        if time.time() - last_active > timeout:
             return False
 
-        return self.last_active()
+        return True
 
     def __eq__(self, other: "TestRun") -> bool:
         return self.id == other.id

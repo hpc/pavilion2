@@ -34,6 +34,7 @@ from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.counter import SeriesIDCounter, TestIDCounter
 from pavilion.result_logging import get_result_loggers
+from pavilion.status_utils import get_status
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -62,7 +63,7 @@ class TestSeries:
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
     TESTSET_DIRNAME = "test_sets"
     TESTRUN_DIRNAME = "test_runs"
-    LOG_RESULTS_LOG_FN = "log_results.log"
+    LOG_RESULTS_LOG_FN = "result_loggers.log"
     TEST_RUNS_DIRNAME = "test_runs"
     SERIES_DIRNAME = "series"
 
@@ -568,43 +569,79 @@ class TestSeries:
         #   scheduler to see if it failed.
 
         # Time out eventually so we don't end up with rogue processes
-        timeout_time = set_default(timeout, math.inf) + time.time()
+        timeout = set_default(timeout, math.inf)
 
         # We assume that all tests in the series are represented in self.tests by this point
         all_tests = self.tests.values()
 
+        # We don't want to notify too often, or we'll clutter the log
+        scheduled_notify_limiter = RateLimiter(lambda: output.fprint(
+                                                            self.outfile,
+                                                            f"Waiting on scheduled test {test.id}"),
+                                               cooldown=30)
+
         logged = 0
 
-        for test in all_tests:
-            state = get_status(test).state
+        while len(all_tests) > 0:
+            for test in all_tests:
+                state = get_status(test).state
 
-            if state == STATES.COMPLETE:
-                output.fprint(self.outfile,
-                              f"Test {test.id} has completed. Logging results...")
+                if state == STATES.COMPLETE:
+                    output.fprint(self.outfile,
+                                f"Test {test.id} has completed. Logging results...")
 
-                results = test.results
+                    results = test.results
 
-                if flatten:
-                    results = test.flatten_results(results)
+                    if flatten:
+                        results = test.flatten_results(results)
 
-                for logger in loggers:
-                    logger(results)
+                    for logger in loggers:
+                        try:
+                            logger(results)
+                        except ResultLoggerPluginError as err:
+                            output.fprint(self.errfile,
+                                          f"Error logging results for test {test.id}: {err}")
 
-                all_tests.remove(test)
+                    logged += 1
+                    output.fprint(self.outfile, f"Logged {logged} test(s) so far.")
 
-            elif STATES.is_fatal(state):
-                output.fprint(self.errfile,
-                              f"Test {test.id} has fatal state: {state}. Skipping logging results.",
-                              color=output.RED)
+                    all_tests.remove(test)
 
-                all_tests.remove(test)
+                elif STATES.is_fatal(state):
+                    output.fprint(self.errfile,
+                                f"Test {test.id} has fatal state: {state}. Skipping logging results.",
+                                color=output.RED)
 
-            elif state in (STATES.SKIPPED, STATES.BUILD_SKIPPED):
-                output.fprint(self.errfile,
-                              f"Test {test.id} was skipped. Skipping logging results.",
-                              color=output.YELLOW)
+                    all_tests.remove(test)
 
-                all_tests.remove(test)
+                elif state in (STATES.SKIPPED, STATES.BUILD_SKIPPED):
+                    output.fprint(self.errfile,
+                                f"Test {test.id} was skipped. Skipping logging results.",
+                                color=output.YELLOW)
+
+                    all_tests.remove(test)
+
+                elif state = STATES.SCHEDULED:
+                    scheduled_notify_limiter()
+                    continue
+                else:
+                    active = test.is_active(timeout)
+
+                    if active is None:
+                        output.fprint(self.errfile,
+                                f"Unable to determine whether test {test.id} is still active. "
+                                "Giving it the benefit of the doubt.",
+                                color=output.YELLOW)
+                    elif not active:
+                        output.fprint(self.errfile,
+                                f"Test {test.id} has not been active for more than {timeout} "
+                                "seconds. It appears to be hanging. Giving up on logging its "
+                                "results.",
+                                color=output.RED)
+
+                        all_tests.remove(test)
+
+            time.sleep(sleep_time)
 
         output.fprint(self.outfile,
                       f"Finished logging results. Logged {logged} test(s) total.")
