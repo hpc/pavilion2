@@ -621,7 +621,7 @@ class TestSeries:
 
                     all_tests.remove(test)
 
-                elif state = STATES.SCHEDULED:
+                elif state == STATES.SCHEDULED:
                     scheduled_notify_limiter()
                     continue
                 else:
