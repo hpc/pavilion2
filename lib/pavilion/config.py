@@ -532,10 +532,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="The list of result loggers and their corresponding parameters."
         ),
         yc.IntRangeElem(
-            "result_logger_timeout", default=self.DEFAULT_RESULT_LOGGER_TIMEOUT, vmin=1,
+            "result_logger_timeout", default=DEFAULT_RESULT_LOGGER_TIMEOUT, vmin=1,
             help_text="Timeout value, in seconds, after which result logger processes will "
                       "terminate if no new tests complete. Defaults to "
-                      f"{self.DEFAULT_RESULT_LOGGER_TIMEOUT}."
+                      f"{DEFAULT_RESULT_LOGGER_TIMEOUT}."
         ),
 
         # The following configuration items are for internal use and provide a
