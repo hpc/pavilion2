@@ -165,21 +165,57 @@ class ResultLoggerTests(PavTestCase):
     def test_logging_process_exits_once_series_completed(self):
         """Test that the result logging process exits once the entire series has completed."""
 
+        self.fail("This test is not yet implemented.")
+
     def test_logging_process_times_out_if_no_activity(self):
         """Test that the result logging process times out when tests are not active."""
+
+        self.fail("This test is not yet implemented.")
 
     def test_load_custom_result_logger_plugin(self):
         """Test that custom result loggers can be loaded."""
 
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args(['run', 'results_log'])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+
+        self.pav_cfg = self.make_pav_config(result_loggers=[{"plugin": "null_logger"}])
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        series = run_cmd.last_series
+
+        series1.wait_log(timeout=10)
+
     def test_logging_exits_if_no_loggers(self):
         """Test that the result logging process exits if there are no result loggers defined."""
+
+        self.fail("This test is not yet implemented.")
 
     def test_logging_gracefully_handles_errors(self):
         """Test that the logging process gracefully handles ResultLoggerPluginErrors."""
 
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args(['run', 'results_log'])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+
+        self.pav_cfg = self.make_pav_config(result_loggers=[{"plugin": "error_logger"}])
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        series = run_cmd.last_series
+
+        series1.wait_log(timeout=10)
+
     def test_series_file_result_logger_has_separate_files_for_reused_series_ids(self):
         """Test that when series IDs are used, the SeriesFileResultLogger gives them separate
         result logs."""
+
+        self.fail("This test is not yet implemented.")
 
     def test_multiple_result_loggers(self):
         """Test that loggers work correctly when multiple loggers are defined."""
