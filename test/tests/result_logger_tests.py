@@ -17,16 +17,22 @@ class ResultLoggerTests(PavTestCase):
         args = arg_parser.parse_args(['run', 'results_log'])
 
         run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
 
         log_path = self.pav_cfg.working_dir / "results"
         self.pav_cfg = self.make_pav_config(result_loggers= [{
                                                 "plugin": "series_file",
                                                 "dest": str(log_path)}])
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
 
         series = run_cmd.last_series
-        series.wait_log(timeout=10)
+
+        try:
+            series.wait_log(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
 
         matches = list(log_path.glob(f"{series.id}*"))
 
@@ -36,8 +42,13 @@ class ResultLoggerTests(PavTestCase):
 
         log_path = next(iter(matches))
 
-        with open(log_path) as fin:
-            results = json.load(fin)
+        try:
+            with open(log_path) as fin:
+                results = json.load(fin)
+        except FileNotFoundError:
+            self.fail(f"Results log at {log_path} was never created.")
+        except OSError:
+            self.fail(f"Could not read results log at {log_path}.")
 
         self.assertEqual(results.get("hello"), "world")
 
@@ -56,14 +67,23 @@ class ResultLoggerTests(PavTestCase):
                                                 "plugin": "common_file",
                                                 "dest": str(log_path)}])
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
         series1 = run_cmd.last_series
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
         series2 = run_cmd.last_series
 
-        series1.wait_log(timeout=10)
-        series2.wait_log(timeout=10)
+        try:
+            series1.wait_log(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {series1.id} to finish logging results after 10 seconds.")
+
+        try:
+            series2.wait_log(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {series2.id} to finish logging results after 10 seconds.")
 
         try:
             with open(log_path) as fin:
@@ -78,7 +98,8 @@ class ResultLoggerTests(PavTestCase):
 
         for res in results:
             results = json.loads(res)
-            self.assertEqual(results.get("hello"), "world")
+            self.assertEqual(results.get("hello"), "world",
+                             msg="Expected results to have key 'hello' with value 'world', but they did not.")
 
     def test_flatten_results(self):
         """Make sure result flattening works as expected, as well as regular
@@ -91,14 +112,22 @@ class ResultLoggerTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0,
+                         msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
 
         series1 = run_cmd.last_series
 
         series1.log_results()
 
-        series1.wait(10)
-        series1.wait_log(10)
+        try:
+            series1.wait(10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {series1.id} to complete after 10 seconds.")
+
+        try:
+            series1.wait_log(10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {series1.id} to finish logging results after 10 seconds.")
 
         log_path = self.pav_cfg.working_dir / "results"
         matches = list(log_path.glob(f"{series1.id}*"))
@@ -129,7 +158,8 @@ class ResultLoggerTests(PavTestCase):
             '4': {'hello': 'hello 4'},
         }
 
-        self.assertEqual(flattened, answer)
+        self.assertEqual(flattened, answer,
+                        msg=f"Expected flattened results {answer} but found {flatten} instead.")
 
         self.pav_cfg["flatten_results"] = False
 
@@ -187,7 +217,7 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series = run_cmd.last_series
 
-        series1.wait_log(timeout=10)
+        series.wait_log(timeout=10)
 
     def test_logging_exits_if_no_loggers(self):
         """Test that the result logging process exits if there are no result loggers defined."""
@@ -209,7 +239,7 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series = run_cmd.last_series
 
-        series1.wait_log(timeout=10)
+        series.wait_log(timeout=10)
 
     def test_series_file_result_logger_has_separate_files_for_reused_series_ids(self):
         """Test that when series IDs are used, the SeriesFileResultLogger gives them separate
