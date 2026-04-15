@@ -154,11 +154,10 @@ def main():
     output_dir = PavTestCase.TEST_OUTPUT_DIR
     if not args.list and not args.no_clear and output_dir.exists():
         msg("Clearing out the output directory from prior unit test runs.")
-        msg(output_dir.as_posix())
 
         shutil.rmtree(output_dir.as_posix(), ignore_errors=False)
 
-    # log_out = log_setup.setup_loggers(PavTestCase().pav_cfg)
+    log_out = log_setup.setup_loggers(PavTestCase().pav_cfg)
 
     verbosity = 0 if args.quiet else 2
 
@@ -180,7 +179,7 @@ def main():
         if args.verbose:
             msg("Log Output")
             msg("--------------------")
-            # msg(log_out.getvalue())
+            msg(log_out.getvalue())
 
         save_failures(result.errors + result.failures)
 

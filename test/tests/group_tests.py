@@ -131,7 +131,7 @@ class TestGroupTests(unittest.PavTestCase):
         s_test = list(series1.tests.values())[0]
         g_test = sub_group.tests()[0]
         g_test = g_test.resolve()
-        g_test = TestRun.load(self.pav_cfg, g_test.parents[1], TestID(g_test.name))
+        g_test = TestRun.load(self.pav_cfg, TestID(g_test.name))
 
         removed, warnings = group.remove([g_test, s_test])
         self.assertEqual(warnings, [])
