@@ -80,6 +80,9 @@ class ResultLoggerTests(PavTestCase):
             results = json.loads(res)
             self.assertEqual(results.get("hello"), "world")
 
+    def test_logging_process_exits_once_series_completed(self):
+        """Test that the result logging process exits once the entire series has completed."""
+
     def test_logging_process_times_out_if_no_activity(self):
         """Test that the result logging process times out when tests are not active."""
 
