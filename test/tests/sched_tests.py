@@ -638,15 +638,9 @@ class SchedTests(PavTestCase):
         dummy.schedule_tests(self.pav_cfg, [test])
         # Wait few seconds for the test to be scheduled to run.
         try:
-<<<<<<< HEAD
-            test.wait(timeout=10)
-        except TimeoutError:
-            self.fail(f"Timed out waiting for test {test.id} to complete after 10 seconds.")
-=======
             test.wait(self.testrun_wait_timeout)
         except TimeoutError:
-            self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
->>>>>>> develop
+            self.fail(f"Timed out waiting for test {test.id} to complete after {self.testrun_wait_timeout} seconds.")
 
         # Check if it actually echoed to log
         with (test.path/'run.log').open('r') as runlog:
