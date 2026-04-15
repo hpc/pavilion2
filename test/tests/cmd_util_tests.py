@@ -15,6 +15,14 @@ from pavilion.test_ids import resolve_mixed_ids, SeriesID
 
 class CmdUtilsTests(unittest.PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "suites/hello_world.yaml",
+                    "suites/arg_filtered.yaml",
+                    "plugins/schedulers/dummy.*")
+
     def test_load_last_series(self):
         """Checking loading the previous series."""
 

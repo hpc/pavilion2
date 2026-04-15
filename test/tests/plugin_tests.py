@@ -41,8 +41,8 @@ class PluginTests(PavTestCase):
         pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
-                               self.TEST_DATA_ROOT/'secondary_plugins']
+        pav_cfg.config_dirs = [self.TEST_DATA_DIR/'pav_config_dir',
+                               self.TEST_DATA_DIR/'secondary_plugins']
 
         for path in pav_cfg.config_dirs:
             self.assertTrue(path.exists())
@@ -54,8 +54,8 @@ class PluginTests(PavTestCase):
 
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = self.make_pav_config(config_dirs=[
-            self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'secondary_plugins'])
+            self.TEST_DATA_DIR/'pav_config_dir',
+            self.TEST_DATA_DIR/'secondary_plugins'])
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -70,9 +70,9 @@ class PluginTests(PavTestCase):
     def test_plugin_conflicts(self):
 
         pav_cfg = self.make_pav_config(config_dirs=[
-            self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'secondary_plugins',
-            self.TEST_DATA_ROOT / 'conflicting_plugins'])
+            self.TEST_DATA_DIR/'pav_config_dir',
+            self.TEST_DATA_DIR/'secondary_plugins',
+            self.TEST_DATA_DIR / 'conflicting_plugins'])
 
         self.assertRaises(pavilion.errors.PluginError,
                           lambda: plugins.initialize_plugins(pav_cfg))
@@ -113,8 +113,8 @@ class PluginTests(PavTestCase):
 
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = self.make_pav_config(config_dirs=[
-            self.TEST_DATA_ROOT/'pav_config_dir',
-            self.TEST_DATA_ROOT/'secondary_plugins'])
+            self.TEST_DATA_DIR/'pav_config_dir',
+            self.TEST_DATA_DIR/'secondary_plugins'])
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
 
@@ -240,7 +240,7 @@ class PluginTests(PavTestCase):
         yapsy_logger.addHandler(hndlr)
 
         pav_cfg = self.make_pav_config(config_dirs=[
-            self.TEST_DATA_ROOT/'bad_plugins',
+            self.TEST_DATA_DIR/'bad_plugins',
         ])
 
         # A bunch of plugins should fail to load, but this should be fine

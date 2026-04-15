@@ -79,15 +79,15 @@ class UtilsTests(PavTestCase):
         # base, target, answer
         tests = [
             # Outside 'base'
-            (self.PAV_LIB_DIR,
+            (self.PAV_LIB_DIR / "pavilion",
              self.PAV_ROOT_DIR/'README.md', '../../README.md'),
             # Inside 'base'
-            (self.PAV_LIB_DIR,
-             self.PAV_LIB_DIR/'test_config'/'variables.py',
+            (self.PAV_LIB_DIR / "pavilion",
+             self.PAV_LIB_DIR/ "pavilion" / 'test_config' / 'variables.py',
              'test_config/variables.py'),
             # Different root.
-            (self.PAV_LIB_DIR, '/etc/fstab',
-             Path(*('..',)*len(self.PAV_LIB_DIR.parts) + ('/etc/fstab',))),
+            (self.PAV_LIB_DIR / "pavilion", '/etc/fstab',
+             Path(*('..',)*len((self.PAV_LIB_DIR / "pavilion").parts) + ('/etc/fstab',))),
         ]
 
         for base, other, answer in tests:

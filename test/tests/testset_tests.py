@@ -8,6 +8,23 @@ from pavilion.enums import Verbose
 
 class TestSetTests(PavTestCase):
 
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "suites/pass_fail.yaml",
+                    "suites/invalid.yaml",
+                    "suites/invalid_results.yaml",
+                    "suites/build_parallel.yaml",
+                    "suites/build_fail.yaml",
+                    "suites/build_rebuild.yaml",
+                    "suites/test_set_errors.yaml",
+                    "suites/varied_time.yaml",
+                    "test_src/invalid_file.tar.gz",
+                    "plugins/schedulers/dummy.*",
+                    "plugins/schedulers/error*")
+
     def test_init(self):
         """Check the init function."""
 

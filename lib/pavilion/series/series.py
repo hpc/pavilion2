@@ -58,6 +58,7 @@ class TestSeries:
     CANCEL_FN = 'series.CANCELED'
     NAME_RE = re.compile('[a-z][a-z0-9_-]+$')
     TESTSET_DIRNAME = "test_sets"
+    TESTRUN_DIRNAME = "test_runs"
     LOG_RESULTS_LOG_FN = "log_results.log"
     TEST_RUNS_DIRNAME = "test_runs"
     SERIES_DIRNAME = "series"
@@ -814,9 +815,14 @@ class TestSeries:
         """Symlink the series to the test directory, and vice versa."""
 
         set_path = self.path / self.TESTSET_DIRNAME / test_set_name
+        test_run_path = self.path / self.TESTRUN_DIRNAME
 
         (set_path / str(test.id)).symlink_to(test.path)
-        (test.path / "series").symlink_to(self.path)
+        (test.path / self.SERIES_DIRNAME).symlink_to(self.path)
+
+        # Create symlinks directly to test runs, so we don't have to know which test set they're in
+        test_run_path.mkdir(exist_ok=True)
+        (test_run_path / str(test.id)).symlink_to(test.path)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user

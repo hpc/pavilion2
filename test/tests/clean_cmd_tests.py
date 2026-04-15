@@ -8,6 +8,13 @@ from pavilion.unittest import PavTestCase
 
 class CancelCmdTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "hosts/this",
+                    "suites/clean_test.yaml")
+
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
         commands.load('run', 'clean')

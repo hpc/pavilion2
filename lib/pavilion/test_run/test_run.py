@@ -86,6 +86,8 @@ class TestRun(TestAttributes):
 
     RUN_DIR = 'test_runs'
 
+    SERIES_DIR = "series"
+
     NO_LABEL = '_none'
 
     STATUS_FN = 'status'
@@ -418,17 +420,7 @@ class TestRun(TestAttributes):
         return ID_Pair((pav_cfg.working_dir, test_id))
 
     @classmethod
-    def load_from_raw_id(cls, pav_cfg: PavConfig, raw_test_id: TestID) -> 'TestRun':
-        """Load a test given a raw test id string, in the form
-        [label].test_id. The optional label will allow us to look up the config
-        path for the test."""
-
-        working_dir, test_id = cls.parse_raw_id(pav_cfg, raw_test_id)
-
-        return cls.load(pav_cfg, working_dir, test_id)
-
-    @classmethod
-    def load(cls, pav_cfg, working_dir: Path, test_id: TestID) -> 'TestRun':
+    def load(cls, pav_cfg: PavConfig, test_id: TestID) -> 'TestRun':
         """Load an old TestRun object given a test id.
 
         :param pav_cfg: The pavilion config
@@ -437,7 +429,13 @@ class TestRun(TestAttributes):
         :rtype: TestRun
         """
 
-        path = working_dir / cls.RUN_DIR / str(test_id)
+        if test_id.is_relative():
+            # Use the series directory's symlink to the test, so we don't have to worry about which
+            # config directory it's in
+            path = (pav_cfg.working_dir / cls.SERIES_DIR / str(test_id.series.as_int()) /
+                    cls.RUN_DIR / str(test_id))
+        else:
+            path = pav_cfg.working_dir / cls.RUN_DIR / str(test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "

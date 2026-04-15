@@ -1,5 +1,6 @@
 testName.batch
 working_dir
+pavilion.yaml
 data/working_dir-permissions
 data/configs-permissions/pavilion.yaml
 data/configs-spec_perms/tests/perm.yaml
@@ -8,5 +9,6 @@ data/pav_config_dir/test_src/.README.md.info
 data/pav_config_dir/test_src/README.md
 data/pav_config_dir/test_src/README.md.hash
 spack
+output
 
 *.hash

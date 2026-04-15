@@ -20,7 +20,7 @@ class OutputTests(PavTestCase):
         dev_null = open('/dev/null', 'w')
 
         words = [word.strip() for word in
-                 (self.TEST_DATA_ROOT/'words').open().readlines()]
+                 (self.TEST_DATA_DIR/'words').open().readlines()]
 
         # Choose random column header names
         columns = [random.choice(words) for i in range(20)]

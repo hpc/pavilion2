@@ -5,6 +5,10 @@ RELEASE=2.6
 ## 2.6.1 Pre-Release Notes
 
 - Fixed a bug which caused some tests in a series to be loaded multiple times and others not at all.
+- Fixed a bug in which test runs were placed in the wrong working directory when multiple
+  configuration directories were used.
+- Fixed a bug in which the wrong suite was sometimes loaded when suites with the same name existed
+  in different config directories.
 
 ## 2.6 Release Notes
 

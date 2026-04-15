@@ -1,5 +1,8 @@
 from __future__ import print_function
 
+import tempfile
+from pathlib import Path
+
 from pavilion import errors
 from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
@@ -7,14 +10,24 @@ from pavilion.config import PavilionConfigLoader
 from pavilion import resolver
 from pavilion import schedulers
 from pavilion import test_run
-import tempfile
 
 
 class TestConfig(PavTestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "suites/config_tests.basics.yaml",
+                    "suites/default_vars_test.yaml",
+                    "suites/shebang.yaml",
+                    "hosts/this.yaml",
+                    "platforms/this.yaml",
+                    "plugins/schedulers/dummy.*")
+
     def test_valid_test_config(self):
         """Check that a valid config is read correctly."""
 
-        f = (self.TEST_DATA_ROOT/'config_tests.basics.yaml').open()
+        f = (self.pav_config_dir/ "suites" / 'config_tests.basics.yaml').open()
 
         data = file_format.TestConfigLoader().load(f)
 

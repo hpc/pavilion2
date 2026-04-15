@@ -19,9 +19,8 @@ class LegacyTests(PavTestCase):
     def test_legacy_runs(self):
         """Check loading of legacy run dirs."""
 
-        legacy_path = self.TEST_DATA_ROOT/'legacy'
+        legacy_path = self.TEST_DATA_DIR/'legacy'
         runs_path = legacy_path/'runs.txt'
-        wdir = self.pav_cfg.working_dir
 
         runs = []
         with runs_path.open() as runs_file:
@@ -31,8 +30,8 @@ class LegacyTests(PavTestCase):
                     runs.append(line)
 
         for run in runs:
-            run_path = legacy_path/run
-            dst_path = wdir/'test_runs'/run
+            run_path = legacy_path / run
+            dst_path = self.working_dir / 'test_runs' / run
             shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
                             symlinks=True)
 
@@ -40,9 +39,9 @@ class LegacyTests(PavTestCase):
 
             # Move the build directory into place
             build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
-            build_dst = dst_path/build_dst
-            (dst_path/'build_dir').rename(build_dst)
+            build_dst = dst_path / build_dst
+            (dst_path / 'build_dir').rename(build_dst)
 
-            test = TestRun.load_from_raw_id(self.pav_cfg, run_id)
+            test = TestRun.load(self.pav_cfg, run_id)
             self.assertTrue(test.results)
             self.assertTrue(test.complete)

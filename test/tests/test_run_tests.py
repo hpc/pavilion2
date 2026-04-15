@@ -12,6 +12,13 @@ from pavilion.status_file import TestStatusFile
 
 class TestRunTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+            "test_src/file_tests.tgz",
+            "test_src/tmpl_test.pav")
+
     def test_obj(self):
         """Test pavtest object initialization."""
 
@@ -47,7 +54,7 @@ class TestRunTests(PavTestCase):
         orig.build()
 
         # Make sure we can recreate the object from id.
-        loaded = TestRun.load(self.pav_cfg, orig.working_dir, orig.id)
+        loaded = TestRun.load(self.pav_cfg, orig.id)
 
         # Make sure the objects are identical
         # This tests the following functions
@@ -190,7 +197,7 @@ class TestRunTests(PavTestCase):
 
         test = self._quick_test(cfg)
         test_file = test.path/'build'/'foo'/'tmpl_out'
-        cmp_file = self.TEST_DATA_ROOT / 'create_files_results' / 'tmpl1.txt'
+        cmp_file = self.TEST_DATA_DIR / 'create_files_results' / 'tmpl1.txt'
         self.assertFalse(test_file.is_symlink())
         self.assertEqual(test_file.open().read(), cmp_file.open().read())
 
@@ -201,7 +208,7 @@ class TestRunTests(PavTestCase):
 
         test = self._quick_test(cfg)
         test_file = test.path / 'build' / 'foo' / 'tmpl_out'
-        cmp_file = self.TEST_DATA_ROOT / 'create_files_results' / 'tmpl1.txt'
+        cmp_file = self.TEST_DATA_DIR / 'create_files_results' / 'tmpl1.txt'
         self.assertTrue(test_file.is_symlink())
         self.assertEqual(test_file.open().read(), cmp_file.open().read())
 

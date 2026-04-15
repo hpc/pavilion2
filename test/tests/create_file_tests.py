@@ -7,6 +7,11 @@ from pavilion.unittest import PavTestCase
 class CreateFileTests(PavTestCase):
     """Test create_file and template functions."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files("test_src/tmpl_*")
+
     def test_create_file(self):
         """Ensure runtime file creation is working correctly."""
 
@@ -21,7 +26,7 @@ class CreateFileTests(PavTestCase):
 
         for fn in 'cf1.txt', 'cf2.txt':
             test_fn = cf_out/fn
-            std_fn = self.TEST_DATA_ROOT/'create_files_results'/fn
+            std_fn = self.TEST_DATA_DIR/'create_files_results'/fn
             with test_fn.open() as test_file, std_fn.open() as std_file:
                 self.assertEqual(test_file.read(), std_file.read())
 

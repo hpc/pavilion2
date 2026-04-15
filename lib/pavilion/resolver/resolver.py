@@ -123,7 +123,7 @@ class TestConfigResolver:
         self._base_config = self._load_base_config(self._platform, self._host)
 
         # Raw loaded test suites
-        self._suites: Dict[Dict] = {}
+        self._suites: Dict[Tuple[str, str], Dict] = {}
 
     @staticmethod
     def _get_config_dirname(cfg_type: str, use_suites_dir: bool = False) -> str:
@@ -288,6 +288,10 @@ class TestConfigResolver:
             try:
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
+
+                if path.is_dir():
+                    path = path / "suite.yaml"
+
                 with path.open('r') as suite_file:
                     try:
                         suite_cfg = self._suite_loader.load(suite_file, partial=True)
@@ -608,7 +612,11 @@ class TestConfigResolver:
         """Given a path to a config, load the config, and raise an appropriate
         error if it can't be loaded"""
 
-        path = cfg.path
+        if cfg.path.is_dir():
+            path = cfg.path / "suite.yaml"
+        else:
+            path = cfg.path
+
         cfg_type = cfg.type
 
         try:
@@ -693,7 +701,7 @@ class TestConfigResolver:
                 .format(request.suite),
                 request=request))
 
-        for suite_name, suite_tests in matched_suites.items():
+        for _, suite_tests in matched_suites.items():
             for test_name in suite_tests:
                 if request.matches_test_name(test_name):
                     added_tests.append(suite_tests[test_name])
@@ -856,21 +864,21 @@ class TestConfigResolver:
 
         matching_suites = {}
         for label, suite_name, path in suite_matches:
-            if suite_name in self._suites:
+            if (label, suite_name) in self._suites:
                 # We've already loaded it.
-                matching_suites[suite_name] = self._suites[suite_name]
+                matching_suites[(label, suite_name)] = self._suites[(label, suite_name)]
                 continue
 
-            # We still use this because it preserves config order.
-            cfg_info = self.find_config("suite", suite_name, suite_name)
-
-            if cfg_info.from_suite:
-                loader = self._suite_loader
+            if path.parent.name == "suites":
+                from_suite = True
             else:
-                loader = self._loader
+                from_suite = False
+
+            cfg_info = ConfigInfo(type="suite", name=suite_name, label=label, path=path,
+                                  from_suite=from_suite)
 
             try:
-                raw_suite_cfg = self._load_raw_config(cfg_info, loader)
+                raw_suite_cfg = self._load_raw_config(cfg_info, self._suite_loader)
             except TestConfigError as err:
                 err.request = request
                 self.errors.append(err)
@@ -881,7 +889,12 @@ class TestConfigResolver:
                 if raw_test is None:
                     raw_suite_cfg[test_name] = {}
 
-            suite_tests = self.resolve_inheritance(suite_name, raw_suite_cfg, cfg_info.path)
+            if cfg_info.path.is_dir():
+                path = cfg_info.path / "suite.yaml"
+            else:
+                path = cfg_info.path
+
+            suite_tests = self.resolve_inheritance(suite_name, raw_suite_cfg, path)
 
             # Perform essential transformations to each test config.
             for test_cfg_name, test_cfg in list(suite_tests.items()):
@@ -894,14 +907,10 @@ class TestConfigResolver:
                 test_cfg['suite'] = suite_name
                 test_cfg['host'] = self._host
                 test_cfg['platform'] = self._platform
+                test_cfg['suite_path'] = cfg_info.path.as_posix()
 
-                if cfg_info.from_suite:
-                    test_cfg['suite_path'] = cfg_info.path.parent.as_posix()
-                else:
-                    test_cfg['suite_path'] = cfg_info.path.as_posix()
-
-            self._suites[suite_name] = suite_tests
-            matching_suites[suite_name] = suite_tests
+            self._suites[(label, suite_name)] = suite_tests
+            matching_suites[(label, suite_name)] = suite_tests
 
         return matching_suites
 

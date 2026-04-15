@@ -26,6 +26,31 @@ class ResolverTests(PavTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.link_files(
+            "suites/hello_world.yaml",
+            "suites/hidden.yaml",
+            "suites/var_consistency*.yaml",
+            "suites/wild*.yaml",
+            "suites/permute_on_ref.yaml",
+            "suites/order.yaml",
+            "suites/cmd_inherit_extend.yaml",
+            "suites/version_*compatible.yaml",
+            "suites/sched_errors.yaml",
+            "suites/missing_key*.yaml",
+            "suites/invalid_yaml.yaml",
+            "suites/incremental.yaml",
+            "suites/permute_order.yaml",
+            "suites/speed.yaml",
+            "tests/old_style.yaml",
+            "platforms/that.yaml",
+            "hosts/this.yaml",
+            "plugins/schedulers/dummy.*",
+            "plugins/sys/dumb_list.*",
+            "*/layer_*.yaml",
+            "*/defaulted*.yaml",
+            "*/extended.yaml"
+        )
+
     def setUp(self):
         """Initialize plugins and setup a resolver."""
         plugins.initialize_plugins(self.pav_cfg)

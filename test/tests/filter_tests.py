@@ -21,6 +21,11 @@ from pavilion.filters import (FilterParseError, validate_int,
 
 class FiltersTest(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files("plugins/schedulers/dummy.*")
+
     def test_run_parser_args(self):
         """Test adding standardized test run filter args."""
 

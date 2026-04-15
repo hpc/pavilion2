@@ -60,7 +60,7 @@ def _load_test(pav_cfg, id_pair: ID_Pair):
 
     test_wd, test_id = id_pair
 
-    return TestRun.load(pav_cfg, test_wd, test_id)
+    return TestRun.load(pav_cfg, test_id)
 
 
 LOADED_TESTS = {}

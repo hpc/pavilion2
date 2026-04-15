@@ -61,6 +61,13 @@ class ModWrapperTests(PavTestCase):
     """Check the module add/remove/swap commands in run/build scripts against
     the local module system."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "suites/config_mod_wrappers.yaml",
+                    "plugins/module/module_plugin_test.*")
+
     def _quick_test_cfg(self):
         """Return a test config with a module system set up added
         to the preamble."""
@@ -77,7 +84,7 @@ class ModWrapperTests(PavTestCase):
             else:
                 self.fail("No module system to initialize")
         preamble.append('export MODULEPATH={}'
-                        .format(self.TEST_DATA_ROOT/'modules'))
+                        .format(self.TEST_DATA_DIR/'modules'))
         test_cfg['run']['preamble'] = preamble
         test_cfg['build']['preamble'] = preamble
         return test_cfg

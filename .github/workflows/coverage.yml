@@ -26,16 +26,11 @@ jobs:
         pip install -r test/requirements.txt
         pip install "coverage>=7.10,<8"
 
-    - name: setup
-      run: |
-        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        ./test/utils/spack_setup test
+    - name: Set up Spack
+      run: ./test/utils/spack_setup test
 
     - name: run_tests
-      run: |
-        sudo -E su $USER -c "PATH=$PATH; python -m coverage run ./test/run_tests"
+      run: python -m coverage run ./test/run_tests"
 
     - name: Generate and show report
       run: |

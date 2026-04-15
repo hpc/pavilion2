@@ -6,6 +6,19 @@ from pavilion.unittest import PavTestCase
 
 class SuitesTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "hosts/this.yaml",
+                    "suites/basic_suite_test",
+                    "suites/bare_yaml.yaml",
+                    "suites/platforms_suite_test",
+                    "suites/hosts_suite_test",
+                    "suites/modes_suite_test",
+                    "suites/hash_suite_test_*",
+                    "suites/suite_with_source")
+
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
         run_cmd = commands.get_command('run')
@@ -62,7 +75,7 @@ class SuitesTests(PavTestCase):
         last_test = run_cmd.last_tests[0]
 
         self.assertTrue(last_test.config["host"] == "host1")
-        
+
         variables = last_test.config["variables"]
 
         self.assertEqual(variables.get("host1")[0].get(None), "True")
@@ -87,7 +100,7 @@ class SuitesTests(PavTestCase):
         last_test = run_cmd.last_tests[0]
 
         self.assertTrue("mode1" in last_test.config["modes"])
-        
+
         variables = last_test.config["variables"]
 
         self.assertEqual(variables.get("mode1")[0].get(None), "True")
@@ -112,7 +125,7 @@ class SuitesTests(PavTestCase):
         last_test = run_cmd.last_tests[0]
 
         self.assertTrue(last_test.config["platform"] == "platform1")
-        
+
         variables = last_test.config["variables"]
 
         self.assertEqual(variables.get("platform1")[0].get(None), "True")

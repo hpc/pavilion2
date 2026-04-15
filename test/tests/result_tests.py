@@ -39,6 +39,16 @@ class ResultParserTests(PavTestCase):
         # Don't limit the size of the error diff.
         self.maxDiff = None
 
+        self.link_files(
+                    "test_src/json-blob.txt",
+                    "test_src/tables.txt",
+                    "suites/result_tests.yaml",
+                    "suites/permute_on.yaml",
+                    "suites/re_search.yaml",
+                    "suites/flatten_results.yaml",
+                    "platforms/this.yaml",
+                    "hosts/this.yaml")
+
     def test_parse_results(self):
         """Check all the different ways in which we handle parsed results."""
 
@@ -861,8 +871,7 @@ class ResultParserTests(PavTestCase):
 
         # Make sure we didn't save any of the changes.
         orig_test = run_cmd.last_tests[0]
-        reloaded_test = TestRun.load(self.pav_cfg, orig_test.working_dir,
-                                     orig_test.id)
+        reloaded_test = TestRun.load(self.pav_cfg, orig_test.id)
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
 
@@ -1083,6 +1092,7 @@ class ResultParserTests(PavTestCase):
         args = arg_parser.parse_args(cmd)
 
         run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
 

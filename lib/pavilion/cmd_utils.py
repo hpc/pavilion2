@@ -239,7 +239,8 @@ def read_test_files(pav_cfg: config.PavConfig, files: List[str]) -> List[str]:
         if path.name == path.as_posix() and not path.exists():
             # If a plain filename is given (with not path components) and it doesn't
             # exist in the CWD, check to see if it's a saved collection.
-            path = get_collection_path(pav_cfg, path)
+            collection = path.name
+            path = get_collection_path(pav_cfg, collection)
 
             if path is None:
                 raise PavilionError(

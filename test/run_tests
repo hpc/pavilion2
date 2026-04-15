@@ -66,7 +66,7 @@ def save_failures(failures):
     test_names = []
     for failure in failures:
         failure = failure[0]
-        fail_name = '{}.{}'.format(failure.__class__.__name__, 
+        fail_name = '{}.{}'.format(failure.__class__.__name__,
                                    failure._testMethodName)
         test_names.append(fail_name)
 
@@ -104,7 +104,8 @@ def main():
     from pavilion.unittest import PavTestCase
     from pavilion import log_setup
 
-    config = PavTestCase.TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
+    config = PavTestCase.DEFAULT_PAV_CONFIG_PATH
+
     if not config.exists():
         msg("\nERROR")
         msg("Could not find a config file at '{}'".format(config))
@@ -113,7 +114,7 @@ def main():
         sys.exit(1)
 
     parser = argparse.ArgumentParser(
-        usage="This runs all the tests in the tests/ directory. For a python " 
+        usage="This runs all the tests in the tests/ directory. For a python "
               "file to be recognized as a test suite, it must end in "
               "'_tests.py'. All other files are ignored")
     parser.add_argument('-l', '--list', action='store_true',
@@ -150,13 +151,14 @@ def main():
     if only:
         TestCaseEx.set_only(only)
 
-    working_dir = this_file.parent/'working_dir'
-    if not args.list and not args.no_clear and working_dir.exists():
-        msg("Clearing out the working directory from prior unit test runs.")
+    output_dir = PavTestCase.TEST_OUTPUT_DIR
+    if not args.list and not args.no_clear and output_dir.exists():
+        msg("Clearing out the output directory from prior unit test runs.")
+        msg(output_dir.as_posix())
 
-        shutil.rmtree(working_dir.as_posix(), ignore_errors=False)
+        shutil.rmtree(output_dir.as_posix(), ignore_errors=False)
 
-    log_out = log_setup.setup_loggers(PavTestCase().pav_cfg)
+    # log_out = log_setup.setup_loggers(PavTestCase().pav_cfg)
 
     verbosity = 0 if args.quiet else 2
 
@@ -178,7 +180,7 @@ def main():
         if args.verbose:
             msg("Log Output")
             msg("--------------------")
-            msg(log_out.getvalue())
+            # msg(log_out.getvalue())
 
         save_failures(result.errors + result.failures)
 

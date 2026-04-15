@@ -6,6 +6,13 @@ from pavilion.unittest import PavTestCase
 
 class ViewCmdTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+            "suites/hello_world.yaml",
+            "plugins/schedulers/dummy.*")
+
     def test_view(self):
 
         view_cmd = commands.get_command('view')

@@ -251,8 +251,9 @@ class PavConfig(PavConfigDict):
 
     @property
     def suite_info(self) -> List[Tuple[str, str, Path]]:
-        """Get the label, name, and path for every suite the config
-        knows about."""
+        """Get the label, name, and path for every suite the config knows about. If the suite
+        uses a suite directory structure, the path with be the directory itself. Otherwise,
+        the path with be the suite config file."""
 
         suite_infos = []
 
@@ -283,7 +284,7 @@ class PavConfig(PavConfigDict):
                 names = [suite.parent.name for suite in suites]
                 labels = [label] * len(suites)
 
-                suite_infos.extend(zip(labels, names, suites))
+                suite_infos.extend(zip(labels, names, (suite.parent for suite in suites)))
 
         # pylint: disable=attribute-defined-outside-init
         self._suite_info = suite_infos

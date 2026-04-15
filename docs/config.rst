@@ -69,11 +69,6 @@ will always be located in its configured working directory and assigned the give
 permissions. Only test run directories are placed in these config specific working directories,
 everything else (series, jobs, etc) are always kept in the ``main`` working dir.
 
-Config directory labels are the shorthand for differentiating between tests in different
-working directories. The default label is ``main``, so referencing test id ``138`` and
-``main.138`` are equivalent. In fact, any test located in the ``main`` working directory
-can be referenced without this label.
-
 Writing a Pavilion.yaml
 -----------------------
 

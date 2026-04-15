@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
@@ -9,6 +11,12 @@ class BuildCmdTests(PavTestCase):
     """The build command is really just the run command in disguise, so
     we only need to test the unique arguments that it enables."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files("suites/build_parallel.yaml",
+                        "suites/build_rebuild.yaml",
+                        "hosts/this.yaml")
     def set_up(self):
         plugins.initialize_plugins(self.pav_cfg)
         build_cmd = commands.get_command('build')

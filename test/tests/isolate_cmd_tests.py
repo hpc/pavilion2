@@ -14,6 +14,15 @@ from pavilion.test_run import TestRun
 
 class IsolateCmdTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "hosts/this.yaml",
+                    "suites/hello_world.yaml",
+                    "plugins/schedulers/dummy.*"
+        )
+
     def test_no_archive(self):
         """Test that isolating without archiving works correctly."""
 

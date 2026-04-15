@@ -1,4 +1,4 @@
-name: demo_configs
+name: Run demo tests
 
 on:
   push:
@@ -16,19 +16,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v6
 
     - name: Set up Python 3.10
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v6
       with:
         python-version: "3.10"
 
-    - name: install-deps
+    - name: Install dependencies
       run: sudo apt install gcc
 
-    - name:
+    - name: Run demo tests
       run: |
         source examples/demo/activate.sh
         pav run -v QUIET demo advanced buildit
         pav wait
         pav results --all-passed
+
+    - name: Zip working directory
+      if: failure()
+      run: |
+        # If we don't zip this ourselves, it will run infinitely due to
+        # symlink loops.
+        cd examples/demo
+        ../../test/utils/make_symlinks_relative working_dir
+        zip -yr demo_working_dir.zip working_dir
+
+    - name: Upload working directory
+      if: failure()
+      uses: actions/upload-artifact@v6
+      with:
+        name: demo_working_directory
+        path: examples/demo/demo_working_dir.zip

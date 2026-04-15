@@ -17,6 +17,20 @@ from pavilion.unittest import PavTestCase
 
 
 class BuilderTests(PavTestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "hosts/this.yaml",
+                    "suites/circular_symlinks",
+                    "test_src/binfile.*",
+                    "test_src/file_tests.tgz",
+                    "test_src/src*",
+                    "test_src/no_encaps.*",
+                    "test_src/softlink.zip",
+                    "test_src/foo/bar/deep.zip",
+                    "test_src/../outside.zip")
+
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
         build_cmd = commands.get_command('run')
@@ -78,7 +92,7 @@ class BuilderTests(PavTestCase):
             '../outside.zip',
         ]
 
-        test_archives = self.TEST_DATA_ROOT/'pav_config_dir'/'test_src'
+        test_archives = self.pav_config_dir / 'test_src'
         original_tree = test_archives/'src'
 
         for archive in archives:
@@ -260,7 +274,7 @@ class BuilderTests(PavTestCase):
                      "The wget module is missing required libs.")
     def test_src_urls(self):
 
-        config_dir = self.TEST_DATA_ROOT/'pav_config_dir'
+        config_dir = self.pav_config_dir
 
         config = {
             'name': 'test',
