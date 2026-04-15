@@ -60,6 +60,7 @@ class LogResults(Command):
             return 3
 
         try:
+            # pylint: disable=protected-access
             series_obj._log_results(loggers=result_loggers, timeout=args.timeout)
         except TestSeriesError as err:
             output.fprint(self.errfile,

@@ -619,7 +619,8 @@ class TestSeries:
 
                 elif STATES.is_fatal(state):
                     output.fprint(self.errfile,
-                                f"Test {test.id} has fatal state: {state}. Skipping logging results.",
+                                f"Test {test.id} has fatal state: {state}. "
+                                "Skipping logging results.",
                                 color=output.RED)
 
                     all_tests.remove(test)
