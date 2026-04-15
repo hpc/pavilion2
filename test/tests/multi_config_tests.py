@@ -81,14 +81,14 @@ class MultiConfigTests(PavTestCase):
         self.series2 = run_cmd.last_series
 
         try:
-            self.series1.wait(timeout=10)
+            self.series1.wait(timeout=self.series_wait_timeout)
         except TimeoutError:
-            self.fail(msg=f"Timed out waiting for series {self.series1.id} to complete after 10 seconds.")
+            self.fail(msg=f"Timed out waiting for series {self.series1.id} to complete after {self.series_wait_timeout} seconds.")
 
         try:
-            self.series2.wait(timeout=10)
+            self.series2.wait(timeout=self.series_wait_timeout)
         except TimeoutError:
-            self.fail(msg=f"Timed out waiting for series {self.series2.id} to complete after 10 seconds.")
+            self.fail(msg=f"Timed out waiting for series {self.series2.id} to complete after {self.series_wait_timeout} seconds.")
 
     def test_test_runs_in_correct_working_dir(self):
         """Test that each test run is placed in the working directory that corresponds to the
