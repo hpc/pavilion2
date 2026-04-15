@@ -214,6 +214,11 @@ class RunCommand(Command):
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN
 
+        try:
+            series_obj.log_results()
+        except TestSeriesError as err:
+            output.fprint(self.errfile, f"Error staring result logging process: {err}")
+
         if report_status:
             print_from_tests(
                 pav_cfg=pav_cfg,

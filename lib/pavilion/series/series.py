@@ -431,7 +431,7 @@ class TestSeries:
         return False
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            local_builds_only: bool = False, log_results: bool = True):
+            local_builds_only: bool = False):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -443,34 +443,10 @@ class TestSeries:
 
         self.status.set(SERIES_STATES.RUN, "Series running.")
 
-        pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
-
         env = os.environ.copy()
         pav_cfg = self.pav_cfg.pav_cfg_file
         pav_cfg = pav_cfg.parent.resolve()/pav_cfg.name
         env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
-
-        if log_results:
-            try:
-                # Create a new process to log test results as tests complete
-                log_res_args = [pav_exe, '_log_results', str(self.id)]
-
-                logger_timeout = self.pav_cfg.result_logger_timeout
-
-                if logger_timeout is not None:
-                    log_res_args.extend(["--timeout", str(logger_timeout)])
-
-                with open(self.path / self.LOG_RESULTS_LOG_FN, "w") as log_results_log:
-                    self.log_proc = subprocess.Popen(
-                                                log_res_args,
-                                                start_new_session=True,
-                                                env=env,
-                                                stdout=log_results_log,
-                                                stderr=log_results_log)
-            except OSError as err:
-                raise TestSeriesError(
-                    "Could not start result logger in the background for series '{}'."
-                    .format(self.id), err)
 
         # create the test sets and link together.
         try:
@@ -547,7 +523,32 @@ class TestSeries:
 
         # Completion will be set when looked for.
 
-    def log_results(self, loggers: List["ResultLogger"],
+    def log_results(self) -> None:
+        """Lauch a separate process to listen for completed tests and log results."""
+
+        try:
+            # Create a new process to log test results as tests complete
+            pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
+            log_res_args = [pav_exe, '_log_results', str(self.id)]
+
+            logger_timeout = self.pav_cfg.result_logger_timeout
+
+            if logger_timeout is not None:
+                log_res_args.extend(["--timeout", str(logger_timeout)])
+
+            with open(self.path / self.LOG_RESULTS_LOG_FN, "w") as log_results_log:
+                self.log_proc = subprocess.Popen(
+                                            log_res_args,
+                                            start_new_session=True,
+                                            env=env,
+                                            stdout=log_results_log,
+                                            stderr=log_results_log)
+        except OSError as err:
+            raise TestSeriesError(
+                "Could not start result logger in the background for series '{}'."
+                .format(self.id), err)
+
+    def _log_results(self, loggers: List["ResultLogger"],
                     timeout: Optional[int] = None, sleep_time: float = 0.2) -> int:
         """Log the results of each test in the series as tests complete. Returns the total number
         of tests logged."""
@@ -557,60 +558,58 @@ class TestSeries:
 
             return 0
 
+        flatten = False
+
+        if self.pav_cfg.get("flatten_results"):
+            flatten = True
+            output.fprint(self.outfile, "Flattening results...")
+
+        # TODO: For each test, check status file and run log to see if still active. Also check
+        #   scheduler to see if it failed.
+
         # Time out eventually so we don't end up with rogue processes
         timeout_time = set_default(timeout, math.inf) + time.time()
 
-        if self.pav_cfg.get("flatten_results"):
-            output.fprint(self.outfile, "Flattening results...")
-            # Log the sequence of flattened results
-            log = lambda logger, test: do(logger, test.flatten_results(test.results))
-        else:
-            # Just log the single unflattened result
-            log = lambda logger, test: logger(test.results)
+        # We assume that all tests in the series are represented in self.tests by this point
+        all_tests = self.tests.values()
 
-        logged = set()
+        logged = 0
 
-        while not (self.complete or self.check_cancelled()) and time.time() < timeout_time:
-            to_log = set(self.get_completed()) - logged
+        for test in all_tests:
+            state = get_status(test).state
 
-            if len(to_log) > 0:
-                # Reset timeout when new tests complete
-                timeout_time = set_default(timeout, math.inf) + time.time()
+            if state == STATES.COMPLETE:
                 output.fprint(self.outfile,
-                              f"Found {len(to_log)} completed test(s) to log: "
-                              f"{[x.id for x in to_log]}.")
+                              f"Test {test.id} has completed. Logging results...")
 
-            # Apply all loggers to all tests ready to log
-            stardo(log, product(loggers, to_log))
-            logged |= to_log
-            output.fprint(self.outfile, f"Logged {len(to_log)} test(s) ({len(logged)} total).")
+                results = test.results
 
-            time.sleep(sleep_time)
+                if flatten:
+                    results = test.flatten_results(results)
 
-        if self.complete:
-            output.fprint(self.outfile, f"Series {self.id} has completed. Finishing up logging....")
-        elif time.time() < timeout_time:
-            output.fprint(self.errfile,
-                          f"Timed out waiting for series {self.id} to complete "
-                          f"after {timeout} seconds. Finishing up logging...",
-                          color=output.RED)
-        else:
-            output.fprint(self.outfile,
-                          f"Series {self.id} has been cancelled. Finishing up logging....")
+                for logger in loggers:
+                    logger(results)
 
-        # Log any remaining tests after series completion
-        to_log = set(self.get_completed()) - logged
+                all_tests.remove(test)
 
-        output.fprint(self.outfile, f"Found {len(to_log)} remaining test(s) to log.")
+            elif STATES.is_fatal(state):
+                output.fprint(self.errfile,
+                              f"Test {test.id} has fatal state: {state}. Skipping logging results.",
+                              color=output.RED)
 
-        stardo(log, product(loggers, to_log))
+                all_tests.remove(test)
 
-        logged |= to_log
+            elif state in (STATES.SKIPPED, STATES.BUILD_SKIPPED):
+                output.fprint(self.errfile,
+                              f"Test {test.id} was skipped. Skipping logging results.",
+                              color=output.YELLOW)
+
+                all_tests.remove(test)
 
         output.fprint(self.outfile,
-                      f"Finished logging results. Logged {len(logged)} test(s) total.")
+                      f"Finished logging results. Logged {logged} test(s) total.")
 
-        return len(logged)
+        return logged
 
     def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
         """Run all requested tests in the given test set."""

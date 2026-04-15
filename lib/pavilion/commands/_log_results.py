@@ -60,7 +60,7 @@ class LogResults(Command):
             return 3
 
         try:
-            series_obj.log_results(loggers=result_loggers, timeout=args.timeout)
+            series_obj._log_results(loggers=result_loggers, timeout=args.timeout)
         except TestSeriesError as err:
             output.fprint(self.errfile,
                           f"Error while logging results for series '{args.seriesid}': {err}.",
