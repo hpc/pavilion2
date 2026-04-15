@@ -1102,8 +1102,8 @@ class ShowCommand(Command):
                     'err':     'None'
                 })
 
-        if len(rows) == 0:
-            output.fprint(self.errfile, f"No tests found matching name {suite_name}.",
+        if len(rows) == 0 and args.name_filter != "":
+            output.fprint(self.errfile, f"No tests found matching name {args.name_filter}.",
                           color=output.RED)
 
             return 1
