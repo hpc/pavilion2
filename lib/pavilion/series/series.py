@@ -27,7 +27,7 @@ from pavilion import utils
 from pavilion.enums import Verbose
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
-from pavilion.status_file import SeriesStatusFile, SERIES_STATES
+from pavilion.status_file import SeriesStatusFile, SERIES_STATES, STATES
 from pavilion.test_run import TestRun
 from pavilion.micro import partition, do, listfilter, stardo, flatten, set_default
 from pavilion.timing import RateLimiter
@@ -68,8 +68,8 @@ class TestSeries:
     SERIES_DIRNAME = "series"
 
     def __init__(self, pav_cfg: config.PavConfig, series_cfg, _id: Optional[SeriesID] = None,
-                 verbosity: Verbose = Verbose.HIGH, outfile: TextIO = None,
-                 cancel_cooldown: float = 0.5):
+                 verbosity: Verbose = Verbose.HIGH, outfile: Optional[TextIO] = None,
+                 errfile: Optional[TextIO] = None, cancel_cooldown: float = 0.5):
         """Initialize the series. Test sets may be added via 'add_tests()'.
 
         :param pav_cfg: The pavilion configuration object.
@@ -84,7 +84,10 @@ class TestSeries:
 
         self.config = series_cfg or SeriesConfigLoader().load_empty()
 
-        self.outfile = io.StringIO() if outfile is None else outfile
+        self.outfile = set_default(outfile, io.StringIO())
+        # If an outfile is given, but no errfile, use the outfile as the errfile
+        self.errfile = set_default(errfile, set_default(outfile, io.StringIO()))
+
         self.verbosity = verbosity
         self.cancel_limiter = RateLimiter(self.has_cancel_file, cooldown=cancel_cooldown)
 
@@ -574,7 +577,7 @@ class TestSeries:
         timeout = set_default(timeout, math.inf)
 
         # We assume that all tests in the series are represented in self.tests by this point
-        all_tests = self.tests.values()
+        all_tests = list(self.tests.values())
 
         # We don't want to notify too often, or we'll clutter the log
         scheduled_notify_limiter = RateLimiter(lambda: output.fprint(
@@ -586,7 +589,7 @@ class TestSeries:
 
         while len(all_tests) > 0:
             for test in all_tests:
-                state = get_status(test).state
+                state = get_status(test, self.pav_cfg).get("state", STATES.UNKNOWN)
 
                 if state == STATES.COMPLETE:
                     output.fprint(self.outfile,
@@ -598,11 +601,19 @@ class TestSeries:
                         results = test.flatten_results(results)
 
                     for logger in loggers:
-                        try:
-                            logger(results)
-                        except ResultLoggerPluginError as err:
-                            output.fprint(self.errfile,
+                        if flatten:
+                            for res in results:
+                                try:
+                                    logger(res)
+                                except ResultLoggerPluginError as err:
+                                    output.fprint(self.errfile,
                                           f"Error logging results for test {test.id}: {err}")
+                        else:
+                            try:
+                                logger(results)
+                            except ResultLoggerPluginError as err:
+                                output.fprint(self.errfile,
+                                            f"Error logging results for test {test.id}: {err}")
 
                     logged += 1
                     output.fprint(self.outfile, f"Logged {logged} test(s) so far.")

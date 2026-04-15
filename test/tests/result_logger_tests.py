@@ -1,8 +1,10 @@
 import json
+import io
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion.unittest import PavTestCase
+from pavilion.result_logging import get_result_loggers
 
 
 class ResultLoggerTests(PavTestCase):
@@ -12,11 +14,7 @@ class ResultLoggerTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
 
-        args = arg_parser.parse_args([
-            'run',
-            '-H', 'this',
-            'results_log',
-        ])
+        args = arg_parser.parse_args(['run', 'results_log'])
 
         run_cmd = commands.get_command(args.command_name)
 
@@ -48,11 +46,7 @@ class ResultLoggerTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
 
-        args = arg_parser.parse_args([
-            'run',
-            '-H', 'this',
-            'results_log',
-        ])
+        args = arg_parser.parse_args(['run', 'results_log'])
 
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
@@ -71,14 +65,102 @@ class ResultLoggerTests(PavTestCase):
         series1.wait_log(timeout=10)
         series2.wait_log(timeout=10)
 
-        with open(log_path) as fin:
-            results = fin.readlines()
+        try:
+            with open(log_path) as fin:
+                results = fin.readlines()
+        except FileNotFoundError:
+            self.fail(f"Results log at {log_path} was never created.")
+        except OSError:
+            self.fail(f"Could not read results log at {log_path}.")
 
-        self.assertEqual(len(results), 2)
+        self.assertEqual(len(results), 2,
+                         msg=f"Expected exactly 2 results to be written to results log, but found {len(results)}")
 
         for res in results:
             results = json.loads(res)
             self.assertEqual(results.get("hello"), "world")
+
+    def test_flatten_results(self):
+        """Make sure result flattening works as expected, as well as regular
+        result output while we're at it."""
+
+        arg_parser = arguments.get_parser()
+        cmd = ['run', 'flatten_results']
+        args = arg_parser.parse_args(cmd)
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+
+        series1 = run_cmd.last_series
+
+        series1.log_results()
+
+        series1.wait(10)
+        series1.wait_log(10)
+
+        log_path = self.pav_cfg.working_dir / "results"
+        matches = list(log_path.glob(f"{series1.id}*"))
+
+        self.assertEqual(len(matches), 1,
+                         msg=f"Expected exactly one log file matching '{series1.id}*', "
+                             f"but found {len(matches)}: {matches}")
+
+        result_log1 = next(iter(matches))
+
+        flattened = {}
+
+        with open(result_log1) as fin:
+            lines = fin.readlines()
+
+            for line in lines:
+                _result = json.loads(line)
+
+                # Reconstruct the per_file dict, so that flattened and
+                # unflattened are the same. If there's a format error, this
+                # will have problems.
+                flattened[_result['file']] = {'hello': _result['hello']}
+
+        answer = {
+            '1': {'hello': 'hello 1'},
+            '2': {'hello': 'hello 2'},
+            '3': {'hello': 'hello 3'},
+            '4': {'hello': 'hello 4'},
+        }
+
+        self.assertEqual(flattened, answer)
+
+        self.pav_cfg["flatten_results"] = False
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+
+        series2 = run_cmd.last_series
+        series1.outfile = io.StringIO()
+
+        series2.log_results()
+
+        series2.wait()
+        series2.wait_log()
+
+        matches = list(log_path.glob(f"{series2.id}*"))
+
+        self.assertEqual(len(matches), 1,
+                         msg=f"Expected exactly one log file matching '{series2.id}*', "
+                             f"but found {len(matches)}: {matches}")
+
+        result_log2 = next(iter(matches))
+
+        unflattened = {}
+
+        with open(result_log2) as fin:
+            lines = fin.readlines()
+
+            for line in lines:
+                _result = json.loads(line)
+                unflattened = _result["per_file"]
+
+        self.assertEqual(unflattened, answer)
 
     def test_logging_process_exits_once_series_completed(self):
         """Test that the result logging process exits once the entire series has completed."""
@@ -98,3 +180,6 @@ class ResultLoggerTests(PavTestCase):
     def test_series_file_result_logger_has_separate_files_for_reused_series_ids(self):
         """Test that when series IDs are used, the SeriesFileResultLogger gives them separate
         result logs."""
+
+    def test_multiple_result_loggers(self):
+        """Test that loggers work correctly when multiple loggers are defined."""

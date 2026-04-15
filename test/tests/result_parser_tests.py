@@ -26,7 +26,6 @@ from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 from pavilion.timing import wait
-from pavilion.result_logging import get_result_loggers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -1082,90 +1081,6 @@ class ResultParserTests(PavTestCase):
 
         for key in expected:
             self.assertEqual(results[key], expected[key])
-
-    def test_flatten_results(self):
-        """Make sure result flattening works as expected, as well as regular
-        result output while we're at it."""
-
-        arg_parser = arguments.get_parser()
-        cmd = ['run', '-H', 'this', 'flatten_results']
-        args = arg_parser.parse_args(cmd)
-
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.silence()
-
-        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
-
-        series1 = run_cmd.last_series
-
-        loggers = get_result_loggers(self.pav_cfg, series1.id)
-        series1.log_results(loggers)
-
-        series1.wait(10)
-        series1.wait_log(10)
-
-        log_path = self.pav_cfg.working_dir / "results"
-        matches = list(log_path.glob(f"{series1.id}*"))
-
-        self.assertEqual(len(matches), 1,
-                         msg=f"Expected exactly one log file matching '{series1.id}*', "
-                             f"but found {len(matches)}: {matches}")
-
-        result_log1 = next(iter(matches))
-
-        flattened = {}
-
-        with open(result_log1) as fin:
-            lines = fin.readlines()
-
-            for line in lines:
-                _result = json.loads(line)
-
-                # Reconstruct the per_file dict, so that flattened and
-                # unflattened are the same. If there's a format error, this
-                # will have problems.
-                flattened[_result['file']] = {'hello': _result['hello']}
-
-        answer = {
-            '1': {'hello': 'hello 1'},
-            '2': {'hello': 'hello 2'},
-            '3': {'hello': 'hello 3'},
-            '4': {'hello': 'hello 4'},
-        }
-
-        self.assertEqual(flattened, answer)
-
-        self.pav_cfg["flatten_results"] = False
-
-        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
-
-        series2 = run_cmd.last_series
-        series1.outfile = io.StringIO()
-
-        loggers = get_result_loggers(self.pav_cfg, str(series2.id))
-        series2.log_results(loggers)
-
-        series2.wait()
-        series2.wait_log()
-
-        matches = list(log_path.glob(f"{series2.id}*"))
-
-        self.assertEqual(len(matches), 1,
-                         msg=f"Expected exactly one log file matching '{series2.id}*', "
-                             f"but found {len(matches)}: {matches}")
-
-        result_log2 = next(iter(matches))
-
-        unflattened = {}
-
-        with open(result_log2) as fin:
-            lines = fin.readlines()
-
-            for line in lines:
-                _result = json.loads(line)
-                unflattened = _result["per_file"]
-
-        self.assertEqual(unflattened, answer)
 
     def test_command_parser(self):
         """Test that the command result parser works correctly."""
