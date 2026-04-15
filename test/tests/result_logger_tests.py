@@ -9,6 +9,15 @@ from pavilion.result_logging import get_result_loggers
 
 class ResultLoggerTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+                    "suites/results_log.yaml",
+                    "suites/flatten_results.yaml",
+                    "plugins/result_logger/error_logger.py",
+                    "plugins/result_logger/null_logger.py")
+
     def test_series_file_logger(self):
         """Test that the series file logger works correctly."""
 

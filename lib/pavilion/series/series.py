@@ -44,9 +44,6 @@ from . import common
 from flufl.lock import Lock
 
 
-SECS_PER_HOUR = 60 * 60
-
-
 class TestSeries:
     """Series are a well defined collection of tests, potentially with
     relationships, skip conditions, and other features by test set. The test runs

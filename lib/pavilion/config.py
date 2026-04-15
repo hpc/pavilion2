@@ -408,6 +408,8 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
     format and options. If you're looking to add an option to the general
     pavilion.yaml format, this is the place to do it."""
 
+    DEFAULT_RESULT_LOGGER_TIMEOUT = 60 * 60
+
     type = PavConfig
 
     # Each and every configuration element needs to either not be required,
@@ -530,10 +532,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="The list of result loggers and their corresponding parameters."
         ),
         yc.IntRangeElem(
-            "result_logger_timeout", default=3600, vmin=1,
+            "result_logger_timeout", default=self.DEFAULT_RESULT_LOGGER_TIMEOUT, vmin=1,
             help_text="Timeout value, in seconds, after which result logger processes will "
-                      "terminate if no new tests complete. Defaults to 3600 (1 hour). To disable "
-                      "the timeout entirely, set the value to 'None'."
+                      "terminate if no new tests complete. Defaults to "
+                      f"{self.DEFAULT_RESULT_LOGGER_TIMEOUT}."
         ),
 
         # The following configuration items are for internal use and provide a

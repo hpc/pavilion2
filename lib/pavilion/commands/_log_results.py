@@ -12,7 +12,7 @@ from .base_classes import Command
 
 
 class LogResults(Command):
-    """Command to log the results of a series on. Intended to be run in a child process of
+    """Command to log the results of a series. Intended to be run in a child process of
     the series object's process."""
 
     def __init__(self):
