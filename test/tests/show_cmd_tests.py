@@ -13,7 +13,7 @@ from pavilion import config
 
 class ShowTests(unittest.PavTestCase):
 
-        def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.link_files(
