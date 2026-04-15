@@ -527,16 +527,21 @@ class TestSeries:
     def log_results(self) -> None:
         """Lauch a separate process to listen for completed tests and log results."""
 
+        env = os.environ.copy()
+        pav_cfg = self.pav_cfg.pav_cfg_file
+        pav_cfg = pav_cfg.parent.resolve()/pav_cfg.name
+        env['PAV_CONFIG_FILE'] = pav_cfg.resolve()
+
+        pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
+        log_res_args = [pav_exe, '_log_results', str(self.id)]
+
+        logger_timeout = self.pav_cfg.result_logger_timeout
+
+        if logger_timeout is not None:
+            log_res_args.extend(["--timeout", str(logger_timeout)])
+
         try:
             # Create a new process to log test results as tests complete
-            pav_exe = Path(pavilion.__file__).resolve().parents[2]/'bin'/'pav'
-            log_res_args = [pav_exe, '_log_results', str(self.id)]
-
-            logger_timeout = self.pav_cfg.result_logger_timeout
-
-            if logger_timeout is not None:
-                log_res_args.extend(["--timeout", str(logger_timeout)])
-
             with open(self.path / self.LOG_RESULTS_LOG_FN, "w") as log_results_log:
                 self.log_proc = subprocess.Popen(
                                             log_res_args,
@@ -564,9 +569,6 @@ class TestSeries:
         if self.pav_cfg.get("flatten_results"):
             flatten = True
             output.fprint(self.outfile, "Flattening results...")
-
-        # TODO: For each test, check status file and run log to see if still active. Also check
-        #   scheduler to see if it failed.
 
         # Time out eventually so we don't end up with rogue processes
         timeout = set_default(timeout, math.inf)
