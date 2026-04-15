@@ -1,5 +1,4 @@
 import time
-from pathlib import Path
 
 from pavilion import cancel_utils
 from pavilion import schedulers

@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import tempfile
-from pathlib import Path
 
 from pavilion import errors
 from pavilion.test_config import file_format
