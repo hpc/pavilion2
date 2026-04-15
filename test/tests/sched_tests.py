@@ -377,7 +377,10 @@ class SchedTests(PavTestCase):
             self.assertTrue(all([test.job == job1 for test in share_group]))
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -425,7 +428,10 @@ class SchedTests(PavTestCase):
             self.assertEqual(len(test.job.get_test_id_pairs()), 1)
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -464,7 +470,10 @@ class SchedTests(PavTestCase):
             self.assertTrue(all([test.job == job1 for test in share_group]))
 
         for test in tests:
-            test.wait(10)
+            try:
+                test.wait(self.testrun_wait_timeout)
+            except TimeoutError:
+                self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -496,14 +505,14 @@ class SchedTests(PavTestCase):
 
         for test in tests:
             try:
-                test.wait(timeout=20)
+                test.wait(timeout=self.testrun_wait_timeout)
             except TimeoutError:
                 run_log_path = test.path / 'run.log'
                 if run_log_path.exists():
                     with open(test.path / 'run.log') as run_log:
-                        self.fail(msg="Test timed out: \n{}".format(run_log.read()))
+                        self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds: \n{run_log.read()}")
                 else:
-                    self.fail(msg="Test timed out (no run log).")
+                    self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds (no run log).")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -535,14 +544,14 @@ class SchedTests(PavTestCase):
 
         for test in tests:
             try:
-                test.wait(timeout=20)
+                test.wait(timeout=self.testrun_wait_timeout)
             except TimeoutError:
                 run_log_path = test.path/'run.log'
                 if run_log_path.exists():
                     with open(test.path/'run.log') as run_log:
-                        self.fail(msg="Test timed out: \n{}".format(run_log.read()))
+                        self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds: \n{run_log.read()}")
                 else:
-                    self.fail(msg="Test timed out (no run log).")
+                    self.fail(msg=f"Test timed out after {self.testrun_wait_timeout} seconds (no run log).")
 
         for test in tests:
             self.assertEqual(test.results['result'], 'PASS')
@@ -596,14 +605,14 @@ class SchedTests(PavTestCase):
             dummy.schedule_tests(self.pav_cfg, [test, test2])
 
             try:
-                test.wait(timeout=10)
+                test.wait(timeout=self.testrun_wait_timeout)
             except TimeoutError:
-                self.fail(f"Timed out waiting for test {test.id} to complete after 10 seconds.")
+                self.fail(f"Timed out waiting for test {test.id} to complete after {self.testrun_wait_timeout} seconds.")
 
             try:
-                test2.wait(timeout=10)
+                test2.wait(timeout=self.testrun_wait_timeout)
             except TimeoutError:
-                self.fail(f"Timed out waiting for test {test2.id} to complete after 10 seconds.")
+                self.fail(f"Timed out waiting for test {test2.id} to complete after {self.testrun_wait_timeout} seconds.")
 
             self.assertIn("tasks: 21", (test.path/'run.log').open().read())
 
@@ -629,9 +638,15 @@ class SchedTests(PavTestCase):
         dummy.schedule_tests(self.pav_cfg, [test])
         # Wait few seconds for the test to be scheduled to run.
         try:
+<<<<<<< HEAD
             test.wait(timeout=10)
         except TimeoutError:
             self.fail(f"Timed out waiting for test {test.id} to complete after 10 seconds.")
+=======
+            test.wait(self.testrun_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for test to complete after {self.testrun_wait_timeout} seconds.")
+>>>>>>> develop
 
         # Check if it actually echoed to log
         with (test.path/'run.log').open('r') as runlog:

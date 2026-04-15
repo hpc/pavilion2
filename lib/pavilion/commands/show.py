@@ -8,7 +8,7 @@ import os
 import pprint
 import sys
 from pathlib import Path
-from typing import Union
+from typing import Union, Dict, List, Optional
 
 import yaml_config
 from pavilion import config
@@ -45,6 +45,25 @@ class ShowCommand(Command):
 
         self._parser = None  # type: Union[argparse.ArgumentParser,None]
 
+    def _format_rows(self, rows: List, fields: List[str], format: str, title: str = "",
+                     field_info: Optional[Dict] = None) -> None:
+        """Format rows according to the selected format."""
+
+        if format == 'json':
+            output.json_dump(rows, self.outfile)
+        elif format == 'list':
+            for row in rows:
+                line = '\t'.join(str(row.get(f, '')) for f in fields)
+                self.outfile.write(line + '\n')
+        else:
+            output.draw_table(
+                self.outfile,
+                fields=fields,
+                rows=rows,
+                title=title,
+                field_info=field_info,
+            )
+
     def _setup_arguments(self, parser):
 
         subparsers = parser.add_subparsers(
@@ -70,7 +89,7 @@ class ShowCommand(Command):
                  "current config."
         )
 
-        subparsers.add_parser(
+        cfg_dirs_group = subparsers.add_parser(
             'config_dirs',
             aliases=['config_dir'],
             help="List the config dirs.",
@@ -80,49 +99,53 @@ class ShowCommand(Command):
             defined priorities."""
         )
 
-        subparsers.add_parser(
+        collections_group = subparsers.add_parser(
             'collections',
             aliases=['collection'],
             help="List collections found in config dirs."
         )
 
-        func_group = subparsers.add_parser(
+        funcs = subparsers.add_parser(
             'functions',
             aliases=['func', 'function'],
             help="Show available expression functions plugins.",
             description="Expression function plugins allow you to dynamically "
                         "add complex (or simple) new functionality to "
                         "Pavilion value expressions.")
+
+        func_group = funcs.add_mutually_exclusive_group()
+
         func_group.add_argument(
             '--detail',
             action='store',
             help="Show full documentation on the requested plugin."
         )
 
-        os_parser = subparsers.add_parser(
-            'platform',
+        platform_parser = subparsers.add_parser(
+            'platforms',
+            aliases=["platform"],
             help="Show available platform configs.",
             description="Pavilion can support different default configs "
                         "depending on the platform."
         )
 
-        os_group = os_parser.add_mutually_exclusive_group()
-        os_group.add_argument(
-            '--config', action='store', type=str, metavar='<os>',
-            help="Show full os config for desired operating system."
+        platform_group = platform_parser.add_mutually_exclusive_group()
+        platform_group.add_argument(
+            '--config', action='store', type=str, metavar='<platform>',
+            help="Show full platform config for desired operating system."
         )
 
-        os_group.add_argument(
+        platform_group.add_argument(
             '--err', action='store_true', default=False,
-            help="Display any errors encountered while reading a operating system file."
+            help="Display any errors encountered while reading a platform file."
         )
 
-        os_group.add_argument(
-            '--vars', action='store', type=str, metavar='<os>',
-            help="Show defined variables for desired operating system config."
+        platform_group.add_argument(
+            '--vars', action='store', type=str, metavar='<platform>',
+            help="Show defined variables for desired platform config."
         )
 
-        os_group.add_argument(
+        platform_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
             help="Display paths to the operating system files."
@@ -190,7 +213,7 @@ class ShowCommand(Command):
 
         module_wrappers = subparsers.add_parser(
             'module_wrappers',
-            aliases=['mod', 'module', 'modules', 'wrappers'],
+            aliases=['module_wrapper', 'mod', 'module', 'modules', 'wrappers', 'wrapper'],
             help="Show the installed module wrappers.",
             description="""Module wrappers allow you to customize how
             pavilion loads modules. They can be used in conjunction with
@@ -208,6 +231,7 @@ class ShowCommand(Command):
 
         nodes_parser = subparsers.add_parser(
             'nodes',
+            aliases=['node'],
             help="Show node status for the current machine, from Pavilion's perspective.",
             description="Display a table of information on the current state of "
                         "system nodes for a given scheduler."
@@ -229,9 +253,9 @@ class ShowCommand(Command):
             '--show-filtered', action='store_true', default=False,
             help="Show the filtered nodes along with their reason for being filtered.")
 
-        subparsers.add_parser(
+        pav_vars = subparsers.add_parser(
             'pavilion_variables',
-            aliases=['pav_vars', 'pav_var', 'pav'],
+            aliases=['pavilion_variable', 'pav_vars', 'pav_var', 'pav'],
             help="Show the available pavilion variables.",
             description="""Pavilion variables are available for use in test
             configurations. Simply put the name of the variable in curly
@@ -243,7 +267,7 @@ class ShowCommand(Command):
 
         result_parsers = subparsers.add_parser(
             "result_parsers",
-            aliases=['parsers', 'result'],
+            aliases=['result_parser', 'parsers', 'parser', 'result'],
             help="Show result_parser plugin info.",
             description="""Pavilion provides result parsers to allow tests
             parse results out of a variety of formats. These can add keys to
@@ -268,7 +292,7 @@ class ShowCommand(Command):
             help='Display the path to the plugin file.'
         )
 
-        subparsers.add_parser(
+        result_base = subparsers.add_parser(
             "result_base",
             help="Show base result keys.",
         )
@@ -328,7 +352,7 @@ class ShowCommand(Command):
             help='Show any superseded series files.'
         )
 
-        subparsers.add_parser(
+        states = subparsers.add_parser(
             'states',
             aliases=['state'],
             help="Show the pavilion test states and their meaning.",
@@ -341,7 +365,7 @@ class ShowCommand(Command):
 
         sys_vars_cmd = subparsers.add_parser(
             'system_variables',
-            aliases=['sys_vars', 'sys', 'sys_var'],
+            aliases=['system_variable', 'sys_vars', 'sys', 'sys_var'],
             help="Show the available system variables.",
             description="System variables are available for use in test "
                         "configurations. Simply put the name in curly "
@@ -407,7 +431,10 @@ class ShowCommand(Command):
             action='store_true', default=False,
             help='Display any errors encountered while reading the test.'
         )
-        tests.add_argument(
+
+        tests_group = tests.add_mutually_exclusive_group()
+
+        tests_group.add_argument(
             '--doc', action='store', type=str, dest='test_name',
             help="Show test documentation string."
         )
@@ -419,6 +446,20 @@ class ShowCommand(Command):
                         "configs should be under a test_name: key in a suite "
                         "file. The same format applies to host and mode "
                         "configs, except without the test name.")
+
+        # Add --format argument only to those subparsers for which it makes sense as an argument
+        for subp in (cfg_dirs_group, collections_group, func_group, platform_parser, hosts, modes,
+                   module_wrappers, nodes_parser, pav_vars, result_parsers, result_base, sched,
+                   series, states, sys_vars_cmd, suites, tests_group):
+            subp.add_argument(
+                '--format',
+                choices=['table', 'list', 'json'],
+                default='table',
+                help='Specify an output format for this subcommand. Options are:'
+                     '  table (default) - output a table'
+                     '  list - output as a simple list, with no header, suitable for scripting'
+                     '  json - output as JSON'
+            )
 
     def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command."""
@@ -436,18 +477,18 @@ class ShowCommand(Command):
                                                values=pav_cfg)
 
     @sub_cmd('config_dir')
-    def _config_dirs_cmd(self, pav_cfg, _):
+    def _config_dirs_cmd(self, pav_cfg, args):
         """List the configuration directories."""
 
-        output.draw_table(
-            self.outfile,
+        self._format_rows(
+            rows=list(pav_cfg.configs.values()),
             fields=['label', 'path', 'working_dir'],
-            rows=pav_cfg.configs.values(),
+            format=args.format,
             title="Config directories by priority."
         )
 
     @sub_cmd('collection')
-    def _collections_cmd(self, pav_cfg, _):
+    def _collections_cmd(self, pav_cfg, args):
         """List all files found in the collections directories in all config directories."""
 
         collections = []
@@ -459,8 +500,12 @@ class ShowCommand(Command):
                     collections.append({'collection': col_file,
                                         'path': Path(collection_dir / col_file)})
 
-        output.draw_table(self.outfile, fields=['collection', 'path'], rows=collections,
-                          title="Available collections and paths.")
+        self._format_rows(
+            rows=collections,
+            fields=['collection', 'path'],
+            format=args.format,
+            title="Available collections and paths."
+        )
 
     @sub_cmd('function', 'func')
     def _functions_cmd(self, _, args):
@@ -468,6 +513,13 @@ class ShowCommand(Command):
 
         if args.detail:
             func = expression_functions.get_plugin(args.detail)
+
+            if func is None:
+                output.fprint(self.errfile,
+                f"No function plugin found with name {args.detail}.",
+                color=output.YELLOW)
+
+                return 1
 
             output.fprint(self.outfile, func.signature, color=output.CYAN)
             output.fprint(self.outfile, '-' * len(func.signature))
@@ -481,14 +533,14 @@ class ShowCommand(Command):
                     'name':        func.name,
                     'signature':   func.signature,
                     'description': func.description})
-            output.draw_table(
-                self.outfile,
-                fields=['name', 'signature', 'description'],
+            self._format_rows(
                 rows=rows,
+                fields=['name', 'signature', 'description'],
+                format=args.format,
                 title="Available Expression Functions"
             )
 
-    def show_vars(self, pav_cfg, cfg, conf_type):
+    def show_vars(self, pav_cfg, args, cfg, conf_type) -> int:
         """Show the variables of a config, each variable is displayed as a
         table."""
 
@@ -500,6 +552,7 @@ class ShowCommand(Command):
                 self.errfile,
                 f"Could not find a config for {conf_type} '{cfg}'",
                 color=output.YELLOW)
+
             return 1
 
         with file.open() as config_file:
@@ -517,12 +570,12 @@ class ShowCommand(Command):
             else:
                 complex_vars.append(var_key)
         if simple_vars:
-            output.draw_table(
-                self.outfile,
-                field_info={},
-                fields=['name', 'value'],
+            self._format_rows(
                 rows=simple_vars,
-                title="Simple Variables"
+                fields=['name', 'value'],
+                format=args.format,
+                title="Simple Variables",
+                field_info={}
             )
 
         if complex_vars:
@@ -538,12 +591,12 @@ class ShowCommand(Command):
                         'index': idx,
                         'value': cfg['variables'][var][idx]
                     })
-                output.draw_table(
-                    self.outfile,
-                    field_info={},
-                    fields=['index', 'value'],
+                self._format_rows(
                     rows=simple_vars,
-                    title=var
+                    fields=['index', 'value'],
+                    format=args.format,
+                    title=var,
+                    field_info={}
                 )
             # List of dicts.
             elif len(subvar) < 10:
@@ -556,13 +609,13 @@ class ShowCommand(Command):
                             fields.append(key)
                         dict_data.update({key: val})
                     simple_vars.append(dict_data)
-                output.draw_table(
-                    self.outfile,
-                    field_info={},
-                    fields=fields,
-                    rows=simple_vars,
-                    title=var
-                )
+                self._format_rows(
+                     rows=simple_vars,
+                     fields=fields,
+                     format=args.format,
+                     title=var,
+                     field_info={}
+                 )
             else:
                 output.fprint(self.outfile, var)
                 output.fprint(self.outfile, "(Showing as json due to the insane number of "
@@ -571,7 +624,9 @@ class ShowCommand(Command):
                                                            compact=True))
             output.fprint(self.outfile, "\n")
 
-    def show_configs_table(self, pav_cfg, conf_type, errors=False,
+        return 0
+
+    def show_configs_table(self, pav_cfg, args, conf_type, errors=False,
                            verbose=False):
         """Default config table, shows the config name and if it can be
         loaded."""
@@ -597,11 +652,14 @@ class ShowCommand(Command):
                 'err': configs[name]['error']
             })
 
-        output.draw_table(
-            self.outfile,
+        self._format_rows(
+            rows=data,
             fields=col_names,
-            rows=data
+            format=args.format,
+            title=None
         )
+
+        return 0
 
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
         """Show the full config of a given os/host/mode."""
@@ -617,8 +675,10 @@ class ShowCommand(Command):
 
         if config_data is not None:
             output.fprint(self.outfile, pprint.pformat(config_data, compact=False))
+
+            return 0
         else:
-            output.fprint(sys.stdout, "No {} config found for "
+            output.fprint(self.errfile, "No {} config found for "
                                       "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
@@ -627,41 +687,45 @@ class ShowCommand(Command):
         """List all known platform files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, 'platforms')
+            ret = self.show_vars(pav_cfg, args, args.vars, 'platforms')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'platforms')
+            ret = self.show_full_config(pav_cfg, args.config, 'platforms')
         else:
-            self.show_configs_table(pav_cfg, 'platforms',
+            ret = self.show_configs_table(pav_cfg, args, 'platforms',
                                     verbose=args.verbose,
                                     errors=args.err)
+
+        return ret
 
     @sub_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):
         """List all known host files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, 'hosts')
+            ret = self.show_vars(pav_cfg, args, args.vars, 'hosts')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'hosts')
+            ret = self.show_full_config(pav_cfg, args.config, 'hosts')
         else:
-            self.show_configs_table(pav_cfg, 'hosts',
+            ret = self.show_configs_table(pav_cfg, args, 'hosts',
                                     verbose=args.verbose,
                                     errors=args.err)
+        return ret
 
     @sub_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, 'modes')
+            ret = self.show_vars(pav_cfg, args, args.vars, 'modes')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, 'modes')
+            ret = self.show_full_config(pav_cfg, args.config, 'modes')
         else:
-            self.show_configs_table(pav_cfg, 'modes',
+            ret = self.show_configs_table(pav_cfg, args, 'modes',
                                     verbose=args.verbose,
                                     errors=args.err)
+        return ret
 
-    @sub_cmd('mod', 'module', 'modules', 'wrappers')
+    @sub_cmd('module_wrapper', 'mod', 'module', 'modules', 'wrappers', 'wrapper')
     def _module_wrappers_cmd(self, _, args):
         """List the various module wrapper plugins."""
 
@@ -680,14 +744,14 @@ class ShowCommand(Command):
         if args.verbose:
             fields.append('path')
 
-        output.draw_table(
-            self.outfile,
+        self._format_rows(
             fields=fields,
             rows=modules,
+            format=args.format,
             title="Available Module Wrapper Plugins"
         )
 
-    @sub_cmd()
+    @sub_cmd('node')
     def _nodes_cmd(self, pav_cfg, args):
         """Lists the nodes as seen by a given scheduler."""
         # pylint: disable=protected-access
@@ -741,19 +805,19 @@ class ShowCommand(Command):
                 if node not in filtered_nodes:
                     shown_nodes.append(nodes[node])
 
-        output.draw_table(
-            outfile=self.outfile,
-            fields=fields,
-            title="System node state via {}".format(args.scheduler.capitalize()),
+        self._format_rows(
             rows=shown_nodes,
+            fields=fields,
+            format=args.format,
+            title="System node state via {}".format(args.scheduler.capitalize()),
             field_info={
                 'partitions': {'transform': lambda f: ', '.join(sorted(f))},
                 'states': {'transform': lambda f: ', '.join(sorted(f))},
-                },
-            )
+            }
+        )
 
-    @sub_cmd('pav_vars', 'pav_var', 'pav')
-    def _pavilion_variables_cmd(self, pav_cfg, _):
+    @sub_cmd('pavilion_variable', 'pav_vars', 'pav_var', 'pav')
+    def _pavilion_variables_cmd(self, pav_cfg, args):
 
         rows = []
 
@@ -764,15 +828,15 @@ class ShowCommand(Command):
                 'description': pav_cfg.pav_vars.info(key)['help'],
             })
 
-        output.draw_table(
-            self.outfile,
-            fields=['name', 'value', 'description'],
+        self._format_rows(
             rows=rows,
+            fields=['name', 'value', 'description'],
+            format=args.format,
             title="Available Pavilion Variables"
         )
 
     @sub_cmd()
-    def _result_base_cmd(self, _, __):
+    def _result_base_cmd(self, _, args):
         """Show base result keys."""
 
         rows = [
@@ -780,29 +844,30 @@ class ShowCommand(Command):
             for key, (_, doc) in result.BASE_RESULTS.items()
         ]
 
-        output.draw_table(
-            self.outfile,
-            ['name', 'doc'],
-            rows
+        self._format_rows(
+            rows=rows,
+            fields=['name', 'doc'],
+            format=args.format,
+            title=None
         )
 
-    @sub_cmd('parsers', 'result')
+    @sub_cmd('result_parser', 'parsers', 'parser', 'result')
     def _result_parsers_cmd(self, _, args):
         """Show all the result parsers."""
 
         if args.doc:
-            try:
-                res_plugin = result_parsers.get_plugin(args.doc)
-            except errors.ResultError:
-                output.fprint(sys.stdout, "Invalid result parser '{}'.".format(args.doc),
+            res_plugin = result_parsers.get_plugin(args.doc)
+
+            if res_plugin is None:
+                output.fprint(self.errfile, "Invalid result parser '{}'.".format(args.doc),
                               color=output.RED)
                 return errno.EINVAL
 
             output.fprint(self.outfile, res_plugin.doc())
 
         else:
-
             rps = []
+
             for rp_name in result_parsers.list_plugins():
                 res_plugin = result_parsers.get_plugin(rp_name)
                 desc = " ".join(str(res_plugin.__doc__).split())
@@ -817,15 +882,15 @@ class ShowCommand(Command):
             if args.verbose:
                 fields.append('path')
 
-            output.draw_table(
-                self.outfile,
-                fields=fields,
+            self._format_rows(
                 rows=rps,
+                fields=fields,
+                format=args.format,
                 title="Available Result Parsers"
             )
 
     @sub_cmd("sched", "scheduler")
-    def _scheduler_cmd(self, _, args):
+    def _schedulers_cmd(self, _, args):
         """
         :param argparse.Namespace args:
         """
@@ -833,10 +898,10 @@ class ShowCommand(Command):
         if args.vars is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
-            try:
-                sched = schedulers.get_plugin(sched_name)
-            except errors.SchedulerPluginError:
-                output.fprint(sys.stdout, "Invalid scheduler plugin '{}'.".format(sched_name),
+            sched = schedulers.get_plugin(sched_name)
+
+            if sched is None:
+                output.fprint(self.errfile, "Invalid scheduler plugin '{}'.".format(sched_name),
                               color=output.RED)
                 return errno.EINVAL
 
@@ -850,10 +915,10 @@ class ShowCommand(Command):
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
 
-            output.draw_table(
-                self.outfile,
-                fields=['name', 'deferred', 'example', 'help'],
+            self._format_rows(
                 rows=sched_vars,
+                fields=['name', 'deferred', 'example', 'help'],
+                format=args.format,
                 title="Variables for the {} scheduler plugin.".format(args.vars)
             )
 
@@ -885,15 +950,15 @@ class ShowCommand(Command):
             if args.verbose:
                 fields.append('path')
 
-            output.draw_table(
-                self.outfile,
-                fields=fields,
+            self._format_rows(
                 rows=scheds,
+                fields=fields,
+                format=args.format,
                 title="Available Scheduler Plugins"
             )
 
     @sub_cmd("state")
-    def _states_cmd(self, *_):
+    def _states_cmd(self, _, args):
         """Show all of the states that a test can be in."""
 
         states = []
@@ -903,14 +968,14 @@ class ShowCommand(Command):
                 'description': status_file.STATES.help(state)
             })
 
-        output.draw_table(
-            self.outfile,
-            fields=['name', 'description'],
+        self._format_rows(
             rows=states,
+            fields=['name', 'description'],
+            format=args.format,
             title="Pavilion Test States"
         )
 
-    @sub_cmd("sys_var", "sys", "sys_vars")
+    @sub_cmd("system_variable", "sys_var", "sys", "sys_vars")
     def _system_variables_cmd(self, _, args):
 
         rows = []
@@ -940,10 +1005,10 @@ class ShowCommand(Command):
         if args.verbose:
             fields.append('path')
 
-        output.draw_table(
-            self.outfile,
-            fields=fields,
+        self._format_rows(
             rows=rows,
+            fields=fields,
+            format=args.format,
             title="Available System Variables"
         )
 
@@ -988,10 +1053,10 @@ class ShowCommand(Command):
             if args.err:
                 fields.append('err')
 
-        output.draw_table(
-            self.outfile,
-            fields=fields,
+        self._format_rows(
             rows=rows,
+            fields=fields,
+            format=args.format,
             title="Available Test Suites"
         )
 
@@ -1001,8 +1066,7 @@ class ShowCommand(Command):
     def _tests_cmd(self, pav_cfg, args):
 
         if args.test_name is not None:
-            self._test_docs_subcmd(pav_cfg, args)
-            return
+            return self._test_docs_subcmd(pav_cfg, args)
 
         resolv = resolver.TestConfigResolver(pav_cfg)
         suites = resolv.find_all_tests()
@@ -1038,6 +1102,12 @@ class ShowCommand(Command):
                     'err':     'None'
                 })
 
+        if len(rows) == 0:
+            output.fprint(self.errfile, f"No tests found matching name {suite_name}.",
+                          color=output.RED)
+
+            return 1
+
         fields = ['name', 'summary']
         if args.verbose or args.err:
             fields.append('path')
@@ -1045,12 +1115,14 @@ class ShowCommand(Command):
             if args.err:
                 fields.append('err')
 
-        output.draw_table(
-            self.outfile,
-            fields=fields,
+        self._format_rows(
             rows=rows,
+            fields=fields,
+            format=args.format,
             title="Available Tests"
         )
+
+        return 0
 
     @sub_cmd('series')
     def _series_cmd(self, pav_cfg, args):
@@ -1086,14 +1158,15 @@ class ShowCommand(Command):
         if args.conflicts:
             fields.append('supersedes')
 
-        output.draw_table(
-            self.outfile,
+        self._format_rows(
+            rows=all_series,
+            fields=fields,
+            format=args.format,
+            title=None,
             field_info={
                 'test_sets': {'transform': '\n'.join},
                 'supersedes': {'transform': '\n'.join},
-            },
-            fields=fields,
-            rows=all_series,
+            }
         )
 
     def _test_docs_subcmd(self, pav_cfg, args):
@@ -1104,24 +1177,24 @@ class ShowCommand(Command):
 
         parts = args.test_name.split('.')
         if len(parts) != 2:
-            output.fprint(self.outfile, "You must give a test name as '<suite>.<test>'.",
+            output.fprint(self.errfile, "You must give a test name as '<suite>.<test>'.",
                           color=output.RED)
-            return
+            return 1
 
         suite_name, test_name = parts
 
         if suite_name not in suites:
-            output.fprint(self.outfile, "No such suite: '{}'.\n"
+            output.fprint(self.errfile, "No such suite: '{}'.\n"
                                         "Available test suites:\n{}"
                           .format(suite_name, "\n".join(sorted(suites.keys()))), color=output.RED)
-            return
+            return 1
         tests = suites[suite_name]['tests']
         if test_name not in tests:
-            output.fprint(sys.stdout, "No such test '{}' in suite '{}'.\n"
+            output.fprint(self.errfile, "No such test '{}' in suite '{}'.\n"
                                       "Available tests in suite:\n{}"
                           .format(test_name, suite_name,
                                   "\n".join(sorted(tests.keys()))))
-            return
+            return 1
 
         test = tests[test_name]
 
@@ -1137,6 +1210,7 @@ class ShowCommand(Command):
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
 
+        return 0
 
     DOC_KEYS = ['summary', 'doc']
     PERMUTATION_KEYS = ['permute_on', 'subtitle']

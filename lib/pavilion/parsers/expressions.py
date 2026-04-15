@@ -483,9 +483,9 @@ class BaseExprTransformer(PavTransformer):
         args = [tok.value for tok in items[2:paren_idx]]
         ref_parts = items[paren_idx+1:]
 
-        try:
-            func = functions.get_plugin(func_name)
-        except pavilion.errors.FunctionPluginError:
+        func = functions.get_plugin(func_name)
+
+        if func is None:
             raise ParserValueError(
                 token=items[0],
                 message="No such function '{}'\n"

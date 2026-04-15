@@ -10,19 +10,40 @@ on:
       - develop
       - stable
 
+permissions:
+  contents: read
+
 jobs:
-  demo_runs:
-    # Check to make sure Pavilion can auto-fetch it's dependencies.
+  load-python-version:
+    name: Load Python version
     runs-on: ubuntu-latest
+
+    outputs:
+      default_py_version: ${{steps.load-py-version.outputs.default_py_version}}
+
+    steps:
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v6
+
+      - name: Load Python version matrix
+        id: load-py-version
+        run: |
+          echo "default_py_version=$(jq -c '.default_py_version' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  demo_runs:
+    name: Run demo tests
+    runs-on: ${{ fromJson(needs.load-python-version.outputs.default_py_version).os }}
+    needs: load-python-version
 
     steps:
     - name: Checkout Pavilion repository
       uses: actions/checkout@v6
 
-    - name: Set up Python 3.10
+    - name: Setup Python ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
       uses: actions/setup-python@v6
       with:
-        python-version: "3.10"
+        python-version: ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
 
     - name: Install dependencies
       run: sudo apt install gcc

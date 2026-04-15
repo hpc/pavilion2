@@ -241,9 +241,10 @@ class RawProtoTest:
         if sched_name is None:
             raise RuntimeError("No scheduler was given. This should only happen "
                                "when unit tests fail to define it.", request=self.request)
-        try:
-            sched = schedulers.get_plugin(sched_name)
-        except SchedulerPluginError:
+
+        sched = schedulers.get_plugin(sched_name)
+
+        if sched is None:
             raise TestConfigError("Could not find scheduler '{}' for test '{}'"
                                   .format(sched_name, test_name), request=self.request)
         if not sched.available():

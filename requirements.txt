@@ -1,1 +1,0 @@
-# All dependencies are now included directly in the lib/ directory

@@ -1,4 +1,4 @@
-name: unittests
+name: Run Pavilion unit tests
 
 on:
   push:
@@ -10,227 +10,171 @@ on:
       - develop
       - stable
 
-jobs:
-  # The debug job is meant for debugging CI related issues.
-  debug:
-    # Comment out the following line to enable.
-    if: ${{ false }}
+permissions:
+  contents: read
 
+jobs:
+  load-python-versions:
+    name: Load Python versions
     runs-on: ubuntu-latest
 
+    outputs:
+      supported_py_versions: ${{ steps.load-py-versions.outputs.supported_py_versions }}
+      legacy_py_versions: ${{ steps.load-py-versions.outputs.legacy_py_versions }}
+      default_py_version: ${{ steps.load-py-versions.outputs.default_py_version }}
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
-
-    # Set run_tests to run only the specific tests you need to fix.
-    - name: run_tests
-      run: ./test/run_tests
-
-    - name: zip_output_dir
-      if: always()
-      run: |
-        # If we don't zip this ourselves, it will run infinitely due to
-        # symlink loops.
-        cd test
-        ./utils/make_symlinks_relative output
-        zip -yr test_output.zip output
-
-    - name: logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test_output
-        path: test/test_output.zip
+      - name: Load Python version matrix
+        id: load-py-versions
+        run: |
+          echo "supported_py_versions=$(jq -c '.supported_py_versions' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
+          echo "legacy_py_versions=$(jq -c '.legacy_py_versions' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
+          echo "default_py_version=$(jq -c '.default_py_version' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
 
   style:
-    runs-on: ubuntu-latest
+    name: Run style checks
+    runs-on: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).os }}
+    needs: load-python-versions
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.9"
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v6
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
+      - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
 
-    - name: run_tests
-      run: ./test/run_tests -q -o style -o debug_prints
+      - name: Install dependencies
+        run: pip install -r test/requirements.txt
+
+      - name: Run style tests
+        run: ./test/run_tests -q -o style -o debug_prints
 
   docs:
-    runs-on: ubuntu-latest
+    name: Run documentation checks
+    runs-on: ${{ fromJson(needs.load-python-versions.outputs.default_py_version).os }}
+    needs: load-python-versions
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v6
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
+      - name: Setup Python ${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: "${{ fromJson(needs.load-python-versions.outputs.default_py_version).python }}"
 
-    - name: run_tests
-      run: ./test/run_tests -o 'doc*' -q
+      - name: Install dependencies
+        run: |
+          pip install -r test/requirements.txt
+          pip install -r docs/requirements.txt
 
-  unittests-3_7:
-    runs-on: ubuntu-22.04
+      - name: Run documentation tests
+        run: ./test/run_tests -o 'doc*' -q
+
+  unittests-modern-python:
+    name: Run unit tests on Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     needs:
+        - load-python-versions
         - style
         - docs
 
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.load-python-versions.outputs.supported_py_versions) }}
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.7
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: "${{ matrix.python }}"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
-        sphinx-build --version
-        pylint --version
+      - name: Install dependencies
+        run: |
+            pip install -r test/requirements.txt
+            pip install -r docs/requirements.txt
 
-    - name: Set up Spack
-      run: ./test/utils/spack_setup test
+      - name: Setup Spack
+        run: ./test/utils/spack_setup test
 
-    - name: run_tests
-      run: ./test/run_tests
+      - name: Run unit tests
+        run: ./test/run_tests
 
-    - name: zip_output_dir
-      if: failure()
-      run: |
-        # If we don't zip this ourselves, it will run infinitely due to
-        # symlink loops.
-        cd test
-        ./utils/make_symlinks_relative output
-        zip -yr test_output.zip output
+      - name: Zip output directory
+        if: failure()
+        run: |
+          # If we don't zip this ourselves, it will run infinitely due to symlink loops.
+          cd test
+          ./utils/make_symlinks_relative output
+          zip -yr output.zip output
 
-    - name: logs
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test_output_3.7
-        path: test/test_output.zip
+      - name: Upload output directory
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: output_py${{ matrix.python }}
+          path: test/output.zip
 
-  unittests-3_10:
-    runs-on: ubuntu-latest
+  unittests-legacy-python:
+    # We run this as a separate job because older versions of Python which are no longer supported
+    # by GitHub, for the `setup-python` action, will still work in containers.
+    name: Run unit tests on Python ${{ matrix.python }} (containerized)
+    runs-on: ${{ matrix.os }}
+    container: python:${{ matrix.python }}
     needs:
-        - style
-        - docs
+      - load-python-versions
+      - style
+      - docs
+
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.load-python-versions.outputs.legacy_py_versions) }}
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
+      - name: Install dependencies
+        run: |
+            pip install -r test/requirements.txt
+            pip install -r docs/requirements.txt
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
+      - name: Create bash symlink at /usr/bin/bash
+        # This is necessary because Pavilion's default shebang is /usr/bin/bash
+        run: test -e /usr/bin/bash || ln -s /bin/bash /usr/bin/bash
 
-    - name: Set up Spack
-      run: ./test/utils/spack_setup test
+      - name: Setup Spack
+        run: ./test/utils/spack_setup test
 
-    - name: run_tests
-      run: ./test/run_tests
+      - name: run_tests
+        run: ./test/run_tests
 
-    - name: zip_output_dir
-      if: failure()
-      run: |
-        # If we don't zip this ourselves, it will run infinitely due to
-        # symlink loops.
-        cd test
-        ./utils/make_symlinks_relative output
-        zip -yr test_output.zip output
+      - name: Install zip
+        if: failure()
+        run: |
+          apt-get update
+          apt-get install -y zip
 
-    - name: logs
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test_output_3.10
-        path: test/test_output.zip
+      - name: Zip output directory
+        if: failure()
+        run: |
+          # If we don't zip this ourselves, it will run infinitely due to symlink loops.
+          cd test
+          ./utils/make_symlinks_relative output
+          zip -yr output.zip output
 
-  unittests-3_12:
-    runs-on: ubuntu-latest
-    needs:
-        - style
-        - docs
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r test/requirements.txt
-        pip install -r docs/requirements.txt
-
-    - name: Set up Spack
-      run: ./test/utils/spack_setup test
-
-    - name: run_tests
-      run: ./test/run_tests
-
-    - name: zip_output_dir
-      if: failure()
-      run: |
-        # If we don't zip this ourselves, it will run infinitely due to
-        # symlink loops.
-        cd test
-        ./utils/make_symlinks_relative output
-        zip -yr test_output.zip output
-
-    - name: logs
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test_output_3.12
-        path: test/test_output.zip
+      - name: Upload output directory
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: output_py${{ matrix.python }}
+          path: test/output.zip

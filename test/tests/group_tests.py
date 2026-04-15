@@ -210,8 +210,17 @@ class TestGroupTests(unittest.PavTestCase):
         run_cmd.run(self.pav_cfg, run_args)
         series_cmd.run(self.pav_cfg, series_args)
 
-        run_cmd.last_series.wait(timeout=10)
-        series_cmd.last_series.wait(timeout=10)
+        try:
+            run_cmd.last_series.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} "
+                "seconds.")
+
+        try:
+            series_cmd.last_series.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} "
+                "seconds.")
 
         group = groups.TestGroup(self.pav_cfg, group_name)
         self.assertTrue(group.exists())
@@ -220,13 +229,23 @@ class TestGroupTests(unittest.PavTestCase):
         # Prep some separate tests to add
         run_args2 = parser.parse_args(['run', 'hello_world'])
         run_cmd.run(self.pav_cfg, run_args2)
-        run_cmd.last_series.wait(timeout=10)
+
+        try:
+            run_cmd.last_series.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} "
+                      "seconds.")
 
         # Create a new group with tests to add
         sub_group_name = self._make_group_name()
         run_args3 = parser.parse_args(['run', '-g', str(sub_group_name), 'hello_world'])
         run_cmd.run(self.pav_cfg, run_args3)
-        run_cmd.last_series.wait(timeout=10)
+
+        try:
+            run_cmd.last_series.wait(timeout=self.series_wait_timeout)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} "
+                "seconds.")
 
         add_items = [str(sub_group_name)] + [str(test.id) for test in run_cmd.last_tests]
         rm_tests = add_items[1:3]

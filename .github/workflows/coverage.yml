@@ -1,52 +1,90 @@
-name: coverage
+name: Generate unit test coverage report
 
 on:
   schedule:
-    # Run at midnight on Sundays
-    - cron: "0 0 * * 0"
+    # Run at midnight on the first of the month
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+    inputs:
+      timeout:
+        description: "Timeout value (in seconds) for Pavilion unit tests"
+        required: true
+        default: 300
+        type: number
+      lock_lifetime:
+        description: "Lifetime (in seconds) after which a lock may be 'stolen' by other processes"
+        required: true
+        default: 300
+        type: number
+
+permissions:
+  contents: read
 
 jobs:
-  coverage:
+  load-python-version:
+    name: Load Python version
     runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+    outputs:
+      default_py_version: ${{steps.load-py-version.outputs.default_py_version}}
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
+    steps:
+      - name: Checkout Pavilion repository
+        uses: actions/checkout@v6
+
+      - name: Load Python version matrix
+        id: load-py-version
+        run: echo "default_py_version=$(jq -c '.default_py_version' .github/py-versions.json)" >> "$GITHUB_OUTPUT"
+
+  coverage:
+    name: Generate coverage report
+    runs-on: ${{ fromJson(needs.load-python-version.outputs.default_py_version).os }}
+    needs: load-python-version
+
+    steps:
+    - name: Checkout Pavilion repository
+      uses: actions/checkout@v6
+
+    - name: Setup Python ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
+      uses: actions/setup-python@v6
       with:
-        python-version: "3.12"
+        python-version: ${{ fromJson(needs.load-python-version.outputs.default_py_version).python }}
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
         pip install -r test/requirements.txt
-        pip install "coverage>=7.10,<8"
+        pip install -r docs/requirements.txt
+        pip install "coverage>=7.10"
 
-    - name: Set up Spack
+    - name: Setup Spack
       run: ./test/utils/spack_setup test
 
-    - name: run_tests
-      run: python -m coverage run ./test/run_tests"
+    - name: Run unit tests under coverage.py
+      env:
+        # coverage.py causes unit tests to run several times slower, so we need to increase the timeout
+        PAV_UNITTEST_UNIVERSAL_TIMEOUT: ${{ inputs.timeout || 300}}
+        PAV_UNITTEST_LOCK_LIFETIME: ${{ inputs.lock_lifetime || 300}}
+      run: |
+        echo "PAV_UNITTEST_UNIVERSAL_TIMEOUT: $PAV_UNITTEST_UNIVERSAL_TIMEOUT"
+        echo "PAV_UNITTEST_LOCK_LIFETIME: $PAV_UNITTEST_LOCK_LIFETIME"
+        python -m coverage run ./test/run_tests --skip style --skip docs"
 
-    - name: Generate and show report
+    - name: Combine data and generate report
+      if: always()
       run: |
         python -m coverage combine
         python -m coverage report
         python -m coverage xml
         python -m coverage html
 
+    - name: Upload XML coverage report
+      uses: actions/upload-artifact@v6
+      with:
+        name: coverage-xml
+        path: coverage.xml
+
     - name: Upload HTML coverage report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-html
         path: htmlcov
-
-    - name: Upload XML coverage report
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-xml
-        path: xmlcov
