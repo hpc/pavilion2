@@ -155,7 +155,7 @@ jobs:
       - name: Setup Spack
         run: ./test/utils/spack_setup test
 
-      - name: run_tests
+      - name: Run unit tests
         run: ./test/run_tests
 
       - name: Install zip
