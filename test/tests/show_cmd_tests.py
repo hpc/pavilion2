@@ -13,6 +13,12 @@ from pavilion import config
 
 class ShowTests(unittest.PavTestCase):
 
+        def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.link_files(
+            "plugins/schedulers/dummy.*")
+
     def test_config_subcommand(self):
         """Test that the config subcommand, with no arguments, works as expected."""
 
