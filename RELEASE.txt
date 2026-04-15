@@ -8,7 +8,6 @@ RELEASE=2.6
 
   - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
     or JSON.
-  - Various minor bug fixes.
 
 ## 2.6.1 Pre-Release Notes
 
