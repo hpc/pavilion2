@@ -13,6 +13,7 @@ import subprocess
 import tarfile
 import threading
 import time
+import signal
 import urllib.parse
 from pathlib import Path
 from typing import Union, Dict, Optional, List, IO
@@ -596,8 +597,10 @@ class TestBuilder:
 
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
+                                        preexec_fn=os.setsid,
                                         stdout=build_log,
-                                        stderr=build_log)
+                                        stderr=build_log,
+                                        stdin=subprocess.DEVNULL)
 
                 result = None
                 timeout = time.time() + self._timeout
@@ -620,7 +623,7 @@ class TestBuilder:
                         # Has the output file changed recently?
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
-                            proc.kill()
+                            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                             tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
@@ -628,7 +631,7 @@ class TestBuilder:
                             return False
 
                         if cancel_event is not None and cancel_event.is_set():
-                            proc.kill()
+                            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                             tracker.update(
                                 state=STATES.ABORTED,
                                 note="Build canceled due to other builds "
