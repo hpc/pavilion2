@@ -9,6 +9,10 @@ RELEASE=2.6
   configuration directories were used.
 - Fixed a bug in which the wrong suite was sometimes loaded when suites with the same name existed
   in different config directories.
+- Fixed a bug that caused the build and run commands to sometimes leave behind orphan processes
+  on timeout or cancellation.
+- Fixed a bug that that caused Spack to issue a traceback due to running in a non-interactive
+  context.
 
 ## 2.6 Release Notes
 
