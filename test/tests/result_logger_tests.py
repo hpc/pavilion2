@@ -111,8 +111,7 @@ class ResultLoggerTests(PavTestCase):
                              msg="Expected results to have key 'hello' with value 'world', but they did not.")
 
     def test_flatten_results(self):
-        """Make sure result flattening works as expected, as well as regular
-        result output while we're at it."""
+        """Make sure result flattening works as expected."""
 
         arg_parser = arguments.get_parser()
         cmd = ['run', 'flatten_results']
@@ -120,6 +119,10 @@ class ResultLoggerTests(PavTestCase):
 
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
+
+        self.pav_cfg = self.make_pav_config(result_loggers=[{
+                                        "plugin": "series_file",
+                                        "dest": self.results_dir}])
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0,
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
@@ -138,7 +141,7 @@ class ResultLoggerTests(PavTestCase):
         except TimeoutError:
             self.fail(f"Timed out waiting for series {series1.id} to finish logging results after 10 seconds.")
 
-        log_path = self.pav_cfg.working_dir / "results"
+        log_path = self.results_dir
         matches = list(log_path.glob(f"{series1.id}*"))
 
         self.assertEqual(len(matches), 1,
@@ -147,7 +150,7 @@ class ResultLoggerTests(PavTestCase):
 
         result_log1 = next(iter(matches))
 
-        flattened = {}
+        actual = {}
 
         with open(result_log1) as fin:
             lines = fin.readlines()
@@ -158,29 +161,37 @@ class ResultLoggerTests(PavTestCase):
                 # Reconstruct the per_file dict, so that flattened and
                 # unflattened are the same. If there's a format error, this
                 # will have problems.
-                flattened[_result['file']] = {'hello': _result['hello']}
+                actual[_result['file']] = {'hello': _result['hello']}
 
-        answer = {
+        expected = {
             '1': {'hello': 'hello 1'},
             '2': {'hello': 'hello 2'},
             '3': {'hello': 'hello 3'},
             '4': {'hello': 'hello 4'},
         }
 
-        self.assertEqual(flattened, answer,
-                        msg=f"Expected flattened results {answer} but found {flatten} instead.")
+        self.assertEqual(actual, expected,
+                        msg=f"Expected flattened results {expected} for {series1.id} but found {actual} instead.")
 
-        self.pav_cfg["flatten_results"] = False
+        self.pav_cfg = self.make_pav_config(
+                                    result_loggers=[{
+                                        "plugin": "series_file",
+                                        "dest": self.results_dir}],
+                                    flatten_results=False)
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args, log_results=False), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
         series2 = run_cmd.last_series
-        series1.outfile = io.StringIO()
 
-        series2.log_results()
+        try:
+            series2.wait(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {series2.id} to complete after 10 seconds.")
 
-        series2.wait()
-        series2.wait_log()
+        try:
+            series2.wait_log(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {series2.id} to finish loggging after 10 seconds.")
 
         matches = list(log_path.glob(f"{series2.id}*"))
 
@@ -199,7 +210,7 @@ class ResultLoggerTests(PavTestCase):
                 _result = json.loads(line)
                 unflattened = _result["per_file"]
 
-        self.assertEqual(unflattened, answer)
+        self.assertEqual(unflattened, expected)
 
     def test_logging_process_exits_once_series_completed(self):
         """Test that the result logging process exits once the entire series has completed."""
