@@ -33,6 +33,7 @@ class SpackTests(PavTestCase):
             'install': 'time',
             'load': 'time',
         }
+        cfg["build"]["timeout"] = 60
         cfg['run']['spack'] = {
             'load': 'time'
         }
