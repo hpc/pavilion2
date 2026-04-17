@@ -33,7 +33,6 @@ from pavilion.micro import partition, do, listfilter, stardo, flatten, set_defau
 from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.counter import SeriesIDCounter, TestIDCounter
-from pavilion.result_logging import get_result_loggers
 from pavilion.status_utils import get_status
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo

@@ -21,7 +21,7 @@ class ResultLoggerTests(PavTestCase):
                     "suites/flatten_results.yaml",
                     "suites/forever.yaml",
                     "plugins/schedulers/dummy.*",
-                    "plugins/result_logger/error_logger.py",
+                    "plugins/result_logger/error_logger.*",
                     "plugins/result_logger/null_logger.*")
 
     def set_up(self):
@@ -332,12 +332,36 @@ class ResultLoggerTests(PavTestCase):
             output = fin.read()
 
         self.assertFalse("Traceback" in output, msg=f"There was an error loading the result logger:\n{output}")
+        self.assertFalse("Error making result loggers" in output, msg=f"Result logging encountered an error:\n{output}")
         self.assertTrue("NullResultLogger" in output, msg=f"Result logger for series {series.id} does not appear to have run.")
 
     def test_logging_exits_if_no_loggers(self):
         """Test that the result logging process exits if there are no result loggers defined."""
 
-        self.fail("This test is not yet implemented.")
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args(['run', 'results_log'])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+
+        self.pav_cfg = self.make_pav_config(result_loggers=[])
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
+        series = run_cmd.last_series
+
+        try:
+            series.wait_log(timeout=10)
+        except TimeoutError:
+            os.kill(series.log_proc.pid, signal.SIGKILL)
+            self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
+
+        with open(series.path / series.LOG_RESULTS_LOG_FN) as fin:
+            output = fin.read()
+
+        self.assertFalse("Traceback" in output, msg=f"Result logging encountered an error:\n{output}")
+        self.assertFalse("Error making result loggers" in output, msg=f"Result logging encountered an error:\n{output}")
+        self.assertTrue("No loggers registered" in output)
 
     def test_logging_gracefully_handles_errors(self):
         """Test that the logging process gracefully handles ResultLoggerPluginErrors."""
@@ -354,13 +378,27 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series = run_cmd.last_series
 
-        series.wait_log(timeout=10)
+        try:
+            series.wait(timeout=10)
+        except TimeoutError:
+            os.kill(series.log_proc.pid, signal.SIGKILL)
+            self.fail(f"Timed out waiting for series {series.id} to complete after 10 seconds.")
+
+        try:
+            series.wait_log(timeout=10)
+        except TimeoutError:
+            os.kill(series.log_proc.pid, signal.SIGKILL)
+            self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
+
+        with open(series.path / series.LOG_RESULTS_LOG_FN) as fin:
+            output = fin.read()
+
+        self.assertFalse("Traceback" in output, msg=f"Result logging encountered an error:\n{output}")
+        self.assertFalse("Error making result loggers" in output, msg=f"Result logging encountered an error:\n{output}")
+        self.assertTrue("This error was raised deliberately" in output)
 
     def test_series_file_result_logger_has_separate_files_for_reused_series_ids(self):
         """Test that when series IDs are used, the SeriesFileResultLogger gives them separate
         result logs."""
 
         self.fail("This test is not yet implemented.")
-
-    def test_multiple_result_loggers(self):
-        """Test that loggers work correctly when multiple loggers are defined."""

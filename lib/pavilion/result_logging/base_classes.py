@@ -138,8 +138,8 @@ class ResultLogger(ABC):
         # If no separate errfile is specified, just use the outfile
         self.errfile = set_default(errfile, outfile)
 
-        self.outfile = outfile or io.StringIO()
-        self.errfile = errfile or io.StringIO()
+        self.outfile = self.outfile or io.StringIO()
+        self.errfile = self.errfile or io.StringIO()
 
         self.name = set_default(name, type(self).__name__)
 

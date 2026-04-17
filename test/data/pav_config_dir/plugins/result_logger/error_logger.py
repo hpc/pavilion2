@@ -1,4 +1,5 @@
 from pavilion.result_logging import ResultLoggerPlugin, ResultLogger
+from pavilion.errors import ResultLoggerPluginError
 
 from typing import Dict, Optional, TextIO
 
