@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 import os
+import signal
 from pathlib import Path
 from typing import Any, TextIO, Union, Dict, Optional, List
 import yc_yaml as yaml
@@ -741,8 +742,10 @@ class TestRun(TestAttributes):
             cmd = [self.run_script_path.as_posix(), str(self.id)]
             proc = subprocess.Popen(cmd,
                                     cwd=run_wd,
+                                    preexec_fn=os.setsid,
                                     stdout=run_log,
-                                    stderr=subprocess.STDOUT)
+                                    stderr=subprocess.STDOUT,
+                                    stdin=subprocess.DEVNULL)
 
             self.status.set(STATES.RUNNING,
                             "Currently running.")
@@ -773,7 +776,7 @@ class TestRun(TestAttributes):
                     if self.run_timeout is not None:
                         if self.run_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
-                            proc.kill()
+                            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                             msg = ("Run timed out after {} seconds"
                                    .format(self.run_timeout))
                             self.status.set(STATES.RUN_TIMEOUT, msg)
@@ -781,7 +784,7 @@ class TestRun(TestAttributes):
                             self.save_attributes()
                             raise TimeoutError(msg)
                         elif self.cancelled:
-                            proc.kill()
+                            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                             self.status.set(
                                 STATES.SCHED_CANCELLED,
                                 "Test cancelled mid-run.")
