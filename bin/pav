@@ -3,6 +3,7 @@
 PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib"
+export PATH="${PAV_DIR}/bin/slurm_wrappers:${PATH}"
 
 if [[ -d ${PAV_DIR}/.env ]]; then
     PYTHON=${PAV_DIR}/.env/bin/python

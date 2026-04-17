@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL_SCONTROL="${REAL_SCONTROL:-/usr/bin/scontrol}"
+LOG_FILE="${SLURM_WRAPPER_LOG:-/$PAV_CONFIG_DIR/slurm-wrapper.log}"
+
+python3 - "$LOG_FILE" "$0" "$@" <<'PY'
+import json, os, sys, time
+
+log_file = sys.argv[1]
+argv = sys.argv[2:]
+record = {
+    "ts": time.time(),
+    "pid": os.getpid(),
+    "ppid": os.getppid(),
+    "argv": argv,
+    "cwd": os.getcwd(),
+    "request_id": os.environ.get("SLURM_REQUEST_ID"),
+}
+with open(log_file, "a") as f:
+    f.write(json.dumps(record) + "\n")
+PY
+
+exec "$REAL_SCONTROL" "$@"
