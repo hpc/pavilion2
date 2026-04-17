@@ -2,12 +2,14 @@ import json
 import io
 import os
 import signal
+import shutil
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion.unittest import PavTestCase
 from pavilion.result_logging import get_result_loggers
+from pavilion.counter import SeriesIDCounter
 
 
 class ResultLoggerTests(PavTestCase):
@@ -24,13 +26,24 @@ class ResultLoggerTests(PavTestCase):
                     "plugins/result_logger/error_logger.*",
                     "plugins/result_logger/null_logger.*")
 
+        # We'll use this to keep track of logging processes so we can kill them during tear_down
+        self.series = []
+
     def set_up(self):
         os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
         plugins.initialize_plugins(self.pav_cfg)
+        self.series = []
 
-        # Remove the logs from other tests
-        for log in self.results_dir.iterdir():
-            log.unlink()
+    def tear_down(self):
+        """Kill any lingering logging processes."""
+
+        for series in self.series:
+            if series.log_proc is not None:
+                try:
+                    os.kill(series.log_proc.pid, signal.SIGTERM)
+                    series.log_proc.wait(2)
+                except ProcessLookupError:
+                    continue
 
     def test_series_file_logger(self):
         """Test that the series file logger works correctly."""
@@ -50,6 +63,7 @@ class ResultLoggerTests(PavTestCase):
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
 
         series = run_cmd.last_series
+        self.series.append(series)
 
         try:
             series.wait_log(timeout=10)
@@ -92,10 +106,12 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
         series1 = run_cmd.last_series
+        self.series.append(series1)
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
         series2 = run_cmd.last_series
+        self.series.append(series2)
 
         try:
             series1.wait_log(timeout=10)
@@ -141,6 +157,7 @@ class ResultLoggerTests(PavTestCase):
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
 
         series1 = run_cmd.last_series
+        self.series.append(series1)
 
         series1.log_results()
 
@@ -195,6 +212,7 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
         series2 = run_cmd.last_series
+        self.series.append(series2)
 
         try:
             series2.wait(timeout=10)
@@ -245,6 +263,7 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0, msg=f"pav run hello_world*3 failed with the following output:\n{run_cmd.errfile.getvalue()}")
 
         last_series = run_cmd.last_series
+        self.series.append(last_series)
 
         try:
             last_series.wait(timeout=10)
@@ -257,7 +276,6 @@ class ResultLoggerTests(PavTestCase):
         try:
             last_series.wait_log(timeout=2)
         except TimeoutError:
-            os.kill(last_series.log_proc.pid, signal.SIGKILL)
             self.fail(f"Result logging process for series {last_series.id} did not terminate, even though the series completed.")
 
         self.assertTrue((self.results_dir / "results.log").exists(),
@@ -287,6 +305,7 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0, f"pav run forever failed with the following output:\n{run_cmd.errfile.getvalue()}")
 
         last_series = run_cmd.last_series
+        self.series.append(last_series)
 
         self.assertNotEqual(last_series.log_proc, None,
                     msg=f"Series {last_series.id} does not appear to have started a logging process.")
@@ -295,7 +314,6 @@ class ResultLoggerTests(PavTestCase):
             last_series.wait_log(timeout=5)
         except TimeoutError:
             last_series.cancel()
-            os.kill(last_series.log_proc.pid, signal.SIGKILL)
             self.fail(f"Result logging process for series {last_series.id} should have timed out, but didn't.")
 
         last_series.cancel()
@@ -321,11 +339,11 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
         series = run_cmd.last_series
+        self.series.append(series)
 
         try:
             series.wait_log(timeout=10)
         except TimeoutError:
-            os.kill(series.log_proc.pid, signal.SIGKILL)
             self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
 
         with open(series.path / series.LOG_RESULTS_LOG_FN) as fin:
@@ -349,11 +367,11 @@ class ResultLoggerTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
         series = run_cmd.last_series
+        self.series.append(series)
 
         try:
             series.wait_log(timeout=10)
         except TimeoutError:
-            os.kill(series.log_proc.pid, signal.SIGKILL)
             self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
 
         with open(series.path / series.LOG_RESULTS_LOG_FN) as fin:
@@ -377,17 +395,16 @@ class ResultLoggerTests(PavTestCase):
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         series = run_cmd.last_series
+        self.series.append(series)
 
         try:
             series.wait(timeout=10)
         except TimeoutError:
-            os.kill(series.log_proc.pid, signal.SIGKILL)
             self.fail(f"Timed out waiting for series {series.id} to complete after 10 seconds.")
 
         try:
             series.wait_log(timeout=10)
         except TimeoutError:
-            os.kill(series.log_proc.pid, signal.SIGKILL)
             self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
 
         with open(series.path / series.LOG_RESULTS_LOG_FN) as fin:
@@ -398,7 +415,59 @@ class ResultLoggerTests(PavTestCase):
         self.assertTrue("This error was raised deliberately" in output)
 
     def test_series_file_result_logger_has_separate_files_for_reused_series_ids(self):
-        """Test that when series IDs are used, the SeriesFileResultLogger gives them separate
+        """Test that when series IDs are reused, the SeriesFileResultLogger gives them separate
         result logs."""
 
-        self.fail("This test is not yet implemented.")
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args(['run', 'hello_world'])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+
+        reused_series_wd = self.suite_output_dir / "reused_series_wd"
+        reused_series_wd.mkdir()
+
+        reused_series_results_dir = self.suite_output_dir / "results_series_results"
+        reused_series_results_dir.mkdir()
+
+        self.pav_cfg = self.make_pav_config(result_loggers=[{
+                                "plugin": "series_file",
+                                "dest": reused_series_results_dir.as_posix()}], working_dir=reused_series_wd.as_posix())
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav run hello_world failed with the following output:\n{run_cmd.errfile.getvalue()}")
+
+        last_series = run_cmd.last_series
+        self.series.append(last_series)
+
+        try:
+            last_series.wait(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {last_series.id} to complete after 10 seconds.")
+
+        try:
+            last_series.wait_log(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {last_series.id} to finish logging results after 10 seconds.")
+
+        # Reset the test ID
+        SeriesIDCounter(reused_series_wd / "series").reset()
+
+        shutil.rmtree(last_series.path)
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
+                    msg=f"pav run hello_world failed with the following output:\n{run_cmd.errfile.getvalue()}")
+
+        last_series = run_cmd.last_series
+        self.series.append(last_series)
+
+        try:
+            last_series.wait(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {last_series.id} to complete after 10 seconds.")
+
+        matches = list(reused_series_results_dir.glob(f"{last_series.id}*"))
+
+        self.assertEqual(len(matches), 2,
+                         msg=f"Expected exactly 2 log files matching '{last_series.id}*', "
+                             f"but found {len(matches)}: {matches}")
