@@ -1,10 +1,10 @@
 from pavilion.result_logging import ResultLoggerPlugin, ResultLogger
 
-from typing import Dict
+from typing import Dict, Optional, TextIO
 
 
 class NullResultLoggerFactory(ResultLoggerPlugin):
-        def __init__(self):
+    def __init__(self):
         super().__init__(
             name="null_logger",
             description="Result logger that does nothing.",
@@ -28,5 +28,8 @@ class NullResultLoggerFactory(ResultLoggerPlugin):
         return NullResultLogger(name, outfile, errfile)
 
 class NullResultLogger(ResultLogger):
-    def _log(results: Dict) -> None:
+    def _log(self, results: Dict) -> None:
         pass
+
+    def get_log_message(self, results: Dict) -> str:
+        return f"{self.name}: Logging {results}..."

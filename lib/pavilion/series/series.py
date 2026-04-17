@@ -752,7 +752,10 @@ class TestSeries:
         if self.log_proc is None:
             return
 
-        self.log_proc.wait(timeout)
+        try:
+            self.log_proc.wait(timeout)
+        except subprocess.TimeoutExpired:
+            raise TimeoutError
 
     @property
     def complete(self) -> bool:

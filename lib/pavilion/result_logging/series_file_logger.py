@@ -65,3 +65,6 @@ class SeriesFileResultLogger(ResultLogger):
             raise ResultLoggerPluginError(f"Error writing to {self.dest}: {err}")
         except TypeError:
             raise ResultLoggerPluginError(f"Error serializing results as JSON: {err}")
+
+    def get_log_message(self, results: Dict) -> str:
+        return f"{self.name}: Logging {results} to {self.dest}..."

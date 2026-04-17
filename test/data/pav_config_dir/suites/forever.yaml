@@ -1,0 +1,8 @@
+forever:
+  scheduler: raw
+
+  run:
+    cmds:
+      - "while true; do"
+      - " :"
+      - "done"

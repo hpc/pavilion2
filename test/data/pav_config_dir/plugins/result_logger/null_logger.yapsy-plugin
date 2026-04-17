@@ -1,0 +1,6 @@
+[Core]
+Name = null_logger
+Module = null_logger
+
+[Documentation]
+Description = Results Logger that does nothing

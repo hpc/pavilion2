@@ -146,7 +146,7 @@ class ResultLogger(ABC):
     def log(self, results: Dict) -> None:
         """Log a test's results dictionary."""
 
-        output.fprint(self.outfile, f"{self.name}: Logging {results} to {self.dest}...")
+        output.fprint(self.outfile, self.get_log_message(results))
 
         try:
             self._log(results)
@@ -158,6 +158,10 @@ class ResultLogger(ABC):
     @abstractmethod
     def _log(self, results: Dict) -> None:
         pass
+
+    @abstractmethod
+    def get_log_message(results: Dict) -> str:
+        """Get the log message to print to the results logging log."""
 
     def __call__(self, results: Dict) -> None:
         self.log(results)

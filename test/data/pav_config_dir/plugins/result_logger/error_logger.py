@@ -1,10 +1,10 @@
 from pavilion.result_logging import ResultLoggerPlugin, ResultLogger
 
-from typing import Dict
+from typing import Dict, Optional, TextIO
 
 
 class ErrorResultLoggerFactory(ResultLoggerPlugin):
-        def __init__(self):
+    def __init__(self):
         super().__init__(
             name="error_logger",
             description="Deliberately raises an error when logging results.",
@@ -28,5 +28,8 @@ class ErrorResultLoggerFactory(ResultLoggerPlugin):
         return ErrorResultLogger(name, outfile, errfile)
 
 class ErrorResultLogger(ResultLogger):
-    def _log(results: Dict) -> None:
+    def _log(self, results: Dict) -> None:
         raise ResultLoggerPluginError("This error was raised deliberately by the ErrorResultLogger.")
+
+    def get_log_message(self, results: Dict) -> str:
+        return f"{self.name}: Logging {results}..."

@@ -1,8 +1,11 @@
 import json
 import io
+import os
+import signal
 
 from pavilion import arguments
 from pavilion import commands
+from pavilion import plugins
 from pavilion.unittest import PavTestCase
 from pavilion.result_logging import get_result_loggers
 
@@ -13,10 +16,21 @@ class ResultLoggerTests(PavTestCase):
         super().__init__(*args, **kwargs)
 
         self.link_files(
+                    "suites/hello_world.yaml",
                     "suites/results_log.yaml",
                     "suites/flatten_results.yaml",
+                    "suites/forever.yaml",
+                    "plugins/schedulers/dummy.*",
                     "plugins/result_logger/error_logger.py",
-                    "plugins/result_logger/null_logger.py")
+                    "plugins/result_logger/null_logger.*")
+
+    def set_up(self):
+        os.environ["PAV_CONFIG_DIR"] = self.pav_config_dir.as_posix()
+        plugins.initialize_plugins(self.pav_cfg)
+
+        # Remove the logs from other tests
+        for log in self.results_dir.iterdir():
+            log.unlink()
 
     def test_series_file_logger(self):
         """Test that the series file logger works correctly."""
@@ -28,10 +42,9 @@ class ResultLoggerTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
 
-        log_path = self.pav_cfg.working_dir / "results"
         self.pav_cfg = self.make_pav_config(result_loggers= [{
                                                 "plugin": "series_file",
-                                                "dest": str(log_path)}])
+                                                "dest": self.results_dir.as_posix()}])
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
@@ -43,7 +56,7 @@ class ResultLoggerTests(PavTestCase):
         except TimeoutError:
             self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
 
-        matches = list(log_path.glob(f"{series.id}*"))
+        matches = list(self.results_dir.glob(f"{series.id}*"))
 
         self.assertEqual(len(matches), 1,
                          msg=f"Expected exactly one log file matching '{series.id}*', "
@@ -71,10 +84,10 @@ class ResultLoggerTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
 
-        log_path = self.pav_cfg.working_dir / "results.log"
+        log_path = self.results_dir / "results.log"
         self.pav_cfg = self.make_pav_config(result_loggers=[{
                                                 "plugin": "common_file",
-                                                "dest": str(log_path)}])
+                                                "dest": log_path.as_posix()}])
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
                          msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
@@ -215,12 +228,83 @@ class ResultLoggerTests(PavTestCase):
     def test_logging_process_exits_once_series_completed(self):
         """Test that the result logging process exits once the entire series has completed."""
 
-        self.fail("This test is not yet implemented.")
+        self.pav_cfg = self.make_pav_config(result_loggers= [
+                                                {"plugin": "series_file",
+                                                 "dest": self.results_dir.as_posix()},
+                                                {"plugin": "common_file",
+                                                 "dest": (self.results_dir / "results.log").as_posix()
+                                                }])
+
+        arg_parser = arguments.get_parser()
+        cmd = ['run', 'hello_world*3']
+        args = arg_parser.parse_args(cmd)
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0, msg=f"pav run hello_world*3 failed with the following output:\n{run_cmd.errfile.getvalue()}")
+
+        last_series = run_cmd.last_series
+
+        try:
+            last_series.wait(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {last_series.id} to complete after 10 seconds.")
+
+        self.assertNotEqual(last_series.log_proc, None,
+                            msg=f"Series {last_series.id} does not appear to have started a logging process.")
+
+        try:
+            last_series.wait_log(timeout=2)
+        except TimeoutError:
+            os.kill(last_series.log_proc.pid, signal.SIGKILL)
+            self.fail(f"Result logging process for series {last_series.id} did not terminate, even though the series completed.")
+
+        self.assertTrue((self.results_dir / "results.log").exists(),
+                        msg=f"Common file logger did not create a results log at {self.results_dir / 'results.log'}")
+
+        matches = list(self.results_dir.glob(f"{last_series.id}*"))
+
+        self.assertEqual(len(matches), 1,
+                         msg=f"Expected exactly one log file matching '{last_series.id}*', "
+                             f"but found {len(matches)}: {matches}")
 
     def test_logging_process_times_out_if_no_activity(self):
         """Test that the result logging process times out when tests are not active."""
 
-        self.fail("This test is not yet implemented.")
+        self.pav_cfg = self.make_pav_config(result_loggers= [
+                                                {"plugin": "common_file",
+                                                    "dest": (self.results_dir / "results.log").as_posix()
+                                                }],
+                                            result_logger_timeout=3)
+        arg_parser = arguments.get_parser()
+        cmd = ['run', 'forever']
+        args = arg_parser.parse_args(cmd)
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0, f"pav run forever failed with the following output:\n{run_cmd.errfile.getvalue()}")
+
+        last_series = run_cmd.last_series
+
+        self.assertNotEqual(last_series.log_proc, None,
+                    msg=f"Series {last_series.id} does not appear to have started a logging process.")
+
+        try:
+            last_series.wait_log(timeout=5)
+        except TimeoutError:
+            last_series.cancel()
+            os.kill(last_series.log_proc.pid, signal.SIGKILL)
+            self.fail(f"Result logging process for series {last_series.id} should have timed out, but didn't.")
+
+        last_series.cancel()
+        output = ""
+
+        with open(last_series.path / last_series.LOG_RESULTS_LOG_FN) as fin:
+            output = fin.read()
+
+        self.assertTrue("has not been active" in output, msg=f"Series {last_series.id} did not log a timeout message to the result logger log.")
 
     def test_load_custom_result_logger_plugin(self):
         """Test that custom result loggers can be loaded."""
@@ -234,10 +318,21 @@ class ResultLoggerTests(PavTestCase):
 
         self.pav_cfg = self.make_pav_config(result_loggers=[{"plugin": "null_logger"}])
 
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0,
+                         msg=f"pav run results_log failed with the following output:\n{run_cmd.errfile.getvalue()}")
         series = run_cmd.last_series
 
-        series.wait_log(timeout=10)
+        try:
+            series.wait_log(timeout=10)
+        except TimeoutError:
+            os.kill(series.log_proc.pid, signal.SIGKILL)
+            self.fail(f"Timed out waiting for series {series.id} to finish logging results after 10 seconds.")
+
+        with open(series.path / series.LOG_RESULTS_LOG_FN) as fin:
+            output = fin.read()
+
+        self.assertFalse("Traceback" in output, msg=f"There was an error loading the result logger:\n{output}")
+        self.assertTrue("NullResultLogger" in output, msg=f"Result logger for series {series.id} does not appear to have run.")
 
     def test_logging_exits_if_no_loggers(self):
         """Test that the result logging process exits if there are no result loggers defined."""
