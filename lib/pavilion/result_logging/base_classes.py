@@ -160,7 +160,7 @@ class ResultLogger(ABC):
         pass
 
     @abstractmethod
-    def get_log_message(results: Dict) -> str:
+    def get_log_message(self, results: Dict) -> str:
         """Get the log message to print to the results logging log."""
 
     def __call__(self, results: Dict) -> None:
