@@ -1,4 +1,4 @@
-from .base_classes import ResultLoggerPlugin, get_result_loggers
+from .base_classes import ResultLogger, ResultLoggerPlugin, get_result_loggers
 from .series_file_logger import SeriesFileLoggerFactory
 from .common_file_logger import CommonFileLoggerFactory
 

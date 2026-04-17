@@ -1324,6 +1324,30 @@ be set by the scheduler plugin as soon as it's known."""
 
         return True
 
+    def last_active(self) -> Optional[float]:
+        """Get the time at which the test was most recently active, as indicated by its logs
+        and status file. Returns None if the last active time cannot be determined."""
+
+        try:
+            return max(self.build_log.stat().st_mtime,
+                       self.run_log.stat().st_mtime,
+                       self.status.last_updated())
+        except OSError:
+            return None
+
+    def is_active(self, timeout: int) -> Optional[bool]:
+        """Determines whether the test is still active, based on the given timeout."""
+
+        last_active = self.last_active()
+
+        if last_active is None:
+            return None
+
+        if time.time() - last_active > timeout:
+            return False
+
+        return True
+
     def __eq__(self, other: "TestRun") -> bool:
         return self.id == other.id
 

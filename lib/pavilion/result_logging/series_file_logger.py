@@ -1,9 +1,9 @@
 from pathlib import Path
-import json
 import io
+from datetime import datetime
 from typing import Dict, Optional, TextIO
 
-from pavilion import output
+from pavilion.output import json_dump
 from pavilion.errors import ResultLoggerPluginError
 from .base_classes import ResultLoggerPlugin, ResultLogger
 
@@ -32,28 +32,39 @@ class SeriesFileLoggerFactory(ResultLoggerPlugin):
         if not Path(dest).is_absolute():
             raise ResultLoggerPluginError(f"Provided path {dest} is not an absolute path.")
 
+    # pylint: disable=arguments-renamed
     def _make_logger(self,
                      config: Dict,
                      sid: str,
-                     outfile: Optional[TextIO] = None) -> "SeriesFileResultLogger":
-        dest = Path(config.get("dest")) / f"{sid}.log"
+                     name: Optional[str] = None,
+                     outfile: Optional[TextIO] = None,
+                     errfile: Optional[TextIO] = None) -> "SeriesFileResultLogger":
 
-        return SeriesFileResultLogger(dest, outfile)
+        dest = Path(config.get("dest")) / f"{sid}-{datetime.now().isoformat()}.log"
+
+        return SeriesFileResultLogger(dest, outfile, errfile)
 
 
 class SeriesFileResultLogger(ResultLogger):
-    """Simple result logger for writing results to a file."""
+    """Result logger for logging each series to a separate file."""
 
-    RESULTS_FN = "results.log"
-
-    def __init__(self, dest: Path, outfile: Optional[TextIO] = None):
+    def __init__(self, dest: Path, name: Optional[str] = None,
+                 outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
+        super().__init__(name, outfile, errfile)
         self.dest = dest
         self.dest.parent.mkdir(exist_ok=True)
-        self.outfile = outfile or io.StringIO()
 
-    def log(self, results: Dict) -> None:
-        output.fprint(self.outfile, f"{type(self).__name__}: Logging {results} to {self.dest}...")
+    def _log(self, results: Dict) -> None:
+        """Log a test's results dictionary."""
 
-        with open(self.dest, "a") as fout:
-            json.dump(results, fout)
-            fout.write("\n")
+        try:
+            with open(self.dest, "a") as fout:
+                json_dump(results, fout)
+                fout.write("\n")
+        except OSError as err:
+            raise ResultLoggerPluginError(f"Error writing to {self.dest}: {err}")
+        except TypeError:
+            raise ResultLoggerPluginError(f"Error serializing results as JSON: {err}")
+
+    def get_log_message(self, results: Dict) -> str:
+        return f"{self.name}: Logging {results} to {self.dest}..."

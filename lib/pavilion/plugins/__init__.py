@@ -35,7 +35,7 @@ PLUGIN_CATEGORIES = {
     'function': FunctionPlugin,
     'module': ModuleWrapper,
     'result': ResultParser,
-    'result_output': ResultLoggerPlugin,
+    'result_logger': ResultLoggerPlugin,
     'sched': SchedulerPlugin,
     'sys': SystemPlugin,
 }

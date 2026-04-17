@@ -206,13 +206,18 @@ class RunCommand(Command):
             series_obj.run(
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
-                local_builds_only=local_builds_only,
-                log_results=log_results)
+                local_builds_only=local_builds_only)
             self.last_tests = list(series_obj.tests.values())
         except TestSeriesError as err:
             self.last_tests = list(series_obj.tests.values())
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN
+
+        if log_results:
+            try:
+                series_obj.log_results()
+            except TestSeriesError as err:
+                output.fprint(self.errfile, f"Error staring result logging process: {err}")
 
         if report_status:
             print_from_tests(

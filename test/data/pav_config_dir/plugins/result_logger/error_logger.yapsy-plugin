@@ -1,0 +1,6 @@
+[Core]
+Name = error_logger
+Module = error_logger
+
+[Documentation]
+Description = Results Logger that emits errors
