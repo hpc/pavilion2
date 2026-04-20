@@ -188,8 +188,6 @@ base class.
         with self.DEFAULT_PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        raw_pav_cfg.config_dirs = config_dirs
-
         raw_pav_cfg.working_dir = WorkingDirectory(self.PAV_ROOT_DIR/'test'/'working_dir')
         raw_pav_cfg.user_config = False
 
