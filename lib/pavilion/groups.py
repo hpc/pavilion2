@@ -35,7 +35,7 @@ class TestGroup:
 
         self.name = name
 
-        self.path = self.pav_cfg.working_dir/self.GROUPS_DIR/str(self.name)
+        self.path = self.pav_cfg.working_dir.new_group(self.name)
 
         if self.path.exists():
             self.created = True

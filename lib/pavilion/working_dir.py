@@ -13,6 +13,7 @@ from pavilion.test_ids import SeriesID, TestID
 
 class WorkingDirectory(PosixPath):
     BUILDS_DIR_NAME = "builds"
+    GROUPS_DIR_NAME = "groups"
     JOBS_DIR_NAME = "jobs"
     SERIES_DIR_NAME = "series"
     TEST_RUNS_DIR_NAME = "test_runs"
@@ -27,6 +28,7 @@ class WorkingDirectory(PosixPath):
         self._group = group
 
         self.builds_dir = self / self.BUILDS_DIR_NAME
+        self.groups_dir = self/ self.GROUPS_DIR_NAME
         self.jobs_dir = self / self.JOBS_DIR_NAME
         self.series_dir = self / self.SERIES_DIR_NAME
         self.tests_dir = self / self.TEST_RUNS_DIR_NAME
@@ -55,8 +57,8 @@ class WorkingDirectory(PosixPath):
         self.make_subdirs()
 
     def make_subdirs(self) -> None:
-        for subdir in (self.builds_dir, self.jobs_dir, self.series_dir, self.tests_dir,
-                       self.users_dir):
+        for subdir in (self.builds_dir, self.groups_dir, self.jobs_dir, self.series_dir,
+                       self.tests_dir, self.users_dir):
             try:
                 subdir.mkdir(exist_ok=True)
             except OSError:
@@ -131,4 +133,11 @@ class WorkingDirectory(PosixPath):
         return next_id, test_path
 
 
+    def new_group(self, name: str, mkdir: bool = False) -> Path:
+        path = self.groups_dir / name
+
+        if mkdir:
+            self.path.mkdir(exist_ok=True)
+
+        return path
 

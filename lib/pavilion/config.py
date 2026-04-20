@@ -760,7 +760,7 @@ found in these directories the default config search paths:
 
     # Make sure this path is absolute too.
     if not pav_cfg.working_dir.is_absolute():
-        pav_cfg['working_dir'] = pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir']
+        pav_cfg['working_dir'] = WorkingDirectory(pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir'])
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 
