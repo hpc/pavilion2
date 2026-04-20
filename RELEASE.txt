@@ -20,8 +20,6 @@ RELEASE=2.6
   on timeout or cancellation.
 - Fixed a bug that that caused Spack to issue a traceback due to running in a non-interactive
   context.
-<<<<<<< HEAD
-=======
 - Fixed a bug in which series file result loggers were not writing result logs.
 - Fixed a bug in which result logging sometimes created rogue processes. Result logging processes
   now time out after one hour if no new results have been detected. This timeout value can be
@@ -29,7 +27,6 @@ RELEASE=2.6
 - Log files created by series file loggers are now named with both the series ID and date and time
   of creation (in ISO 8601 format) to prevent result logs from being incorrectly combined when
   series IDs are reused.
->>>>>>> stable
 
 ## 2.6 Release Notes
 
