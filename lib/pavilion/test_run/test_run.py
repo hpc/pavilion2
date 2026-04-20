@@ -437,8 +437,8 @@ class TestRun(TestAttributes):
             series_test_runs_dir = series_dir / cls.RUN_DIR
 
             if series_test_runs_dir.exists():
-                # Use the series directory's symlink to the test, so we don't have to worry about which
-                # config directory it's in
+                # Use the series directory's symlink to the test, so we don't have to worry about
+                # which config directory it's in
                 path = (series_test_runs_dir / str(test_id))
             else:
                 # For older tests that don't have that symlink
