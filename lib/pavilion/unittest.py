@@ -26,11 +26,8 @@ from pavilion.sys_vars import base_classes
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
-<<<<<<< HEAD
 from pavilion.micro import set_default
-=======
 from pavilion.working_dir import WorkingDirectory
->>>>>>> 958d2aea (Begin refactoring working directory)
 from unittest_ex import TestCaseEx
 
 
