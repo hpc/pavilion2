@@ -18,9 +18,7 @@ from . import common
 class SeriesInfoBase(Mapping):
     """Shared base class for series info and test set info."""
 
-    def __init__(self, pav_cfg: config.PavConfig, path: Path):
-
-        self._pav_cfg = pav_cfg
+    def __init__(self, path: Path):
 
         self._config = None
 

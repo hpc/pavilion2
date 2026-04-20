@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Any, TextIO, Union, Dict, Optional, List
 import yc_yaml as yaml
 
-from pavilion.config import PavConfig
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import errors
@@ -43,6 +42,8 @@ from pavilion.types import ID_Pair
 from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
+from pavilion.working_dir import WorkingDirectory
+from pavilion.config_dir import ConfigDirectory
 from .test_attrs import TestAttributes
 
 
@@ -85,10 +86,6 @@ class TestRun(TestAttributes):
     :ivar TestRunOptions opt: Test run options defined by OPTIONS_DEFAULTS
     """
 
-    RUN_DIR = 'test_runs'
-
-    SERIES_DIR = "series"
-
     NO_LABEL = '_none'
 
     STATUS_FN = 'status'
@@ -106,13 +103,13 @@ class TestRun(TestAttributes):
     PAV_LIB_FN = "pav-lib.bash"
     """Pavilion bash utilities"""
 
-    def __init__(self, pav_cfg: PavConfig, config: Dict[str, Any],
-                 var_man: Optional[VariableSetManager] = None, test_id: Optional[TestID] = None,
-                 rebuild: bool = False, build_only: bool = False, from_existing: bool = False):
+    def __init__(self, config: Dict[str, Any], config_dir: ConfigDirectory,
+                 working_dir: WorkingDirectory, var_man: Optional[VariableSetManager] = None,
+                 test_id: Optional[TestID] = None, rebuild: bool = False, build_only: bool = False,
+                 from_existing: bool = False, spack_path: Path = None):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
-    :param pav_cfg: The pavilion configuration.
     :param dict config: The test configuration dictionary.
     :param VariableSetManager var_man: The variable manager to manage this test's variables.
     :param int test_id: The test ID to assign to the test.
@@ -127,20 +124,14 @@ class TestRun(TestAttributes):
             # The test doesn't belong to a series. Generate an arbitrary ID.
             test_id = TestID.new()
 
-        # Just about every method needs this
-        self._pav_cfg = pav_cfg
         self.scheduler = config['scheduler']
-
-        # Get the working dir specific to where this test came from.
-        if config.get('working_dir', NO_WORKING_DIR) == NO_WORKING_DIR:
-            self.working_dir = Path(self._pav_cfg['working_dir'])
-        else:
-            self.working_dir = Path(config['working_dir'])
+        self.working_dir = working_dir
+        self.spack_path = spack_path
 
         self.config = config
         self._validate_config()
 
-        path = self.working_dir / self.RUN_DIR / str(test_id)
+        path = self.working_dir.get_test_path(test_id)
         super().__init__(path=path, load=from_existing)
         self.id = test_id
 
@@ -359,13 +350,12 @@ class TestRun(TestAttributes):
 
         try:
             test_builder = builder.TestBuilder(
-                pav_cfg=self._pav_cfg,
                 config=config,
+                working_dir=self.working_dir,
                 script=self.build_script_path,
                 spack_config=spack_config,
                 status=self.status,
                 download_dest=download_dest,
-                working_dir=self.working_dir,
                 templates=templates,
                 build_name=self.build_name,
             )
@@ -395,7 +385,7 @@ class TestRun(TestAttributes):
         for tmpl_src, tmpl_dest in templates.items():
             if not (tmpl_dir/tmpl_dest).exists():
                 try:
-                    tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                    tmpl = create_files.resolve_template(self.config_dir, tmpl_src, self.var_man)
                     create_files.create_file(tmpl_dest, tmpl_dir, tmpl, newlines='')
                 except TestConfigError as err:
                     raise TestRunError("Error resolving Build template files", err)
@@ -407,36 +397,22 @@ class TestRun(TestAttributes):
     def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
 
-        spack_path = self._pav_cfg.get('spack_path')
         spack_enable = self.spack_enabled()
-        if spack_enable and spack_path is None:
+        if spack_enable and self.spack_path is None:
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
                                "being defined in the pavilion config.")
 
     @classmethod
-    def parse_raw_id(cls, pav_cfg: PavConfig, test_id: TestID) -> ID_Pair:
-        """Parse a raw test run id and return the label, working_dir, and id
-        for that test. The test run need not exist, but the label must."""
-
-        return ID_Pair((pav_cfg.working_dir, test_id))
-
-    @classmethod
-    def load(cls, pav_cfg: PavConfig, test_id: TestID) -> 'TestRun':
+    def load(cls, config_dir: ConfigDirectory, working_dir: WorkingDirectory,
+             test_id: TestID) -> 'TestRun':
         """Load an old TestRun object given a test id.
 
-        :param pav_cfg: The pavilion config
         :param working_dir: The working directory where this test run lives.
         :param test_id: The test's id number.
         :rtype: TestRun
         """
 
-        if test_id.is_relative():
-            # Use the series directory's symlink to the test, so we don't have to worry about which
-            # config directory it's in
-            path = (pav_cfg.working_dir / cls.SERIES_DIR / str(test_id.series.as_int()) /
-                    cls.RUN_DIR / str(test_id))
-        else:
-            path = pav_cfg.working_dir / cls.RUN_DIR / str(test_id)
+        path = working_dir.get_test_path(test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -445,7 +421,7 @@ class TestRun(TestAttributes):
 
         config = cls._load_config(path)
 
-        test_run = TestRun(pav_cfg, config, test_id=test_id, from_existing=True)
+        test_run = TestRun(config, config_dir, working_dir, test_id=test_id, from_existing=True)
         test_run.saved = True
         # Force the completion check to ensure that ._complete is populated.
 
@@ -479,7 +455,7 @@ class TestRun(TestAttributes):
 
         for tmpl_src, tmpl_dest in self.config['run'].get('templates', {}).items():
             try:
-                tmpl = create_files.resolve_template(self._pav_cfg, tmpl_src, self.var_man)
+                tmpl = create_files.resolve_template(self.config_dir, tmpl_src, self.var_man)
                 create_files.create_file(tmpl_dest, self.build_path, tmpl, newlines='')
             except TestConfigError as err:
                 raise TestRunError("Test run '{}' could not create run script."
@@ -510,11 +486,11 @@ class TestRun(TestAttributes):
 
         return '.'.join(name_parts)
 
-    def run_cmd(self):
+    def run_cmd(self, pav_root: Path):
         """Construct a shell command that would cause pavilion to run this
         test."""
 
-        pav_path = self._pav_cfg.pav_root/'bin'/'pav'
+        pav_path = pav_root / 'bin' / 'pav'
 
         return '{} run {}'.format(pav_path, self.id)
 
@@ -929,7 +905,7 @@ of result keys.
                             .format(len(parser_configs)))
 
         try:
-            result.parse_results(self._pav_cfg, self, results, base_log=result_log)
+            result.parse_results(self, results, base_log=result_log)
         except ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
@@ -1118,14 +1094,14 @@ be set by the scheduler plugin as soon as it's known."""
         env = {'TEST_ID': '${1:-0}'} # Default to test id 0 if one isn't given.
 
         if not isolate:
-            env["PAV_CONFIG_FILE"] = self._pav_cfg['pav_cfg_file']
+            env["PAV_CONFIG_FILE"] = self.config_dir.pav_config_file
 
         script.env_change(env)
 
         if isolate:
-            pav_lib_bash = f'$( dirname -- "${{BASH_SOURCE[0]}}" )/{self.PAV_LIB_FN}'
+            pav_lib_bash = f'$( dirname -- "${{BASH_SOURCE[0]}}" )/{self.config_dir.PAV_LIB_FN}'
         else:
-            pav_lib_bash = self._pav_cfg.pav_root / 'bin' / self.PAV_LIB_FN
+            pav_lib_bash = self.config_dir.pav_lib_bash
 
         script.command('source {}'.format(pav_lib_bash))
 
@@ -1180,7 +1156,7 @@ be set by the scheduler plugin as soon as it's known."""
             script.newline()
             script.comment('Source spack setup script.')
             script.command('source {}/share/spack/setup-env.sh'
-                           .format(self._pav_cfg.get('spack_path')))
+                           .format(self.spack_path))
             script.newline()
             script.command('spack env deactivate &>/dev/null')
             script.comment('Activate spack environment.')

@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, Optional, \
     Union, NamedTuple, IO, Tuple, TypeVar
 
-from pavilion.config import PavConfig
 from pavilion import output
 from pavilion.test_ids import TestID
 
@@ -63,12 +62,12 @@ def identity(value: T) -> T:
     return value
 
 
-def index(pav_cfg: PavConfig,
-          id_dir: Path,
+def index(id_dir: Path,
           idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
           refresh_period: int = 1,
+          max_threads: int = 1,
           verbose: Optional[IO[str]] = None) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
@@ -229,8 +228,7 @@ def select_one(path: Path,
     return item
 
 
-def select(pav_cfg: PavConfig,
-           id_dir: Path,
+def select(id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
            transform: Optional[Callable[[Path], Any]] = None,
            order_func: Optional[Callable[[Dict[str, Any]], Any]] = None,
@@ -238,12 +236,12 @@ def select(pav_cfg: PavConfig,
            idx_complete_key: 'str' = 'complete',
            use_index: Union[bool, str] = True,
            verbose: IO[str] = None,
-           limit: int = None) -> SelectItems:
+           limit: int = None,
+           max_threads: int = 1) -> SelectItems:
     """Filter and order found paths in the id directory based on the filter and
     other parameters. If a transform is given, this will create an index of the
     data returned by the transform to hasten this process.
 
-    :param pav_cfg: The pavilion config.
     :param id_dir: The director
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -280,8 +278,8 @@ def select(pav_cfg: PavConfig,
 
         selected = []
 
-        idx = index(pav_cfg, id_dir, index_name, transform,
-                    complete_key=idx_complete_key, verbose=verbose)
+        idx = index(id_dir, index_name, transform,
+                    complete_key=idx_complete_key, max_threads=max_threads, verbose=verbose)
         for id_, data in idx.items():
             path = id_dir / str(id_)
 
@@ -301,25 +299,24 @@ def select(pav_cfg: PavConfig,
                 [item[1] for item in selected][:limit])
     else:
         return select_from(
-            pav_cfg,
             paths=id_dir.iterdir(),
             transform=transform,
             filter_func=filter_func,
             order_func=order_func,
             order_asc=order_asc,
-            limit=limit)
+            limit=limit,
+            max_threads=max_threads)
 
-def select_from(pav_cfg: PavConfig,
-                paths: Iterable[Path],
+def select_from(paths: Iterable[Path],
                 filter_func: Callable[[T], bool] = default_filter,
                 transform: Optional[Callable[[Path], T]] = None,
                 order_func: Optional[Callable[[T], Any]] = None,
                 order_asc: bool = True,
-                limit: int = None) -> SelectItems:
+                limit: int = None,
+                max_threads: int = 1) -> SelectItems:
     """Filter, order, and truncate the given paths based on the filter and
     other parameters.
 
-    :param pav_cfg: The pavilion config.
     :param paths: A list of paths to filter, order, and limit.
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -336,7 +333,7 @@ def select_from(pav_cfg: PavConfig,
     """
 
     paths = list(paths)
-    max_threads = min(pav_cfg.get('max_threads', 1), len(paths))
+    max_threads = min(max_threads, len(paths))
 
     selector = partial(select_one, ffunc=filter_func, trans=transform, ofunc=order_func)
 
@@ -373,12 +370,11 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
     return ids
 
 
-def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
-           transform: Callable[[Path], Any] = None,
+def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
+           transform: Callable[[Path], Any] = None, max_threads: int = 1,
            verbose: bool = False):
     """Delete all id directories in a given path that match the given filter.
 
-    :param pav_cfg: The pavilion config.
     :param id_dir: The directory to iterate through.
     :param filter_func: A passed filter function, to be passed to select.
     :param transform: As per 'select_from'
@@ -393,8 +389,8 @@ def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_
     lock_path = id_dir.with_suffix('.lock')
     try:
         with Lock(lock_path, default_timeout=1, lifetime=3):
-            for path in select(pav_cfg, id_dir=id_dir, filter_func=filter_func,
-                               transform=transform).paths:
+            for path in select(id_dir=id_dir, filter_func=filter_func,
+                               transform=transform, max_threads=max_threads).paths:
                 try:
                     shutil.rmtree(path.as_posix())
                 except OSError as err:

@@ -19,14 +19,16 @@ from pavilion import groups
 from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.series import TestSeries, SeriesInfo, list_series_tests, mk_series_info_transform
-from pavilion.id_utils import load_user_series_id
+from pavilion.series import TestSeries, SeriesInfo, mk_series_info_transform
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
 from pavilion.test_run import TestRun, load_tests, TestAttributes
 from pavilion.test_ids import TestID, SeriesID, ID
+from pavilion.working_dir import WorkingDirectory
 from pavilion.types import ID_Pair
 from pavilion.micro import flatten
+from pavilion.sys_vars import base_classes
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +37,10 @@ def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[Tes
     """Load the series object for the last series run by this user on this system."""
 
     try:
-        series_id = load_user_series_id(pav_cfg)
+        user = utils.get_login()
+        sys_vars = base_classes.get_vars(True)
+        sys_name = sys_vars['sys_name']
+        series_id = pav_cfg.get("working_dir").get_last_series_id(user, sys_name)
     except TestSeriesError as err:
         output.fprint(errfile, "Failed to find last series: {}".format(err.args[0]),
                       color=output.YELLOW)
@@ -101,14 +106,14 @@ def arg_filtered_tests(pav_cfg: config.PavConfig,
 
         for working_dir in working_dirs:
             matching_tests = dir_db.select(
-                pav_cfg,
                 id_dir=working_dir / 'test_runs',
                 transform=TestAttributes,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=order_asc,
                 verbose=verbose,
-                limit=limit)
+                limit=limit,
+                max_threads=pav_cfg.get("max_threads", 1))
 
             tests.data.extend(matching_tests.data)
             tests.paths.extend(matching_tests.paths)
@@ -119,7 +124,13 @@ def arg_filtered_tests(pav_cfg: config.PavConfig,
 
     for sid in series:
         if sid.last():
-            sid_ = load_user_series_id(pav_cfg, errfile=verbose)
+            try:
+                user = utils.get_login()
+                sys_name = sys_vars.base_classes.get_vars(True)["sys_name"]
+                sid_ = pav_cfg.get("working_dir").get_last_series_id(user, sys_name)
+            except:
+                output.fprint(verbose, "Failed to load last series.")
+                continue
 
             if sid_ is None:
                 output.fprint(verbose, "No last series found.")
@@ -295,7 +306,15 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
     for raw_id in req_tests:
 
         if isinstance(raw_id, SeriesID) and raw_id.last():
-            raw_id = load_user_series_id(pav_cfg, errfile)
+            user = utils.get_login()
+            sys_vars = base_classes.get_vars(True)
+            sys_name = sys_vars['sys_name']
+
+            try:
+                raw_id = pav_cfg.get("working_dir").get_last_series_id(user, sys_name)
+            except TestSeriesError:
+                output.fprint(errfile, "Failed to load last series.", color=output.RED)
+
             if raw_id is None:
                 output.fprint(errfile, "User has no 'last' series for this machine.",
                               color=output.YELLOW)

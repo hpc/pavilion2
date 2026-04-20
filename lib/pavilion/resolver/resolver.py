@@ -37,7 +37,7 @@ from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.utils import union_dictionary
-from pavilion.micro import first, listmap
+from pavilion.micro import first_with, listmap
 from pavilion.path_utils import append_to_path, exists
 from yaml_config import RequiredError, YamlConfigLoader
 
@@ -175,7 +175,7 @@ class TestConfigResolver:
         paths = map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.config_paths)
         pairs = zip(self.config_labels, paths)
 
-        res = first(lambda x: x[1].exists(), pairs)
+        res = first_with(lambda x: x[1].exists(), pairs)
 
         if res is None:
             return '', None
@@ -201,7 +201,7 @@ class TestConfigResolver:
 
         pairs = zip(labels, paths)
 
-        res = first(lambda x: x[1].exists(), pairs)
+        res = first_with(lambda x: x[1].exists(), pairs)
 
         if res is None:
             return '', None

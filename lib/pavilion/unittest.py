@@ -28,6 +28,7 @@ from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
 from pavilion.micro import set_default
 from pavilion.working_dir import WorkingDirectory
+from pavilion.config_dir import ConfigDirectory
 from unittest_ex import TestCaseEx
 
 
@@ -153,8 +154,8 @@ base class.
 
         self.suite_name = Path(inspect.getfile(self.__class__)).stem
         self.suite_output_dir = self.TEST_OUTPUT_DIR / self.suite_name
-        self.pav_config_dir = self.suite_output_dir / "pav_config_dir"
-        self.working_dir = self.suite_output_dir / "working_dir"
+        self.pav_config_dir = ConfigDirectory(self.suite_output_dir / "pav_config_dir")
+        self.working_dir = WorkingDirectory(self.suite_output_dir / "working_dir")
         self.pav_src_dir = self.pav_config_dir / "pav_src"
         self.results_dir = self.suite_output_dir / "results"
 
@@ -170,7 +171,7 @@ base class.
                     pass
 
         if make_working_dir:
-            self.working_dir.mkdir(parents=True, exist_ok=True)
+            self.working_dir.setup()
 
         if make_results_dir:
             self.results_dir.mkdir(parents=True, exist_ok=True)
@@ -188,15 +189,12 @@ base class.
         with self.DEFAULT_PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        raw_pav_cfg.working_dir = WorkingDirectory(self.PAV_ROOT_DIR/'test'/'working_dir')
         raw_pav_cfg.user_config = False
 
         if setup_spack:
             raw_pav_cfg.spack_path = (self.PAV_TEST_DIR / "spack").as_posix()
 
         raw_pav_cfg.working_dir = self.working_dir
-        if not raw_pav_cfg.working_dir.exists():
-            raw_pav_cfg.working_dir.setup()
 
         cfg_path = self.pav_config_dir / "pavilion.yaml"
 
@@ -421,7 +419,8 @@ The default config is: ::
 
         tests = []
         for ptest in test_cfgs:
-            test = TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man)
+            test = TestRun(ptest.config, config_dir=self.pav_config_dir,
+                           working_dir=self.pav_cfg.working_dir, var_man=ptest.var_man)
             test.save()
 
             if build:
@@ -481,7 +480,9 @@ The default config is: ::
 
         cfg = resolve.test_config(cfg, var_man)
 
-        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man, test_id=test_id)
+        test = TestRun(config=cfg, config_dir=self.pav_config_dir,
+                       working_dir=self.pav_cfg.working_dir, var_man=var_man, test_id=test_id,
+                       spack_path=self.pav_cfg.spack_path)
 
         if test.skipped:
             # You can't proceed further with a skipped test.

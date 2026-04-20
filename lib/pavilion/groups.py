@@ -9,11 +9,11 @@ import shutil
 from typing import NewType, List, Tuple, Union, Dict, Any
 import uuid
 
-from pavilion import config
 from pavilion.errors import TestGroupError
-from pavilion.series import TestSeries, list_series_tests, SeriesInfo
+from pavilion.series import TestSeries, SeriesInfo
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.test_ids import ID, TestID, SeriesID, GroupID
+from pavilion.working_dir import WorkingDirectory
 from pavilion.utils import is_int
 
 GroupMemberDescr = NewType('GroupMemberDescr', Union[TestRun, TestSeries, "TestGroup",
@@ -29,13 +29,13 @@ class TestGroup:
     SERIES_DIR = 'series'
     EXCLUDED_DIR = 'excluded'
 
-    def __init__(self, pav_cfg: config.PavConfig, name: GroupID):
+    def __init__(self, working_dir: WorkingDirectory, name: GroupID):
 
-        self.pav_cfg = pav_cfg
+        self.working_dir = working_dir
 
         self.name = name
 
-        self.path = self.pav_cfg.working_dir.new_group(self.name)
+        self.path = self.working_dir.new_group(self.name)
 
         if self.path.exists():
             self.created = True
@@ -87,7 +87,7 @@ class TestGroup:
 
         return info
 
-    def tests(self, seen_groups: List[GroupID] = None) -> List[Path]:
+    def tests(self, seen_groups: List[GroupID] = None, max_threads: int = 1) -> List[Path]:
         """Returns a list of paths to all tests in this group.  Use with
         cmd_utils.get_tests_by_paths to convert to real test objects. Bad links are ignored.
         Groups are recursively examined (loops are allowed, but not followed).
@@ -134,7 +134,7 @@ class TestGroup:
                             prior_error=err)
 
                     sid = SeriesID(f"s{series_dir.name}")
-                    tests.extend(list_series_tests(self.pav_cfg, sid))
+                    tests.extend(self.working_dir.list_series_tests(sid, max_threads))
 
         except OSError as err:
             raise TestGroupError(
@@ -146,7 +146,7 @@ class TestGroup:
             if (self.path/self.GROUPS_DIR).exists():
                 for group_file in (self.path/self.GROUPS_DIR).iterdir():
                     group_name = GroupID(group_file.name)
-                    sub_group = TestGroup(self.pav_cfg, group_name)
+                    sub_group = TestGroup(self.working_dir, group_name)
 
                     if group_name not in seen_groups:
                         tests.extend(sub_group.tests(seen_groups=seen_groups))
@@ -205,7 +205,7 @@ class TestGroup:
                     if isinstance(item, TestGroup):
                         agroup = item
                     else:
-                        agroup = TestGroup(self.pav_cfg, item)
+                        agroup = TestGroup(self.working_dir, item)
 
                     # Don't add a test group to itself.
                     if agroup.name == self.name:
@@ -345,7 +345,7 @@ class TestGroup:
 
                     if recursive and itype == TestGroup and GroupID(path.name) not in seen_groups:
                         try:
-                            subgroup = self.__class__(self.pav_cfg, path.name)
+                            subgroup = self.__class__(self.working_dir, path.name)
                         except TestGroupError:
                             continue
 
@@ -480,7 +480,7 @@ class TestGroup:
                 raise TestGroupError("Test '{}' does not exist.".format(test.id))
             return test.id, test.path
 
-        tpath = self.pav_cfg.working_dir/'test_runs'/str(test)
+        tpath = self.working_dir.get_test_path(test)
 
         if not tpath.is_dir():
             raise TestGroupError(
@@ -498,7 +498,7 @@ class TestGroup:
                                      .format(series.id, series.path))
             return series.id, series.path
 
-        series_dir = self.pav_cfg.working_dir/'series'/str(series.as_int())
+        series_dir = self.working_dir.get_series_path(series)
 
         if not series_dir.is_dir():
             raise TestGroupError("Series directory for sid '{}' does not exist.\n"

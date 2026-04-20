@@ -49,7 +49,12 @@ def remove_none(lst: Iterable[T]) -> Iterator[T]:
     """Remove all instances of None from the iterable."""
     return remove_all(lst, None)
 
-def first(pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[T]:
+def first(lst: Iterable[T]) -> Optional[T]:
+    """Return the first element of the given list, if it exists, or None otherwise."""
+
+    return next(iter(lst))
+
+def first_with(pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[T]:
     """Return the first item of the list that satisfies the given
     predicate, or None if no item does."""
 

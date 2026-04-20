@@ -297,37 +297,6 @@ class PavConfig(PavConfigDict):
 
         return list(remove_none(map(itemgetter("dest"), self.result_loggers)))
 
-    def find_file(self, file: Pathlike, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
-            -> Union[Path, None]:
-        """Look for the given file and return a full path to it. Relative paths
-        are searched for in all config directories under 'sub_dir', if it exists.
-
-    :param file: The path to the file.
-    :param sub_dirs: The subdirectory (or list of subdirectories) in which to
-        search in each directory.
-    :returns: The full path to the found file, or None if no such file
-        could be found."""
-
-        file = Path(file)
-
-        if file.is_absolute():
-            if file.exists():
-                return file
-            else:
-                return None
-
-        sub_dirs = set_default(sub_dirs, [])
-        sub_dirs = list(remove_none(list(sub_dirs)))
-
-        if len(sub_dirs) > 0:
-            paths = list(path_product(self.config_paths, sub_dirs))
-        else:
-            paths = list(self.config_paths)
-
-        files = list(map(append_to_path(file), paths))
-
-        # Return the first path to the file that exists (or None)
-        return first(exists, files)
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""
@@ -760,7 +729,9 @@ found in these directories the default config search paths:
 
     # Make sure this path is absolute too.
     if not pav_cfg.working_dir.is_absolute():
-        pav_cfg['working_dir'] = WorkingDirectory(pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir'])
+        pav_cfg['working_dir'] = pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir']
+
+    pav_cfg["working_dir"] = WorkingDirectory(pav_cfg["working_dir"])
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 

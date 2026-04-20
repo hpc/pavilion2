@@ -15,6 +15,7 @@ from pavilion.test_run import TestRun, TestAttributes
 from pavilion.types import ID_Pair
 from pavilion.test_ids import TestID
 from pavilion.timing import wait
+from pavilion.working_dir import WorkingDirectory
 from ..errors import TestSeriesError
 
 COMPLETE_FN = 'SERIES_COMPLETE'
@@ -26,10 +27,9 @@ CONFIG_FN = 'config'
 class LazyTestRunDict(UserDict):
     """A lazily evaluated dictionary of tests."""
 
-    def __init__(self, pav_cfg: config.PavConfig, series_path: Path):
+    def __init__(self, working_dir: WorkingDirectory, series_path: Path):
         """Initialize the lazy TestRun dict."""
 
-        self._pav_cfg = pav_cfg
         self._path = series_path
 
         super().__init__()
