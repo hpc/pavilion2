@@ -1,13 +1,16 @@
 import re
 import logging
 import inspect
+import io
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Set, Optional, TextIO
 
 from yapsy import IPlugin
 
+from pavilion import output
 from pavilion.errors import ResultLoggerPluginError
+from pavilion.micro import set_default
 
 
 LOGGER = logging.getLogger(__file__)
@@ -24,7 +27,8 @@ def get_plugin(name: str) -> Optional["ResultOutputPlugin"]:
 
 def get_result_loggers(pav_cfg: "PavConfig",
                        sid: str,
-                       outfile: Optional[TextIO] = None) -> Set["ResultLogger"]:
+                       outfile: Optional[TextIO] = None,
+                       errfile: Optional[TextIO] = None) -> Set["ResultLogger"]:
     """Get all result logger instances defined in the given Pavilion config."""
 
     loggers = set()
@@ -56,7 +60,7 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__(self, name: str, description: str, priority=PRIO_COMMON):
+    def __init__(self, name: str, description: str, priority: int = PRIO_COMMON):
         super().__init__()
 
         if self.NAME_VERS_RE.match(name) is None:
@@ -71,7 +75,7 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 
     @abstractmethod
     def validate_config(self, config: Dict) -> None:
-        raise NotImplementedError
+        """Validate the result logger config."""
 
     @abstractmethod
     def _make_logger(self,
@@ -79,7 +83,6 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
                      sid: str,
                      outfile: Optional[TextIO] = None) -> "ResultLogger":
         """Create the result logger from the given config and series ID."""
-        raise NotImplementedError
 
     def make_logger(self,
                     config: Dict,
@@ -89,7 +92,7 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 
         self.validate_config(config)
 
-        return self._make_logger(config, sid, outfile)
+        return self._make_logger(config, sid, outfile=outfile)
 
     def activate(self):
         """Add this plugin to the result output plugin list."""
@@ -128,10 +131,37 @@ class ResultLoggerPlugin(IPlugin.IPlugin, ABC):
 class ResultLogger(ABC):
     """Abstract base class for all result loggers."""
 
-    @abstractmethod
+    def __init__(self, name: Optional[str] = None,
+                 outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
+
+        self.outfile = outfile
+        # If no separate errfile is specified, just use the outfile
+        self.errfile = set_default(errfile, outfile)
+
+        self.outfile = self.outfile or io.StringIO()
+        self.errfile = self.errfile or io.StringIO()
+
+        self.name = set_default(name, type(self).__name__)
+
     def log(self, results: Dict) -> None:
         """Log a test's results dictionary."""
-        raise NotImplementedError
+
+        output.fprint(self.outfile, self.get_log_message(results))
+
+        try:
+            self._log(results)
+        except ResultLoggerPluginError as err:
+            output.fprint(self.errfile,
+                          f"{self.name}: Error logging results: {err}.",
+                          color=output.RED)
+
+    @abstractmethod
+    def _log(self, results: Dict) -> None:
+        pass
+
+    @abstractmethod
+    def get_log_message(self, results: Dict) -> str:
+        """Get the log message to print to the results logging log."""
 
     def __call__(self, results: Dict) -> None:
         self.log(results)

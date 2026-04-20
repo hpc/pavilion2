@@ -466,6 +466,11 @@ could be wrong with the file format."""
 
         return stinfo
 
+    def last_updated(self) -> float:
+        """Get the time at which the status file was most recently updated."""
+
+        return self.path.stat().st_mtime
+
     def __eq__(self, other):
         return (
             isinstance(self, type(other)) and

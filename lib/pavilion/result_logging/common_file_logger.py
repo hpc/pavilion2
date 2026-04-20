@@ -3,11 +3,11 @@ import json
 import io
 from typing import Dict, Optional, TextIO
 
-from pavilion import output
+from pavilion.output import json_dump
 from pavilion.errors import ResultLoggerPluginError
 from .base_classes import ResultLoggerPlugin, ResultLogger
 
-from flufl.lock import Lock
+from flufl.lock import Lock, LockError
 
 
 class CommonFileLoggerFactory(ResultLoggerPlugin):
@@ -34,13 +34,16 @@ class CommonFileLoggerFactory(ResultLoggerPlugin):
         if not Path(dest).is_absolute():
             raise ResultLoggerPluginError(f"Provided path {dest} is not an absolute path.")
 
+    # pylint: disable=arguments-renamed
     def _make_logger(self,
                      config: Dict,
                      sid: str,
-                     outfile: Optional[TextIO] = None) -> "CommonFileResultLogger":
+                     name: Optional[str] = None,
+                     outfile: Optional[TextIO] = None,
+                     errfile: Optional[TextIO] = None) -> "CommonFileResultLogger":
         dest = Path(config.get("dest"))
 
-        return CommonFileResultLogger(dest, outfile)
+        return CommonFileResultLogger(dest, name, outfile, errfile)
 
 
 class CommonFileResultLogger(ResultLogger):
@@ -48,7 +51,9 @@ class CommonFileResultLogger(ResultLogger):
 
     RESULTS_FN = "results.log"
 
-    def __init__(self, dest: Path, outfile: Optional[TextIO] = None):
+    def __init__(self, dest: Path, name: Optional[str] = None,
+                 outfile: Optional[TextIO] = None, errfile: Optional[TextIO] = None):
+        super().__init__(name, outfile, errfile)
         self.dest = dest
 
         if self.dest.is_dir():
@@ -56,10 +61,20 @@ class CommonFileResultLogger(ResultLogger):
 
         self.outfile = outfile or io.StringIO()
 
-    def log(self, results: Dict) -> None:
-        output.fprint(self.outfile, f"{type(self).__name__}: Logging {results} to {self.dest}...")
+    def _log(self, results: Dict) -> None:
+        try:
+            with Lock(self.dest.parent / "results.lock", default_timeout=10, lifetime=3):
+                with open(self.dest, "a") as fout:
+                    json_dump(results, fout)
+                    fout.write("\n")
+        except TimeoutError:
+            raise ResultLoggerPluginError(f"Timed out waiting to acquire lock for {self.dest}.")
+        except LockError as err:
+            raise ResultLoggerPluginError(f"Error acquiring or releasing lock: {err}.")
+        except OSError as err:
+            raise ResultLoggerPluginError(f"Error writing to {self.dest}: {err}")
+        except TypeError:
+            raise ResultLoggerPluginError(f"Error serializing results as JSON: {err}")
 
-        with Lock(self.dest.parent / "results.lock", default_timeout=10, lifetime=3):
-            with open(self.dest, "a") as fout:
-                json.dump(results, fout)
-                fout.write("\n")
+    def get_log_message(self, results: Dict) -> str:
+        return f"{self.name}: Logging {results} to {self.dest}..."

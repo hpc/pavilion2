@@ -43,7 +43,7 @@ class SeriesTests(PavTestCase):
     def test_init(self):
         """Check initialization of the series object."""
 
-        ignore_keys = ('outfile', 'cancel_limiter', 'result_loggers', 'test_id_counter')
+        ignore_keys = ('outfile', 'errfile', 'cancel_limiter', 'result_loggers', 'test_id_counter')
 
         # Initialize from scratch
         series1 = series.TestSeries(
