@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import List, Union, Dict, NewType, Iterator, Tuple, Optional
 
 import yaml_config as yc
-from pavilion import errors
+from pavilion.errors import PavConfigError
 from pavilion.micro import first, flatten, remove_none, set_default
 from pavilion.path_utils import Pathlike, append_to_path, exists, path_product
+from pavilion.working_dir import WorkingDirectory
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -66,10 +67,6 @@ LOG_FORMAT = "{asctime}, {levelname}, {hostname}, {name}: {message}"
 
 # An optional path type.
 OptPath = NewType("OptPath", Union[None, Path])
-
-
-class PavConfigError(errors.PavilionError):
-    """Config specific errors."""
 
 
 class PavConfigDict:
@@ -348,46 +345,6 @@ class ExPathElem(yc.PathElem):
         path = Path(os.path.expandvars(path.as_posix()))
         path = path.expanduser()
         return path
-
-
-def _setup_working_dir(working_dir: Path, group) -> None:
-    """Create all the expected subdirectories for a working_dir."""
-
-    if not working_dir.exists():
-        working_dir.mkdir()
-
-        if group is not None:
-            try:
-                group_struct: grp.struct_group = grp.getgrnam(group)
-            except KeyError:
-                raise PavConfigError("Group specified ({}) for working_dir '{}' "
-                                     "does not exist.")
-
-            try:
-                os.chown(working_dir, -1, group_struct.gr_gid)
-                working_dir.chmod(stat.S_ISGID | 0o770)
-            except OSError as err:
-                raise PavConfigError("Could not set group permissions on new working dir '{}'"
-                                     .format(working_dir), err)
-    else:
-        if group is not None and working_dir.group() != group:
-            raise PavConfigError("Working dir should have group '{}', but has group '{}'. This "
-                                 "usually means two config directories specify different groups "
-                                 "but point to the same working directory. See `pav config list`."
-                                 .format(group, working_dir.group()))
-
-    for path in [
-            working_dir,
-            working_dir / 'jobs',
-            working_dir / 'builds',
-            working_dir / 'series',
-            working_dir / 'test_runs',
-            working_dir / 'users']:
-
-        try:
-            path.mkdir(exist_ok=True)
-        except OSError as err:
-            raise PavConfigError("Could not create directory '{}'".format(path), err)
 
 
 def make_invalidator(msg):
@@ -709,9 +666,10 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         if not working_dir.is_absolute():
             working_dir = (config_dir/working_dir).resolve()
 
+        working_dir = WorkingDirectory(working_dir, group)
+
         try:
-            if setup_working_dirs:
-                _setup_working_dir(working_dir, group)
+            working_dir.setup()
         except RuntimeError as err:
             pav_cfg.warnings.append(
                 "Could not configure working directory '{}' for config '{}': {}"

@@ -26,7 +26,11 @@ from pavilion.sys_vars import base_classes
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
+<<<<<<< HEAD
 from pavilion.micro import set_default
+=======
+from pavilion.working_dir import WorkingDirectory
+>>>>>>> 958d2aea (Begin refactoring working directory)
 from unittest_ex import TestCaseEx
 
 
@@ -187,13 +191,17 @@ base class.
         with self.DEFAULT_PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        raw_pav_cfg.working_dir = self.working_dir
+        raw_pav_cfg.config_dirs = config_dirs
+
+        raw_pav_cfg.working_dir = WorkingDirectory(self.PAV_ROOT_DIR/'test'/'working_dir')
         raw_pav_cfg.user_config = False
 
         if setup_spack:
             raw_pav_cfg.spack_path = (self.PAV_TEST_DIR / "spack").as_posix()
 
         raw_pav_cfg.working_dir = self.working_dir
+        if not raw_pav_cfg.working_dir.exists():
+            raw_pav_cfg.working_dir.setup()
 
         cfg_path = self.pav_config_dir / "pavilion.yaml"
 

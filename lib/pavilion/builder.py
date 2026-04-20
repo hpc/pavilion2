@@ -29,6 +29,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
 from pavilion.micro import set_default, remove_none
+from pavilion.working_dir import WorkingDirectory
 
 CONFIG_FNAMES = ("suite.yaml", "hosts.yaml", "modes.yaml", "os.yaml")
 
@@ -57,10 +58,9 @@ class TestBuilder:
 
     LOG_NAME = "pav_build_log"
 
-    def __init__(self, pav_cfg: pavilion.config.PavConfig, working_dir: Path, config: dict,
-                 script: Path, status: TestStatusFile, download_dest: Path,
-                 templates: Dict[Path, Path] = None,
-                 spack_config: dict = None, build_name=None):
+    def __init__(self, pav_cfg: pavilion.config.PavConfig, working_dir: WorkingDirectory,
+                 config: dict, script: Path, status: TestStatusFile, download_dest: Path,
+                 templates: Dict[Path, Path] = None, spack_config: dict = None, build_name=None):
         """Initialize the build object.
 
         :param pav_cfg: The Pavilion config object
