@@ -436,7 +436,9 @@ class TestRun(TestAttributes):
             series_dir = pav_cfg.working_dir / cls.SERIES_DIR / str(test_id.series.as_int())
             series_test_runs_dir = series_dir / cls.RUN_DIR
 
-            if series_test_runs_dir.exists():
+            if not series_dir.exists():
+                path = None
+            elif series_test_runs_dir.exists():
                 # Use the series directory's symlink to the test, so we don't have to worry about
                 # which config directory it's in
                 path = (series_test_runs_dir / str(test_id))
