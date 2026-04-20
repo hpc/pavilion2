@@ -445,23 +445,11 @@ class TestRun(TestAttributes):
             else:
                 # For older tests that don't have that symlink
 
-                path = None
-
-                series_test_sets_dir = series_dir / "test_sets"
-
-                for test_set in series_test_sets_dir.iterdir():
-                    if not test_set.is_dir():
-                        continue
-
-                    for test_dir in test_set.iterdir():
-                        if test_dir.name == str(test_id):
-                            path = test_dir
-                            break
+                path = first(lambda x: x.name == str(test_id.series),
+                             list_series_tests(pav_cfg, test_id.series))
 
         if path is None or not path.is_dir():
-            raise TestRunError("Test directory for test id {} does not exist "
-                               "at '{}' as expected."
-                               .format(test_id, path))
+            raise TestRunError("Could not find test run directory for test ID {test_id}.")
 
         config = cls._load_config(path)
 
