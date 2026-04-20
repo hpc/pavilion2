@@ -430,29 +430,31 @@ class TestRun(TestAttributes):
         :rtype: TestRun
         """
 
-        series_dir = pav_cfg.working_dir / cls.SERIES_DIR / str(test_id.series.as_int())
-        series_test_runs_dir = series_dir / cls.RUN_DIR
-        series_test_sets_dir = series_dir / "test_sets"
-
-        if test_id.is_relative():
+        if test_id.is_absolute():
             path = pav_cfg.working_dir / cls.RUN_DIR / str(test_id)
-        elif series_test_runs_dir.exists():
-            # Use the series directory's symlink to the test, so we don't have to worry about which
-            # config directory it's in
-            path = (series_test_runs_dir / str(test_id))
         else:
-            # For older tests that don't have that symlink
+            series_dir = pav_cfg.working_dir / cls.SERIES_DIR / str(test_id.series.as_int())
+            series_test_runs_dir = series_dir / cls.RUN_DIR
 
-            path = None
+            if series_test_runs_dir.exists():
+                # Use the series directory's symlink to the test, so we don't have to worry about which
+                # config directory it's in
+                path = (series_test_runs_dir / str(test_id))
+            else:
+                # For older tests that don't have that symlink
 
-            for test_set in series_test_sets_dir.iterdir():
-                if not test_set.is_dir():
-                    continue
+                path = None
 
-                for test_dir in test_set.iterdir():
-                    if test_dir.name == str(test_id):
-                        path = test_dir
-                        break
+                series_test_sets_dir = series_dir / "test_sets"
+
+                for test_set in series_test_sets_dir.iterdir():
+                    if not test_set.is_dir():
+                        continue
+
+                    for test_dir in test_set.iterdir():
+                        if test_dir.name == str(test_id):
+                            path = test_dir
+                            break
 
         if path is None or not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
