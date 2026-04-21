@@ -40,7 +40,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
-from pavilion.micro import get_nested, consume
+from pavilion.micro import get_nested, first
 from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
 from .test_attrs import TestAttributes
@@ -440,12 +440,11 @@ class TestRun(TestAttributes):
                 path = None
             elif series_test_runs_dir.exists():
                 # Use the series directory's symlink to the test, so we don't have to worry about
-                # which config directory it's in
+                # which config directory or which test set it's in
                 path = (series_test_runs_dir / str(test_id))
             else:
                 # For older tests that don't have that symlink
-
-                path = first(lambda x: x.name == str(test_id.series),
+                path = first(lambda x: x.name == str(test_id),
                              list_series_tests(pav_cfg, test_id.series))
 
         if path is None or not path.is_dir():
