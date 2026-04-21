@@ -100,9 +100,6 @@ class TestRun(TestAttributes):
     BUILD_TEMPLATE_DIR = 'templates'
     """Directory that holds build templates."""
 
-    PAV_LIB_FN = "pav-lib.bash"
-    """Pavilion bash utilities"""
-
     def __init__(self, config: Dict[str, Any], config_dir: ConfigDirectory,
                  working_dir: WorkingDirectory, var_man: Optional[VariableSetManager] = None,
                  test_id: Optional[TestID] = None, rebuild: bool = False, build_only: bool = False,
@@ -125,6 +122,7 @@ class TestRun(TestAttributes):
             test_id = TestID.new()
 
         self.scheduler = config['scheduler']
+        self.config_dir = config_dir
         self.working_dir = working_dir
         self.spack_path = spack_path
 
@@ -351,6 +349,7 @@ class TestRun(TestAttributes):
         try:
             test_builder = builder.TestBuilder(
                 config=config,
+                config_dir=self.config_dir
                 working_dir=self.working_dir,
                 script=self.build_script_path,
                 spack_config=spack_config,
@@ -593,7 +592,8 @@ class TestRun(TestAttributes):
                     or spack_build.get('load', [])
                     or spack_run.get('load', []))
 
-    def build(self, cancel_event=None, tracker: BuildTracker = None):
+    def build(self, cancel_event: Optional[threading.Event],
+              tracker: Optional[BuildTracker] = None, umask: int = 8) -> bool:
         """Build the test using its builder object and symlink copy it to
         it's final location. The build tracker will have the latest
         information on any encountered errors.
@@ -625,8 +625,8 @@ class TestRun(TestAttributes):
             # evaluated to true
             return True
 
-        if self.builder.build(self.id, tracker=tracker,
-                              cancel_event=cancel_event):
+        if self.builder.build(self.id, tracker=tracker, cancel_event=cancel_event,
+                              spack_path=self.spack_path, umask=umask):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
             self.build_origin_path.symlink_to(self.builder.path)
