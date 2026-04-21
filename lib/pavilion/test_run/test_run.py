@@ -40,7 +40,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
-from pavilion.micro import get_nested, consume
+from pavilion.micro import get_nested, first
 from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
 from .test_attrs import TestAttributes
