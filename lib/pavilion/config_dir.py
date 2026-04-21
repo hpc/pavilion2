@@ -5,6 +5,17 @@ from pavilion.path_utils import Pathlike, path_product, exists
 from pavilion.micro import set_default
 
 
+class ConfigInfo:
+    def __init__(self, name: str, type: str, path: Path, label: str = None,
+        from_suite: bool = False):
+
+        self.name = name
+        self.type = type
+        self.label = label
+        self.path = path
+        self.from_suite = from_suite
+
+
 class ConfigDirectory(PosixPath):
 
     PAV_CONFIG_FNAME = "pavilion.yaml"
@@ -15,6 +26,21 @@ class ConfigDirectory(PosixPath):
     TEST_SRC_DIR_NAME = "test_src"
     # This directory is deprecated, but we'll keep it around for now
     TESTS_DIR_NAME = "tests"
+
+    CONFIG_DIRNAMES = {
+        "host": "hosts",
+        "mode": "modes",
+        "platform": "platforms",
+        "suite": "suites",
+        "test": "tests"
+    }
+
+    SUITE_CONFIG_FNAMES = {
+        "host": "hosts.yaml",
+        "mode": "modes.yaml",
+        "platform": "platforms.yaml",
+        "suite": "suite.yaml"
+    }
 
     def __new__(cls, path: str, pav_config_file: Optional[Path] = None,
                 pav_root: Optional[Path] = None):
@@ -58,6 +84,21 @@ class ConfigDirectory(PosixPath):
             paths = path_product([self], subdirs)
 
         return filter(exists, path_product(paths, [file]))
+
+    # TODO: Make cfg_type an Enum
+    def find_config(self, cfg_type: str, cfg_name: str) -> ConfigInfo:
+        # TODO: Rewrite to support all variants of .yaml suffix
+        candidates = [self / self.CONFIG_DIRNAMES.get(cfg_type) / f"{cfg_name}.yaml"]
+
+        if cfg_type == "suite":
+            candidates.append(self / self.CONFIG_DIRNAMES.get(cfg_type) / cfg_name /
+                              self.SUITE_CONFIG_FNAMES.get(cfg_type))
+        else:
+            candidates.append(self / self.CONFIG_DIRNAMES.get("suite") /
+                              self.SUITE_CONFIG_FNAMES.get(cfg_type))
+
+        # TODO: Return ConfigInfo objects
+        return filter(exists, candidates)
 
     def __deepcopy__(self, memo: Dict[str, Any]):
         if id(self) in memo:

@@ -126,32 +126,6 @@ class TestConfigResolver:
         # Raw loaded test suites
         self._suites: Dict[Tuple[str, str], Dict] = {}
 
-    @staticmethod
-    def _get_config_dirname(cfg_type: str, use_suites_dir: bool = False) -> str:
-        """Returns the canonical config directory name for a given config type."""
-
-        dirname = cfg_type.lower()
-
-        if cfg_type == "suite" and not use_suites_dir:
-            return "tests"
-
-        if dirname[-1] != 's':
-            dirname += 's'
-
-        return dirname
-
-    @staticmethod
-    def _get_config_fname(cfg_type: str) -> str:
-        """Given a config type, returns the name of the file in the
-        suites directory corresponding to that type."""
-
-        fname = cfg_type.lower()
-
-        if fname in ("host", "mode", "platform"):
-            fname += 's'
-
-        return f"{fname}.yaml"
-
     @property
     def config_paths(self) -> Iterator[Path]:
         """Return an iterator over all config paths."""
@@ -166,48 +140,6 @@ class TestConfigResolver:
     def config_labels(self) -> Iterator[str]:
         """Return an iterator over all config labels."""
         return self.pav_cfg.configs.keys()
-
-    def _get_test_config_path(self, cfg_name: str, cfg_type: str) -> Tuple[str, Optional[Path]]:
-        """Given a config name and type, find the path to that config, if it exists,
-        excluding configs in the suites directory. If no such config exists,
-        return None."""
-
-        cfg_dir = self._get_config_dirname(cfg_type)
-        paths = map(append_to_path(f"{cfg_dir}/{cfg_name}.yaml"), self.config_paths)
-        pairs = zip(self.config_labels, paths)
-
-        res = first_with(lambda x: x[1].exists(), pairs)
-
-        if res is None:
-            return '', None
-
-        return res
-
-    def _config_path_from_suite(self, suite_name: str,
-                                conf_type: str) -> Tuple[str, Optional[Path]]:
-        """Given a suite name, return the path to the config file of the specified
-        type, if one exists. If the file does not exist in any known suites directory,
-        returns None."""
-
-        paths = []
-        labels = list(self.config_labels)
-
-        cfg_fname = self._get_config_fname(conf_type)
-
-        if conf_type == "suite":
-            paths.extend(listmap(append_to_path(f"{suite_name}.yaml"), self.suites_dirs))
-            labels *= 2
-
-        paths.extend(listmap(append_to_path(f"{suite_name}/{cfg_fname}"), self.suites_dirs))
-
-        pairs = zip(labels, paths)
-
-        res = first_with(lambda x: x[1].exists(), pairs)
-
-        if res is None:
-            return '', None
-
-        return res
 
     def find_config(self, cfg_type: str, cfg_name: str, suite_name: str = None) -> ConfigInfo:
         """Search all of the known configuration directories for a config of the
