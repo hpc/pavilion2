@@ -1,5 +1,5 @@
 from pathlib import PosixPath, Path
-from typing import List, Union, Optional, Iterator
+from typing import List, Union, Optional, Iterator, Any, Dict
 
 from pavilion.path_utils import Pathlike, path_product, exists
 from pavilion.micro import set_default
@@ -58,3 +58,13 @@ class ConfigDirectory(PosixPath):
             paths = path_product([self], subdirs)
 
         return filter(exists, path_product(paths, [file]))
+
+    def __deepcopy__(self, memo: Dict[str, Any]):
+        if id(self) in memo:
+            return memo[id(self)]
+
+        return self.__class__.__new__(
+                                self.__class__,
+                                self.as_posix(),
+                                self.pav_config_file,
+                                self.pav_root)

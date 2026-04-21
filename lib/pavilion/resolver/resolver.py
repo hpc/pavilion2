@@ -36,6 +36,7 @@ from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
+from pavilion.config_dir import ConfigDirectory
 from pavilion.utils import union_dictionary
 from pavilion.micro import first_with, listmap
 from pavilion.path_utils import append_to_path, exists
@@ -902,8 +903,10 @@ class TestConfigResolver:
                 # Basic information that all test configs should have.
                 test_cfg['name'] = test_cfg_name
                 test_cfg['cfg_label'] = cfg_info.label
+                config_dir = self.pav_cfg.get("configs", {}).get(cfg_info.label, {}).get("path")
+                test_cfg["config_dir"] = ConfigDirectory(config_dir)
                 working_dir = self.pav_cfg['configs'][cfg_info.label]['working_dir']
-                test_cfg['working_dir'] = working_dir.as_posix()
+                test_cfg['working_dir'] = working_dir
                 test_cfg['suite'] = suite_name
                 test_cfg['host'] = self._host
                 test_cfg['platform'] = self._platform

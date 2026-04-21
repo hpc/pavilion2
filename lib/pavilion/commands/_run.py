@@ -86,7 +86,9 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     test.status.set(STATES.BUILDING, "Test building on an allocation.")
-                    if not test.build():
+                    if not test.build(
+                                spack_path=pav_cfg.get("spack_path"),
+                                umask=pav_cfg.get("umask", 8)):
                         test.set_run_complete()
                         fprint(self.outfile, "Test {} build failed.".format(test.id))
                         continue

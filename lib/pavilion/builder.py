@@ -31,6 +31,7 @@ from pavilion.test_config.spack import SpackEnvConfig
 from pavilion.micro import set_default, remove_none
 from pavilion.working_dir import WorkingDirectory
 from pavilion.config_dir import ConfigDirectory
+from pavilion.test_ids import TestID
 
 CONFIG_FNAMES = ("suite.yaml", "hosts.yaml", "modes.yaml", "os.yaml")
 
@@ -509,7 +510,7 @@ class TestBuilder:
                         if not self._remove_existing_path(tracker):
                             return False
 
-                    if not self._build(cancel_event, test_id, tracker, spack_path, umask=umask):
+                    if not self._build(test_id, tracker, cancel_event, umask, spack_path):
                         self._name_failed_path(cancel_event, tracker)
                         return False
 
@@ -554,7 +555,7 @@ class TestBuilder:
                 'config': {
                     # New spack installs will be built in the specified
                     # build_dir.
-                    'install_tree': str(build_dir/'spack_installs'),
+                    'install_tree': (self.path / 'spack_installs').as_posix(),
                     'install_path_scheme': "{name}-{version}-{hash}",
                     'build_jobs': spack_config.get('build_jobs', 6)
                 },
@@ -565,12 +566,13 @@ class TestBuilder:
         }
 
         # Create the spack.yaml file with the updated configs.
-        spack_env_config = build_dir/'spack.yaml'
+        spack_env_config = self.path / 'spack.yaml'
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, cancel_event: Optional[threading.Event], test_id: TestID,
-               tracker: BuildTracker, umask: int = 8, spack_path: Optional[Path]) -> bool:
+    def _build(self, test_id: TestID, tracker: Optional[BuildTracker] = None,
+               cancel_event: Optional[threading.Event] = None, umask: int = 8,
+               spack_path: Optional[Path] = None) -> bool:
         """Perform the build. This assumes there actually is a build to perform.
 
         :param threading.Event cancel_event: Event to signal that the build
@@ -586,7 +588,7 @@ class TestBuilder:
         except TestBuilderError as err:
             tracker.error(
                 note=("Error setting up build directory '{}': {}"
-                      .format(build_dir, err)))
+                      .format(self.path, err)))
             return False
 
         # Generate an anonymous spack environment for a new build.
@@ -600,7 +602,7 @@ class TestBuilder:
                 cmd = [self._script_path.as_posix(), str(test_id)]
 
                 proc = subprocess.Popen(cmd,
-                                        cwd=build_dir.as_posix(),
+                                        cwd=self.path.as_posix(),
                                         preexec_fn=os.setsid,
                                         stdout=build_log,
                                         stderr=build_log,
@@ -655,14 +657,14 @@ class TestBuilder:
             return False
         finally:
             try:
-                self.tmp_log_path.rename(build_dir/self.LOG_NAME)
+                self.tmp_log_path.rename(self.path / self.LOG_NAME)
             except OSError as err:
                 tracker.warn(
                     "Could not move build log from '{}' to final location '{}': {}"
-                    .format(self.tmp_log_path, build_dir, err))
+                    .format(self.tmp_log_path, self.path, err))
 
         try:
-            self._fix_build_permissions(build_dir)
+            self._fix_build_permissions(self.path)
         except OSError as err:
             tracker.warn("Error fixing build permissions: %s".format(err))
 

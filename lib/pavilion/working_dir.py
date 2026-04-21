@@ -3,7 +3,7 @@ import stat
 import os
 
 from pathlib import PosixPath, Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 
 from pavilion import dir_db
 from pavilion.micro import set_default
@@ -194,4 +194,13 @@ class WorkingDirectory(PosixPath):
             self.path.mkdir(exist_ok=True)
 
         return path
+
+    def __deepcopy__(self, memo: Dict[str, Any]):
+        if id(self) in memo:
+            return memo[id(self)]
+
+        return self.__class__.__new__(
+                                self.__class__,
+                                self.as_posix(),
+                                self._group)
 

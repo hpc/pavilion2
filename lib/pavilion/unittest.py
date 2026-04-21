@@ -491,7 +491,7 @@ The default config is: ::
         test.save()
 
         if build:
-            test.build()
+            test.build(umask=self.pav_cfg.get("umask", 8))
         if finalize:
             fin_sys = base_classes.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()

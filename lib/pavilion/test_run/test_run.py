@@ -11,12 +11,12 @@ import pprint
 import re
 import shutil
 import subprocess
-import threading
 import time
 import uuid
 import os
 import signal
 from pathlib import Path
+from threading import Event
 from typing import Any, TextIO, Union, Dict, Optional, List
 import yc_yaml as yaml
 
@@ -100,8 +100,7 @@ class TestRun(TestAttributes):
     BUILD_TEMPLATE_DIR = 'templates'
     """Directory that holds build templates."""
 
-    def __init__(self, config: Dict[str, Any], config_dir: ConfigDirectory,
-                 working_dir: WorkingDirectory, var_man: Optional[VariableSetManager] = None,
+    def __init__(self, config: Dict[str, Any], var_man: Optional[VariableSetManager] = None,
                  test_id: Optional[TestID] = None, rebuild: bool = False, build_only: bool = False,
                  from_existing: bool = False, spack_path: Path = None):
         """Create an new TestRun object. If loading an existing test
@@ -121,9 +120,9 @@ class TestRun(TestAttributes):
             # The test doesn't belong to a series. Generate an arbitrary ID.
             test_id = TestID.new()
 
-        self.scheduler = config['scheduler']
-        self.config_dir = config_dir
-        self.working_dir = working_dir
+        self.scheduler = config.get("scheduler")
+        self.config_dir = config.get("config_dir")
+        self.working_dir = config.get("working_dir")
         self.spack_path = spack_path
 
         self.config = config
@@ -349,7 +348,7 @@ class TestRun(TestAttributes):
         try:
             test_builder = builder.TestBuilder(
                 config=config,
-                config_dir=self.config_dir
+                config_dir=self.config_dir,
                 working_dir=self.working_dir,
                 script=self.build_script_path,
                 spack_config=spack_config,
@@ -592,8 +591,8 @@ class TestRun(TestAttributes):
                     or spack_build.get('load', [])
                     or spack_run.get('load', []))
 
-    def build(self, cancel_event: Optional[threading.Event],
-              tracker: Optional[BuildTracker] = None, umask: int = 8) -> bool:
+    def build(self, tracker: Optional[BuildTracker] = None,
+              cancel_event: Optional[Event] = None, umask: int = 8) -> bool:
         """Build the test using its builder object and symlink copy it to
         it's final location. The build tracker will have the latest
         information on any encountered errors.
@@ -618,7 +617,7 @@ class TestRun(TestAttributes):
                 .format(s=self))
 
         if cancel_event is None:
-            cancel_event = threading.Event()
+            cancel_event = Event()
 
         if self.builder is None:
             # This will only be the case if _build_needed previously
