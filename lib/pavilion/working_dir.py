@@ -8,9 +8,30 @@ from typing import Optional, Tuple, List, Dict, Any
 from pavilion import dir_db
 from pavilion.micro import set_default
 from pavilion.errors import PavConfigError
-from pavilion.counter import SeriesIDCounter
+from pavilion.counter import TestIDCounter, SeriesIDCounter
 from pavilion.test_ids import SeriesID, TestID
 from pavilion.errors import TestSeriesError
+
+
+class TestPathCreator:
+    def __init__(self, working_dir: "WorkingDirectory", sid: SeriesID):
+        self._working_dir = working_dir
+        self._sid = sid
+        self._test_counter = TestIDCounter(self._sid, self._working_dir.test_runs_dir)
+
+    def next(self, test_set: str) -> Tuple[TestID, Path]:
+        """This is not thread-safe, but it doesn't need to be, since series create test sets
+        serially, and test sets create test runs serially. Locking on SeriesIDCounters ensures
+        that no other thread or process will have the same series ID."""
+
+        next_id = next(self._test_counter)
+        test_path = self._working_dir.test_runs_dir / str(next_id)
+        self._working_dir._link_test_to_series(next_id, self._sid, test_set)
+
+        return next_id, test_path
+
+    def __call__(self, test_set: str) -> Tuple[TestID, Path]:
+        return self.next(test_set)
 
 
 class WorkingDirectory(PosixPath):
@@ -36,7 +57,7 @@ class WorkingDirectory(PosixPath):
         self.test_runs_dir = self / self.TEST_RUNS_DIR_NAME
         self.users_dir = self / self.USERS_DIR_NAME
 
-        self._test_counters = {}
+        self._series_counter = None
 
         return self
 
@@ -66,8 +87,6 @@ class WorkingDirectory(PosixPath):
             except OSError:
                 raise PavConfigError(f"Could not create directory '{(self / subdir)}'", err)
 
-        self._series_counter = SeriesIDCounter(self.series_dir)
-
     def set_group(self, group) -> None:
         try:
             group_struct = grp.getgrnam(group)
@@ -94,6 +113,9 @@ class WorkingDirectory(PosixPath):
         ...
 
     def new_series(self, mkdir: bool = False) -> Tuple[SeriesID, Path]:
+        if self._series_counter is None:
+            self._series_counter = SeriesIDCounter(self.series_dir)
+
         next_id = next(self._series_counter)
         path = self.series_dir / str(next_id.as_int())
 
@@ -149,29 +171,24 @@ class WorkingDirectory(PosixPath):
 
         return path
 
-    def new_test(self, sid: SeriesID, test_set_name: Optional[str], mkdir: bool = False) -> Tuple[TestID, Path]:
-        if sid in self._test_counters:
-            counter = self._test_counters.get(sid)
-        else:
-            counter = TestIDCounter(sid, self.test_runs_dir)
-            self._test_counters[sid] = counter
+    def get_test_path_creator(self, sid: SeriesID) -> TestPathCreator:
+        return TestPathCreator(self, sid)
 
-        next_id = next(counter)
-        test_path = self.test_runs_dir / str(next_id)
+    def _link_test_to_series(self, test_id: TestID, sid: SeriesID, test_set: Optional[str]) -> None:
         series_path = self.series_dir / str(sid.as_int())
+        test_path = self.test_runs_dir / str(test_id)
 
-        if mkdir:
-            path.mkdir()
-            (series_path / self.TEST_RUNS_DIR_NAME).mkdir(exist_ok=True, parents=True)
+        series_path.mkdir(exist_ok=True)
+        test_path.mkdir(exist_ok=True)
 
-            (test_path / self.SERIES_DIR_NAME).symlink_to(series_path)
-            (series_path / self.TEST_RUNS_DIR_NAME / str(next_id)).symlink_to(test_path)
+        (series_path / self.TEST_RUNS_DIR_NAME).mkdir(exist_ok=True)
 
-            if test_set_name is not None:
-                test_set_path = self.new_test_set(sid, test_set_name, mkdir=True)
-                (test_set_path / str(next_id)).symlink_to(test_path)
+        (test_path / self.SERIES_DIR_NAME).symlink_to(series_path)
+        (series_path / self.TEST_RUNS_DIR_NAME / str(test_id)).symlink_to(test_path)
 
-        return next_id, test_path
+        if test_set is not None:
+            test_set_path = self.new_test_set(sid, test_set, mkdir=True)
+            (test_set_path / str(test_id)).symlink_to(test_path)
 
     def get_test_path(self, test_id: TestID) -> Path:
         """Given a test ID, return the path to that test's test run directory."""
@@ -194,13 +211,3 @@ class WorkingDirectory(PosixPath):
             self.path.mkdir(exist_ok=True)
 
         return path
-
-    def __deepcopy__(self, memo: Dict[str, Any]):
-        if id(self) in memo:
-            return memo[id(self)]
-
-        return self.__class__.__new__(
-                                self.__class__,
-                                self.as_posix(),
-                                self._group)
-

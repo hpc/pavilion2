@@ -635,10 +635,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         if not working_dir.is_absolute():
             working_dir = (config_dir/working_dir).resolve()
 
-        working_dir = WorkingDirectory(working_dir, group)
-
         try:
-            working_dir.setup()
+            WorkingDirectory(working_dir, group).setup()
         except RuntimeError as err:
             pav_cfg.warnings.append(
                 "Could not configure working directory '{}' for config '{}': {}"
@@ -731,7 +729,7 @@ found in these directories the default config search paths:
     if not pav_cfg.working_dir.is_absolute():
         pav_cfg['working_dir'] = pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir']
 
-    pav_cfg["working_dir"] = WorkingDirectory(pav_cfg["working_dir"])
+    pav_cfg["working_dir"] = pav_cfg["working_dir"]
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 

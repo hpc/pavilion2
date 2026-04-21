@@ -44,6 +44,7 @@ from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.working_dir import WorkingDirectory
 from pavilion.config_dir import ConfigDirectory
+from pavilion.path_utils import is_empty
 from .test_attrs import TestAttributes
 
 
@@ -120,21 +121,28 @@ class TestRun(TestAttributes):
             # The test doesn't belong to a series. Generate an arbitrary ID.
             test_id = TestID.new()
 
-        self.scheduler = config.get("scheduler")
-        self.config_dir = config.get("config_dir")
-        self.working_dir = config.get("working_dir")
-        self.spack_path = spack_path
-
         self.config = config
         self._validate_config()
 
+        self.scheduler = config.get("scheduler")
+
+        self.config_dir = ConfigDirectory(config.get("config_dir"), config.get("cfg_label"), )
+        self.working_dir = WorkingDirectory(config.get("working_dir"))
+        self.spack_path = spack_path
+
+        # An empty directory has already been created by the TestSet object
         path = self.working_dir.get_test_path(test_id)
         super().__init__(path=path, load=from_existing)
         self.id = test_id
 
         # Create a brand new test
         if not from_existing:
-            self.path.mkdir()
+            self.path.mkdir(exist_ok=True)
+
+            if not is_empty(self.path):
+                raise TestRunError(f"Attempted to create a new test run at {self.path}, but the "
+                                   "directory is not empty.")
+
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
@@ -401,8 +409,7 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def load(cls, config_dir: ConfigDirectory, working_dir: WorkingDirectory,
-             test_id: TestID) -> 'TestRun':
+    def load(cls, working_dir: WorkingDirectory, test_id: TestID) -> 'TestRun':
         """Load an old TestRun object given a test id.
 
         :param working_dir: The working directory where this test run lives.
@@ -419,7 +426,7 @@ class TestRun(TestAttributes):
 
         config = cls._load_config(path)
 
-        test_run = TestRun(config, config_dir, working_dir, test_id=test_id, from_existing=True)
+        test_run = TestRun(config, test_id=test_id, from_existing=True)
         test_run.saved = True
         # Force the completion check to ensure that ._complete is populated.
 

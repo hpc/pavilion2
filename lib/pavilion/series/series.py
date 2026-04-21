@@ -32,8 +32,8 @@ from pavilion.test_run import TestRun
 from pavilion.micro import partition, do, listfilter, stardo, flatten, set_default
 from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
-from pavilion.counter import SeriesIDCounter, TestIDCounter
 from pavilion.status_utils import get_status
+from pavilion.working_dir import WorkingDirectory
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -77,7 +77,7 @@ class TestSeries:
         """
 
         self.pav_cfg: config.PavConfig = pav_cfg
-
+        self.working_dir = WorkingDirectory(self.pav_cfg.working_dir)
         self.config = series_cfg or SeriesConfigLoader().load_empty()
 
         self.outfile = set_default(outfile, io.StringIO())
@@ -93,9 +93,6 @@ class TestSeries:
                 "Invalid Series name: {}. Series names must start with a letter, and can "
                 "contain numbers, dashes and underscores.".format(series_cfg['name']))
         self.name = name
-
-        series_path = self.pav_cfg.working_dir / self.SERIES_DIRNAME
-        test_runs_path = self.pav_cfg.working_dir / self.TEST_RUNS_DIRNAME
 
         self.simultaneous = self.config.get('simultaneous')
         if self.simultaneous in (0, None):
@@ -114,14 +111,11 @@ class TestSeries:
         if _id is None:
             # Get the series id
             try:
-                self.id = next(SeriesIDCounter(series_path))
+                self.id, self.path = self.working_dir.new_series(mkdir=True)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}'"
                     .format(series_path), err)
-
-            self.path = series_path / str(self.id.as_int())
-            self.path.mkdir()
 
             # save series config
             self.save_config()
@@ -140,7 +134,6 @@ class TestSeries:
 
         # In theory, we shouldn't need to lock here, since the lock for SeriesIDCounter should
         # ensure no two processes get the same series ID.
-        self.test_id_counter = TestIDCounter(self.id, test_runs_path)
         self.tests = common.LazyTestRunDict(pav_cfg, self.path)
 
         self.log_proc = None
@@ -667,10 +660,10 @@ class TestSeries:
         tests_running = 0
 
         for test_batch in test_set.make_iter(
+                                        self.working_dir.get_test_path_creator(self.id),
                                         build_only,
                                         rebuild,
-                                        local_builds_only,
-                                        self.test_id_counter):
+                                        local_builds_only):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)
@@ -871,21 +864,6 @@ class TestSeries:
             raise TestSeriesError(
                 "Could not create test set directory {} under series {}."
                 .format(set_path, self.id), err)
-
-        self._link_test(test_set_name, test)
-
-    def _link_test(self, test_set_name: str, test: TestRun) -> None:
-        """Symlink the series to the test directory, and vice versa."""
-
-        set_path = self.path / self.TESTSET_DIRNAME / test_set_name
-        test_run_path = self.path / self.TESTRUN_DIRNAME
-
-        (set_path / str(test.id)).symlink_to(test.path)
-        (test.path / self.SERIES_DIRNAME).symlink_to(self.path)
-
-        # Create symlinks directly to test runs, so we don't have to know which test set they're in
-        test_run_path.mkdir(exist_ok=True)
-        (test_run_path / str(test.id)).symlink_to(test.path)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user

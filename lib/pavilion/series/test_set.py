@@ -21,7 +21,7 @@ from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
 from pavilion.micro import set_default
-from pavilion.counter import TestIDCounter
+from pavilion.working_dir import TestPathCreator
 
 S_STATES = SERIES_STATES
 
@@ -191,10 +191,10 @@ class TestSet:
         return test_sets
 
     def make_iter(self,
+                  path_creator: TestPathCreator,
                   build_only: bool = False,
                   rebuild: bool = False,
-                  local_builds_only: bool = False,
-                  id_counter: Optional[TestIDCounter] = None) -> Iterator[List[TestRun]]:
+                  local_builds_only: bool = False) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).
@@ -231,7 +231,7 @@ class TestSet:
                 self.modes,
                 self.overrides,
                 conditions=global_conditions,
-                batch_size=self.batch_size,):
+                batch_size=self.batch_size):
 
             if cfg_resolver.errors:
                 output.fprint(
@@ -279,13 +279,8 @@ class TestSet:
                         continue
 
                 try:
-                    if id_counter is not None:
-                        test_id = next(id_counter)
-                    else:
-                        test_id = None
-
-                    test_run = TestRun(config=ptest.config, config_dir=self.pav_cfg.config_dir,
-                                       working_dir=self.pav_cfg.working_dir, var_man=ptest.var_man,
+                    test_id, _ = path_creator(self.name)
+                    test_run = TestRun(config=ptest.config, var_man=ptest.var_man,
                                        rebuild=rebuild, build_only=build_only, test_id=test_id)
                     if not test_run.skipped:
                         test_run.save()

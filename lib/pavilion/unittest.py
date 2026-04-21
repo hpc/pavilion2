@@ -393,6 +393,9 @@ The default config is: ::
 
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
+        cfg["config_dir"] = self.pav_config_dir.as_posix()
+        cfg["working_dir"] = self.working_dir.as_posix()
+
         loc_sched = (self.TEST_DATA_DIR/'pav_config_dir'/'modes' /
                      'local_sched.yaml')
 
@@ -480,8 +483,7 @@ The default config is: ::
 
         cfg = resolve.test_config(cfg, var_man)
 
-        test = TestRun(config=cfg, config_dir=self.pav_config_dir,
-                       working_dir=self.pav_cfg.working_dir, var_man=var_man, test_id=test_id,
+        test = TestRun(config=cfg, var_man=var_man, test_id=test_id,
                        spack_path=self.pav_cfg.spack_path)
 
         if test.skipped:

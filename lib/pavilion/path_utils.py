@@ -42,3 +42,8 @@ def path_product(roots: Iterable[Path], stems: Iterable[Pathlike]) -> Iterator[P
     over all paths formed by the Cartesian products of those lists."""
 
     return starmap(truediv, product(roots, stems))
+
+def is_empty(dir: Pathlike) -> bool:
+    """Determines whether the given directory is empty."""
+
+    return any(Path(dir).iterdir())

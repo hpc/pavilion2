@@ -30,6 +30,7 @@ class LazyTestRunDict(UserDict):
     def __init__(self, working_dir: WorkingDirectory, series_path: Path):
         """Initialize the lazy TestRun dict."""
 
+        self._working_dir = working_dir
         self._path = series_path
 
         super().__init__()
@@ -47,7 +48,7 @@ class LazyTestRunDict(UserDict):
 
         if id_pair in self.data and self.data[id_pair] is None:
             working_dir, test_id = id_pair
-            self.data[id_pair] = TestRun.load(self._pav_cfg, test_id)
+            self.data[id_pair] = TestRun.load(self._working_dir, test_id)
 
         return super().__getitem__(id_pair)
 

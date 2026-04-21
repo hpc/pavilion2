@@ -78,6 +78,7 @@ class TestBuilder:
         self._config_dir = config_dir
         self._working_dir = working_dir
         self._builds_dir = self._working_dir.builds_dir
+        self._suites_subdir = self._config_dir.suites_dir
         self._config = config
         self._spack_config = spack_config
         self._script_path = script
@@ -140,16 +141,6 @@ class TestBuilder:
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad destination path '{}'"
                                        .format(dest), err)
-
-    @property
-    def suite_subdir(self) -> Optional[Path]:
-        sname = self._config.get('suite_name')
-
-        if sname is not None:
-            return Path(f"suites/{sname}/")
-
-        self.status.set(STATES.WARNING,
-                        "Unable to determine name of test suite. Suite directory is unknown.")
 
     def exists(self):
         """Return True if the given build exists."""
@@ -246,7 +237,7 @@ class TestBuilder:
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
-            sub_dirs = [self.suite_subdir, Path('test_src')]
+            sub_dirs = [self._suites_subdir, Path('test_src')]
             full_path = self._config_dir.find_file(extra_file, sub_dirs)
 
             if full_path is None:
@@ -335,8 +326,14 @@ class TestBuilder:
         src_path = self._config.get('source_path')
 
         # If no source path is specified, use the suite directory as the source path
-        if src_path is None and self.suite_subdir is not None:
-            return self._config_dir.find_file(Path("."), [self.suite_subdir])
+        if src_path is None and self._suites_subdir is not None:
+            return self._suites_subdir
+
+            if len(found_files) == 0:
+                return None
+            elif len(found_files) > 1:
+                raise TestBuilderError(f"")
+
         elif src_path is None:
             return None
 
@@ -347,7 +344,7 @@ class TestBuilder:
                 "The source path must be a valid unix path, either relative "
                 "or absolute, got '{}'".format(src_path), err)
 
-        sub_dirs = [self.suite_subdir, Path('test_src')]
+        sub_dirs = [self._suites_subdir, Path('test_src')]
         found_src_path = self._config_dir.find_file(src_path, sub_dirs)
 
         src_url = self._config.get('source_url')
@@ -708,8 +705,8 @@ class TestBuilder:
             tracker.update(state=STATES.BUILDING, note=f"Looking for source path: {raw_src_path}.")
             sub_dirs = [Path('test_src')]
 
-            if self.suite_subdir is not None:
-                sub_dirs.append(self.suite_subdir)
+            if self._suites_subdir is not None:
+                sub_dirs.append(self._suites_subdir)
 
             src_path = self._config_dir.find_file(raw_src_path, sub_dirs)
 
@@ -720,10 +717,10 @@ class TestBuilder:
         else:
             # Default to the suite directory, which may or may not exist
             # If it doesn't exist, we should just continue without raising an error.
-            if self.suite_subdir is not None:
+            if self._suites_subdir is not None:
                 tracker.update(state=STATES.BUILDING,
-                               note=f"No source path given. Defaulting to {self.suite_subdir}.")
-                src_path = self._config_dir.find_file(self.suite_subdir)
+                               note=f"No source path given. Defaulting to {self._suites_subdir}.")
+                src_path = self._config_dir.find_file(self._suites_subdir)
 
         # All of the file extraction functions return an error message on failure, None on success.
         extract_error = None
@@ -825,7 +822,7 @@ class TestBuilder:
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            sub_dirs = [self.suite_subdir, Path('test_src')]
+            sub_dirs = [self._suites_subdir, Path('test_src')]
             path = self._config_dir.find_file(extra, sub_dirs)
             final_dest = dest / path.name
             try:
