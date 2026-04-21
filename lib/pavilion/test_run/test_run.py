@@ -430,18 +430,26 @@ class TestRun(TestAttributes):
         :rtype: TestRun
         """
 
-        if test_id.is_relative():
-            # Use the series directory's symlink to the test, so we don't have to worry about which
-            # config directory it's in
-            path = (pav_cfg.working_dir / cls.SERIES_DIR / str(test_id.series.as_int()) /
-                    cls.RUN_DIR / str(test_id))
-        else:
+        if test_id.is_absolute():
             path = pav_cfg.working_dir / cls.RUN_DIR / str(test_id)
+        else:
+            series_dir = pav_cfg.working_dir / cls.SERIES_DIR / str(test_id.series.as_int())
+            series_test_runs_dir = series_dir / cls.RUN_DIR
 
-        if not path.is_dir():
-            raise TestRunError("Test directory for test id {} does not exist "
-                               "at '{}' as expected."
-                               .format(test_id, path))
+            if not series_dir.exists():
+                path = None
+            elif series_test_runs_dir.exists():
+                # Use the series directory's symlink to the test, so we don't have to worry about
+                # which config directory it's in
+                path = (series_test_runs_dir / str(test_id))
+            else:
+                # For older tests that don't have that symlink
+
+                path = first(lambda x: x.name == str(test_id.series),
+                             list_series_tests(pav_cfg, test_id.series))
+
+        if path is None or not path.is_dir():
+            raise TestRunError("Could not find test run directory for test ID {test_id}.")
 
         config = cls._load_config(path)
 
