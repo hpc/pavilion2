@@ -44,7 +44,6 @@ from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.working_dir import WorkingDirectory
 from pavilion.config_dir import ConfigDirectory
-from pavilion.path_utils import is_empty
 from .test_attrs import TestAttributes
 
 
@@ -138,10 +137,6 @@ class TestRun(TestAttributes):
         # Create a brand new test
         if not from_existing:
             self.path.mkdir(exist_ok=True)
-
-            if not is_empty(self.path):
-                raise TestRunError(f"Attempted to create a new test run at {self.path}, but the "
-                                   "directory is not empty.")
 
             self._variables_path = self.path / 'variables'
             self.var_man = None

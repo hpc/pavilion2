@@ -28,7 +28,7 @@ from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
-from pavilion.micro import set_default, remove_none
+from pavilion.micro import set_default, remove_none, first
 from pavilion.working_dir import WorkingDirectory
 from pavilion.config_dir import ConfigDirectory
 from pavilion.test_ids import TestID
@@ -234,11 +234,17 @@ class TestBuilder:
         for tmpl_src in sorted(self._templates.keys()):
             hash_obj.update(self._hash_file(tmpl_src))
 
+        suite_name = self._config.get("suite_name")
+
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
-            extra_file = Path(extra_file)
-            sub_dirs = [self._suites_subdir, Path('test_src')]
-            full_path = self._config_dir.find_file(extra_file, sub_dirs)
+            full_path = list(self._config_dir.find_extra_file(extra_file, suite_name))
+
+            if len(full_path) > 1:
+                raise TestBuilderError(f"Found multiple files matching extra file {extra_file}: "
+                                       f"{full_path}")
+            else:
+                full_path = first(full_path)
 
             if full_path is None:
                 raise TestBuilderError(
@@ -323,19 +329,18 @@ class TestBuilder:
 
         self.status.set(STATES.INFO, "Updating source.")
 
-        src_path = self._config.get('source_path')
+        suite_name = self._config.get("suite_name")
+
+        if suite_name is not None:
+            suite_dir = self._config_dir.get_suite_dir(suite_name)
+        else:
+            suite_dir = None
 
         # If no source path is specified, use the suite directory as the source path
-        if src_path is None and self._suites_subdir is not None:
-            return self._suites_subdir
+        src_path = self._config.get('source_path', suite_dir)
 
-            if len(found_files) == 0:
-                return None
-            elif len(found_files) > 1:
-                raise TestBuilderError(f"")
-
-        elif src_path is None:
-            return None
+        if src_path is None:
+            return src_path
 
         try:
             src_path = Path(src_path)
@@ -344,8 +349,10 @@ class TestBuilder:
                 "The source path must be a valid unix path, either relative "
                 "or absolute, got '{}'".format(src_path), err)
 
-        sub_dirs = [self._suites_subdir, Path('test_src')]
-        found_src_path = self._config_dir.find_file(src_path, sub_dirs)
+        if not src_path.is_absolute():
+            found_src_path = self._config_dir.get_test_src(src_path, suite_name)
+        else:
+            found_src_path = None
 
         src_url = self._config.get('source_url')
         src_download = self._config.get('source_download')
@@ -700,15 +707,18 @@ class TestBuilder:
 
         src_path = None
         raw_src_path = self._config.get('source_path')
+        suite_name = self._config.get("suite_name")
 
         if raw_src_path is not None:
             tracker.update(state=STATES.BUILDING, note=f"Looking for source path: {raw_src_path}.")
-            sub_dirs = [Path('test_src')]
 
-            if self._suites_subdir is not None:
-                sub_dirs.append(self._suites_subdir)
+            src_path = list(self._config_dir.find_test_src(raw_src_path, suite_name))
 
-            src_path = self._config_dir.find_file(raw_src_path, sub_dirs)
+            if len(src_path) > 1:
+                raise TestBuilderError(f"Found multiple files matching source file {raw_src_path}: "
+                        f"{src_path}")
+
+            src_path = first(src_path)
 
             # Only raise an error if a path that is explicitly identified is missing
             if src_path is None:
@@ -720,7 +730,9 @@ class TestBuilder:
             if self._suites_subdir is not None:
                 tracker.update(state=STATES.BUILDING,
                                note=f"No source path given. Defaulting to {self._suites_subdir}.")
-                src_path = self._config_dir.find_file(self._suites_subdir)
+
+                if suite_name is not None:
+                    src_path = self._config_dir.get_suite_dir(suite_name)
 
         # All of the file extraction functions return an error message on failure, None on success.
         extract_error = None
@@ -822,8 +834,14 @@ class TestBuilder:
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            sub_dirs = [self._suites_subdir, Path('test_src')]
-            path = self._config_dir.find_file(extra, sub_dirs)
+            path = self._config_dir.find_extra_file(extra, suite_name)
+
+            if len(path) > 1:
+                raise TestBuilderError(f"Found multiple files matching extra file {extra}: "
+                                       f"{path}")
+            else:
+                path = first(path)
+
             final_dest = dest / path.name
             try:
                 if path.is_dir():

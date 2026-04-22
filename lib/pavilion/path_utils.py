@@ -46,4 +46,4 @@ def path_product(roots: Iterable[Path], stems: Iterable[Pathlike]) -> Iterator[P
 def is_empty(dir: Pathlike) -> bool:
     """Determines whether the given directory is empty."""
 
-    return any(Path(dir).iterdir())
+    return not any(Path(dir).iterdir())

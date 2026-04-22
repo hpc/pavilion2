@@ -14,7 +14,7 @@ import textwrap
 import zipfile
 import string
 from pathlib import Path
-from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable
+from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable, Iterator
 
 
 class WrappedFormatter(argparse.HelpFormatter):
@@ -748,6 +748,14 @@ def sort_table(sort_key, table_rows: List[dict]) -> List[dict]:
                          reverse=not sort_ascending)
 
     return sorted_rows
+
+YAML_SUFFIXES = ("yaml", "yml")
+
+def get_yaml_fnames(name: str) -> Iterator[str]:
+    """Given a file name (without a suffix), returns an iterator over all possible YAML files
+    with that name."""
+
+    return map(lambda x: f"{name}.{x}", YAML_SUFFIXES)
 
 class IndentedLog:
     """A logging object for writing indented, easy to follow logs."""

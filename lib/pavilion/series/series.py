@@ -134,7 +134,7 @@ class TestSeries:
 
         # In theory, we shouldn't need to lock here, since the lock for SeriesIDCounter should
         # ensure no two processes get the same series ID.
-        self.tests = common.LazyTestRunDict(pav_cfg, self.path)
+        self.tests = common.LazyTestRunDict(self.working_dir, self.path)
 
         self.log_proc = None
 
