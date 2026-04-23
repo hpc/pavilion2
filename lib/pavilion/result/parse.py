@@ -74,11 +74,10 @@ ProcessFileArgs = NewType('ProcessFileArgs', Tuple[Path, Path, List[KeySet]])
 
 BUILD_DIR = "build"
 
-def parse_results(
-                pav_cfg: PavConfig,
-                test: "TestRun",
-                results: Dict,
-                base_log: IndentedLog) -> None:
+def parse_results(test: "TestRun",
+                  results: Dict,
+                  base_log: IndentedLog,
+                  max_cpu: int) -> None:
     """Parse the results of the given test using all the result parsers
 configured for that test.
 
@@ -88,7 +87,6 @@ configured for that test.
 - Combine file results into a single object with the 'per_file' attr
   and add them to the results dict.
 
-:param pav_cfg: The pavilion config
 :param pavilion.test_run.TestRun test: The pavilion test run to gather
     results for.
 :param results: The dictionary of default result values. This will be
@@ -168,7 +166,7 @@ configured for that test.
                    for file, parse_tuples in file_key_sets.items()]
 
     # Start result parsing from each file in a separate thread.
-    max_cpus = min(len(file_key_sets), pav_cfg['max_cpu'])
+    max_cpus = min(len(file_key_sets), max_cpu)
     # Don't fork if there's only one file to muck with.
     if max_cpus > 1:
         log("Processing results with {} processes.".format(max_cpus))

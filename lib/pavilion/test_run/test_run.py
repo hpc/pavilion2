@@ -604,6 +604,7 @@ class TestRun(TestAttributes):
 
         :returns: True if build successful
         """
+        self.status.set(STATES.INFO, f"Building test {self.id}...")
 
         if tracker is None and self.builder is not None:
             tracker = MultiBuildTracker().register(self)
@@ -871,8 +872,8 @@ class TestRun(TestAttributes):
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
 
-    def gather_results(self, run_result: int, regather: bool = False,
-                       log_file: TextIO = None):
+    def gather_results(self, run_result: int, max_cpu: int, regather: bool = False,
+                       log_file: Optional[TextIO] = None):
         """Process and log the results of the test, including the default set
 of result keys.
 
@@ -906,7 +907,7 @@ of result keys.
                             .format(len(parser_configs)))
 
         try:
-            result.parse_results(self, results, base_log=result_log)
+            result.parse_results(self, results, base_log=result_log, max_cpu=max_cpu)
         except ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
