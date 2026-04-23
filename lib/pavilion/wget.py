@@ -6,7 +6,7 @@ import tempfile
 import urllib.parse
 import certifi
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 from pavilion.errors import WGetError
 
@@ -64,7 +64,7 @@ def ca_cert_path():
     return CA_CERT_PATH
 
 
-def get(url: str, dest: Path, proxies: Dict[str, str], wget_timeout: int) -> None:
+def get(url: str, dest: Path, wget_options: Dict[str, Any]) -> None:
     """Download the file at the given url and store it at dest. If a file
     already exists at dest it will be overwritten (assuming we have the
     permissions to do so). This is done atomically; the download is saved to an
@@ -79,9 +79,9 @@ def get(url: str, dest: Path, proxies: Dict[str, str], wget_timeout: int) -> Non
 
     dest_dir = Path(dest).resolve().parent
     try:
-        response = session.get(url, proxies=proxies, stream=True,
+        response = session.get(url, proxies=wget_options.get("proxies"), stream=True,
                                verify=ca_cert_path(),
-                               timeout=wget_timeout)
+                               timeout=wget_options.get("wget_timeout"))
         with tempfile.NamedTemporaryFile(dir=str(dest_dir),
                                          delete=False) as tmp:
             for chunk in response.iter_content(chunk_size=4096):
@@ -100,7 +100,7 @@ def get(url: str, dest: Path, proxies: Dict[str, str], wget_timeout: int) -> Non
                         .format(url, dest), err)
 
 
-def head(url: str, no_proxy: List[str], proxies: Dict[str, str], wget_timeout: int) -> Dict:
+def head(url: str, wget_options: Dict[str, Any]) -> Dict:
     """Get the header information for the given url.
 
     :param str url: The url we need information on.
@@ -108,7 +108,7 @@ def head(url: str, no_proxy: List[str], proxies: Dict[str, str], wget_timeout: i
     :rtype dict:
     """
 
-    proxies = _get_proxies(url, no_proxy, proxies)
+    proxies = _get_proxies(url, wget_options)
 
     session = requests.Session()
     session.trust_env = False
@@ -119,7 +119,7 @@ def head(url: str, no_proxy: List[str], proxies: Dict[str, str], wget_timeout: i
         response = session.head(url,
                                 proxies=proxies,
                                 verify=ca_cert_path(),
-                                timeout=wget_timeout)
+                                timeout=wget_options.get("wget_timeout"))
         # The location header is the redirect location. While the requests
         # library resolves these automatically, it still returns the first
         # header result from a 'head' call. We need to follow these
@@ -134,7 +134,7 @@ def head(url: str, no_proxy: List[str], proxies: Dict[str, str], wget_timeout: i
             response = session.head(redirect_url,
                                     proxies=proxies,
                                     verify=ca_cert_path(),
-                                    timeout=wget_timeout)
+                                    timeout=wget_options.get("wget_timeout"))
 
     except requests.exceptions.RequestException as err:
         raise WGetError(err)
@@ -142,8 +142,7 @@ def head(url: str, no_proxy: List[str], proxies: Dict[str, str], wget_timeout: i
     return response.headers
 
 
-def _get_proxies(url: str, no_proxy: List[str],
-                 proxies: Dict[str, str]) -> Optional[Dict[str, str]]:
+def _get_proxies(url: str, wget_options: Dict[str, Any]) -> Optional[Dict[str, str]]:
     """Figure out the proxies based on the particular url
     we're going to. This mostly handles disabling the proxy for internal urls.
 
@@ -155,11 +154,11 @@ def _get_proxies(url: str, no_proxy: List[str],
     parsed_url = urllib.parse.urlparse(url)
     host = '.' + parsed_url.netloc
 
-    for suffix in no_proxy:
+    for suffix in wget_options.get("no_proxy", []):
         if host.endswith('.' + suffix):
             return None
 
-    return proxies
+    return wget_options.get("proxies")
 
 
 def _get_info_fn(path):
@@ -229,8 +228,7 @@ def _save_info(path, head_data):
         LOGGER.warning("Error writing info file '%s': %s", info_fn, err)
 
 
-def update(url: str, dest: Path, no_proxy: List[str], proxies: Dict[str, str],
-           wget_timeout: int) -> None:
+def update(url: str, dest: Path, wget_options: Dict[str, Any]) -> None:
     """Check if the file needs to be re-downloaded, and do so if necessary.
     This will create a '{dest}.info' file in the same directory that will
     be used to check if updates are necessary.
@@ -249,7 +247,7 @@ def update(url: str, dest: Path, no_proxy: List[str], proxies: Dict[str, str],
     if not dest.exists():
         fetch = True
     else:
-        head_data = head(url, no_proxy, proxies, wget_timeout)
+        head_data = head(url, wget_options)
 
         info = _get_info(dest)
 
@@ -274,7 +272,7 @@ def update(url: str, dest: Path, no_proxy: List[str], proxies: Dict[str, str],
 
     if fetch:
         if head_data is None:
-            head_data = head(url, no_proxy, proxies, wget_timeout)
+            head_data = head(url, wget_options)
 
-        get(url, dest, proxies, wget_timeout)
+        get(url, dest, wget_options)
         _save_info(dest, head_data)

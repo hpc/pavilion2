@@ -1,9 +1,10 @@
+from itertools import chain
 from pathlib import PosixPath, Path
 from typing import List, Union, Optional, Iterator, Any, Dict
 
-from pavilion.path_utils import Pathlike, path_product, exists
+from pavilion.path_utils import Pathlike, path_product, exists, is_dir
 from pavilion.micro import set_default
-from pavilion.utils import get_yaml_fnames
+from pavilion.utils import get_yaml_fnames, is_yaml_file
 
 
 class ConfigInfo:
@@ -90,6 +91,21 @@ class ConfigDirectory(PosixPath):
 
         return configs
 
+    def get_all_configs(self, cfg_type: str) -> Iterator[Path]:
+        """Get all config files within this config directory of the specified type."""
+
+        if cfg_type == "suite":
+            bare_yaml_suites = filter(is_yaml_file, self.suites_dir.iterdir())
+            suite_dirs = filter(is_dir, self.suites_dir.iterdir())
+            suite_dir_suites = map(
+                                append_const_file(self.SUITE_CONFIG_FNAMES.get(cfg_type)),
+                                suite_dirs)
+            suite_dir_suites = filter(exists, suite_dir_suites)
+
+            return chain(self.get_all_configs("test"), bare_yaml_suites, suite_dir_suites)
+        else:
+            return filter(is_yaml_file, (self / self.CONFIG_DIRNAMES.get(cfg_type)).iterdir())
+
     def get_suite_path(self, suite_name: str) -> Iterator[Path]:
         """Given a suite name, return an iterator over all paths in this config directory to suites
         with that name. For suites organizes as suite directories, gives the path to the
@@ -127,7 +143,7 @@ class ConfigDirectory(PosixPath):
             if suite_dir is not None:
                 paths.append(suite_dir / fname)
 
-        return map(exists, paths)
+        return filter(exists, paths)
 
     # Create an alias just to prevent confusion due to the name
     find_extra_file = find_test_src

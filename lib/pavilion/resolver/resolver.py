@@ -39,7 +39,7 @@ from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
 from pavilion.config_dir import ConfigDirectory
 from pavilion.utils import union_dictionary
 from pavilion.micro import first_with, listmap
-from pavilion.path_utils import append_to_path, exists
+from pavilion.path_utils import exists
 from yaml_config import RequiredError, YamlConfigLoader
 
 from .proto_test import RawProtoTest, ProtoTest
@@ -283,38 +283,35 @@ class TestConfigResolver:
 
         """
 
-        conf_dir = self._get_config_dirname(conf_type)
-
         configs = {}
+
         for config in self.pav_cfg.configs.values():
-            path = config['path'] / conf_dir
+            cfg_files = ConfigDirectory(config["path"]).get_all_configs(conf_type)
 
-            if not (path.exists() and path.is_dir()):
-                continue
+            for file in cfg_files:
+                name = file.stem
 
-            for file in os.listdir(path.as_posix()):
+                if name == "suite":
+                    name = file.parent.name
 
-                file = path / file
-                if file.suffix == '.yaml' and file.is_file():
-                    name = file.stem
-                    configs[name] = {}
+                configs[name] = {}
 
-                    full_path = file
-                    try:
-                        with file.open() as config_file:
-                            config = self._loader.load(config_file)
-                        configs[name]['path'] = full_path
-                        configs[name]['config'] = config
-                        configs[name]['status'] = ''
-                        configs[name]['error'] = ''
-                    except (TestConfigError, TypeError) as err:
-                        configs[name]['path'] = full_path
-                        configs[name]['config'] = ''
-                        configs[name]['status'] = ('Loading the config failed.'
-                                                   ' For more info run \'pav '
-                                                   'show {} --err\'.'
-                                                   .format(conf_type))
-                        configs[name]['error'] = err
+                try:
+                    with file.open() as config_file:
+                        config = self._loader.load(config_file)
+
+                    configs[name]['path'] = file
+                    configs[name]['config'] = config
+                    configs[name]['status'] = ''
+                    configs[name]['error'] = ''
+                except (TestConfigError, TypeError) as err:
+                    configs[name]['path'] = file
+                    configs[name]['config'] = ''
+                    configs[name]['status'] = ('Loading the config failed.'
+                                                ' For more info run \'pav '
+                                                'show {} --err\'.'
+                                                .format(conf_type))
+                    configs[name]['error'] = err
 
         return configs
 

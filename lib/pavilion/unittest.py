@@ -394,6 +394,8 @@ The default config is: ::
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
         cfg["config_dir"] = self.pav_config_dir.as_posix()
+
+        print(f"Working dir: {self.working_dir.as_posix()}")
         cfg["working_dir"] = self.working_dir.as_posix()
 
         loc_sched = (self.TEST_DATA_DIR/'pav_config_dir'/'modes' /
@@ -493,7 +495,7 @@ The default config is: ::
         test.save()
 
         if build:
-            test.build(umask=self.pav_cfg.get("umask", 8))
+            test.build(umask=int(self.pav_cfg.get("umask", 8)))
         if finalize:
             fin_sys = base_classes.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()

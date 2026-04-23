@@ -36,7 +36,6 @@ from pavilion.errors import TestRunError, TestRunNotFoundError, TestConfigError,
 from pavilion.jobs import Job
 from pavilion.variables import VariableSetManager
 from pavilion.status_file import TestStatusFile, STATES
-from pavilion.test_config.file_format import NO_WORKING_DIR
 from pavilion.test_config.utils import parse_timeout
 from pavilion.types import ID_Pair
 from pavilion.micro import get_nested, consume
@@ -102,7 +101,8 @@ class TestRun(TestAttributes):
 
     def __init__(self, config: Dict[str, Any], var_man: Optional[VariableSetManager] = None,
                  test_id: Optional[TestID] = None, rebuild: bool = False, build_only: bool = False,
-                 from_existing: bool = False, spack_path: Path = None):
+                 from_existing: bool = False, spack_path: Path = None,
+                 wget_options: Optional[Dict[str, Any]] = None):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -125,9 +125,10 @@ class TestRun(TestAttributes):
 
         self.scheduler = config.get("scheduler")
 
-        self.config_dir = ConfigDirectory(config.get("config_dir"), config.get("cfg_label"), )
+        self.config_dir = ConfigDirectory(config.get("config_dir"), config.get("cfg_label"))
         self.working_dir = WorkingDirectory(config.get("working_dir"))
         self.spack_path = spack_path
+        self.wget_options = wget_options
 
         # An empty directory has already been created by the TestSet object
         path = self.working_dir.get_test_path(test_id)
@@ -359,6 +360,7 @@ class TestRun(TestAttributes):
                 download_dest=download_dest,
                 templates=templates,
                 build_name=self.build_name,
+                wget_options=self.wget_options,
             )
         except errors.TestBuilderError as err:
             raise TestRunError(

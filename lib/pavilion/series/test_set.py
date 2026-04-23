@@ -280,8 +280,15 @@ class TestSet:
 
                 try:
                     test_id, _ = path_creator(self.name)
+
+                    wget_options = {}
+                    wget_options["proxies"] = self.pav_cfg.get("proxies")
+                    wget_options["no_proxy"] = self.pav_cfg.get("no_proxy")
+                    wget_options["wget_timeout"] = self.pav_cfg.get("wget_timeout")
+
                     test_run = TestRun(config=ptest.config, var_man=ptest.var_man,
-                                       rebuild=rebuild, build_only=build_only, test_id=test_id)
+                                       rebuild=rebuild, build_only=build_only, test_id=test_id,
+                                       wget_options=wget_options)
                     if not test_run.skipped:
                         test_run.save()
                         self.tests.append(test_run)
@@ -471,8 +478,12 @@ class TestSet:
 
                 test_thread = threading.Thread(
                     target=test.build,
-                    args=(trackers[test], cancel_event)
-                )
+                    kwargs={
+                        "tracker": trackers[test],
+                        "cancel_event": cancel_event,
+                        "umask": int(self.pav_cfg.get("umask"))
+                        })
+
                 test_threads.append(test_thread)
                 test_by_threads[test_thread] = test
                 test_thread.start()

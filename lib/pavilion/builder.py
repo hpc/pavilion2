@@ -60,8 +60,9 @@ class TestBuilder:
 
     LOG_NAME = "pav_build_log"
 
-    def __init__(self, config_dir: ConfigDirectory, working_dir: WorkingDirectory, config: Dict[str, Any], script: Path,
-                 status: TestStatusFile, download_dest: Path,
+    def __init__(self, config_dir: ConfigDirectory, working_dir: WorkingDirectory,
+                 config: Dict[str, Any], script: Path, status: TestStatusFile, download_dest: Path,
+                 wget_options: Optional[Dict[str, Any]] = None,
                  templates: Optional[Dict[Path, Path]] = None,
                  spack_config: Optional[Dict[str, Any]] = None, build_name: Optional[str] = None):
         """Initialize the build object.
@@ -84,6 +85,7 @@ class TestBuilder:
         self._script_path = script
         self._download_dest = download_dest
         self._templates: Dict[Path, Path] = templates or {}
+        self._wget_options = set_default(wget_options, {})
         self._build_hash = None
 
         try:
@@ -350,7 +352,13 @@ class TestBuilder:
                 "or absolute, got '{}'".format(src_path), err)
 
         if not src_path.is_absolute():
-            found_src_path = self._config_dir.get_test_src(src_path, suite_name)
+            found_src_path = list(self._config_dir.find_test_src(src_path, suite_name))
+
+            if len(found_src_path) > 1:
+                raise TestBuilderError(f"Found multiple files matching source file {src_path}: "
+                        f"{found_src_path}")
+
+            found_src_path = first(found_src_path)
         else:
             found_src_path = None
 
@@ -395,7 +403,7 @@ class TestBuilder:
                             "Updating source at '{}'.".format(found_src_path))
 
             try:
-                wget.update(src_url, dwn_dest, no_proxy, proxies, wget_timeout)
+                wget.update(src_url, dwn_dest, self._wget_options)
             except pavilion.errors.WGetError as err:
                 raise TestBuilderError(
                     "Could not retrieve source from the given url '{}'".format(src_url), err)
