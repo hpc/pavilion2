@@ -1,6 +1,7 @@
 import grp
 import stat
 import os
+import shutil
 
 from pathlib import PosixPath, Path
 from typing import Optional, Tuple, List, Dict, Any
@@ -19,19 +20,29 @@ class TestPathCreator:
         self._sid = sid
         self._test_counter = TestIDCounter(self._sid, self._working_dir.test_runs_dir)
 
-    def next(self, test_set: str) -> Tuple[TestID, Path]:
+    def make(self, test_set: Optional[str] = None,
+             link_series: bool = False) -> Tuple[TestID, Path]:
         """This is not thread-safe, but it doesn't need to be, since series create test sets
         serially, and test sets create test runs serially. Locking on SeriesIDCounters ensures
         that no other thread or process will have the same series ID."""
 
         next_id = next(self._test_counter)
         test_path = self._working_dir.test_runs_dir / str(next_id)
-        self._working_dir._link_test_to_series(next_id, self._sid, test_set)
+
+        try:
+            test_path.mkdir()
+        except OSError:
+            # TODO: Raise something else
+            raise
+
+        if link_series and test_set is not None:
+            self._working_dir.link_test_to_series(next_id, self._sid, test_set)
 
         return next_id, test_path
 
-    def __call__(self, test_set: str) -> Tuple[TestID, Path]:
-        return self.next(test_set)
+    def __call__(self, test_set: Optional[str] = None,
+                 link_series: bool = False) -> Tuple[TestID, Path]:
+        return self.make(test_set)
 
 
 class WorkingDirectory(PosixPath):
@@ -163,8 +174,8 @@ class WorkingDirectory(PosixPath):
         except (IOError, OSError, KeyError) as err:
             raise TestSeriesError(f"Failed to read series ID file '{user_fname}'.")
 
-    def new_test_set(self, sid: SeriesID, name: str, mkdir: bool = False) -> Path:
-        path = self.series_dir / str(sid.as_int()) / self.TEST_SETS_DIR_NAME / name
+    def get_test_set_path(self, sid: SeriesID, name: str, mkdir: bool = False) -> Path:
+        path = self.get_series_path(sid) / self.TEST_SETS_DIR_NAME / name
 
         if mkdir:
             path.mkdir(parents=True, exist_ok=True)
@@ -174,8 +185,13 @@ class WorkingDirectory(PosixPath):
     def get_test_path_creator(self, sid: SeriesID) -> TestPathCreator:
         return TestPathCreator(self, sid)
 
-    def _link_test_to_series(self, test_id: TestID, sid: SeriesID, test_set: Optional[str]) -> None:
-        series_path = self.series_dir / str(sid.as_int())
+    # TODO: This doesn't need to take both a test ID and a series ID
+    def link_test_to_series(self, test_id: TestID, test_set: Optional[str] = None) -> None:
+        if test_id.is_absolute():
+            # TODO: Raise an error instead
+            return
+
+        series_path = self.get_series_path(test_id.series)
         test_path = self.test_runs_dir / str(test_id)
 
         series_path.mkdir(exist_ok=True)
@@ -187,20 +203,28 @@ class WorkingDirectory(PosixPath):
         (series_path / self.TEST_RUNS_DIR_NAME / str(test_id)).symlink_to(test_path)
 
         if test_set is not None:
-            test_set_path = self.new_test_set(sid, test_set, mkdir=True)
+            test_set_path = self.get_test_set_path(test_id.series, test_set, mkdir=True)
             (test_set_path / str(test_id)).symlink_to(test_path)
 
-    def get_test_path(self, test_id: TestID) -> Path:
-        """Given a test ID, return the path to that test's test run directory."""
+    def get_test_path(self, test_id: TestID, mkdir: bool = False) -> Path:
+        """Given a test ID, return the canonical path to that test's test run directory."""
 
-        if test_id.is_relative():
+        if test_id.is_absolute():
+            path = self.test_runs_dir / str(test_id)
+        else:
             # Use the series directory's symlink to the test, so we don't have to worry about which
-            # config directory it's in
+            # config directory or test set it's in
             series_path = self.get_series_path(test_id.series)
 
-            path = (series_path / self.TEST_RUNS_DIR_NAME / str(test_id)).resolve()
-        else:
-            path = self.test_runs_dir / str(test_id)
+            path = series_path / self.TEST_RUNS_DIR_NAME / str(test_id)
+
+            if path.exists():
+                path = path.resolve()
+            else:
+                path = self.test_runs_dir / str(test_id)
+
+        if mkdir:
+            path.mkdir()
 
         return path
 
@@ -211,3 +235,14 @@ class WorkingDirectory(PosixPath):
             self.path.mkdir(exist_ok=True)
 
         return path
+
+    # TODO: This should probably figure out the test set for itself
+    def cleanup_test(self, test_id: TestID, test_set: Optional[str] = None) -> None:
+        shutil.rmtree(self.get_test_path(test_id))
+
+        if test_id.is_relative():
+            series_path = self.get_series_path(test_id.series)
+            (series_path / self.TEST_RUNS_DIR_NAME / str(test_id)).unlink()
+
+            if test_set is not None:
+                (series_path / self.TEST_SETS_DIR_NAME / test_set / str(test_id)).unlink()

@@ -471,7 +471,7 @@ class TestSet:
 
                 test_thread = threading.Thread(
                     target=test.build,
-                    args=(cancel_event, trackers[test])
+                    args=(trackers[test], cancel_event)
                 )
                 test_threads.append(test_thread)
                 test_by_threads[test_thread] = test

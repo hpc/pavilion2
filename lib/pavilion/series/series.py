@@ -857,9 +857,8 @@ class TestSeries:
     def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""
 
-        set_path = self.path/self.TESTSET_DIRNAME/test_set_name
         try:
-            set_path.mkdir(exist_ok=True, parents=True)
+            self.working_dir.link_test_to_series(test.id, test_set_name)
         except OSError as err:
             raise TestSeriesError(
                 "Could not create test set directory {} under series {}."

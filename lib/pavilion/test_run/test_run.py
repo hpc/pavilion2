@@ -1295,7 +1295,7 @@ be set by the scheduler plugin as soon as it's known."""
                 "You should only abort tests that were skipped.")
 
         try:
-            shutil.rmtree(self.path.as_posix())
+            self.working_dir.cleanup_test(self.id)
         except OSError:
             return False
 
