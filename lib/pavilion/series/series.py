@@ -372,7 +372,8 @@ class TestSeries:
 
         self.test_sets = {}
 
-    def _cancel_tests(self, message: str = None, cancel_tests: bool = True) -> None:
+    def _cancel_tests(self, max_threads: int, message: Optional[str] = None,
+                      cancel_tests: bool = True) -> None:
         """Goes through all test objects assigned to series and cancels tests
         that haven't been completed.
 
@@ -392,38 +393,39 @@ class TestSeries:
                 test.cancel(message or "Cancelled via series. Reason not given.")
 
             # Cancel the scheduler jobs associated with the tests
-            cancel_utils.cancel_jobs(self.pav_cfg, self.tests.values())
+            cancel_utils.cancel_jobs(self.tests.values(), max_threads)
 
         self.status.set(SERIES_STATES.CANCELED, "Series cancelled: {}".format(message))
 
-    def cancel(self, message: str = None, cancel_tests: bool = True) -> None:
+    def cancel(self, max_threads: int, message: Optional[str] = None,
+               cancel_tests: bool = True) -> None:
         """Create the cancellation file for the series, then (optionally) cancel
         all tests assocated with the series."""
 
         cancel_file = self.path / self.CANCEL_FN
         cancel_file.touch()
 
-        self._cancel_tests(message, cancel_tests)
+        self._cancel_tests(max_threads, message, cancel_tests)
 
     def has_cancel_file(self) -> bool:
         """Determine whether the series has been cancelled."""
 
         return (self.path / self.CANCEL_FN).exists()
 
-    def check_cancelled(self) -> bool:
+    def check_cancelled(self, max_threads: int) -> bool:
         """Check whether the cancel file has been created, and if it has been,
         cancel the series."""
 
         checked, cancelled = self.cancel_limiter()
 
         if checked and cancelled:
-            self._cancel_tests(message="Series cancelled by another user.""")
+            self._cancel_tests(max_threads, message="Series cancelled by another user.")
 
             return True
 
         return False
 
-    def run(self, build_only: bool = False, rebuild: bool = False,
+    def run(self, max_threads: int, build_only: bool = False, rebuild: bool = False,
             local_builds_only: bool = False):
         """Build and kickoff all of the test sets in the series.
 
@@ -450,7 +452,7 @@ class TestSeries:
                             "Error creating test sets: {}".format(err.args[0]))
             raise
 
-        if self.check_cancelled():
+        if self.check_cancelled(max_threads):
             return
 
         repeat = self.repeat
@@ -466,7 +468,7 @@ class TestSeries:
         # run sets in order
         while len(potential_sets) > 0:
 
-            if self.check_cancelled():
+            if self.check_cancelled(max_threads):
                 return
 
             # Separate out sets whose parents have completed running
@@ -481,8 +483,8 @@ class TestSeries:
                     continue
 
                 try:
-                    self._run_set(test_set, build_only=build_only,
-                                  rebuild=rebuild, local_builds_only=local_builds_only)
+                    self._run_set(test_set, build_only=build_only, rebuild=rebuild,
+                                  local_builds_only=local_builds_only, max_threads=max_threads)
                 except TestSetError as err:
                     self.status.set(SERIES_STATES.ERROR,
                                     "Error running test set {}. See the series log "
@@ -498,7 +500,7 @@ class TestSeries:
 
             repeat -= 1
 
-            if self.check_cancelled():
+            if self.check_cancelled(max_threads):
                 return
 
             if len(potential_sets) == 0 and repeat > 0:
@@ -651,7 +653,8 @@ class TestSeries:
 
         return logged
 
-    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
+    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool,
+                 max_threads: int) -> None:
         """Run all requested tests in the given test set."""
 
         # Track which builds we've already marked as deprecated, when doing rebuilds.
@@ -669,7 +672,7 @@ class TestSeries:
             self._add_tests(test_batch, test_set.iter_name)
 
             # Cancel tests if a cancel file has been dropped
-            if self.check_cancelled():
+            if self.check_cancelled(max_threads):
                 return
 
             # Build each test
@@ -687,7 +690,7 @@ class TestSeries:
             if not test_set.ready_to_start:
                 continue
 
-            if self.check_cancelled():
+            if self.check_cancelled(max_threads):
                 return
 
             try:
@@ -715,7 +718,7 @@ class TestSeries:
             _simultaneous = test_set.simultaneous if test_set.simultaneous else self.simultaneous
             # Wait for jobs until enough have finished to start a new batch.
             while tests_running + self.batch_size > _simultaneous:
-                self.check_cancelled()
+                self.check_cancelled(max_threads)
                 tests_running -= test_set.wait()
 
 

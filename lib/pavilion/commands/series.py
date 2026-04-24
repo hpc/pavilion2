@@ -465,5 +465,6 @@ class RunSeries(Command):
 
         output.fprint(self.outfile, "\nCancelling individual tests in each series.")
 
-        return cancel_utils.cancel_tests(pav_cfg, tests_to_cancel,
-                                         self.outfile, no_series_warning=True)
+        return cancel_utils.cancel_tests(tests_to_cancel, self.outfile,
+                                         max_threads=int(pav_cfg["max_threads"]),
+                                         no_series_warning=True)

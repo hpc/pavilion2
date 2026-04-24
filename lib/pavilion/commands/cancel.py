@@ -62,7 +62,8 @@ class CancelCommand(Command):
                                     limit=args.limit,
                                     verbose=self.errfile).paths
             tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile=self.errfile)
-            test_ret = cancel_utils.cancel_tests(pav_cfg, tests, self.outfile)
+            test_ret = cancel_utils.cancel_tests(tests, self.outfile,
+                                                 max_threads=int(pav_cfg["max_threads"]))
         if len(series) > 0:
             sinfos = cmd_utils.arg_filtered_series(
                                 pav_cfg,
