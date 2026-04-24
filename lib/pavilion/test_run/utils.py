@@ -55,13 +55,6 @@ def id_pair_from_path(path: Path) -> ID_Pair:
     working_dir = path.parents[1]
     return ID_Pair((working_dir, test_id))
 
-def _load_test(pav_cfg, id_pair: ID_Pair):
-    """Load a test object from an ID_Pair."""
-
-    test_wd, test_id = id_pair
-
-    return TestRun.load(pav_cfg, test_id)
-
 
 LOADED_TESTS = {}
 
@@ -87,7 +80,7 @@ def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestR
     with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
         results = []
         for pair in id_filtered_pairs:
-            results.append(pool.submit(_load_test, pav_cfg, pair))
+            results.append(pool.submit(TestRun.load, *pair))
 
         for result in results:
             try:

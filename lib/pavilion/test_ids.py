@@ -123,6 +123,9 @@ class TestID(ID):
 
         return self.__class__(f"{self.series}.{self.id + 1}")
 
+    def __next__(self) -> "TestID":
+        return self.next()
+
     def __gt__(self, other: "TestID") -> bool:
         if not isinstance(other, self.__class__):
             raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
@@ -188,6 +191,9 @@ class SeriesID(ID):
         """Get the next SeriesID after this one."""
 
         return self.__class__(f"s{self.as_int() + 1}")
+
+    def __next__(self) -> "SeriesID":
+        return self.next()
 
     def __gt__(self, other: "SeriesID"):
         if not isinstance(other, self.__class__):

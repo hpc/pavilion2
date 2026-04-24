@@ -350,13 +350,13 @@ class TestSet:
         self.all_tests_made = True
 
 
-    def make(self, build_only: bool = False, rebuild: bool = False, local_builds_only: bool =False,
-             series: Optional["TestSeries"] = None) -> List[TestRun]:
+    def make(self, path_creator: TestPathCreator, build_only: bool = False, rebuild: bool = False,
+             local_builds_only: bool = False) -> List[TestRun]:
         """As per make_iter(), but create all of the tests. This doesn't
         respect batch sizes, etc, and is entirely for simplifying unit testing."""
 
         all_tests = []
-        for test_batch in self.make_iter(build_only, rebuild, local_builds_only, series):
+        for test_batch in self.make_iter(path_creator, build_only, rebuild, local_builds_only):
             all_tests.extend(test_batch)
 
         return all_tests
