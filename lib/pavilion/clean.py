@@ -2,7 +2,7 @@
 import shutil
 from functools import partial
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 from pavilion import dir_db
 from pavilion import groups
@@ -13,15 +13,15 @@ from pavilion.timing import RateLimiter
 from flufl.lock import Lock
 
 
-def delete_tests(pav_cfg, id_dir: Path, filter_func, verbose: bool = False):
+def delete_tests(id_dir: Path, filter_func: Callable[[Path], bool], max_threads: int,
+                 verbose: bool = False) -> Tuple[int, List[str]]:
     """Delete tests using the dir_db 'filter' function"""
 
     if filter_func is None:
         filter_func = dir_db.default_filter
-    return dir_db.delete(pav_cfg, id_dir, filter_func,
-                         transform=TestAttributes,
-                         verbose=verbose)
 
+    return dir_db.delete(id_dir, max_threads, filter_func, transform=TestAttributes,
+                         verbose=verbose)
 
 def _delete_series_filter(path: Path) -> bool:
     """True if the series does not have any valid symlinked tests."""
@@ -34,14 +34,13 @@ def _delete_series_filter(path: Path) -> bool:
 
     return True
 
-
-def delete_series(pav_cfg, id_dir: Path, verbose: bool = False) -> int:
+def delete_series(id_dir: Path, max_threads: int, verbose: bool = False) -> Tuple[int, List[str]]:
     """Delete series if all associated tests have been deleted."""
 
-    return dir_db.delete(pav_cfg, id_dir, _delete_series_filter, verbose=verbose)
+    return dir_db.delete(id_dir, max_threads, _delete_series_filter, verbose=verbose)
 
-
-def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bool = False):
+def delete_unused_builds(builds_dir: Path, tests_dir: Path, max_threads: int,
+                         verbose: bool = False) -> Tuple[int, List[str]]:
     """Delete all build directories that are unused by any test run.
 
     :param pav_cfg: The pavilion config.
@@ -50,7 +49,7 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
     :param verbose: Bool to determine if verbose output or not.
     """
 
-    used_build_paths = _get_used_build_paths(pav_cfg, tests_dir)
+    used_build_paths = _get_used_build_paths(tests_dir, max_threads)
 
     filter_builds = partial(_filter_unused_builds, used_build_paths)
 
@@ -61,7 +60,7 @@ def delete_unused_builds(pav_cfg, builds_dir: Path, tests_dir: Path, verbose: bo
     with Lock(lock_path, lifetime=3) as lock:
         refresh_limiter = RateLimiter(lock.refresh, cooldown=0.3)
 
-        for path in dir_db.select(pav_cfg, builds_dir, filter_builds)[0]:
+        for path in dir_db.select(builds_dir, max_threads, filter_builds)[0]:
             refresh_limiter()
             try:
                 shutil.rmtree(path.as_posix())
@@ -103,13 +102,13 @@ def _filter_unused_builds(used_build_paths: List[Path], build_path: Path) -> boo
     return build_path.name not in used_build_paths
 
 
-def _get_used_build_paths(pav_cfg, tests_dir: Path) -> set:
+def _get_used_build_paths(tests_dir: Path, max_threads: int) -> set:
     """Generate a set of all build paths currently used by one or more test
     runs."""
 
     used_builds = set()
 
-    for path in dir_db.select(pav_cfg, tests_dir).paths:
+    for path in dir_db.select(tests_dir, max_threads).paths:
         build_origin_symlink = path/'build_origin'
         build_origin = None
         if (build_origin_symlink.exists() and
@@ -123,7 +122,7 @@ def _get_used_build_paths(pav_cfg, tests_dir: Path) -> set:
     return used_builds
 
 
-def delete_lingering_build_files(pav_cfg, build_dir: Path, tests_dir: Path,
+def delete_lingering_build_files(build_dir: Path, tests_dir: Path, max_threads: int,
                                  verbose: bool = False):
     """
     Delete any lingering build related files that don't get handled in
@@ -137,7 +136,7 @@ def delete_lingering_build_files(pav_cfg, build_dir: Path, tests_dir: Path,
     """
 
     # Avoid anything that matches build hash in this list
-    used_build_paths = _get_used_build_paths(pav_cfg, tests_dir)
+    used_build_paths = _get_used_build_paths(tests_dir, max_threads)
 
     msgs = []
     for path in build_dir.iterdir():

@@ -140,8 +140,8 @@ def index(id_dir: Path,
     with ThreadPoolExecutor(max_workers=max_threads) as pool:
         # This sequence leaves us with a list of id, path pairs that need an index
         # update.
-        chunk_size = int(math.ceil(len(files)/float(thread_max)))
-        chunks = [files[i*chunk_size:(i+1)*chunk_size] for i in range(thread_max)]
+        chunk_size = int(math.ceil(len(files)/float(max_threads)))
+        chunks = [files[i*chunk_size:(i+1)*chunk_size] for i in range(max_threads)]
 
         id_pairs = pool.map(make_ids, chunks)
         # Grab the set of all ids. We'll use it to identify missing ids.

@@ -56,28 +56,33 @@ class CleanCommand(Command):
         else:
             config_areas = list(pav_cfg.configs.values())
 
+        max_threads = int(pav_cfg["max_threads"])
+
         # Clean Tests
         for config_area in config_areas:
             working_dir = config_area['working_dir']
 
             tests_dir = working_dir / 'test_runs'     # type: Path
             output.fprint(self.outfile, "Removing Tests ({})".format(working_dir), end=end)
-            rm_tests_count, msgs = clean.delete_tests(
-                pav_cfg, tests_dir, filter_func, args.verbose)
+            rm_tests_count, msgs = clean.delete_tests(tests_dir, filter_func,
+                                                      max_threads, args.verbose)
 
             if args.verbose:
                 for msg in msgs:
                     output.fprint(self.outfile, msg, color=output.YELLOW)
+
             output.fprint(self.outfile, "Removed {} test(s).".format(rm_tests_count),
                           color=output.GREEN, clear=True)
 
         # Clean Series
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
         output.fprint(self.outfile, "Removing Series...", end=end)
-        rm_series_count, msgs = clean.delete_series(pav_cfg, series_dir, args.verbose)
+        rm_series_count, msgs = clean.delete_series(series_dir, max_threads, args.verbose)
+
         if args.verbose:
             for msg in msgs:
                 output.fprint(self.outfile, msg, color=output.YELLOW)
+
         output.fprint(self.outfile, "Removed {} series.".format(rm_series_count),
                       color=output.GREEN, clear=True)
 
@@ -87,21 +92,24 @@ class CleanCommand(Command):
             builds_dir = working_dir / 'builds'        # type: Path
             tests_dir = working_dir / 'test_runs'
             output.fprint(self.outfile, "Removing Builds ({})".format(working_dir), end=end)
-            rm_builds_count, msgs = clean.delete_unused_builds(pav_cfg, builds_dir, tests_dir,
+            rm_builds_count, msgs = clean.delete_unused_builds(builds_dir, tests_dir,
                                                                args.verbose)
-            msgs.extend(clean.delete_lingering_build_files(pav_cfg, builds_dir, tests_dir,
+            msgs.extend(clean.delete_lingering_build_files(builds_dir, tests_dir, max_threads,
                                                            args.verbose))
+
             if args.verbose:
                 for msg in msgs:
                     output.fprint(self.outfile, msg, color=output.YELLOW)
+
             output.fprint(self.outfile, "Removed {} build(s).".format(rm_builds_count),
                           color=output.GREEN, clear=True)
 
-
         deleted_groups, msgs = clean.clean_groups(pav_cfg)
+
         if args.verbose:
             for msg in msgs:
                 output.fprint(self.outfile, msg, color=output.YELLOW)
+
         output.fprint(self.outfile,
                       "Removed {} test groups that became empty.".format(deleted_groups),
                       color=output.GREEN, clear=True)
