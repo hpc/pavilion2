@@ -350,13 +350,14 @@ class TestSet:
         self.all_tests_made = True
 
 
-    def make(self, path_creator: TestPathCreator, build_only: bool = False, rebuild: bool = False,
-             local_builds_only: bool = False) -> List[TestRun]:
+    def make(self, path_creator: TestPathCreator, build_only: bool = False,
+             rebuild: bool = False, local_builds_only: bool = False) -> List[TestRun]:
         """As per make_iter(), but create all of the tests. This doesn't
         respect batch sizes, etc, and is entirely for simplifying unit testing."""
 
         all_tests = []
-        for test_batch in self.make_iter(path_creator, build_only, rebuild, local_builds_only):
+        for test_batch in self.make_iter(path_creator, build_only, rebuild,
+                                         local_builds_only):
             all_tests.extend(test_batch)
 
         return all_tests
@@ -683,7 +684,7 @@ class TestSet:
 
         raise TestSetError(msg)
 
-    def cancel(self, reason):
+    def cancel(self, reason: str) -> None:
         """Cancel all the tests in the test set."""
 
         self.status.set(S_STATES.SET_CANCELED,
@@ -693,7 +694,7 @@ class TestSet:
         for test in self.tests:
             test.cancel(reason)
 
-        cancel_utils.cancel_jobs(self.pav_cfg, self.tests)
+        cancel_utils.cancel_jobs(self.tests, int(self.pav_cfg["max_threads"]))
 
     def force_completion(self):
         """Mark all of the tests as complete. We generally do this after
