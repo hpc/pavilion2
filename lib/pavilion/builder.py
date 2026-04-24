@@ -842,7 +842,7 @@ class TestBuilder:
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            path = self._config_dir.find_extra_file(extra, suite_name)
+            path = list(self._config_dir.find_extra_file(extra, suite_name))
 
             if len(path) > 1:
                 raise TestBuilderError(f"Found multiple files matching extra file {extra}: "

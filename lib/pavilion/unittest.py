@@ -394,8 +394,6 @@ The default config is: ::
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
         cfg["config_dir"] = self.pav_config_dir.as_posix()
-
-        print(f"Working dir: {self.working_dir.as_posix()}")
         cfg["working_dir"] = self.working_dir.as_posix()
 
         loc_sched = (self.TEST_DATA_DIR/'pav_config_dir'/'modes' /

@@ -75,7 +75,8 @@ class BuilderTests(PavTestCase):
             'build': {
                 'modules': ['gcc'],
             },
-            "working_dir": self.working_dir.as_posix()
+            "working_dir": self.working_dir.as_posix(),
+            "config_dir": self.pav_config_dir.as_posix()
         }
 
         # Check that decompression and setup works for all accepted types.
@@ -287,7 +288,8 @@ class BuilderTests(PavTestCase):
                 'source_path': 'README.md',
                 'source_download': 'missing',
             },
-            "working_dir": self.working_dir.as_posix()
+            "working_dir": self.working_dir.as_posix(),
+            "config_dir": self.pav_config_dir.as_posix()
         }
 
         expected_path = config_dir/'test_src'/'README.md'
@@ -432,7 +434,7 @@ class BuilderTests(PavTestCase):
 
         thread = threading.Thread(
             target=test.build,
-            args=(cancel_event,)
+            kwargs={"cancel_event": cancel_event}
         )
         thread.start()
 
