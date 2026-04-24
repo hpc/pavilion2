@@ -40,7 +40,7 @@ def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[Tes
         user = utils.get_login()
         sys_vars = base_classes.get_vars(True)
         sys_name = sys_vars['sys_name']
-        series_id = pav_cfg.get("working_dir").get_last_series_id(user, sys_name)
+        series_id = WorkingDirectory(pav_cfg.get("working_dir")).get_last_series_id(user, sys_name)
     except TestSeriesError as err:
         output.fprint(errfile, "Failed to find last series: {}".format(err.args[0]),
                       color=output.YELLOW)
@@ -113,7 +113,7 @@ def arg_filtered_tests(pav_cfg: config.PavConfig,
                 order_asc=order_asc,
                 verbose=verbose,
                 limit=limit,
-                max_threads=pav_cfg.get("max_threads", 1))
+                max_threads=pav_cfg["max_threads"])
 
             tests.data.extend(matching_tests.data)
             tests.paths.extend(matching_tests.paths)
@@ -141,13 +141,13 @@ def arg_filtered_tests(pav_cfg: config.PavConfig,
         test_paths.extend(map(lambda x: x.resolve(), list_series_tests(pav_cfg, sid_)))
 
     return dir_db.select_from(
-        pav_cfg,
         paths=test_paths,
         transform=TestAttributes,
         filter_func=filter_func,
         order_func=order_func,
         order_asc=order_asc,
-        limit=limit
+        limit=limit,
+        max_threads=pav_cfg["max_threads"]
     )
 
 def make_filter_query() -> str:
@@ -228,7 +228,8 @@ def arg_filtered_series(pav_cfg: config.PavConfig,
                 limit=limit,
             ).data
         else:
-            found_series.append(SeriesInfo.load(pav_cfg, sid))
+            found_series.append(SeriesInfo.load(WorkingDirectory(pav_cfg["working_dir"]), sid,
+                                                max_threads=pav_cfg["working_dir"]))
 
     matching_series = []
     for sinfo in found_series:
@@ -302,6 +303,8 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
     if errfile is None:
         errfile = io.StringIO()
 
+    working_dir = WorkingDirectory(pav_cfg["working_dir"])
+
     test_paths = []
     for raw_id in req_tests:
 
@@ -311,7 +314,7 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
             sys_name = sys_vars['sys_name']
 
             try:
-                raw_id = pav_cfg.get("working_dir").get_last_series_id(user, sys_name)
+                raw_id = working_dir.get_last_series_id(user, sys_name)
             except TestSeriesError:
                 output.fprint(errfile, "Failed to load last series.", color=output.RED)
 
@@ -321,13 +324,7 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
                 continue
 
         if isinstance(raw_id, TestID):
-            try:
-                test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
-            except TestRunError as err:
-                output.fprint(errfile, err, color=output.YELLOW)
-                continue
-
-            test_path = test_wd/TestRun.RUN_DIR/str(raw_id)
+            test_path = working_dir.get_test_path(raw_id)
             test_paths.append(test_path)
             if not test_path.exists():
                 output.fprint(errfile,

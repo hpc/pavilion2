@@ -188,13 +188,12 @@ def _read_complete(series_path: Path) -> Optional[Dict]:
             return None
 
 
-def get_complete(pav_cfg: config.PavConfig, series_path: Path,
-                 check_tests: bool = False) -> Optional[Dict[str, float]]:
+def get_complete(series_path: Path, check_tests: bool = False,
+                 max_threads: int = 1) -> Optional[Dict[str, float]]:
     """Check whether all the test sets in a series are complete. If they are,
     returns a complete info dictionary containing the completion time, or None
     otherwise.
 
-    :param pav_cfg: The Pavilion configuration object
     :param series_path: Path to the series data
     :param check_tests: Check tests for completion and set completion if all
         tests are complete. Will catch and ignore errors when setting completion."""
@@ -212,7 +211,7 @@ def get_complete(pav_cfg: config.PavConfig, series_path: Path,
         if not test_set_path.is_dir():
             continue
 
-        ts_complete = get_test_set_complete(pav_cfg, test_set_path, check_tests)
+        ts_complete = get_test_set_complete(test_set_path, check_tests, max_threads=max_threads)
         if ts_complete is None:
             return None
 
@@ -265,11 +264,10 @@ def set_test_set_complete(test_set_path: Path, when: float):
             pass
 
 
-def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path,
-                 check_tests: bool = False) -> Union[float, None]:
+def get_test_set_complete(test_set_path: Path, check_tests: bool = False,
+                          max_threads: int = 1) -> Optional[float]:
     """Get the test set completion timestamp. Returns None when not complete.
 
-    :param pav_cfg: Pavilion configuration
     :param series_path: Path to the series
     :param check_tests: Check tests for completion and set completion if all
         tests are complete. Will catch and ignore errors when setting completion.
@@ -285,7 +283,7 @@ def get_test_set_complete(pav_cfg: config.PavConfig, test_set_path: Path,
     if check_tests:
         latest = None
 
-        for test_path in dir_db.select(pav_cfg, test_set_path).paths:
+        for test_path in dir_db.select(test_set_path, max_threads=max_threads).paths:
             complete_ts = TestAttributes(test_path).complete_time
 
             if complete_ts is None:

@@ -12,17 +12,20 @@ from pavilion import utils
 from pavilion.errors import TestRunError, TestSeriesError
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.test_ids import SeriesID
+from pavilion.working_dir import WorkingDirectory
 from . import common
 
 
 class SeriesInfoBase(Mapping):
     """Shared base class for series info and test set info."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, max_threads: int = 1):
 
         self._config = None
 
         self.path = path
+        self._working_dir = WorkingDirectory(self.path.parents[1])
+        self._max_threads = max_threads
 
         self._complete = None
 
@@ -265,7 +268,7 @@ class SeriesInfo(SeriesInfoBase):
 
     def _find_tests(self):
         """Find all the tests for this series."""
-        test_dict = common.LazyTestRunDict(self._pav_cfg, self.path)
+        test_dict = common.LazyTestRunDict(self._working_dir, self.path)
         return list(test_dict.iter_paths())
 
     @property
@@ -284,7 +287,8 @@ class SeriesInfo(SeriesInfoBase):
     def complete(self) -> bool:
         """True if all tests are complete."""
 
-        return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None
+        return common.get_complete(self.path, check_tests=True,
+                                   max_threads=self._max_threads) is not None
 
     @property
     def status(self) -> Optional[str]:
@@ -340,14 +344,16 @@ class SeriesInfo(SeriesInfoBase):
         return common.get_all_started(self.path)
 
     @classmethod
-    def load(cls, pav_cfg: config.PavConfig, sid: SeriesID) -> "SeriesInfo":
+    def load(cls, working_dir: WorkingDirectory, sid: SeriesID,
+             max_threads: int = 1) -> "SeriesInfo":
         """Find and load a series info object from a series id."""
 
-        series_path = pav_cfg.working_dir/'series'/str(sid.as_int())
+        series_path = working_dir.get_series_path(sid)
 
         if not series_path.exists():
             raise TestSeriesError("Could not find series '{}'".format(sid))
-        return cls(pav_cfg, series_path)
+
+        return cls(series_path, max_threads=max_threads)
 
 class TestSetInfo(SeriesInfoBase):
     """Information about a test set in a test series."""

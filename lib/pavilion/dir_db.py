@@ -73,7 +73,6 @@ def index(id_dir: Path,
     transform, and return it. The returned index is a dictionary by id of
     the transformed data.
 
-    :param pav_cfg: The pavilion config.
     :param id_dir: The directory to index.
     :param idx_name: The name of the index.
     :param transform: A transformation function that produces a json
@@ -138,8 +137,7 @@ def index(id_dir: Path,
         except (ValueError, KeyError, TypeError, OSError):
             return tid, None
 
-    thread_max = pav_cfg.get('max_threads')
-    with ThreadPoolExecutor(max_workers=thread_max) as pool:
+    with ThreadPoolExecutor(max_workers=max_threads) as pool:
         # This sequence leaves us with a list of id, path pairs that need an index
         # update.
         chunk_size = int(math.ceil(len(files)/float(thread_max)))

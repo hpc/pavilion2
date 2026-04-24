@@ -129,7 +129,7 @@ class TestSeries:
         # time).
         else:
             self.id = _id
-            self.path = series_path / str(self.id.as_int())
+            self.path = self.working_dir.get_series_path(self.id)
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         # In theory, we shouldn't need to lock here, since the lock for SeriesIDCounter should
@@ -754,7 +754,8 @@ class TestSeries:
         """Check if every test in the series has completed. A series is incomplete if
         no tests have been created."""
 
-        complete_info = common.get_complete(self.pav_cfg, self.path, check_tests=True)
+        complete_info = common.get_complete(self.path, check_tests=True,
+                                            max_threads=self.pav_cfg["max_threads"])
 
         return complete_info is not None
 
@@ -770,7 +771,7 @@ class TestSeries:
         inefficient - the series info object exists to get series info without
         loading the series."""
 
-        return SeriesInfo(self.pav_cfg, self.path)
+        return SeriesInfo(self.path, self.pav_cfg["max_threads"])
 
     @property
     def pgid(self) -> Optional[int]:
