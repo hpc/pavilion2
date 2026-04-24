@@ -204,6 +204,7 @@ class RunCommand(Command):
 
         try:
             series_obj.run(
+                max_threads=int(pav_cfg["max_threads"]),
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
                 local_builds_only=local_builds_only)
