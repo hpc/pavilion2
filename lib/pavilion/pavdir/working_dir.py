@@ -4,9 +4,10 @@ import os
 import shutil
 import json
 
-from pathlib import PosixPath, Path
-from typing import Optional, Tuple, List, Dict, Any
+from pathlib import Path
+from typing import Optional, Tuple, List, Dict, Any, Union
 
+from .base_classes import PavDirectory
 from pavilion import dir_db
 from pavilion.micro import set_default
 from pavilion.errors import PavConfigError
@@ -46,7 +47,7 @@ class TestPathCreator:
         return self.make(test_set)
 
 
-class WorkingDirectory(PosixPath):
+class WorkingDirectory(PavDirectory):
     BUILDS_DIR_NAME = "builds"
     GROUPS_DIR_NAME = "groups"
     JOBS_DIR_NAME = "jobs"
@@ -247,15 +248,3 @@ class WorkingDirectory(PosixPath):
 
             if test_set is not None:
                 (series_path / self.TEST_SETS_DIR_NAME / test_set / str(test_id)).unlink()
-
-    def _canonical_path(self) -> str:
-        return self.resolve().as_posix()
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, self.__class__):
-            return False
-
-        return self._canonical_path() == other._canonical_path()
-
-    def __hash__(self) -> int:
-        return hash(self._canonical_path())

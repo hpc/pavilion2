@@ -17,7 +17,7 @@ import yaml_config as yc
 from pavilion.errors import PavConfigError
 from pavilion.micro import first, flatten, remove_none, set_default
 from pavilion.path_utils import Pathlike, exists, path_product
-from pavilion.working_dir import WorkingDirectory
+from pavilion.pavdir import WorkingDirectory
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]

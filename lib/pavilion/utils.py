@@ -388,7 +388,7 @@ def deserialize_datetime(when) -> float:
     return 0
 
 
-def get_login():
+def get_login() -> str:
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""
 

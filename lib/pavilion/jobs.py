@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import List, Union, NewType, Dict
 
-from pavilion.working_dir import WorkingDirectory
+from pavilion.pavdir import WorkingDirectory
 from pavilion.test_ids import TestID
 from pavilion.types import ID_Pair, Nodes
 

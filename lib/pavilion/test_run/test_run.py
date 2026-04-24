@@ -41,8 +41,7 @@ from pavilion.types import ID_Pair
 from pavilion.micro import get_nested, consume
 from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
-from pavilion.working_dir import WorkingDirectory
-from pavilion.config_dir import ConfigDirectory
+from pavilion.pavdir import WorkingDirectory, ConfigDirectory
 from .test_attrs import TestAttributes
 
 

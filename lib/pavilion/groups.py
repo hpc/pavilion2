@@ -13,7 +13,7 @@ from pavilion.errors import TestGroupError
 from pavilion.series import TestSeries, SeriesInfo
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.test_ids import ID, TestID, SeriesID, GroupID
-from pavilion.working_dir import WorkingDirectory
+from pavilion.pavdir import WorkingDirectory
 from pavilion.utils import is_int
 
 GroupMemberDescr = NewType('GroupMemberDescr', Union[TestRun, TestSeries, "TestGroup",

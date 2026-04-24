@@ -29,8 +29,7 @@ from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
 from pavilion.micro import set_default, remove_none, first
-from pavilion.working_dir import WorkingDirectory
-from pavilion.config_dir import ConfigDirectory
+from pavilion.pavdir import WorkingDirectory, ConfigDirectory
 from pavilion.test_ids import TestID
 
 CONFIG_FNAMES = ("suite.yaml", "hosts.yaml", "modes.yaml", "os.yaml")

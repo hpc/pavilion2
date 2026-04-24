@@ -7,7 +7,7 @@ from pavilion import resolve
 from pavilion import utils
 from pavilion import variables
 from pavilion.variables import VariableSetManager
-from pavilion.config_dir import ConfigDirectory
+from pavilion.pavdir import ConfigDirectory
 from pavilion.errors import TestConfigError
 from pavilion.micro import first
 

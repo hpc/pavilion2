@@ -27,8 +27,7 @@ from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
 from pavilion.micro import set_default
-from pavilion.working_dir import WorkingDirectory
-from pavilion.config_dir import ConfigDirectory
+from pavilion.pavdir import WorkingDirectory, ConfigDirectory
 from unittest_ex import TestCaseEx
 
 

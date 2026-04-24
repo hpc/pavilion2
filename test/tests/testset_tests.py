@@ -4,7 +4,7 @@ from pavilion.series.test_set import TestSet
 from pavilion.errors import TestSetError
 from pavilion.unittest import PavTestCase
 from pavilion.enums import Verbose
-from pavilion.working_dir import TestPathCreator
+from pavilion.pavdir import TestPathCreator
 from pavilion.test_ids import SeriesID
 
 

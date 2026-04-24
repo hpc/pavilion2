@@ -18,7 +18,7 @@ from pavilion.sys_vars import base_classes
 from pavilion.test_run import TestRun, mass_status_update
 from pavilion.variables import VariableSetManager
 from pavilion.test_ids import TestID
-from pavilion.working_dir import WorkingDirectory
+from pavilion.pavdir import WorkingDirectory
 from .base_classes import Command
 
 # We need to catch pretty much all exceptions to cleanly report errors.

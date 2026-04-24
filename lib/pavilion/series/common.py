@@ -15,7 +15,7 @@ from pavilion.test_run import TestRun, TestAttributes
 from pavilion.types import ID_Pair
 from pavilion.test_ids import TestID
 from pavilion.timing import wait
-from pavilion.working_dir import WorkingDirectory
+from pavilion.pavdir import WorkingDirectory
 from ..errors import TestSeriesError
 
 COMPLETE_FN = 'SERIES_COMPLETE'

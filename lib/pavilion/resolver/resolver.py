@@ -36,7 +36,7 @@ from pavilion.test_config import file_format
 from pavilion.test_config.file_format import (TEST_NAME_RE,
                                              KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.config_dir import ConfigDirectory
+from pavilion.pavdir import ConfigDirectory, ConfigInfo
 from pavilion.utils import union_dictionary
 from pavilion.micro import first_with, listmap
 from pavilion.path_utils import exists
@@ -55,17 +55,6 @@ LOGGER = logging.getLogger('pav.' + __name__)
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 TestConfig = Dict
-
-
-class ConfigInfo:
-    def __init__(self, name: str, type: str, path: Path, label: str = None,
-        from_suite: bool = False):
-
-        self.name = name
-        self.type = type
-        self.label = label
-        self.path = path
-        self.from_suite = from_suite
 
 
 class TestOptions:
@@ -599,7 +588,7 @@ class TestConfigResolver:
 
         raw_cfg = self._safe_load_config(cfg_info, loader)
 
-        if cfg_info.from_suite and cfg_info.type != "suite":
+        if cfg_info.from_suite_dir and cfg_info.type != "suite":
             raw_cfg = raw_cfg.get(cfg_info.name)
 
         if raw_cfg is None and not optional:
@@ -815,7 +804,7 @@ class TestConfigResolver:
                 from_suite = False
 
             cfg_info = ConfigInfo(type="suite", name=suite_name, label=label, path=path,
-                                  from_suite=from_suite)
+                                  from_suite_dir=from_suite)
 
             try:
                 raw_suite_cfg = self._load_raw_config(cfg_info, self._suite_loader)

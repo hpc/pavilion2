@@ -33,7 +33,7 @@ from pavilion.micro import partition, do, listfilter, stardo, flatten, set_defau
 from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
 from pavilion.status_utils import get_status
-from pavilion.working_dir import WorkingDirectory
+from pavilion.pavdir import WorkingDirectory
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -905,3 +905,9 @@ class TestSeries:
 modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.
         return self.path.stat().st_mtime
+
+    # TODO: Is this method redundant?
+    def list_test_paths(self, max_threads: int) -> List[Path]:
+        """Return a list of paths to all tests in this series."""
+
+        return self.working_dir.list_series_tests(self.id, max_threads)

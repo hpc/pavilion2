@@ -1,16 +1,16 @@
 from itertools import chain
-from pathlib import PosixPath, Path
+from pathlib import Path
 from typing import List, Union, Optional, Iterator, Any, Dict
 
+from .base_classes import PavDirectory
 from pavilion.path_utils import Pathlike, path_product, exists, is_dir
 from pavilion.micro import set_default
 from pavilion.utils import get_yaml_fnames, is_yaml_file
 
 
 class ConfigInfo:
-    def __init__(self, name: str, type: str, path: Path, label: str = None,
-        from_suite_dir: bool = False):
-
+    def __init__(self, name: str, type: str, path: Path, label: Optional[str] = None,
+                 from_suite_dir: bool = False):
         self.name = name
         self.type = type
         self.label = label
@@ -18,7 +18,7 @@ class ConfigInfo:
         self.from_suite_dir = from_suite_dir
 
 
-class ConfigDirectory(PosixPath):
+class ConfigDirectory(PavDirectory):
     PAV_CONFIG_FNAME = "pavilion.yaml"
     DEFAULT_PAV_ROOT = Path(__file__).resolve().parents[2]
     PAV_LIB_FN = "pav-lib.bash"
