@@ -19,7 +19,7 @@ from . import common
 class SeriesInfoBase(Mapping):
     """Shared base class for series info and test set info."""
 
-    def __init__(self, path: Path, max_threads: int = 1):
+    def __init__(self, path: Path, max_threads: int):
 
         self._config = None
 
@@ -345,7 +345,7 @@ class SeriesInfo(SeriesInfoBase):
 
     @classmethod
     def load(cls, working_dir: WorkingDirectory, sid: SeriesID,
-             max_threads: int = 1) -> "SeriesInfo":
+             max_threads: int) -> "SeriesInfo":
         """Find and load a series info object from a series id."""
 
         series_path = working_dir.get_series_path(sid)

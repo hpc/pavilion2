@@ -141,7 +141,7 @@ class WorkingDirectory(PosixPath):
 
         return self.series_dir / str(sid.as_int())
 
-    def list_series_tests(self, sid: SeriesID, max_threads: int = 1) -> List[Path]:
+    def list_series_tests(self, sid: SeriesID, max_threads: int) -> List[Path]:
         """Return a list of paths to test run directories for the given series ID."""
 
         series_path = self.get_series_path(sid)
@@ -247,3 +247,15 @@ class WorkingDirectory(PosixPath):
 
             if test_set is not None:
                 (series_path / self.TEST_SETS_DIR_NAME / test_set / str(test_id)).unlink()
+
+    def _canonical_path(self) -> str:
+        return self.resolve().as_posix()
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+
+        return self._canonical_path() == other._canonical_path()
+
+    def __hash__(self) -> int:
+        return hash(self._canonical_path())

@@ -6,8 +6,8 @@ with the `pav group` command."""
 from pathlib import Path
 import re
 import shutil
-from typing import NewType, List, Tuple, Union, Dict, Any
 import uuid
+from typing import NewType, List, Tuple, Union, Dict, Any, Optional
 
 from pavilion.errors import TestGroupError
 from pavilion.series import TestSeries, SeriesInfo
@@ -87,7 +87,7 @@ class TestGroup:
 
         return info
 
-    def tests(self, seen_groups: List[GroupID] = None, max_threads: int = 1) -> List[Path]:
+    def tests(self, max_threads: int, seen_groups: Optional[List[GroupID]] = None) -> List[Path]:
         """Returns a list of paths to all tests in this group.  Use with
         cmd_utils.get_tests_by_paths to convert to real test objects. Bad links are ignored.
         Groups are recursively examined (loops are allowed, but not followed).

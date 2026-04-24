@@ -188,8 +188,8 @@ def _read_complete(series_path: Path) -> Optional[Dict]:
             return None
 
 
-def get_complete(series_path: Path, check_tests: bool = False,
-                 max_threads: int = 1) -> Optional[Dict[str, float]]:
+def get_complete(series_path: Path, max_threads: int,
+                 check_tests: bool = False) -> Optional[Dict[str, float]]:
     """Check whether all the test sets in a series are complete. If they are,
     returns a complete info dictionary containing the completion time, or None
     otherwise.
@@ -264,8 +264,8 @@ def set_test_set_complete(test_set_path: Path, when: float):
             pass
 
 
-def get_test_set_complete(test_set_path: Path, check_tests: bool = False,
-                          max_threads: int = 1) -> Optional[float]:
+def get_test_set_complete(test_set_path: Path, max_threads: int,
+                          check_tests: bool = False) -> Optional[float]:
     """Get the test set completion timestamp. Returns None when not complete.
 
     :param series_path: Path to the series

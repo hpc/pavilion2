@@ -365,15 +365,11 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
     return test_paths
 
 
-def _filter_tests_by_raw_id(pav_cfg: config.PavConfig, id_pairs: List[ID_Pair],
+def _filter_tests_by_raw_id(working_dir: WorkingDirectory, id_pairs: List[ID_Pair],
                             exclude_ids: List[TestID]) -> List[ID_Pair]:
     """Filter the given tests by raw id."""
 
-    exclude_pairs = []
-
-    ex_wd = Path(pav_cfg.get("working_dir"))
-
-    exclude_pairs = [ID_Pair(ex_wd, id) for id in exclude_ids]
+    exclude_pairs = [ID_Pair(working_dir, id) for id in exclude_ids]
 
     return [pair for pair in id_pairs if pair not in exclude_pairs]
 
@@ -397,15 +393,16 @@ def get_tests_by_paths(pav_cfg: config.PavConfig, test_paths: List[Path], errfil
 
         test_path = test_path.resolve()
 
-        test_wd = test_path.parents[1]
+        test_wd = WorkingDirectory(test_path.parents[1])
         test_id = TestID(test_path.name)
 
         test_pairs.append(ID_Pair((test_wd, test_id)))
 
     if exclude_ids:
-        test_pairs = _filter_tests_by_raw_id(pav_cfg, test_pairs, exclude_ids)
+        test_pairs = _filter_tests_by_raw_id(WorkingDirectory(pav_cfg["working_dir"]), test_pairs,
+                                             exclude_ids)
 
-    return load_tests(pav_cfg, test_pairs, errfile)
+    return load_tests(test_pairs, errfile, max_threads=int(pav_cfg["max_threads"]))
 
 
 def get_tests_by_id(pav_cfg: config.PavConfig, test_ids: List[Union[TestID, SeriesID]],
@@ -439,16 +436,17 @@ def get_tests_by_id(pav_cfg: config.PavConfig, test_ids: List[Union[TestID, Seri
         # Just a plain test id.
         else:
             try:
-                test_id_pairs.append((pav_cfg.working_dir, raw_id))
+                test_id_pairs.append((WorkingDirectory(pav_cfg["working_dir"]), raw_id))
 
             except TestRunError as err:
                 output.fprint(sys.stdout, "Error loading test '{}': {}"
                               .format(raw_id, err))
 
     if exclude_ids:
-        test_id_pairs = _filter_tests_by_raw_id(pav_cfg, test_id_pairs, exclude_ids)
+        test_id_pairs = _filter_tests_by_raw_id(WorkingDirectory(pav_cfg["working_dir"]),
+                                                test_id_pairs, exclude_ids)
 
-    return load_tests(pav_cfg, test_id_pairs, errfile)
+    return load_tests(test_id_pairs, errfile, max_threads=int(pav_cfg["max_threads"]))
 
 def get_testset_name(pav_cfg: config.PavConfig, tests: List[str], files: List[str]) -> str:
     """Generate the name for the set set based on the test input to the run command.
