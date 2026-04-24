@@ -31,11 +31,7 @@ class TestPathCreator:
         next_id = next(self._test_counter)
         test_path = self._working_dir.test_runs_dir / str(next_id)
 
-        try:
-            test_path.mkdir()
-        except OSError:
-            # TODO: Raise something else
-            raise
+        test_path.mkdir()
 
         if link_series and test_set is not None:
             self._working_dir.link_test_to_series(next_id, self._sid, test_set)
@@ -58,8 +54,8 @@ class WorkingDirectory(PavDirectory):
 
     DEFAULT_PERMISSIONS = 0o770
 
-    def __new__(cls, path: str, group: Optional[str] = None):
-        self = super().__new__(cls, path)
+    def __new__(*args, group: Optional[str] = None, **kwargs):
+        self = super().__new__(*args, **kwargs)
 
         self._group = group
 
@@ -86,7 +82,7 @@ class WorkingDirectory(PavDirectory):
         else:
             if self._group is not None and self.group != self._group:
                 raise PavConfigError(f"Working dir should have group '{self._group}', but has "
-                        f"group '{self.group}'. This usually means two config directories specify "
+                        f"group '{self._group}'. This usually means two config directories specify "
                         "different groups but point to the same working directory. See "
                         "`pav config list`.")
 

@@ -14,7 +14,7 @@ import textwrap
 import zipfile
 import string
 from pathlib import Path
-from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable, Iterator
+from typing import Iterator, Union, TextIO, List, Dict, Optional, Iterable
 
 
 class WrappedFormatter(argparse.HelpFormatter):

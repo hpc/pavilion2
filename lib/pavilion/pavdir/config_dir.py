@@ -39,9 +39,9 @@ class ConfigDirectory(PavDirectory):
         "suite": "suite.yaml"
     }
 
-    def __new__(cls, path: str, label: Optional[str] = None, pav_config_file: Optional[Path] = None,
-                pav_root: Optional[Path] = None):
-        self = super().__new__(cls, path)
+    def __new__(*args, label: Optional[str] = None, pav_config_file: Optional[Path] = None,
+                pav_root: Optional[Path] = None, **kwargs):
+        self = super().__new__(*args, **kwargs)
 
         self.label = label
         self.pav_config_file = set_default(pav_config_file, self / self.PAV_CONFIG_FNAME)

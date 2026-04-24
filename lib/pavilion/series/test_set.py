@@ -279,7 +279,11 @@ class TestSet:
                         continue
 
                 try:
-                    test_id, _ = path_creator(self.name)
+                    try:
+                        test_id, _ = path_creator(self.name)
+                    except OSError as err:
+                        raise TestSetError("Error creating and linking directories for test set "
+                                           f"{self.name}: {err}")
 
                     wget_options = {}
                     wget_options["proxies"] = self.pav_cfg.get("proxies")

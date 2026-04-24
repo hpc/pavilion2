@@ -671,13 +671,10 @@ class TestConfigResolver:
         return test_configs
 
 
-    def _apply_test_options(self, raw_test: Dict, options: TestOptions, request: TestRequest) \
-            -> Optional[Dict]:
+    def _apply_test_options(self, raw_test: Dict, options: TestOptions,
+                            request: TestRequest) -> Optional[Dict]:
 
-        try:
-            test_cfg = copy.deepcopy(raw_test)
-        except TypeError:
-            raise TypeError(f"Config dir: {type(raw_test['config_dir'])}, Working dir: {type(raw_test['working_dir'])}")
+        test_cfg = copy.deepcopy(raw_test)
 
         test_cfg['modes'] = options.modes
         suite_name = test_cfg['suite']
@@ -949,7 +946,7 @@ class TestConfigResolver:
         """
 
         for mode in modes:
-            test_cfg = apply_config(test_cfg, config_dir, "mode", mode, suite_name)
+            test_cfg = self.apply_config(test_cfg, config_dir, "mode", mode, suite_name)
 
         return test_cfg
 

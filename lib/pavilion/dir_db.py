@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import (Callable, List, Iterable, Any, Dict, NewType, Optional, Union, NamedTuple,
-                    TextIO, Tuple, TypeVar, Tuple)
+                    TextIO, Tuple, TypeVar)
 
 from pavilion import output
 from pavilion.test_ids import TestID
