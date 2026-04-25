@@ -4,6 +4,7 @@ import os
 import shutil
 import json
 
+from os import PathLike
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any, Union
 
@@ -54,8 +55,8 @@ class WorkingDirectory(PavDirectory):
 
     DEFAULT_PERMISSIONS = 0o770
 
-    def __new__(*args, group: Optional[str] = None, **kwargs):
-        self = super().__new__(*args, **kwargs)
+    def __new__(cls, path: PathLike, group: Optional[str] = None):
+        self = super().__new__(cls, path)
 
         self._group = group
 
@@ -80,10 +81,10 @@ class WorkingDirectory(PavDirectory):
                 self.set_group(self._group)
                 self.set_permissions(self.DEFAULT_PERMISSIONS)
         else:
-            if self._group is not None and self.group != self._group:
+            if self._group is not None and self.group() != self._group:
                 raise PavConfigError(f"Working dir should have group '{self._group}', but has "
-                        f"group '{self._group}'. This usually means two config directories specify "
-                        "different groups but point to the same working directory. See "
+                        f"group '{self.group()}'. This usually means two config directories "
+                        "specify different groups but point to the same working directory. See "
                         "`pav config list`.")
 
         self.make_subdirs()

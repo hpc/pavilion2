@@ -115,44 +115,6 @@ class TestConfigResolver:
         # Raw loaded test suites
         self._suites: Dict[Tuple[str, str], Dict] = {}
 
-    @property
-    def config_paths(self) -> Iterator[Path]:
-        """Return an iterator over all config paths."""
-        return self.pav_cfg.config_paths
-
-    @property
-    def suites_dirs(self) -> Iterator[Path]:
-        """Return an iterator over all suites directories."""
-        return self.pav_cfg.suites_dirs
-
-    @property
-    def config_labels(self) -> Iterator[str]:
-        """Return an iterator over all config labels."""
-        return self.pav_cfg.configs.keys()
-
-    def find_config(self, cfg_type: str, cfg_name: str, suite_name: str = None) -> ConfigInfo:
-        """Search all of the known configuration directories for a config of the
-        given type and name, and report whether it was found in the suites directory.
-
-        :param str conf_type: 'host', 'platform', 'mode', or 'test/suite'
-        :param str conf_name: The name of the config (without a file extension).
-        :return: A tuple of the path to that config, if it exists, and a boolean
-            indicating whether it was found in the suites directory (True) or not (False).
-        """
-
-        cfg_path = None
-
-        if suite_name is not None:
-            label, cfg_path = self._config_path_from_suite(suite_name, cfg_type)
-
-        if cfg_path is not None:
-            from_suite = True
-        else:
-            label, cfg_path = self._get_test_config_path(cfg_name, cfg_type)
-            from_suite = False
-
-        return ConfigInfo(cfg_name, cfg_type, cfg_path, label, from_suite)
-
     def find_similar_configs(self, conf_type: str, conf_name: str) -> List[str]:
         """Find configs with a name similar to the one specified."""
 
@@ -254,7 +216,7 @@ class TestConfigResolver:
                 }
         return suites
 
-    def find_all_configs(self, conf_type: str):
+    def find_all_configs(self, conf_type: str) -> Dict[str, Any]:
         """ Find all configs (host/modes) within known config directories.
 
     :return: Returns a dictionary of suite names to an info dict.

@@ -8,7 +8,7 @@ import os
 import pprint
 import sys
 from pathlib import Path
-from typing import Union, Dict, List, Optional
+from typing import Union, Dict, List, Optional, Iterable
 
 import yaml_config
 from pavilion import config
@@ -28,6 +28,8 @@ from pavilion.test_config import file_format
 from pavilion import resolver
 from pavilion import test_run
 from pavilion.types import Nodes
+from pavilion.pavdir import ConfigDirectory
+from pavilion.micro import flatten
 from .base_classes import Command, sub_cmd
 
 
@@ -461,7 +463,7 @@ class ShowCommand(Command):
                      '  json - output as JSON'
             )
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg: config.PavConfig, args: argparse.Namespace) -> int:
         """Run the show command's chosen sub-command."""
 
         return self._run_sub_command(pav_cfg, args)
@@ -540,20 +542,31 @@ class ShowCommand(Command):
                 title="Available Expression Functions"
             )
 
-    def show_vars(self, pav_cfg, args, cfg, conf_type) -> int:
+    def show_vars(self, args: argparse.Namespace, config_dirs: Iterable[ConfigDirectory], cfg: str,
+                  conf_type: str) -> int:
         """Show the variables of a config, each variable is displayed as a
         table."""
 
-        cfg_info = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
-        file = cfg_info.path
+        print("In show_vars...")
 
-        if file is None:
+        cfg_infos = list(flatten(map(lambda x: x.find_configs(conf_type, cfg), config_dirs)))
+
+        print(f"Config infos: {cfg_infos}")
+
+        if len(cfg_infos) == 0:
             output.fprint(
-                self.errfile,
-                f"Could not find a config for {conf_type} '{cfg}'",
+                self.errfile, f"Could not find a config for {conf_type} '{cfg}'",
                 color=output.YELLOW)
 
             return 1
+        elif len(cfg_infos) > 1:
+            output.fprint(
+                self.errfile, f"Found multiple {conf_type} configs with name '{cfg}'",
+                color=output.YELLOW)
+
+            return 1
+
+        file = first(cfg_infos).path
 
         with file.open() as config_file:
             cfg = file_format.TestConfigLoader().load(config_file)
@@ -626,8 +639,8 @@ class ShowCommand(Command):
 
         return 0
 
-    def show_configs_table(self, pav_cfg, args, conf_type, errors=False,
-                           verbose=False):
+    def show_configs_table(self, pav_cfg: config.PavConfig, args: argparse.Namespace,
+                           conf_type: str, errors: bool = False, verbose: bool = False) -> int:
         """Default config table, shows the config name and if it can be
         loaded."""
 
@@ -661,17 +674,32 @@ class ShowCommand(Command):
 
         return 0
 
-    def show_full_config(self, pav_cfg, cfg_name, conf_type):
+    def show_full_config(self, config_dirs: Iterable[ConfigDirectory], cfg_name: str,
+                         cfg_type: str) -> int:
         """Show the full config of a given os/host/mode."""
 
-        cfg_info = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg_name)
-        file = cfg_info.path
+        cfg_infos = list(flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), config_dirs)))
+
+        if len(cfg_infos) == 0:
+            output.fprint(
+                self.errfile, f"Could not find a config for {cfg_type} '{cfg_name}'",
+                color=output.YELLOW)
+
+            return 1
+        elif len(cfg_infos) > 1:
+            output.fprint(
+                self.errfile, f"Found multiple {cfg_type} configs with name '{cfg_name}'",
+                color=output.YELLOW)
+
+            return 1
+
+        file = first(cfg_infos).path
 
         config_data = None
-        if file is not None:
-            with file.open() as config_file:
-                config_data = file_format.TestConfigLoader()\
-                              .load_raw(config_file)
+
+        with file.open() as config_file:
+            config_data = file_format.TestConfigLoader()\
+                            .load_raw(config_file)
 
         if config_data is not None:
             output.fprint(self.outfile, pprint.pformat(config_data, compact=False))
@@ -683,13 +711,15 @@ class ShowCommand(Command):
             return errno.EINVAL
 
     @sub_cmd('platform')
-    def _platforms_cmd(self, pav_cfg, args):
+    def _platforms_cmd(self, pav_cfg: config.PavConfig, args: argparse.Namespace) -> int:
         """List all known platform files."""
 
+        config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
+
         if args.vars:
-            ret = self.show_vars(pav_cfg, args, args.vars, 'platforms')
+            ret = self.show_vars(args, config_dirs, args.vars, 'platforms')
         elif args.config:
-            ret = self.show_full_config(pav_cfg, args.config, 'platforms')
+            ret = self.show_full_config(config_dirs, args.config, 'platforms')
         else:
             ret = self.show_configs_table(pav_cfg, args, 'platforms',
                                     verbose=args.verbose,
@@ -698,13 +728,15 @@ class ShowCommand(Command):
         return ret
 
     @sub_cmd('host')
-    def _hosts_cmd(self, pav_cfg, args):
+    def _hosts_cmd(self, pav_cfg: config.PavConfig, args: argparse.Namespace) -> int:
         """List all known host files."""
 
+        config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
+
         if args.vars:
-            ret = self.show_vars(pav_cfg, args, args.vars, 'hosts')
+            ret = self.show_vars(args, config_dirs, args.vars, 'hosts')
         elif args.config:
-            ret = self.show_full_config(pav_cfg, args.config, 'hosts')
+            ret = self.show_full_config(config_dirs, args.config, 'hosts')
         else:
             ret = self.show_configs_table(pav_cfg, args, 'hosts',
                                     verbose=args.verbose,
@@ -712,13 +744,15 @@ class ShowCommand(Command):
         return ret
 
     @sub_cmd('mode')
-    def _modes_cmd(self, pav_cfg, args):
+    def _modes_cmd(self, pav_cfg: config.PavConfig, args: argparse.Namespace) -> int:
         """List all known mode files."""
 
+        config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
+
         if args.vars:
-            ret = self.show_vars(pav_cfg, args, args.vars, 'modes')
+            ret = self.show_vars(args, config_dirs, args.vars, 'modes')
         elif args.config:
-            ret = self.show_full_config(pav_cfg, args.config, 'modes')
+            ret = self.show_full_config(config_dirs, args.config, 'modes')
         else:
             ret = self.show_configs_table(pav_cfg, args, 'modes',
                                     verbose=args.verbose,

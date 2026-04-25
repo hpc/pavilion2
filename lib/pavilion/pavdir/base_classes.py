@@ -1,8 +1,10 @@
 from abc import ABC
+from os import PathLike
 from pathlib import Path, PosixPath
-from typing import Union, Any
+from typing import Any
 
-
+# TODO: Leave comments about why we're using PosixPath rather than Path and why we're using
+# __new__ instead of __init__
 class PavDirectory(PosixPath, ABC):
     def _canonical_path(self) -> str:
         return self.resolve().as_posix()
@@ -16,6 +18,6 @@ class PavDirectory(PosixPath, ABC):
     def __hash__(self) -> int:
         return hash(self._canonical_path())
 
-    def __truediv__(self, other: Union[str, Path]) -> Path:
+    def __truediv__(self, other: PathLike) -> Path:
         # Return a PosixPath object rather than a PavDirectory
         return Path(super().__truediv__(other))
