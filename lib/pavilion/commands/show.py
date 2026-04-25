@@ -542,12 +542,12 @@ class ShowCommand(Command):
                 title="Available Expression Functions"
             )
 
-    def show_vars(self, args: argparse.Namespace, cfg_dirs: Iterable[ConfigDirectory],
-                  cfg_name: str, cfg_type: str) -> int:
+    def show_vars(self, pav_cfg: config.PavConfig, args: argparse.Namespace, cfg_type: str,
+                  cfg_name: str) -> int:
         """Show the variables of a config, each variable is displayed as a
         table."""
 
-        cfg_infos = list(flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), cfg_dirs)))
+        cfg_infos = list(pav_cfg.find_configs(cfg_type, cfg_name))
 
         if len(cfg_infos) == 0:
             output.fprint(
@@ -669,11 +669,10 @@ class ShowCommand(Command):
 
         return 0
 
-    def show_full_config(self, cfg_dirs: Iterable[ConfigDirectory], cfg_name: str,
-                         cfg_type: str) -> int:
+    def show_full_config(self, pav_cfg: config.PavConfig, cfg_type: str, cfg_name: str) -> int:
         """Show the full config of a given os/host/mode."""
 
-        cfg_infos = list(flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), cfg_dirs)))
+        cfg_infos = list(pav_cfg.find_configs(cfg_type, cfg_name))
 
         if len(cfg_infos) == 0:
             output.fprint(
@@ -709,12 +708,12 @@ class ShowCommand(Command):
     def _platforms_cmd(self, pav_cfg: config.PavConfig, args: argparse.Namespace) -> int:
         """List all known platform files."""
 
-        config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
+        config_dirs = pav_cfg.get_config_dirs()
 
         if args.vars:
-            ret = self.show_vars(args, config_dirs, args.vars, 'platform')
+            ret = self.show_vars(pav_cfg, args, "platform", args.vars)
         elif args.config:
-            ret = self.show_full_config(config_dirs, args.config, 'platform')
+            ret = self.show_full_config(pav_cfg, "platform", args.config)
         else:
             ret = self.show_configs_table(pav_cfg, args, 'platform',
                                     verbose=args.verbose,
@@ -726,12 +725,12 @@ class ShowCommand(Command):
     def _hosts_cmd(self, pav_cfg: config.PavConfig, args: argparse.Namespace) -> int:
         """List all known host files."""
 
-        config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
+        config_dirs = pav_cfg.get_config_dirs()
 
         if args.vars:
-            ret = self.show_vars(args, config_dirs, args.vars, 'host')
+            ret = self.show_vars(pav_cfg, args, "host", args.vars)
         elif args.config:
-            ret = self.show_full_config(config_dirs, args.config, 'host')
+            ret = self.show_full_config(pav_cfg, "host", args.config)
         else:
             ret = self.show_configs_table(pav_cfg, args, 'host',
                                     verbose=args.verbose,
@@ -742,12 +741,12 @@ class ShowCommand(Command):
     def _modes_cmd(self, pav_cfg: config.PavConfig, args: argparse.Namespace) -> int:
         """List all known mode files."""
 
-        config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
+        config_dirs = pav_cfg.get_config_paths()
 
         if args.vars:
-            ret = self.show_vars(args, config_dirs, args.vars, 'mode')
+            ret = self.show_vars(pav_cfg, args, "mode", args.vars)
         elif args.config:
-            ret = self.show_full_config(config_dirs, args.config, 'mode')
+            ret = self.show_full_config(pav_cfg, "mode", args.config)
         else:
             ret = self.show_configs_table(pav_cfg, args, 'mode',
                                     verbose=args.verbose,

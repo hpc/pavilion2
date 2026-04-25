@@ -12,7 +12,7 @@ from pavilion import dir_db
 from pavilion.micro import set_default
 from pavilion.errors import PavConfigError
 from pavilion.counter import TestIDCounter, SeriesIDCounter
-from pavilion.test_ids import SeriesID, TestID
+from pavilion.test_ids import SeriesID, TestID, GroupID
 from pavilion.errors import TestSeriesError
 from pavilion.path_utils import Pathlike
 
@@ -120,7 +120,7 @@ class WorkingDirectory(PavDirectory):
         except OSError as err:
             raise PavConfigError(f"Could not set permissions on working dir '{self}'", err)
 
-    def new_build(self, name: str):
+    def get_build_path(self, name: str, mkdir: bool = False) -> Path:
         ...
 
     def new_series(self, mkdir: bool = False) -> Tuple[SeriesID, Path]:
@@ -228,8 +228,8 @@ class WorkingDirectory(PavDirectory):
 
         return path
 
-    def new_group(self, name: str, mkdir: bool = False) -> Path:
-        path = self.groups_dir / name
+    def get_group_path(self, gid: GroupID, mkdir: bool = False) -> Path:
+        path = self.groups_dir / str(gid)
 
         if mkdir:
             self.path.mkdir(exist_ok=True)

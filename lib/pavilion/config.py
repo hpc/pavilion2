@@ -16,8 +16,8 @@ from typing import List, Union, Dict, NewType, Iterator, Tuple, Optional
 import yaml_config as yc
 from pavilion.errors import PavConfigError
 from pavilion.micro import first, flatten, remove_none, set_default
-from pavilion.path_utils import exists, path_product
-from pavilion.pavdir import WorkingDirectory
+from pavilion.path_utils import exists
+from pavilion.pavdir import WorkingDirectory, ConfigDirectory, ConfigInfo
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -216,36 +216,15 @@ class PavConfig(PavConfigDict):
 
         super().__init__(set_attrs)
 
-    @property
-    def config_paths(self) -> Iterator[Path]:
+    def get_config_dirs(self) -> Iterator[Path]:
         """Return an iterator of paths to all config directories"""
-        return (Path(cfg['path']) for cfg in self.configs.values())
 
-    @property
-    def tests_dirs(self) -> Iterator[Path]:
-        """Return an iterator of paths to all test directories."""
-        return (path / 'tests' for path in self.config_paths)
+        return map(lambda x: ConfigDirectory(x["path"]), self.configs.values())
 
-    @property
-    def suites_dirs(self) -> Iterator[Path]:
-        """Return an iterator of paths to all suites directories"""
-        return (path / 'suites' for path in self.config_paths)
+    def find_configs(self, cfg_type: str, cfg_name: str) -> Iterator[ConfigInfo]:
+        """Find all configs of the specified name and type across all config directories."""
 
-    @property
-    def suite_paths(self) -> Iterator[Path]:
-        """Return an iterator of paths to all test suites"""
-        return flatten(path.iterdir() for path in self.suites_dirs)
-
-    @property
-    def suite_names(self) -> Iterator[str]:
-        """Return an iterator of suite names"""
-
-        def is_suite(file: Path) -> bool:
-            return file.exists() and file.is_file() and file.suffix == '.yaml'
-
-        test_files = map(is_suite, self.suite_paths)
-
-        return map(lambda x: x.stem, self.suite_paths)
+        return flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), self.get_config_dirs()))
 
     @property
     def suite_info(self) -> List[Tuple[str, str, Path]]:
@@ -288,14 +267,6 @@ class PavConfig(PavConfigDict):
         self._suite_info = suite_infos
 
         return suite_infos
-
-    @property
-    def result_logs(self) -> List[Path]:
-        """Return a list of all result log paths, which may be paths
-        to either files (in the case of common file loggers) or directories
-        (in the case of series file loggers)."""
-
-        return list(remove_none(map(itemgetter("dest"), self.result_loggers)))
 
 
 class ExPathElem(yc.PathElem):

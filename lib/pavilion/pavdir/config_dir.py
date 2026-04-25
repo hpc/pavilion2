@@ -28,6 +28,7 @@ class ConfigDirectory(PavDirectory):
         "mode": "modes",
         "platform": "platforms",
         "suite": "suites",
+        "series": "series",
         "test": "tests", # This directory is deprecated, but we'll keep it around for now
         "test_src": "test_src"
     }

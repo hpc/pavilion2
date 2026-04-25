@@ -16,6 +16,7 @@ from pavilion.series.series import TestSeries
 from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
 from pavilion.test_ids import GroupID
+from pavilion.pavdir import WorkingDirectory
 from .base_classes import Command
 
 
@@ -230,11 +231,13 @@ class RunCommand(Command):
 
         return 0
 
-    def _add_to_group(self, pav_cfg: "PavConfig", series: "TestSeries", group: str) -> int:
+    def _add_to_group(self, pav_cfg: "PavConfig", series: "TestSeries", group: GroupID) -> int:
         """Add the given series to the given group."""
 
+        working_dir = WorkingDirectory(pav_cfg["working_dir"])
+
         try:
-            group = groups.TestGroup(pav_cfg, group)
+            group = groups.TestGroup(working_dir, group)
             group.add([series])
 
             return 0

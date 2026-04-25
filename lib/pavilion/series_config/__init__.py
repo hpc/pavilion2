@@ -1,9 +1,12 @@
 import os
-from typing import List
+from typing import List, Dict, Any
 
 import yc_yaml
 import yaml_config
+
+from pavilion.config import PavConfig
 from pavilion.resolver import TestConfigResolver
+from pavilion.micro import first
 from ..errors import TestConfigError, SeriesConfigError
 from .file_format import SeriesConfigLoader
 
@@ -77,12 +80,18 @@ def make_config(raw_config: dict):
     return loader.validate(config)
 
 
-def load_series_config(pav_cfg, series_name: str) -> dict:
+def load_series_config(pav_cfg: PavConfig, series_name: str) -> Dict[str, Any]:
     """Load the series configuration of the given name."""
 
     series_config_loader = SeriesConfigLoader()
     resolver = TestConfigResolver(pav_cfg)
-    cfg_info = resolver.find_config('series', series_name)
+    cfg_infos = list(pav_cfg.find_configs('series', series_name))
+
+    if len(cfg_infos) > 1:
+        raise SeriesConfigError(f"Found multiple series configs with name {series_name}: "
+                                f"{cfg_infos}")
+    else:
+        cfg_info = first(cfg_infos)
 
     series_file_path = cfg_info.path
 

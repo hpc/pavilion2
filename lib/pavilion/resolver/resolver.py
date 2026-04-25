@@ -236,33 +236,32 @@ class TestConfigResolver:
 
         configs = {}
 
-        for config in self.pav_cfg.configs.values():
-            cfg_files = ConfigDirectory(config["path"]).get_all_configs(conf_type)
+        cfg_files = self.pav_cfg.get_config_dirs()
 
-            for file in cfg_files:
-                name = file.stem
+        for file in cfg_files:
+            name = file.stem
 
-                if name == "suite":
-                    name = file.parent.name
+            if name == "suite":
+                name = file.parent.name
 
-                configs[name] = {}
+            configs[name] = {}
 
-                try:
-                    with file.open() as config_file:
-                        config = self._loader.load(config_file)
+            try:
+                with file.open() as config_file:
+                    config = self._loader.load(config_file)
 
-                    configs[name]['path'] = file
-                    configs[name]['config'] = config
-                    configs[name]['status'] = ''
-                    configs[name]['error'] = ''
-                except (TestConfigError, TypeError) as err:
-                    configs[name]['path'] = file
-                    configs[name]['config'] = ''
-                    configs[name]['status'] = ('Loading the config failed.'
-                                                ' For more info run \'pav '
-                                                'show {} --err\'.'
-                                                .format(conf_type))
-                    configs[name]['error'] = err
+                configs[name]['path'] = file
+                configs[name]['config'] = config
+                configs[name]['status'] = ''
+                configs[name]['error'] = ''
+            except (TestConfigError, TypeError) as err:
+                configs[name]['path'] = file
+                configs[name]['config'] = ''
+                configs[name]['status'] = ('Loading the config failed.'
+                                            ' For more info run \'pav '
+                                            'show {} --err\'.'
+                                            .format(conf_type))
+                configs[name]['error'] = err
 
         return configs
 

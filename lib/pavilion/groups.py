@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import shutil
 import uuid
-from typing import NewType, List, Tuple, Union, Dict, Any, Optional
+from typing import NewType, List, Tuple, Union, Dict, Any, Optional, Iterable
 
 from pavilion.errors import TestGroupError
 from pavilion.series import TestSeries, SeriesInfo
@@ -35,7 +35,7 @@ class TestGroup:
 
         self.name = name
 
-        self.path = self.working_dir.new_group(self.name)
+        self.path = self.working_dir.get_group_path(self.name)
 
         if self.path.exists():
             self.created = True
@@ -312,7 +312,8 @@ class TestGroup:
 
         return removed, warnings
 
-    def members(self, recursive: bool = False, seen_groups: List[GroupID] = None) -> List[Dict]:
+    def members(self, max_threads: int, recursive: bool = False,
+                seen_groups: Optional[Iterable[GroupID]] = None) -> List[Dict]:
         """Return a list of dicts of member info, keys 'itype', 'name'."""
 
         seen_groups = seen_groups if seen_groups is not None else []
@@ -349,7 +350,8 @@ class TestGroup:
                         except TestGroupError:
                             continue
 
-                        members.extend(subgroup.members(recursive=True, seen_groups=seen_groups))
+                        members.extend(subgroup.members(max_threads, recursive=True,
+                                                        seen_groups=seen_groups))
 
             except OSError as err:
                 raise TestGroupError(
@@ -366,7 +368,7 @@ class TestGroup:
                 mem_info['name'] = test_attrs.name
                 mem_info['created'] = test_attrs.created
             elif mem_info['itype'] == TestSeries:
-                series_info = SeriesInfo(self.pav_cfg, path)
+                series_info = SeriesInfo(path, max_threads)
                 mem_info['name'] = series_info.name
                 mem_info['created'] = series_info.created
             else:  # Groups

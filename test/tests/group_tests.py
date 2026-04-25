@@ -22,6 +22,7 @@ class TestGroupTests(unittest.PavTestCase):
                     "suites/hello_world.yaml",
                     "series/basic.yaml",
                     "plugins/schedulers/dummy.*")
+        self.max_threads = int(self.pav_cfg["max_threads"])
 
     def _make_group_name(self):
         """Make a random group name."""
@@ -39,17 +40,17 @@ class TestGroupTests(unittest.PavTestCase):
         series_cfg = generate_series_config('group_add1')
         series1 = series.TestSeries(self.pav_cfg, series_cfg)
         series1._add_tests([tr2], 'bob')
-        sub_group = groups.TestGroup(self.pav_cfg, self._make_group_name())
+        sub_group = groups.TestGroup(self.working_dir, self._make_group_name())
         self.assertEqual(sub_group.add([tr3]), ([tr3.id], []))
 
-        group = groups.TestGroup(self.pav_cfg, self._make_group_name())
+        group = groups.TestGroup(self.working_dir, self._make_group_name())
 
         return group, (tr1, series1, sub_group)
 
     def assertGroupContentsEqual(self, test_group, items):
         """Verify that the group's contents match the given items ((itype, name) tuples)."""
         members = []
-        for mem in test_group.members():
+        for mem in test_group.members(self.max_threads):
             members.append(mem['id'])
 
         item_tuples = []
@@ -222,9 +223,9 @@ class TestGroupTests(unittest.PavTestCase):
             self.fail(f"Timed out waiting for series to complete after {self.series_wait_timeout} "
                 "seconds.")
 
-        group = groups.TestGroup(self.pav_cfg, group_name)
+        group = groups.TestGroup(self.working_dir, group_name)
         self.assertTrue(group.exists())
-        self.assertEqual(len(group.members()), 2)
+        self.assertEqual(len(group.members(self.max_threads)), 2)
 
         # Prep some separate tests to add
         run_args2 = parser.parse_args(['run', 'hello_world'])
@@ -256,7 +257,7 @@ class TestGroupTests(unittest.PavTestCase):
             ret = group_cmd.run(self.pav_cfg, args)
             self.assertEqual(ret, 0)
 
-        members = group.members()
+        members = group.members(self.max_threads)
         # Add tests and a group via commands
 
         run_grp_cmd(['group', 'add', str(group_name)] + add_items)
