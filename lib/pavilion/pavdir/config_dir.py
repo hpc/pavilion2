@@ -5,7 +5,7 @@ from typing import List, Union, Optional, Iterator, Any, Dict
 
 from .base_classes import PavDirectory
 from pavilion.path_utils import path_product, exists, is_dir
-from pavilion.micro import set_default
+from pavilion.micro import set_default, empty
 from pavilion.utils import get_yaml_fnames, is_yaml_file
 
 
@@ -49,11 +49,9 @@ class ConfigDirectory(PavDirectory):
         self.pav_root = set_default(pav_root, self.DEFAULT_PAV_ROOT)
         self.pav_lib_bash = self.pav_root / "bin" / self.PAV_LIB_FN
 
-        self.suites_dir = self / self.CONFIG_DIRNAMES.get("suite")
-        self.test_src_dir = self / self.CONFIG_DIRNAMES.get("test_src")
-        self.tests_dir = self / self.CONFIG_DIRNAMES.get("test")
-
-        self._test_counters = {}
+        self.suites_dir = self / self.CONFIG_DIRNAMES["suite"]
+        self.test_src_dir = self / self.CONFIG_DIRNAMES["test_src"]
+        self.tests_dir = self / self.CONFIG_DIRNAMES["test"]
 
         return self
 
@@ -64,23 +62,24 @@ class ConfigDirectory(PavDirectory):
         applied."""
 
         # TODO: Rewrite to support all variants of .yaml suffix
-        candidates = [self / self.CONFIG_DIRNAMES.get(cfg_type) / f"{cfg_name}.yaml"]
+        # TODO: Catch KeyError here and elsewhere in this class
+        candidates = [self / self.CONFIG_DIRNAMES[cfg_type] / f"{cfg_name}.yaml"]
 
         # TODO: Needs a way to search within suites even if suite name is not specified
 
         if cfg_type == "suite":
             if suite_name is not None:
                 # Add the suite.yaml file
-                candidates.append(self / self.CONFIG_DIRNAMES.get(cfg_type) / cfg_name /
-                                self.SUITE_CONFIG_FNAMES.get(cfg_type))
+                candidates.append(self / self.CONFIG_DIRNAMES[cfg_type] / cfg_name /
+                                self.SUITE_CONFIG_FNAMES[cfg_type])
             else:
                 # Look in the deprecated tests directory
-                candidates.append(self / self.CONFIG_DIRNAMES.get("test")/ f"{cfg_name}.yaml")
+                candidates.append(self / self.CONFIG_DIRNAMES["test"] / f"{cfg_name}.yaml")
         elif suite_name is not None:
             # Add the config file within the suite directory, which may or may not actually
             # contain the specified config.
-            candidates.append(self / self.CONFIG_DIRNAMES.get("suite") / suite_name /
-                              self.SUITE_CONFIG_FNAMES.get(cfg_type))
+            candidates.append(self / self.CONFIG_DIRNAMES["suite"] / suite_name /
+                              self.SUITE_CONFIG_FNAMES[cfg_type])
 
         configs = []
 
@@ -97,17 +96,19 @@ class ConfigDirectory(PavDirectory):
     def get_all_configs(self, cfg_type: str) -> Iterator[Path]:
         """Get all config files within this config directory of the specified type."""
 
-        if cfg_type == "suite":
+        if cfg_type == "suite" and self.suites_dir.exists():
             bare_yaml_suites = filter(is_yaml_file, self.suites_dir.iterdir())
             suite_dirs = filter(is_dir, self.suites_dir.iterdir())
             suite_dir_suites = map(
-                                append_const_file(self.SUITE_CONFIG_FNAMES.get(cfg_type)),
+                                append_const_file(self.SUITE_CONFIG_FNAMES[cfg_type]),
                                 suite_dirs)
             suite_dir_suites = filter(exists, suite_dir_suites)
 
             return chain(self.get_all_configs("test"), bare_yaml_suites, suite_dir_suites)
-        else:
-            return filter(is_yaml_file, (self / self.CONFIG_DIRNAMES.get(cfg_type)).iterdir())
+        elif (self / self.CONFIG_DIRNAMES[cfg_type]).exists():
+            return filter(is_yaml_file, (self / self.CONFIG_DIRNAMES[cfg_type]).iterdir())
+
+        return empty()
 
     def get_suite_path(self, suite_name: str) -> Iterator[Path]:
         """Given a suite name, return an iterator over all paths in this config directory to suites

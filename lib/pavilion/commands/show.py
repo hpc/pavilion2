@@ -29,7 +29,7 @@ from pavilion import resolver
 from pavilion import test_run
 from pavilion.types import Nodes
 from pavilion.pavdir import ConfigDirectory
-from pavilion.micro import flatten
+from pavilion.micro import flatten, first
 from .base_classes import Command, sub_cmd
 
 
@@ -542,34 +542,30 @@ class ShowCommand(Command):
                 title="Available Expression Functions"
             )
 
-    def show_vars(self, args: argparse.Namespace, config_dirs: Iterable[ConfigDirectory], cfg: str,
-                  conf_type: str) -> int:
+    def show_vars(self, args: argparse.Namespace, cfg_dirs: Iterable[ConfigDirectory],
+                  cfg_name: str, cfg_type: str) -> int:
         """Show the variables of a config, each variable is displayed as a
         table."""
 
-        print("In show_vars...")
-
-        cfg_infos = list(flatten(map(lambda x: x.find_configs(conf_type, cfg), config_dirs)))
-
-        print(f"Config infos: {cfg_infos}")
+        cfg_infos = list(flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), cfg_dirs)))
 
         if len(cfg_infos) == 0:
             output.fprint(
-                self.errfile, f"Could not find a config for {conf_type} '{cfg}'",
+                self.errfile, f"Could not find a config for {cfg_type} '{cfg_name}'",
                 color=output.YELLOW)
 
             return 1
         elif len(cfg_infos) > 1:
             output.fprint(
-                self.errfile, f"Found multiple {conf_type} configs with name '{cfg}'",
+                self.errfile, f"Found multiple {cfg_type} configs with name '{cfg_name}'",
                 color=output.YELLOW)
 
             return 1
 
         file = first(cfg_infos).path
 
-        with file.open() as config_file:
-            cfg = file_format.TestConfigLoader().load(config_file)
+        with file.open() as cfg_file:
+            cfg = file_format.TestConfigLoader().load(cfg_file)
 
         simple_vars = []
         complex_vars = []
@@ -639,13 +635,12 @@ class ShowCommand(Command):
 
         return 0
 
-    def show_configs_table(self, pav_cfg: config.PavConfig, args: argparse.Namespace,
-                           conf_type: str, errors: bool = False, verbose: bool = False) -> int:
+    def show_configs_table(self, pav_cfg: config.PavConfig, args: argparse.Namespace, cfg_type: str,
+                           errors: bool = False, verbose: bool = False) -> int:
         """Default config table, shows the config name and if it can be
         loaded."""
 
-        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(
-            conf_type)
+        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(cfg_type)
 
         data = []
         col_names = ['name', 'summary']
@@ -674,11 +669,11 @@ class ShowCommand(Command):
 
         return 0
 
-    def show_full_config(self, config_dirs: Iterable[ConfigDirectory], cfg_name: str,
+    def show_full_config(self, cfg_dirs: Iterable[ConfigDirectory], cfg_name: str,
                          cfg_type: str) -> int:
         """Show the full config of a given os/host/mode."""
 
-        cfg_infos = list(flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), config_dirs)))
+        cfg_infos = list(flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), cfg_dirs)))
 
         if len(cfg_infos) == 0:
             output.fprint(
@@ -717,11 +712,11 @@ class ShowCommand(Command):
         config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
 
         if args.vars:
-            ret = self.show_vars(args, config_dirs, args.vars, 'platforms')
+            ret = self.show_vars(args, config_dirs, args.vars, 'platform')
         elif args.config:
-            ret = self.show_full_config(config_dirs, args.config, 'platforms')
+            ret = self.show_full_config(config_dirs, args.config, 'platform')
         else:
-            ret = self.show_configs_table(pav_cfg, args, 'platforms',
+            ret = self.show_configs_table(pav_cfg, args, 'platform',
                                     verbose=args.verbose,
                                     errors=args.err)
 
@@ -734,11 +729,11 @@ class ShowCommand(Command):
         config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
 
         if args.vars:
-            ret = self.show_vars(args, config_dirs, args.vars, 'hosts')
+            ret = self.show_vars(args, config_dirs, args.vars, 'host')
         elif args.config:
-            ret = self.show_full_config(config_dirs, args.config, 'hosts')
+            ret = self.show_full_config(config_dirs, args.config, 'host')
         else:
-            ret = self.show_configs_table(pav_cfg, args, 'hosts',
+            ret = self.show_configs_table(pav_cfg, args, 'host',
                                     verbose=args.verbose,
                                     errors=args.err)
         return ret
@@ -750,11 +745,11 @@ class ShowCommand(Command):
         config_dirs = map(ConfigDirectory, pav_cfg.config_paths)
 
         if args.vars:
-            ret = self.show_vars(args, config_dirs, args.vars, 'modes')
+            ret = self.show_vars(args, config_dirs, args.vars, 'mode')
         elif args.config:
-            ret = self.show_full_config(config_dirs, args.config, 'modes')
+            ret = self.show_full_config(config_dirs, args.config, 'mode')
         else:
-            ret = self.show_configs_table(pav_cfg, args, 'modes',
+            ret = self.show_configs_table(pav_cfg, args, 'mode',
                                     verbose=args.verbose,
                                     errors=args.err)
         return ret

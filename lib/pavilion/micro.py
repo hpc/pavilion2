@@ -129,3 +129,9 @@ def promote(item: Union[T, Type[T]], ptype: Type) -> Type[T]:
         return item
 
     return ptype(item)
+
+def empty() -> Iterator:
+    """Return an empty iterator. Intended for functions that return an iterator, but for which
+    no values exist."""
+
+    return iter(())
