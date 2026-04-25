@@ -67,7 +67,7 @@ def resolve_template(cfg_dir: ConfigDirectory, template_fname: str,
     """Resolve a single template file specified in the test config. Return a resolved
     component."""
 
-    tmpl_paths = list(cfg_dir.find_file(template_fname, ['suites', 'test_src']))
+    tmpl_paths = list(cfg_dir.find_template_file(template_fname))
 
     if len(tmpl_paths) == 0:
         raise TestConfigError(f"Template file '{template_fname}' from 'templates' does not exist "

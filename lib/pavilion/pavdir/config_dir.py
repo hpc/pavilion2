@@ -1,10 +1,9 @@
 from itertools import chain
 from pathlib import Path
-from os import PathLike
 from typing import List, Union, Optional, Iterator, Any, Dict
 
 from .base_classes import PavDirectory
-from pavilion.path_utils import path_product, exists, is_dir
+from pavilion.path_utils import path_product, exists, is_dir, Pathlike
 from pavilion.micro import set_default, empty
 from pavilion.utils import get_yaml_fnames, is_yaml_file
 
@@ -40,7 +39,7 @@ class ConfigDirectory(PavDirectory):
         "suite": "suite.yaml"
     }
 
-    def __new__(cls, path: PathLike, label: Optional[str] = None, pav_config_file: Optional[Path] = None,
+    def __new__(cls, path: Pathlike, label: Optional[str] = None, pav_config_file: Optional[Path] = None,
                 pav_root: Optional[Path] = None):
         self = super().__new__(cls, path)
 
@@ -136,7 +135,7 @@ class ConfigDirectory(PavDirectory):
 
         return None
 
-    def find_test_src(self, fname: PathLike, suite_name: Optional[str] = None) -> Iterator[Path]:
+    def find_test_src(self, fname: Pathlike, suite_name: Optional[str] = None) -> Iterator[Path]:
         """Given the name of a test source file, return the path to the file, if it exists."""
 
         paths = [self.test_src_dir / fname]
@@ -149,5 +148,7 @@ class ConfigDirectory(PavDirectory):
 
         return filter(exists, paths)
 
-    # Create an alias just to prevent confusion due to the name
+    # Create an aliases just to prevent confusion due to the name
+    # TODO: Maybe just come up with a better name
     find_extra_file = find_test_src
+    find_template_file = find_test_src

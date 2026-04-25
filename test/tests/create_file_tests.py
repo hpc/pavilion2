@@ -48,10 +48,10 @@ class CreateFileTests(PavTestCase):
             'No trailing newline..',
         ]
 
-        lines = create_files.resolve_template(self.pav_cfg, 'tmpl_test.pav', var_man)
+        lines = create_files.resolve_template(self.pav_config_dir, 'tmpl_test.pav', var_man)
         self.assertEqual(lines, expected_lines)
 
         for i in 1, 2, 3, 4, 5:
             bad_tmpl = 'tmpl_bad{}.pav'.format(i)
             with self.assertRaises(TestConfigError):
-                create_files.resolve_template(self.pav_cfg, bad_tmpl, var_man)
+                create_files.resolve_template(self.pav_config_dir, bad_tmpl, var_man)

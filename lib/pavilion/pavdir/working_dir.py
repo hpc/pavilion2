@@ -4,7 +4,6 @@ import os
 import shutil
 import json
 
-from os import PathLike
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any, Union
 
@@ -15,6 +14,7 @@ from pavilion.errors import PavConfigError
 from pavilion.counter import TestIDCounter, SeriesIDCounter
 from pavilion.test_ids import SeriesID, TestID
 from pavilion.errors import TestSeriesError
+from pavilion.path_utils import Pathlike
 
 
 class TestPathCreator:
@@ -55,11 +55,12 @@ class WorkingDirectory(PavDirectory):
 
     DEFAULT_PERMISSIONS = 0o770
 
-    def __new__(cls, path: PathLike, group: Optional[str] = None):
+    def __new__(cls, path: Pathlike, group: Optional[str] = None):
         self = super().__new__(cls, path)
 
         self._group = group
 
+        # TODO: Make this a dict instead
         self.builds_dir = self / self.BUILDS_DIR_NAME
         self.groups_dir = self/ self.GROUPS_DIR_NAME
         self.jobs_dir = self / self.JOBS_DIR_NAME
