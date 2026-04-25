@@ -16,7 +16,7 @@ from typing import List, Union, Dict, NewType, Iterator, Tuple, Optional
 import yaml_config as yc
 from pavilion.errors import PavConfigError
 from pavilion.micro import first, flatten, remove_none, set_default
-from pavilion.path_utils import Pathlike, exists, path_product
+from pavilion.path_utils import exists, path_product
 from pavilion.pavdir import WorkingDirectory
 
 # Figure out what directories we'll search for the base configuration.
