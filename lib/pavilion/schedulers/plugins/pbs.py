@@ -40,8 +40,6 @@ class QsubHeader(KickoffScriptHeader):
         queue = self._config['pbs']['queue']
         if queue is not None:
             lines.append('#PBS -q {}'.format(queue))
-        else:
-            lines.append('#PBS -q normal'.format(queue))
 
         # Mandatory account name
         if self._sched_vars.account():
@@ -49,7 +47,7 @@ class QsubHeader(KickoffScriptHeader):
 
         # Exclusive node allocation
         if self._config['pbs'].get('exclusive'):
-            lines.append('#PBS -l place=excl')
+            lines.append('#PBS -l place=exclhost:scatter')
 
         # Extra qsub arguments
         for line in self._config['pbs']['qsub_extra']:
@@ -198,7 +196,7 @@ class PBS(SchedulerPluginAdvanced):
             yc.StrElem(name='model',
                        help_text="Node model to target. Example: broadwell"),
             yc.StrElem(name='exclusive',
-                       help_text="Request exclusive node allocation (-l place=excl). "
+                       help_text="Request exclusive node allocation (-l place=exclhost:scatter). "
                                  "Set to 'true' to enable."),
         ]
 
@@ -302,6 +300,7 @@ class PBS(SchedulerPluginAdvanced):
             ('mem', 'mem'),
             ('state', 'states'),
             ('queue', 'partitions'),
+            ('model', 'model'),
         )
 
         for node in parsed_data:
@@ -344,13 +343,14 @@ class PBS(SchedulerPluginAdvanced):
     def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
             -> Union[str, None]:
         """Filter nodes by features. Returns reason to filter, or None to keep."""
-        if ('down' in (node.get('states') or [])) or ('offline' in (node.get('states') or [])):
-            print(node)
-            return "node unavailable"
         queue = sched_config['pbs'].get('queue')
         if queue:
-            if queue not in (node.get('partitions')): # or []):
+            if queue not in (node.get('partitions') or []):
                 return "node not in queue"
+            elif 'job-exclusive' in (node.get('states') or []):
+                return None
+        if 'free' not in (node.get('states') or []):
+            return "node unavailable"
         return None
 
     def _available(self) -> bool:
@@ -366,13 +366,17 @@ class PBS(SchedulerPluginAdvanced):
         )
         return ret == 0
 
-    def _get_queue_nodect(self, queue):
+    def _get_queue_nodect(self, queue, model=None):
         nodes = self._nodes
         nodect = 0
         for node in nodes:
+            if 'offline' in (nodes[node].get('states') or []):
+                continue
+            if 'down' in (nodes[node].get('states') or []):
+                continue
             if nodes[node]['partitions']:
                 if queue in nodes[node]['partitions']:
-                    if ('down' not in nodes[node]['states']) and ('offline' not in nodes[node]['states']):
+                    if model is None or nodes[node].get('model') == model:
                         nodect += 1
         return nodect
 
@@ -395,7 +399,7 @@ class PBS(SchedulerPluginAdvanced):
         if pbs_cfg.get('nodes') or pbs_cfg.get('tasks'):
             n = pbs_cfg.get('nodes', 1)
             if pbs_cfg.get('all_queue_nodes'):
-               n = self._get_queue_nodect(pbs_cfg.get('queue'))
+               n = self._get_queue_nodect(pbs_cfg.get('queue'), model=pbs_cfg.get('model'))
             t = pbs_cfg.get('tasks', 1)
             if pbs_cfg.get('target') and not pbs_cfg.get('all_queue_nodes'):
                 select = '-l select={}:ncpus={}:host={}'.format(n, t, pbs_cfg['target'])
@@ -407,6 +411,10 @@ class PBS(SchedulerPluginAdvanced):
 
         cmd += ['-o={}'.format(job.sched_log.as_posix()), job.kickoff_path.as_posix()]
 
+        with job.kickoff_log.open('a') as log:
+            log.write(' '.join(cmd) + '\n')
+
+        #print(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
 
