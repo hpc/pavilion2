@@ -401,7 +401,7 @@ class BuilderTests(PavTestCase):
                          "Build succeeded when it should have failed.")
         current_note = test3.status.current().note
         self.assertTrue(current_note.startswith(
-            "Build returned a non-zero result."))
+            "Build script exited with return code"))
 
     def test_builder_cancel(self):
         """Check build canceling through their threading event."""
