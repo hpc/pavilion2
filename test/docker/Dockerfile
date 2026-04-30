@@ -12,12 +12,16 @@ WORKDIR /pavilion
 COPY . .
 
 # Install Python dependencies
-RUN pwd && ls && pip install --no-cache-dir --upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r test/requirements.txt && \
     pip install --no-cache-dir -r docs/requirements.txt
 
 # Setup Spack
 RUN ./test/utils/spack_setup test
 
-# Run tests by default
-CMD ["./test/run_tests"]
+# Create user and groups for permission tests
+RUN groupadd -r testgroup && useradd -m -g testgroup pavtest
+
+USER pavtest
+
+ENTRYPOINT [ "/pavilion/test/run_tests" ]

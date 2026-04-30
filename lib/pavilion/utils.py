@@ -399,7 +399,7 @@ def get_login():
 
     try:
         return os.getlogin()
-    except OSError:
+    except (OSError, RuntimeError):
         pass
 
     try:

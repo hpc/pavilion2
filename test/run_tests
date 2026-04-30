@@ -134,7 +134,7 @@ def main():
     parser.add_argument('-q', '--quiet', action='store_true', default=False,
                         help="Silence.")
     parser.add_argument('-C', '--no-clear', action='store_true', default=False,
-                        help="Don't clear the working directory before "
+                        help="Don't clear the output directory before "
                              "running.")
     args = parser.parse_args(sys.argv[1:])
 
@@ -155,7 +155,11 @@ def main():
     if not args.list and not args.no_clear and output_dir.exists():
         msg("Clearing out the output directory from prior unit test runs.")
 
-        shutil.rmtree(output_dir.as_posix(), ignore_errors=False)
+        for path in output_dir.iterdir():
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                shutil.rmtree(path, ignore_errors=False)
 
     log_out = log_setup.setup_loggers(PavTestCase().pav_cfg)
 
