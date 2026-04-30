@@ -1,28 +1,27 @@
 # Pavilion Unit Tests
 
 ## Running Unit Tests
-Given a reasonable (python2.7) python, you should be able to run the tests via:
+Given a reasonable (python 3.6) python, you should be able to run the tests via:
 
 ```bash
 ./run_tests
 ```
 
-This sets up an environment to find pavilion and it's dependencies, discovers the tests, and runs 
+This sets up an environment to find pavilion and it's dependencies, discovers the tests, and runs
 them all.
 
 ### Configuration
-Some tests requires some knowledge about your environment. You'll want to create a 
-`data/pav_config_dir/pavilion.yaml` file to deal with that. This file is already git ignored. 
+Some tests require knowledge about your environment. You'll want to create a
+`data/pav_config_dir/pavilion.yaml` file to deal with that. This file is already git ignored.
 The following config fields should be filled:
-  
+
   - proxies - You should specify your web proxies, if any.
   - no\_proxy - You should give your internal dns roots (myorg.org) so that pavilion will know
                 when not to use the proxy.
 
 ### Python Environment
 It is recommended that you run your tests under a virtual env to keep up-to-date on the
-latest versions of sphinx and pylint. Travis CI tests will run against the latest version
-too, and this will make debugging a lot easier.
+latest versions of sphinx and pylint.
 
 ```bash
 # You should create the virtual env outside of the pavilion source.
@@ -40,54 +39,51 @@ Then just activate your virtual environment before running tests.
    - `pip install --upgrade pylint sphinx`
 
 ### Slurm Config
-If you need any special configuration for slurm, put it in a mode file in 
-`data/pav_config_dir/modes/local_slurm.yaml`. The `_quick_test_cfg()` method 
+If you need any special configuration for slurm, put it in a mode file in
+`data/pav_config_dir/modes/local_slurm.yaml`. The `_quick_test_cfg()` method
 (see below) will include that as the slurm defaults.
 
 ## Spack Setup
-There is a script `test/utils/spack_setup`, that installs and sets up a simple spack instance for 
-the spack tests running under Travis CI. Additionally, the install path for this instance is added 
-to the Travis `pavilion.yaml` found at `test/data/pav_cfg_dir/pavilion.yaml.travis-ci`, under the 
-config key `spack_path`.
+There is a script `test/utils/spack_setup`, that installs and sets up a simple spack instance for
+the spack tests running under CI.
 
 ## Adding Unit Tests
-To add a unit test, simply add a new module to the `tests/` directory and utilize the `unitest` 
-module. Here's an example:
+To add a unit test, simply add a new module to the `tests/` directory and import Pavilion's `unittest` module. Here's an example:
 
 ```python
-import unittest
+import from pavilion import unittest
 
-class ConfigTests(unittest.TestCase):
+class ConfigTests(unittest.PavTestCase):
 
     def test_base_config_loads(self):
         # This test will fail if the config module won't load
-    
+
         from pavilion import config
-        self.assertTrue(True) 
+        self.assertTrue(True)
 ```
 
 ### Pavilion Configs
-Each `unittest.TestCase` instance comes with a preloaded `pav_cfg` (from the 
+Each `unittest.PavTestCase` instance comes with a preloaded `pav_cfg` (from the
 `data/pav_config_dir/pavilion.yaml`file mentioned above) for you to
-use in your tests. It's specific to your whole test class, so if you need to 
-modify it you should either do so in `__init__` or use `copy.deepcopy()` to 
+use in your tests. It's specific to your whole test class, so if you need to
+modify it you should either do so in `__init__` or use `copy.deepcopy()` to
 duplicate it first.
- 
-Loading a pav_cfg in the unittest environment is a bit involved, as can be 
+
+Loading a pav_cfg in the unittest environment is a bit involved, as can be
 seen in the unittest module, so it's best to use the one provided.
- 
+
 ### Test data
-Any data relevant to the test should go in the `data/` directory, and 
-generally should be prefixed with the test module name. Test-only plugins 
+Any data relevant to the test should go in the `data/` directory, and
+generally should be prefixed with the test module name. Test-only plugins
 should go under `data/pav_config_dir/plugins/`.
 
-Use `self.TEST_DATA_ROOT`, a `pathlib.Path` object, to find your data files.
+Use `self.TEST_DATA_DIR`, a `pathlib.Path` object, to find your data files.
 
 ### Pav Tests
 Creating a TestRun instance has been simplified with the `_quick_test()` method
 . By default it returns an instance of a simple 'hello world' test. This test
-is created using a config generated from the config returned by the 
-`_quick_test_cfg()` method. You can use that config as a base, and pass it 
+is created using a config generated from the config returned by the
+`_quick_test_cfg()` method. You can use that config as a base, and pass it
 manually to `_quick_test` as needed.
 
 
@@ -102,19 +98,19 @@ class ExampleTest(unittest.PavTestCase):
   def test_something(self):
     test_cfg = self._quick_test_cfg()
     test_cfg['run']['cmds'] = ['echo "Goodbye World"']
-    
+
     test = self._quick_test(cfg=test_cfg)
-    
+
 
     # Make sure to build the test before you try to run it.
     test.build()
-    
+
     # Do stuff with the test object
 ```
 
 ### Plugins
 If you intend to use any plugins, you must initialize the plugin system, and
-reset it at the end of your test. You can do this using `setUp` and `tearDown`, 
+reset it at the end of your test. You can do this using `setUp` and `tearDown`,
 or manually if it needs to happen more than once per test.
 
 ```python
@@ -123,8 +119,8 @@ from pavilion import plugins
 
 class PluginTests(unittest.PavTestCase):
     def setUp(self):
-        plugins.initialize_plugins(self.pav_cfg) 
-       
+        plugins.initialize_plugins(self.pav_cfg)
+
     def tearDown(self):
         plugins._reset_plugins()
 ```
@@ -135,3 +131,7 @@ class PluginTests(unittest.PavTestCase):
  - `self.dbg_print()` should be used whenever you want to have the test print
   something for debugging purposes. It will get picked up by the extraneous
   print statement checker, and also print in an easy to identify color.
+
+## Running Unit Tests Under Docker
+
+Pavilion expects to run in a Linux environment. For convenience of testing on Mac and Windows machines, a dockerfile is provided to run unit tests. For details on how to run unit tests under docker, see the readme file in the `test/docker` directory.

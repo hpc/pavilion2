@@ -1,0 +1,38 @@
+# Git files
+.git
+.gitignore
+
+# GitHub workflows (not needed in container)
+.github
+
+# Documentation build artifacts
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# Test output directories
+test/working_dir/
+test/output/
+test/spack/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Coverage
+.coverage
+.coveragerc
+htmlcov/
+
+# OS files
+.DS_Store
