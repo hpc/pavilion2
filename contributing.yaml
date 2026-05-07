@@ -1,0 +1,18 @@
+# Generative AI
+
+- Tag PRs as "AI-assisted"
+
+# Creating Issues
+
+# Creating Pull Requests
+
+# Style
+
+- Small functions, objects
+- Minimal coupling with other objects
+- Sphinx-style docstrings for all functions, public and private
+- "Explicit is better than implicit"
+
+# Unit Tests
+
+- Should not be integration tests/end-to-end tests
