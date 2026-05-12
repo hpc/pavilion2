@@ -6,4 +6,4 @@ Code review checklist:
 - [ ] Function arguments are typed
 - [ ] Added/modified unit tests to cover changes.
 - [ ] New features have documentation added to the docs.
-- [ ] New features and backwards compatibility breaks are noted in the RELEASE.md
+- [ ] New features and backwards compatibility breaks are noted in the RELEASE.txt
