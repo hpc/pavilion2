@@ -824,7 +824,7 @@ def make_config(options: dict, setup_working_dirs: bool = True):
 
 def get_version() -> str:
     """Returns the current version of Pavilion."""
-    version_path = PAV_ROOT / 'RELEASE.md'
+    version_path = PAV_ROOT / 'RELEASE.txt'
 
     try:
         with version_path.open() as file:

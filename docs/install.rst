@@ -97,7 +97,7 @@ starts with a git pull of the latest release of Pavilion.
 
 You can also simply download and extract the source.
 
-.. _RELEASE.md: _static/RELEASE.md
+.. _RELEASE.txt: _static/RELEASE.txt
 
 Releases
 ~~~~~~~~
@@ -108,7 +108,7 @@ Pavilion for a couple reasons.
  1) While we try to maintain backwards compatibility as much as possible,
     the reality is that every release contains several major compatibility
     breaks both for test configurations and plugins. These are documented
-    per-release in the `RELEASE.md`_ file.
+    per-release in the `RELEASE.txt`_ file.
  2) We run a large bevy of unit tests against every change in Pavilion, but
     each release is used in production before it is actually tagged. This
     often reveals bugs, regressions, and practical usage issues. We fix those
