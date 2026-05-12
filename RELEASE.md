@@ -1,8 +1,8 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.6
+RELEASE=2.6.1
 
-## 2.6.1 Pre-Release Notes
+## 2.6.1 Release Notes
 
 - Fixed a bug which caused some tests in a series to be loaded multiple times and others not at all.
 - Fixed a bug in which test runs were placed in the wrong working directory when multiple
