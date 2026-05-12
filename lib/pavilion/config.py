@@ -822,9 +822,9 @@ def make_config(options: dict, setup_working_dirs: bool = True):
     return pav_cfg
 
 
-def get_version():
+def get_version() -> str:
     """Returns the current version of Pavilion."""
-    version_path = PAV_ROOT / 'RELEASE.txt'
+    version_path = PAV_ROOT / 'RELEASE.md'
 
     try:
         with version_path.open() as file:
