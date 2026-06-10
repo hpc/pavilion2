@@ -1,273 +1,169 @@
-# AGENTS.md – Guidance for Automated Coding Agents
+# AGENTS.md
 
----
+High-signal guidance for agents working in the Pavilion codebase.
 
-## Table of Contents
+## What is Pavilion
 
-1. [Project Overview](#project-overview)
-2. [Build Commands](#build-commands)
-3. [Linting & Static Analysis](#linting--static-analysis)
-4. [Testing](#testing)
-   - [Run All Tests](#run-all-tests)
-   - [Run a Single Test](#run-a-single-test)
-   - [Re‑run Failed Tests](#re‑run-failed-tests)
-   - [Test Configuration File](#test‑configuration‑file)
-5. [Documentation Build](#documentation-build)
-6. [Code Style Guidelines](#code-style-guidelines)
-   - [Imports](#imports)
-   - [Formatting & Line Length](#formatting--line-length)
-   - [Type Annotations](#type-annotations)
-   - [Naming Conventions](#naming-conventions)
-   - [Error Handling & Logging](#error-handling--logging)
-   - [Docstrings & Sphinx Compatibility](#docstrings--sphinx-compatibility)
-   - [Module Structure & Independence](#module-structure--independence)
-7. [Contributor Checklist](#contributor-checklist)
-8. [Cursor / Copilot Rules](#cursor--copilot-rules)
-9. [Continuous Integration (CI) Details](#continuous-integration-ci-details)
-10. [References & Helpful Links](#references--helpful-links)
+Pavilion is a Python 3.6+ testing framework for HPC systems. It uses YAML configs to wrap test codes and run them across different systems via schedulers. The framework is plugin-driven and designed for system validation, acceptance testing, and automated testing scenarios.
 
----
+## Project Structure
 
-## Project Overview
+- `bin/pav` — main CLI entry point (bash wrapper that sets PYTHONPATH and python)
+- `lib/pavilion/` — core framework code (~140 Python files)
+- `lib/` — bundled runtime dependencies (requests, lark, yapsy, etc.) included directly for air-gapped systems
+- `test/` — unit tests and test infrastructure
+- `examples/` — example test configs and tutorials
+- `docs/` — Sphinx documentation
+- `builtins/` — built-in configs
+- No `setup.py`, `package.json`, or traditional install: runs directly from git clone or extracted tarball
 
-* **Name**: *Pavilion* – a flexible, extensible framework for defining and running HPC tests.
-* **Primary Language**: Python 3.6+ (the code imports `pavilion` modules directly from `lib/`).
-* **Entry Point**: `bin/pav` (a thin Bash wrapper that invokes `python -m pavilion.main`).
-* **Key Packages** (vendored under `lib/`):
-  * `pavilion` – core implementation.
-  * `yc_yaml`, `yaml_config` – YAML handling utilities.
-  * Third‑party sub‑repos (urllib3, requests, etc.) are vendored for reproducible builds.
+**Key architecture notes:**
+- Dependencies are vendored in `lib/sub_repos/` and symlinked to `lib/` (see `lib/sub_repos/README.txt`)
+- First run auto-installs dependencies via git clone (from git) or venv + pip (from tarball)
+- Plugin system built on yapsy: `lib/pavilion/plugins/` for core, user plugins elsewhere
+- Commands live in `lib/pavilion/commands/`
 
----
+## Developer Commands
 
-## Build Commands
+### Running Tests
 
-The project does not require a compiled build step, but the following commands are commonly used by agents:
+**Primary test runner:**
+```bash
+./test/run_tests
+```
 
-* **Install development dependencies** (executed from the repository root):
-  ```bash
-  # Virtual‑env recommended
-  python3 -m venv .env && source .env/bin/activate
-  pip install -U pip
-  pip install -r test/requirements.txt   # pylint, matplotlib
-  pip install -r docs/requirements.txt   # sphinx, theme
-  ```
-* **Refresh vendored sub‑repos** (if they have been removed):
-  ```bash
-  git submodule update --init --recursive
-  ```
-* **Package the library** (useful for downstream CI):
-  ```bash
-  # No `setup.py` at the top level – the library lives in lib/
-  # To create a source distribution:
-  python -m pip install build
-  python -m build lib/pavilion
-  ```
+**Focused test execution:**
+```bash
+./test/run_tests -o 'plugin*'      # Run only tests matching glob pattern
+./test/run_tests -s 'spack*'       # Skip tests matching glob
+./test/run_tests --re-run          # Only run tests that failed last time
+./test/run_tests -v                # Verbose (print logs to stderr)
+./test/run_tests -q                # Quiet mode
+```
 
----
+**Test file naming:** Tests must end in `_tests.py` to be discovered.
 
-## Linting & Static Analysis
+**CI test categories:**
+```bash
+./test/run_tests -o style -o debug_prints   # Style checks
+./test/run_tests -o 'doc*'                  # Doc tests
+./test/run_tests                            # All unit tests
+```
 
-The repository uses **pylint** (pinned to `2.13.9`).  Run it against the library source:
+**Dependencies for testing:**
+```bash
+pip install -r test/requirements.txt        # pylint, matplotlib
+pip install -r docs/requirements.txt        # sphinx, sphinx_rtd_theme
+```
+
+**Spack setup for tests:**
+```bash
+./test/utils/spack_setup test    # Clones spack v1.0.2, installs patchelf
+```
+
+### Running Pavilion
 
 ```bash
-pylint lib/pavilion
+./bin/pav run <test_name>        # Run a test
+./bin/pav status <test_id>       # Check test status
+./bin/pav result <test_id>       # View results
+./bin/pav build <test_name>      # Build without running
+./bin/pav --help                 # Full command list
 ```
 
-Typical configuration files (`.pylintrc`) are vendored inside the urllib3 sub‑repo, but the project follows the default pylint behaviour with a handful of custom disables:
-
-* `broad-except` – allowed in `main.py` where a top‑level catch logs and exits.
-* `invalid-name` – snake_case is enforced for variables & functions; PascalCase for classes.
-
-Agents should treat any pylint warnings as *fixable* unless they are explicitly disabled.
-
----
-
-## Testing
-
-All unit tests live under `test/tests/` and follow the naming convention `*_tests.py`.  The test runner lives at `test/run_tests`.
-
-### Run All Tests
-
-```bash
-./test/run_tests            # discovers and runs every *_tests.py file
-```
-
-The script automatically:
-* Clears the `test/working_dir` unless `-C/--no-clear` is passed.
-* Sets up the `PYTHONPATH` to include `lib/`.
-* Generates a temporary file with failed test names for later re‑run.
-
-### Run a Single Test
-
-The runner supports **`--only`** (`-o`) which accepts glob patterns matching the *suite* and *test* name without the `test_` prefix.  Example:
-
-```bash
-# Run only the `test_build` method in the BuildCmdTests suite
-./test/run_tests -o 'BuildCmdTests.test_build'
-
-# Run any test whose name contains "scheduler"
-./test/run_tests -o '*scheduler*'
-```
-
-The pattern is applied after stripping the leading `test_` from each method name, so you can omit it for brevity:
-
-```bash
-./test/run_tests -o 'build'          # matches BuildCmdTests.test_build
-```
-
-### Re‑run Failed Tests
-
-After a test run, failures are written to a temporary file (`/tmp/.pavilion_run_test_failures_<user>.txt`).  Re‑run only those failures with:
-
-```bash
-./test/run_tests --re-run
-```
-
-### Test Configuration File
-
-The test suite expects a minimal configuration file at:
-
-```
-test/data/pav_config_dir/pavilion.yaml
-```
-
-If missing, the runner prints an error.  A simple placeholder can be created with:
-
-```bash
-ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
-# Append required keys (e.g., working_dir, spack_path) – see CI scripts for details.
-```
-
----
-
-## Documentation Build
-
-Documentation sources are under `docs/`.  A minimal Makefile is provided:
+### Documentation
 
 ```bash
 cd docs
-make html          # builds HTML documentation in docs/_build/html
-make clean          # removes the build directory
-make autodoc        # regenerates API docs from lib/pavilion/*
+make html                        # Build Sphinx docs → _build/html/
+make autodoc                     # Regenerate API docs with sphinx-apidoc
 ```
 
-The tasks require the packages listed in `docs/requirements.txt` (Sphinx ≥ 4.0, theme ≥ 1.0).
+Live docs: https://pavilion2.readthedocs.io/en/latest/
 
----
+## Testing Conventions
 
-## Code Style Guidelines
+**Test base class:** All tests inherit from `pavilion.unittest.PavTestCase` (subclass of `unittest_ex.TestCaseEx`).
 
-> The **DevelopmentGuidelines.rst** file already states the high‑level expectations.  The sections below expand on those points for automated agents.
+**Key testing utilities:**
+- `self.pav_cfg` — pre-loaded config for tests, do NOT reload manually
+- `self._quick_test(cfg=...)` — creates a simple test instance
+- `self._quick_test_cfg()` — returns base test config dict, modify before passing to `_quick_test`
+- `self.TEST_DATA_ROOT` — pathlib.Path to `test/data/`
+- `self._cmp_files()` — full file content comparison
+- `self._cmp_tree()` — compare directory structures
+- `self.dbg_print()` — debugging output (caught by style checker)
 
-### Imports
+**Plugin initialization:** If a test uses plugins, call `plugins.initialize_plugins(self.pav_cfg)` in `setUp()` and `plugins._reset_plugins()` in `tearDown()`.
 
-* **Standard library imports** first, sorted alphabetically.
-* **Third‑party imports** second (e.g., `import yaml`), then **internal imports** last.
-* Use absolute imports when referencing modules inside `lib/` – e.g., `from pavilion import config`.
-* Avoid wildcard imports (`from module import *`).
-* Group imports with a single blank line between sections.
+**Test config:** Some tests need `test/data/pav_config_dir/pavilion.yaml` for proxies, no_proxy, etc. (already gitignored).
 
-### Formatting & Line Length
+**Slurm config:** Custom slurm settings go in `test/data/pav_config_dir/modes/local_slurm.yaml`.
 
-* Follow **PEP 8** – maximum line length **80 characters**.
-* Use **4 spaces** for indentation (no tabs).
-* Trailing whitespace is prohibited.
-* End files with a single newline.
-* Wrap long import statements with parentheses or the backslash continuation style endorsed by Pylint.
+**Build before run:** Always call `test.build()` before attempting to run a test instance.
 
-### Type Annotations
+## Python Version Support
 
-* All public functions, methods, and class constructors **must** have type hints for parameters and return values.
-* Use `from typing import *` only when necessary; prefer concrete types (`str`, `int`, `Path`, `Mapping[str, Any]`).
-* For `*args`/`**kwargs` annotate as `*args: Any, **kwargs: Any` if the exact type is not known.
-* Return `None` explicitly when a function does not return a value.
+**Supported:** 3.6, 3.10, 3.12 (see `.github/py-versions.json`)
+**Default:** 3.10 for CI
+**Legacy:** 3.6 runs in containers (GitHub Actions doesn't support it natively)
 
-### Naming Conventions
+Maintain compatibility with Python 3.6 (no f-strings before 3.6 allowed, no walrus operators, etc.).
 
-| Entity | Recommended Style |
-|--------|-------------------|
-| Packages / Modules | **snake_case** (e.g., `pavilion`, `yc_yaml`) |
-| Classes | **PascalCase** (e.g., `PavTestCase`, `CommandResult`) |
-| Functions / Methods | **snake_case** (e.g., `run_cmd`, `get_parser`) |
-| Constants | **UPPER_SNAKE_CASE** (e.g., `MIN_SUPPORTED_MINOR_VERSION`) |
-| Private helpers | prefix with a single underscore (`_private`) |
-| Test classes | end with `Tests` (e.g., `BuildCmdTests`) |
-| Test methods | start with `test_` followed by descriptive name |
+## Code Style
 
-### Error Handling & Logging
+**Linter:** pylint 2.13.9 (pinned in `test/requirements.txt`)
+**Style tests:** Automatically run via `./test/run_tests -o style`
+**No config file:** Pylint runs with defaults; check `test/tests/style_tests.py` for enforcement
 
-* Use **exception hierarchy** defined in `pavilion.errors`.  Raise custom exceptions rather than generic `Exception` where appropriate.
-* All top‑level command entry points (`pavilion.main`, `pavilion.commands.*`) should catch `Exception` only to log via the **`output`** module and exit with a non‑zero status.
-* Prefer **`logging`** (module‑level loggers) for internal diagnostics; the `output` helper is reserved for user‑facing messages.
-* When catching specific exceptions, re‑raise them after adding context if the caller cannot recover.
-* Do not swallow exceptions silently unless the situation is truly ignorable and documented.
+**Coverage:** Configured via `.coveragerc`, tracks:
+- `lib/pavilion`, `lib/similarity`, `lib/unittest_ex`, `lib/yaml_config`, `lib/yc_yaml`, `lib/hostlist.py`, `test/tests`
 
-### Docstrings & Sphinx Compatibility
+## CI Workflow
 
-* Use **reST / Sphinx** style docstrings for all public objects.
-* Include **`:param <name>: <description>`** and **`:type <name>: <type>`** for each parameter.
-* Document return values with **`:return: <description>`** and **`:rtype: <type>`**.
-* One‑line summary should fit on a single line; a blank line separates the summary from the extended description.
-* Example:
-  ```python
-  def foo(bar: int) -> str:
-      """Return a string representation of ``bar``.
+**Branches:** `develop` (active development), `stable` (releases)
+**Workflows:**
+- `.github/workflows/unittests.yml` — runs on push/PR to develop/stable
+  - Style checks (pylint)
+  - Doc tests (sphinx build)
+  - Unit tests across Python 3.6, 3.10, 3.12 on ubuntu-latest
+  - Uploads `test/output.zip` artifact on failure
+- `.github/workflows/coverage.yml` — monthly coverage report (workflow_dispatch)
+- `.github/workflows/demo.yml` — demo validation
+- `.github/workflows/sync-stable.yml` — syncs stable branch
 
-      :param bar: integer to convert
-      :type bar: int
-      :return: string version of ``bar``
-      :rtype: str
-      """
-      return str(bar)
-  ```
+**CI quirks:**
+- Legacy Python (3.6) runs in Docker container: `python:3.6`
+- Container needs `/usr/bin/bash` symlink (Pavilion's default shebang)
+- `test/output/` has symlink loops; CI zips with `./utils/make_symlinks_relative` before upload
+- Spack setup runs before tests: `./test/utils/spack_setup test`
 
-### Module Structure & Independence
+## Common Pitfalls
 
-* Each top‑level module in `lib/pavilion` should be **self‑contained** – import other internal modules **lazily** when possible to avoid circular imports.
-* Keep public APIs small; expose functionality through `__all__` where relevant.
-* Helper utilities that are not part of the public API belong in a private submodule (e.g., `._utils`).
-* Avoid heavy side‑effects at import time – only configure logging or parse CLI arguments in `if __name__ == '__main__':` blocks or dedicated entry points.
+1. **Don't use `cd` in shell commands.** Pavilion's bash wrapper sets up PYTHONPATH relative to repo root; changing directory breaks it. Use full paths or run from repo root.
 
----
+2. **Test data goes in `test/data/`.** Prefix with test module name. Plugins for tests only go in `test/data/pav_config_dir/plugins/`.
 
-## Contributor Checklist
+3. **Don't reload pav_cfg.** Use the provided `self.pav_cfg` from `PavTestCase`. If you need to modify it, use `copy.deepcopy()`.
 
-1. **Run the full test suite**: `./test/run_tests` – ensure **0 failures**.
-2. **Run pylint**: `pylint lib/pavilion` – fix all new warnings.
-3. **Check formatting**: verify line length ≤ 80, no trailing whitespace.
-4. **Update documentation** (if new public API added): run `make autodoc` inside `docs/` and commit generated files if they change.
-5. **Add type hints** for any newly introduced functions.
-6. **Write a docstring** for every public class/function.
-7. **Commit with a clear message** – "Add <feature>: short rationale".
+4. **Plugin initialization is manual.** Tests don't auto-initialize plugins; use `setUp`/`tearDown` if needed.
 
----
+5. **Dependencies are vendored.** Don't `pip install` Pavilion's runtime deps; they're already in `lib/`. Only install test/doc requirements.
 
-## Cursor / Copilot Rules
+6. **No traditional install.** Don't try to `python setup.py install` or `pip install .`—there's no setup.py. Run directly from the repo.
 
-The repository does **not** contain a `.cursor/` directory or a `.github/copilot-instructions.md` file.  Therefore there are no special cursor or Copilot directives to obey.  Agents should follow the generic style rules described above.
+7. **Test naming matters.** Only files ending in `_tests.py` are discovered by `run_tests`.
 
----
+## Version and Releases
 
-## Continuous Integration (CI) Details
+- `VERSION.txt` is frozen at 2.0 (LANL/DOE approval reasons)
+- `RELEASE.txt` tracks actual releases (currently 2.6, moving toward 2.7)
+- Git tags denote releases
+- ReadTheDocs builds from git submodules (see `.readthedocs.yaml`)
 
-* **GitHub Actions** workflows** are defined in `.github/workflows/`:
-  * `unittests.yml` runs the test suite across multiple Python versions (3.7, 3.9, 3.10, 3.12).
-  * `style` job runs pylint with the `-q -o style -o debug_prints` flags.
-  * `docs` job builds the Sphinx documentation.
-* The CI scripts mirror the local commands described earlier (install dependencies, link configuration, run `./test/run_tests`).
-* Agents should keep CI compatibility in mind – avoid adding dependencies that are not listed in `test/requirements.txt` or `docs/requirements.txt` unless they are also added to the appropriate CI setup.
+## References
 
----
-
-## References & Helpful Links
-
-* **PEP 8 – Style Guide**: https://peps.python.org/pep-0008/
-* **Sphinx Documentation**: https://www.sphinx-doc.org/
-* **pylint User Guide**: https://pylint.pycqa.org/
-* **Python Type Hinting**: https://docs.python.org/3/library/typing.html
-* **Project’s Development Guidelines**: `docs/DevelopmentGuidelines.rst`
-
----
-
-*This file is intended for consumption by AI‑assisted coding agents and human contributors alike.  Keep it up‑to‑date as the project evolves.*
+- Main docs: https://pavilion2.readthedocs.io/en/latest/
+- Repo: https://github.com/hpc/pavilion2
+- Test README: `test/README.md` (detailed testing guide)
+- Plugin guide: `lib/pavilion/plugins/README.md`
