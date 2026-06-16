@@ -21,6 +21,10 @@ RELEASE=2.6.1
   of creation (in ISO 8601 format) to prevent result logs from being incorrectly combined when
   series IDs are reused.
 
+## 2.6.1 Pre-Release Notes
+
+- Various minor bug fixes.
+
 ## 2.6 Release Notes
 
 - Test run directories are now named based on the series-relative IDs of test runs (e.g. `s1.1`).
