@@ -180,6 +180,9 @@ var_item_schema = {
     ]
 }
 
+# This will be modified on the fly by result parser plugins.
+result_parser_properties = {}
+
 
 test_schema = {
     'type': 'object',
@@ -541,6 +544,15 @@ test_schema = {
                             "items": {"type": "string"},
                         },                            
                     },
+                    "concurrent": {
+                        "type": "string",
+                        "default": '{{sched.concurrent_default}}',
+                        "description": "Total tests that can run concurrently including this one in a "
+                            "shared allocation. The default is 1 for most schedulers, but may vary. "
+                            "(In particular, the \'raw\' scheduler has a much higher limit.) Tests that "
+                            "use MPI should use this cautiously, such as by setting it to "
+                            "'floor(job_procs/test_procs)'",
+                    },
                 },
             }),
         },
@@ -599,5 +611,4 @@ test_schema = {
             },
         }
     },
-
 }
