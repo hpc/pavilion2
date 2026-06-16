@@ -12,7 +12,8 @@ from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.test_ids import resolve_mixed_ids, SeriesID
-from pavilion.series import TestSeries, TestSeriesError
+from pavilion.series import TestSeries
+from pavilion.errors import TestSeriesError
 from .base_classes import Command
 
 

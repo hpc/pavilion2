@@ -305,14 +305,17 @@ class FiltersTest(PavTestCase):
         random.shuffle(tests)
         paths = [test.path for test in tests]
 
+        max_threads = int(self.pav_cfg["max_threads"])
+
         # Check sorting in ascending direction
         sort, ascending = filters.get_sort_opts('id', "TEST")
         self.assertTrue(ascending)
         sorted_tests = dir_db.select_from(
-            self.pav_cfg,
             paths=paths,
             transform=test_run_attr_transform,
-            order_func=sort, order_asc=ascending).data
+            order_func=sort,
+            order_asc=ascending,
+            max_threads=max_threads).data
 
         self.assertEqual([t['id'] for t in sorted_tests], ids)
 
@@ -320,10 +323,11 @@ class FiltersTest(PavTestCase):
         sort, ascending = filters.get_sort_opts('-id', "TEST")
         self.assertFalse(ascending)
         sorted_tests = dir_db.select_from(
-            self.pav_cfg,
             paths=paths,
             transform=test_run_attr_transform,
-            order_func=sort, order_asc=ascending).data
+            order_func=sort,
+            order_asc=ascending,
+            max_threads=max_threads).data
         self.assertEqual([t['id'] for t in sorted_tests], list(reversed(ids)))
 
     def test_error_on_bad_query(self):

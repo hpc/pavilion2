@@ -19,14 +19,16 @@ from pavilion import groups
 from pavilion import output
 from pavilion import sys_vars
 from pavilion import utils
-from pavilion.series import TestSeries, SeriesInfo, list_series_tests, mk_series_info_transform
-from pavilion.id_utils import load_user_series_id
+from pavilion.series import TestSeries, SeriesInfo, mk_series_info_transform
 from pavilion.errors import TestRunError, CommandError, TestSeriesError, \
                             PavilionError, TestGroupError
 from pavilion.test_run import TestRun, load_tests, TestAttributes
 from pavilion.test_ids import TestID, SeriesID, ID
+from pavilion.pavdir import WorkingDirectory
 from pavilion.types import ID_Pair
 from pavilion.micro import flatten
+from pavilion.sys_vars import base_classes
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +37,10 @@ def load_last_series(pav_cfg: config.PavConfig, errfile: TextIO) -> Optional[Tes
     """Load the series object for the last series run by this user on this system."""
 
     try:
-        series_id = load_user_series_id(pav_cfg)
+        user = utils.get_login()
+        sys_vars = base_classes.get_vars(True)
+        sys_name = sys_vars['sys_name']
+        series_id = WorkingDirectory(pav_cfg.get("working_dir")).get_last_series_id(user, sys_name)
     except TestSeriesError as err:
         output.fprint(errfile, "Failed to find last series: {}".format(err.args[0]),
                       color=output.YELLOW)
@@ -94,6 +99,8 @@ def arg_filtered_tests(pav_cfg: config.PavConfig,
 
     order_func, order_asc = filters.get_sort_opts(sort_by, "TEST")
 
+    max_threads = int(pav_cfg["max_threads"])
+
     if SeriesID("all") in series:
         tests = dir_db.SelectItems([], [])
         working_dirs = set(map(lambda cfg: cfg['working_dir'],
@@ -101,25 +108,33 @@ def arg_filtered_tests(pav_cfg: config.PavConfig,
 
         for working_dir in working_dirs:
             matching_tests = dir_db.select(
-                pav_cfg,
                 id_dir=working_dir / 'test_runs',
                 transform=TestAttributes,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=order_asc,
                 verbose=verbose,
-                limit=limit)
+                limit=limit,
+                max_threads=max_threads)
 
             tests.data.extend(matching_tests.data)
             tests.paths.extend(matching_tests.paths)
 
         return tests
 
-    test_paths = test_list_to_paths(pav_cfg, tests, verbose)
+    primary_working_dir = WorkingDirectory(pav_cfg["working_dir"])
+
+    test_paths = test_list_to_paths(primary_working_dir, tests, max_threads, verbose)
 
     for sid in series:
         if sid.last():
-            sid_ = load_user_series_id(pav_cfg, errfile=verbose)
+            try:
+                user = utils.get_login()
+                sys_name = sys_vars.base_classes.get_vars(True)["sys_name"]
+                sid_ = primary_working_dir.get_last_series_id(user, sys_name)
+            except (RuntimeError, TestSeriesError):
+                output.fprint(verbose, "Failed to load last series.")
+                continue
 
             if sid_ is None:
                 output.fprint(verbose, "No last series found.")
@@ -127,16 +142,17 @@ def arg_filtered_tests(pav_cfg: config.PavConfig,
         else:
             sid_ = sid
 
-        test_paths.extend(map(lambda x: x.resolve(), list_series_tests(pav_cfg, sid_)))
+        test_paths.extend(map(lambda x: x.resolve(),
+                              primary_working_dir.list_series_tests(sid_, max_threads)))
 
     return dir_db.select_from(
-        pav_cfg,
         paths=test_paths,
         transform=TestAttributes,
         filter_func=filter_func,
         order_func=order_func,
         order_asc=order_asc,
-        limit=limit
+        limit=limit,
+        max_threads=max_threads
     )
 
 def make_filter_query() -> str:
@@ -184,6 +200,9 @@ def arg_filtered_series(pav_cfg: config.PavConfig,
     seen_sids = []
     found_series = []
 
+    working_dir = WorkingDirectory(pav_cfg["working_dir"])
+    max_threads = int(pav_cfg["max_threads"])
+
     for sid in series:
         # Go through each provided sid (including last and all) and find all
         # matching series. Then only add them if we haven't seen them yet.
@@ -206,10 +225,10 @@ def arg_filtered_series(pav_cfg: config.PavConfig,
                     raise PavilionError(f"Invalid syntax in filter query: {filter_query}")
 
             found_series = dir_db.select(
-                pav_cfg=pav_cfg,
                 id_dir=pav_cfg.working_dir/'series',
+                max_threads=max_threads,
                 filter_func=filter_func,
-                transform=mk_series_info_transform(pav_cfg),
+                transform=mk_series_info_transform(max_threads),
                 order_func=order_func,
                 order_asc=order_asc,
                 use_index=False,
@@ -217,7 +236,7 @@ def arg_filtered_series(pav_cfg: config.PavConfig,
                 limit=limit,
             ).data
         else:
-            found_series.append(SeriesInfo.load(pav_cfg, sid))
+            found_series.append(SeriesInfo.load(working_dir, sid, max_threads=max_threads))
 
     matching_series = []
     for sinfo in found_series:
@@ -274,15 +293,15 @@ def get_collection_path(pav_cfg: config.PavConfig, collection: str) -> Optional[
 
     return None
 
-
-def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
-                        errfile: Optional[TextIO] = None) -> List[Path]:
+# TODO: For each test, this needs to look in the corresponding working directory, not just the
+# primary working directory
+def test_list_to_paths(working_dir: WorkingDirectory, req_tests: List[ID], max_threads: int,
+                       errfile: Optional[TextIO] = None) -> List[Path]:
     """Given a list of test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by
     the current user on the current machine.
 
-    :param pav_cfg: The Pavilion config.
     :param req_tests: A list of test id's, series id's, or 'last'.
     :param errfile: An option output file for printing errors.
     :return: A list of test paths.
@@ -295,20 +314,22 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
     for raw_id in req_tests:
 
         if isinstance(raw_id, SeriesID) and raw_id.last():
-            raw_id = load_user_series_id(pav_cfg, errfile)
+            sys_vars = base_classes.get_vars(True)
+            sys_name = sys_vars['sys_name']
+
+            try:
+                user = utils.get_login()
+                raw_id = working_dir.get_last_series_id(user, sys_name)
+            except (RuntimeError, TestSeriesError):
+                output.fprint(errfile, "Failed to load last series.", color=output.RED)
+
             if raw_id is None:
                 output.fprint(errfile, "User has no 'last' series for this machine.",
                               color=output.YELLOW)
                 continue
 
         if isinstance(raw_id, TestID):
-            try:
-                test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
-            except TestRunError as err:
-                output.fprint(errfile, err, color=output.YELLOW)
-                continue
-
-            test_path = test_wd/TestRun.RUN_DIR/str(raw_id)
+            test_path = working_dir.get_test_path(raw_id)
             test_paths.append(test_path)
             if not test_path.exists():
                 output.fprint(errfile,
@@ -317,14 +338,14 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
         elif isinstance(raw_id, SeriesID):
             try:
                 test_paths.extend(
-                    list_series_tests(pav_cfg, raw_id))
+                    working_dir.list_series_tests(raw_id, max_threads))
             except TestSeriesError:
                 output.fprint(errfile, "Invalid series id '{}'".format(raw_id),
                               color=output.YELLOW)
         else:
             # A group
             try:
-                group = groups.TestGroup(pav_cfg, raw_id)
+                group = groups.TestGroup(working_dir, raw_id)
             except TestGroupError as err:
                 output.fprint(
                     errfile,
@@ -349,15 +370,11 @@ def test_list_to_paths(pav_cfg: config.PavConfig, req_tests: List[Union[ID]],
     return test_paths
 
 
-def _filter_tests_by_raw_id(pav_cfg: config.PavConfig, id_pairs: List[ID_Pair],
+def _filter_tests_by_raw_id(working_dir: WorkingDirectory, id_pairs: List[ID_Pair],
                             exclude_ids: List[TestID]) -> List[ID_Pair]:
     """Filter the given tests by raw id."""
 
-    exclude_pairs = []
-
-    ex_wd = Path(pav_cfg.get("working_dir"))
-
-    exclude_pairs = [ID_Pair(ex_wd, id) for id in exclude_ids]
+    exclude_pairs = [ID_Pair(working_dir, id) for id in exclude_ids]
 
     return [pair for pair in id_pairs if pair not in exclude_pairs]
 
@@ -381,15 +398,16 @@ def get_tests_by_paths(pav_cfg: config.PavConfig, test_paths: List[Path], errfil
 
         test_path = test_path.resolve()
 
-        test_wd = test_path.parents[1]
+        test_wd = WorkingDirectory(test_path.parents[1])
         test_id = TestID(test_path.name)
 
         test_pairs.append(ID_Pair((test_wd, test_id)))
 
     if exclude_ids:
-        test_pairs = _filter_tests_by_raw_id(pav_cfg, test_pairs, exclude_ids)
+        test_pairs = _filter_tests_by_raw_id(WorkingDirectory(pav_cfg["working_dir"]), test_pairs,
+                                             exclude_ids)
 
-    return load_tests(pav_cfg, test_pairs, errfile)
+    return load_tests(test_pairs, errfile, max_threads=int(pav_cfg["max_threads"]))
 
 
 def get_tests_by_id(pav_cfg: config.PavConfig, test_ids: List[Union[TestID, SeriesID]],
@@ -423,16 +441,17 @@ def get_tests_by_id(pav_cfg: config.PavConfig, test_ids: List[Union[TestID, Seri
         # Just a plain test id.
         else:
             try:
-                test_id_pairs.append((pav_cfg.working_dir, raw_id))
+                test_id_pairs.append((WorkingDirectory(pav_cfg["working_dir"]), raw_id))
 
             except TestRunError as err:
                 output.fprint(sys.stdout, "Error loading test '{}': {}"
                               .format(raw_id, err))
 
     if exclude_ids:
-        test_id_pairs = _filter_tests_by_raw_id(pav_cfg, test_id_pairs, exclude_ids)
+        test_id_pairs = _filter_tests_by_raw_id(WorkingDirectory(pav_cfg["working_dir"]),
+                                                test_id_pairs, exclude_ids)
 
-    return load_tests(pav_cfg, test_id_pairs, errfile)
+    return load_tests(test_id_pairs, errfile, max_threads=int(pav_cfg["max_threads"]))
 
 def get_testset_name(pav_cfg: config.PavConfig, tests: List[str], files: List[str]) -> str:
     """Generate the name for the set set based on the test input to the run command.

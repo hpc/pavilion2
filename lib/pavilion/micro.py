@@ -49,7 +49,12 @@ def remove_none(lst: Iterable[T]) -> Iterator[T]:
     """Remove all instances of None from the iterable."""
     return remove_all(lst, None)
 
-def first(pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[T]:
+def first(lst: Iterable[T]) -> Optional[T]:
+    """Return the first element of the given list, if it exists, or None otherwise."""
+
+    return next(iter(lst), None)
+
+def first_with(pred: Callable[[T], bool], lst: Iterable[T]) -> Optional[T]:
     """Return the first item of the list that satisfies the given
     predicate, or None if no item does."""
 
@@ -124,3 +129,9 @@ def promote(item: Union[T, Type[T]], ptype: Type) -> Type[T]:
         return item
 
     return ptype(item)
+
+def empty() -> Iterator:
+    """Return an empty iterator. Intended for functions that return an iterator, but for which
+    no values exist."""
+
+    return iter(())

@@ -34,11 +34,13 @@ class DirDBTests(unittest.PavTestCase):
 
         output = io.StringIO()
 
+        max_threads = int(self.pav_cfg["max_threads"])
+
         idx = dir_db.index(
-            self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
             transform=entry_transform,
+            max_threads=max_threads,
             verbose=output)
 
         self.assertEqual(set(idx.keys()), set(entries.keys()),
@@ -54,11 +56,11 @@ class DirDBTests(unittest.PavTestCase):
             del entries[TestID(str(i))]
 
         idx = dir_db.index(
-            self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
             refresh_period=0,
-            transform=entry_transform)
+            transform=entry_transform,
+            max_threads=max_threads)
 
         self.assertEqual(set(idx.keys()), set(entries.keys()),
                          msg="Errors: \n{}".format(output.getvalue()))
@@ -76,11 +78,11 @@ class DirDBTests(unittest.PavTestCase):
         self._make_entry(index_path, 11, d=1)
 
         idx = dir_db.index(
-            self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
             refresh_period=0,
-            transform=entry_transform)
+            transform=entry_transform,
+            max_threads=max_threads)
 
         self.assertEqual(set(idx.keys()), set(entries.keys()))
         for key in idx:

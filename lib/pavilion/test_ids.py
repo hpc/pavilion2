@@ -36,19 +36,18 @@ class ID(ABC):
         return self.id_str
 
     def __eq__(self, other: Any) -> bool:
-        if not hasattr(other, "id_str"):
-            return False
+        if not isinstance(other, self.__class__):
+            return NotImplemented
 
         return self.id_str.lower() == other.id_str.lower()
 
     @abstractmethod
-    def __gt__(self, other: "ID") -> bool:
+    def __gt__(self, other: Any) -> bool:
         raise NotImplementedError
 
-    def __lt__(self, other: "ID") -> bool:
+    def __lt__(self, other: Any) -> bool:
         if not isinstance(other, self.__class__):
-            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
-                            f"{type(other).__name__}.")
+            return NotImplemented
 
         return not (self > other or self == other)
 
@@ -123,10 +122,12 @@ class TestID(ID):
 
         return self.__class__(f"{self.series}.{self.id + 1}")
 
-    def __gt__(self, other: "TestID") -> bool:
+    def __next__(self) -> "TestID":
+        return self.next()
+
+    def __gt__(self, other: Any) -> bool:
         if not isinstance(other, self.__class__):
-            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
-                            f"{type(other).__name__}.")
+            return NotImplemented
 
         if self.is_absolute() and other.is_absolute():
             return int(self.id_str, 16) > int(other.id_str, 16)
@@ -134,11 +135,9 @@ class TestID(ID):
             if self.series == other.series:
                 return int(self.id) > int(other.id)
             else:
-                raise ValueError(f"Cannot compare test IDs {self} and {other} "
-                                "from different series.")
+                return NotImplemented
         else:
-            raise ValueError("Incompatible test ID formats for numerical comparison: "\
-                            "{self} and {other}")
+            return NotImplemented
 
 class SeriesID(ID):
     """Represents a single series ID."""
@@ -189,10 +188,12 @@ class SeriesID(ID):
 
         return self.__class__(f"s{self.as_int() + 1}")
 
-    def __gt__(self, other: "SeriesID"):
+    def __next__(self) -> "SeriesID":
+        return self.next()
+
+    def __gt__(self, other: Any) -> bool:
         if not isinstance(other, self.__class__):
-            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
-                            f"{type(other).__name__}.")
+            return NotImplemented
 
         return self.as_int() > other.as_int()
 
@@ -210,10 +211,9 @@ class GroupID(ID):
                     SeriesRange.is_valid_range_str(id_str)) and \
                cls.GROUP_NAME_RE.match(id_str) is not None
 
-    def __gt__(self, other: "GroupID") -> bool:
+    def __gt__(self, other: Any) -> bool:
         if not isinstance(other, self.__class__):
-            raise TypeError(f"Incompatible type for comparison with {self.__class__.__name__}: "\
-                            f"{type(other).__name__}.")
+            return NotImplemented
 
         return self.id_str > other.id_str
 
@@ -250,9 +250,9 @@ class IDRange(ABC):
 
         raise NotImplementedError
 
-    def __eq__(self, other: "IDRange") -> bool:
-        if not isinstance(other, type(self)):
-            return False
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
 
         return self.start == other.start and self.end == other.end
 

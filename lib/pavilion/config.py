@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import List, Union, Dict, NewType, Iterator, Tuple, Optional
 
 import yaml_config as yc
-from pavilion import errors
+from pavilion.errors import PavConfigError
 from pavilion.micro import first, flatten, remove_none, set_default
-from pavilion.path_utils import Pathlike, append_to_path, exists, path_product
+from pavilion.path_utils import exists
+from pavilion.pavdir import WorkingDirectory, ConfigDirectory, ConfigInfo
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -66,10 +67,6 @@ LOG_FORMAT = "{asctime}, {levelname}, {hostname}, {name}: {message}"
 
 # An optional path type.
 OptPath = NewType("OptPath", Union[None, Path])
-
-
-class PavConfigError(errors.PavilionError):
-    """Config specific errors."""
 
 
 class PavConfigDict:
@@ -219,36 +216,15 @@ class PavConfig(PavConfigDict):
 
         super().__init__(set_attrs)
 
-    @property
-    def config_paths(self) -> Iterator[Path]:
+    def get_config_dirs(self) -> Iterator[Path]:
         """Return an iterator of paths to all config directories"""
-        return (Path(cfg['path']) for cfg in self.configs.values())
 
-    @property
-    def tests_dirs(self) -> Iterator[Path]:
-        """Return an iterator of paths to all test directories."""
-        return (path / 'tests' for path in self.config_paths)
+        return map(lambda x: ConfigDirectory(x["path"]), self.configs.values())
 
-    @property
-    def suites_dirs(self) -> Iterator[Path]:
-        """Return an iterator of paths to all suites directories"""
-        return (path / 'suites' for path in self.config_paths)
+    def find_configs(self, cfg_type: str, cfg_name: str) -> Iterator[ConfigInfo]:
+        """Find all configs of the specified name and type across all config directories."""
 
-    @property
-    def suite_paths(self) -> Iterator[Path]:
-        """Return an iterator of paths to all test suites"""
-        return flatten(path.iterdir() for path in self.suites_dirs)
-
-    @property
-    def suite_names(self) -> Iterator[str]:
-        """Return an iterator of suite names"""
-
-        def is_suite(file: Path) -> bool:
-            return file.exists() and file.is_file() and file.suffix == '.yaml'
-
-        test_files = map(is_suite, self.suite_paths)
-
-        return map(lambda x: x.stem, self.suite_paths)
+        return flatten(map(lambda x: x.find_configs(cfg_type, cfg_name), self.get_config_dirs()))
 
     @property
     def suite_info(self) -> List[Tuple[str, str, Path]]:
@@ -292,45 +268,6 @@ class PavConfig(PavConfigDict):
 
         return suite_infos
 
-    @property
-    def result_logs(self) -> List[Path]:
-        """Return a list of all result log paths, which may be paths
-        to either files (in the case of common file loggers) or directories
-        (in the case of series file loggers)."""
-
-        return list(remove_none(map(itemgetter("dest"), self.result_loggers)))
-
-    def find_file(self, file: Pathlike, sub_dirs: Union[List[Pathlike], Pathlike] = None) \
-            -> Union[Path, None]:
-        """Look for the given file and return a full path to it. Relative paths
-        are searched for in all config directories under 'sub_dir', if it exists.
-
-    :param file: The path to the file.
-    :param sub_dirs: The subdirectory (or list of subdirectories) in which to
-        search in each directory.
-    :returns: The full path to the found file, or None if no such file
-        could be found."""
-
-        file = Path(file)
-
-        if file.is_absolute():
-            if file.exists():
-                return file
-            else:
-                return None
-
-        sub_dirs = set_default(sub_dirs, [])
-        sub_dirs = list(remove_none(list(sub_dirs)))
-
-        if len(sub_dirs) > 0:
-            paths = list(path_product(self.config_paths, sub_dirs))
-        else:
-            paths = list(self.config_paths)
-
-        files = list(map(append_to_path(file), paths))
-
-        # Return the first path to the file that exists (or None)
-        return first(exists, files)
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""
@@ -348,46 +285,6 @@ class ExPathElem(yc.PathElem):
         path = Path(os.path.expandvars(path.as_posix()))
         path = path.expanduser()
         return path
-
-
-def _setup_working_dir(working_dir: Path, group) -> None:
-    """Create all the expected subdirectories for a working_dir."""
-
-    if not working_dir.exists():
-        working_dir.mkdir()
-
-        if group is not None:
-            try:
-                group_struct: grp.struct_group = grp.getgrnam(group)
-            except KeyError:
-                raise PavConfigError("Group specified ({}) for working_dir '{}' "
-                                     "does not exist.")
-
-            try:
-                os.chown(working_dir, -1, group_struct.gr_gid)
-                working_dir.chmod(stat.S_ISGID | 0o770)
-            except OSError as err:
-                raise PavConfigError("Could not set group permissions on new working dir '{}'"
-                                     .format(working_dir), err)
-    else:
-        if group is not None and working_dir.group() != group:
-            raise PavConfigError("Working dir should have group '{}', but has group '{}'. This "
-                                 "usually means two config directories specify different groups "
-                                 "but point to the same working directory. See `pav config list`."
-                                 .format(group, working_dir.group()))
-
-    for path in [
-            working_dir,
-            working_dir / 'jobs',
-            working_dir / 'builds',
-            working_dir / 'series',
-            working_dir / 'test_runs',
-            working_dir / 'users']:
-
-        try:
-            path.mkdir(exist_ok=True)
-        except OSError as err:
-            raise PavConfigError("Could not create directory '{}'".format(path), err)
 
 
 def make_invalidator(msg):
@@ -710,8 +607,7 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
             working_dir = (config_dir/working_dir).resolve()
 
         try:
-            if setup_working_dirs:
-                _setup_working_dir(working_dir, group)
+            WorkingDirectory(working_dir, group).setup()
         except RuntimeError as err:
             pav_cfg.warnings.append(
                 "Could not configure working directory '{}' for config '{}': {}"
@@ -803,6 +699,8 @@ found in these directories the default config search paths:
     # Make sure this path is absolute too.
     if not pav_cfg.working_dir.is_absolute():
         pav_cfg['working_dir'] = pav_cfg.pav_cfg_file.parent/pav_cfg['working_dir']
+
+    pav_cfg["working_dir"] = pav_cfg["working_dir"]
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 

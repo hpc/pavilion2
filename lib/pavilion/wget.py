@@ -1,13 +1,15 @@
 # pylint: disable=C0413
 
-from pathlib import Path
 import json
 import logging
 import tempfile
 import urllib.parse
-
 import certifi
+from pathlib import Path
+from typing import List, Dict, Optional, Any
+
 from pavilion.errors import WGetError
+
 
 _MISSING_LIBS = []
 try:
@@ -62,27 +64,24 @@ def ca_cert_path():
     return CA_CERT_PATH
 
 
-def get(pav_cfg, url, dest):
+def get(url: str, dest: Path, wget_options: Dict[str, Any]) -> None:
     """Download the file at the given url and store it at dest. If a file
     already exists at dest it will be overwritten (assuming we have the
-    permissions to do so). Proxies are handled automatically based on
-    pav_cfg settings. This is done atomically; the download is saved to an
+    permissions to do so). This is done atomically; the download is saved to an
     intermediate location and then moved.
-    :param pav_cfg: The pavilion configuration object.
+
     :param str url: The url for the file to download.
     :param Path dest: The path to where the file will be stored.
     """
-
-    proxies = _get_proxies(pav_cfg, url)
 
     session = requests.Session()
     session.trust_env = False
 
     dest_dir = Path(dest).resolve().parent
     try:
-        response = session.get(url, proxies=proxies, stream=True,
+        response = session.get(url, proxies=wget_options.get("proxies"), stream=True,
                                verify=ca_cert_path(),
-                               timeout=pav_cfg.wget_timeout)
+                               timeout=wget_options.get("wget_timeout"))
         with tempfile.NamedTemporaryFile(dir=str(dest_dir),
                                          delete=False) as tmp:
             for chunk in response.iter_content(chunk_size=4096):
@@ -101,15 +100,15 @@ def get(pav_cfg, url, dest):
                         .format(url, dest), err)
 
 
-def head(pav_cfg, url):
+def head(url: str, wget_options: Dict[str, Any]) -> Dict:
     """Get the header information for the given url.
-    :param pav_cfg: The pavilion configuration object
+
     :param str url: The url we need information on.
     :returns: The http headers for the given url.
     :rtype dict:
     """
 
-    proxies = _get_proxies(pav_cfg, url)
+    proxies = _get_proxies(url, wget_options)
 
     session = requests.Session()
     session.trust_env = False
@@ -120,7 +119,7 @@ def head(pav_cfg, url):
         response = session.head(url,
                                 proxies=proxies,
                                 verify=ca_cert_path(),
-                                timeout=pav_cfg.wget_timeout)
+                                timeout=wget_options.get("wget_timeout"))
         # The location header is the redirect location. While the requests
         # library resolves these automatically, it still returns the first
         # header result from a 'head' call. We need to follow these
@@ -131,11 +130,11 @@ def head(pav_cfg, url):
             if redirects > REDIRECT_LIMIT:
                 return response
             redirect_url = response.headers['Location']
-            proxies = _get_proxies(pav_cfg, redirect_url)
+            proxies = _get_proxies(redirect_url, no_proxy, proxies)
             response = session.head(redirect_url,
                                     proxies=proxies,
                                     verify=ca_cert_path(),
-                                    timeout=pav_cfg.wget_timeout)
+                                    timeout=wget_options.get("wget_timeout"))
 
     except requests.exceptions.RequestException as err:
         raise WGetError(err)
@@ -143,10 +142,10 @@ def head(pav_cfg, url):
     return response.headers
 
 
-def _get_proxies(pav_cfg, url):
-    """Figure out the proxies based on the the pav_cfg and the particular url
+def _get_proxies(url: str, wget_options: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """Figure out the proxies based on the particular url
     we're going to. This mostly handles disabling the proxy for internal urls.
-    :param pav_cfg: The pavilion config object.
+
     :param str url: The url we hope to go to.
     :returns: The proxy dictionary.
     :rtype dict:
@@ -155,11 +154,11 @@ def _get_proxies(pav_cfg, url):
     parsed_url = urllib.parse.urlparse(url)
     host = '.' + parsed_url.netloc
 
-    for suffix in pav_cfg.no_proxy:
+    for suffix in wget_options.get("no_proxy", []):
         if host.endswith('.' + suffix):
             return None
 
-    return pav_cfg.proxies
+    return wget_options.get("proxies")
 
 
 def _get_info_fn(path):
@@ -229,11 +228,11 @@ def _save_info(path, head_data):
         LOGGER.warning("Error writing info file '%s': %s", info_fn, err)
 
 
-def update(pav_cfg, url, dest):
+def update(url: str, dest: Path, wget_options: Dict[str, Any]) -> None:
     """Check if the file needs to be re-downloaded, and do so if necessary.
     This will create a '{dest}.info' file in the same directory that will
     be used to check if updates are necessary.
-    :param pav_cfg: The pavilion configuration object.
+
     :param str url: The url for the file to download.
     :param Path dest: The path to where we want to store the file.
     """
@@ -248,7 +247,7 @@ def update(pav_cfg, url, dest):
     if not dest.exists():
         fetch = True
     else:
-        head_data = head(pav_cfg, url)
+        head_data = head(url, wget_options)
 
         info = _get_info(dest)
 
@@ -273,7 +272,7 @@ def update(pav_cfg, url, dest):
 
     if fetch:
         if head_data is None:
-            head_data = head(pav_cfg, url)
+            head_data = head(url, wget_options)
 
-        get(pav_cfg, url, dest)
+        get(url, dest, wget_options)
         _save_info(dest, head_data)

@@ -11,7 +11,6 @@ from pavilion import schedulers
 from pavilion import utils
 from pavilion.test_run import TestRun, load_tests
 from pavilion import output
-from pavilion.config import PavConfig
 from pavilion.micro import do
 
 
@@ -21,10 +20,9 @@ def not_completed(tests: Iterator[Union[TestRun, "TestSeries"]]) -> List[TestRun
 
     return list(filterfalse(attrgetter("complete"), tests))
 
-def cancel_jobs(
-        pav_cfg: PavConfig,
-        tests: Iterable[TestRun],
-        errfile: TextIO = None) -> List[dict]:
+def cancel_jobs(tests: Iterable[TestRun],
+                max_threads: int,
+                errfile: TextIO = None) -> List[dict]:
     """Collect all jobs from the given tests, and cancel them if all the tests
     attached to those jobs have been cancelled.
 
@@ -48,7 +46,7 @@ def cancel_jobs(
         sched = schedulers.get_plugin(sched_name)
 
         for job in jobs:
-            job_tests = load_tests(pav_cfg, job.get_test_id_pairs(), errfile)
+            job_tests = load_tests(job.get_test_id_pairs(), errfile, max_threads)
 
             if all([test.cancelled or test.complete for test in job_tests]):
                 if job.info is None:
@@ -78,7 +76,7 @@ SLEEP_PERIOD = 0.3
 SERIES_WARN_EXPIRE = 60*60*24  # 24 hours
 
 
-def cancel_tests(pav_cfg: PavConfig, tests: Iterable[TestRun], outfile: TextIO,
+def cancel_tests(tests: Iterable[TestRun], outfile: TextIO, max_threads: int,
                  max_wait: float = 3.0, no_series_warning: bool = False) -> int:
     """Cancel all of the given tests, printing useful user messages and error information."""
 
@@ -129,7 +127,7 @@ def cancel_tests(pav_cfg: PavConfig, tests: Iterable[TestRun], outfile: TextIO,
 
     output.fprint(outfile, '\n')
 
-    job_cancel_info = cancel_jobs(pav_cfg, tests, outfile)
+    job_cancel_info = cancel_jobs(tests, max_threads, outfile)
 
     if len(job_cancel_info) > 0:
         jobs = len(job_cancel_info)

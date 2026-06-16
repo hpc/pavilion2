@@ -426,6 +426,11 @@ expected to be added to by various plugins.
             help_text="The working directory where this test will be built and "
                       "run. Added automatically."),
         yc.StrElem(
+            "config_dir", hidden=True, default="<unknown>",
+            help_text="The configuration directory from which this test originates. "
+                      "Added automatically."
+        ),
+        yc.StrElem(
             'platform', hidden=True, default='<unknown>',
             help_text="Platform used in the creation of this test. "
                       "Value is added automatically."

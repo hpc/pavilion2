@@ -27,6 +27,7 @@ from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_run import TestRun
 from pavilion.variables import VariableSetManager
 from pavilion.micro import set_default
+from pavilion.pavdir import WorkingDirectory, ConfigDirectory
 from unittest_ex import TestCaseEx
 
 
@@ -152,8 +153,8 @@ base class.
 
         self.suite_name = Path(inspect.getfile(self.__class__)).stem
         self.suite_output_dir = self.TEST_OUTPUT_DIR / self.suite_name
-        self.pav_config_dir = self.suite_output_dir / "pav_config_dir"
-        self.working_dir = self.suite_output_dir / "working_dir"
+        self.pav_config_dir = ConfigDirectory(self.suite_output_dir / "pav_config_dir")
+        self.working_dir = WorkingDirectory(self.suite_output_dir / "working_dir")
         self.pav_src_dir = self.pav_config_dir / "pav_src"
         self.results_dir = self.suite_output_dir / "results"
 
@@ -169,7 +170,7 @@ base class.
                     pass
 
         if make_working_dir:
-            self.working_dir.mkdir(parents=True, exist_ok=True)
+            self.working_dir.setup()
 
         if make_results_dir:
             self.results_dir.mkdir(parents=True, exist_ok=True)
@@ -187,7 +188,6 @@ base class.
         with self.DEFAULT_PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        raw_pav_cfg.working_dir = self.working_dir
         raw_pav_cfg.user_config = False
 
         if setup_spack:
@@ -392,6 +392,9 @@ The default config is: ::
 
         cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
+        cfg["config_dir"] = self.pav_config_dir.as_posix()
+        cfg["working_dir"] = self.working_dir.as_posix()
+
         loc_sched = (self.TEST_DATA_DIR/'pav_config_dir'/'modes' /
                      'local_sched.yaml')
 
@@ -418,7 +421,8 @@ The default config is: ::
 
         tests = []
         for ptest in test_cfgs:
-            test = TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man)
+            test = TestRun(ptest.config, config_dir=self.pav_config_dir,
+                           working_dir=self.pav_cfg.working_dir, var_man=ptest.var_man)
             test.save()
 
             if build:
@@ -478,7 +482,8 @@ The default config is: ::
 
         cfg = resolve.test_config(cfg, var_man)
 
-        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man, test_id=test_id)
+        test = TestRun(config=cfg, var_man=var_man, test_id=test_id,
+                       spack_path=self.pav_cfg.spack_path)
 
         if test.skipped:
             # You can't proceed further with a skipped test.
@@ -487,7 +492,7 @@ The default config is: ::
         test.save()
 
         if build:
-            test.build()
+            test.build(umask=int(self.pav_cfg.get("umask", 8)))
         if finalize:
             fin_sys = base_classes.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()

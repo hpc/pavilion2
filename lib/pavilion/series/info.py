@@ -3,28 +3,28 @@ import datetime as dt
 import json
 from pathlib import Path
 from collections.abc import Mapping
-from typing import List, Optional, Any, Iterator
+from typing import List, Optional, Any, Iterator, Callable
 
-from pavilion import config
 from pavilion import dir_db
 from pavilion import status_file
 from pavilion import utils
 from pavilion.errors import TestRunError, TestSeriesError
 from pavilion.test_run import TestRun, TestAttributes
 from pavilion.test_ids import SeriesID
+from pavilion.pavdir import WorkingDirectory
 from . import common
 
 
 class SeriesInfoBase(Mapping):
     """Shared base class for series info and test set info."""
 
-    def __init__(self, pav_cfg: config.PavConfig, path: Path):
-
-        self._pav_cfg = pav_cfg
+    def __init__(self, path: Path, max_threads: int):
 
         self._config = None
 
         self.path = path
+        self._working_dir = WorkingDirectory(self.path.parents[1])
+        self._max_threads = max_threads
 
         self._complete = None
 
@@ -267,7 +267,7 @@ class SeriesInfo(SeriesInfoBase):
 
     def _find_tests(self):
         """Find all the tests for this series."""
-        test_dict = common.LazyTestRunDict(self._pav_cfg, self.path)
+        test_dict = common.LazyTestRunDict(self._working_dir, self.path)
         return list(test_dict.iter_paths())
 
     @property
@@ -286,7 +286,8 @@ class SeriesInfo(SeriesInfoBase):
     def complete(self) -> bool:
         """True if all tests are complete."""
 
-        return common.get_complete(self._pav_cfg, self.path, check_tests=True) is not None
+        return common.get_complete(self.path, check_tests=True,
+                                   max_threads=self._max_threads) is not None
 
     @property
     def status(self) -> Optional[str]:
@@ -342,21 +343,21 @@ class SeriesInfo(SeriesInfoBase):
         return common.get_all_started(self.path)
 
     @classmethod
-    def load(cls, pav_cfg: config.PavConfig, sid: SeriesID) -> "SeriesInfo":
+    def load(cls, working_dir: WorkingDirectory, sid: SeriesID,
+             max_threads: int) -> "SeriesInfo":
         """Find and load a series info object from a series id."""
 
-        series_path = pav_cfg.working_dir/'series'/str(sid.as_int())
+        series_path = working_dir.get_series_path(sid)
 
         if not series_path.exists():
             raise TestSeriesError("Could not find series '{}'".format(sid))
-        return cls(pav_cfg, series_path)
+
+        return cls(series_path, max_threads=max_threads)
 
 class TestSetInfo(SeriesInfoBase):
     """Information about a test set in a test series."""
 
-    def __init__(self, pav_cfg: config.PavConfig, series_path: Path,
-                 test_set_name: str):
-
+    def __init__(self, series_path: Path, test_set_name: str, max_threads: int):
         self.test_set_name = test_set_name
         self.test_set_path = series_path/'test_sets'/test_set_name
 
@@ -366,9 +367,7 @@ class TestSetInfo(SeriesInfoBase):
             self._repeat = 0
             self._name = test_set_name
 
-
-
-        super().__init__(pav_cfg, series_path)
+        super().__init__(series_path, max_threads)
 
     def _find_tests(self) -> List[Path]:
         """Find all the tests under the given test set."""
@@ -384,7 +383,7 @@ class TestSetInfo(SeriesInfoBase):
                                   .format(test_set_name, '  \n'.join(avail_sets)))
 
         set_paths = []
-        for path in dir_db.select(self._pav_cfg, set_path, use_index=False).paths:
+        for path in dir_db.select(set_path, self._max_threads, use_index=False).paths:
             if not path.is_symlink():
                 continue
             try:
@@ -395,11 +394,12 @@ class TestSetInfo(SeriesInfoBase):
         return set_paths
 
     @property
-    def complete(self):
+    def complete(self) -> bool:
         complete_ts = common.get_test_set_complete(
-            self._pav_cfg,
             self.test_set_path,
+            self.max_threads,
             check_tests=True)
+
         return complete_ts is not None
 
     @property
@@ -419,14 +419,13 @@ class TestSetInfo(SeriesInfoBase):
         return self.test_set_path.stat().st_mtime
 
 
-
-def mk_series_info_transform(pav_cfg):
+def mk_series_info_transform(max_threads: int) -> Callable[[Path], SeriesInfo]:
     """Create and return a series info transform function."""
 
-    def series_info_transform(path):
+    def series_info_transform(path: Path) -> SeriesInfo:
         """Transform a path into a series info dict."""
 
-        return SeriesInfo(pav_cfg, path)
+        return SeriesInfo(path, max_threads)
 
     return series_info_transform
 

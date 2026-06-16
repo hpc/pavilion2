@@ -4,6 +4,8 @@ from pavilion.series.test_set import TestSet
 from pavilion.errors import TestSetError
 from pavilion.unittest import PavTestCase
 from pavilion.enums import Verbose
+from pavilion.pavdir import TestPathCreator
+from pavilion.test_ids import SeriesID
 
 
 class TestSetTests(PavTestCase):
@@ -24,6 +26,13 @@ class TestSetTests(PavTestCase):
                     "test_src/invalid_file.tar.gz",
                     "plugins/schedulers/dummy.*",
                     "plugins/schedulers/error*")
+
+        self._series_id = SeriesID("s1")
+        self.path_creator = TestPathCreator(self.working_dir, self._series_id)
+
+    def tear_down(self):
+        self._series_id = next(self._series_id)
+        self.path_creator = TestPathCreator(self.working_dir, self._series_id)
 
     def test_init(self):
         """Check the init function."""
@@ -69,15 +78,17 @@ class TestSetTests(PavTestCase):
         """Check that TestRun creation works and throws the correct errors."""
 
         ts1 = TestSet(self.pav_cfg, "test_make1", ['pass_fail'])
-        ts1.make()
+        ts1.make(self.path_creator)
 
         ts1 = TestSet(self.pav_cfg, "test_make2", ['invalid'])
+
         with self.assertRaises(TestSetError):
-            ts1.make()
+            ts1.make(self.path_creator)
 
         ts3 = TestSet(self.pav_cfg, "test_make3", ['invalid_results'])
+
         with self.assertRaises(TestSetError):
-            ts3.make()
+            ts3.make(self.path_creator)
 
     def test_make_iter(self):
         """Check that test creation batching works."""
@@ -89,7 +100,7 @@ class TestSetTests(PavTestCase):
         sizes = [4, 3, 1]
 
         # Make sure we make batches of half the simultanious limit.
-        for batch in ts2.make_iter():
+        for batch in ts2.make_iter(self.path_creator):
             self.assertEqual(len(batch), sizes.pop(0))
 
         self.assertFalse(sizes)
@@ -99,25 +110,28 @@ class TestSetTests(PavTestCase):
         """Check that building works as expected."""
 
         ts1 = TestSet(self.pav_cfg, "test_build1", ['build_parallel'])
-        ts1.make()
+        ts1.make(self.path_creator)
         ts1.build()
 
         ts1 = TestSet(self.pav_cfg, "test_build2", ['build_fail'])
-        tests1 = ts1.make()
+        tests1 = ts1.make(self.path_creator)
+
         self.assertEqual(len(tests1), 6)
+
         with self.assertRaises(TestSetError):
             ts1.build()
 
         # Building an empty set should be fine.
         ts3 = TestSet(self.pav_cfg, "test_build3", [])
-        ts3.make()
+        ts3.make(self.path_creator)
         ts3.build()
 
     def test_rebuild(self):
         """Check that rebuilds are handled properly."""
 
         ts1 = TestSet(self.pav_cfg, "test_rebuild1", ['build_rebuild'])
-        ts1.make()
+
+        ts1.make(self.path_creator)
         ts1.build()
 
         # Build the remote builds too.
@@ -131,7 +145,7 @@ class TestSetTests(PavTestCase):
         ts2 = TestSet(self.pav_cfg, "test_rebuild2", ['build_rebuild']*2,
                       simultaneous=4)
 
-        ts2.make(rebuild=True)
+        ts2.make(self.path_creator, rebuild=True)
         ts2.build(deprecated_builds=dep_builds)
 
         # Ensure that all the builds got deprecated.
@@ -147,7 +161,7 @@ class TestSetTests(PavTestCase):
         for vbs in Verbose.QUIET, Verbose.MAX, Verbose.HIGH, Verbose.DYNAMIC:
             ts = TestSet(self.pav_cfg, "test_build_verbosity", ['build_parallel'],
                          verbosity=vbs)
-            ts.make()
+            ts.make(self.path_creator)
             ts.build()
 
     def test_ignore_errors(self):
@@ -155,7 +169,7 @@ class TestSetTests(PavTestCase):
 
         ts1 = TestSet(self.pav_cfg, "test_set_errors", ["test_set_errors"],
                       ignore_errors=True, verbosity=Verbose.MAX)
-        ts1.make()
+        ts1.make(self.path_creator)
         self.assertEqual(len(ts1.ready_to_build), 4,
                          msg=', '.join(t.name for t in ts1.ready_to_build))
         ts1.build()
@@ -174,7 +188,7 @@ class TestSetTests(PavTestCase):
         """Check kickoff functionality."""
 
         ts1 = TestSet(self.pav_cfg, "test_kickoff1", ["pass_fail"] * 5)
-        ts1.make()
+        ts1.make(self.path_creator)
         ts1.build()
         self.assertEqual(len(ts1.kickoff()[0]), 10)
 
@@ -197,7 +211,7 @@ class TestSetTests(PavTestCase):
 
         ts2 = TestSet(self.pav_cfg, "test_kickoff2", ["pass_fail"] * 5,
                       simultaneous=6)
-        for _ in ts2.make_iter():
+        for _ in ts2.make_iter(self.path_creator):
             ts2.build()
             exp_names = expected.pop(0)
             started_tests, jobs = ts2.kickoff()
@@ -216,7 +230,7 @@ class TestSetTests(PavTestCase):
 
         # Empty set kickoff is fine.
         ts3 = TestSet(self.pav_cfg, "test_kickoff3", [])
-        ts3.make()
+        ts3.make(self.path_creator)
         ts3.build()
         self.assertEqual(len(ts3.kickoff()[0]), 0)
 
@@ -230,7 +244,7 @@ class TestSetTests(PavTestCase):
         """Checking that we can wait for partial results."""
 
         ts1 = TestSet(self.pav_cfg, "test_kickoff1", ["varied_time"])
-        ts1.make()
+        ts1.make(self.path_creator)
         ts1.build()
         ts1.kickoff()
 
@@ -244,7 +258,7 @@ class TestSetTests(PavTestCase):
         """Make sure we properly verify pass/fail status."""
 
         ts1 = TestSet(self.pav_cfg, "test_all_passed1", ["pass_fail"] * 2)
-        ts1.make()
+        ts1.make(self.path_creator)
         ts1.build()
         ts1.kickoff()
 
@@ -257,7 +271,7 @@ class TestSetTests(PavTestCase):
         self.assertFalse(ts1.all_passed)
 
         ts2 = TestSet(self.pav_cfg, "test_all_passed2", ["pass_fail.pass"] * 2)
-        ts2.make()
+        ts2.make(self.path_creator)
         ts2.build()
         ts2.kickoff()
 
@@ -272,7 +286,7 @@ class TestSetTests(PavTestCase):
     def test_cancel(self):
         """Check test set cancellation."""
         ts1 = TestSet(self.pav_cfg, "test_cancel", ["varied_time"] * 2)
-        ts1.make()
+        ts1.make(self.path_creator)
         ts1.build()
         ts1.kickoff()
         ts1.cancel("Testing cancelation.")
@@ -317,7 +331,7 @@ class TestSetTests(PavTestCase):
         ts3.add_parents(ts2, ts2_pmp)
         ts3_pmp.add_parents(ts2, ts2_pmp)
         ts4.add_parents(ts3)
-        ts1.make()
+        ts1.make(self.path_creator)
         ts1.build()
         ts1.kickoff()
 
@@ -348,7 +362,7 @@ class TestSetTests(PavTestCase):
         ts3.add_parents(ts2, ts2_pmp)
         ts3_pmp.add_parents(ts2, ts2_pmp)
         ts4.add_parents(ts3)
-        ts1.make()
+        ts1.make(self.path_creator)
         ts1.build()
         ts1.kickoff()
 

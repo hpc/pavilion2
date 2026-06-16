@@ -2,11 +2,11 @@
 environment."""
 
 import sys
-import traceback
-from pathlib import Path
-from typing import List
 import threading
 import time
+from argparse import Namespace
+from pathlib import Path
+from typing import List, Iterable
 
 from pavilion import result
 from pavilion import schedulers
@@ -18,6 +18,7 @@ from pavilion.sys_vars import base_classes
 from pavilion.test_run import TestRun, mass_status_update
 from pavilion.variables import VariableSetManager
 from pavilion.test_ids import TestID
+from pavilion.pavdir import WorkingDirectory
 from .base_classes import Command
 
 # We need to catch pretty much all exceptions to cleanly report errors.
@@ -38,13 +39,13 @@ class _RunCommand(Command):
             'test_ids', type=TestID, action='store', nargs='+',
             help='The full id of the test to run.')
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg: PavConfig, args: Namespace) -> None:
         """Load and run an already prepped test."""
 
         tests = []
         for test_id in args.test_ids:
             try:
-                tests.append(TestRun.load(pav_cfg, test_id))
+                tests.append(TestRun.load(WorkingDirectory(pav_cfg.working_dir), test_id))
             except PavilionError as err:
                 fprint(self.outfile, "Error loading test '{}'".format(test_id))
                 fprint(self.outfile, err.pformat())
@@ -86,7 +87,7 @@ class _RunCommand(Command):
             try:
                 if not test.build_local:
                     test.status.set(STATES.BUILDING, "Test building on an allocation.")
-                    if not test.build():
+                    if not test.build(umask=pav_cfg.get("umask", 8)):
                         test.set_run_complete()
                         fprint(self.outfile, "Test {} build failed.".format(test.id))
                         continue
@@ -145,7 +146,7 @@ class _RunCommand(Command):
             raise TestRunError("Could not finalize test '{}'.".format(test.id), prior_err=err)
 
 
-    def _run_tests(self, pav_cfg, tests):
+    def _run_tests(self, pav_cfg: PavConfig, tests: Iterable[TestRun]) -> None:
         """Run the given tests according to their allowed concurrency."""
 
         # Turn this into a stack
@@ -165,7 +166,8 @@ class _RunCommand(Command):
                 next_tests.append(next_test)
                 conc_limit = min([test.concurrent for test in next_tests])
                 if len(running_tests) + 1 <= conc_limit:
-                    thread = threading.Thread(target=self._run, args=(next_test,))
+                    thread = threading.Thread(target=self._run,
+                                              args=(next_test, pav_cfg["max_cpu"]))
                     running_tests[next_test.id] = (thread, next_test)
                     thread.start()
                     added_thread = True
@@ -223,7 +225,7 @@ class _RunCommand(Command):
 
         return var_man
 
-    def _run(self, test: TestRun):
+    def _run(self, test: TestRun, max_cpu: int) -> None:
         """Run an already prepped test in the current environment.
         :return:
         """
@@ -263,7 +265,7 @@ class _RunCommand(Command):
                 return
 
             with test.results_log.open('w') as log_file:
-                results = test.gather_results(run_result, log_file=log_file)
+                results = test.gather_results(run_result, log_file=log_file, max_cpu=max_cpu)
 
         except Exception as err:
             fprint(self.outfile, "Unexpected error gathering results.", err)

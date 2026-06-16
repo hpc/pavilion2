@@ -74,7 +74,9 @@ class BuilderTests(PavTestCase):
             'scheduler': 'raw',
             'build': {
                 'modules': ['gcc'],
-            }
+            },
+            "working_dir": self.working_dir.as_posix(),
+            "config_dir": self.pav_config_dir.as_posix()
         }
 
         # Check that decompression and setup works for all accepted types.
@@ -285,7 +287,9 @@ class BuilderTests(PavTestCase):
                 'source_url': self.TEST_URL,
                 'source_path': 'README.md',
                 'source_download': 'missing',
-            }
+            },
+            "working_dir": self.working_dir.as_posix(),
+            "config_dir": self.pav_config_dir.as_posix()
         }
 
         expected_path = config_dir/'test_src'/'README.md'
@@ -334,6 +338,8 @@ class BuilderTests(PavTestCase):
                 'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
                 'source_path': 'binfile.gz',
             },
+            "working_dir": self.working_dir.as_posix(),
+            "config_dir": self.pav_config_dir.as_posix()
         }
 
         test = self._quick_test(config1, build=False, finalize=False)
@@ -356,6 +362,8 @@ class BuilderTests(PavTestCase):
                 'cmds': ['sleep 10'],
                 'source_path': 'binfile.gz',
             },
+            "working_dir": self.working_dir.as_posix(),
+            "config_dir": self.pav_config_dir.as_posix()
         }
 
         test = self._quick_test(config, 'build_test', build=False,
@@ -376,6 +384,8 @@ class BuilderTests(PavTestCase):
                 'cmds': ['exit 0'],
                 'source_path': 'binfile.gz',
             },
+            "working_dir": self.working_dir.as_posix(),
+            "config_dir": self.pav_config_dir.as_posix()
         }
 
         #  Check that building, and then re-using, a build directory works.
@@ -415,6 +425,7 @@ class BuilderTests(PavTestCase):
                 'timeout': '11',
                 'cmds': ['sleep 5'],
             },
+            "working_dir": self.working_dir.as_posix()
         }
 
         #  Check that building, and then re-using, a build directory works.
@@ -423,7 +434,7 @@ class BuilderTests(PavTestCase):
 
         thread = threading.Thread(
             target=test.build,
-            args=(cancel_event,)
+            kwargs={"cancel_event": cancel_event}
         )
         thread.start()
 

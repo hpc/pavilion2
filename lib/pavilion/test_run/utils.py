@@ -55,18 +55,11 @@ def id_pair_from_path(path: Path) -> ID_Pair:
     working_dir = path.parents[1]
     return ID_Pair((working_dir, test_id))
 
-def _load_test(pav_cfg, id_pair: ID_Pair):
-    """Load a test object from an ID_Pair."""
-
-    test_wd, test_id = id_pair
-
-    return TestRun.load(pav_cfg, test_id)
-
 
 LOADED_TESTS = {}
 
 
-def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestRun']:
+def load_tests(id_pairs: List[ID_Pair], errfile: TextIO, max_threads: int) -> List['TestRun']:
     """Load a set of tests in parallel.
 
     :raises TestRunError: When loading a test fails
@@ -84,10 +77,10 @@ def load_tests(pav_cfg, id_pairs: List[ID_Pair], errfile: TextIO) -> List['TestR
 
     id_filtered_pairs = not_loaded
 
-    with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
+    with ThreadPoolExecutor(max_workers=max_threads) as pool:
         results = []
         for pair in id_filtered_pairs:
-            results.append(pool.submit(_load_test, pav_cfg, pair))
+            results.append(pool.submit(TestRun.load, *pair))
 
         for result in results:
             try:

@@ -55,7 +55,7 @@ class BuildCmdTests(PavTestCase):
                                      .format(test.id, test.status.current()))
 
     def test_local_builds_only(self):
-        """Make sure we can just build multiple simultanious builds on
+        """Make sure we can just build multiple simultaneous builds on
         both the front-end and the nodes."""
 
         arg_parser = arguments.get_parser()

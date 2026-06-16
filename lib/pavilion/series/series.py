@@ -32,8 +32,8 @@ from pavilion.test_run import TestRun
 from pavilion.micro import partition, do, listfilter, stardo, flatten, set_default
 from pavilion.timing import RateLimiter
 from pavilion.test_ids import TestID, SeriesID
-from pavilion.counter import SeriesIDCounter, TestIDCounter
 from pavilion.status_utils import get_status
+from pavilion.pavdir import WorkingDirectory
 from yaml_config import YAMLError, RequiredError
 from .info import SeriesInfo
 from .test_set import TestSet
@@ -77,7 +77,7 @@ class TestSeries:
         """
 
         self.pav_cfg: config.PavConfig = pav_cfg
-
+        self.working_dir = WorkingDirectory(self.pav_cfg.working_dir)
         self.config = series_cfg or SeriesConfigLoader().load_empty()
 
         self.outfile = set_default(outfile, io.StringIO())
@@ -93,9 +93,6 @@ class TestSeries:
                 "Invalid Series name: {}. Series names must start with a letter, and can "
                 "contain numbers, dashes and underscores.".format(series_cfg['name']))
         self.name = name
-
-        series_path = self.pav_cfg.working_dir / self.SERIES_DIRNAME
-        test_runs_path = self.pav_cfg.working_dir / self.TEST_RUNS_DIRNAME
 
         self.simultaneous = self.config.get('simultaneous')
         if self.simultaneous in (0, None):
@@ -114,14 +111,11 @@ class TestSeries:
         if _id is None:
             # Get the series id
             try:
-                self.id = next(SeriesIDCounter(series_path))
+                self.id, self.path = self.working_dir.new_series(mkdir=True)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}'"
                     .format(series_path), err)
-
-            self.path = series_path / str(self.id.as_int())
-            self.path.mkdir()
 
             # save series config
             self.save_config()
@@ -135,13 +129,12 @@ class TestSeries:
         # time).
         else:
             self.id = _id
-            self.path = series_path / str(self.id.as_int())
+            self.path = self.working_dir.get_series_path(self.id)
             self.status = SeriesStatusFile(self.path/common.STATUS_FN)
 
         # In theory, we shouldn't need to lock here, since the lock for SeriesIDCounter should
         # ensure no two processes get the same series ID.
-        self.test_id_counter = TestIDCounter(self.id, test_runs_path)
-        self.tests = common.LazyTestRunDict(pav_cfg, self.path)
+        self.tests = common.LazyTestRunDict(self.working_dir, self.path)
 
         self.log_proc = None
 
@@ -379,7 +372,7 @@ class TestSeries:
 
         self.test_sets = {}
 
-    def _cancel_tests(self, message: str = None, cancel_tests: bool = True) -> None:
+    def _cancel_tests(self, message: Optional[str] = None, cancel_tests: bool = True) -> None:
         """Goes through all test objects assigned to series and cancels tests
         that haven't been completed.
 
@@ -399,11 +392,11 @@ class TestSeries:
                 test.cancel(message or "Cancelled via series. Reason not given.")
 
             # Cancel the scheduler jobs associated with the tests
-            cancel_utils.cancel_jobs(self.pav_cfg, self.tests.values())
+            cancel_utils.cancel_jobs(self.tests.values(), int(self.pav_cfg["max_threads"]))
 
         self.status.set(SERIES_STATES.CANCELED, "Series cancelled: {}".format(message))
 
-    def cancel(self, message: str = None, cancel_tests: bool = True) -> None:
+    def cancel(self, message: Optional[str] = None, cancel_tests: bool = True) -> None:
         """Create the cancellation file for the series, then (optionally) cancel
         all tests assocated with the series."""
 
@@ -424,7 +417,7 @@ class TestSeries:
         checked, cancelled = self.cancel_limiter()
 
         if checked and cancelled:
-            self._cancel_tests(message="Series cancelled by another user.""")
+            self._cancel_tests(message="Series cancelled by another user.")
 
             return True
 
@@ -488,8 +481,8 @@ class TestSeries:
                     continue
 
                 try:
-                    self._run_set(test_set, build_only=build_only,
-                                  rebuild=rebuild, local_builds_only=local_builds_only)
+                    self._run_set(test_set, build_only=build_only, rebuild=rebuild,
+                                  local_builds_only=local_builds_only)
                 except TestSetError as err:
                     self.status.set(SERIES_STATES.ERROR,
                                     "Error running test set {}. See the series log "
@@ -658,7 +651,8 @@ class TestSeries:
 
         return logged
 
-    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool, local_builds_only: bool):
+    def _run_set(self, test_set: TestSet, build_only: bool, rebuild: bool,
+                 local_builds_only: bool) -> None:
         """Run all requested tests in the given test set."""
 
         # Track which builds we've already marked as deprecated, when doing rebuilds.
@@ -667,10 +661,10 @@ class TestSeries:
         tests_running = 0
 
         for test_batch in test_set.make_iter(
+                                        self.working_dir.get_test_path_creator(self.id),
                                         build_only,
                                         rebuild,
-                                        local_builds_only,
-                                        self.test_id_counter):
+                                        local_builds_only):
 
             # Add all the tests we created to this test set.
             self._add_tests(test_batch, test_set.iter_name)
@@ -761,7 +755,8 @@ class TestSeries:
         """Check if every test in the series has completed. A series is incomplete if
         no tests have been created."""
 
-        complete_info = common.get_complete(self.pav_cfg, self.path, check_tests=True)
+        complete_info = common.get_complete(self.path, check_tests=True,
+                                            max_threads=int(self.pav_cfg["max_threads"]))
 
         return complete_info is not None
 
@@ -777,7 +772,7 @@ class TestSeries:
         inefficient - the series info object exists to get series info without
         loading the series."""
 
-        return SeriesInfo(self.pav_cfg, self.path)
+        return SeriesInfo(self.path, int(self.pav_cfg["max_threads"]))
 
     @property
     def pgid(self) -> Optional[int]:
@@ -864,28 +859,12 @@ class TestSeries:
     def _add_test(self, test_set_name: str, test: TestRun):
         """Add the given test to the series."""
 
-        set_path = self.path/self.TESTSET_DIRNAME/test_set_name
         try:
-            set_path.mkdir(exist_ok=True, parents=True)
+            self.working_dir.link_test_to_series(test.id, test_set_name)
         except OSError as err:
             raise TestSeriesError(
                 "Could not create test set directory {} under series {}."
                 .format(set_path, self.id), err)
-
-        self._link_test(test_set_name, test)
-
-    def _link_test(self, test_set_name: str, test: TestRun) -> None:
-        """Symlink the series to the test directory, and vice versa."""
-
-        set_path = self.path / self.TESTSET_DIRNAME / test_set_name
-        test_run_path = self.path / self.TESTRUN_DIRNAME
-
-        (set_path / str(test.id)).symlink_to(test.path)
-        (test.path / self.SERIES_DIRNAME).symlink_to(self.path)
-
-        # Create symlinks directly to test runs, so we don't have to know which test set they're in
-        test_run_path.mkdir(exist_ok=True)
-        (test_run_path / str(test.id)).symlink_to(test.path)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user
@@ -924,3 +903,9 @@ class TestSeries:
 modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.
         return self.path.stat().st_mtime
+
+    # TODO: Is this method redundant?
+    def list_test_paths(self) -> List[Path]:
+        """Return a list of paths to all tests in this series."""
+
+        return self.working_dir.list_series_tests(self.id, int(self.pav_cfg["max_threads"]))

@@ -149,7 +149,7 @@ class ResolverTests(PavTestCase):
         tests = [self._quick_test() for i in range(10)]
         for test in tests:
             test.run()
-            test.gather_results(0)
+            test.gather_results(0, int(self.pav_cfg["max_cpu"]))
             test.set_run_complete()
 
         args = parser.parse_args([

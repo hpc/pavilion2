@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from typing import List, Union, NewType, Dict
 
+from pavilion.pavdir import WorkingDirectory
 from pavilion.test_ids import TestID
 from pavilion.types import ID_Pair, Nodes
 
@@ -143,7 +144,7 @@ class Job:
                     # Skip any bad links or paths.
                     continue
 
-                working_dir = test_dir.parents[1]
+                working_dir = WorkingDirectory(test_dir.parents[1])
                 try:
                     test_id = TestID(test_dir.name)
                 except ValueError:

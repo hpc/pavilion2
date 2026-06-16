@@ -69,7 +69,7 @@ class TestConfig(PavTestCase):
         tests_by_sched = {'raw': [], 'dummy': []}
         tests = []
         for ptest in ptests:
-            test = test_run.TestRun(self.pav_cfg, ptest.config, ptest.var_man)
+            test = test_run.TestRun(ptest.config, ptest.var_man)
             test.save()
             tests_by_sched[test.scheduler].append(test)
             tests.append(test)

@@ -2,10 +2,12 @@
 
 import errno
 import fnmatch
+from argparse import Namespace
 
 from pavilion import groups
 from pavilion import config
 from pavilion import output
+from pavilion.config import PavConfig
 from pavilion.output import fprint, draw_table, output_json
 from pavilion.enums import Verbose
 from pavilion.test_run import TestRun
@@ -206,7 +208,7 @@ class GroupCommand(Command):
         return 1 if errors else 0
 
     @sub_cmd()
-    def _delete_cmd(self, pav_cfg, args):
+    def _delete_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """Delete the group entirely."""
 
         group = self._get_group(pav_cfg, args.group)
@@ -215,7 +217,7 @@ class GroupCommand(Command):
 
         members = []
         try:
-            members = group.members()
+            members = group.members(int(pav_cfg["max_threads"]))
         except TestGroupError as err:
             fprint(self.errfile,
                    "Could not list group contents for some reason. "
@@ -271,7 +273,7 @@ class GroupCommand(Command):
             })
 
     @sub_cmd(*MEMBER_ALIASES)
-    def _members_cmd(self, pav_cfg, args):
+    def _members_cmd(self, pav_cfg: PavConfig, args: Namespace) -> int:
         """List the members of a group."""
 
         group = self._get_group(pav_cfg, args.group)
@@ -286,7 +288,7 @@ class GroupCommand(Command):
             show_groups = args.groups
 
         try:
-            members = group.members(recursive=args.recursive)
+            members = group.members(int(pav_cfg["max_threads"]), recursive=args.recursive)
         except TestGroupError as err:
             fprint(self.errfile, "Could not get members.", color=output.RED)
             fprint(self.errfile, err.pformat())

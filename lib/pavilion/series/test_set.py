@@ -21,7 +21,7 @@ from pavilion.utils import str_bool
 from pavilion.enums import Verbose
 from pavilion.jobs import Job
 from pavilion.micro import set_default
-from pavilion.counter import TestIDCounter
+from pavilion.pavdir import TestPathCreator
 
 S_STATES = SERIES_STATES
 
@@ -191,10 +191,10 @@ class TestSet:
         return test_sets
 
     def make_iter(self,
+                  path_creator: TestPathCreator,
                   build_only: bool = False,
                   rebuild: bool = False,
-                  local_builds_only: bool = False,
-                  id_counter: Optional[TestIDCounter] = None) -> Iterator[List[TestRun]]:
+                  local_builds_only: bool = False) -> Iterator[List[TestRun]]:
         """Resolve the given tests names and options into actual test run objects, and print
         the test creation status.  This returns an iterator over batches tests, respecting the
         batch_size (half the simultanious limit).
@@ -231,7 +231,7 @@ class TestSet:
                 self.modes,
                 self.overrides,
                 conditions=global_conditions,
-                batch_size=self.batch_size,):
+                batch_size=self.batch_size):
 
             if cfg_resolver.errors:
                 output.fprint(
@@ -279,14 +279,20 @@ class TestSet:
                         continue
 
                 try:
-                    if id_counter is not None:
-                        test_id = next(id_counter)
-                    else:
-                        test_id = None
+                    try:
+                        test_id, _ = path_creator(self.name)
+                    except OSError as err:
+                        raise TestSetError("Error creating and linking directories for test set "
+                                           f"{self.name}: {err}")
 
-                    test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
-                                       var_man=ptest.var_man, rebuild=rebuild,
-                                       build_only=build_only, test_id=test_id)
+                    wget_options = {}
+                    wget_options["proxies"] = self.pav_cfg.get("proxies")
+                    wget_options["no_proxy"] = self.pav_cfg.get("no_proxy")
+                    wget_options["wget_timeout"] = self.pav_cfg.get("wget_timeout")
+
+                    test_run = TestRun(config=ptest.config, var_man=ptest.var_man,
+                                       rebuild=rebuild, build_only=build_only, test_id=test_id,
+                                       wget_options=wget_options)
                     if not test_run.skipped:
                         test_run.save()
                         self.tests.append(test_run)
@@ -348,13 +354,14 @@ class TestSet:
         self.all_tests_made = True
 
 
-    def make(self, build_only: bool = False, rebuild: bool = False, local_builds_only: bool =False,
-             series: Optional["TestSeries"] = None) -> List[TestRun]:
+    def make(self, path_creator: TestPathCreator, build_only: bool = False,
+             rebuild: bool = False, local_builds_only: bool = False) -> List[TestRun]:
         """As per make_iter(), but create all of the tests. This doesn't
         respect batch sizes, etc, and is entirely for simplifying unit testing."""
 
         all_tests = []
-        for test_batch in self.make_iter(build_only, rebuild, local_builds_only, series):
+        for test_batch in self.make_iter(path_creator, build_only, rebuild,
+                                         local_builds_only):
             all_tests.extend(test_batch)
 
         return all_tests
@@ -476,8 +483,12 @@ class TestSet:
 
                 test_thread = threading.Thread(
                     target=test.build,
-                    args=(cancel_event, trackers[test])
-                )
+                    kwargs={
+                        "tracker": trackers[test],
+                        "cancel_event": cancel_event,
+                        "umask": int(self.pav_cfg.get("umask"))
+                        })
+
                 test_threads.append(test_thread)
                 test_by_threads[test_thread] = test
                 test_thread.start()
@@ -677,7 +688,7 @@ class TestSet:
 
         raise TestSetError(msg)
 
-    def cancel(self, reason):
+    def cancel(self, reason: str) -> None:
         """Cancel all the tests in the test set."""
 
         self.status.set(S_STATES.SET_CANCELED,
@@ -687,7 +698,7 @@ class TestSet:
         for test in self.tests:
             test.cancel(reason)
 
-        cancel_utils.cancel_jobs(self.pav_cfg, self.tests)
+        cancel_utils.cancel_jobs(self.tests, int(self.pav_cfg["max_threads"]))
 
     def force_completion(self):
         """Mark all of the tests as complete. We generally do this after

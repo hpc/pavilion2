@@ -388,7 +388,7 @@ def deserialize_datetime(when) -> float:
     return 0
 
 
-def get_login():
+def get_login() -> str:
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""
 
@@ -748,6 +748,24 @@ def sort_table(sort_key, table_rows: List[dict]) -> List[dict]:
                          reverse=not sort_ascending)
 
     return sorted_rows
+
+YAML_SUFFIXES = ("yaml", "yml", "YAML", "YML")
+
+def get_yaml_fnames(name: str) -> Iterator[str]:
+    """Given a file name (without a suffix), returns an iterator over all possible YAML files
+    with that name."""
+
+    return map(lambda x: f"{name}.{x}", YAML_SUFFIXES)
+
+def is_yaml_file(path: Path) -> bool:
+    """Determines whether the given path is a YAML file."""
+
+    suffix = path.suffix
+
+    if len(suffix) == 0:
+        return False
+
+    return suffix[1:] in YAML_SUFFIXES and path.is_file()
 
 class IndentedLog:
     """A logging object for writing indented, easy to follow logs."""

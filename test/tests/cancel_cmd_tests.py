@@ -7,8 +7,9 @@ import uuid
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
+from pavilion import utils
 from pavilion.status_utils import get_statuses
-from pavilion.id_utils import load_user_series_id
+from pavilion.sys_vars import base_classes
 from pavilion.unittest import PavTestCase
 
 
@@ -78,7 +79,11 @@ class CancelCmdTests(PavTestCase):
 
         tests = []
 
-        series_id = load_user_series_id(self.pav_cfg)
+        user = utils.get_login()
+        sys_vars = base_classes.get_vars(True)
+        sys_name = sys_vars['sys_name']
+
+        series_id = self.working_dir.get_last_series_id(user, sys_name)
         tests.append(series_id)
 
         args = arg_parser.parse_args([

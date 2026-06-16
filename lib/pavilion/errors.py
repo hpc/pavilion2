@@ -151,6 +151,8 @@ class PavilionError(RuntimeError):
 
         return True
 
+class PavConfigError(PavilionError):
+    """Config specific errors."""
 
 class CommandError(PavilionError):
     """The error type commands should raise for semi-expected errors."""

@@ -3,13 +3,13 @@
 from pathlib import Path
 from typing import List, Union, TextIO, Any
 
-import pavilion.config
 from pavilion import resolve
 from pavilion import utils
 from pavilion import variables
-from pavilion.config import PavConfig
 from pavilion.variables import VariableSetManager
+from pavilion.pavdir import ConfigDirectory
 from pavilion.errors import TestConfigError
+from pavilion.micro import first
 
 
 def create_file(dest: Union[str, Path], rel_path: Path, contents: List[str],
@@ -62,18 +62,25 @@ def verify_path(dest, rel_path) -> Path:
     return file_path
 
 
-def resolve_template(pav_cfg: PavConfig, template_fname: str, var_man: VariableSetManager) -> Any:
+def resolve_template(cfg_dir: ConfigDirectory, template_fname: str,
+                     var_man: VariableSetManager) -> Any:
     """Resolve a single template file specified in the test config. Return a resolved
     component."""
 
-    # TODO: This needs to be the test-specific suites directory
-    tmpl_path = pav_cfg.find_file(template_fname, ['suites', 'test_src'])
+    tmpl_paths = list(cfg_dir.find_template_file(template_fname))
 
-    if tmpl_path is None:
-        raise TestConfigError("Template file '{}' from 'templates' does not exist in "
-                              "any 'suites' dir (Note that it must be in a Pavilion config "
-                              "area's suites directory - NOT the build directory.)"
-                              .format(template_fname))
+    if len(tmpl_paths) == 0:
+        raise TestConfigError(f"Template file '{template_fname}' from 'templates' does not exist "
+                              "in the 'suites' or 'test_src' subdirectories of the pavilion "
+                              f"configuration directory ({cfg_dir}). (Note that it must be either "
+                              "in the Pavilion config area's 'suites' or 'test_src' directory - "
+                              "NOT the build directory.)")
+    elif len(tmpl_paths) > 1:
+        raise TestConfigError(f"Multiple matches found for '{template_fname}' in the following "
+                              f"locations: {tmpl_paths}. Please remove or rename the templates to "
+                              "disambiguate them.")
+
+    tmpl_path = first(tmpl_paths)
 
     try:
         with tmpl_path.open() as tmpl_file:

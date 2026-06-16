@@ -16,7 +16,7 @@ import time
 import signal
 import urllib.parse
 from pathlib import Path
-from typing import Union, Dict, Optional, List, IO
+from typing import Union, Dict, Optional, List, IO, Any
 from contextlib import ExitStack
 
 import pavilion.config
@@ -28,7 +28,9 @@ from pavilion.errors import TestBuilderError, TestConfigError
 from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config import parse_timeout
 from pavilion.test_config.spack import SpackEnvConfig
-from pavilion.micro import set_default, remove_none
+from pavilion.micro import set_default, remove_none, first
+from pavilion.pavdir import WorkingDirectory, ConfigDirectory
+from pavilion.test_ids import TestID
 
 CONFIG_FNAMES = ("suite.yaml", "hosts.yaml", "modes.yaml", "os.yaml")
 
@@ -57,13 +59,13 @@ class TestBuilder:
 
     LOG_NAME = "pav_build_log"
 
-    def __init__(self, pav_cfg: pavilion.config.PavConfig, working_dir: Path, config: dict,
-                 script: Path, status: TestStatusFile, download_dest: Path,
-                 templates: Dict[Path, Path] = None,
-                 spack_config: dict = None, build_name=None):
+    def __init__(self, config_dir: ConfigDirectory, working_dir: WorkingDirectory,
+                 config: Dict[str, Any], script: Path, status: TestStatusFile, download_dest: Path,
+                 wget_options: Optional[Dict[str, Any]] = None,
+                 templates: Optional[Dict[Path, Path]] = None,
+                 spack_config: Optional[Dict[str, Any]] = None, build_name: Optional[str] = None):
         """Initialize the build object.
 
-        :param pav_cfg: The Pavilion config object
         :param working_dir: The working directory where this build should go.
         :param config: The build configuration.
         :param script: Path to the build script
@@ -73,12 +75,16 @@ class TestBuilder:
         :raises TestBuilderError: When the builder can't be initialized.
         """
 
-        self._pav_cfg = pav_cfg
+        self._config_dir = config_dir
+        self._working_dir = working_dir
+        self._builds_dir = self._working_dir.builds_dir
+        self._suites_subdir = self._config_dir.suites_dir
         self._config = config
         self._spack_config = spack_config
         self._script_path = script
         self._download_dest = download_dest
         self._templates: Dict[Path, Path] = templates or {}
+        self._wget_options = set_default(wget_options, {})
         self._build_hash = None
 
         try:
@@ -136,16 +142,6 @@ class TestBuilder:
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad destination path '{}'"
                                        .format(dest), err)
-
-    @property
-    def suite_subdir(self) -> Optional[Path]:
-        sname = self._config.get('suite_name')
-
-        if sname is not None:
-            return Path(f"suites/{sname}/")
-
-        self.status.set(STATES.WARNING,
-                        "Unable to determine name of test suite. Suite directory is unknown.")
 
     def exists(self):
         """Return True if the given build exists."""
@@ -239,11 +235,17 @@ class TestBuilder:
         for tmpl_src in sorted(self._templates.keys()):
             hash_obj.update(self._hash_file(tmpl_src))
 
+        suite_name = self._config.get("suite_name")
+
         # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
-            extra_file = Path(extra_file)
-            sub_dirs = [self.suite_subdir, Path('test_src')]
-            full_path = self._pav_cfg.find_file(extra_file, sub_dirs)
+            full_path = list(self._config_dir.find_extra_file(extra_file, suite_name))
+
+            if len(full_path) > 1:
+                raise TestBuilderError(f"Found multiple files matching extra file {extra_file}: "
+                                       f"{full_path}")
+            else:
+                full_path = first(full_path)
 
             if full_path is None:
                 raise TestBuilderError(
@@ -281,14 +283,13 @@ class TestBuilder:
 
         base_hash = self.build_hash
 
-        builds_dir = self._pav_cfg.working_dir/'builds'
         name = base_hash
-        path = builds_dir/name
+        path = self._builds_dir / name
 
         while path.exists() and (path/self.DEPRECATED).exists():
             self._version += 1
             name = self.rehash_name(name)
-            path = builds_dir/name
+            path = self._builds_dir / name
 
         return name
 
@@ -303,7 +304,7 @@ class TestBuilder:
         """Rechecks deprecation and updates the build name."""
 
         self.name = self.name_build()
-        self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
+        self.path = self._builds_dir / self.name
         fail_name = 'fail.{}.{}'.format(self.name, time.time())
         self.fail_path = self.path.parent/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
@@ -323,18 +324,24 @@ class TestBuilder:
     def _update_src(self) -> Optional[Path]:
         """Retrieve and/or check the existence of the files needed for the
             build. This can include pulling from URL's.
-        :returns: src_path, extra_files
+
+        :returns: src_path (or None)
         """
 
         self.status.set(STATES.INFO, "Updating source.")
 
-        src_path = self._config.get('source_path')
+        suite_name = self._config.get("suite_name")
+
+        if suite_name is not None:
+            suite_dir = self._config_dir.get_suite_dir(suite_name)
+        else:
+            suite_dir = None
 
         # If no source path is specified, use the suite directory as the source path
-        if src_path is None and self.suite_subdir is not None:
-            return self._pav_cfg.find_file(Path("."), [self.suite_subdir])
-        elif src_path is None:
-            return None
+        src_path = self._config.get('source_path', suite_dir)
+
+        if src_path is None:
+            return src_path
 
         try:
             src_path = Path(src_path)
@@ -343,8 +350,16 @@ class TestBuilder:
                 "The source path must be a valid unix path, either relative "
                 "or absolute, got '{}'".format(src_path), err)
 
-        sub_dirs = [self.suite_subdir, Path('test_src')]
-        found_src_path = self._pav_cfg.find_file(src_path, sub_dirs)
+        if not src_path.is_absolute():
+            found_src_path = list(self._config_dir.find_test_src(src_path, suite_name))
+
+            if len(found_src_path) > 1:
+                raise TestBuilderError(f"Found multiple files matching source file {src_path}: "
+                        f"{found_src_path}")
+
+            found_src_path = first(found_src_path)
+        else:
+            found_src_path = None
 
         src_url = self._config.get('source_url')
         src_download = self._config.get('source_download')
@@ -387,7 +402,7 @@ class TestBuilder:
                             "Updating source at '{}'.".format(found_src_path))
 
             try:
-                wget.update(self._pav_cfg, src_url, dwn_dest)
+                wget.update(src_url, dwn_dest, self._wget_options)
             except pavilion.errors.WGetError as err:
                 raise TestBuilderError(
                     "Could not retrieve source from the given url '{}'".format(src_url), err)
@@ -455,8 +470,9 @@ class TestBuilder:
         if cancel_event is not None:
             cancel_event.set()
 
-    def build(self, test_id: str, tracker: BuildTracker,
-              cancel_event: threading.Event = None) -> bool:
+    def build(self, test_id: TestID, tracker: Optional[BuildTracker] = None,
+              cancel_event: Optional[threading.Event] = None,
+              spack_path: Optional[Path] = None, umask: int = 8) -> bool:
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
@@ -484,7 +500,7 @@ class TestBuilder:
             locks = [mb_tracker.make_lock_context(self.build_hash)]
 
             # Only use NFS Lock if building on nodes
-            if self._pav_cfg.get('build', {}).get('on_nodes', 'false').lower() == 'true':
+            if self._config.get('build', {}).get('on_nodes', 'false').lower() == 'true':
                 locks.append(Lock(self.path.parent / f"{self.name}.lock", lifetime=3))
 
             # Allows for variable number of locks
@@ -505,7 +521,7 @@ class TestBuilder:
                         if not self._remove_existing_path(tracker):
                             return False
 
-                    if not self._build(self.path, cancel_event, test_id, tracker):
+                    if not self._build(test_id, tracker, cancel_event, umask, spack_path):
                         self._name_failed_path(cancel_event, tracker)
                         return False
 
@@ -527,14 +543,13 @@ class TestBuilder:
 
         return True
 
-    def create_spack_env(self, build_dir):
+    def _create_spack_env(self, spack_path: Path) -> None:
         """Creates a spack.yaml file in the build dir, so that each unique
         build can activate it's own spack environment."""
 
         spack_config = self._spack_config
 
-        spack_path = self._pav_cfg['spack_path']
-        spack_dir = spack_path/'opt'/'spack'
+        spack_dir = spack_path / 'opt' / 'spack'
 
         # Set up upstreams, will always have 'main', so that builds in the
         # global spack instance can be reused.
@@ -551,7 +566,7 @@ class TestBuilder:
                 'config': {
                     # New spack installs will be built in the specified
                     # build_dir.
-                    'install_tree': str(build_dir/'spack_installs'),
+                    'install_tree': (self.path / 'spack_installs').as_posix(),
                     'install_path_scheme': "{name}-{version}-{hash}",
                     'build_jobs': spack_config.get('build_jobs', 6)
                 },
@@ -562,13 +577,15 @@ class TestBuilder:
         }
 
         # Create the spack.yaml file with the updated configs.
-        spack_env_config = build_dir/'spack.yaml'
+        spack_env_config = self.path / 'spack.yaml'
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, test_id, tracker: BuildTracker) -> bool:
+    def _build(self, test_id: TestID, tracker: Optional[BuildTracker] = None,
+               cancel_event: Optional[threading.Event] = None, umask: int = 8,
+               spack_path: Optional[Path] = None) -> bool:
         """Perform the build. This assumes there actually is a build to perform.
-        :param Path build_dir: The directory in which to perform the build.
+
         :param threading.Event cancel_event: Event to signal that the build
             should stop.
         :param test_id: The ID of the test initiating the build.
@@ -578,16 +595,16 @@ class TestBuilder:
         """
 
         try:
-            self._setup_build_dir(build_dir, tracker)
+            self._setup_build_dir(self.path, tracker, umask)
         except TestBuilderError as err:
             tracker.error(
                 note=("Error setting up build directory '{}': {}"
-                      .format(build_dir, err)))
+                      .format(self.path, err)))
             return False
 
         # Generate an anonymous spack environment for a new build.
-        if self._spack_config is not None:
-            self.create_spack_env(build_dir)
+        if self._spack_config is not None and spack_path is not None:
+            self._create_spack_env(spack_path)
 
         try:
             # Do the build, and wait for it to complete.
@@ -596,7 +613,7 @@ class TestBuilder:
                 cmd = [self._script_path.as_posix(), str(test_id)]
 
                 proc = subprocess.Popen(cmd,
-                                        cwd=build_dir.as_posix(),
+                                        cwd=self.path.as_posix(),
                                         preexec_fn=os.setsid,
                                         stdout=build_log,
                                         stderr=build_log,
@@ -651,14 +668,14 @@ class TestBuilder:
             return False
         finally:
             try:
-                self.tmp_log_path.rename(build_dir/self.LOG_NAME)
+                self.tmp_log_path.rename(self.path / self.LOG_NAME)
             except OSError as err:
                 tracker.warn(
                     "Could not move build log from '{}' to final location '{}': {}"
-                    .format(self.tmp_log_path, build_dir, err))
+                    .format(self.tmp_log_path, self.path, err))
 
         try:
-            self._fix_build_permissions(build_dir)
+            self._fix_build_permissions(self.path)
         except OSError as err:
             tracker.warn("Error fixing build permissions: %s".format(err))
 
@@ -684,7 +701,7 @@ class TestBuilder:
         'x-lzma',
     )
 
-    def _setup_build_dir(self, dest: Path, tracker: BuildTracker) -> None:
+    def _setup_build_dir(self, dest: Path, tracker: BuildTracker, umask: int = 8) -> None:
         """Setup the build directory, by extracting or copying the source
             and any extra files.
         :param dest: Path to the intended build directory. This is generally a
@@ -695,20 +712,20 @@ class TestBuilder:
 
         tracker.update(state=STATES.BUILDING, note="Setting up build directory.")
 
-        umask = os.umask(0)
-        os.umask(umask)
-
         src_path = None
         raw_src_path = self._config.get('source_path')
+        suite_name = self._config.get("suite_name")
 
         if raw_src_path is not None:
             tracker.update(state=STATES.BUILDING, note=f"Looking for source path: {raw_src_path}.")
-            sub_dirs = [Path('test_src')]
 
-            if self.suite_subdir is not None:
-                sub_dirs.append(self.suite_subdir)
+            src_path = list(self._config_dir.find_test_src(raw_src_path, suite_name))
 
-            src_path = self._pav_cfg.find_file(raw_src_path, sub_dirs)
+            if len(src_path) > 1:
+                raise TestBuilderError(f"Found multiple files matching source file {raw_src_path}: "
+                        f"{src_path}")
+
+            src_path = first(src_path)
 
             # Only raise an error if a path that is explicitly identified is missing
             if src_path is None:
@@ -717,12 +734,12 @@ class TestBuilder:
         else:
             # Default to the suite directory, which may or may not exist
             # If it doesn't exist, we should just continue without raising an error.
-            if self.suite_subdir is not None:
+            if self._suites_subdir is not None:
                 tracker.update(state=STATES.BUILDING,
-                               note=f"No source path given. Defaulting to {self.suite_subdir}.")
-                src_path = self._pav_cfg.find_file(self.suite_subdir)
+                               note=f"No source path given. Defaulting to {self._suites_subdir}.")
 
-        umask = int(self._pav_cfg['umask'], 8)
+                if suite_name is not None:
+                    src_path = self._config_dir.get_suite_dir(suite_name)
 
         # All of the file extraction functions return an error message on failure, None on success.
         extract_error = None
@@ -824,8 +841,14 @@ class TestBuilder:
         # Now we just need to copy over all the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
-            sub_dirs = [self.suite_subdir, Path('test_src')]
-            path = self._pav_cfg.find_file(extra, sub_dirs)
+            path = list(self._config_dir.find_extra_file(extra, suite_name))
+
+            if len(path) > 1:
+                raise TestBuilderError(f"Found multiple files matching extra file {extra}: "
+                                       f"{path}")
+            else:
+                path = first(path)
+
             final_dest = dest / path.name
             try:
                 if path.is_dir():
