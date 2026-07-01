@@ -21,16 +21,16 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             f.write(b'test')
 
         try:
-            timeout_strategy = AbsoluteDeadlineTimeout(1.0)
+            timeout_strategy = AbsoluteDeadlineTimeout(test_file, 1.0)
             
             # Initially should have remaining time
-            remaining = timeout_strategy.remaining_time(test_file)
+            remaining = timeout_strategy.remaining_time()
             self.assertGreater(remaining, 0)
             self.assertLessEqual(remaining, 1.0)
             
             # After timeout period, should be negative
             time.sleep(1.5)
-            remaining = timeout_strategy.remaining_time(test_file)
+            remaining = timeout_strategy.remaining_time()
             self.assertLess(remaining, 0)
         finally:
             test_file.unlink()
@@ -43,7 +43,7 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             f.write(b'initial')
 
         try:
-            timeout_strategy = AbsoluteDeadlineTimeout(2.0)
+            timeout_strategy = AbsoluteDeadlineTimeout(test_file, 2.0)
             
             # Wait 1 second
             time.sleep(1.0)
@@ -53,7 +53,7 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
                 f.write('more data')
             
             # Check remaining time - should be extended
-            remaining = timeout_strategy.remaining_time(test_file)
+            remaining = timeout_strategy.remaining_time()
             self.assertGreater(remaining, 1.5,
                              "Deadline should be extended after file modification")
         finally:
@@ -67,14 +67,14 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             f.write(b'test')
 
         try:
-            timeout_strategy = AbsoluteDeadlineTimeout(5.0)
+            timeout_strategy = AbsoluteDeadlineTimeout(test_file, 5.0)
             initial_deadline = timeout_strategy.deadline
             
             # Simulate stale cached mtime by setting file mtime to the past
             os.utime(test_file, (time.time() - 100, time.time() - 100))
             
             # Check remaining time
-            remaining = timeout_strategy.remaining_time(test_file)
+            remaining = timeout_strategy.remaining_time()
             new_deadline = timeout_strategy.deadline
             
             # Deadline should not move backward
@@ -92,14 +92,14 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             test_file = Path(f.name)
             f.write(b'test')
 
-        timeout_strategy = AbsoluteDeadlineTimeout(5.0)
+        timeout_strategy = AbsoluteDeadlineTimeout(test_file, 5.0)
         initial_deadline = timeout_strategy.deadline
         
         # Remove file to cause OSError
         test_file.unlink()
         
         # Check remaining time - should not crash
-        remaining = timeout_strategy.remaining_time(test_file)
+        remaining = timeout_strategy.remaining_time()
         
         # Deadline should be unchanged
         self.assertEqual(timeout_strategy.deadline, initial_deadline,
@@ -115,14 +115,14 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             f.write(b'test')
 
         try:
-            timeout_strategy = AbsoluteDeadlineTimeout(None)
+            timeout_strategy = AbsoluteDeadlineTimeout(test_file, None)
             
             # Deadline should be infinity
             self.assertEqual(timeout_strategy.deadline, math.inf,
                            "Deadline should be infinity for None timeout")
             
             # Remaining time should be infinity
-            remaining = timeout_strategy.remaining_time(test_file)
+            remaining = timeout_strategy.remaining_time()
             self.assertEqual(remaining, math.inf,
                            "Remaining time should be infinity for None timeout")
         finally:
@@ -136,10 +136,10 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             f.write(b'test')
 
         try:
-            timeout_strategy = AbsoluteDeadlineTimeout(5.0)
+            timeout_strategy = AbsoluteDeadlineTimeout(test_file_str, 5.0)
             
             # Should accept string path
-            remaining = timeout_strategy.remaining_time(test_file_str)
+            remaining = timeout_strategy.remaining_time()
             self.assertGreater(remaining, 4.5,
                              "String path should work")
         finally:
@@ -153,10 +153,10 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             f.write(b'initial')
 
         try:
-            timeout_strategy = AbsoluteDeadlineTimeout(3.0)
+            timeout_strategy = AbsoluteDeadlineTimeout(test_file, 3.0)
             
             # First check
-            remaining1 = timeout_strategy.remaining_time(test_file)
+            remaining1 = timeout_strategy.remaining_time()
             self.assertGreater(remaining1, 2.9)
             
             # Wait and modify file
@@ -165,13 +165,13 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
                 f.write('update')
             
             # Second check - deadline should extend
-            remaining2 = timeout_strategy.remaining_time(test_file)
+            remaining2 = timeout_strategy.remaining_time()
             self.assertGreater(remaining2, 2.5,
                              "Deadline should extend on file modification")
             
             # Third check without modification - remaining decreases
             time.sleep(0.5)
-            remaining3 = timeout_strategy.remaining_time(test_file)
+            remaining3 = timeout_strategy.remaining_time()
             self.assertLess(remaining3, remaining2,
                           "Remaining time should decrease without file modification")
         finally:
@@ -185,10 +185,10 @@ class AbsoluteDeadlineTimeoutTests(unittest.PavTestCase):
             f.write(b'test')
 
         try:
-            timeout_strategy = AbsoluteDeadlineTimeout(0.0)
+            timeout_strategy = AbsoluteDeadlineTimeout(test_file, 0.0)
             
             # Should immediately be timed out (or very close)
-            remaining = timeout_strategy.remaining_time(test_file)
+            remaining = timeout_strategy.remaining_time()
             self.assertLessEqual(remaining, 0.1,
                                "Zero timeout should be immediately exceeded")
         finally:

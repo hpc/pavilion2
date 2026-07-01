@@ -2,6 +2,7 @@
 
 import time
 import math
+from pathlib import Path
 from typing import Callable, Tuple, Any, Optional
 
 from pavilion.micro import set_default
@@ -70,18 +71,17 @@ class AbsoluteDeadlineTimeout:
     that stale metadata cannot cause premature timeouts.
     """
 
-    def __init__(self, timeout_period: Optional[float]):
+    def __init__(self, timeout_file: Pathlike, timeout_period: Optional[float] = None):
         """Initialize the timeout strategy.
         
+        :param timeout_file: Path to file whose modification time indicates activity
+        :type timeout_file: Pathlike
         :param timeout_period: Timeout duration in seconds, or None for no timeout
         :type timeout_period: Optional[float]
         """
-        self.timeout_period = timeout_period
-        
-        if timeout_period is None:
-            self.deadline = math.inf
-        else:
-            self.deadline = time.time() + timeout_period
+        self.timeout_file = Path(timeout_file)
+        self.timeout_period = set_default(timeout_period, math.inf)
+        self.deadline = time.time() + self.timeout_period
 
     def remaining_time(self, timeout_file: Pathlike) -> float:
         """Calculate remaining time until timeout deadline.
@@ -94,20 +94,11 @@ class AbsoluteDeadlineTimeout:
         If an OSError occurs while checking the file (e.g., file doesn't exist,
         permission denied, network error), the current deadline is preserved.
         
-        :param timeout_file: Path to file whose modification time indicates activity
-        :type timeout_file: Pathlike
         :return: Remaining seconds until timeout. Returns math.inf if no timeout
                  is configured. Returns negative value if timeout has been exceeded.
         :rtype: float
         """
-        if self.timeout_period is None:
-            return math.inf
-        
         try:
-            from pathlib import Path
-            if not isinstance(timeout_file, Path):
-                timeout_file = Path(timeout_file)
-            
             file_mtime = timeout_file.stat().st_mtime
             # Extend deadline if file was modified recently (deadline can only move forward)
             self.deadline = max(self.deadline, file_mtime + self.timeout_period)
