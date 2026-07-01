@@ -60,12 +60,12 @@ def wait(cond: Callable[[], bool], interval: float, timeout: Optional[float] = N
 
 class AbsoluteDeadlineTimeout:
     """NFS-safe timeout strategy using absolute deadlines.
-    
+
     This class implements a timeout algorithm that is robust against stale
     NFS metadata caching. It maintains an absolute deadline that can only
     move forward (be extended), never backward, making it safe when file
     modification times are cached and potentially stale.
-    
+
     When a file is modified, the deadline is extended. When file metadata
     is stale (from cache), the existing deadline is preserved. This ensures
     that stale metadata cannot cause premature timeouts.
@@ -73,7 +73,7 @@ class AbsoluteDeadlineTimeout:
 
     def __init__(self, timeout_file: Pathlike, timeout_period: Optional[float] = None):
         """Initialize the timeout strategy.
-        
+
         :param timeout_file: Path to file whose modification time indicates activity
         :type timeout_file: Pathlike
         :param timeout_period: Timeout duration in seconds, or None for no timeout
@@ -85,15 +85,15 @@ class AbsoluteDeadlineTimeout:
 
     def remaining_time(self, timeout_file: Pathlike) -> float:
         """Calculate remaining time until timeout deadline.
-        
+
         Updates the internal deadline based on the timeout file's modification
         time. If the file has been modified recently, the deadline is extended.
         The deadline can only move forward (extended), never backward, which
         makes this algorithm safe against stale NFS metadata caching.
-        
+
         If an OSError occurs while checking the file (e.g., file doesn't exist,
         permission denied, network error), the current deadline is preserved.
-        
+
         :return: Remaining seconds until timeout. Returns math.inf if no timeout
                  is configured. Returns negative value if timeout has been exceeded.
         :rtype: float
@@ -105,6 +105,7 @@ class AbsoluteDeadlineTimeout:
         except OSError:
             # If we can't stat the file, keep the existing deadline
             pass
-        
+
         # Calculate and return remaining time (may be negative if exceeded)
         return self.deadline - time.time()
+
