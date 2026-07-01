@@ -5,6 +5,7 @@ import math
 from typing import Callable, Tuple, Any, Optional
 
 from pavilion.micro import set_default
+from pavilion.path_utils import Pathlike
 
 
 class RateLimiter:
@@ -54,3 +55,65 @@ def wait(cond: Callable[[], bool], interval: float, timeout: Optional[float] = N
         time.sleep(interval)
 
     raise TimeoutError(msg)
+
+
+class AbsoluteDeadlineTimeout:
+    """NFS-safe timeout strategy using absolute deadlines.
+    
+    This class implements a timeout algorithm that is robust against stale
+    NFS metadata caching. It maintains an absolute deadline that can only
+    move forward (be extended), never backward, making it safe when file
+    modification times are cached and potentially stale.
+    
+    When a file is modified, the deadline is extended. When file metadata
+    is stale (from cache), the existing deadline is preserved. This ensures
+    that stale metadata cannot cause premature timeouts.
+    """
+
+    def __init__(self, timeout_period: Optional[float]):
+        """Initialize the timeout strategy.
+        
+        :param timeout_period: Timeout duration in seconds, or None for no timeout
+        :type timeout_period: Optional[float]
+        """
+        self.timeout_period = timeout_period
+        
+        if timeout_period is None:
+            self.deadline = math.inf
+        else:
+            self.deadline = time.time() + timeout_period
+
+    def remaining_time(self, timeout_file: Pathlike) -> float:
+        """Calculate remaining time until timeout deadline.
+        
+        Updates the internal deadline based on the timeout file's modification
+        time. If the file has been modified recently, the deadline is extended.
+        The deadline can only move forward (extended), never backward, which
+        makes this algorithm safe against stale NFS metadata caching.
+        
+        If an OSError occurs while checking the file (e.g., file doesn't exist,
+        permission denied, network error), the current deadline is preserved.
+        
+        :param timeout_file: Path to file whose modification time indicates activity
+        :type timeout_file: Pathlike
+        :return: Remaining seconds until timeout. Returns math.inf if no timeout
+                 is configured. Returns negative value if timeout has been exceeded.
+        :rtype: float
+        """
+        if self.timeout_period is None:
+            return math.inf
+        
+        try:
+            from pathlib import Path
+            if not isinstance(timeout_file, Path):
+                timeout_file = Path(timeout_file)
+            
+            file_mtime = timeout_file.stat().st_mtime
+            # Extend deadline if file was modified recently (deadline can only move forward)
+            self.deadline = max(self.deadline, file_mtime + self.timeout_period)
+        except OSError:
+            # If we can't stat the file, keep the existing deadline
+            pass
+        
+        # Calculate and return remaining time (may be negative if exceeded)
+        return self.deadline - time.time()
