@@ -108,4 +108,3 @@ class AbsoluteDeadlineTimeout:
 
         # Calculate and return remaining time (may be negative if exceeded)
         return self.deadline - time.time()
-
