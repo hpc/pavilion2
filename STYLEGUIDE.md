@@ -1,3 +1,8 @@
+# Pavilion Style Guide
+
+- These are not arbitrary rules, but hard-won lessons gained from years of software development.
+- Each of these rules has practical implications, often in terms of readability and testibility.
+
 ## Optimize for Readability and Testability
 
 - Cognitive load
@@ -23,6 +28,11 @@
 
 - Lengthy functions hint at poor separation of concerns
 
+## Keep Objects Relatively Small
+
+- Compose smaller, simpler objects for complex behavor.
+- Promotes testing and reusability.
+
 ## Avoid Deep Object Hierarchies
 
 - Distributes logic over multiple classes
@@ -39,6 +49,10 @@
 - Clearly telegraphs expected type and properties of object.
 - Makes intent clearer and more explicit.
 - Improves readability.
+- More generally, using the `if foo:` idiom on certain third-party types (such as NumPy arrays)
+  can result in runtime errors.
+- More pedantically, you should respect objects' type; you shouldn't treat things that aren't
+  booleans as booleans.
 
 ## Prefer Functional Primitives over Loops
 
@@ -59,6 +73,7 @@
 - If you need to raise an exception with information about a particular item, it may still be
   necessary to use a for loop.
     - However, using the custom function (see above) is a good choice.
+- Make use of functional utilities provided in `micro` module
 
 ## Keep __init__() methods minimal
 
@@ -123,3 +138,8 @@
 ## Group Related Data Together
 
 - Use data classes
+
+## Import Statements
+
+- Prefer direct imports, except where naming might cause collision or confusion
+- Separate module imports `from`-style imports, and internal imports into different sections
