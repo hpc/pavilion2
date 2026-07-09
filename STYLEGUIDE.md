@@ -17,6 +17,10 @@
 - Use dependency injection to keep functions pure
 - Label pure methods as static methods
 - Functions that might reasonably needed by multiply entities should go in a utilities module
+- Examples:
+    - Return a string and make caller responsible for writing it to a file
+    - Pass opened file into function and write to it, rather than passing file name and opening
+      file within function.
 
 ## Prefer Returning "degenerate" Objects Over Raising Exceptions
 
@@ -143,3 +147,23 @@
 
 - Prefer direct imports, except where naming might cause collision or confusion
 - Separate module imports `from`-style imports, and internal imports into different sections
+
+## Function Names
+
+- Should be verbs
+- Should clearly telegraph purpose/behavior
+
+## Minimize Use of String Literals
+
+- Increase chance of typos
+- Must be changed multiple places (multiple sources of truth)
+- Pendantically, does not reflect valid values
+    - Make bad values unrepresentable
+- Consider using an `Enum`
+
+## Shell Scripts
+
+- Use shellcheck
+- Minimum permissions
+    - Sourced scripts should not be executable
+- Only use shebangs for directly executed scripts

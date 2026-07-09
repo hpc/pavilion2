@@ -1,0 +1,9 @@
+- Generally sensical and well commented
+- Adherence to style guide
+- Dead code
+- Function signature annotations are correct
+- Arguments and return types in docstrings are consistent with function behavior
+- Separation of concerns is followed
+- Unit tests for all changes
+- Documentation of new features
+- Changes are documented in `CHANGELOG.md`
