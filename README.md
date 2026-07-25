@@ -61,11 +61,14 @@ of HPC testing workflows.
 
 ## Why Pavilion?
 
+Testing HPC systems presents engineering challenges that rarely arise in conventional software
+testing. Pavilion addresses these challenges by reducing the effort required to develop and
+maintain tests across diverse systems while enabling testing practices that remain practical as
+systems, software, and testing campaigns grow in size and complexity.
+
 - Reduce the cost of maintaining tests across heterogeneous HPC systems.
-- Make testing workflows reproducible and inspectable.
 - Replace ad hoc scripts with reusable testing workflows.
 - Scale testing practices from individual tests to coordinated campaigns.
-- Pavilion makes the state and history of a testing workflow observable.
 
 ## Where can I learn more?
 
