@@ -25,8 +25,8 @@ across heterogeneous environments. Pavilion accounts for this complexity in four
 | **preserves**    | testing artifacts        | testing workflows become inspectable and verifiable                       |
 | **orchestrates** | testing activities       | testing activities form coherent, reusable workflows                      |
 
-Pavilion replaces ad hoc testing practices with systematic workflows that make testing HPC systems
-reproducible and tractable.
+Pavilion replaces *ad hoc* testing practices with systematic workflows that make testing HPC
+systems reproducible and tractable.
 
 ### Generalization
 
@@ -61,13 +61,12 @@ of HPC testing workflows.
 
 ## Why Pavilion?
 
-Testing HPC systems presents engineering challenges that rarely arise in conventional software
-testing. Pavilion addresses these challenges by reducing the effort required to develop and
-maintain tests across diverse systems while enabling testing practices that remain practical as
-systems, software, and testing campaigns grow in size and complexity.
+HPC systems present engineering challenges arising from scale, heterogeneity, and other forms of
+complexity. Pavilion addresses these challenges by providing a systematic approach to HPC testing
+that remains tractable as systems, software, and testing campaigns grow in size and complexity.
 
-- Reduce the cost of maintaining tests across heterogeneous HPC systems.
-- Replace ad hoc scripts with reusable testing workflows.
+- Reduce the cost of maintaining tests across HPC systems.
+- Replace *ad hoc* scripts with reusable testing workflows.
 - Scale testing practices from individual tests to coordinated campaigns.
 
 ## Where can I learn more?
