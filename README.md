@@ -67,16 +67,6 @@ of HPC testing workflows.
 - Scale testing practices from individual tests to coordinated campaigns.
 - Pavilion makes the state and history of a testing workflow observable.
 
-## Project Goals:
-
-- End-to-end status tracking
-- Simple, powerful test configuration language.
-- System-agnostic test configs.
-- Hide common platform and environment idiosyncrasies from tests.
-- System specific defaults.
-- Eliminate unnecessary build repetition.
-- Extreme extensibility (plugins everywhere). 
-
 ## Where can I learn more?
 
 The [Pavilion documentation](https://pavilion2.readthedocs.io/en/latest/) includes both user
