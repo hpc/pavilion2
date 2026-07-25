@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a provenance policy defining conventions for recording how committed artifacts
+  were produced.
+
 ### Fixed
 
 - Fixed a race condition which caused result loggers to sometimes read tests' result files before
