@@ -47,6 +47,18 @@ without encountering system-specific runtime errors, crashes, or other implement
 
 Generalization preserves the conditions necessary for valid inference. Whether those inferences are sound depends on assumptions and facts external to the testing framework.
 
+## What capabilities does Pavilion provide?
+
+Pavilion provides a collection of features that support the development, execution, and maintenance
+of HPC testing workflows.
+
+| **Capability**                   |                                                                                                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Declarative test definitions** | Tests are defined using YAML configuration files that describe how software is built, executed, evaluated, and composed into larger testing workflows.             |
+| **Build reuse**                  | Pavilion avoids unnecessary rebuilding by reusing compatible build artifacts whenever possible.                                                                    |
+| **End-to-end status tracking**   | Pavilion records the state of each test throughout its execution, making long-running testing campaigns observable and easier to manage.                           |
+| **Extensible architecture**      | A plugin architecture allows users to extend Pavilion with new schedulers, result parsers, commands, and other functionality without modifying the core framework. |
+
 ## Why Pavilion?
 
 - Reduce the cost of maintaining tests across heterogeneous HPC systems.
