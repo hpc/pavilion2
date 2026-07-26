@@ -466,6 +466,11 @@ class ResultLoggerTests(PavTestCase):
         except TimeoutError:
             self.fail(f"Timed out waiting for series {last_series.id} to complete after 10 seconds.")
 
+        try:
+            last_series.wait_log(timeout=10)
+        except TimeoutError:
+            self.fail(f"Timed out waiting for series {last_series.id} to finish logging results after 10 seconds.")
+
         matches = list(reused_series_results_dir.glob(f"{last_series.id}*"))
 
         self.assertEqual(len(matches), 2,
