@@ -20,7 +20,7 @@ Publishing
 ----------
 
 1. **Do NOT increment the version number.** You may want to look at
-   `RELEASE.txt <_static/RELEASE.txt>`__ though.
+   `CHANGELOG.md <_static/CHANGELOG.md>`__ though.
 
 Site Specific Code
 ------------------
