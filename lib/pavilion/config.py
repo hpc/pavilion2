@@ -11,7 +11,7 @@ import stat
 from collections import OrderedDict
 from operator import itemgetter
 from pathlib import Path
-from typing import List, Union, Dict, NewType, Iterator, Tuple, Optional
+from typing import List, Union, Dict, NewType, Iterator, Tuple, Optional, TextIO
 
 import yaml_config as yc
 from pavilion import errors
@@ -62,7 +62,6 @@ NCPU = max(NCPU, 2)
 DEFAULT_WORKING_DIR = PAV_ROOT.parent/'working_dir'
 
 LOG_FORMAT = "{asctime}, {levelname}, {hostname}, {name}: {message}"
-
 
 # An optional path type.
 OptPath = NewType("OptPath", Union[None, Path])
@@ -820,20 +819,3 @@ def make_config(options: dict, setup_working_dirs: bool = True):
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 
     return pav_cfg
-
-
-def get_version() -> str:
-    """Returns the current version of Pavilion."""
-    version_path = PAV_ROOT / 'RELEASE.txt'
-
-    try:
-        with version_path.open() as file:
-            lines = file.readlines()
-            for line in lines:
-                if line.startswith('RELEASE='):
-                    return line.split('=')[1].strip()
-
-            return '<unknown>'
-
-    except FileNotFoundError:
-        return '<unknown>'

@@ -8,6 +8,7 @@ import textwrap
 
 import pavilion.config
 from pavilion import commands
+from pavilion.version import __version__
 from pavilion.utils import WrappedFormatter
 
 PROFILE_SORT_DEFAULT = 'cumtime'
@@ -31,7 +32,7 @@ def get_parser(add_commands: bool = True):
     parser.add_argument('--quiet', action='store_true',
                         help='Silence warnings and stderr output.')
     parser.add_argument('--version', action='version',
-                        version='Pavilion ' + pavilion.config.get_version(),
+                        version='Pavilion ' + __version__,
                         default=False,
                         help='Displays the current version of Pavilion.')
 

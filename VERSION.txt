@@ -1,4 +1,4 @@
 # Pavilion is currently version 2.0, and will stay at this version until
-# further LANL/DOE version are approved. See RELEASE.txt to find a more
+# further LANL/DOE version are approved. See `CHANGELOG.md` to find a more
 # useful number to track Pavilion releases.
 2.0
