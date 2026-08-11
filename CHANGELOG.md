@@ -52,7 +52,6 @@ or JSON.
   series IDs are reused.
 
 ## [2.6] - 2026-03-25
->>>>>>> stable:CHANGELOG.md
 
 - Test run directories are now named based on the series-relative IDs of test runs (e.g. `s1.1`).
   This reduces lock contention when creating test runs, since IDs in different series are now
@@ -74,15 +73,7 @@ or JSON.
 - Various minor bug mixes.
 - Minor documentation edits.
 
-<<<<<<< HEAD:RELEASE.txt
-## 2.5 Release Notes
-||||||| c9f2968d:RELEASE.txt
-# Release History
-
-## 2.5 Release Notes
-=======
 ## [2.5] - 2026-01-14
->>>>>>> stable:CHANGELOG.md
 
  - Tests can (and should) now be structured as suites directories, which can contain test, host,
    mode, and os configs, as well as test source code. The `test_src` directory is now deprecated.
