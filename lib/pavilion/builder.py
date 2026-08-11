@@ -663,8 +663,18 @@ class TestBuilder:
             tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            tracker.fail(
-                note="Build returned a non-zero result.")
+            # By convention, a positive return value indicates an internal errors in the script
+            # itself, while a negative value indicates the process was terminated externally by a
+            # signal.
+            if result > 0:
+                tracker.fail(
+                    note=f"Build script exited with return code {result}.")
+            else:
+                sig = signal.Signals(abs(result))
+                tracker.fail(
+                    note="Build process was terminated externally by the following signal: "
+                         f"{sig.name}."
+                )
             if cancel_event is not None:
                 cancel_event.set()
             return False

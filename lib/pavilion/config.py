@@ -63,7 +63,6 @@ DEFAULT_WORKING_DIR = PAV_ROOT.parent/'working_dir'
 
 LOG_FORMAT = "{asctime}, {levelname}, {hostname}, {name}: {message}"
 
-
 # An optional path type.
 OptPath = NewType("OptPath", Union[None, Path])
 
@@ -820,20 +819,3 @@ def make_config(options: dict, setup_working_dirs: bool = True):
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
 
     return pav_cfg
-
-
-def get_version():
-    """Returns the current version of Pavilion."""
-    version_path = PAV_ROOT / 'RELEASE.txt'
-
-    try:
-        with version_path.open() as file:
-            lines = file.readlines()
-            for line in lines:
-                if line.startswith('RELEASE='):
-                    return line.split('=')[1].strip()
-
-            return '<unknown>'
-
-    except FileNotFoundError:
-        return '<unknown>'

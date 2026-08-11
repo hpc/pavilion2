@@ -9,6 +9,7 @@ import time
 
 import pavilion.config
 from pavilion.var_dict import VarDict, var_method
+from pavilion.version import __version__
 from pavilion import utils
 
 
@@ -66,4 +67,4 @@ class PavVars(VarDict):
     @var_method
     def version(self):
         """The current version of Pavilion."""
-        return pavilion.config.get_version()
+        return __version__

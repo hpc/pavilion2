@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pavilion import unittest
 from pavilion.errors import TestRunError
 
