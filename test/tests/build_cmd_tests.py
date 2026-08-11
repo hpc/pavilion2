@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
