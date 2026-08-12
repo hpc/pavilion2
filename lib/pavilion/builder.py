@@ -80,6 +80,7 @@ class TestBuilder:
         self._download_dest = download_dest
         self._templates: Dict[Path, Path] = templates or {}
         self._build_hash = None
+        self._version = 1
 
         try:
             self._timeout = parse_timeout(config.get('timeout'))
@@ -87,25 +88,14 @@ class TestBuilder:
             raise TestBuilderError("Build timeout must be a positive integer or null, "
                                    "got '{}'".format(config.get('timeout')))
 
-        self.status = status
-
-        self._timeout_file_name = config.get('timeout_file')
-
         self._fix_source_path()
-
-        self._version = 1
-
-        if build_name is None:
-            name = self.name_build()
-        else:
-            name = build_name
-
+        
+        name = self._resolve_build_name(build_name)
+        self._timeout_file_name = config.get('timeout_file')
         self._set_build_paths(name)
 
-        current_status = status.current()
-
-        if not self.path.exists() and not STATES.is_fatal(current_status.state):
-            status.set(state=STATES.BUILD_CREATED, note="Builder created.")
+        self.status = status
+        self._initialize_status()
 
         self._validate_config()
 
@@ -165,11 +155,22 @@ class TestBuilder:
 
     def _initialize_status(self) -> None:
         """Initialize the builder's status for a newly created build."""
-        raise NotImplementedError
 
-    def resolve_build_name(self) -> str:
-        """Determine and return the name of the build represented by this builder."""
-        raise NotImplementedError
+        current_status = self.status.current()
+
+        if not self.path.exists() and not STATES.is_fatal(current_status.state):
+            self.status.set(state=STATES.BUILD_CREATED, note="Builder created.")
+
+    def _resolve_build_name(self, name: Optional[str]) -> str:
+        """Determine and return the name of the build represented by this builder.
+
+        :param name: The name of the build, possibly None.
+        :type name: Optional[str]
+        :returns: The resolved build name.
+        :rtype: str
+        """
+
+        return name or self.name_build()
 
     @property
     def suite_subdir(self) -> Optional[Path]:
