@@ -89,19 +89,21 @@ class TestBuilder:
                                    "got '{}'".format(config.get('timeout')))
 
         self._fix_source_path()
-        
-        name = self._resolve_build_name(build_name)
-        self._timeout_file_name = config.get('timeout_file')
-        self._set_build_paths(name)
 
         self.status = status
+        name = self._resolve_build_name(build_name)
+        self._timeout_file_name = config.get('timeout_file')
+        self._set_build_paths(working_dir, name)
+
         self._initialize_status()
 
         self._validate_config()
 
-    def _set_build_paths(self, name: str) -> None:
+    def _set_build_paths(self, working_dir: Path, name: str) -> None:
         """Set the build name and all filesystem paths derived from it.
 
+        :param working_dir: The working directory in which to create the build.
+        :type working_dir: Path
         :param name: Name of the build.
         :type name: str
         """
@@ -129,10 +131,10 @@ class TestBuilder:
         :raises TestBuilderError: If the provided config is not valid."""
 
         try:
-            self._timeout = parse_timeout(config.get('timeout'))
+            self._timeout = parse_timeout(self._config.get('timeout'))
         except ValueError:
             raise TestBuilderError("Build timeout must be a positive integer or null, "
-                                   "got '{}'".format(config.get('timeout')))
+                                   "got '{}'".format(self._config.get('timeout')))
 
         # Verify template and file creation destinations
         for file in self._config.get('create_files', {}).keys():
