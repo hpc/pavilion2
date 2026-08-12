@@ -89,34 +89,60 @@ class TestBuilder:
 
         self.status = status
 
-        self._timeout_file = config.get('timeout_file')
+        self._timeout_file_name = config.get('timeout_file')
 
         self._fix_source_path()
 
         self._version = 1
 
         if build_name is None:
-            self.name = self.name_build()
+            name = self.name_build()
         else:
-            self.name = build_name
+            name = build_name
 
-        self.path = working_dir/'builds'/self.name  # type: Path
+        self._set_build_paths(name)
 
         current_status = status.current()
 
         if not self.path.exists() and not STATES.is_fatal(current_status.state):
             status.set(state=STATES.BUILD_CREATED, note="Builder created.")
 
+        self._validate_config()
+
+    def _set_build_paths(self, name: str) -> None:
+        """Set the build name and all filesystem paths derived from it.
+
+        :param name: Name of the build.
+        :type name: str
+        """
+
+        self.name = name
+
+        self.path = working_dir / 'builds' / self.name
+
         self.tmp_log_path = self.path.with_suffix('.log')
-        self.log_path = self.path/self.LOG_NAME
-        fail_name = 'fail.{}.{}'.format(self.name, time.time())
-        self.fail_path = self.path.parent/fail_name
+        self.log_path = self.path / self.LOG_NAME
+
+        fail_name = f"fail.{self.name}.{time.time()}"
+        self.fail_path = self.path.parent / fail_name
+
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
-        if self._timeout_file is not None:
-            self._timeout_file = self.path/self._timeout_file
+        if self._timeout_file_name is not None:
+            self._timeout_file = self.path / self._timeout_file_name
         else:
             self._timeout_file = self.tmp_log_path
+
+    def _validate_config(self) -> None:
+        """Validate builder configuration that depends on the build path.
+
+        :raises TestBuilderError: If the provided config is not valid."""
+
+        try:
+            self._timeout = parse_timeout(config.get('timeout'))
+        except ValueError:
+            raise TestBuilderError("Build timeout must be a positive integer or null, "
+                                   "got '{}'".format(config.get('timeout')))
 
         # Verify template and file creation destinations
         for file in self._config.get('create_files', {}).keys():
@@ -136,6 +162,14 @@ class TestBuilder:
             except TestConfigError as err:
                 raise TestBuilderError("build.create_file has bad destination path '{}'"
                                        .format(dest), err)
+
+    def _initialize_status(self) -> None:
+        """Initialize the builder's status for a newly created build."""
+        raise NotImplementedError
+
+    def resolve_build_name(self) -> str:
+        """Determine and return the name of the build represented by this builder."""
+        raise NotImplementedError
 
     @property
     def suite_subdir(self) -> Optional[Path]:
