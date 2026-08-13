@@ -587,7 +587,7 @@ class TestSeries:
             for test in all_tests:
                 state = get_status(test, self.pav_cfg).get("state", STATES.UNKNOWN)
 
-                if state == STATES.COMPLETE:
+                if test.complete:
                     output.fprint(self.outfile,
                                 f"Test {test.id} has completed. Logging results...")
 

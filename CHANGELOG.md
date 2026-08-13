@@ -1,15 +1,38 @@
-# This number should track progressive changes in this software, and correspond to git tags
-# denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.6
+# Changelog
 
-# Release History
+All notable changes to Pavilion will be documented in this file.
 
-## 2.7 Pre-Release Notes
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-  - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
-    or JSON.
+## [Unreleased]
 
-## 2.6.1 Pre-Release Notes
+### 2.7.0
+
+#### Added
+
+- Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
+or JSON.
+
+### 2.6.2
+
+#### Added
+
+- Added a provenance policy defining conventions for recording how committed artifacts
+  were produced.
+
+#### Fixed
+
+- Fixed a race condition which caused result loggers to sometimes read tests' result files before
+  they had been fully written, resulting in `null` results and missing keys in the result log.
+
+#### Changed
+
+- Reorganized and renamed `RELEASE.txt` to `CHANGELOG.md` to follow the "Keep a Changelog"
+  specification. More information about the specification can be found at
+  [https://keepachangelog.com/en/1.1.0/](https://keepachangelog.com/en/1.1.0/).
+
+## [2.6.1] - 2026-05-12
 
 - Fixed a bug which caused some tests in a series to be loaded multiple times and others not at all.
 - Fixed a bug in which test runs were placed in the wrong working directory when multiple
@@ -28,7 +51,7 @@ RELEASE=2.6
   of creation (in ISO 8601 format) to prevent result logs from being incorrectly combined when
   series IDs are reused.
 
-## 2.6 Release Notes
+## [2.6] - 2026-03-25
 
 - Test run directories are now named based on the series-relative IDs of test runs (e.g. `s1.1`).
   This reduces lock contention when creating test runs, since IDs in different series are now
@@ -50,7 +73,7 @@ RELEASE=2.6
 - Various minor bug mixes.
 - Minor documentation edits.
 
-## 2.5 Release Notes
+## [2.5] - 2026-01-14
 
  - Tests can (and should) now be structured as suites directories, which can contain test, host,
    mode, and os configs, as well as test source code. The `test_src` directory is now deprecated.
@@ -97,7 +120,8 @@ RELEASE=2.6
  - Added an '--all-passed' option to the results command
  - Added `pav log states` command, which lists all states a test has had.
 
-## 2.4 Release Notes
+## [2.4] - 2022-02-22
+
  - Minimum supported python version is now 3.6
  - All IO or Processor intensive parts of Pavilion have been made multi-threaded or multi-process,
    vastly speeding up many Pavilion operations.
@@ -194,7 +218,8 @@ Scheduler variables have also changed considerable.
   - All slurm `alloc_*` variables are now `test_*`.
   - Most can be converted directly.
 
-## 2.3 Release Notes
+## [2.3] - 2021-01-20
+
  - Added 'flatten_results' option to the base Pavilion config. Allows for
    producing a separate result log line for each 'per_file' result, making
    charting in Splunk significantly easier. The results can be significantly
@@ -228,7 +253,8 @@ Scheduler variables have also changed considerable.
    - The results command '--json' argument and '--oneline' argments were removed.
      Use --summary instead.
 
-## 2.2 Release notes
+## [2.2] - 2020-07-16
+
  - All new test config parser.
  - Variable references are now 'expressions'.
    - In addition to variables, they can contain math and functions.
@@ -294,10 +320,12 @@ Scheduler variables have also changed considerable.
        email: pferrell@lanl.gov
     ```
 
-## 2.1.2
+## [2.1.2] - 2020-03-17
+
  - Fixed some regressions from the 2.1.1 release.
 
-## 2.1.1
+## [2.1.1] - 2020-03-17
+
  - Fixed speed of draw_table with new algorithm
  - Fixed some name conflicts with the 'per_fullname' and 'per_name' result parser options.
  - Fixed issue with pipe exceptions in pav results
@@ -314,7 +342,8 @@ Scheduler variables have also changed considerable.
  - Added better build tracking output and verbosity under the 'run' command.
 
 
-## 2.1
+## [2.1] - 2019-12-19
+
  - Quite a few bugfixes.
  - Simplified time output (and dropped pytz dependency)
  - Updated regex parser.
@@ -330,7 +359,7 @@ Scheduler variables have also changed considerable.
  - Fixed RUN_COMPLETE files. They are now made when a test is finished,
    fails, is cancelled, and in most error cases.
 
-## 2.0
+## [2.0] - 2019-11-18
 
  - All new Pavilion 2.0 redesign
    - Pavilion was completely redesigned and reimplemented for this release.
