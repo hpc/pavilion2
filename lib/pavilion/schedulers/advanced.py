@@ -5,7 +5,7 @@ import collections
 import pprint
 from abc import ABC
 from pathlib import Path
-from typing import Tuple, List, Any, Union, Dict, FrozenSet, NewType, Optional
+from typing import Tuple, List, Any, Union, Dict, FrozenSet, NewType, Optional, Iterable
 
 from pavilion.config import PavConfig
 from pavilion.jobs import Job, JobError
@@ -13,6 +13,7 @@ from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.scriptcomposer import ScriptComposer
 from pavilion.types import NodeInfo, Nodes, NodeList, NodeSet, NodeRange
+from pavilion.test_ids import TestID
 from .config import validate_config, AVAILABLE, BACKFILL, calc_node_range
 from .scheduler import SchedulerPlugin
 from ..errors import SchedulerPluginError
@@ -628,6 +629,58 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         return errors
 
+    @staticmethod
+    def _get_needed_nodes(sched_config: Dict, chunk_size: int) -> int:
+        """Determine how many nodes a test needs."""
+
+        min_nodes, max_nodes = calc_node_range(sched_config, chunk_size)
+
+        if max_nodes is None:
+            max_nodes = chunk_size
+
+        return min(max_nodes, chunk_size)
+
+    @classmethod
+    def _get_tests_by_needed_nodes(cls,
+                                   tests: Iterable[TestRun],
+                                   sched_configs: Dict[TestID, Dict],
+                                   chunk_size: int) -> List[Tuple[int, TestRun]]:
+        """Construct a list of needed-node-test tuples, sorted in ascending order
+        by needed nodes."""
+
+        by_need = []
+
+        for test in tests:
+            sched_config = sched_configs[test.id]
+            needed_nodes = cls._get_needed_nodes(sched_config, chunk_size)
+
+            by_need.append((needed_nodes, test))
+
+        return sorted(by_need, key=lambda x: x[0])
+
+    @classmethod
+    def _assign_nodes(cls, tests: Iterable[TestRun], sched_configs: Dict[TestID, Dict],
+                      chunk: NodeSet) -> Dict:
+        """Assign nodes from the given chunk to each of the given tests."""
+
+        by_need = cls._get_tests_by_needed_nodes(tests, sched_configs, len(chunk))
+
+        nodes = {}
+
+        chunk_usage = list(chunk)
+        chunk_usage.sort()
+
+        for needed_nodes, test in by_need:
+            if needed_nodes > len(chunk_usage):
+                chunk_usage = list(chunk)
+                chunk_usage.sort()
+
+            test_chunk = chunk_usage[:needed_nodes]
+            chunk_usage = chunk_usage[needed_nodes:]
+            nodes[test] = test_chunk
+
+        return nodes
+
     def _schedule_indi_chunk(self, pav_cfg, tests: List[TestRun],
                              sched_configs: Dict[str, dict], chunk: NodeSet):
         """Schedule tests individually under the given chunk. These are not flex
@@ -636,47 +689,20 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
         # Track which nodes are available for individual runs. We'll consume nodes
         # from this list as they're handed out to tests, and reset it when
         # a test needs more nodes than it has.
-        chunk_usage = list(chunk)
-        chunk_usage.sort()
-        chunk_size = len(chunk)
 
-        by_need = []
+        chunk_size = len(chunk)
 
         errors = []
 
-        # Figure out how many nodes each test needs and sort them least
-        for test in tests:
-            sched_config = sched_configs[test.id]
+        picked_nodes = self._assign_nodes(tests, sched_configs, chunk)
 
-            min_nodes, max_nodes = calc_node_range(sched_config, chunk_size)
-            if max_nodes is None:
-                max_nodes = chunk_size
-            needed_nodes = min(max_nodes, chunk_size)
-
-            by_need.append((needed_nodes, test))
-        by_need.sort(key=lambda tup: tup[0])
-
-        for needed_nodes, test in by_need:
+        for test, nodes in picked_nodes.items():
             try:
                 job = Job.new(pav_cfg, [test], self.KICKOFF_FN)
             except JobError as err:
                 errors.append(SchedulerPluginError("Error creating job.",
                                                    prior_error=err, tests=[test]))
                 continue
-
-            sched_config = sched_configs[test.id]
-            if needed_nodes == 0:
-
-                if needed_nodes > len(chunk_usage):
-                    chunk_usage = list(chunk)
-                    chunk_usage.sort()
-
-                test_chunk = chunk_usage[:needed_nodes]
-                chunk_usage = chunk_usage[needed_nodes:]
-            else:
-                test_chunk = chunk
-
-            picked_nodes = chunk_usage[:needed_nodes]
 
             try:
                 job.save_node_data(self._nodes)
@@ -685,10 +711,12 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                               prior_error=err, tests=[test]))
                 continue
 
-            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log, nodes=picked_nodes)
+            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log, nodes=nodes)
             script.write(job.kickoff_path)
 
             test.job = job
+
+            sched_config = sched_configs[test.id]
 
             try:
                 job.info = self._kickoff(
@@ -696,7 +724,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                     job=job,
                     sched_config=sched_config,
                     job_name=self._job_name(test),
-                    nodes=picked_nodes)
+                    nodes=nodes)
             except SchedulerPluginError as err:
                 return [self._make_kickoff_error(err, [test])]
             except Exception as err:  # pylint: disable=broad-except
@@ -707,7 +735,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
             test.status.set(
                 STATES.SCHEDULED,
                 "Test kicked off (individually) under {} scheduler with {} nodes."
-                .format(self.name, len(test_chunk)))
+                .format(self.name, len(nodes)))
 
         return errors
 

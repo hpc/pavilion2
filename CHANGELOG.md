@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed a race condition which caused result loggers to sometimes read tests' result files before
   they had been fully written, resulting in `null` results and missing keys in the result log.
+- Fixed an issue that caused tests to be incorrectly scheduled on overlapping sets of nodes when
+  using chunking.
 
 ### Changed
 
