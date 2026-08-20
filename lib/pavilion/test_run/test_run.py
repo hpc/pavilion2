@@ -44,6 +44,7 @@ from pavilion.micro import get_nested, first
 from pavilion.timing import wait
 from pavilion.test_ids import TestID, SeriesID
 from .test_attrs import TestAttributes
+from pavilion.series.utils import list_series_tests
 
 
 class TestRun(TestAttributes):
