@@ -134,8 +134,8 @@ from pavilion.errors import ResultLoggerPluginError
 from pavilion import output
 
 
-class RabbitMQResultLoggerFactory(ResultLoggerPlugin):
-    """Factory that creates a :class:`RabbitMQResultLogger` from config.
+class RabbitMQLoggerFactory(ResultLoggerPlugin):
+    """Factory that creates a :class:`RabbitMQLogger` from config.
 
     The configuration must contain a ``params_file`` entry that points to an
     absolute JSON file describing the RabbitMQ connection (see the class doc‑
@@ -179,13 +179,13 @@ class RabbitMQResultLoggerFactory(ResultLoggerPlugin):
         config: dict,
         sid: str,
         outfile: Optional[TextIO] = None,
-    ) -> "RabbitMQResultLogger":
+    ) -> "RabbitMQLogger":
         # One persistent client per logger (and therefore per series).
         client = RabbitMQClient(config["params_file"])
-        return RabbitMQResultLogger(client, outfile)
+        return RabbitMQLogger(client, outfile)
 
 
-class RabbitMQResultLogger(ResultLogger):
+class RabbitMQLogger(ResultLogger):
     """Result logger that forwards the result dictionary to RabbitMQ.
 
     It writes a short human‑readable line to ``self.outfile`` (mirroring the

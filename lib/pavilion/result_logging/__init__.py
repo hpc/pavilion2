@@ -1,12 +1,12 @@
 from .base_classes import ResultLogger, ResultLoggerPlugin, get_result_loggers
 from .series_file_logger import SeriesFileLoggerFactory
 from .common_file_logger import CommonFileLoggerFactory
-from .rabbitmq_logger import RabbitMQResultLoggerFactory
+from .rabbitmq_logger import RabbitMQLoggerFactory
 
 _builtin_logging_plugins = [
     SeriesFileLoggerFactory,
     CommonFileLoggerFactory,
-    RabbitMQResultLoggerFactory,
+    RabbitMQLoggerFactory,
 ]
 
 
