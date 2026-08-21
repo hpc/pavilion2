@@ -11,14 +11,19 @@ users can enable it via the ``result_loggers`` section of ``pavilion.yaml``.
 # RabbitMQ client (renamed from the original ``rabbitMQ`` script).
 # ---------------------------------------------------------------------------
 
-import os
-import sys
+import io
 import json
 import ssl
+from pathlib import Path
+## TODO: introduces a dependency on Pika, not included in default Python installs. How to handle?
 from pika import BlockingConnection, ConnectionParameters, SSLOptions, BasicProperties
 from pika.credentials import ExternalCredentials
+from typing import Optional, TextIO
 import logging
 
+from .base_classes import ResultLoggerPlugin, ResultLogger
+from pavilion.errors import ResultLoggerPluginError
+from pavilion import output
 
 class RabbitMQClient:
     """Thin wrapper around ``pika`` that connects using TLS certificates.
@@ -124,14 +129,6 @@ class RabbitMQClient:
 # ---------------------------------------------------------------------------
 # Result‑logger plugin implementation.
 # ---------------------------------------------------------------------------
-
-import io
-from pathlib import Path
-from typing import Optional, TextIO
-
-from .base_classes import ResultLoggerPlugin, ResultLogger
-from pavilion.errors import ResultLoggerPluginError
-from pavilion import output
 
 
 class RabbitMQLoggerFactory(ResultLoggerPlugin):
