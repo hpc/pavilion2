@@ -21,3 +21,8 @@ __pycache__/
 pav.pstats
 .local/
 examples/working_dir
+
+# Agentic Coding Artifacts
+.agents
+.chunkhound
+.codebase-memory
