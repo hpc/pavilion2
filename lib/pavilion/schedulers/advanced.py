@@ -600,7 +600,7 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
             node_range = calc_node_range(sched_config, len(chunk))
 
-            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log)
+            script = self.create_kickoff_script(pav_cfg, test, job.kickoff_log, nodes=chunk)
             script.write(job.kickoff_path)
 
             test.job = job
