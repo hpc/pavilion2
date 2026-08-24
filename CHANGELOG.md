@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   they had been fully written, resulting in `null` results and missing keys in the result log.
 - Fixed an issue that caused tests to be incorrectly scheduled on overlapping sets of nodes when
   using chunking.
+- Fixed a bug that generated an incorrect kickoff script under certain conditions when `across_nodes` was specified.
+  When `across_nodes` was specified, generated kickoff scripts for tests that did not use chunking and did not share an allocation with other tests would incorrectly omit Slurm's `-w` flag.
 
 ### Changed
 
