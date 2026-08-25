@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
 or JSON.
+- Added a scheduler plugin for the PBS scheduler.
 
 ### 2.6.2
 
