@@ -9,6 +9,7 @@ from pavilion import arguments
 from pavilion import plugins
 from pavilion import commands
 from pavilion import config
+from pavilion import schedulers
 
 
 class ShowTests(unittest.PavTestCase):
@@ -2706,4 +2707,11 @@ class ShowTests(unittest.PavTestCase):
             check=True
         )
 
-        self.assertEqual(int(lines.stdout.strip()), 4, msg=f'Expected 4 lines of output from pav show schedulers --format list. Output:\n{output}')
+        # One line per registered scheduler plugin, and no header. Derived rather
+        # than hardcoded so that adding a scheduler plugin doesn't break this test.
+        expected_lines = len(schedulers.list_plugins())
+
+        self.assertEqual(
+            int(lines.stdout.strip()), expected_lines,
+            msg=f'Expected {expected_lines} lines of output (one per scheduler, no '
+                f'header) from pav show schedulers --format list. Output:\n{output}')
