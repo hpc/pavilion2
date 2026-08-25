@@ -120,6 +120,21 @@ class LogCmdTest(PavTestCase):
         self.assertIn('output', out)
         log_cmd.follow_testing = True
 
+    def test_log_invalid_id(self):
+        """Invalid IDs should fail gracefully without an uncaught ValueError."""
+
+        log_cmd = commands.get_command('log')
+        log_cmd.silence()
+
+        parser = argparse.ArgumentParser()
+        log_cmd._setup_arguments(parser)
+
+        args = parser.parse_args(['run', 'not-a-real-id'])
+        result = log_cmd.run(self.pav_cfg, args)
+        self.assertEqual(result, 1)
+        _, err = log_cmd.clear_output()
+        self.assertIn('Invalid test or series id', err)
+
     def test_log_states(self):
         """Test the 'log states' command."""
 

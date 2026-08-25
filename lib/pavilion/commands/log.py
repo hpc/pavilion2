@@ -153,8 +153,13 @@ class LogCommand(Command):
             else:
                 if TestID.is_valid_id(args.id):
                     args.id = TestID(args.id)
-                else:
+                elif SeriesID.is_valid_id(args.id):
                     args.id = SeriesID(args.id)
+                else:
+                    output.fprint(self.errfile,
+                                  "Invalid test or series id: {}".format(args.id),
+                                  color=output.RED)
+                    return 1
 
         if cmd_name == 'states':
             if args.id == SeriesID("last"):
