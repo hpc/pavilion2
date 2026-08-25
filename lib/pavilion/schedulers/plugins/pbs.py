@@ -178,9 +178,9 @@ def pbs_states(state):
         return ['UNKNOWN']
 
     # STYLE FIX: use enumerate instead of range(len(...))
-    for i, s in enumerate(states):
-        if s.endswith('$') or s.endswith('*'):
-            states[i] = s[:-1]
+    for i, state in enumerate(states):
+        if state.endswith('$') or state.endswith('*'):
+            states[i] = state[:-1]
 
     return states
 
@@ -326,20 +326,21 @@ class PBS(SchedulerPluginAdvanced):
         node_list = []
 
         try:
-            with open(nodefile, 'r') as nf:
-                n_tmp = nf.read().split('\n')
+            with open(nodefile, 'r') as nodefile_handle:
+                raw_nodes = nodefile_handle.read().split('\n')
         except OSError as err:
             raise SchedulerPluginError(
                 "Could not read PBS nodefile '{}'.".format(nodefile), prior_error=err)
 
-        for n in n_tmp:
-            if '.' in n:
-                node_list.append(n.split('.')[0])
+        for node in raw_nodes:
+            if '.' in node:
+                node_list.append(node.split('.')[0])
             else:
-                node_list.append(n)
+                node_list.append(node)
 
         return self.parse_node_list(node_list)
 
+    # pylint: disable=no-self-use  # required override of SchedulerPluginAdvanced
     def _get_raw_node_data(self, sched_config) -> Tuple[Union[List[Any], None], Any]:
         """Use `pbsnodes` to collect data on nodes."""
         try:
@@ -410,6 +411,7 @@ class PBS(SchedulerPluginAdvanced):
 
         return node_info
 
+    # pylint: disable=no-self-use  # required override of SchedulerPluginAdvanced
     def _filter_custom(self, sched_config: dict, node_name: str, node: NodeInfo) \
             -> Union[str, None]:
         """Filter nodes by features. Returns reason to filter, or None to keep."""
@@ -421,6 +423,7 @@ class PBS(SchedulerPluginAdvanced):
                 return "node not in queue"
         return None
 
+    # pylint: disable=no-self-use  # required override of SchedulerPlugin
     def _available(self) -> bool:
         """Check that PBS commands exist and PBS can talk to the scheduler DB."""
         for command in ('pbsnodes', 'qsub', 'qstat'):
@@ -463,14 +466,16 @@ class PBS(SchedulerPluginAdvanced):
             cmd.append('-l walltime={}'.format(pbs_cfg['walltime']))
 
         if pbs_cfg.get('nodes') or pbs_cfg.get('tasks'):
-            n = pbs_cfg.get('nodes', 1)
+            node_count = pbs_cfg.get('nodes', 1)
             if pbs_cfg.get('all_queue_nodes'):
-               n = self._get_queue_nodect(pbs_cfg.get('queue'), model=pbs_cfg.get('model'))
-            t = pbs_cfg.get('tasks', 1)
+                node_count = self._get_queue_nodect(pbs_cfg.get('queue'),
+                                                    model=pbs_cfg.get('model'))
+            tasks = pbs_cfg.get('tasks', 1)
             if pbs_cfg.get('target') and not pbs_cfg.get('all_queue_nodes'):
-                select = '-l select={}:ncpus={}:host={}'.format(n, t, pbs_cfg['target'])
+                select = '-l select={}:ncpus={}:host={}'.format(
+                    node_count, tasks, pbs_cfg['target'])
             else:
-                select = '-l select={}:ncpus={}'.format(n, t)
+                select = '-l select={}:ncpus={}'.format(node_count, tasks)
             # Optional: only appended when explicitly set, so clusters that don't
             # use mpiprocs get exactly the select statement they got before.
             if pbs_cfg.get('mpiprocs'):
@@ -499,12 +504,14 @@ class PBS(SchedulerPluginAdvanced):
             'sys_name': sys_name,
         })
 
-    def _pbsnodes_parse(self, section: dict) -> Dict[str, str]:
+    @staticmethod
+    def _pbsnodes_parse(section: dict) -> Dict[str, str]:
         """Parse pbsnodes JSON output into a dict."""
         # SIMPLIFICATION: dict.update({k: v}) in a loop is just dict.copy()
         return dict(section)
 
-    def _qstat(self, *args, timeout=30) -> List[Dict]:
+    @staticmethod
+    def _qstat(*args, timeout=30) -> List[Dict]:
         """Run qstat and return the parsed output.
 
         :param args: Additional args to qstat.
@@ -600,6 +607,7 @@ class PBS(SchedulerPluginAdvanced):
             when=time.time()
         )
 
+    # pylint: disable=no-self-use  # required override of SchedulerPlugin
     def cancel(self, job_info: JobInfo) -> Union[str, None]:
         """Cancel the PBS job via qdel."""
         if job_info['sys_name'] != sys_vars.get_vars(True)['sys_name']:
