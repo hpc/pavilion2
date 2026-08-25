@@ -5,7 +5,7 @@ All notable changes to Pavilion will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.6.2] - 2026-08-25
 
 ### Added
 
@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   they had been fully written, resulting in `null` results and missing keys in the result log.
 - Fixed an issue that caused tests to be incorrectly scheduled on overlapping sets of nodes when
   using chunking.
-- Fixed a bug that generated an incorrect kickoff script under certain conditions when `across_nodes` was specified.
-  When `across_nodes` was specified, generated kickoff scripts for tests that did not use chunking and did not share an allocation with other tests would incorrectly omit Slurm's `-w` flag.
+- Fixed a bug that generated an incorrect kickoff script under certain conditions when
+  `across_nodes` was specified. When `across_nodes` was specified, generated kickoff scripts for
+  tests that did not use chunking and did not share an allocation with other tests would
+  incorrectly omit Slurm's `-w` flag. This likely affects all advanced scheduler plugins.
 
 ### Changed
 
