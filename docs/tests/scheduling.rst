@@ -24,6 +24,92 @@ Pavilion comes with three scheduler plugins:
      raw       | Schedules tests as local processes.
      slurm     | Schedules tests via the Slurm scheduler.
      flux      | Schedules tests via the Flux Framework scheduler.
+     pbs       | Schedules tests via the PBS scheduler.
+
+PBS
+~~~
+
+The ``pbs`` scheduler submits each job with ``qsub``. Its scheduler specific
+options go in the ``pbs`` section under ``schedule``:
+
+.. code-block:: yaml
+
+    pbs_test:
+      scheduler: pbs
+
+      schedule:
+        nodes: 2
+
+        pbs:
+          queue: workq
+          walltime: '00:10:00'
+          tasks: 4
+
+Options
+^^^^^^^
+
+Use ``pav show sched --conf`` for the authoritative list. The PBS specific
+options are:
+
+``queue``
+    The queue (``qsub -q``) to submit to. When unset, PBS uses the server's
+    default queue.
+
+``walltime``
+    Job walltime in PBS format (``HH:MM:SS``), submitted as ``-l walltime=``.
+
+``nodes`` / ``tasks``
+    Chunk count and CPUs per chunk. Together these produce
+    ``-l select=<nodes>:ncpus=<tasks>``. Note ``tasks`` maps to **ncpus**,
+    which is cores per chunk, not MPI ranks -- see ``mpiprocs`` below.
+
+``mpiprocs``
+    MPI ranks per chunk, added to the select statement as ``:mpiprocs=N``.
+    **Optional and unset by default**, since some sites require it and others
+    do not accept it. When unset it is omitted from the select statement
+    entirely. This is the value that determines the number of lines in
+    ``$PBS_NODEFILE`` and therefore the rank count seen by ``mpirun``.
+
+``exclusive``
+    Set to ``'true'`` to request exclusive node placement
+    (``-l place=exclhost:scatter``).
+
+``target``
+    Restrict the job to a specific host, added to the select statement as
+    ``:host=<name>``.
+
+``model``
+    Restrict the job to a node model, added as ``:model=<name>``.
+
+``all_queue_nodes``
+    Use every node in the configured queue rather than a fixed count. Requires
+    ``queue`` to be set, and is mutually exclusive with ``target``.
+
+``qsub_extra``
+    A list of additional ``#PBS`` header lines to add to the kickoff script,
+    for anything not covered above. Note these are emitted as script header
+    lines; options that belong in the select statement cannot be added this
+    way, because the command line ``-l select=`` takes precedence.
+
+``avail_states`` / ``up_states`` / ``reserved_states``
+    Node states that PBS reports which Pavilion should treat as available,
+    usable, or reserved.
+
+Variables
+^^^^^^^^^
+
+In addition to the universal scheduler variables, the PBS scheduler provides
+``sched.queue``, ``sched.walltime`` and ``sched.mpiprocs``. All are deferred,
+so they resolve in the ``run`` section but not in ``build``:
+
+.. code-block:: yaml
+
+    run:
+      cmds:
+        - 'mpirun -np {{sched.mpiprocs}} ./my_app'
+
+``sched.srun_args`` is inherited from the base scheduler variable class but is
+a Slurm concept; under PBS it is always empty. Use ``qsub_extra`` instead.
 
 Scheduler Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
