@@ -212,21 +212,21 @@ class RunCommand(Command):
             self.last_tests = list(series_obj.tests.values())
             output.fprint(self.errfile, err, color=output.RED)
             return errno.EAGAIN
+        finally:
+            if log_results:
+                try:
+                    series_obj.log_results()
+                except TestSeriesError as err:
+                    output.fprint(self.errfile, f"Error staring result logging process: {err}")
 
-        if log_results:
-            try:
-                series_obj.log_results()
-            except TestSeriesError as err:
-                output.fprint(self.errfile, f"Error staring result logging process: {err}")
+            if report_status:
+                print_from_tests(
+                    pav_cfg=pav_cfg,
+                    tests=self.last_tests,
+                    outfile=self.outfile
+                )
 
-        if report_status:
-            print_from_tests(
-                pav_cfg=pav_cfg,
-                tests=self.last_tests,
-                outfile=self.outfile
-            )
-
-        self._write_run_data(args.run_data, series_obj)
+            self._write_run_data(args.run_data, series_obj)
 
         return 0
 
