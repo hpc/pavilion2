@@ -81,7 +81,7 @@ def get(pav_cfg, url, dest):
     dest_dir = Path(dest).resolve().parent
     try:
         response = session.get(url, proxies=proxies, stream=True,
-                               verify=ca_cert_path(),
+                               verify=False,
                                timeout=pav_cfg.wget_timeout)
         with tempfile.NamedTemporaryFile(dir=str(dest_dir),
                                          delete=False) as tmp:
@@ -118,9 +118,9 @@ def head(pav_cfg, url):
 
     try:
         response = session.head(url,
-                                proxies=proxies,
-                                verify=ca_cert_path(),
-                                timeout=pav_cfg.wget_timeout)
+                                 proxies=proxies,
+                                 verify=False,
+                                 timeout=pav_cfg.wget_timeout)
         # The location header is the redirect location. While the requests
         # library resolves these automatically, it still returns the first
         # header result from a 'head' call. We need to follow these
@@ -134,7 +134,7 @@ def head(pav_cfg, url):
             proxies = _get_proxies(pav_cfg, redirect_url)
             response = session.head(redirect_url,
                                     proxies=proxies,
-                                    verify=ca_cert_path(),
+                                    verify=False,
                                     timeout=pav_cfg.wget_timeout)
 
     except requests.exceptions.RequestException as err:
