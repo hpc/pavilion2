@@ -1,0 +1,26 @@
+name: Prevent `develop` from being merged into `stable`
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+    branches: [stable]
+
+jobs:
+  block:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if develop -> stable
+        run: |
+          if [ "${{ github.head_ref }}" = "develop" ]; then
+            echo "Merging `develop` into `stable` is not allowed."
+            exit 1
+          fi
+
+  close:
+    if: github.head_ref == 'develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close PR
+        run: gh pr close ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --comment "Merging `develop` into `stable` is not allowed."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
