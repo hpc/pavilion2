@@ -2,6 +2,7 @@
 
 import errno
 import pprint
+import json
 
 from pavilion import output
 from pavilion import cmd_utils
@@ -54,6 +55,9 @@ class ViewCommand(run.RunCommand):
             help='Add tests listed in the given file, as per the "pav run" command',
         )
         parser.add_argument(
+            '-j', '--json', action='store_true',
+            help='Output the resolved test config as JSON')
+        parser.add_argument(
             'tests', action='store', nargs='*',
             help='The name of the test to view. Should be in the format '
                  '<suite_name>.<test_name>.')
@@ -96,5 +100,9 @@ class ViewCommand(run.RunCommand):
             return errno.EINVAL
 
         configs = {pt.config['name']: pt.config for pt in proto_tests}
-        pprint.pprint(configs, stream=self.outfile)  # ext-print: ignore
+
+        if args.json:
+            json.dump(configs, self.outfile, indent=2)
+        else:
+            pprint.pprint(configs, stream=self.outfile)  # ext-print: ignore
         return 0
