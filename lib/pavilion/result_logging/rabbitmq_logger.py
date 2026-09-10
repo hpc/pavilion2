@@ -14,10 +14,14 @@ users can enable it via the ``result_loggers`` section of ``pavilion.yaml``.
 import io
 import json
 import ssl
+from sys import exit as sys_exit
 from pathlib import Path
-## TODO: introduces a dependency on Pika, not included in default Python installs. How to handle?
-from pika import BlockingConnection, ConnectionParameters, SSLOptions, BasicProperties
-from pika.credentials import ExternalCredentials
+try:
+    from pika import BlockingConnection, ConnectionParameters, SSLOptions, BasicProperties
+    from pika.credentials import ExternalCredentials
+except ImportError:
+    print("No Pika install found. Please in stall Pika (e.g. `pip install pika`) and try again.")
+    sys_exit(1)
 from typing import Optional, TextIO
 import logging
 
@@ -204,6 +208,7 @@ class RabbitMQLogger(ResultLogger):
         try:
             self.client.send_as_json(results)
             self.logger.debug("Result sent to RabbitMQ")
+        ## TODO: what exceptions to catch here?
         except Exception as exc:  # noqa: BLE001
             # Emit a warning to the logging system.
             self.logger.warning(
