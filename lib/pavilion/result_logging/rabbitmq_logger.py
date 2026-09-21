@@ -37,6 +37,7 @@ from .base_classes import ResultLoggerPlugin, ResultLogger
 from pavilion.errors import ResultLoggerPluginError
 from pavilion import output
 
+
 class RabbitMQClient:
     """Thin wrapper around ``pika`` that connects using TLS certificates.
 
@@ -203,19 +204,25 @@ class RabbitMQLogger(ResultLogger):
     """
 
     def __init__(self, client: RabbitMQClient, outfile: Optional[TextIO] = None):
+        super().__init__(name=type(self).__name__, outfile=outfile)
         self.client = client  # persistent connection for the series
-        self.outfile = outfile or io.StringIO()
         self.logger = logging.getLogger(self.__class__.__name__)
+
+    def get_log_message(self, results: dict) -> str:
+        return f"{type(self).__name__}: Logging {results} to RabbitMQ..."
+
+    def _log(self, results: dict) -> None:
+        self.client.send_as_json(results)
+        self.logger.debug("Result sent to RabbitMQ")
 
     def log(self, results: dict) -> None:
         # Consistent one‑line status message.
         output.fprint(
             self.outfile,
-            f"{type(self).__name__}: Logging {results} to RabbitMQ...",
+            self.get_log_message(results),
         )
         try:
-            self.client.send_as_json(results)
-            self.logger.debug("Result sent to RabbitMQ")
+            self._log(results)
         ## TODO: what exceptions to catch here?
         except Exception as exc:  # noqa: BLE001
             # Emit a warning to the logging system.
