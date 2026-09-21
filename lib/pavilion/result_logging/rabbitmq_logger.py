@@ -16,11 +16,19 @@ import json
 import ssl
 from sys import exit as sys_exit
 from pathlib import Path
+
 try:
-    from pika import BlockingConnection, ConnectionParameters, SSLOptions, BasicProperties
+    from pika import (
+        BlockingConnection,
+        ConnectionParameters,
+        SSLOptions,
+        BasicProperties,
+    )
     from pika.credentials import ExternalCredentials
 except ImportError:
-    print("No Pika install found. Please in stall Pika (e.g. `pip install pika`) and try again.")
+    print(
+        "No Pika install found. Please install Pika (e.g. `pip install pika`) and try again."
+    )
     sys_exit(1)
 from typing import Optional, TextIO
 import logging
