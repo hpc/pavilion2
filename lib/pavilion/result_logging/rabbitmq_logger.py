@@ -62,6 +62,7 @@ class RabbitMQClient:
         Any exception during connection bubbles up to the caller – the logger
         will catch it and emit a warning.
         """
+        # TODO: is this a good design to open the connection here??
         # Load the JSON parameters.
         with open(params_file, "r") as f:
             params = json.load(f)
@@ -191,6 +192,9 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         outfile: Optional[TextIO] = None,
     ) -> "RabbitMQLogger":
         # One persistent client per logger (and therefore per series).
+        # TODO: This opens the rabbitmq connection. Where should the connection actually be opened so that
+        # - is efficient if lots of results are sent
+        # - it works for long-running Pavilion runs (e.g. 1-2 days long (viz. continuous testing))
         client = RabbitMQClient(config["params_file"])
         return RabbitMQLogger(client, outfile)
 
