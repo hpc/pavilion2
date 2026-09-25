@@ -7,29 +7,20 @@ as JSON to a broker.  It is registered as a built‑in result‑logger plugin so
 users can enable it via the ``result_loggers`` section of ``pavilion.yaml``.
 """
 
-# ---------------------------------------------------------------------------
-# RabbitMQ client (renamed from the original ``rabbitMQ`` script).
-# ---------------------------------------------------------------------------
-
 import io
 import json
 import ssl
 from sys import exit as sys_exit
 from pathlib import Path
 
-try:
-    from pika import (
-        BlockingConnection,
-        ConnectionParameters,
-        SSLOptions,
-        BasicProperties,
-    )
-    from pika.credentials import ExternalCredentials
-except ImportError:
-    print(
-        "No Pika install found. Please install Pika (e.g. `pip install pika`) and try again."
-    )
-    sys_exit(1)
+
+from pika import (
+    BlockingConnection,
+    ConnectionParameters,
+    SSLOptions,
+    BasicProperties,
+)
+from pika.credentials import ExternalCredentials
 from typing import Optional, TextIO
 import logging
 
