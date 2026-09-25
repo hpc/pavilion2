@@ -2,6 +2,7 @@ import io
 import json
 import importlib
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 from unittest import mock
 
@@ -44,28 +45,43 @@ class RabbitMQLoggerTests(PavTestCase):
         connection = mock.Mock()
         connection.channel.return_value = channel
 
-        with (
-            mock.patch.object(
-                self.rabbitmq_logger.ssl, "create_default_context", return_value=context
-            ) as create_context,
-            mock.patch.object(
-                self.rabbitmq_logger, "SSLOptions", return_value=ssl_options
-            ) as ssl_options_cls,
-            mock.patch.object(
-                self.rabbitmq_logger, "ExternalCredentials", return_value=credentials
-            ) as credentials_cls,
-            mock.patch.object(
-                self.rabbitmq_logger,
-                "ConnectionParameters",
-                return_value=connection_params,
-            ) as connection_params_cls,
-            mock.patch.object(
-                self.rabbitmq_logger, "BlockingConnection", return_value=connection
-            ) as connection_cls,
-            mock.patch.object(
-                self.rabbitmq_logger, "BasicProperties", return_value=properties
-            ) as properties_cls,
-        ):
+        with ExitStack() as stack:
+            create_context = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger.ssl,
+                    "create_default_context",
+                    return_value=context,
+                )
+            )
+            ssl_options_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger, "SSLOptions", return_value=ssl_options
+                )
+            )
+            credentials_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger,
+                    "ExternalCredentials",
+                    return_value=credentials,
+                )
+            )
+            connection_params_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger,
+                    "ConnectionParameters",
+                    return_value=connection_params,
+                )
+            )
+            connection_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger, "BlockingConnection", return_value=connection
+                )
+            )
+            properties_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger, "BasicProperties", return_value=properties
+                )
+            )
             client = self.rabbitmq_logger.RabbitMQClient(params_file)
 
         create_context.assert_called_once_with(cafile=params["ca_cert_file"])
@@ -115,6 +131,66 @@ class RabbitMQLoggerTests(PavTestCase):
         client.send_as_string("message", verbose=-1)
 
         client.channel.basic_publish.assert_not_called()
+
+    def test_client_sends_plain_string_to_configured_route(self):
+        client = self.rabbitmq_logger.RabbitMQClient.__new__(
+            self.rabbitmq_logger.RabbitMQClient
+        )
+        client.channel = mock.Mock()
+        client.mqExchange = "exchange"
+        client.mqRoutingKey = "route"
+        client.properties = mock.sentinel.properties
+
+        client.send_as_string("plain message")
+
+        client.channel.basic_publish.assert_called_once_with(
+            exchange="exchange",
+            routing_key="route",
+            body="plain message",
+            properties=mock.sentinel.properties,
+        )
+
+    def test_client_verbose_prints_and_still_publishes(self):
+        client = self.rabbitmq_logger.RabbitMQClient.__new__(
+            self.rabbitmq_logger.RabbitMQClient
+        )
+        client.channel = mock.Mock()
+        client.mqExchange = "exchange"
+        client.mqRoutingKey = "route"
+        client.properties = mock.sentinel.properties
+
+        with mock.patch("builtins.print") as print_mock:
+            client.send_as_string("plain message", verbose=1)
+
+        print_mock.assert_called_once_with("plain message")
+        client.channel.basic_publish.assert_called_once_with(
+            exchange="exchange",
+            routing_key="route",
+            body="plain message",
+            properties=mock.sentinel.properties,
+        )
+
+    def test_client_context_manager_returns_client_and_closes_connection(self):
+        client = self.rabbitmq_logger.RabbitMQClient.__new__(
+            self.rabbitmq_logger.RabbitMQClient
+        )
+        client.connection = mock.Mock()
+
+        with client as entered_client:
+            self.assertIs(entered_client, client)
+
+        client.connection.close.assert_called_once_with()
+
+    def test_client_context_manager_suppresses_close_failure(self):
+        client = self.rabbitmq_logger.RabbitMQClient.__new__(
+            self.rabbitmq_logger.RabbitMQClient
+        )
+        client.connection = mock.Mock()
+        client.connection.close.side_effect = RuntimeError("close failed")
+
+        client.__exit__(None, None, None)
+
+        client.connection.close.assert_called_once_with()
 
     def test_factory_validate_config_rejects_invalid_configs(self):
         factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
@@ -188,6 +264,27 @@ class RabbitMQLoggerTests(PavTestCase):
         self.assertIn("RabbitMQLogger: Logging", output)
         self.assertIn("'unit-test'", output)
 
+    def test_logger_log_message_describes_rabbitmq_destination(self):
+        logger = self.rabbitmq_logger.RabbitMQLogger(mock.Mock())
+
+        message = logger.get_log_message({"test_name": "unit-test"})
+
+        self.assertEqual(
+            message,
+            "RabbitMQLogger: Logging {'test_name': 'unit-test'} to RabbitMQ...",
+        )
+
+    def test_logger_internal_log_sends_results_and_records_debug_message(self):
+        client = mock.Mock()
+        logger = self.rabbitmq_logger.RabbitMQLogger(client)
+        results = {"test_name": "unit-test", "result": "PASS"}
+
+        with self.assertLogs("RabbitMQLogger", level="DEBUG") as logs:
+            logger._log(results)
+
+        client.send_as_json.assert_called_once_with(results)
+        self.assertIn("DEBUG:RabbitMQLogger:Result sent to RabbitMQ", logs.output)
+
     def test_logger_log_warns_when_publish_fails(self):
         client = mock.Mock()
         client.send_as_json.side_effect = RuntimeError("publish failed")
@@ -211,6 +308,15 @@ class RabbitMQLoggerTests(PavTestCase):
 
     def test_logger_cleanup_closes_client(self):
         client = mock.MagicMock()
+        logger = self.rabbitmq_logger.RabbitMQLogger(client)
+
+        logger.__del__()
+
+        client.__exit__.assert_called_once_with(None, None, None)
+
+    def test_logger_cleanup_suppresses_client_close_failure(self):
+        client = mock.MagicMock()
+        client.__exit__.side_effect = RuntimeError("close failed")
         logger = self.rabbitmq_logger.RabbitMQLogger(client)
 
         logger.__del__()
