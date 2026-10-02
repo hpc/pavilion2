@@ -213,16 +213,28 @@ class RabbitMQLoggerTests(PavTestCase):
 
         client.connection.close.assert_called_once_with()
 
-    def test_client_context_manager_suppresses_close_failure(self):
+    def test_client_context_manager_suppresses_connection_close_failure(self):
+        client = self.rabbitmq_logger.RabbitMQClient.__new__(
+            self.rabbitmq_logger.RabbitMQClient
+        )
+        client.connection = mock.Mock()
+        client.connection.close.side_effect = (
+            self.rabbitmq_logger.pika_exceptions.ConnectionWrongStateError()
+        )
+
+        client.__exit__(None, None, None)
+
+        client.connection.close.assert_called_once_with()
+
+    def test_client_context_manager_propagates_unexpected_close_failure(self):
         client = self.rabbitmq_logger.RabbitMQClient.__new__(
             self.rabbitmq_logger.RabbitMQClient
         )
         client.connection = mock.Mock()
         client.connection.close.side_effect = RuntimeError("close failed")
 
-        client.__exit__(None, None, None)
-
-        client.connection.close.assert_called_once_with()
+        with self.assertRaisesRegex(RuntimeError, "close failed"):
+            client.__exit__(None, None, None)
 
     def test_factory_validate_config_rejects_invalid_configs(self):
         factory = self.rabbitmq_logger.RabbitMQLoggerFactory()

@@ -132,7 +132,9 @@ class RabbitMQClient:
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
             self.connection.close()
-        except Exception:
+        except pika_exceptions.AMQPConnectionError:
+            # The connection is already closed or lost, so cleanup is complete. There is 
+            # nothing useful to recover here, but this prevents nasty terminations in Pavilion.
             pass
 
     # ---------------------------------------------------------------------
