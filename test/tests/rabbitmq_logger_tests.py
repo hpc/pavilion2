@@ -189,8 +189,8 @@ class RabbitMQLoggerTests(PavTestCase):
             self.rabbitmq_logger.RabbitMQClient
         )
         client.channel = mock.Mock()
-        client.mqExchange = "exchange"
-        client.mqRoutingKey = "route"
+        client.mq_exchange = "exchange"
+        client.mq_routing_key = "route"
         client.properties = mock.sentinel.properties
 
         client.send_as_string("plain message")

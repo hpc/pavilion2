@@ -101,8 +101,8 @@ class RabbitMQClient:
         self.channel = self.connection.channel()
 
         # Store exchange / routing information for later use.
-        self.mqExchange = params["exchange"]
-        self.mqRoutingKey = params["routing_key"]
+        self.mq_exchange = params["exchange"]
+        self.mq_routing_key = params["routing_key"]
 
         # Message properties – make the message persistent.
         self.properties = BasicProperties(content_type="text/plain", delivery_mode=2)
@@ -113,8 +113,8 @@ class RabbitMQClient:
     def send_as_string(self, message: str) -> None:
         """Publish *message* (a plain string) to the configured exchange."""
         self.channel.basic_publish(
-            exchange=self.mqExchange,
-            routing_key=self.mqRoutingKey,
+            exchange=self.mq_exchange,
+            routing_key=self.mq_routing_key,
             body=message,
             properties=self.properties,
         )
@@ -364,7 +364,9 @@ class RabbitMQLogger(ResultLogger):
             pika_exceptions.AMQPConnectionError,
             pika_exceptions.AMQPChannelError,
         ) as exc:
-            raise ResultLoggerPluginError(f"Failed to publish result to RabbitMQ: {exc}")
+            raise ResultLoggerPluginError(
+                f"Failed to publish result to RabbitMQ: {exc}"
+            ) from exc
 
     def __del__(self):
         """Close the underlying RabbitMQ connection when the logger is GC'd."""
