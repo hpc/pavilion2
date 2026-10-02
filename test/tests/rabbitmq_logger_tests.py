@@ -470,7 +470,7 @@ class RabbitMQLoggerTests(PavTestCase):
         self.assertIs(logger.outfile, outfile)
 
     def test_logger_log_sends_results_and_writes_status(self):
-        client = mock.Mock()
+        client = mock.MagicMock()
         outfile = io.StringIO()
         logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=outfile)
         results = {"test_name": "unit-test", "result": "PASS"}
@@ -493,7 +493,7 @@ class RabbitMQLoggerTests(PavTestCase):
         )
 
     def test_logger_internal_log_sends_results_and_records_debug_message(self):
-        client = mock.Mock()
+        client = mock.MagicMock()
         logger = self.rabbitmq_logger.RabbitMQLogger(client)
         results = {"test_name": "unit-test", "result": "PASS"}
 
@@ -504,7 +504,7 @@ class RabbitMQLoggerTests(PavTestCase):
         self.assertIn("DEBUG:RabbitMQLogger:Result sent to RabbitMQ", logs.output)
 
     def test_logger_log_warns_when_publish_connection_fails(self):
-        client = mock.Mock()
+        client = mock.MagicMock()
         client.send_as_json.side_effect = (
             self.rabbitmq_logger.pika_exceptions.StreamLostError("connection lost")
         )
@@ -527,7 +527,7 @@ class RabbitMQLoggerTests(PavTestCase):
         )
 
     def test_logger_log_warns_when_publish_channel_fails(self):
-        client = mock.Mock()
+        client = mock.MagicMock()
         client.send_as_json.side_effect = (
             self.rabbitmq_logger.pika_exceptions.ChannelWrongStateError(
                 "channel closed"
@@ -539,7 +539,7 @@ class RabbitMQLoggerTests(PavTestCase):
             logger.log({"test_name": "unit-test"})
 
     def test_logger_log_propagates_unexpected_publish_error(self):
-        client = mock.Mock()
+        client = mock.MagicMock()
         client.send_as_json.side_effect = RuntimeError("programming error")
         logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=io.StringIO())
 
@@ -554,11 +554,12 @@ class RabbitMQLoggerTests(PavTestCase):
 
         client.__exit__.assert_called_once_with(None, None, None)
 
-    def test_logger_cleanup_suppresses_client_close_failure(self):
+    def test_logger_cleanup_propagates_unexpected_client_close_failure(self):
         client = mock.MagicMock()
         client.__exit__.side_effect = RuntimeError("close failed")
         logger = self.rabbitmq_logger.RabbitMQLogger(client)
 
-        logger.__del__()
+        with self.assertRaisesRegex(RuntimeError, "close failed"):
+            logger.__del__()
 
         client.__exit__.assert_called_once_with(None, None, None)

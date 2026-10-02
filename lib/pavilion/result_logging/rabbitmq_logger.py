@@ -133,7 +133,7 @@ class RabbitMQClient:
         try:
             self.connection.close()
         except pika_exceptions.AMQPConnectionError:
-            # The connection is already closed or lost, so cleanup is complete. There is 
+            # The connection is already closed or lost, so cleanup is complete. There is
             # nothing useful to recover here, but this prevents nasty terminations in Pavilion.
             pass
 
@@ -376,8 +376,4 @@ class RabbitMQLogger(ResultLogger):
 
     def __del__(self):
         """Close the underlying RabbitMQ connection when the logger is GC'd."""
-        try:
-            self.client.__exit__(None, None, None)
-        except Exception:
-            # Silently ignore cleanup errors – they should not affect the series.
-            pass
+        self.client.__exit__(None, None, None)
