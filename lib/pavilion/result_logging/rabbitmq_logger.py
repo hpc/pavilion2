@@ -19,7 +19,7 @@ from pika import (
     SSLOptions,
     BasicProperties,
 )
-from pika.credentials import ExternalCredentials
+from pika.credentials import ExternalCredentials, PlainCredentials
 import logging
 
 from .base_classes import ResultLoggerPlugin, ResultLogger
@@ -27,31 +27,24 @@ from pavilion.errors import ResultLoggerPluginError
 from pavilion import output
 
 
-RABBITMQ_PARAM_KEYS = (
-    "ca_cert_file",
-    "cert_file",
-    "key_file",
-    "host",
-    "port",
-    "vhost",
-    "exchange",
-    "routing_key",
-)
 CERT_FILE_KEYS = ("ca_cert_file", "cert_file", "key_file")
-REQUIRED_PARAM_KEYS = (
-    "ca_cert_file",
-    "cert_file",
-    "key_file",
+SERVER_PARAM_KEYS = (
     "host",
     "port",
     "vhost",
+)
+PUBLISH_PARAM_KEYS = ("exchange", "routing_key")
+PASSWORD_PARAM_KEYS = ("username", "password")
+RABBITMQ_PARAM_KEYS = (
+    CERT_FILE_KEYS + SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS + PASSWORD_PARAM_KEYS
 )
 
 
 class RabbitMQClient:
-    """Thin wrapper around ``pika`` that connects using TLS certificates.
+    """Thin wrapper around ``pika`` using certificate or password credentials.
 
-    The constructor expects a parameter dictionary with the following keys::
+    The constructor accepts either certificate or password authentication
+    parameters. Certificate authentication uses TLS client certificates::
 
         {
             "ca_cert_file": "/path/to/ca.pem",
@@ -63,6 +56,18 @@ class RabbitMQClient:
             "exchange": "pavilion",
             "routing_key": "test.result"
         }
+
+    Password authentication uses a plain AMQP connection::
+
+        {
+            "host": "mq.example.com",
+            "port": 5672,
+            "vhost": "pavilion",
+            "exchange": "pavilion",
+            "routing_key": "test.result",
+            "username": "pav-user",
+            "password": "pav-password"
+        }
     """
 
     def __init__(self, params: Dict[str, Any]):
@@ -71,22 +76,24 @@ class RabbitMQClient:
         Any exception during connection bubbles up to the caller – the logger
         will catch it and emit a warning.
         """
-        # Build an SSL context using the supplied certificate files.
-        context = ssl.create_default_context(cafile=params["ca_cert_file"])
-        context.load_cert_chain(params["cert_file"], params["key_file"])  # type: ignore[arg-type]
-        context.check_hostname = False
-        ssl_options = SSLOptions(context, params["host"])
+        connection_args = {
+            "host": params["host"],
+            "port": params["port"],
+            "virtual_host": params["vhost"],
+            "heartbeat": 60,
+        }
+        if "username" in params:
+            connection_args["credentials"] = PlainCredentials(
+                params["username"], params["password"]
+            )
+        else:
+            context = ssl.create_default_context(cafile=params["ca_cert_file"])
+            context.load_cert_chain(params["cert_file"], params["key_file"])
+            context.check_hostname = False
+            connection_args["credentials"] = ExternalCredentials()
+            connection_args["ssl_options"] = SSLOptions(context, params["host"])
 
-        # Build pika connection parameters.
-        credentials = ExternalCredentials()
-        connection_params = ConnectionParameters(
-            host=params["host"],
-            port=params["port"],
-            virtual_host=params["vhost"],
-            credentials=credentials,
-            ssl_options=ssl_options,
-            heartbeat=60,
-        )
+        connection_params = ConnectionParameters(**connection_args)
 
         # Establish a blocking connection and a channel.
         self.connection = BlockingConnection(connection_params)
@@ -215,28 +222,69 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                 "RabbitMQ params_file must contain a JSON object."
             )
 
-        missing = [key for key in REQUIRED_PARAM_KEYS if not params.get(key)]
+        missing = [key for key in SERVER_PARAM_KEYS if not params.get(key)]
         if missing:
             raise ResultLoggerPluginError(
                 "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
             )
 
-        normalized = {key: params[key] for key in RABBITMQ_PARAM_KEYS}
-        for key in CERT_FILE_KEYS:
-            cert_path_value = normalized[key]
-            if not isinstance(cert_path_value, str):
+        missing = [key for key in PUBLISH_PARAM_KEYS if key not in params]
+        if missing:
+            raise ResultLoggerPluginError(
+                "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
+            )
+
+        cert_keys = [key for key in CERT_FILE_KEYS if params.get(key) is not None]
+        password_keys = [
+            key for key in PASSWORD_PARAM_KEYS if params.get(key) is not None
+        ]
+        if cert_keys and password_keys:
+            raise ResultLoggerPluginError(
+                "Specify exactly one authentication method: certificate files "
+                "or username and password."
+            )
+        if cert_keys:
+            missing = [key for key in CERT_FILE_KEYS if not params.get(key)]
+            if missing:
                 raise ResultLoggerPluginError(
-                    "'{}' must be an absolute path to an existing file.".format(key)
+                    "Certificate authentication requires: {}.".format(
+                        ", ".join(CERT_FILE_KEYS)
+                    )
                 )
-            cert_path = Path(cert_path_value)
-            if not cert_path.is_absolute():
+            auth_keys = CERT_FILE_KEYS
+        elif password_keys:
+            if not all(params.get(key) for key in PASSWORD_PARAM_KEYS):
                 raise ResultLoggerPluginError(
-                    "'{}' must be an absolute path: {}".format(key, cert_path)
+                    "Password authentication requires both username and password."
                 )
-            if not cert_path.is_file():
-                raise ResultLoggerPluginError(
-                    "'{}' must be an existing file: {}".format(key, cert_path)
-                )
+            auth_keys = PASSWORD_PARAM_KEYS
+        else:
+            raise ResultLoggerPluginError(
+                "Specify exactly one authentication method: certificate files "
+                "or username and password."
+            )
+
+        normalized = {
+            key: params[key] for key in SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS
+        }
+        normalized.update({key: params[key] for key in auth_keys})
+
+        if auth_keys == CERT_FILE_KEYS:
+            for key in CERT_FILE_KEYS:
+                cert_path_value = normalized[key]
+                if not isinstance(cert_path_value, str):
+                    raise ResultLoggerPluginError(
+                        "'{}' must be an absolute path to an existing file.".format(key)
+                    )
+                cert_path = Path(cert_path_value)
+                if not cert_path.is_absolute():
+                    raise ResultLoggerPluginError(
+                        "'{}' must be an absolute path: {}".format(key, cert_path)
+                    )
+                if not cert_path.is_file():
+                    raise ResultLoggerPluginError(
+                        "'{}' must be an existing file: {}".format(key, cert_path)
+                    )
 
         port = normalized["port"]
         if isinstance(port, bool):

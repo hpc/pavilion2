@@ -33,6 +33,17 @@ class RabbitMQLoggerTests(PavTestCase):
             "routing_key": "test.result",
         }
 
+    def _password_connection_params(self):
+        return {
+            "host": "mq.example.com",
+            "port": 5672,
+            "vhost": "pavilion",
+            "exchange": "pavilion.results",
+            "routing_key": "test.result",
+            "username": "pav-user",
+            "password": "pav-password",
+        }
+
     def _make_params_file(self, params=None):
         if params is None:
             params = self._connection_params()
@@ -123,6 +134,55 @@ class RabbitMQLoggerTests(PavTestCase):
 
         client.process_data_events(1.9)
         connection.process_data_events.assert_called_once_with(time_limit=1)
+
+    def test_client_initializes_password_connection(self):
+        params = self._password_connection_params()
+        credentials = mock.sentinel.credentials
+        connection_params = mock.sentinel.connection_params
+        connection = mock.Mock()
+
+        with ExitStack() as stack:
+            create_context = stack.enter_context(
+                mock.patch.object(self.rabbitmq_logger.ssl, "create_default_context")
+            )
+            external_credentials_cls = stack.enter_context(
+                mock.patch.object(self.rabbitmq_logger, "ExternalCredentials")
+            )
+            plain_credentials_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger,
+                    "PlainCredentials",
+                    return_value=credentials,
+                )
+            )
+            connection_params_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger,
+                    "ConnectionParameters",
+                    return_value=connection_params,
+                )
+            )
+            connection_cls = stack.enter_context(
+                mock.patch.object(
+                    self.rabbitmq_logger,
+                    "BlockingConnection",
+                    return_value=connection,
+                )
+            )
+
+            self.rabbitmq_logger.RabbitMQClient(params)
+
+        create_context.assert_not_called()
+        external_credentials_cls.assert_not_called()
+        plain_credentials_cls.assert_called_once_with("pav-user", "pav-password")
+        connection_params_cls.assert_called_once_with(
+            host=params["host"],
+            port=params["port"],
+            virtual_host=params["vhost"],
+            credentials=credentials,
+            heartbeat=60,
+        )
+        connection_cls.assert_called_once_with(connection_params)
 
     def test_client_verbose_negative_skips_publish(self):
         client = self.rabbitmq_logger.RabbitMQClient.__new__(
@@ -237,6 +297,53 @@ class RabbitMQLoggerTests(PavTestCase):
         expected["exchange"] = ""
         expected["routing_key"] = ""
         self.assertEqual(factory.get_connection_params(config), expected)
+
+    def test_factory_resolves_inline_password_connection_parameters(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params = self._password_connection_params()
+        config = {"plugin": "rabbitmq"}
+        config.update(params)
+
+        factory.validate_config(config)
+
+        self.assertEqual(factory.get_connection_params(config), params)
+
+    def test_factory_resolves_json_password_connection_parameters(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params_file, params = self._make_params_file(self._password_connection_params())
+
+        try:
+            config = {"plugin": "rabbitmq", "params_file": params_file}
+            factory.validate_config(config)
+
+            self.assertEqual(factory.get_connection_params(config), params)
+        finally:
+            Path(params_file).unlink()
+
+    def test_factory_rejects_invalid_authentication_modes(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params = self._password_connection_params()
+
+        for key in ("username", "password"):
+            config = {"plugin": "rabbitmq"}
+            config.update(params)
+            del config[key]
+
+            with self.assertRaisesRegex(
+                self.rabbitmq_logger.ResultLoggerPluginError,
+                "username and password",
+            ):
+                factory.validate_config(config)
+
+        config = {"plugin": "rabbitmq"}
+        config.update(self._connection_params())
+        config.update(params)
+
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "one authentication method",
+        ):
+            factory.validate_config(config)
 
     def test_factory_resolves_json_connection_parameters(self):
         factory = self.rabbitmq_logger.RabbitMQLoggerFactory()

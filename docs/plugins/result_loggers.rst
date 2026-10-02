@@ -51,14 +51,17 @@ under this directory and named according to ``<series ID>.log``:
 RabbitMQ Logger
 ---------------
 
-The RabbitMQ logger sends each test result to a RabbitMQ exchange using TLS client certificates
-and external credentials. Configure it with either a ``params_file`` path to a JSON file or the
-connection parameters directly in ``pavilion.yaml``. The path may be absolute or relative. Do
-not specify both forms.
+The RabbitMQ logger sends each test result to a RabbitMQ exchange. Configure it with either a
+``params_file`` path to a JSON file or the connection parameters directly in ``pavilion.yaml``.
+The path may be absolute or relative. Do not specify both forms.
 
-The JSON file contains the following required keys: ``ca_cert_file``, ``cert_file``,
-``key_file``, ``host``, ``port``, ``vhost``, ``exchange``, and ``routing_key``. The certificate
-file paths must be absolute paths to existing files.
+All configurations require ``host``, ``port``, ``vhost``, ``exchange``, and ``routing_key``.
+The ``exchange`` and ``routing_key`` values may be empty. Select one authentication method:
+TLS client certificates or a username/password pair.
+
+Certificate authentication requires ``ca_cert_file``, ``cert_file``, and ``key_file``. The
+certificate file paths must be absolute paths to existing files. It uses TLS and external
+credentials.
 
 .. code-block:: yaml
 
@@ -80,6 +83,24 @@ The same values may be provided directly as top-level logger entries:
       vhost: pavilion
       exchange: pavilion.results
       routing_key: test.result
+
+Password authentication requires ``username`` and ``password`` instead of all certificate-file
+settings. It uses a plain AMQP connection without TLS:
+
+.. code-block:: yaml
+
+  result_loggers:
+    - plugin: rabbitmq
+      host: mq.example.com
+      port: "5672"
+      vhost: pavilion
+      exchange: pavilion.results
+      routing_key: test.result
+      username: pav-user
+      password: pav-password
+
+Do not combine certificate-file settings with ``username`` or ``password``. Inline passwords are
+stored in ``pavilion.yaml``; use a protected JSON parameter file when that is more appropriate.
 
 Using Multiple Loggers
 ----------------------
