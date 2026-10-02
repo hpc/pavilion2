@@ -1,6 +1,7 @@
 import io
 import json
 import importlib
+import os
 import tempfile
 from contextlib import ExitStack
 from pathlib import Path
@@ -18,11 +19,13 @@ class RabbitMQLoggerTests(PavTestCase):
         except (ImportError, SystemExit):
             self.skipTest("pika is required to import the RabbitMQ logger module.")
 
-    def _make_params_file(self):
-        params = {
-            "ca_cert_file": "/tmp/ca.pem",
-            "cert_file": "/tmp/client.pem",
-            "key_file": "/tmp/client.key",
+    def _connection_params(self):
+        cert_file = Path(__file__).resolve().as_posix()
+
+        return {
+            "ca_cert_file": cert_file,
+            "cert_file": cert_file,
+            "key_file": cert_file,
             "host": "mq.example.com",
             "port": 5671,
             "vhost": "pavilion",
@@ -30,12 +33,16 @@ class RabbitMQLoggerTests(PavTestCase):
             "routing_key": "test.result",
         }
 
+    def _make_params_file(self, params=None):
+        if params is None:
+            params = self._connection_params()
+
         with tempfile.NamedTemporaryFile("w", delete=False) as params_file:
             json.dump(params, params_file)
             return params_file.name, params
 
     def test_client_initializes_connection_and_sends_json(self):
-        params_file, params = self._make_params_file()
+        params = self._connection_params()
         context = mock.Mock()
         ssl_options = mock.sentinel.ssl_options
         credentials = mock.sentinel.credentials
@@ -82,7 +89,7 @@ class RabbitMQLoggerTests(PavTestCase):
                     self.rabbitmq_logger, "BasicProperties", return_value=properties
                 )
             )
-            client = self.rabbitmq_logger.RabbitMQClient(params_file)
+            client = self.rabbitmq_logger.RabbitMQClient(params)
 
         create_context.assert_called_once_with(cafile=params["ca_cert_file"])
         context.load_cert_chain.assert_called_once_with(
@@ -116,8 +123,6 @@ class RabbitMQLoggerTests(PavTestCase):
 
         client.process_data_events(1.9)
         connection.process_data_events.assert_called_once_with(time_limit=1)
-
-        Path(params_file).unlink()
 
     def test_client_verbose_negative_skips_publish(self):
         client = self.rabbitmq_logger.RabbitMQClient.__new__(
@@ -203,19 +208,9 @@ class RabbitMQLoggerTests(PavTestCase):
 
         with self.assertRaisesRegex(
             self.rabbitmq_logger.ResultLoggerPluginError,
-            "Missing required 'params_file'",
+            "either 'params_file' or inline RabbitMQ connection parameters",
         ):
             factory.validate_config({"plugin": "rabbitmq"})
-
-        with self.assertRaisesRegex(
-            self.rabbitmq_logger.ResultLoggerPluginError, "must be an absolute path"
-        ):
-            factory.validate_config(
-                {
-                    "plugin": "rabbitmq",
-                    "params_file": "rabbitmq-params.json",
-                }
-            )
 
         with self.assertRaisesRegex(
             self.rabbitmq_logger.ResultLoggerPluginError, "params_file not found"
@@ -227,29 +222,161 @@ class RabbitMQLoggerTests(PavTestCase):
                 }
             )
 
+    def test_factory_resolves_inline_connection_parameters(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params = self._connection_params()
+        config = {"plugin": "rabbitmq"}
+        config.update(params)
+        config["port"] = "5671"
+
+        factory.validate_config(config)
+
+        self.assertEqual(factory.get_connection_params(config), params)
+
+    def test_factory_resolves_json_connection_parameters(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params_file, params = self._make_params_file()
+
+        try:
+            config = {
+                "plugin": "rabbitmq",
+                "params_file": params_file,
+            }
+            factory.validate_config(config)
+
+            self.assertEqual(factory.get_connection_params(config), params)
+        finally:
+            Path(params_file).unlink()
+
+    def test_factory_resolves_relative_json_connection_parameters(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params_file, params = self._make_params_file()
+
+        try:
+            config = {
+                "plugin": "rabbitmq",
+                "params_file": os.path.relpath(params_file),
+            }
+            factory.validate_config(config)
+
+            self.assertEqual(factory.get_connection_params(config), params)
+        finally:
+            Path(params_file).unlink()
+
+    def test_factory_rejects_mixed_connection_parameter_sources(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        config = {
+            "plugin": "rabbitmq",
+            "params_file": "",
+            "host": "mq.example.com",
+        }
+
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "either 'params_file' or inline RabbitMQ connection parameters",
+        ):
+            factory.validate_config(config)
+
+    def test_factory_rejects_missing_inline_connection_parameter(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        config = {"plugin": "rabbitmq"}
+        config.update(self._connection_params())
+        del config["routing_key"]
+
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "routing_key",
+        ):
+            factory.validate_config(config)
+
+    def test_factory_rejects_invalid_inline_connection_parameters(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+
+        for port in ("not-a-port", "0", "65536"):
+            config = {"plugin": "rabbitmq"}
+            config.update(self._connection_params())
+            config["port"] = port
+
+            with self.assertRaisesRegex(
+                self.rabbitmq_logger.ResultLoggerPluginError,
+                "port",
+            ):
+                factory.validate_config(config)
+
+        config = {"plugin": "rabbitmq"}
+        config.update(self._connection_params())
+        config["ca_cert_file"] = "relative-ca.pem"
+
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "ca_cert_file.*absolute",
+        ):
+            factory.validate_config(config)
+
+        config = {"plugin": "rabbitmq"}
+        config.update(self._connection_params())
+        config["cert_file"] = Path(tempfile.gettempdir()).as_posix()
+
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "cert_file.*existing file",
+        ):
+            factory.validate_config(config)
+
+    def test_factory_rejects_malformed_json_parameters(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+
+        for params in ([], "text", 5671):
+            params_file, _ = self._make_params_file(params)
+            try:
+                with self.assertRaisesRegex(
+                    self.rabbitmq_logger.ResultLoggerPluginError,
+                    "JSON object",
+                ):
+                    factory.validate_config(
+                        {"plugin": "rabbitmq", "params_file": params_file}
+                    )
+            finally:
+                Path(params_file).unlink()
+
+    def test_factory_rejects_non_integral_json_port(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+
+        for port in (True, 5671.5):
+            params = self._connection_params()
+            params["port"] = port
+            params_file, _ = self._make_params_file(params)
+            try:
+                with self.assertRaisesRegex(
+                    self.rabbitmq_logger.ResultLoggerPluginError,
+                    "port must be an integer",
+                ):
+                    factory.validate_config(
+                        {"plugin": "rabbitmq", "params_file": params_file}
+                    )
+            finally:
+                Path(params_file).unlink()
+
     def test_factory_make_logger_creates_rabbitmq_logger(self):
-        params_file, _ = self._make_params_file()
+        params = self._connection_params()
         factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
         outfile = io.StringIO()
+        config = {"plugin": "rabbitmq"}
+        config.update(params)
 
         with mock.patch.object(
             self.rabbitmq_logger, "RabbitMQClient", autospec=True
         ) as client_cls:
             logger = factory.make_logger(
-                {
-                    "plugin": "rabbitmq",
-                    "params_file": params_file,
-                },
+                config,
                 "s1",
                 outfile=outfile,
             )
 
-        client_cls.assert_called_once_with(params_file)
+        client_cls.assert_called_once_with(params)
         self.assertIsInstance(logger, self.rabbitmq_logger.RabbitMQLogger)
         self.assertIs(logger.client, client_cls.return_value)
         self.assertIs(logger.outfile, outfile)
-
-        Path(params_file).unlink()
 
     def test_logger_log_sends_results_and_writes_status(self):
         client = mock.Mock()

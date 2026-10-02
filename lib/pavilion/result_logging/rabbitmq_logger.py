@@ -7,11 +7,10 @@ as JSON to a broker.  It is registered as a built‑in result‑logger plugin so
 users can enable it via the ``result_loggers`` section of ``pavilion.yaml``.
 """
 
-import io
 import json
 import ssl
-from sys import exit as sys_exit
 from pathlib import Path
+from typing import Any, Dict, Optional, TextIO
 
 
 from pika import (
@@ -21,7 +20,6 @@ from pika import (
     BasicProperties,
 )
 from pika.credentials import ExternalCredentials
-from typing import Optional, TextIO
 import logging
 
 from .base_classes import ResultLoggerPlugin, ResultLogger
@@ -29,11 +27,23 @@ from pavilion.errors import ResultLoggerPluginError
 from pavilion import output
 
 
+RABBITMQ_PARAM_KEYS = (
+    "ca_cert_file",
+    "cert_file",
+    "key_file",
+    "host",
+    "port",
+    "vhost",
+    "exchange",
+    "routing_key",
+)
+CERT_FILE_KEYS = ("ca_cert_file", "cert_file", "key_file")
+
+
 class RabbitMQClient:
     """Thin wrapper around ``pika`` that connects using TLS certificates.
 
-    The constructor expects a *params_file* JSON configuration with the
-    following keys (identical to the original script)::
+    The constructor expects a parameter dictionary with the following keys::
 
         {
             "ca_cert_file": "/path/to/ca.pem",
@@ -47,17 +57,12 @@ class RabbitMQClient:
         }
     """
 
-    def __init__(self, params_file: str):
-        """Open a persistent TLS‑secured connection using the JSON *params_file*.
+    def __init__(self, params: Dict[str, Any]):
+        """Open a persistent TLS-secured connection using ``params``.
 
         Any exception during connection bubbles up to the caller – the logger
         will catch it and emit a warning.
         """
-        # TODO: is this a good design to open the connection here??
-        # Load the JSON parameters.
-        with open(params_file, "r") as f:
-            params = json.load(f)
-
         # Build an SSL context using the supplied certificate files.
         context = ssl.create_default_context(cafile=params["ca_cert_file"])
         context.load_cert_chain(params["cert_file"], params["key_file"])  # type: ignore[arg-type]
@@ -139,9 +144,8 @@ class RabbitMQClient:
 class RabbitMQLoggerFactory(ResultLoggerPlugin):
     """Factory that creates a :class:`RabbitMQLogger` from config.
 
-    The configuration must contain a ``params_file`` entry that points to an
-    absolute JSON file describing the RabbitMQ connection (see the class doc‑
-    string above for the required format).
+    Configuration accepts either an absolute ``params_file`` containing JSON
+    parameters or all RabbitMQ parameters directly as top-level entries.
     """
 
     def __init__(self) -> None:
@@ -156,22 +160,110 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
     # ---------------------------------------------------------------------
     # Configuration validation.
     # ---------------------------------------------------------------------
-    def validate_config(self, config: dict) -> None:
+    def get_connection_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve and validate RabbitMQ connection parameters.
+
+        :param config: result logger configuration
+        :type config: dict
+        :return: normalized connection parameters
+        :rtype: dict
+        """
+        has_params_file = "params_file" in config
+        params_file = config.get("params_file")
+        inline_keys = [key for key in RABBITMQ_PARAM_KEYS if key in config]
+
+        if has_params_file and inline_keys:
+            raise ResultLoggerPluginError(
+                "Specify either 'params_file' or inline RabbitMQ connection "
+                "parameters, not both."
+            )
+
+        if has_params_file:
+            if not params_file:
+                raise ResultLoggerPluginError("'params_file' must not be empty.")
+            params_path = Path(params_file)
+            if not params_path.exists():
+                raise ResultLoggerPluginError(
+                    "params_file not found: {}".format(params_file)
+                )
+            try:
+                with params_path.open() as params_file_obj:
+                    params = json.load(params_file_obj)
+            except (OSError, ValueError) as err:
+                raise ResultLoggerPluginError(
+                    "Could not load RabbitMQ params_file '{}': {}".format(
+                        params_path, err
+                    )
+                )
+        elif inline_keys:
+            params = {key: config.get(key) for key in RABBITMQ_PARAM_KEYS}
+        else:
+            raise ResultLoggerPluginError(
+                "Specify either 'params_file' or inline RabbitMQ connection parameters."
+            )
+
+        if not isinstance(params, dict):
+            raise ResultLoggerPluginError(
+                "RabbitMQ params_file must contain a JSON object."
+            )
+
+        missing = [key for key in RABBITMQ_PARAM_KEYS if not params.get(key)]
+        if missing:
+            raise ResultLoggerPluginError(
+                "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
+            )
+
+        normalized = {key: params[key] for key in RABBITMQ_PARAM_KEYS}
+        for key in CERT_FILE_KEYS:
+            cert_path_value = normalized[key]
+            if not isinstance(cert_path_value, str):
+                raise ResultLoggerPluginError(
+                    "'{}' must be an absolute path to an existing file.".format(key)
+                )
+            cert_path = Path(cert_path_value)
+            if not cert_path.is_absolute():
+                raise ResultLoggerPluginError(
+                    "'{}' must be an absolute path: {}".format(key, cert_path)
+                )
+            if not cert_path.is_file():
+                raise ResultLoggerPluginError(
+                    "'{}' must be an existing file: {}".format(key, cert_path)
+                )
+
+        port = normalized["port"]
+        if isinstance(port, bool):
+            raise ResultLoggerPluginError(
+                "RabbitMQ port must be an integer: {}".format(port)
+            )
+        if isinstance(port, int):
+            normalized["port"] = int(port)
+        elif isinstance(port, str):
+            try:
+                normalized["port"] = int(port)
+            except ValueError:
+                raise ResultLoggerPluginError(
+                    "RabbitMQ port must be an integer: {}".format(port)
+                )
+        else:
+            raise ResultLoggerPluginError(
+                "RabbitMQ port must be an integer: {}".format(port)
+            )
+        if not 1 <= normalized["port"] <= 65535:
+            raise ResultLoggerPluginError(
+                "RabbitMQ port must be between 1 and 65535: {}".format(
+                    normalized["port"]
+                )
+            )
+
+        return normalized
+
+    def validate_config(self, config: Dict[str, Any]) -> None:
         if config.get("plugin") != self.name:
             raise ResultLoggerPluginError(
                 f"Name {config.get('plugin')} does not match logger plugin '{self.name}'."
             )
-        params_file = config.get("params_file")
-        if not params_file:
-            raise ResultLoggerPluginError(
-                "Missing required 'params_file' for RabbitMQ logger."
-            )
-        if not Path(params_file).is_absolute():
-            raise ResultLoggerPluginError(
-                f"'params_file' must be an absolute path: {params_file}"
-            )
-        if not Path(params_file).exists():
-            raise ResultLoggerPluginError(f"params_file not found: {params_file}")
+
+        self.get_connection_params(config)
 
     # ---------------------------------------------------------------------
     # Create the actual logger instance.
@@ -186,7 +278,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         # TODO: This opens the rabbitmq connection. Where should the connection actually be opened so that
         # - is efficient if lots of results are sent
         # - it works for long-running Pavilion runs (e.g. 1-2 days long (viz. continuous testing))
-        client = RabbitMQClient(config["params_file"])
+        client = RabbitMQClient(self.get_connection_params(config))
         return RabbitMQLogger(client, outfile)
 
 
