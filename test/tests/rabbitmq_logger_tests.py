@@ -228,10 +228,15 @@ class RabbitMQLoggerTests(PavTestCase):
         config = {"plugin": "rabbitmq"}
         config.update(params)
         config["port"] = "5671"
+        config["exchange"] = ""
+        config["routing_key"] = ""
 
         factory.validate_config(config)
 
-        self.assertEqual(factory.get_connection_params(config), params)
+        expected = params.copy()
+        expected["exchange"] = ""
+        expected["routing_key"] = ""
+        self.assertEqual(factory.get_connection_params(config), expected)
 
     def test_factory_resolves_json_connection_parameters(self):
         factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
@@ -281,11 +286,11 @@ class RabbitMQLoggerTests(PavTestCase):
         factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
         config = {"plugin": "rabbitmq"}
         config.update(self._connection_params())
-        del config["routing_key"]
+        del config["host"]
 
         with self.assertRaisesRegex(
             self.rabbitmq_logger.ResultLoggerPluginError,
-            "routing_key",
+            "host",
         ):
             factory.validate_config(config)
 

@@ -38,6 +38,14 @@ RABBITMQ_PARAM_KEYS = (
     "routing_key",
 )
 CERT_FILE_KEYS = ("ca_cert_file", "cert_file", "key_file")
+REQUIRED_PARAM_KEYS = (
+    "ca_cert_file",
+    "cert_file",
+    "key_file",
+    "host",
+    "port",
+    "vhost",
+)
 
 
 class RabbitMQClient:
@@ -207,7 +215,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                 "RabbitMQ params_file must contain a JSON object."
             )
 
-        missing = [key for key in RABBITMQ_PARAM_KEYS if not params.get(key)]
+        missing = [key for key in REQUIRED_PARAM_KEYS if not params.get(key)]
         if missing:
             raise ResultLoggerPluginError(
                 "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
