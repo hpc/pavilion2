@@ -48,6 +48,39 @@ under this directory and named according to ``<series ID>.log``:
     - plugin: series_file
       dest: /path/to/directory/
 
+RabbitMQ Logger
+---------------
+
+The RabbitMQ logger sends each test result to a RabbitMQ exchange using TLS client certificates
+and external credentials. Configure it with either a ``params_file`` path to a JSON file or the
+connection parameters directly in ``pavilion.yaml``. The path may be absolute or relative. Do
+not specify both forms.
+
+The JSON file contains the following required keys: ``ca_cert_file``, ``cert_file``,
+``key_file``, ``host``, ``port``, ``vhost``, ``exchange``, and ``routing_key``. The certificate
+file paths must be absolute paths to existing files.
+
+.. code-block:: yaml
+
+  result_loggers:
+    - plugin: rabbitmq
+      params_file: /path/to/rabbitmq-params.json
+
+The same values may be provided directly as top-level logger entries:
+
+.. code-block:: yaml
+
+  result_loggers:
+    - plugin: rabbitmq
+      ca_cert_file: /path/to/ca.pem
+      cert_file: /path/to/client.pem
+      key_file: /path/to/client.key
+      host: mq.example.com
+      port: "5671"
+      vhost: pavilion
+      exchange: pavilion.results
+      routing_key: test.result
+
 Using Multiple Loggers
 ----------------------
 
