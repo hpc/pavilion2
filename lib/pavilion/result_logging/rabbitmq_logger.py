@@ -109,17 +109,8 @@ class RabbitMQClient:
     # ---------------------------------------------------------------------
     # Public API – the logger only needs ``send_as_json``.
     # ---------------------------------------------------------------------
-    def send_as_string(self, message: str, verbose: int = 0) -> None:
-        """Publish *message* (a plain string) to the configured exchange.
-
-        ``verbose`` mirrors the original script – a negative value prints the
-        message only and skips the publish.
-        """
-        if verbose != 0:
-            print(message)
-            if verbose < 0:
-                print("\n  INFO: verbose < 0: Not sending to rabbitmq!\n")
-                return
+    def send_as_string(self, message: str) -> None:
+        """Publish *message* (a plain string) to the configured exchange."""
         self.channel.basic_publish(
             exchange=self.mqExchange,
             routing_key=self.mqRoutingKey,
@@ -127,9 +118,9 @@ class RabbitMQClient:
             properties=self.properties,
         )
 
-    def send_as_json(self, my_dict: dict, verbose: int = 0) -> None:
+    def send_as_json(self, my_dict: dict) -> None:
         """Serialize *my_dict* to JSON and delegate to ``send_as_string``."""
-        self.send_as_string(json.dumps(my_dict), verbose)
+        self.send_as_string(json.dumps(my_dict))
 
     # ---------------------------------------------------------------------
     # Context‑manager helpers – used by the logger's ``__del__``.

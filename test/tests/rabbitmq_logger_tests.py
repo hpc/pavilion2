@@ -184,19 +184,6 @@ class RabbitMQLoggerTests(PavTestCase):
         )
         connection_cls.assert_called_once_with(connection_params)
 
-    def test_client_verbose_negative_skips_publish(self):
-        client = self.rabbitmq_logger.RabbitMQClient.__new__(
-            self.rabbitmq_logger.RabbitMQClient
-        )
-        client.channel = mock.Mock()
-        client.mqExchange = "exchange"
-        client.mqRoutingKey = "route"
-        client.properties = mock.sentinel.properties
-
-        client.send_as_string("message", verbose=-1)
-
-        client.channel.basic_publish.assert_not_called()
-
     def test_client_sends_plain_string_to_configured_route(self):
         client = self.rabbitmq_logger.RabbitMQClient.__new__(
             self.rabbitmq_logger.RabbitMQClient
@@ -208,26 +195,6 @@ class RabbitMQLoggerTests(PavTestCase):
 
         client.send_as_string("plain message")
 
-        client.channel.basic_publish.assert_called_once_with(
-            exchange="exchange",
-            routing_key="route",
-            body="plain message",
-            properties=mock.sentinel.properties,
-        )
-
-    def test_client_verbose_prints_and_still_publishes(self):
-        client = self.rabbitmq_logger.RabbitMQClient.__new__(
-            self.rabbitmq_logger.RabbitMQClient
-        )
-        client.channel = mock.Mock()
-        client.mqExchange = "exchange"
-        client.mqRoutingKey = "route"
-        client.properties = mock.sentinel.properties
-
-        with mock.patch("builtins.print") as print_mock:
-            client.send_as_string("plain message", verbose=1)
-
-        print_mock.assert_called_once_with("plain message")
         client.channel.basic_publish.assert_called_once_with(
             exchange="exchange",
             routing_key="route",
