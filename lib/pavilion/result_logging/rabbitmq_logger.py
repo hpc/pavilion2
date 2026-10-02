@@ -20,6 +20,7 @@ from pika import (
     BasicProperties,
 )
 from pika.credentials import ExternalCredentials, PlainCredentials
+from pika import exceptions as pika_exceptions
 import logging
 
 from .base_classes import ResultLoggerPlugin, ResultLogger
@@ -357,8 +358,10 @@ class RabbitMQLogger(ResultLogger):
         )
         try:
             self._log(results)
-        ## TODO: what exceptions to catch here?
-        except Exception as exc:  # noqa: BLE001
+        except (
+            pika_exceptions.AMQPConnectionError,
+            pika_exceptions.AMQPChannelError,
+        ) as exc:
             # Emit a warning to the logging system.
             self.logger.warning(
                 "Failed to publish result to RabbitMQ: %s", exc, exc_info=True

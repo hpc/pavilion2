@@ -491,9 +491,11 @@ class RabbitMQLoggerTests(PavTestCase):
         client.send_as_json.assert_called_once_with(results)
         self.assertIn("DEBUG:RabbitMQLogger:Result sent to RabbitMQ", logs.output)
 
-    def test_logger_log_warns_when_publish_fails(self):
+    def test_logger_log_warns_when_publish_connection_fails(self):
         client = mock.Mock()
-        client.send_as_json.side_effect = RuntimeError("publish failed")
+        client.send_as_json.side_effect = (
+            self.rabbitmq_logger.pika_exceptions.StreamLostError("connection lost")
+        )
         outfile = io.StringIO()
         logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=outfile)
         results = {"test_name": "unit-test"}
@@ -511,6 +513,26 @@ class RabbitMQLoggerTests(PavTestCase):
             "WARNING: RabbitMQ publish failed for result unit-test",
             outfile.getvalue(),
         )
+
+    def test_logger_log_warns_when_publish_channel_fails(self):
+        client = mock.Mock()
+        client.send_as_json.side_effect = (
+            self.rabbitmq_logger.pika_exceptions.ChannelWrongStateError(
+                "channel closed"
+            )
+        )
+        logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=io.StringIO())
+
+        with self.assertLogs("RabbitMQLogger", level="WARNING"):
+            logger.log({"test_name": "unit-test"})
+
+    def test_logger_log_propagates_unexpected_publish_error(self):
+        client = mock.Mock()
+        client.send_as_json.side_effect = RuntimeError("programming error")
+        logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=io.StringIO())
+
+        with self.assertRaisesRegex(RuntimeError, "programming error"):
+            logger.log({"test_name": "unit-test"})
 
     def test_logger_cleanup_closes_client(self):
         client = mock.MagicMock()
