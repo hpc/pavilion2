@@ -364,15 +364,7 @@ class RabbitMQLogger(ResultLogger):
             pika_exceptions.AMQPConnectionError,
             pika_exceptions.AMQPChannelError,
         ) as exc:
-            # Emit a warning to the logging system.
-            self.logger.warning(
-                "Failed to publish result to RabbitMQ: %s", exc, exc_info=True
-            )
-            # Also write a warning line to the outfile for user visibility.
-            output.fprint(
-                self.outfile,
-                f"WARNING: RabbitMQ publish failed for result {results.get('test_name', '?')}",
-            )
+            raise ResultLoggerPluginError(f"Failed to publish result to RabbitMQ: {exc}")
 
     def __del__(self):
         """Close the underlying RabbitMQ connection when the logger is GC'd."""

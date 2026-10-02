@@ -503,30 +503,26 @@ class RabbitMQLoggerTests(PavTestCase):
         client.send_as_json.assert_called_once_with(results)
         self.assertIn("DEBUG:RabbitMQLogger:Result sent to RabbitMQ", logs.output)
 
-    def test_logger_log_warns_when_publish_connection_fails(self):
+    def test_logger_log_raises_plugin_error_when_publish_connection_fails(self):
         client = mock.MagicMock()
         client.send_as_json.side_effect = (
             self.rabbitmq_logger.pika_exceptions.StreamLostError("connection lost")
         )
-        outfile = io.StringIO()
-        logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=outfile)
+        logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=io.StringIO())
         results = {"test_name": "unit-test"}
 
-        with self.assertLogs("RabbitMQLogger", level="WARNING") as logs:
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "Failed to publish result to RabbitMQ",
+        ) as error:
             logger.log(results)
 
-        self.assertTrue(
-            any(
-                "Failed to publish result to RabbitMQ" in message
-                for message in logs.output
-            )
-        )
-        self.assertIn(
-            "WARNING: RabbitMQ publish failed for result unit-test",
-            outfile.getvalue(),
+        self.assertIsInstance(
+            error.exception.__cause__,
+            self.rabbitmq_logger.pika_exceptions.StreamLostError,
         )
 
-    def test_logger_log_warns_when_publish_channel_fails(self):
+    def test_logger_log_raises_plugin_error_when_publish_channel_fails(self):
         client = mock.MagicMock()
         client.send_as_json.side_effect = (
             self.rabbitmq_logger.pika_exceptions.ChannelWrongStateError(
@@ -535,8 +531,16 @@ class RabbitMQLoggerTests(PavTestCase):
         )
         logger = self.rabbitmq_logger.RabbitMQLogger(client, outfile=io.StringIO())
 
-        with self.assertLogs("RabbitMQLogger", level="WARNING"):
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "Failed to publish result to RabbitMQ",
+        ) as error:
             logger.log({"test_name": "unit-test"})
+
+        self.assertIsInstance(
+            error.exception.__cause__,
+            self.rabbitmq_logger.pika_exceptions.ChannelWrongStateError,
+        )
 
     def test_logger_log_propagates_unexpected_publish_error(self):
         client = mock.MagicMock()
