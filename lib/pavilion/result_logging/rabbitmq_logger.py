@@ -326,9 +326,6 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         outfile: Optional[TextIO] = None,
     ) -> "RabbitMQLogger":
         # One persistent client per logger (and therefore per series).
-        # TODO: This opens the rabbitmq connection. Where should the connection actually be opened so that
-        # - is efficient if lots of results are sent
-        # - it works for long-running Pavilion runs (e.g. 1-2 days long (viz. continuous testing))
         client = RabbitMQClient(self.get_connection_params(config))
         return RabbitMQLogger(client, outfile)
 
