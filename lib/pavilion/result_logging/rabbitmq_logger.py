@@ -169,7 +169,8 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
     # ---------------------------------------------------------------------
     # Configuration validation.
     # ---------------------------------------------------------------------
-    def get_connection_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def get_connection_params(config: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve and validate RabbitMQ connection parameters.
 
         :param config: result logger configuration
