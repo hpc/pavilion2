@@ -15,4 +15,4 @@ def register_core_plugins():
         cls().activate()
 
 
-ResultLoggerPlugin.register_core_plugins = register_core_plugins  # type: ignore[attr-defined]
+ResultLoggerPlugin.register_core_plugins = register_core_plugins
