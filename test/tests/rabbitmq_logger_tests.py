@@ -11,13 +11,6 @@ from pavilion.unittest import PavTestCase
 
 
 class RabbitMQLoggerTests(PavTestCase):
-    def set_up(self):
-        try:
-            self.rabbitmq_logger = importlib.import_module(
-                "pavilion.result_logging.rabbitmq_logger"
-            )
-        except (ImportError, SystemExit):
-            self.skipTest("pika is required to import the RabbitMQ logger module.")
 
     def _connection_params(self):
         cert_file = Path(__file__).resolve().as_posix()
