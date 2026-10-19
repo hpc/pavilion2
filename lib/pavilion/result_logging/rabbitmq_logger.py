@@ -178,17 +178,16 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         :return: normalized connection parameters
         :rtype: dict
         """
-        has_params_file = "params_file" in config
         params_file = config.get("params_file")
         inline_keys = [key for key in RABBITMQ_PARAM_KEYS if key in config]
 
-        if has_params_file and inline_keys:
+        if params_file is not None and inline_keys:
             raise ResultLoggerPluginError(
                 "Specify either 'params_file' or inline RabbitMQ connection "
                 "parameters, not both."
             )
 
-        if has_params_file:
+        if params_file is not None:
             if not params_file:
                 raise ResultLoggerPluginError("'params_file' must not be empty.")
             params_path = Path(params_file)
