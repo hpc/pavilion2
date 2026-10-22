@@ -194,12 +194,10 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
     def _load_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Loads and resolves the connection parameters from the supplied file or dict.
         
-        :param params_file: Path to a Json file with connection parameters.
+        :param config: The pavilion config to read all the parameters from
         :type params_file: str
-        :param inline_keys: Collection of connections parameters.
-        :type inline_keys: dict
         :return: Connection parameters
-        :return type: dict
+        :rtype: dict
         """
         params_file = config.get("params_file")
         inline_keys = [key for key in RABBITMQ_PARAM_KEYS if key in config]
@@ -254,8 +252,12 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         return params
 
-    def _validate_auth_params(self, params) -> Dict[str, Any]:
-        """Checks that only one authentication method is set, validates its parameters and returns those."""
+    def _validate_auth_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Checks that only one authentication method is set, validates its parameters and returns those.
+                
+        :param params: Connection parameters containing fields with the authentication params.
+        :type dict
+        """
         cert_keys = [key for key in CERT_FILE_KEYS if params.get(key) is not None]
         password_keys = [
             key for key in PASSWORD_PARAM_KEYS if params.get(key) is not None
@@ -303,7 +305,12 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         return auth_params
 
-    def _validate_port(self, normalized) -> None:
+    def _validate_port(self, normalized: Dict[str, Any]) -> None:
+        """Performs checks on the supplied 'port' value to ensure it's an integer between 1 and 65535.
+        
+        :param normalized: Connection parameters containing the port field.
+        :type dict
+        """
         port = normalized["port"]
         if isinstance(port, bool):
             raise ResultLoggerPluginError(
