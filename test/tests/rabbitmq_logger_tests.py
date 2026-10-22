@@ -11,6 +11,10 @@ from pavilion.unittest import PavTestCase
 
 
 class RabbitMQLoggerTests(PavTestCase):
+    def set_up(self):
+        self.rabbitmq_logger = importlib.import_module(
+            "pavilion.result_logging.rabbitmq_logger"
+        )
 
     def _connection_params(self):
         cert_file = Path(__file__).resolve().as_posix()
