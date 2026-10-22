@@ -10,7 +10,7 @@ users can enable it via the ``result_loggers`` section of ``pavilion.yaml``.
 import json
 import ssl
 from pathlib import Path
-from typing import Any, Dict, Optional, TextIO
+from typing import Any, Dict, List, Optional, TextIO
 
 
 from pika import (
@@ -169,14 +169,37 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
     # ---------------------------------------------------------------------
     # Configuration validation.
     # ---------------------------------------------------------------------
-    @staticmethod
-    def get_connection_params(config: Dict[str, Any]) -> Dict[str, Any]:
+    def get_connection_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve and validate RabbitMQ connection parameters.
 
         :param config: result logger configuration
         :type config: dict
         :return: normalized connection parameters
         :rtype: dict
+        """
+
+        params = self._load_params(config)
+
+        auth_params = self._validate_auth_params(params)
+
+        normalized = {
+            key: params[key] for key in SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS
+        }
+        normalized.update({key: params[key] for key in auth_params})
+
+        self._validate_port(normalized)
+
+        return normalized
+
+    def _load_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Loads and resolves the connection parameters from the supplied file or dict.
+        
+        :param params_file: Path to a Json file with connection parameters.
+        :type params_file: str
+        :param inline_keys: Collection of connections parameters.
+        :type inline_keys: dict
+        :return: Connection parameters
+        :return type: dict
         """
         params_file = config.get("params_file")
         inline_keys = [key for key in RABBITMQ_PARAM_KEYS if key in config]
@@ -186,10 +209,10 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                 "Specify either 'params_file' or inline RabbitMQ connection "
                 "parameters, not both."
             )
-
+        # loads values into 'params'
         if params_file is not None:
             if not params_file:
-                raise ResultLoggerPluginError("'params_file' must not be empty.")
+                raise ResultLoggerPluginError("'params_file' must not be an empty string.")
             params_path = Path(params_file)
             if not params_path.exists():
                 raise ResultLoggerPluginError(
@@ -204,6 +227,10 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                         params_path, err
                     )
                 )
+            if not isinstance(params, dict):
+                        raise ResultLoggerPluginError(
+                            "RabbitMQ params_file must contain a JSON object."
+            )
         elif inline_keys:
             params = {key: config.get(key) for key in RABBITMQ_PARAM_KEYS}
         else:
@@ -211,23 +238,24 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                 "Specify either 'params_file' or inline RabbitMQ connection parameters."
             )
 
-        if not isinstance(params, dict):
-            raise ResultLoggerPluginError(
-                "RabbitMQ params_file must contain a JSON object."
-            )
-
-        missing = [key for key in SERVER_PARAM_KEYS if not params.get(key)]
+        # verify all params are there
+        missing = [key for key in (SERVER_PARAM_KEYS) if not params.get(key)]
         if missing:
             raise ResultLoggerPluginError(
                 "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
             )
 
+        # 'exchange' and 'routing_key' can be empty, but need to be there
         missing = [key for key in PUBLISH_PARAM_KEYS if key not in params]
         if missing:
             raise ResultLoggerPluginError(
                 "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
             )
 
+        return params
+
+    def _validate_auth_params(self, params) -> Dict[str, Any]:
+        """Checks that only one authentication method is set, validates its parameters and returns those."""
         cert_keys = [key for key in CERT_FILE_KEYS if params.get(key) is not None]
         password_keys = [
             key for key in PASSWORD_PARAM_KEYS if params.get(key) is not None
@@ -245,27 +273,8 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                         ", ".join(CERT_FILE_KEYS)
                     )
                 )
-            auth_keys = CERT_FILE_KEYS
-        elif password_keys:
-            if not all(params.get(key) for key in PASSWORD_PARAM_KEYS):
-                raise ResultLoggerPluginError(
-                    "Password authentication requires both username and password."
-                )
-            auth_keys = PASSWORD_PARAM_KEYS
-        else:
-            raise ResultLoggerPluginError(
-                "Specify exactly one authentication method: certificate files "
-                "or username and password."
-            )
-
-        normalized = {
-            key: params[key] for key in SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS
-        }
-        normalized.update({key: params[key] for key in auth_keys})
-
-        if auth_keys == CERT_FILE_KEYS:
             for key in CERT_FILE_KEYS:
-                cert_path_value = normalized[key]
+                cert_path_value = params[key]
                 if not isinstance(cert_path_value, str):
                     raise ResultLoggerPluginError(
                         "'{}' must be an absolute path to an existing file.".format(key)
@@ -279,7 +288,22 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                     raise ResultLoggerPluginError(
                         "'{}' must be an existing file: {}".format(key, cert_path)
                     )
+            auth_params = {key: params[key] for key in CERT_FILE_KEYS}
+        elif password_keys:
+            if not all(params.get(key) for key in PASSWORD_PARAM_KEYS):
+                raise ResultLoggerPluginError(
+                    "Password authentication requires both username and password."
+                )
+            auth_params = {key: params[key] for key in PASSWORD_PARAM_KEYS}
+        else:
+            raise ResultLoggerPluginError(
+                "Specify exactly one authentication method: certificate files "
+                "or username and password."
+            )
 
+        return auth_params
+
+    def _validate_port(self, normalized) -> None:
         port = normalized["port"]
         if isinstance(port, bool):
             raise ResultLoggerPluginError(
@@ -304,8 +328,6 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                     normalized["port"]
                 )
             )
-
-        return normalized
 
     def validate_config(self, config: Dict[str, Any]) -> None:
         if config.get("plugin") != self.name:
