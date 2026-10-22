@@ -137,13 +137,6 @@ class RabbitMQClient:
             # nothing useful to recover here, but this prevents nasty terminations in Pavilion.
             pass
 
-    # ---------------------------------------------------------------------
-    # Compatibility shim from the original script (unused by the logger).
-    # ---------------------------------------------------------------------
-    def process_data_events(self, time_limit: float = 0.1) -> None:
-        # ``pika`` expects an int, but accepting float is fine – cast to int.
-        self.connection.process_data_events(time_limit=int(time_limit))
-
 
 # ---------------------------------------------------------------------------
 # Result‑logger plugin implementation.

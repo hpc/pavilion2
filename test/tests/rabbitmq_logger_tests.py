@@ -129,9 +129,6 @@ class RabbitMQLoggerTests(PavTestCase):
             properties=properties,
         )
 
-        client.process_data_events(1.9)
-        connection.process_data_events.assert_called_once_with(time_limit=1)
-
     def test_client_initializes_password_connection(self):
         params = self._password_connection_params()
         credentials = mock.sentinel.credentials
