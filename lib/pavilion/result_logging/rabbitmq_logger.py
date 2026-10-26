@@ -184,9 +184,10 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         return normalized
 
+    @staticmethod
     def _load_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Loads and resolves the connection parameters from the supplied file or dict.
-        
+
         :param config: The pavilion config to read all the parameters from
         :type params_file: str
         :return: Connection parameters
@@ -219,8 +220,8 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                     )
                 )
             if not isinstance(params, dict):
-                        raise ResultLoggerPluginError(
-                            "RabbitMQ params_file must contain a JSON object."
+                raise ResultLoggerPluginError(
+                    "RabbitMQ params_file must contain a JSON object."
             )
         elif inline_keys:
             params = {key: config.get(key) for key in RABBITMQ_PARAM_KEYS}
@@ -245,9 +246,11 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         return params
 
+    @staticmethod
     def _validate_auth_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Checks that only one authentication method is set, validates its parameters and returns those.
-                
+        """Checks that only one authentication method is set, validates its parameters and returns 
+        those.
+
         :param params: Connection parameters containing fields with the authentication params.
         :type dict
         """
@@ -298,9 +301,11 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         return auth_params
 
+    @staticmethod
     def _validate_port(self, normalized: Dict[str, Any]) -> None:
-        """Performs checks on the supplied 'port' value to ensure it's an integer between 1 and 65535.
-        
+        """Performs checks on the supplied 'port' value to ensure it's an integer between 1 and 
+        65535.
+
         :param normalized: Connection parameters containing the port field.
         :type dict
         """
