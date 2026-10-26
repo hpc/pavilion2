@@ -185,7 +185,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         return normalized
 
     @staticmethod
-    def _load_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _load_params(config: Dict[str, Any]) -> Dict[str, Any]:
         """Loads and resolves the connection parameters from the supplied file or dict.
 
         :param config: The pavilion config to read all the parameters from
@@ -247,9 +247,8 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         return params
 
     @staticmethod
-    def _validate_auth_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Checks that only one authentication method is set, validates its parameters and returns 
-        those.
+    def _validate_auth_params(params: Dict[str, Any]) -> Dict[str, Any]:
+        """Checks that only one auth. method is set, validates its parameters and returns those.
 
         :param params: Connection parameters containing fields with the authentication params.
         :type dict
@@ -302,9 +301,8 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         return auth_params
 
     @staticmethod
-    def _validate_port(self, normalized: Dict[str, Any]) -> None:
-        """Performs checks on the supplied 'port' value to ensure it's an integer between 1 and 
-        65535.
+    def _validate_port(normalized: Dict[str, Any]) -> None:
+        """Performs checks on the 'port' value to ensure it's an integer between 1 and 65535.
 
         :param normalized: Connection parameters containing the port field.
         :type dict
