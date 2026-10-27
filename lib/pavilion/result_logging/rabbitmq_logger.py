@@ -81,7 +81,7 @@ class RabbitMQClient:
             "host": params["host"],
             "port": params["port"],
             "virtual_host": params["vhost"],
-            "heartbeat": 60,
+            "heartbeat": params["heartbeat"] if "heartbeat" in params else 60,
         }
         if "username" in params:
             connection_args["credentials"] = PlainCredentials(
@@ -175,10 +175,13 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         auth_params = self._validate_auth_params(params)
 
+        heartbeat = self._validate_heartbeat(params)
+
         normalized = {
             key: params[key] for key in SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS
         }
         normalized.update({key: params[key] for key in auth_params})
+        normalized["heartbeat"] = heartbeat
 
         self._validate_port(normalized)
 
@@ -331,6 +334,35 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                     normalized["port"]
                 )
             )
+
+    @staticmethod
+    def _validate_heartbeat(params: Dict[str, Any]) -> int:
+        """Validates the heartbeat value, if supplied, or returns a default of 60.
+        
+        :param params: Connection parameters to check for the heartbeat value
+        :type dict
+        :return: Heartbeat value (60 is default)
+        :rtype: int
+        """
+        heartbeat = 62
+        if not 'heartbeat' in params:
+            return heartbeat
+
+        if isinstance(params["heartbeat"], int):
+            heartbeat = params["heartbeat"]
+        elif isinstance(params["heartbeat"], str):
+            try:
+                heartbeat = int(params["heartbeat"])
+            except ValueError:
+                raise ResultLoggerPluginError(
+                    "If supplied, heartbeat must be an integer: {}".format(params["heartbeat"])
+                )
+        else:
+            raise ResultLoggerPluginError(
+                "If supplied, heartbeat must be an integer: {}".format(params["heartbeat"])
+            )
+        return heartbeat
+
 
     def validate_config(self, config: Dict[str, Any]) -> None:
         if config.get("plugin") != self.name:

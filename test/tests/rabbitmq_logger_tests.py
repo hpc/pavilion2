@@ -28,8 +28,23 @@ class RabbitMQLoggerTests(PavTestCase):
             "vhost": "pavilion",
             "exchange": "pavilion.results",
             "routing_key": "test.result",
+            "heartbeat": 61,
         }
 
+    def _connection_params_no_heartbeat(self):
+        cert_file = Path(__file__).resolve().as_posix()
+
+        return {
+            "ca_cert_file": cert_file,
+            "cert_file": cert_file,
+            "key_file": cert_file,
+            "host": "mq.example.com",
+            "port": 5671,
+            "vhost": "pavilion",
+            "exchange": "pavilion.results",
+            "routing_key": "test.result",
+        }
+    
     def _password_connection_params(self):
         return {
             "host": "mq.example.com",
@@ -39,6 +54,7 @@ class RabbitMQLoggerTests(PavTestCase):
             "routing_key": "test.result",
             "username": "pav-user",
             "password": "pav-password",
+            "heartbeat": 61,
         }
 
     def _make_params_file(self, params=None):
@@ -112,7 +128,7 @@ class RabbitMQLoggerTests(PavTestCase):
             virtual_host=params["vhost"],
             credentials=credentials,
             ssl_options=ssl_options,
-            heartbeat=60,
+            heartbeat=params["heartbeat"],
         )
         connection_cls.assert_called_once_with(connection_params)
         properties_cls.assert_called_once_with(
@@ -174,7 +190,7 @@ class RabbitMQLoggerTests(PavTestCase):
             port=params["port"],
             virtual_host=params["vhost"],
             credentials=credentials,
-            heartbeat=60,
+            heartbeat=params["heartbeat"],
         )
         connection_cls.assert_called_once_with(connection_params)
 
@@ -277,6 +293,8 @@ class RabbitMQLoggerTests(PavTestCase):
         config = {"plugin": "rabbitmq"}
         config.update(params)
 
+        print(config)
+        print(params)
         factory.validate_config(config)
 
         self.assertEqual(factory.get_connection_params(config), params)
@@ -441,6 +459,31 @@ class RabbitMQLoggerTests(PavTestCase):
                     )
             finally:
                 Path(params_file).unlink()
+
+    def test_no_specified_heartbeat_sets_default_heartbeat(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params = self._connection_params_no_heartbeat()
+        heartbeat = factory._validate_heartbeat(params)
+        self.assertEqual(heartbeat, 60)
+
+    def test_specified_heartbeat_set_correctly(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params = self._connection_params()
+        for hb_val in [59, "59"]:
+            params["heartbeat"] = hb_val
+            heartbeat = factory._validate_heartbeat(params)
+            self.assertEqual(heartbeat, int(hb_val))
+            
+    def test_non_integral_heartbeat_rejected(self):
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        params = self._connection_params()
+        for hb_val in [58.1, False, "no", factory]:
+            params["heartbeat"] = hb_val
+            with self.assertRaisesRegex(
+                self.rabbitmq_logger.ResultLoggerPluginError,
+                "heartbeat must be an integer",
+            ):
+                _ = factory._validate_heartbeat(params)
 
     def test_factory_make_logger_creates_rabbitmq_logger(self):
         params = self._connection_params()
