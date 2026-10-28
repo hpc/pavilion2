@@ -352,7 +352,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         if not 'heartbeat' in params:
             return heartbeat
 
-        if isinstance(params["heartbeat"], int):
+        if not isinstance(params["heartbeat"], bool) and isinstance(params["heartbeat"], int):
             heartbeat = params["heartbeat"]
         elif isinstance(params["heartbeat"], str):
             try:
