@@ -1,0 +1,431 @@
+# -*- coding: utf-8 -*-
+"""
+RabbitMQ result logger for Pavilion.
+
+This module provides a persistent RabbitMQ client that sends each test result
+as JSON to a broker.  It is registered as a built‑in result‑logger plugin so
+users can enable it via the ``result_loggers`` section of ``pavilion.yaml``.
+"""
+
+import json
+import ssl
+from pathlib import Path
+from typing import Any, Dict, List, Optional, TextIO
+
+
+from pika import (
+    BlockingConnection,
+    ConnectionParameters,
+    SSLOptions,
+    BasicProperties,
+)
+from pika.credentials import ExternalCredentials, PlainCredentials
+from pika import exceptions as pika_exceptions
+import logging
+
+from .base_classes import ResultLoggerPlugin, ResultLogger
+from pavilion.errors import ResultLoggerPluginError
+from pavilion import output
+
+
+CERT_FILE_KEYS = ("ca_cert_file", "cert_file", "key_file")
+SERVER_PARAM_KEYS = (
+    "host",
+    "port",
+    "vhost",
+)
+PUBLISH_PARAM_KEYS = ("exchange", "routing_key")
+PASSWORD_PARAM_KEYS = ("username", "password")
+RABBITMQ_PARAM_KEYS = (
+    CERT_FILE_KEYS + SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS + PASSWORD_PARAM_KEYS
+)
+OPTIONAL_PARAM_KEYS = ("heartbeat",)
+
+
+class RabbitMQClient:
+    """Thin wrapper around ``pika`` using certificate or password credentials.
+
+    The constructor accepts either certificate or password authentication
+    parameters. Certificate authentication uses TLS client certificates::
+
+        {
+            "ca_cert_file": "/path/to/ca.pem",
+            "cert_file":    "/path/to/client_cert.pem",
+            "key_file":     "/path/to/client_key.key",
+            "host": "mq.example.com",
+            "port": 5671,
+            "vhost": "pavilion",
+            "exchange": "pavilion",
+            "routing_key": "test.result"
+        }
+
+    Password authentication uses a plain AMQP connection::
+
+        {
+            "host": "mq.example.com",
+            "port": 5672,
+            "vhost": "pavilion",
+            "exchange": "pavilion",
+            "routing_key": "test.result",
+            "username": "pav-user",
+            "password": "pav-password"
+        }
+    """
+
+    def __init__(self, params: Dict[str, Any]):
+        """Open a persistent TLS-secured connection using ``params``.
+
+        Any exception during connection bubbles up to the caller – the logger
+        will catch it and emit a warning.
+        """
+        connection_args = {
+            "host": params["host"],
+            "port": params["port"],
+            "virtual_host": params["vhost"],
+            "heartbeat": params["heartbeat"] if "heartbeat" in params else 60,
+        }
+        if "username" in params:
+            connection_args["credentials"] = PlainCredentials(
+                params["username"], params["password"]
+            )
+        else:
+            context = ssl.create_default_context(cafile=params["ca_cert_file"])
+            context.load_cert_chain(params["cert_file"], params["key_file"])
+            context.check_hostname = False
+            connection_args["credentials"] = ExternalCredentials()
+            connection_args["ssl_options"] = SSLOptions(context, params["host"])
+
+        connection_params = ConnectionParameters(**connection_args)
+
+        # Establish a blocking connection and a channel.
+        self.connection = BlockingConnection(connection_params)
+        self.channel = self.connection.channel()
+
+        # Store exchange / routing information for later use.
+        self.mq_exchange = params["exchange"]
+        self.mq_routing_key = params["routing_key"]
+
+        # Message properties – make the message persistent.
+        self.properties = BasicProperties(content_type="text/plain", delivery_mode=2)
+
+    # ---------------------------------------------------------------------
+    # Public API – the logger only needs ``send_as_json``.
+    # ---------------------------------------------------------------------
+    def send_as_string(self, message: str) -> None:
+        """Publish *message* (a plain string) to the configured exchange."""
+        self.channel.basic_publish(
+            exchange=self.mq_exchange,
+            routing_key=self.mq_routing_key,
+            body=message,
+            properties=self.properties,
+        )
+
+    def send_as_json(self, my_dict: dict) -> None:
+        """Serialize *my_dict* to JSON and delegate to ``send_as_string``."""
+        self.send_as_string(json.dumps(my_dict))
+
+    # ---------------------------------------------------------------------
+    # Context‑manager helpers – used by the logger's ``__del__``.
+    # ---------------------------------------------------------------------
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.connection.close()
+        except pika_exceptions.AMQPConnectionError:
+            # The connection is already closed or lost, so cleanup is complete. There is
+            # nothing useful to recover here, but this prevents nasty terminations in Pavilion.
+            pass
+
+
+# ---------------------------------------------------------------------------
+# Result‑logger plugin implementation.
+# ---------------------------------------------------------------------------
+
+
+class RabbitMQLoggerFactory(ResultLoggerPlugin):
+    """Factory that creates a :class:`RabbitMQLogger` from config.
+
+    Configuration accepts either an absolute ``params_file`` containing JSON
+    parameters or all RabbitMQ parameters directly as top-level entries.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="rabbitmq",
+            description=(
+                "Log test results to a RabbitMQ broker (persistent connection)."
+            ),
+            priority=self.PRIO_CORE,
+        )
+
+    # ---------------------------------------------------------------------
+    # Configuration validation.
+    # ---------------------------------------------------------------------
+    def get_connection_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve and validate RabbitMQ connection parameters.
+
+        :param config: result logger configuration
+        :type config: dict
+        :return: normalized connection parameters
+        :rtype: dict
+        """
+
+        params = self._load_params(config)
+
+        auth_params = self._validate_auth_params(params)
+
+        heartbeat = self._validate_heartbeat(params)
+
+        normalized = {
+            key: params[key] for key in SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS
+        }
+        normalized.update({key: params[key] for key in auth_params})
+        normalized["heartbeat"] = heartbeat
+
+        self._validate_port(normalized)
+
+        return normalized
+
+    @staticmethod
+    def _load_params(config: Dict[str, Any]) -> Dict[str, Any]:
+        """Loads and resolves the connection parameters from the supplied file or dict.
+
+        :param config: The pavilion config to read all the parameters from
+        :type params_file: str
+        :return: Connection parameters
+        :rtype: dict
+        """
+        params_file = config.get("params_file")
+        inline_keys = [key for key in RABBITMQ_PARAM_KEYS if key in config]
+
+        if params_file is not None and inline_keys:
+            raise ResultLoggerPluginError(
+                "Specify either 'params_file' or inline RabbitMQ connection "
+                "parameters, not both."
+            )
+        # loads values into 'params'
+        if params_file is not None:
+            if not params_file:
+                raise ResultLoggerPluginError("'params_file' must not be an empty string.")
+            params_path = Path(params_file)
+            if not params_path.exists():
+                raise ResultLoggerPluginError(
+                    "params_file not found: {}".format(params_file)
+                )
+            try:
+                with params_path.open() as params_file_obj:
+                    params = json.load(params_file_obj)
+            except (OSError, ValueError) as err:
+                raise ResultLoggerPluginError(
+                    "Could not load RabbitMQ params_file '{}': {}".format(
+                        params_path, err
+                    )
+                )
+            if not isinstance(params, dict):
+                raise ResultLoggerPluginError(
+                    "RabbitMQ params_file must contain a JSON object."
+            )
+        elif inline_keys:
+            params = {key: config.get(key) for key in RABBITMQ_PARAM_KEYS}
+            opt_params = {key: config.get(key) for key in OPTIONAL_PARAM_KEYS if key in config}
+            if opt_params:
+                params.update(opt_params)
+        else:
+            raise ResultLoggerPluginError(
+                "Specify either 'params_file' or inline RabbitMQ connection parameters."
+            )
+
+        # verify all params are there
+        missing = [key for key in (SERVER_PARAM_KEYS) if not params.get(key)]
+        if missing:
+            raise ResultLoggerPluginError(
+                "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
+            )
+
+        # 'exchange' and 'routing_key' can be empty, but need to be there
+        missing = [key for key in PUBLISH_PARAM_KEYS if key not in params]
+        if missing:
+            raise ResultLoggerPluginError(
+                "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
+            )
+
+        return params
+
+    @staticmethod
+    def _validate_auth_params(params: Dict[str, Any]) -> Dict[str, Any]:
+        """Checks that only one auth. method is set, validates its parameters and returns those.
+
+        :param params: Connection parameters containing fields with the authentication params.
+        :type dict
+        """
+        cert_keys = [key for key in CERT_FILE_KEYS if params.get(key) is not None]
+        password_keys = [
+            key for key in PASSWORD_PARAM_KEYS if params.get(key) is not None
+        ]
+        if cert_keys and password_keys:
+            raise ResultLoggerPluginError(
+                "Specify exactly one authentication method: certificate files "
+                "or username and password."
+            )
+        if cert_keys:
+            missing = [key for key in CERT_FILE_KEYS if not params.get(key)]
+            if missing:
+                raise ResultLoggerPluginError(
+                    "Certificate authentication requires: {}.".format(
+                        ", ".join(CERT_FILE_KEYS)
+                    )
+                )
+            for key in CERT_FILE_KEYS:
+                cert_path_value = params[key]
+                if not isinstance(cert_path_value, str):
+                    raise ResultLoggerPluginError(
+                        "'{}' must be an absolute path to an existing file.".format(key)
+                    )
+                cert_path = Path(cert_path_value)
+                if not cert_path.is_absolute():
+                    raise ResultLoggerPluginError(
+                        "'{}' must be an absolute path: {}".format(key, cert_path)
+                    )
+                if not cert_path.is_file():
+                    raise ResultLoggerPluginError(
+                        "'{}' must be an existing file: {}".format(key, cert_path)
+                    )
+            auth_params = {key: params[key] for key in CERT_FILE_KEYS}
+        elif password_keys:
+            if not all(params.get(key) for key in PASSWORD_PARAM_KEYS):
+                raise ResultLoggerPluginError(
+                    "Password authentication requires both username and password."
+                )
+            auth_params = {key: params[key] for key in PASSWORD_PARAM_KEYS}
+        else:
+            raise ResultLoggerPluginError(
+                "Specify exactly one authentication method: certificate files "
+                "or username and password."
+            )
+
+        return auth_params
+
+    @staticmethod
+    def _validate_port(normalized: Dict[str, Any]) -> None:
+        """Performs checks on the 'port' value to ensure it's an integer between 1 and 65535.
+
+        :param normalized: Connection parameters containing the port field.
+        :type dict
+        """
+        port = normalized["port"]
+        if isinstance(port, bool):
+            raise ResultLoggerPluginError(
+                "RabbitMQ port must be an integer: {}".format(port)
+            )
+        if isinstance(port, int):
+            normalized["port"] = int(port)
+        elif isinstance(port, str):
+            try:
+                normalized["port"] = int(port)
+            except ValueError:
+                raise ResultLoggerPluginError(
+                    "RabbitMQ port must be an integer: {}".format(port)
+                )
+        else:
+            raise ResultLoggerPluginError(
+                "RabbitMQ port must be an integer: {}".format(port)
+            )
+        if not 1 <= normalized["port"] <= 65535:
+            raise ResultLoggerPluginError(
+                "RabbitMQ port must be between 1 and 65535: {}".format(
+                    normalized["port"]
+                )
+            )
+
+    @staticmethod
+    def _validate_heartbeat(params: Dict[str, Any]) -> int:
+        """Validates the heartbeat value, if supplied, or returns a default of 60.
+
+        :param params: Connection parameters to check for the heartbeat value
+        :type dict
+        :return: Heartbeat value (60 is default)
+        :rtype: int
+        """
+        heartbeat = 60
+        if not 'heartbeat' in params:
+            return heartbeat
+
+        if not isinstance(params["heartbeat"], bool) and isinstance(params["heartbeat"], int):
+            heartbeat = params["heartbeat"]
+        elif isinstance(params["heartbeat"], str):
+            try:
+                heartbeat = int(params["heartbeat"])
+            except ValueError:
+                raise ResultLoggerPluginError(
+                    "If supplied, heartbeat must be an integer: {}".format(params["heartbeat"])
+                )
+        else:
+            raise ResultLoggerPluginError(
+                "If supplied, heartbeat must be an integer: {}".format(params["heartbeat"])
+            )
+        return heartbeat
+
+
+    def validate_config(self, config: Dict[str, Any]) -> None:
+        if config.get("plugin") != self.name:
+            raise ResultLoggerPluginError(
+                f"Name {config.get('plugin')} does not match logger plugin '{self.name}'."
+            )
+
+        self.get_connection_params(config)
+
+    # ---------------------------------------------------------------------
+    # Create the actual logger instance.
+    # ---------------------------------------------------------------------
+    def _make_logger(
+        self,
+        config: dict,
+        sid: str,
+        outfile: Optional[TextIO] = None,
+    ) -> "RabbitMQLogger":
+        # One persistent client per logger (and therefore per series).
+        client = RabbitMQClient(self.get_connection_params(config))
+        return RabbitMQLogger(client, outfile)
+
+
+class RabbitMQLogger(ResultLogger):
+    """Result logger that forwards the result dictionary to RabbitMQ.
+
+    It writes a short human‑readable line to ``self.outfile`` (mirroring the
+    existing file‑loggers) and, on failure, also writes a warning line to that
+    same ``outfile`` while emitting a ``logging.warning``.
+    """
+
+    def __init__(self, client: RabbitMQClient, outfile: Optional[TextIO] = None):
+        super().__init__(name=type(self).__name__, outfile=outfile)
+        self.client = client  # persistent connection for the series
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    def get_log_message(self, results: dict) -> str:
+        return f"{type(self).__name__}: Logging {results} to RabbitMQ..."
+
+    def _log(self, results: dict) -> None:
+        self.client.send_as_json(results)
+        self.logger.debug("Result sent to RabbitMQ")
+
+    def log(self, results: dict) -> None:
+        # Consistent one‑line status message.
+        output.fprint(
+            self.outfile,
+            self.get_log_message(results),
+        )
+        try:
+            self._log(results)
+        except (
+            pika_exceptions.AMQPConnectionError,
+            pika_exceptions.AMQPChannelError,
+        ) as exc:
+            raise ResultLoggerPluginError(
+                f"Failed to publish result to RabbitMQ: {exc}"
+            ) from exc
+
+    def __del__(self):
+        """Close the underlying RabbitMQ connection when the logger is GC'd."""
+        self.client.__exit__(None, None, None)
