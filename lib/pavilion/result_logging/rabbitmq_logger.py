@@ -39,6 +39,7 @@ PASSWORD_PARAM_KEYS = ("username", "password")
 RABBITMQ_PARAM_KEYS = (
     CERT_FILE_KEYS + SERVER_PARAM_KEYS + PUBLISH_PARAM_KEYS + PASSWORD_PARAM_KEYS
 )
+OPTIONAL_PARAM_KEYS = ("heartbeat",)
 
 
 class RabbitMQClient:
@@ -228,6 +229,9 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
             )
         elif inline_keys:
             params = {key: config.get(key) for key in RABBITMQ_PARAM_KEYS}
+            opt_params = {key: config.get(key) for key in OPTIONAL_PARAM_KEYS if key in config}
+            if opt_params:
+                params.update(opt_params)
         else:
             raise ResultLoggerPluginError(
                 "Specify either 'params_file' or inline RabbitMQ connection parameters."
@@ -344,7 +348,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         :return: Heartbeat value (60 is default)
         :rtype: int
         """
-        heartbeat = 62
+        heartbeat = 60
         if not 'heartbeat' in params:
             return heartbeat
 

@@ -293,8 +293,6 @@ class RabbitMQLoggerTests(PavTestCase):
         config = {"plugin": "rabbitmq"}
         config.update(params)
 
-        print(config)
-        print(params)
         factory.validate_config(config)
 
         self.assertEqual(factory.get_connection_params(config), params)
