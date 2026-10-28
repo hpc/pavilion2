@@ -342,7 +342,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
     @staticmethod
     def _validate_heartbeat(params: Dict[str, Any]) -> int:
         """Validates the heartbeat value, if supplied, or returns a default of 60.
-        
+
         :param params: Connection parameters to check for the heartbeat value
         :type dict
         :return: Heartbeat value (60 is default)

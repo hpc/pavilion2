@@ -44,7 +44,7 @@ class RabbitMQLoggerTests(PavTestCase):
             "exchange": "pavilion.results",
             "routing_key": "test.result",
         }
-    
+
     def _password_connection_params(self):
         return {
             "host": "mq.example.com",
@@ -471,7 +471,7 @@ class RabbitMQLoggerTests(PavTestCase):
             params["heartbeat"] = hb_val
             heartbeat = factory._validate_heartbeat(params)
             self.assertEqual(heartbeat, int(hb_val))
-            
+
     def test_non_integral_heartbeat_rejected(self):
         factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
         params = self._connection_params()
