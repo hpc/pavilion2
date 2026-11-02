@@ -407,24 +407,19 @@ class RabbitMQLogger(ResultLogger):
         return f"{type(self).__name__}: Logging {results} to RabbitMQ..."
 
     def _log(self, results: dict) -> None:
-        self.client.send_as_json(results)
-        self.logger.debug("Result sent to RabbitMQ")
-
-    def log(self, results: dict) -> None:
-        # Consistent one‑line status message.
-        output.fprint(
-            self.outfile,
-            self.get_log_message(results),
-        )
         try:
-            self._log(results)
+            self.client.send_as_json(results)
         except (
             pika_exceptions.AMQPConnectionError,
             pika_exceptions.AMQPChannelError,
-        ) as exc:
+        ) as err:
             raise ResultLoggerPluginError(
-                f"Failed to publish result to RabbitMQ: {exc}"
-            ) from exc
+                f"Failed to publish result to RabbitMQ: {err}"
+            ) from err        
+        except TypeError as err:
+            raise ResultLoggerPluginError(
+                "Error serializing results as JSON: {}".format(err)) from err
+        self.logger.debug("Result sent to RabbitMQ")
 
     def __del__(self):
         """Close the underlying RabbitMQ connection when the logger is GC'd."""

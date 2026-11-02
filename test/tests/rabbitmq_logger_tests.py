@@ -517,16 +517,6 @@ class RabbitMQLoggerTests(PavTestCase):
         self.assertIn("RabbitMQLogger: Logging", output)
         self.assertIn("'unit-test'", output)
 
-    def test_logger_log_message_describes_rabbitmq_destination(self):
-        logger = self.rabbitmq_logger.RabbitMQLogger(mock.Mock())
-
-        message = logger.get_log_message({"test_name": "unit-test"})
-
-        self.assertEqual(
-            message,
-            "RabbitMQLogger: Logging {'test_name': 'unit-test'} to RabbitMQ...",
-        )
-
     def test_logger_internal_log_sends_results_and_records_debug_message(self):
         client = mock.MagicMock()
         logger = self.rabbitmq_logger.RabbitMQLogger(client)
@@ -538,7 +528,7 @@ class RabbitMQLoggerTests(PavTestCase):
         client.send_as_json.assert_called_once_with(results)
         self.assertIn("DEBUG:RabbitMQLogger:Result sent to RabbitMQ", logs.output)
 
-    def test_logger_log_raises_plugin_error_when_publish_connection_fails(self):
+    def test_logger_internal_log_raises_plugin_error_when_publish_connection_fails(self):
         client = mock.MagicMock()
         client.send_as_json.side_effect = (
             self.rabbitmq_logger.pika_exceptions.StreamLostError("connection lost")
@@ -550,14 +540,14 @@ class RabbitMQLoggerTests(PavTestCase):
             self.rabbitmq_logger.ResultLoggerPluginError,
             "Failed to publish result to RabbitMQ",
         ) as error:
-            logger.log(results)
+            logger._log(results)
 
         self.assertIsInstance(
             error.exception.__cause__,
             self.rabbitmq_logger.pika_exceptions.StreamLostError,
         )
 
-    def test_logger_log_raises_plugin_error_when_publish_channel_fails(self):
+    def test_logger_internal_log_raises_plugin_error_when_publish_channel_fails(self):
         client = mock.MagicMock()
         client.send_as_json.side_effect = (
             self.rabbitmq_logger.pika_exceptions.ChannelWrongStateError(
@@ -570,7 +560,7 @@ class RabbitMQLoggerTests(PavTestCase):
             self.rabbitmq_logger.ResultLoggerPluginError,
             "Failed to publish result to RabbitMQ",
         ) as error:
-            logger.log({"test_name": "unit-test"})
+            logger._log({"test_name": "unit-test"})
 
         self.assertIsInstance(
             error.exception.__cause__,
