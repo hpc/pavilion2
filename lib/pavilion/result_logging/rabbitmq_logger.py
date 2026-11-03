@@ -293,7 +293,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
             )
         if len(cert_keys) > 0:
             missing = [key for key in CERT_FILE_KEYS if not params.get(key)]
-            if missing:
+            if len(missing) > 0:
                 raise ResultLoggerPluginError(
                     "Certificate authentication requires: {}.".format(
                         ", ".join(CERT_FILE_KEYS)
