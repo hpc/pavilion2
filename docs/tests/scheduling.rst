@@ -52,8 +52,11 @@ Use ``pav show sched --conf`` for the authoritative list. The PBS specific
 options are:
 
 ``queue``
-    The queue (``qsub -q``) to submit to. When unset, PBS uses the server's
-    default queue.
+    The queue (``qsub -q``) to submit to. When unset, the job goes to the PBS
+    server's ``default_queue`` (looked up with ``qstat -Bf``; ``normal`` if it
+    can't be determined), and nodes are counted against that queue. When a
+    ``reservation`` is set, the reservation's queue is used instead -- see
+    `Reservations`_.
 
 ``walltime``
     Job walltime in PBS format (``HH:MM:SS``), submitted as ``-l walltime=``.
@@ -70,9 +73,22 @@ options are:
     entirely. This is the value that determines the number of lines in
     ``$PBS_NODEFILE`` and therefore the rank count seen by ``mpirun``.
 
+``mem``
+    Memory per chunk, added to the select statement as ``:mem=<size>``. Takes
+    a PBS size: a whole number with an optional unit, e.g. ``4gb``, ``512mb``.
+    Optional and omitted from the select statement when unset.
+
+``ngpus``
+    GPUs per chunk, added to the select statement as ``:ngpus=N``. Optional
+    and omitted when unset.
+
 ``exclusive``
-    Set to ``'true'`` to request exclusive node placement
-    (``-l place=exclhost:scatter``).
+    Node placement, emitted as ``#PBS -l place=<spec>``. Either a boolean, where
+    ``true`` means ``exclhost:scatter`` (whole nodes, one chunk per host), or a
+    literal PBS place spec such as ``excl:vscatter``, ``pack:excl`` or
+    ``group=switch``. Multi-vnode hosts need a ``vscatter`` spec, since
+    ``scatter`` places one chunk per host. Unset or ``false`` adds no place line.
+    Ignored inside a reservation, which has its own place spec.
 
 ``target``
     Restrict the job to a specific host, added to the select statement as
@@ -82,8 +98,10 @@ options are:
     Restrict the job to a node model, added as ``:model=<name>``.
 
 ``all_queue_nodes``
-    Use every node in the configured queue rather than a fixed count. Requires
-    ``queue`` to be set, and is mutually exclusive with ``target``.
+    Use every free node in the queue (or reservation) rather than a fixed
+    count. Mutually exclusive with ``target``. If no node is free the job is
+    not submitted, rather than asking PBS for ``select=0``. On multi-vnode
+    hosts, the vnodes are counted and the host that contains them is not.
 
 ``qsub_extra``
     A list of additional ``#PBS`` header lines to add to the kickoff script,
@@ -95,12 +113,33 @@ options are:
     Node states that PBS reports which Pavilion should treat as available,
     usable, or reserved.
 
+The select statement is built in this order, each optional key only when set:
+``-l select=<nodes>:ncpus=<tasks>[:host=..][:mpiprocs=..][:mem=..][:ngpus=..][:model=..]``.
+Every job also gets ``-j oe``, so stderr is joined into the job's output file
+rather than written to the directory ``qsub`` was run from.
+
+Reservations
+^^^^^^^^^^^^
+
+The generic ``schedule.reservation`` option works with PBS. A PBS reservation
+is a queue, so the job is submitted to the reservation's queue (``R123``,
+``S123``, ...) and it wins over ``pbs.queue``. Give either the short ID or the
+full ID (``R123.pbs-server``). Pavilion checks with ``pbs_rstat`` that the
+reservation exists before submitting; a reservation that hasn't started yet is
+fine, the job waits in its queue. To ignore a reservation set in a config and
+use ``pbs.queue`` instead, clear it on the command line:
+
+.. code-block:: bash
+
+    $ pav run -c 'schedule.reservation=""' my_suite
+
 Variables
 ^^^^^^^^^
 
 In addition to the universal scheduler variables, the PBS scheduler provides
-``sched.queue``, ``sched.walltime`` and ``sched.mpiprocs``. All are deferred,
-so they resolve in the ``run`` section but not in ``build``:
+``sched.queue``, ``sched.walltime``, ``sched.mpiprocs``, ``sched.mem`` and
+``sched.ngpus``. The optional ones are an empty string when unset. All are
+deferred, so they resolve in the ``run`` section but not in ``build``:
 
 .. code-block:: yaml
 
