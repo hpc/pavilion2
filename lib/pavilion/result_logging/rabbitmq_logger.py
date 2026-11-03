@@ -229,7 +229,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
             )
         # loads values into 'params'
         if params_file is not None:
-            if not params_file:
+            if len(params_file) == 0:
                 raise ResultLoggerPluginError("'params_file' must not be an empty string.")
             params_path = Path(params_file)
             if not params_path.exists():
