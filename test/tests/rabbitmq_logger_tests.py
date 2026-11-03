@@ -15,9 +15,14 @@ class RabbitMQLoggerTests(PavTestCase):
         self.rabbitmq_logger = importlib.import_module(
             "pavilion.result_logging.rabbitmq_logger"
         )
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp_dir.cleanup)
+
+        self.cert_file = Path(self.tmp_dir.name) / "client.pem"
+        self.cert_file.touch()
 
     def _connection_params(self):
-        cert_file = Path(__file__).resolve().as_posix()
+        cert_file = self.cert_file.as_posix()
 
         return {
             "ca_cert_file": cert_file,
@@ -32,7 +37,7 @@ class RabbitMQLoggerTests(PavTestCase):
         }
 
     def _connection_params_no_heartbeat(self):
-        cert_file = Path(__file__).resolve().as_posix()
+        cert_file = self.cert_file.as_posix()
 
         return {
             "ca_cert_file": cert_file,
