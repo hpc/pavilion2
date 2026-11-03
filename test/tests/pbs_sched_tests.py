@@ -6,12 +6,22 @@ transformation, qsub header generation, and config validators.
 """
 
 import copy
+import json
+import subprocess
+from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 import pavilion.schedulers
-from pavilion.errors import SchedConfigError
+from pavilion.errors import SchedConfigError, SchedulerPluginError
+from pavilion.schedulers.plugins import pbs as pbs_mod
 from pavilion.schedulers.plugins.pbs import (PBS, PBSVars, QsubHeader, pbs_float,
                                              pbs_int, pbs_str, pbs_states,
-                                             validate_pbs_states)
+                                             validate_pbs_states, validate_mem,
+                                             validate_exclusive, pbs_resv_queue,
+                                             pbs_submit_queue, pbs_node_reservations,
+                                             EXCLUSIVE_DEFAULT_PLACE,
+                                             DEFAULT_QUEUE_FALLBACK)
 from pavilion.types import Nodes
 from pavilion.unittest import PavTestCase
 
@@ -30,9 +40,28 @@ class PBSSchedTests(PavTestCase):
 
         test = self._quick_test()
         config = copy.deepcopy(test.config['schedule'])
-        config['pbs'].update(pbs_opts)
+
+        # Run the options through the plugin's own validators, as Pavilion does for
+        # a real test config, so tests see the values the plugin really receives.
+        _elems, validators, _defaults = \
+            pavilion.schedulers.get_plugin('pbs')._get_config_elems()
+        for key, value in pbs_opts.items():
+            validator = validators.get(key)
+            if validator is not None and value is not None and not isinstance(value, list):
+                value = validator(value)
+            config['pbs'][key] = value
 
         return config
+
+    def setUp(self):
+        # The server's default queue is looked up once and cached. Start every test
+        # with an empty cache so no test depends on another (or on a real PBS server).
+        super().setUp()
+        pbs_mod._default_queue_cache.clear()
+
+    def tearDown(self):
+        pbs_mod._default_queue_cache.clear()
+        super().tearDown()
 
     def _pbs_vars(self, **pbs_opts):
         """Build PBS scheduler variables without needing a PBS installation."""
@@ -50,17 +79,30 @@ class PBSSchedTests(PavTestCase):
         pbs_sched = pavilion.schedulers.get_plugin('pbs')
         self.assertIsInstance(pbs_sched, PBS)
 
-    def test_queue_var_empty_when_unset(self):
-        """queue() must return '' rather than None when no queue is configured.
+    def test_queue_var_default_queue_when_unset(self):
+        """With no queue configured, queue() is the server's default queue.
 
-        Pavilion's dfr_var_method rejects a None return value, which crashes job
-        kickoff, so the empty string is the correct 'no queue' sentinel.
+        Jobs with no queue go to the PBS server's default_queue, so that is what
+        {{sched.queue}} reports. It is never None: Pavilion's dfr_var_method
+        rejects a None return value, which crashes job kickoff.
         """
 
         sched_vars = self._pbs_vars()
+        server = json.dumps({'Server': {'pbs-server': {'default_queue': 'workq'}}})
+        with mock.patch.object(pbs_mod.subprocess, 'check_output',
+                               return_value=server.encode()):
+            self.assertEqual(sched_vars['queue'], 'workq')
 
-        self.assertEqual(sched_vars['queue'], '')
-        self.assertIsNotNone(sched_vars['queue'])
+    def test_queue_var_fallback_without_pbs(self):
+        """If the server can't be asked, queue() falls back to 'normal', never None."""
+
+        sched_vars = self._pbs_vars()
+        with mock.patch.object(pbs_mod.subprocess, 'check_output',
+                               side_effect=OSError('no qstat')):
+            queue = sched_vars['queue']
+
+        self.assertEqual(queue, DEFAULT_QUEUE_FALLBACK)
+        self.assertIsNotNone(queue)
 
     def test_queue_var_set(self):
         """queue() should return the configured queue."""
@@ -161,8 +203,8 @@ class PBSSchedTests(PavTestCase):
 
         # Optional keys must default to unset, so they are omitted entirely from
         # the qsub command on clusters that do not use them.
-        for key in ('queue', 'target', 'model', 'exclusive', 'mpiprocs',
-                    'all_queue_nodes'):
+        for key in ('queue', 'target', 'model', 'exclusive', 'mpiprocs', 'mem',
+                    'ngpus', 'all_queue_nodes'):
             self.assertIsNone(defaults[key],
                               msg="'{}' must default to None (unset)".format(key))
 
@@ -177,6 +219,8 @@ class PBSSchedTests(PavTestCase):
         self.assertIn('pbs.mpiprocs', PBS.JOB_SHARE_KEY_ATTRS)
         self.assertIn('pbs.exclusive', PBS.JOB_SHARE_KEY_ATTRS)
         self.assertIn('pbs.qsub_extra', PBS.JOB_SHARE_KEY_ATTRS)
+        self.assertIn('pbs.mem', PBS.JOB_SHARE_KEY_ATTRS)
+        self.assertIn('pbs.ngpus', PBS.JOB_SHARE_KEY_ATTRS)
 
     def test_transform_raw_node_data(self):
         """pbsnodes output should map onto Pavilion's NodeInfo fields."""
@@ -277,3 +321,149 @@ class PBSSchedTests(PavTestCase):
 
         self.assertNotIn('#PBS -l place=exclhost:scatter',
                          self._qsub_lines())
+
+    def test_mem_and_ngpus_vars(self):
+        """mem() and ngpus() return '' when unset and the value when set."""
+
+        sched_vars = self._pbs_vars()
+        self.assertEqual(sched_vars['mem'], '')
+        self.assertEqual(sched_vars['ngpus'], '')
+
+        sched_vars = self._pbs_vars(mem='4gb', ngpus=2)
+        self.assertEqual(sched_vars['mem'], '4gb')
+        self.assertEqual(sched_vars['ngpus'], '2')
+
+    def test_validate_mem(self):
+        """mem takes a PBS size: a whole number with an optional unit."""
+
+        for good in ('4gb', '512mb', '1024kb', '2GB', '100', '8w', '1tb'):
+            self.assertEqual(validate_mem(good), good)
+
+        for unset in (None, '', '  '):
+            self.assertIsNone(validate_mem(unset))
+
+        for bad in ('4 gb', '4.5gb', 'lots', '-1gb', '4gib'):
+            with self.assertRaises(SchedConfigError, msg=bad):
+                validate_mem(bad)
+
+    def test_validate_exclusive(self):
+        """exclusive takes a boolean or a literal PBS place spec."""
+
+        for true in ('true', 'yes', 'on', '1', 'True'):
+            self.assertEqual(validate_exclusive(true), EXCLUSIVE_DEFAULT_PLACE)
+
+        for false in (None, 'false', 'no', 'off', '0', 'none', ''):
+            self.assertIsNone(validate_exclusive(false))
+
+        for spec in ('exclhost:scatter', 'excl:vscatter', 'pack:excl', 'group=switch'):
+            self.assertEqual(validate_exclusive(spec), spec)
+
+        for bad in ('excl vscatter', 'excl;rm', '"excl"'):
+            with self.assertRaises(SchedConfigError, msg=bad):
+                validate_exclusive(bad)
+
+    def test_qsub_header_exclusive_place_spec(self):
+        """A place spec is passed through as-is; 'false' emits no place line."""
+
+        self.assertIn('#PBS -l place=excl:vscatter',
+                      self._qsub_lines(exclusive='excl:vscatter'))
+
+        self.assertFalse([line for line in self._qsub_lines(exclusive='false')
+                          if line.startswith('#PBS -l place=')])
+
+    def test_reservation_queue(self):
+        """A reservation is a queue; it wins over the configured queue."""
+
+        self.assertEqual(pbs_resv_queue('R123.pbs-server'), 'R123')
+        self.assertEqual(pbs_resv_queue('S45'), 'S45')
+
+        config = self._pbs_config(queue='workq')
+        self.assertEqual(pbs_submit_queue(config), 'workq')
+
+        config['reservation'] = 'R123.pbs-server'
+        self.assertEqual(pbs_submit_queue(config), 'R123')
+
+    def test_qsub_header_in_reservation(self):
+        """In a reservation the job goes to its queue and sets no place spec.
+
+        qsub rejects a job whose place spec conflicts with the reservation's own.
+        """
+
+        config = self._pbs_config(queue='workq', exclusive='true')
+        config['reservation'] = 'R123.pbs-server'
+        sched_vars = PBSVars(config, nodes=Nodes({}), chunks=[], node_list_id=0,
+                             deferred=False)
+        lines = QsubHeader('pav_test', config, sched_vars, nodes=None,
+                           node_range=(1, 1))._kickoff_lines()
+
+        self.assertIn('#PBS -q R123', lines)
+        self.assertFalse([line for line in lines if line.startswith('#PBS -l place=')])
+
+    def test_node_reservations(self):
+        """A node's 'resv' attribute yields each reservation in full and short form."""
+
+        resvs = pbs_node_reservations('R123.pbs-server, S45.pbs-server')
+        for name in ('R123.pbs-server', 'R123', 'S45.pbs-server', 'S45'):
+            self.assertIn(name, resvs)
+
+        self.assertEqual(pbs_node_reservations(None), [])
+
+    def _kickoff_cmd(self, config=None, **pbs_opts):
+        """Run PBS._kickoff with qsub mocked out and return the qsub command."""
+
+        if config is None:
+            config = self._pbs_config(**pbs_opts)
+        work_dir = Path(self.pav_cfg.working_dir)
+        job = SimpleNamespace(sched_log=work_dir / 'pbs_sched.log',
+                              kickoff_path=work_dir / 'pbs_kickoff',
+                              kickoff_log=work_dir / 'pbs_kickoff.log')
+
+        proc = mock.MagicMock()
+        proc.communicate.return_value = (b'1234.pbs-server\n', b'')
+        proc.poll.return_value = 0
+
+        plugin = pavilion.schedulers.get_plugin('pbs')
+        with mock.patch.object(pbs_mod.subprocess, 'Popen', return_value=proc) as popen, \
+                mock.patch.object(pbs_mod.sys_vars, 'get_vars',
+                                  return_value={'sys_name': 'test'}):
+            job_info = plugin._kickoff(self.pav_cfg, job, config, 'pav_test')
+
+        self.assertEqual(job_info['id'], '1234')
+        return popen.call_args[0][0]
+
+    def test_kickoff_select(self):
+        """Optional select keys appear only when set, in a fixed order."""
+
+        cmd = self._kickoff_cmd(nodes=2, tasks=4)
+        self.assertIn('-l select=2:ncpus=4', cmd)
+        self.assertEqual(cmd[-5:-2], ['-j', 'oe', '-o'])
+
+        cmd = self._kickoff_cmd(nodes=2, tasks=4, mpiprocs=4, mem='8gb', ngpus=2,
+                                model='abc')
+        self.assertIn('-l select=2:ncpus=4:mpiprocs=4:mem=8gb:ngpus=2:model=abc', cmd)
+
+        cmd = self._kickoff_cmd(nodes=1, tasks=2, target='node01')
+        self.assertIn('-l select=1:ncpus=2:host=node01', cmd)
+
+    def test_kickoff_refuses_empty_select(self):
+        """all_queue_nodes with no usable nodes must not submit 'select=0'."""
+
+        # nodes/tasks set as the real config defaults would set them; the select
+        # line is only built when they are.
+        config = self._pbs_config(all_queue_nodes=1, queue='workq', nodes=1, tasks=1)
+        plugin = pavilion.schedulers.get_plugin('pbs')
+        with mock.patch.object(plugin, '_get_queue_nodect', return_value=0):
+            with self.assertRaises(SchedulerPluginError):
+                self._kickoff_cmd(config=config)
+
+    def test_kickoff_missing_reservation(self):
+        """An unknown reservation stops the kickoff with a clear error."""
+
+        config = self._pbs_config()
+        config['reservation'] = 'R999'
+        rstat = subprocess.CompletedProcess(args=[], returncode=0, stdout=b'')
+        with mock.patch.object(pbs_mod.subprocess, 'run', return_value=rstat):
+            with self.assertRaises(SchedulerPluginError):
+                pavilion.schedulers.get_plugin('pbs')._kickoff(
+                    self.pav_cfg, SimpleNamespace(), config, 'pav_test')
+
