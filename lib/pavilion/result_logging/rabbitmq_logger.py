@@ -286,7 +286,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         password_keys = [
             key for key in PASSWORD_PARAM_KEYS if params.get(key) is not None
         ]
-        if cert_keys and password_keys:
+        if len(cert_keys) > 0 and len(password_keys) > 0:
             raise ResultLoggerPluginError(
                 "Specify exactly one authentication method: certificate files "
                 "or username and password."
