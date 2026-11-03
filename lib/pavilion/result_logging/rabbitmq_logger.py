@@ -418,7 +418,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
             raise ResultLoggerPluginError(
                 "Failed to connect to RabbitMQ: {}".format(err)
             ) from err
-            
+
         return RabbitMQLogger(client, outfile)
 
 
@@ -447,7 +447,7 @@ class RabbitMQLogger(ResultLogger):
         ) as err:
             raise ResultLoggerPluginError(
                 f"Failed to publish result to RabbitMQ: {err}"
-            ) from err        
+            ) from err
         except TypeError as err:
             raise ResultLoggerPluginError(
                 "Error serializing results as JSON: {}".format(err)) from err
