@@ -222,7 +222,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         params_file = config.get("params_file")
         inline_keys = [key for key in RABBITMQ_PARAM_KEYS if key in config]
 
-        if params_file is not None and inline_keys:
+        if params_file is not None and len(inline_keys) > 0:
             raise ResultLoggerPluginError(
                 "Specify either 'params_file' or inline RabbitMQ connection "
                 "parameters, not both."
@@ -245,10 +245,6 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                         params_path, err
                     )
                 )
-            if not isinstance(params, dict):
-                raise ResultLoggerPluginError(
-                    "RabbitMQ params_file must contain a JSON object."
-            )
         elif len(inline_keys) > 0:
             params = {key: config.get(key) for key in RABBITMQ_PARAM_KEYS}
             opt_params = {key: config.get(key) for key in OPTIONAL_PARAM_KEYS if key in config}
@@ -315,7 +311,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                         "'{}' must be an existing file: {}".format(key, cert_path)
                     )
             auth_params = {key: params[key] for key in CERT_FILE_KEYS}
-        elif password_keys:
+        elif len(password_keys) > 0:
             if not all(params.get(key) for key in PASSWORD_PARAM_KEYS):
                 raise ResultLoggerPluginError(
                     "Password authentication requires both username and password."
