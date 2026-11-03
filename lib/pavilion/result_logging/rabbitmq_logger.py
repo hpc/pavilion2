@@ -268,7 +268,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         # 'exchange' and 'routing_key' can be empty, but need to be there
         missing = [key for key in PUBLISH_PARAM_KEYS if key not in params]
-        if missing:
+        if len(missing) > 0:
             raise ResultLoggerPluginError(
                 "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
             )
