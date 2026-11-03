@@ -524,6 +524,32 @@ class RabbitMQLoggerTests(PavTestCase):
         self.assertIs(logger.client, client_cls.return_value)
         self.assertIs(logger.outfile, outfile)
 
+    def test_factory_make_logger_handles_failed_connection(self):
+        params = self._connection_params()
+        factory = self.rabbitmq_logger.RabbitMQLoggerFactory()
+        config = {"plugin": "rabbitmq"}
+        config.update(params)
+        connect_error = self.rabbitmq_logger.pika_exceptions.AMQPConnectionError(
+            "connection refused"
+        )
+
+        with mock.patch.object(
+            self.rabbitmq_logger, "RabbitMQClient", autospec=True
+        ) as client_cls:
+            client_cls.return_value.connect.side_effect = connect_error
+            with self.assertRaisesRegex(
+                self.rabbitmq_logger.ResultLoggerPluginError,
+                "Failed to connect to RabbitMQ",
+            ) as err:
+                logger = factory.make_logger(
+                    config,
+                    "s1"
+                )
+
+        client_cls.assert_called_once()
+        client_cls.return_value.connect.assert_called_once_with(params)
+        self.assertIs(err.exception.__cause__, connect_error)
+
     def test_logger_log_sends_results_and_writes_status(self):
         client = mock.MagicMock()
         outfile = io.StringIO()

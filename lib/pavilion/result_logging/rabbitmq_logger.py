@@ -409,7 +409,16 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
     ) -> "RabbitMQLogger":
         # One persistent client per logger (and therefore per series).
         client = RabbitMQClient()
-        client.connect(self.get_connection_params(config))
+        try:
+            client.connect(self.get_connection_params(config))
+        except (
+            pika_exceptions.AMQPConnectionError,
+            pika_exceptions.AMQPChannelError
+        ) as err:
+            raise ResultLoggerPluginError(
+                "Failed to connect to RabbitMQ: {}".format(err)
+            ) from err
+            
         return RabbitMQLogger(client, outfile)
 
 
