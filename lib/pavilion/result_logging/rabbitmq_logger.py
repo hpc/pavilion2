@@ -261,7 +261,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
 
         # verify all params are there
         missing = [key for key in (SERVER_PARAM_KEYS) if not params.get(key)]
-        if missing:
+        if len(missing) > 0:
             raise ResultLoggerPluginError(
                 "Missing required RabbitMQ parameter(s): {}.".format(", ".join(missing))
             )
