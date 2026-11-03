@@ -249,7 +249,7 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
                 raise ResultLoggerPluginError(
                     "RabbitMQ params_file must contain a JSON object."
             )
-        elif inline_keys:
+        elif len(inline_keys) > 0:
             params = {key: config.get(key) for key in RABBITMQ_PARAM_KEYS}
             opt_params = {key: config.get(key) for key in OPTIONAL_PARAM_KEYS if key in config}
             if opt_params:
