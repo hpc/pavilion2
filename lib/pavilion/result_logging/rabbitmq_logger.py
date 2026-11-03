@@ -45,8 +45,9 @@ OPTIONAL_PARAM_KEYS = ("heartbeat",)
 class RabbitMQClient:
     """Thin wrapper around ``pika`` using certificate or password credentials.
 
-    The constructor accepts either certificate or password authentication
-    parameters. Certificate authentication uses TLS client certificates::
+    The .connect() method accepts either certificate or password authentication
+    parameters for creating the connection. Certificate authentication uses TLS
+    client certificates::
 
         {
             "ca_cert_file": "/path/to/ca.pem",
@@ -71,13 +72,27 @@ class RabbitMQClient:
             "password": "pav-password"
         }
     """
+    def __init__(self):
+        self.connection = None
+        self.channel = None
+        self.mq_exchange = None
+        self.mq_routing_key = None
+        self.properties = None
 
-    def __init__(self, params: Dict[str, Any]):
+    def connect(self, params: Dict[str, Any]):
         """Open a persistent TLS-secured connection using ``params``.
+
+        A client can only establish one connection. Calling ``connect`` on an
+        already-connected client raises :class:`ResultLoggerPluginError`.
 
         Any exception during connection bubbles up to the caller – the logger
         will catch it and emit a warning.
         """
+        if self.connection is not None:
+            raise ResultLoggerPluginError(
+                "RabbitMQ client is already connected."
+            )
+
         connection_args = {
             "host": params["host"],
             "port": params["port"],
@@ -113,12 +128,18 @@ class RabbitMQClient:
     # ---------------------------------------------------------------------
     def send_as_string(self, message: str) -> None:
         """Publish *message* (a plain string) to the configured exchange."""
-        self.channel.basic_publish(
-            exchange=self.mq_exchange,
-            routing_key=self.mq_routing_key,
-            body=message,
-            properties=self.properties,
-        )
+        if self.channel:
+            self.channel.basic_publish(
+                exchange=self.mq_exchange,
+                routing_key=self.mq_routing_key,
+                body=message,
+                properties=self.properties,
+            )
+        else:
+            raise ResultLoggerPluginError(
+                "No RabbitMQ connection available to send to. "
+                "Please open a connection before sending."
+            )
 
     def send_as_json(self, my_dict: dict) -> None:
         """Serialize *my_dict* to JSON and delegate to ``send_as_string``."""
@@ -131,12 +152,13 @@ class RabbitMQClient:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            self.connection.close()
-        except pika_exceptions.AMQPConnectionError:
-            # The connection is already closed or lost, so cleanup is complete. There is
-            # nothing useful to recover here, but this prevents nasty terminations in Pavilion.
-            pass
+        if self.connection:
+            try:
+                self.connection.close()
+            except pika_exceptions.AMQPConnectionError:
+                # The connection is already closed or lost, so cleanup is complete. There is
+                # nothing useful to recover here, but this prevents nasty terminations in Pavilion.
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -386,7 +408,8 @@ class RabbitMQLoggerFactory(ResultLoggerPlugin):
         outfile: Optional[TextIO] = None,
     ) -> "RabbitMQLogger":
         # One persistent client per logger (and therefore per series).
-        client = RabbitMQClient(self.get_connection_params(config))
+        client = RabbitMQClient()
+        client.connect(self.get_connection_params(config))
         return RabbitMQLogger(client, outfile)
 
 

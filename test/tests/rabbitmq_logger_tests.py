@@ -113,7 +113,8 @@ class RabbitMQLoggerTests(PavTestCase):
                     self.rabbitmq_logger, "BasicProperties", return_value=properties
                 )
             )
-            client = self.rabbitmq_logger.RabbitMQClient(params)
+            client = self.rabbitmq_logger.RabbitMQClient()
+            client.connect(params)
 
         create_context.assert_called_once_with(cafile=params["ca_cert_file"])
         context.load_cert_chain.assert_called_once_with(
@@ -180,7 +181,8 @@ class RabbitMQLoggerTests(PavTestCase):
                 )
             )
 
-            self.rabbitmq_logger.RabbitMQClient(params)
+            client = self.rabbitmq_logger.RabbitMQClient()
+            client.connect(params)
 
         create_context.assert_not_called()
         external_credentials_cls.assert_not_called()
@@ -211,6 +213,18 @@ class RabbitMQLoggerTests(PavTestCase):
             body="plain message",
             properties=mock.sentinel.properties,
         )
+
+    def test_client_rejects_second_connection_attempt(self):
+        client = self.rabbitmq_logger.RabbitMQClient()
+        client.connection = mock.sentinel.connection
+
+        with self.assertRaisesRegex(
+            self.rabbitmq_logger.ResultLoggerPluginError,
+            "already connected",
+        ):
+            client.connect(self._connection_params())
+
+        self.assertIs(client.connection, mock.sentinel.connection)
 
     def test_client_context_manager_returns_client_and_closes_connection(self):
         client = self.rabbitmq_logger.RabbitMQClient.__new__(
@@ -499,7 +513,8 @@ class RabbitMQLoggerTests(PavTestCase):
                 outfile=outfile,
             )
 
-        client_cls.assert_called_once_with(params)
+        client_cls.assert_called_once()
+        client_cls.return_value.connect.assert_called_once_with(params)
         self.assertIsInstance(logger, self.rabbitmq_logger.RabbitMQLogger)
         self.assertIs(logger.client, client_cls.return_value)
         self.assertIs(logger.outfile, outfile)
