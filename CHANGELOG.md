@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
 or JSON.
 - Added a scheduler plugin for the PBS scheduler.
+- PBS: optional `mem` and `ngpus` select keys, with `sched.mem` and `sched.ngpus` variables.
+- PBS: `schedule.reservation` support; jobs go to the reservation's queue.
+- PBS: `exclusive` takes a literal place spec (e.g. `excl:vscatter`) as well as a boolean.
+- PBS: jobs with no `queue` use the server's default queue, and `all_queue_nodes` counts its nodes.
+- PBS: multi-vnode hosts are counted by their vnodes, not the host that contains them.
+- PBS: `-j oe`, so stderr goes to the job's output file instead of the submit directory.
+- PBS: `all_queue_nodes` refuses to submit when no node is free, instead of `select=0`.
 
 ### 2.6.2
 
