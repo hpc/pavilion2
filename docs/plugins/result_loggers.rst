@@ -56,9 +56,10 @@ The RabbitMQ logger sends each test result to a RabbitMQ exchange. Configure it 
 The path may be absolute or relative. Do not specify both forms.
 
 All configurations require ``host``, ``port``, ``vhost``, ``exchange``, and ``routing_key``.
-The ``exchange`` and ``routing_key`` values may be empty. Select one authentication method:
-TLS client certificates or a username/password pair.
+The ``exchange`` and ``routing_key`` values may be empty. An optional ``heartbeat`` parameter
+may be specified to change the heartbeat interval (in seconds) from its default value of 60 sec.
 
+Select one authentication method: TLS client certificates or a username/password pair.
 Certificate authentication requires ``ca_cert_file``, ``cert_file``, and ``key_file``. The
 certificate file paths must be absolute paths to existing files. It uses TLS and external
 credentials.
