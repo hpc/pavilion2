@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a `--format` flag to `pav show`, which allows presentation of output as a list, table,
 or JSON.
 - Added a scheduler plugin for the PBS scheduler.
+- Added a new results logger that can log (i.e. send) the test results to a RabbitMQ exchange.
+  Please consult the documentation for details on how to use it.
 
 ### 2.6.2
 
