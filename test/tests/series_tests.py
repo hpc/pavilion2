@@ -353,6 +353,10 @@ class SeriesTests(PavTestCase):
             else:
                 self.assertEqual(test.result, None)
 
+        # Check that the info object lists the proper number of errors.
+        series_info = series.SeriesInfo(self.pav_cfg, series_obj.path)
+        self.assertEqual(series_info.errors, 9)
+
     def test_series_conditionals_only_if_ok(self):
         """Test that adding a conditional that always matches produces tests that
         run when expected."""
