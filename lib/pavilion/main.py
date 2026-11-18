@@ -81,7 +81,7 @@ def main():
     commands.get_command(partial_args.command_name)
 
     # Get the real argument parser and setup command arguments.
-    parser = arguments.get_parser()
+    parser = arguments.get_parser(add_commands=False)
 
     # Now that we've loaded the command (which adds its subparser to the main
     # parser), we'll reparse the args for real.

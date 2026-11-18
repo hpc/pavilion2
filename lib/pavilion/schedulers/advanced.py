@@ -4,6 +4,7 @@ algorithms, and other advanced features."""
 import collections
 import pprint
 from abc import ABC
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Tuple, List, Any, Union, Dict, FrozenSet, NewType, Optional
 
@@ -90,6 +91,10 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
                 typically on heterogeneous systems."""
 
         raise NotImplementedError("This must be implemented by the scheduler plugin.")
+
+    def _transform_raw_node_data_wrapper(self, args: Tuple):
+        """Handles the arg list as a tuple of args for passing to parallel functions."""
+        return self._transform_raw_node_data(*args)
 
     def _get_initial_vars(self, sched_config: dict) -> SchedulerVariables:
         """Get initial variables (and chunks) for this scheduler."""
@@ -193,9 +198,14 @@ class SchedulerPluginAdvanced(SchedulerPlugin, ABC):
 
         nodes = Nodes({})
 
-        for raw_node in raw_node_data:
-            node_info = self._transform_raw_node_data(sched_config, raw_node,
-                                                      extra)
+        with ProcessPoolExecutor(max_workers=10) as executor:
+            results = executor.map(
+                self._transform_raw_node_data_wrapper,
+                ((sched_config, raw_node, extra) for raw_node in raw_node_data),
+                chunksize=200,
+            )
+
+        for node_info in results:
             if 'name' not in node_info:
                 raise RuntimeError("Advanced schedulers must always return a node "
                                    "'name' key when transforming raw node data. "
