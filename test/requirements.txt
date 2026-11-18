@@ -1,2 +1,2 @@
 matplotlib > 3
-pylint==2.13.9
+pylint==4.0.9
