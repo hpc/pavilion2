@@ -203,9 +203,8 @@ class ConfigCommand(Command):
             raise ConfigCmdError("Given label '{}' already exists in the pav config."
                                  .format(label))
 
-        # This should fail if it already exists.
         try:
-            path.mkdir()
+            path.mkdir(parents=True, exist_ok=True)
         except OSError as err:
             raise ConfigCmdError("Could not create specified directory", err)
 
@@ -247,7 +246,7 @@ class ConfigCommand(Command):
         for subdir in ('hosts', 'modes', 'platforms', 'plugins', 'collections', 'suites'):
             subdir = path/subdir
             try:
-                subdir.mkdir()
+                subdir.mkdir(exist_ok=True)
             except OSError as err:
                 shutil.rmtree(path)
                 raise ConfigCmdError("Could not make config subdir '{}'".format(subdir), err)
